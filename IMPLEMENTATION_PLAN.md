@@ -421,22 +421,24 @@ class ToolRegistry:
 
 ---
 
-## Phase 5: Built-in Tools
+## Phase 5: Built-in Tools ✅
 
 **Goal**: Implement core tools matching gemini-cli functionality
 
+**Status**: COMPLETE (2026-01-23) - ask_user deferred to UI phase
+
 ### Tasks
 
-- [ ] **5.1** `read_file` - Read file contents with line ranges
-- [ ] **5.2** `write_file` - Create/overwrite files
-- [ ] **5.3** `edit_file` - Precise text replacements
-- [ ] **5.4** `ls` - List directory contents
-- [ ] **5.5** `glob` - Pattern-based file search
-- [ ] **5.6** `grep` - Text/regex search in files
-- [ ] **5.7** `shell` - Execute shell commands
-- [ ] **5.8** `web_fetch` - Fetch URL contents
-- [ ] **5.9** `ask_user` - Request user input
-- [ ] **5.10** Add tests for each tool
+- [x] **5.1** `read_file` - Read file contents with line ranges
+- [x] **5.2** `write_file` - Create/overwrite files
+- [x] **5.3** `edit_file` - Precise text replacements
+- [x] **5.4** `ls` - List directory contents
+- [x] **5.5** `glob` - Pattern-based file search
+- [x] **5.6** `grep` - Text/regex search in files
+- [x] **5.7** `shell` - Execute shell commands
+- [x] **5.8** `web_fetch` - Fetch URL contents
+- [ ] **5.9** `ask_user` - Request user input (deferred to UI phase)
+- [x] **5.10** Add tests for each tool (100% coverage, 206 tests)
 
 ### Example: ReadFile Tool
 

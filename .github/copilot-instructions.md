@@ -8,7 +8,8 @@ MLG-CLI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. 
 - **Phase 2**: Provider System ✅
 - **Phase 3**: Core Agent Loop ✅
 - **Phase 4**: Tool System ✅
-- **Phases 5-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
+- **Phase 5**: Built-in Tools ✅
+- **Phases 6-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
 
 ## Architecture Overview
 
@@ -232,16 +233,75 @@ mlg-cli/
 │   ├── __main__.py             # Entry point for python -m mlg
 │   ├── version.py              # Version info (0.1.0)
 │   ├── cli/app.py              # CLI application (click)
-│   └── providers/              # Provider implementations
-│       ├── base.py             # Message, ToolCall, StreamChunk, ModelProvider
-│       ├── openai_compat.py    # OpenAICompatibleProvider
-│       ├── deepseek.py         # DeepSeekProvider
-│       └── registry.py         # ProviderRegistry
+│   ├── core/                   # Core agent system
+│   │   ├── events.py           # EventType, AgentEvent
+│   │   └── agent.py            # Agent class
+│   ├── providers/              # Provider implementations
+│   │   ├── base.py             # Message, ToolCall, StreamChunk, ModelProvider
+│   │   ├── openai_compat.py    # OpenAICompatibleProvider
+│   │   ├── deepseek.py         # DeepSeekProvider
+│   │   └── registry.py         # ProviderRegistry
+│   └── tools/                  # Tool system
+│       ├── base.py             # Tool ABC, ToolKind, ToolResult
+│       ├── registry.py         # ToolRegistry
+│       └── builtins/           # Built-in tools
+│           ├── file_read.py    # ReadFileTool
+│           ├── file_write.py   # WriteFileTool
+│           ├── file_edit.py    # EditFileTool
+│           ├── ls.py           # LsTool
+│           ├── glob_tool.py    # GlobTool
+│           ├── grep.py         # GrepTool
+│           ├── shell.py        # ShellTool
+│           └── web_fetch.py    # WebFetchTool
 ├── tests/                      # Test suite (mirrors src structure)
 ├── scripts/ci.sh               # CI pipeline script
 ├── pyproject.toml              # Project configuration
 └── IMPLEMENTATION_PLAN.md      # 12-phase roadmap
 ```
+
+## Development Workflow
+
+This project follows **Test-Driven Development (TDD)** with strict quality requirements:
+
+### Standard Development Cycle
+
+1. **Write tests first** - Create test cases for the feature before implementation
+2. **Implement the feature** - Write the minimum code to pass tests
+3. **Run CI checks** - Execute `./scripts/ci.sh` to verify:
+   - Ruff linting passes
+   - Mypy type checking passes
+   - All tests pass with 100% coverage
+   - Doctests pass
+   - All public APIs have docstrings
+4. **Update documentation** - Update IMPLEMENTATION_PLAN.md and copilot-instructions.md
+5. **Commit and push** - Commit with descriptive message, push to GitHub
+
+### CI Pipeline (`scripts/ci.sh`)
+
+```bash
+./scripts/ci.sh  # Runs all checks in order:
+# 1. ruff check src/ tests/        - Linting
+# 2. mypy src/                      - Type checking
+# 3. pytest --cov-fail-under=100   - Tests with 100% coverage
+# 4. python -m doctest              - Doctests
+# 5. Check all public APIs have docstrings
+```
+
+### Quality Requirements
+
+- **100% test coverage** - All code paths must be tested
+- **100% documentation coverage** - All public functions/classes have docstrings
+- **All linting passes** - No ruff or mypy errors
+- **Google-style docstrings** - Consistent documentation format
+
+### Adding New Features
+
+1. Create test file in `tests/` matching source structure
+2. Write test cases covering all functionality
+3. Implement feature in `src/mlg/`
+4. Add exports to `__init__.py` files
+5. Run `./scripts/ci.sh` until all checks pass
+6. Update relevant documentation
 
 ## Implementation Reference
 
