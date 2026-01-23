@@ -9,7 +9,9 @@ MLG-CLI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. 
 - **Phase 3**: Core Agent Loop ✅
 - **Phase 4**: Tool System ✅
 - **Phase 5**: Built-in Tools ✅
-- **Phases 6-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
+- **Phase 6**: Configuration System ✅
+- **Phase 7**: Terminal UI ✅
+- **Phases 8-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
 
 ## Architecture Overview
 
@@ -191,8 +193,78 @@ registry.set_confirmation_handler(confirm)
 registry.add_auto_approve_policy("write_file")
 ```
 
-### Configuration Hierarchy (Planned)
-Settings merge: defaults < `~/.mlg/settings.yaml` < `.mlg/settings.yaml` < env vars. Use `MLG_PROVIDER` to override default provider.
+### Configuration System (Implemented)
+
+Settings are loaded hierarchically with later sources overriding earlier ones:
+
+```python
+from mlg.config import load_settings, Settings, ContextLoader
+
+# Load settings (automatically discovers and merges files)
+settings = load_settings()
+
+# Access provider settings
+print(settings.providers.default)  # "deepseek"
+print(settings.providers.deepseek)  # {"model": "deepseek-chat"}
+
+# Access tool settings
+print(settings.tools.shell_timeout)  # 60
+print(settings.tools.auto_approve_read)  # True
+
+# Load context files (MLG.md)
+loader = ContextLoader()
+context = loader.load()  # Concatenated content from all MLG.md files
+```
+
+**Settings Precedence** (later overrides earlier):
+1. Defaults (Pydantic model defaults)
+2. User settings (`~/.mlg/settings.yaml`)
+3. Workspace settings (`.mlg/settings.yaml`)
+4. Environment variables (`MLG_PROVIDER`, `MLG_MODEL`)
+
+**Context File Discovery** (MLG.md):
+- Global: `~/.mlg/MLG.md`
+- Ancestors: Walk up from cwd to git root
+- Subdirectories: Optional, respects `.gitignore`
+
+### Terminal UI (Implemented)
+
+The CLI provides a Rich-based terminal interface with theming and commands:
+
+```python
+from mlg.cli import OutputRenderer, Theme, ThemeManager
+from mlg.cli.commands import CommandRegistry, parse_command
+from mlg.cli.commands.builtins import get_builtin_commands
+
+# Create themed output renderer
+renderer = OutputRenderer()
+renderer.success("Operation completed")
+renderer.warning("Be careful")
+renderer.error("Something went wrong")
+renderer.markdown("# Heading\n\nSome **bold** text")
+
+# Parse slash commands
+result = parse_command("/help")  # ("help", [])
+result = parse_command("/model gpt-4")  # ("model", ["gpt-4"])
+
+# Register and execute commands
+registry = CommandRegistry()
+for cmd in get_builtin_commands():
+    registry.register(cmd)
+
+# Check input types
+from mlg.cli import is_slash_command, is_shell_command, expand_at_references
+
+is_slash_command("/help")  # True
+is_shell_command("!ls")    # True
+await expand_at_references("Check @file.txt")  # Expands file content
+```
+
+**Built-in Commands:**
+- `/help` - Show available commands
+- `/quit` - Exit the CLI
+- `/clear` - Clear the screen
+- `/tools` - List available tools
 
 ## Conventions
 
@@ -232,10 +304,20 @@ mlg-cli/
 │   ├── __init__.py             # Package init, exports __version__
 │   ├── __main__.py             # Entry point for python -m mlg
 │   ├── version.py              # Version info (0.1.0)
-│   ├── cli/app.py              # CLI application (click)
+│   ├── cli/                    # CLI and UI layer
+│   │   ├── app.py              # CLI application (click)
+│   │   ├── console.py          # OutputRenderer, Theme, ThemeManager
+│   │   ├── input.py            # InputHandler, @file expansion, !shell
+│   │   └── commands/           # Slash command system
+│   │       ├── __init__.py     # Command, CommandRegistry, parse_command
+│   │       └── builtins.py     # HelpCommand, QuitCommand, ClearCommand, ToolsCommand
 │   ├── core/                   # Core agent system
 │   │   ├── events.py           # EventType, AgentEvent
 │   │   └── agent.py            # Agent class
+│   ├── config/                 # Configuration system
+│   │   ├── schema.py           # Settings, ProviderSettings, ToolSettings, UISettings
+│   │   ├── settings.py         # load_settings, discover_settings_files, deep_merge
+│   │   └── context.py          # ContextLoader for MLG.md files
 │   ├── providers/              # Provider implementations
 │   │   ├── base.py             # Message, ToolCall, StreamChunk, ModelProvider
 │   │   ├── openai_compat.py    # OpenAICompatibleProvider

@@ -1,1 +1,26 @@
-"""CLI package for MLG."""
+"""CLI package for MLG.
+
+This module provides the terminal UI with Rich console output,
+prompt_toolkit input, and slash command support.
+"""
+
+from mlg.cli.console import OutputRenderer, Theme, ThemeManager, get_default_theme
+from mlg.cli.input import (
+    InputHandler,
+    expand_at_references,
+    is_shell_command,
+    is_slash_command,
+    parse_shell_command,
+)
+
+__all__ = [
+    "InputHandler",
+    "OutputRenderer",
+    "Theme",
+    "ThemeManager",
+    "expand_at_references",
+    "get_default_theme",
+    "is_shell_command",
+    "is_slash_command",
+    "parse_shell_command",
+]
