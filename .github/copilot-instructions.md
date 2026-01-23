@@ -7,7 +7,8 @@ MLG-CLI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. 
 - **Phase 1**: Project Foundation ✅
 - **Phase 2**: Provider System ✅
 - **Phase 3**: Core Agent Loop ✅
-- **Phases 4-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
+- **Phase 4**: Tool System ✅
+- **Phases 5-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
 
 ## Architecture Overview
 
@@ -135,10 +136,59 @@ async for event in agent.continue_with_tool_results():
 - `ERROR` - Error occurred
 - `FINISHED` - Stream complete
 
-### Tool System with Confirmation Policies (Planned)
+### Tool System
+
 Tools extend the `Tool` ABC with a `ToolKind` that determines auto-approval:
 - `ToolKind.READ` → auto-approved (read_file, ls, glob)
 - `ToolKind.WRITE`/`EXECUTE`/`NETWORK` → require confirmation
+
+```python
+from mlg.tools import Tool, ToolKind, ToolResult, ToolRegistry, ConfirmationRequest
+
+# Define a custom tool
+class MyTool(Tool):
+    @property
+    def name(self) -> str:
+        return "my_tool"
+    
+    @property
+    def description(self) -> str:
+        return "Does something useful"
+    
+    @property
+    def parameters(self) -> dict[str, object]:
+        return {
+            "type": "object",
+            "properties": {"input": {"type": "string"}},
+            "required": ["input"],
+        }
+    
+    @property
+    def kind(self) -> ToolKind:
+        return ToolKind.READ  # Auto-approved
+    
+    async def execute(self, **params: object) -> ToolResult:
+        return ToolResult(content=f"Result: {params.get('input')}")
+
+# Register and use tools
+registry = ToolRegistry()
+registry.register(MyTool())
+
+# Get declarations for LLM
+declarations = registry.get_declarations()
+
+# Execute a tool
+result = await registry.execute("my_tool", {"input": "hello"})
+
+# Set confirmation handler for non-read tools
+async def confirm(request: ConfirmationRequest) -> bool:
+    return True  # Auto-approve in this example
+
+registry.set_confirmation_handler(confirm)
+
+# Auto-approve specific tools (bypass confirmation)
+registry.add_auto_approve_policy("write_file")
+```
 
 ### Configuration Hierarchy (Planned)
 Settings merge: defaults < `~/.mlg/settings.yaml` < `.mlg/settings.yaml` < env vars. Use `MLG_PROVIDER` to override default provider.
