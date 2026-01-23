@@ -79,6 +79,7 @@ ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # do not perform function calls in argument defaults
     "C901",   # too complex
+    "ARG002", # Unused method argument - needed for pytest fixtures with side effects
 ]
 
 [tool.ruff.lint.isort]
