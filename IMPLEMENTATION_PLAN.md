@@ -831,17 +831,17 @@ class McpClient:
 
 ---
 
-## Phase 10: Extensions & Plugins
+## Phase 10: Extensions & Plugins ✅
 
 **Goal**: Allow third-party extensions
 
 ### Tasks
 
-- [ ] **10.1** Define `Extension` base class
-- [ ] **10.2** Implement entry point discovery
-- [ ] **10.3** Implement directory-based extensions
-- [ ] **10.4** Create extension loading system
-- [ ] **10.5** Implement `/extensions` command
+- [x] **10.1** Define `Extension` base class
+- [x] **10.2** Implement entry point discovery
+- [x] **10.3** Implement directory-based extensions
+- [x] **10.4** Create extension loading system
+- [x] **10.5** Implement `/extensions` command
 
 ### Extension Interface
 
@@ -853,6 +853,8 @@ class Extension(ABC):
     def name(self) -> str: ...
     @property
     def version(self) -> str: ...
+    @property
+    def description(self) -> str: ...
     
     def get_tools(self) -> list[Tool]:
         """Return tools provided by this extension"""
@@ -878,12 +880,29 @@ my_extension = "my_package:MyExtension"
 ~/.mlg/extensions/my-ext/extension.py
 ```
 
+### ExtensionManager Usage
+
+```python
+from mlg.extensions import Extension, ExtensionManager
+from pathlib import Path
+
+# Create manager and discover extensions
+manager = ExtensionManager()
+manager.discover_entry_points()  # From installed packages
+manager.discover_directory(Path.home() / ".mlg" / "extensions")
+
+# Use discovered extensions
+tools = manager.get_all_tools()
+commands = manager.get_all_commands()
+context = manager.get_combined_context()
+```
+
 ### Acceptance Criteria
 
-- Entry point extensions load
-- Directory extensions load
-- Extension tools register correctly
-- Extension commands work
+- ✅ Entry point extensions load
+- ✅ Directory extensions load
+- ✅ Extension tools register correctly
+- ✅ Extension commands work
 
 ---
 
@@ -941,14 +960,17 @@ class HookRunner:
 
 ### Tasks
 
-- [ ] **12.1** Comprehensive test suite (>80% coverage)
-- [ ] **12.2** Documentation site (mkdocs)
-- [ ] **12.3** PyPI packaging and publishing
-- [ ] **12.4** GitHub Actions CI/CD
-- [ ] **12.5** Multiple theme support
-- [ ] **12.6** Performance optimization
-- [ ] **12.7** Error handling audit
-- [ ] **12.8** Security review
+- [ ] **12.1** Interactive REPL main loop (wire Agent + InputHandler + OutputRenderer)
+- [ ] **12.2** Headless mode with `--prompt` argument
+- [ ] **12.3** Session auto-save on graceful exit
+- [ ] **12.4** Comprehensive test suite (>80% coverage)
+- [ ] **12.5** Documentation site (mkdocs)
+- [ ] **12.6** PyPI packaging and publishing
+- [ ] **12.7** GitHub Actions CI/CD
+- [ ] **12.8** Multiple theme support
+- [ ] **12.9** Performance optimization
+- [ ] **12.10** Error handling audit
+- [ ] **12.11** Security review
 
 ### Documentation
 

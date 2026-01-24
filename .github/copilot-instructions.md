@@ -13,7 +13,8 @@ MLG-CLI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. 
 - **Phase 7**: Terminal UI ✅
 - **Phase 8**: Session Management ✅
 - **Phase 9**: MCP Integration ✅
-- **Phases 10-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
+- **Phase 10**: Extensions & Plugins ✅
+- **Phases 11-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
 
 ## Architecture Overview
 
@@ -24,6 +25,7 @@ src/mlg/
 ├── providers/  # Model providers: OpenAICompatible base, DeepSeek, Anthropic, Ollama
 ├── tools/      # Built-in tools: read_file, write_file, shell, grep, glob, web_fetch
 ├── mcp/        # MCP integration: McpClient, McpManager, McpTool wrapper
+├── extensions/ # Plugin system: Extension ABC, ExtensionManager, /extensions command
 ├── config/     # Pydantic settings, hierarchical YAML loading, MLG.md context
 └── utils/      # Utility functions and helpers
 ```
@@ -370,6 +372,51 @@ mcp_servers:
 - `McpTool` - Wraps MCP tools as internal Tool instances
 - `McpToolResult` - Result from MCP tool execution
 
+### Extensions System (Implemented)
+
+Extensions allow third-party plugins to add tools, commands, and context:
+
+```python
+from mlg.extensions import Extension, ExtensionManager
+from mlg.tools.base import Tool
+from mlg.cli.commands import Command
+
+# Define a custom extension
+class MyExtension(Extension):
+    @property
+    def name(self) -> str:
+        return "my_extension"
+
+    @property
+    def version(self) -> str:
+        return "1.0.0"
+
+    @property
+    def description(self) -> str:
+        return "My custom extension"
+
+    def get_tools(self) -> list[Tool]:
+        return [MyCustomTool()]
+
+    def get_commands(self) -> list[Command]:
+        return [MyCustomCommand()]
+
+    def get_context(self) -> str:
+        return "Additional system prompt context"
+
+# Load extensions
+manager = ExtensionManager()
+manager.discover_entry_points()  # From installed packages
+manager.discover_directory(Path.home() / ".mlg" / "extensions")
+```
+
+**Extension Discovery:**
+- Entry points: Register in `pyproject.toml` under `[project.entry-points."mlg.extensions"]`
+- Directory: Place `extension.py` with Extension subclass in `~/.mlg/extensions/<name>/`
+
+**Built-in Commands:**
+- `/extensions` - List loaded extensions with name, version, and description
+
 ## Conventions
 
 - **Pydantic v2** for all data models and settings schemas
@@ -416,7 +463,8 @@ mlg-cli/
 │   │       ├── __init__.py     # Command, CommandRegistry, parse_command
 │   │       ├── builtins.py     # HelpCommand, QuitCommand, ClearCommand, ToolsCommand
 │   │       ├── chat.py         # ChatCommand for session management
-│   │       └── mcp.py          # McpCommand for MCP server management
+│   │       ├── mcp.py          # McpCommand for MCP server management
+│   │       └── extensions.py   # ExtensionsCommand for extension listing
 │   ├── core/                   # Core agent system
 │   │   ├── events.py           # EventType, AgentEvent
 │   │   ├── agent.py            # Agent class
@@ -425,6 +473,9 @@ mlg-cli/
 │   │   ├── schema.py           # Settings, ProviderSettings, ToolSettings, UISettings
 │   │   ├── settings.py         # load_settings, discover_settings_files, deep_merge
 │   │   └── context.py          # ContextLoader for MLG.md files
+│   ├── extensions/             # Extension/plugin system
+│   │   ├── base.py             # Extension ABC
+│   │   └── manager.py          # ExtensionManager, discovery
 │   ├── mcp/                    # MCP (Model Context Protocol) integration
 │   │   ├── config.py           # McpServerConfig
 │   │   ├── client.py           # McpClient, McpToolResult, McpToolDefinition
