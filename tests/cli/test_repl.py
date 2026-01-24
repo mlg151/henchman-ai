@@ -404,3 +404,166 @@ class TestReplRun:
             await repl.run()
 
         assert repl.running is False
+
+
+class TestSessionAutoSave:
+    """Tests for session auto-save functionality."""
+
+    @pytest.mark.anyio
+    async def test_auto_save_enabled_saves_session_on_exit(
+        self, tmp_path: Any
+    ) -> None:
+        """Test that session is saved on graceful exit when auto_save is True."""
+        from henchman.core.session import SessionManager
+
+        console = Console(file=StringIO(), force_terminal=True)
+        provider = MockProvider(["Hello!"])
+        session_dir = tmp_path / "sessions"
+        session_dir.mkdir()
+
+        manager = SessionManager(data_dir=session_dir)
+        config = ReplConfig(auto_save=True)
+
+        repl = Repl(provider=provider, console=console, config=config)
+        repl.session_manager = manager
+        repl.session = manager.create_session(project_hash="test-project")
+
+        # Add a message to the session
+        from henchman.core.session import SessionMessage
+
+        repl.session.messages.append(SessionMessage(role="user", content="Hello"))
+
+        # Run with /quit to exit gracefully
+        inputs = iter(["/quit"])
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=lambda: next(inputs)):
+            await repl.run()
+
+        # Verify session was saved
+        saved_sessions = list(session_dir.glob("*.json"))
+        assert len(saved_sessions) == 1
+
+    @pytest.mark.anyio
+    async def test_auto_save_disabled_does_not_save(self, tmp_path: Any) -> None:
+        """Test that session is not saved when auto_save is False."""
+        from henchman.core.session import SessionManager
+
+        console = Console(file=StringIO(), force_terminal=True)
+        provider = MockProvider(["Hello!"])
+        session_dir = tmp_path / "sessions"
+        session_dir.mkdir()
+
+        manager = SessionManager(data_dir=session_dir)
+        config = ReplConfig(auto_save=False)
+
+        repl = Repl(provider=provider, console=console, config=config)
+        repl.session_manager = manager
+        repl.session = manager.create_session(project_hash="test-project")
+
+        # Add a message to the session
+        from henchman.core.session import SessionMessage
+
+        repl.session.messages.append(SessionMessage(role="user", content="Hello"))
+
+        # Run with /quit
+        inputs = iter(["/quit"])
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=lambda: next(inputs)):
+            await repl.run()
+
+        # Verify session was NOT saved
+        saved_sessions = list(session_dir.glob("*.json"))
+        assert len(saved_sessions) == 0
+
+    @pytest.mark.anyio
+    async def test_auto_save_on_keyboard_interrupt(self, tmp_path: Any) -> None:
+        """Test that session is saved on Ctrl+C when auto_save is True."""
+        from henchman.core.session import SessionManager
+
+        console = Console(file=StringIO(), force_terminal=True)
+        provider = MockProvider()
+        session_dir = tmp_path / "sessions"
+        session_dir.mkdir()
+
+        manager = SessionManager(data_dir=session_dir)
+        config = ReplConfig(auto_save=True)
+
+        repl = Repl(provider=provider, console=console, config=config)
+        repl.session_manager = manager
+        repl.session = manager.create_session(project_hash="test-project")
+
+        # Add a message
+        from henchman.core.session import SessionMessage
+
+        repl.session.messages.append(SessionMessage(role="user", content="Hello"))
+
+        # Simulate Ctrl+C
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=KeyboardInterrupt):
+            await repl.run()
+
+        # Verify session was saved
+        saved_sessions = list(session_dir.glob("*.json"))
+        assert len(saved_sessions) == 1
+
+    @pytest.mark.anyio
+    async def test_auto_save_skips_empty_session(self, tmp_path: Any) -> None:
+        """Test that empty sessions are not saved."""
+        from henchman.core.session import SessionManager
+
+        console = Console(file=StringIO(), force_terminal=True)
+        provider = MockProvider()
+        session_dir = tmp_path / "sessions"
+        session_dir.mkdir()
+
+        manager = SessionManager(data_dir=session_dir)
+        config = ReplConfig(auto_save=True)
+
+        repl = Repl(provider=provider, console=console, config=config)
+        repl.session_manager = manager
+        repl.session = manager.create_session(project_hash="test-project")
+        # Don't add any messages
+
+        # Run with /quit
+        inputs = iter(["/quit"])
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=lambda: next(inputs)):
+            await repl.run()
+
+        # Verify empty session was NOT saved
+        saved_sessions = list(session_dir.glob("*.json"))
+        assert len(saved_sessions) == 0
+
+    @pytest.mark.anyio
+    async def test_session_messages_recorded_during_conversation(
+        self, tmp_path: Any
+    ) -> None:
+        """Test that messages are recorded to session during conversation."""
+        from henchman.core.session import SessionManager
+
+        console = Console(file=StringIO(), force_terminal=True)
+        provider = MockProvider(["I'm here to help!"])
+        session_dir = tmp_path / "sessions"
+        session_dir.mkdir()
+
+        manager = SessionManager(data_dir=session_dir)
+        config = ReplConfig(auto_save=True)
+
+        repl = Repl(provider=provider, console=console, config=config)
+        repl.session_manager = manager
+        repl.session = manager.create_session(project_hash="test-project")
+
+        # Run a conversation then quit
+        inputs = iter(["Hello assistant", "/quit"])
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=lambda: next(inputs)):
+            await repl.run()
+
+        # Load the saved session and check messages
+        saved_sessions = list(session_dir.glob("*.json"))
+        assert len(saved_sessions) == 1
+
+        import json
+
+        with open(saved_sessions[0]) as f:
+            session_data = json.load(f)
+
+        assert len(session_data["messages"]) >= 2
+        # First message should be user
+        assert session_data["messages"][0]["role"] == "user"
+        assert session_data["messages"][0]["content"] == "Hello assistant"

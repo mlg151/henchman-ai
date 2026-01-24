@@ -15,6 +15,7 @@ from henchman.cli.console import OutputRenderer
 from henchman.cli.input import expand_at_references, is_slash_command
 from henchman.core.agent import Agent
 from henchman.core.events import AgentEvent, EventType
+from henchman.core.session import Session, SessionManager, SessionMessage
 from henchman.providers.base import ModelProvider, ToolCall
 from henchman.tools.registry import ToolRegistry
 
@@ -82,6 +83,10 @@ class Repl:
 
         self.running = False
 
+        # Session management (can be set externally for testing)
+        self.session_manager: SessionManager | None = None
+        self.session: Session | None = None
+
     def _register_builtin_tools(self) -> None:
         """Register built-in tools with the registry."""
         from henchman.tools.builtins import (
@@ -131,6 +136,7 @@ class Repl:
                     break
         finally:
             self.running = False
+            self._auto_save_session()
             self._print_goodbye()
 
     def _print_welcome(self) -> None:
@@ -142,6 +148,17 @@ class Repl:
     def _print_goodbye(self) -> None:
         """Print goodbye message."""
         self.console.print("[dim]Goodbye![/]")
+
+    def _auto_save_session(self) -> None:
+        """Auto-save the session if enabled and session has content."""
+        if not self.config.auto_save:
+            return
+        if self.session_manager is None or self.session is None:
+            return
+        if len(self.session.messages) == 0:
+            return
+
+        self.session_manager.save(self.session)
 
     def _get_input(self) -> str:
         """Get input from the user.
@@ -227,21 +244,40 @@ class Repl:
         Args:
             user_input: The processed user input.
         """
+        # Record user message to session
+        if self.session is not None:
+            self.session.messages.append(SessionMessage(role="user", content=user_input))
+
+        # Collect assistant response
+        assistant_content: list[str] = []
+
         try:
             async for event in self.agent.run(user_input):
-                await self._handle_agent_event(event)
+                await self._handle_agent_event(event, assistant_content)
         except Exception as e:
             self.renderer.error(f"Error: {e}")
 
-    async def _handle_agent_event(self, event: AgentEvent) -> None:
+        # Record assistant response to session
+        if self.session is not None and assistant_content:
+            self.session.messages.append(
+                SessionMessage(role="assistant", content="".join(assistant_content))
+            )
+
+    async def _handle_agent_event(
+        self, event: AgentEvent, content_collector: list[str] | None = None
+    ) -> None:
         """Handle an event from the agent.
 
         Args:
             event: The agent event to handle.
+            content_collector: Optional list to collect content for session recording.
         """
         if event.type == EventType.CONTENT:
             # Stream content to console
             self.console.print(event.data, end="")
+            # Collect for session recording
+            if content_collector is not None and event.data:
+                content_collector.append(event.data)
 
         elif event.type == EventType.THOUGHT:
             # Show thinking in muted style
