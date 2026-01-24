@@ -1,8 +1,8 @@
-# MLG-CLI
+# Henchman-AI
 
 > A Model-Agnostic AI Agent CLI in Python
 
-MLG-CLI is a terminal-based AI agent that supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, Ollama) through a unified interface. Inspired by gemini-cli, built for extensibility.
+Henchman-AI is a terminal-based AI agent that supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, Ollama) through a unified interface. Inspired by gemini-cli, built for extensibility.
 
 ## Features
 
@@ -14,14 +14,14 @@ MLG-CLI is a terminal-based AI agent that supports multiple LLM providers (DeepS
 ## Installation
 
 ```bash
-pip install mlg-cli
+pip install henchman-ai
 ```
 
 Or install from source:
 
 ```bash
-git clone https://github.com/matthew/mlg-cli.git
-cd mlg-cli
+git clone https://github.com/matthew/henchman-ai.git
+cd henchman-ai
 pip install -e ".[dev]"
 ```
 
@@ -32,35 +32,35 @@ pip install -e ".[dev]"
 export DEEPSEEK_API_KEY="your-api-key"
 
 # Start the CLI
-mlg
+henchman
 
 # Or run with a prompt directly
-mlg --prompt "Explain this code" < file.py
+henchman --prompt "Explain this code" < file.py
 ```
 
 ## Usage
 
 ```bash
 # Show version
-mlg --version
+henchman --version
 
 # Show help
-mlg --help
+henchman --help
 
 # Interactive mode (default)
-mlg
+henchman
 
 # Headless mode with prompt
-mlg -p "Summarize README.md"
+henchman -p "Summarize README.md"
 ```
 
 ## Configuration
 
-MLG-CLI uses hierarchical configuration:
+Henchman-AI uses hierarchical configuration:
 
 1. Default settings
-2. User settings: `~/.mlg/settings.yaml`
-3. Workspace settings: `.mlg/settings.yaml`
+2. User settings: `~/.henchman/settings.yaml`
+3. Workspace settings: `.henchman/settings.yaml`
 4. Environment variables
 
 Example `settings.yaml`:

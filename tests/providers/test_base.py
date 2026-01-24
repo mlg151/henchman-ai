@@ -2,7 +2,7 @@
 
 import pytest
 
-from mlg.providers.base import (
+from henchman.providers.base import (
     FinishReason,
     Message,
     ModelProvider,

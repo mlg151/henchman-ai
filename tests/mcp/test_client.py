@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mlg.mcp.client import McpClient
-from mlg.mcp.config import McpServerConfig
+from henchman.mcp.client import McpClient
+from henchman.mcp.config import McpServerConfig
 
 
 class TestMcpClient:

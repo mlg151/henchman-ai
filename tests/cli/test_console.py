@@ -7,7 +7,7 @@ from io import StringIO
 import pytest
 from rich.console import Console
 
-from mlg.cli.console import (
+from henchman.cli.console import (
     OutputRenderer,
     Theme,
     ThemeManager,

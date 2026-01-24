@@ -2,13 +2,13 @@
 
 import pytest
 
-from mlg.tools.base import (
+from henchman.tools.base import (
     ConfirmationRequest,
     Tool,
     ToolKind,
     ToolResult,
 )
-from mlg.tools.registry import ToolRegistry
+from henchman.tools.registry import ToolRegistry
 
 
 class MockReadTool(Tool):

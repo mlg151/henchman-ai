@@ -7,9 +7,9 @@ from unittest.mock import patch
 import pytest
 from rich.console import Console
 
-from mlg.cli.repl import Repl, ReplConfig
-from mlg.core.events import AgentEvent, EventType
-from mlg.providers.base import Message, ModelProvider
+from henchman.cli.repl import Repl, ReplConfig
+from henchman.core.events import AgentEvent, EventType
+from henchman.providers.base import Message, ModelProvider
 
 
 class MockProvider(ModelProvider):
@@ -26,7 +26,7 @@ class MockProvider(ModelProvider):
     async def chat_completion_stream(
         self, messages: list[Message], tools: list[Any] | None = None, **kwargs: Any
     ) -> Any:
-        from mlg.providers.base import FinishReason, StreamChunk
+        from henchman.providers.base import FinishReason, StreamChunk
 
         response = self.responses[min(self._call_count, len(self.responses) - 1)]
         self._call_count += 1
@@ -157,7 +157,7 @@ class TestRepl:
 
         repl = Repl(provider=mock_provider, console=console)
         # Process with @ reference
-        with patch("mlg.cli.repl.expand_at_references") as mock_expand:
+        with patch("henchman.cli.repl.expand_at_references") as mock_expand:
             mock_expand.return_value = "Check this: file contents"
             await repl.process_input(f"Check @{test_file}")
             mock_expand.assert_called_once()
@@ -167,7 +167,7 @@ class TestRepl:
         self, mock_provider: MockProvider, console: Console
     ) -> None:
         """Test processing a tool call from the agent."""
-        from mlg.providers.base import FinishReason, StreamChunk, ToolCall
+        from henchman.providers.base import FinishReason, StreamChunk, ToolCall
 
         call_count = 0
 
@@ -190,7 +190,7 @@ class TestRepl:
 
         repl = Repl(provider=mock_provider, console=console)
         # Register a mock tool (different from built-in read_file)
-        from mlg.tools.base import Tool, ToolKind, ToolResult
+        from henchman.tools.base import Tool, ToolKind, ToolResult
 
         class MockTool(Tool):
             @property
@@ -252,7 +252,7 @@ class TestRepl:
         self, mock_provider: MockProvider, console: Console
     ) -> None:
         """Test handling of thought events."""
-        from mlg.providers.base import FinishReason, StreamChunk
+        from henchman.providers.base import FinishReason, StreamChunk
 
         async def thinking_stream(
             *args: Any, **kwargs: Any  # noqa: ARG001
@@ -293,7 +293,7 @@ class TestRepl:
         self, mock_provider: MockProvider, console: Console
     ) -> None:
         """Test handling of tool call that fails."""
-        from mlg.providers.base import FinishReason, StreamChunk, ToolCall
+        from henchman.providers.base import FinishReason, StreamChunk, ToolCall
 
         call_count = 0
 
@@ -354,7 +354,7 @@ class TestReplRun:
 
         # Mock input to return one message then /quit
         inputs = iter(["Hello", "/quit"])
-        with patch("mlg.cli.repl.Repl._get_input", side_effect=lambda: next(inputs)):
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=lambda: next(inputs)):
             await repl.run()
 
         output = console.file.getvalue()  # type: ignore[union-attr]
@@ -373,7 +373,7 @@ class TestReplRun:
             repl.running = False
             return ""  # Empty input to be skipped
 
-        with patch("mlg.cli.repl.Repl._get_input", side_effect=get_input_and_stop):
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=get_input_and_stop):
             await repl.run()
 
         assert repl.running is False
@@ -386,7 +386,7 @@ class TestReplRun:
 
         repl = Repl(provider=provider, console=console)
 
-        with patch("mlg.cli.repl.Repl._get_input", side_effect=KeyboardInterrupt):
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=KeyboardInterrupt):
             await repl.run()
 
         # Should exit gracefully
@@ -400,7 +400,7 @@ class TestReplRun:
 
         repl = Repl(provider=provider, console=console)
 
-        with patch("mlg.cli.repl.Repl._get_input", side_effect=EOFError):
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=EOFError):
             await repl.run()
 
         assert repl.running is False

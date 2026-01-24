@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI script for MLG-CLI
+# CI script for Henchman-AI
 # Runs all checks: linting, type checking, tests, and documentation coverage
 
 set -euo pipefail
@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
-echo -e "${YELLOW}=== MLG-CLI CI Pipeline ===${NC}"
+echo -e "${YELLOW}=== Henchman-AI CI Pipeline ===${NC}"
 echo ""
 
 # Track failures
@@ -42,7 +42,7 @@ echo ""
 
 # Step 3: Run tests with coverage
 echo -e "${YELLOW}[3/5] Running pytest with coverage...${NC}"
-if pytest tests/ --cov=mlg --cov-report=term-missing --cov-fail-under=100; then
+if pytest tests/ --cov=henchman --cov-report=term-missing --cov-fail-under=100; then
     echo -e "${GREEN}✓ Tests passed with 100% coverage${NC}"
 else
     echo -e "${RED}✗ Tests failed or coverage below 100%${NC}"
@@ -52,8 +52,8 @@ echo ""
 
 # Step 4: Run doctests
 echo -e "${YELLOW}[4/5] Running doctests...${NC}"
-if python -m doctest src/mlg/providers/base.py src/mlg/version.py -v 2>/dev/null || \
-   pytest --doctest-modules src/mlg/ --ignore=src/mlg/__main__.py 2>/dev/null; then
+if python -m doctest src/henchman/providers/base.py src/henchman/version.py -v 2>/dev/null || \
+   pytest --doctest-modules src/henchman/ --ignore=src/henchman/__main__.py 2>/dev/null; then
     echo -e "${GREEN}✓ Doctests passed${NC}"
 else
     # Doctests are optional for now
@@ -85,7 +85,7 @@ def check_docstrings(filepath):
     return missing
 
 all_missing = []
-for pyfile in Path('src/mlg').rglob('*.py'):
+for pyfile in Path('src/henchman').rglob('*.py'):
     if '__pycache__' in str(pyfile):
         continue
     missing = check_docstrings(pyfile)

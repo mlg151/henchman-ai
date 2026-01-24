@@ -1,6 +1,6 @@
 """Tests for tool base classes and types."""
 
-from mlg.tools.base import (
+from henchman.tools.base import (
     ConfirmationRequest,
     Tool,
     ToolKind,

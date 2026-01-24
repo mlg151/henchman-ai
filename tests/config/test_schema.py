@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from mlg.config.schema import (
+from henchman.config.schema import (
     McpServerConfig,
     ProviderSettings,
     Settings,

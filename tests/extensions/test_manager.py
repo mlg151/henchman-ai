@@ -3,10 +3,10 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from mlg.cli.commands import Command, CommandContext
-from mlg.extensions.base import Extension
-from mlg.extensions.manager import ExtensionManager
-from mlg.tools.base import Tool, ToolKind, ToolResult
+from henchman.cli.commands import Command, CommandContext
+from henchman.extensions.base import Extension
+from henchman.extensions.manager import ExtensionManager
+from henchman.tools.base import Tool, ToolKind, ToolResult
 
 
 class MockTool(Tool):
@@ -182,7 +182,7 @@ class TestEntryPointDiscovery:
     def test_discover_entry_points_empty(self) -> None:
         """Test discovery with no entry points."""
         manager = ExtensionManager()
-        with patch("mlg.extensions.manager.entry_points") as mock_eps:
+        with patch("henchman.extensions.manager.entry_points") as mock_eps:
             mock_eps.return_value = []
             manager.discover_entry_points()
         assert manager.list_extensions() == []
@@ -196,7 +196,7 @@ class TestEntryPointDiscovery:
         mock_ep.name = "test_entry"
         mock_ep.load.return_value = TestExtensionImpl
 
-        with patch("mlg.extensions.manager.entry_points") as mock_eps:
+        with patch("henchman.extensions.manager.entry_points") as mock_eps:
             mock_eps.return_value = [mock_ep]
             manager.discover_entry_points()
 
@@ -210,7 +210,7 @@ class TestEntryPointDiscovery:
         mock_ep.name = "broken"
         mock_ep.load.side_effect = Exception("Load failed")
 
-        with patch("mlg.extensions.manager.entry_points") as mock_eps:
+        with patch("henchman.extensions.manager.entry_points") as mock_eps:
             mock_eps.return_value = [mock_ep]
             # Should not raise
             manager.discover_entry_points()
@@ -234,7 +234,7 @@ class TestEntryPointDiscovery:
                 raise TypeError("unexpected keyword argument 'group'")
             return mock_dict
 
-        with patch("mlg.extensions.manager.entry_points", side_effect=side_effect):
+        with patch("henchman.extensions.manager.entry_points", side_effect=side_effect):
             manager.discover_entry_points()
 
         assert "test_ext" in manager.list_extensions()
@@ -247,7 +247,7 @@ class TestEntryPointDiscovery:
         mock_ep.name = "not_extension"
         mock_ep.load.return_value = "not a class"
 
-        with patch("mlg.extensions.manager.entry_points") as mock_eps:
+        with patch("henchman.extensions.manager.entry_points") as mock_eps:
             mock_eps.return_value = [mock_ep]
             manager.discover_entry_points()
 
@@ -282,7 +282,7 @@ class TestDirectoryDiscovery:
 
         # Create extension.py
         (my_ext / "extension.py").write_text("""
-from mlg.extensions.base import Extension
+from henchman.extensions.base import Extension
 
 class MyExtension(Extension):
     @property
@@ -365,7 +365,7 @@ class MyExtension(Extension):
         fail_ext = ext_dir / "fail_ext"
         fail_ext.mkdir()
         (fail_ext / "extension.py").write_text("""
-from mlg.extensions.base import Extension
+from henchman.extensions.base import Extension
 
 class FailExtension(Extension):
     def __init__(self):
@@ -411,7 +411,7 @@ class FailExtension(Extension):
         ext_file = tmp_path / "extension.py"
         ext_file.write_text("pass")
 
-        with patch("mlg.extensions.manager.importlib.util.spec_from_file_location") as m:
+        with patch("henchman.extensions.manager.importlib.util.spec_from_file_location") as m:
             m.return_value = None
             manager._load_extension_from_file(ext_file, "test")
 

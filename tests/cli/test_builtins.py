@@ -7,8 +7,8 @@ from io import StringIO
 import pytest
 from rich.console import Console
 
-from mlg.cli.commands import CommandContext
-from mlg.cli.commands.builtins import (
+from henchman.cli.commands import CommandContext
+from henchman.cli.commands.builtins import (
     ClearCommand,
     HelpCommand,
     QuitCommand,

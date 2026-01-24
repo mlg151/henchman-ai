@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
-from mlg.cli.commands import CommandContext
-from mlg.cli.commands.chat import ChatCommand
-from mlg.core.session import SessionManager, SessionMessage
+from henchman.cli.commands import CommandContext
+from henchman.cli.commands.chat import ChatCommand
+from henchman.core.session import SessionManager, SessionMessage
 
 
 class TestChatCommand:

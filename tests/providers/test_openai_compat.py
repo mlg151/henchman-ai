@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mlg.providers.base import FinishReason, Message, ToolCall, ToolDeclaration
-from mlg.providers.openai_compat import OpenAICompatibleProvider
+from henchman.providers.base import FinishReason, Message, ToolCall, ToolDeclaration
+from henchman.providers.openai_compat import OpenAICompatibleProvider
 
 
 class TestOpenAICompatibleProvider:

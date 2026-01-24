@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from mlg.cli.input import (
+from henchman.cli.input import (
     InputHandler,
     expand_at_references,
     is_shell_command,
@@ -156,7 +156,7 @@ class TestInputHandler:
 
     def test_handler_with_history_file(self, tmp_path: Path) -> None:
         """Test handler with custom history file."""
-        history_path = tmp_path / ".mlg_history"
+        history_path = tmp_path / ".henchman_history"
         handler = InputHandler(history_file=history_path)
         assert handler.history_file == history_path
 

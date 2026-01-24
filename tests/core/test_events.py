@@ -1,6 +1,6 @@
 """Tests for core event types."""
 
-from mlg.core.events import AgentEvent, EventType
+from henchman.core.events import AgentEvent, EventType
 
 
 class TestEventType:

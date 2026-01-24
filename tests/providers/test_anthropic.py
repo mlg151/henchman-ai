@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mlg.providers.anthropic import AnthropicProvider
-from mlg.providers.base import FinishReason, Message, ModelProvider, ToolCall, ToolDeclaration
+from henchman.providers.anthropic import AnthropicProvider
+from henchman.providers.base import FinishReason, Message, ModelProvider, ToolCall, ToolDeclaration
 
 
 class TestAnthropicProvider:

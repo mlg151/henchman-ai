@@ -1,6 +1,6 @@
-# MLG-CLI Copilot Instructions
+# Henchman-AI Copilot Instructions
 
-MLG-CLI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. It supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, Ollama) via a unified provider abstraction.
+Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. It supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, Ollama) via a unified provider abstraction.
 
 ## Project Status
 
@@ -27,7 +27,7 @@ src/mlg/
 ├── tools/      # Built-in tools: read_file, write_file, shell, grep, glob, web_fetch
 ├── mcp/        # MCP integration: McpClient, McpManager, McpTool wrapper
 ├── extensions/ # Plugin system: Extension ABC, ExtensionManager, /extensions command
-├── config/     # Pydantic settings, hierarchical YAML loading, MLG.md context
+├── config/     # Pydantic settings, hierarchical YAML loading, HENCHMAN.md context
 └── utils/      # Utility functions and helpers
 ```
 
@@ -62,7 +62,7 @@ Run `./scripts/ci.sh` to execute:
 ### Provider System (Implemented)
 
 ```python
-from mlg.providers import DeepSeekProvider, AnthropicProvider, OllamaProvider, Message
+from henchman.providers import DeepSeekProvider, AnthropicProvider, OllamaProvider, Message
 
 # DeepSeek (default)
 provider = DeepSeekProvider(api_key="your-key")
@@ -95,7 +95,7 @@ async for chunk in provider.chat_completion_stream(
 ### Core Types
 
 ```python
-from mlg.providers import (
+from henchman.providers import (
     Message,           # Conversation message (role, content, tool_calls)
     ToolCall,          # Tool invocation request (id, name, arguments)
     ToolDeclaration,   # Tool schema for LLM (name, description, parameters)
@@ -107,7 +107,7 @@ from mlg.providers import (
 ### Provider Registry
 
 ```python
-from mlg.providers import get_default_registry
+from henchman.providers import get_default_registry
 
 registry = get_default_registry()
 provider = registry.create("deepseek", api_key="...", model="deepseek-chat")
@@ -125,8 +125,8 @@ async for chunk in provider.chat_completion_stream(messages, tools=...):
 The Agent class orchestrates LLM interactions with event streaming:
 
 ```python
-from mlg.core import Agent, AgentEvent, EventType
-from mlg.providers import DeepSeekProvider
+from henchman.core import Agent, AgentEvent, EventType
+from henchman.providers import DeepSeekProvider
 
 # Create provider and agent
 provider = DeepSeekProvider(api_key="...", model="deepseek-chat")
@@ -154,8 +154,8 @@ async for event in agent.continue_with_tool_results():
 The Repl class provides the main interactive loop:
 
 ```python
-from mlg.cli import Repl, ReplConfig
-from mlg.providers import DeepSeekProvider
+from henchman.cli import Repl, ReplConfig
+from henchman.providers import DeepSeekProvider
 
 # Create provider and REPL
 provider = DeepSeekProvider(api_key="...")
@@ -200,7 +200,7 @@ Tools extend the `Tool` ABC with a `ToolKind` that determines auto-approval:
 - `ToolKind.WRITE`/`EXECUTE`/`NETWORK` → require confirmation
 
 ```python
-from mlg.tools import Tool, ToolKind, ToolResult, ToolRegistry, ConfirmationRequest
+from henchman.tools import Tool, ToolKind, ToolResult, ToolRegistry, ConfirmationRequest
 
 # Define a custom tool
 class MyTool(Tool):
@@ -252,7 +252,7 @@ registry.add_auto_approve_policy("write_file")
 Settings are loaded hierarchically with later sources overriding earlier ones:
 
 ```python
-from mlg.config import load_settings, Settings, ContextLoader
+from henchman.config import load_settings, Settings, ContextLoader
 
 # Load settings (automatically discovers and merges files)
 settings = load_settings()
@@ -265,19 +265,19 @@ print(settings.providers.deepseek)  # {"model": "deepseek-chat"}
 print(settings.tools.shell_timeout)  # 60
 print(settings.tools.auto_approve_read)  # True
 
-# Load context files (MLG.md)
+# Load context files (HENCHMAN.md)
 loader = ContextLoader()
-context = loader.load()  # Concatenated content from all MLG.md files
+context = loader.load()  # Concatenated content from all HENCHMAN.md files
 ```
 
 **Settings Precedence** (later overrides earlier):
 1. Defaults (Pydantic model defaults)
-2. User settings (`~/.mlg/settings.yaml`)
+2. User settings (`~/.henchman/settings.yaml`)
 3. Workspace settings (`.mlg/settings.yaml`)
-4. Environment variables (`MLG_PROVIDER`, `MLG_MODEL`)
+4. Environment variables (`HENCHMAN_PROVIDER`, `HENCHMAN_MODEL`)
 
-**Context File Discovery** (MLG.md):
-- Global: `~/.mlg/MLG.md`
+**Context File Discovery** (HENCHMAN.md):
+- Global: `~/.henchman/HENCHMAN.md`
 - Ancestors: Walk up from cwd to git root
 - Subdirectories: Optional, respects `.gitignore`
 
@@ -286,9 +286,9 @@ context = loader.load()  # Concatenated content from all MLG.md files
 The CLI provides a Rich-based terminal interface with theming and commands:
 
 ```python
-from mlg.cli import OutputRenderer, Theme, ThemeManager
-from mlg.cli.commands import CommandRegistry, parse_command
-from mlg.cli.commands.builtins import get_builtin_commands
+from henchman.cli import OutputRenderer, Theme, ThemeManager
+from henchman.cli.commands import CommandRegistry, parse_command
+from henchman.cli.commands.builtins import get_builtin_commands
 
 # Create themed output renderer
 renderer = OutputRenderer()
@@ -307,7 +307,7 @@ for cmd in get_builtin_commands():
     registry.register(cmd)
 
 # Check input types
-from mlg.cli import is_slash_command, is_shell_command, expand_at_references
+from henchman.cli import is_slash_command, is_shell_command, expand_at_references
 
 is_slash_command("/help")  # True
 is_shell_command("!ls")    # True
@@ -328,10 +328,10 @@ await expand_at_references("Check @file.txt")  # Expands file content
 Sessions persist conversation history for later resumption:
 
 ```python
-from mlg.core import Session, SessionManager, SessionMessage, SessionMetadata
+from henchman.core import Session, SessionManager, SessionMessage, SessionMetadata
 
 # Create a session manager
-manager = SessionManager()  # Uses ~/.mlg/sessions by default
+manager = SessionManager()  # Uses ~/.henchman/sessions by default
 
 # Create a new session for a project
 project_hash = manager.compute_project_hash(Path.cwd())
@@ -362,7 +362,7 @@ manager.delete(session.id)
 - `SessionManager` - CRUD operations, current session tracking, project hash computation
 
 **Session Storage:**
-- Sessions stored as JSON in `~/.mlg/sessions/`
+- Sessions stored as JSON in `~/.henchman/sessions/`
 - Each session is `{session_id}.json`
 - Scoped by project_hash to isolate per-project
 
@@ -371,7 +371,7 @@ manager.delete(session.id)
 MCP (Model Context Protocol) enables connecting to external tool servers:
 
 ```python
-from mlg.mcp import McpServerConfig, McpClient, McpManager, McpTool
+from henchman.mcp import McpServerConfig, McpClient, McpManager, McpTool
 
 # Configure an MCP server
 config = McpServerConfig(
@@ -427,9 +427,9 @@ mcp_servers:
 Extensions allow third-party plugins to add tools, commands, and context:
 
 ```python
-from mlg.extensions import Extension, ExtensionManager
-from mlg.tools.base import Tool
-from mlg.cli.commands import Command
+from henchman.extensions import Extension, ExtensionManager
+from henchman.tools.base import Tool
+from henchman.cli.commands import Command
 
 # Define a custom extension
 class MyExtension(Extension):
@@ -461,8 +461,8 @@ manager.discover_directory(Path.home() / ".mlg" / "extensions")
 ```
 
 **Extension Discovery:**
-- Entry points: Register in `pyproject.toml` under `[project.entry-points."mlg.extensions"]`
-- Directory: Place `extension.py` with Extension subclass in `~/.mlg/extensions/<name>/`
+- Entry points: Register in `pyproject.toml` under `[project.entry-points."henchman.extensions"]`
+- Directory: Place `extension.py` with Extension subclass in `~/.henchman/extensions/<name>/`
 
 **Built-in Commands:**
 - `/extensions` - List loaded extensions with name, version, and description
@@ -473,8 +473,8 @@ manager.discover_directory(Path.home() / ".mlg" / "extensions")
 - **anyio** for async (not raw asyncio) to support multiple backends
 - **Rich** for console output, **prompt_toolkit** for input
 - **Click** for CLI framework
-- Shell tool sets `MLG_CLI=1` env var for script detection
-- Context files named `MLG.md` (discovered up directory tree)
+- Shell tool sets `HENCHMAN_CLI=1` env var for script detection
+- Context files named `HENCHMAN.md` (discovered up directory tree)
 - Custom exceptions inherit from `MlgError` base class
 - Google-style docstrings for all public functions
 
@@ -500,7 +500,7 @@ async def test_real_api(): ...
 ## File Structure
 
 ```
-mlg-cli/
+henchman-ai/
 ├── src/mlg/                    # Main package
 │   ├── __init__.py             # Package init, exports __version__
 │   ├── __main__.py             # Entry point for python -m mlg
@@ -522,7 +522,7 @@ mlg-cli/
 │   ├── config/                 # Configuration system
 │   │   ├── schema.py           # Settings, ProviderSettings, ToolSettings, UISettings
 │   │   ├── settings.py         # load_settings, discover_settings_files, deep_merge
-│   │   └── context.py          # ContextLoader for MLG.md files
+│   │   └── context.py          # ContextLoader for HENCHMAN.md files
 │   ├── extensions/             # Extension/plugin system
 │   │   ├── base.py             # Extension ABC
 │   │   └── manager.py          # ExtensionManager, discovery

@@ -5,10 +5,10 @@ from io import StringIO
 import pytest
 from rich.console import Console
 
-from mlg.cli.commands import CommandContext
-from mlg.cli.commands.extensions import ExtensionsCommand
-from mlg.extensions.base import Extension
-from mlg.extensions.manager import ExtensionManager
+from henchman.cli.commands import CommandContext
+from henchman.cli.commands.extensions import ExtensionsCommand
+from henchman.extensions.base import Extension
+from henchman.extensions.manager import ExtensionManager
 
 
 class TestExtension(Extension):

@@ -3,10 +3,10 @@
 import tempfile
 from pathlib import Path
 
-from mlg.tools.base import ToolKind
-from mlg.tools.builtins.file_edit import EditFileTool
-from mlg.tools.builtins.file_read import ReadFileTool
-from mlg.tools.builtins.file_write import WriteFileTool
+from henchman.tools.base import ToolKind
+from henchman.tools.builtins.file_edit import EditFileTool
+from henchman.tools.builtins.file_read import ReadFileTool
+from henchman.tools.builtins.file_write import WriteFileTool
 
 
 class TestReadFileTool:
@@ -299,7 +299,7 @@ class TestLsToolEdgeCases:
         import os
         import stat
 
-        from mlg.tools.builtins.ls import LsTool
+        from henchman.tools.builtins.ls import LsTool
 
         tool = LsTool()
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -320,7 +320,7 @@ class TestGlobToolEdgeCases:
 
     async def test_glob_path_not_found(self) -> None:
         """Handle path not found."""
-        from mlg.tools.builtins.glob_tool import GlobTool
+        from henchman.tools.builtins.glob_tool import GlobTool
 
         tool = GlobTool()
         result = await tool.execute(pattern="*.txt", path="/nonexistent/path")
@@ -333,7 +333,7 @@ class TestGrepToolEdgeCases:
 
     async def test_grep_invalid_regex(self) -> None:
         """Handle invalid regex pattern."""
-        from mlg.tools.builtins.grep import GrepTool
+        from henchman.tools.builtins.grep import GrepTool
 
         tool = GrepTool()
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
@@ -350,7 +350,7 @@ class TestShellToolEdgeCases:
 
     async def test_shell_exception_handling(self) -> None:
         """Handle unexpected exceptions."""
-        from mlg.tools.builtins.shell import ShellTool
+        from henchman.tools.builtins.shell import ShellTool
 
         tool = ShellTool()
         # Non-existent working directory should cause error
@@ -366,7 +366,7 @@ class TestWebFetchEdgeCases:
         """Handle aiohttp not installed."""
         from unittest.mock import patch
 
-        from mlg.tools.builtins.web_fetch import WebFetchTool
+        from henchman.tools.builtins.web_fetch import WebFetchTool
 
         tool = WebFetchTool()
 

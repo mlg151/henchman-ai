@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mlg.mcp.config import McpServerConfig
+from henchman.mcp.config import McpServerConfig
 
 
 class TestMcpServerConfig:

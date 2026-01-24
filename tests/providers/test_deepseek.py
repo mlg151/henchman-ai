@@ -3,7 +3,7 @@
 import os
 from unittest.mock import patch
 
-from mlg.providers.deepseek import DeepSeekProvider
+from henchman.providers.deepseek import DeepSeekProvider
 
 
 class TestDeepSeekProvider:
@@ -49,7 +49,7 @@ class TestDeepSeekProvider:
 
     def test_inherits_from_openai_compatible(self) -> None:
         """Test that DeepSeekProvider inherits from OpenAICompatibleProvider."""
-        from mlg.providers.openai_compat import OpenAICompatibleProvider
+        from henchman.providers.openai_compat import OpenAICompatibleProvider
 
         provider = DeepSeekProvider(api_key="test-key")
         assert isinstance(provider, OpenAICompatibleProvider)

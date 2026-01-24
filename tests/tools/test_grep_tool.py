@@ -3,8 +3,8 @@
 import tempfile
 from pathlib import Path
 
-from mlg.tools.base import ToolKind
-from mlg.tools.builtins.grep import GrepTool
+from henchman.tools.base import ToolKind
+from henchman.tools.builtins.grep import GrepTool
 
 
 class TestGrepTool:

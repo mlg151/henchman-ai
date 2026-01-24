@@ -2,9 +2,9 @@
 
 from unittest.mock import patch
 
-from mlg.providers.base import ModelProvider
-from mlg.providers.ollama import OllamaProvider
-from mlg.providers.openai_compat import OpenAICompatibleProvider
+from henchman.providers.base import ModelProvider
+from henchman.providers.ollama import OllamaProvider
+from henchman.providers.openai_compat import OpenAICompatibleProvider
 
 
 class TestOllamaProvider:

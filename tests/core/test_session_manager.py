@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from mlg.core.session import SessionManager, SessionMessage
+from henchman.core.session import SessionManager, SessionMessage
 
 
 class TestSessionManager:
@@ -30,12 +30,12 @@ class TestSessionManager:
         assert manager.data_dir == temp_data_dir
 
     def test_default_data_dir(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Test default data directory is ~/.mlg/sessions."""
+        """Test default data directory is ~/.henchman/sessions."""
         home = tmp_path / "home"
         home.mkdir()
         monkeypatch.setenv("HOME", str(home))
         manager = SessionManager()
-        assert manager.data_dir == home / ".mlg" / "sessions"
+        assert manager.data_dir == home / ".henchman" / "sessions"
 
     def test_create_session(self, manager: SessionManager) -> None:
         """Test creating a new session."""

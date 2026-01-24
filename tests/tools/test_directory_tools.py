@@ -3,9 +3,9 @@
 import tempfile
 from pathlib import Path
 
-from mlg.tools.base import ToolKind
-from mlg.tools.builtins.glob_tool import GlobTool
-from mlg.tools.builtins.ls import LsTool
+from henchman.tools.base import ToolKind
+from henchman.tools.builtins.glob_tool import GlobTool
+from henchman.tools.builtins.ls import LsTool
 
 
 class TestLsTool:

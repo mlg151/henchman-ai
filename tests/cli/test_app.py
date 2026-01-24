@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from mlg.cli.app import cli, main
-from mlg.version import VERSION
+from henchman.cli.app import cli, main
+from henchman.version import VERSION
 
 
 def test_cli_version_option() -> None:
@@ -23,7 +23,7 @@ def test_cli_help_option() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
-    assert "MLG-CLI" in result.output or "mlg" in result.output.lower()
+    assert "Henchman-AI" in result.output or "mlg" in result.output.lower()
     assert "--version" in result.output
     assert "--help" in result.output
 
@@ -31,7 +31,7 @@ def test_cli_help_option() -> None:
 def test_cli_default_invocation() -> None:
     """Test that CLI can be invoked without arguments (interactive mode)."""
     runner = CliRunner()
-    with patch("mlg.cli.app._run_interactive") as mock_run:
+    with patch("henchman.cli.app._run_interactive") as mock_run:
         mock_run.return_value = None
         result = runner.invoke(cli, [])
         assert result.exit_code == 0
@@ -41,7 +41,7 @@ def test_cli_default_invocation() -> None:
 def test_cli_with_prompt_option() -> None:
     """Test headless mode with --prompt option."""
     runner = CliRunner()
-    with patch("mlg.cli.app._run_headless") as mock_run:
+    with patch("henchman.cli.app._run_headless") as mock_run:
         mock_run.return_value = None
         result = runner.invoke(cli, ["--prompt", "Hello world"])
         assert result.exit_code == 0
@@ -54,7 +54,7 @@ def test_cli_with_prompt_option() -> None:
 def test_cli_with_short_prompt_option() -> None:
     """Test headless mode with -p option."""
     runner = CliRunner()
-    with patch("mlg.cli.app._run_headless") as mock_run:
+    with patch("henchman.cli.app._run_headless") as mock_run:
         mock_run.return_value = None
         result = runner.invoke(cli, ["-p", "Test prompt"])
         assert result.exit_code == 0
@@ -67,14 +67,14 @@ def test_main_function() -> None:
     assert callable(main)
 
     # Test cli works through runner
-    with patch("mlg.cli.app._run_interactive"):
+    with patch("henchman.cli.app._run_interactive"):
         result = runner.invoke(cli, [], standalone_mode=False)
         assert result.exit_code == 0
 
 
 def test_main_function_via_import() -> None:
     """Test main() can be imported and is the expected function."""
-    from mlg.cli.app import main as imported_main
+    from henchman.cli.app import main as imported_main
 
     assert imported_main is main
     assert main.__doc__ == "Main entry point for the CLI."
@@ -85,7 +85,7 @@ class TestGetProvider:
 
     def test_get_provider_from_env(self) -> None:
         """Test getting provider from environment variable."""
-        from mlg.cli.app import _get_provider
+        from henchman.cli.app import _get_provider
 
         with patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"}):
             provider = _get_provider()
@@ -93,10 +93,10 @@ class TestGetProvider:
             assert provider.name == "deepseek"
 
     def test_get_provider_from_mlg_api_key(self) -> None:
-        """Test getting provider from MLG_API_KEY environment variable."""
-        from mlg.cli.app import _get_provider
+        """Test getting provider from HENCHMAN_API_KEY environment variable."""
+        from henchman.cli.app import _get_provider
 
-        with patch.dict("os.environ", {"MLG_API_KEY": "test-key"}, clear=True):
+        with patch.dict("os.environ", {"HENCHMAN_API_KEY": "test-key"}, clear=True):
             provider = _get_provider()
             assert provider is not None
             assert provider.name == "deepseek"
@@ -105,7 +105,7 @@ class TestGetProvider:
         """Test getting provider from settings file."""
         import os
 
-        from mlg.cli.app import _get_provider
+        from henchman.cli.app import _get_provider
 
         # Create mock settings
         mock_settings = MagicMock()
@@ -115,7 +115,7 @@ class TestGetProvider:
         orig_environ = os.environ.copy()
         try:
             os.environ.clear()
-            with patch("mlg.config.load_settings", return_value=mock_settings):
+            with patch("henchman.config.load_settings", return_value=mock_settings):
                 provider = _get_provider()
                 assert provider is not None
                 assert provider.name == "deepseek"
@@ -129,7 +129,7 @@ class TestGetProvider:
 
         import click
 
-        from mlg.cli.app import _get_provider
+        from henchman.cli.app import _get_provider
 
         # Create mock settings where provider_settings is None
         mock_settings = MagicMock()
@@ -141,7 +141,7 @@ class TestGetProvider:
         try:
             os.environ.clear()
             with (
-                patch("mlg.config.load_settings", return_value=mock_settings),
+                patch("henchman.config.load_settings", return_value=mock_settings),
                 pytest.raises(click.ClickException),
             ):
                 _get_provider()
@@ -155,14 +155,14 @@ class TestGetProvider:
 
         import click
 
-        from mlg.cli.app import _get_provider
+        from henchman.cli.app import _get_provider
 
         # Temporarily clear environment and mock load_settings to fail
         orig_environ = os.environ.copy()
         try:
             os.environ.clear()
             with (
-                patch("mlg.config.load_settings", side_effect=Exception("No settings")),
+                patch("henchman.config.load_settings", side_effect=Exception("No settings")),
                 pytest.raises(click.ClickException),
             ):
                 _get_provider()
@@ -176,17 +176,17 @@ class TestRunInteractive:
 
     def test_run_interactive_creates_repl(self) -> None:
         """Test that interactive mode creates and runs REPL."""
-        from mlg.cli.app import _run_interactive
+        from henchman.cli.app import _run_interactive
 
         mock_repl_instance = MagicMock()
         mock_loader_instance = MagicMock()
         mock_loader_instance.load.return_value = "system prompt"
 
         with (
-            patch("mlg.cli.app._get_provider") as mock_provider,
-            patch("mlg.config.ContextLoader", return_value=mock_loader_instance),
-            patch("mlg.cli.repl.Repl", return_value=mock_repl_instance) as mock_repl,
-            patch("mlg.cli.app.anyio") as mock_anyio,
+            patch("henchman.cli.app._get_provider") as mock_provider,
+            patch("henchman.config.ContextLoader", return_value=mock_loader_instance),
+            patch("henchman.cli.repl.Repl", return_value=mock_repl_instance) as mock_repl,
+            patch("henchman.cli.app.anyio") as mock_anyio,
         ):
             mock_provider.return_value = MagicMock()
 
@@ -201,17 +201,17 @@ class TestRunHeadless:
 
     def test_run_headless_processes_prompt(self) -> None:
         """Test that headless mode processes a single prompt."""
-        from mlg.cli.app import _run_headless
+        from henchman.cli.app import _run_headless
 
         mock_repl_instance = MagicMock()
         mock_loader_instance = MagicMock()
         mock_loader_instance.load.return_value = ""
 
         with (
-            patch("mlg.cli.app._get_provider") as mock_provider,
-            patch("mlg.config.ContextLoader", return_value=mock_loader_instance),
-            patch("mlg.cli.repl.Repl", return_value=mock_repl_instance),
-            patch("mlg.cli.app.anyio") as mock_anyio,
+            patch("henchman.cli.app._get_provider") as mock_provider,
+            patch("henchman.config.ContextLoader", return_value=mock_loader_instance),
+            patch("henchman.cli.repl.Repl", return_value=mock_repl_instance),
+            patch("henchman.cli.app.anyio") as mock_anyio,
         ):
             mock_provider.return_value = MagicMock()
 
@@ -231,9 +231,9 @@ async def test_run_single_prompt_integration() -> None:
 
     from rich.console import Console
 
-    from mlg.cli.repl import Repl, ReplConfig
-    from mlg.core.events import EventType
-    from mlg.providers.base import FinishReason, Message, ModelProvider, StreamChunk
+    from henchman.cli.repl import Repl, ReplConfig
+    from henchman.core.events import EventType
+    from henchman.providers.base import FinishReason, Message, ModelProvider, StreamChunk
 
     class TestProvider(ModelProvider):
         @property

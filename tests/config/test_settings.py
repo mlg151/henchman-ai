@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from mlg.config.schema import Settings
-from mlg.config.settings import deep_merge, load_settings
+from henchman.config.schema import Settings
+from henchman.config.settings import deep_merge, load_settings
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -90,9 +90,9 @@ class TestLoadSettings:
 
     @pytest.fixture
     def clean_env(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-        """Remove MLG_ environment variables."""
+        """Remove HENCHMAN_ environment variables."""
         for key in list(os.environ.keys()):
-            if key.startswith("MLG_"):
+            if key.startswith("HENCHMAN_"):
                 monkeypatch.delenv(key, raising=False)
         yield
 
@@ -107,10 +107,10 @@ class TestLoadSettings:
     def test_user_settings(
         self, temp_home: Path, temp_cwd: Path, clean_env: None
     ) -> None:
-        """Test loading user settings from ~/.mlg/settings.yaml."""
-        mlg_dir = temp_home / ".mlg"
-        mlg_dir.mkdir()
-        (mlg_dir / "settings.yaml").write_text(
+        """Test loading user settings from ~/.henchman/settings.yaml."""
+        henchman_dir = temp_home / ".henchman"
+        henchman_dir.mkdir()
+        (henchman_dir / "settings.yaml").write_text(
             """
 providers:
   default: openai
@@ -125,10 +125,10 @@ providers:
     def test_workspace_settings(
         self, temp_home: Path, temp_cwd: Path, clean_env: None
     ) -> None:
-        """Test loading workspace settings from .mlg/settings.yaml."""
-        mlg_dir = temp_cwd / ".mlg"
-        mlg_dir.mkdir()
-        (mlg_dir / "settings.yaml").write_text(
+        """Test loading workspace settings from .henchman/settings.yaml."""
+        henchman_dir = temp_cwd / ".henchman"
+        henchman_dir.mkdir()
+        (henchman_dir / "settings.yaml").write_text(
             """
 tools:
   shell_timeout: 120
@@ -142,7 +142,7 @@ tools:
     ) -> None:
         """Test that workspace settings override user settings."""
         # User settings
-        user_dir = temp_home / ".mlg"
+        user_dir = temp_home / ".henchman"
         user_dir.mkdir()
         (user_dir / "settings.yaml").write_text(
             """
@@ -153,7 +153,7 @@ tools:
 """
         )
         # Workspace settings
-        workspace_dir = temp_cwd / ".mlg"
+        workspace_dir = temp_cwd / ".henchman"
         workspace_dir.mkdir()
         (workspace_dir / "settings.yaml").write_text(
             """
@@ -168,16 +168,16 @@ providers:
     def test_env_override_provider(
         self, temp_home: Path, temp_cwd: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test MLG_PROVIDER env var overrides settings."""
-        monkeypatch.setenv("MLG_PROVIDER", "ollama")
+        """Test HENCHMAN_PROVIDER env var overrides settings."""
+        monkeypatch.setenv("HENCHMAN_PROVIDER", "ollama")
         settings = load_settings()
         assert settings.providers.default == "ollama"
 
     def test_env_override_model(
         self, temp_home: Path, temp_cwd: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test MLG_MODEL env var overrides settings."""
-        monkeypatch.setenv("MLG_MODEL", "gpt-4-turbo")
+        """Test HENCHMAN_MODEL env var overrides settings."""
+        monkeypatch.setenv("HENCHMAN_MODEL", "gpt-4-turbo")
         settings = load_settings()
         # Model is stored in provider-specific settings
         provider = settings.providers.default
@@ -187,9 +187,9 @@ providers:
         self, temp_home: Path, temp_cwd: Path, clean_env: None
     ) -> None:
         """Test loading settings from JSON file."""
-        mlg_dir = temp_home / ".mlg"
-        mlg_dir.mkdir()
-        (mlg_dir / "settings.json").write_text(
+        henchman_dir = temp_home / ".henchman"
+        henchman_dir.mkdir()
+        (henchman_dir / "settings.json").write_text(
             '{"providers": {"default": "anthropic"}}'
         )
         settings = load_settings()
@@ -199,10 +199,10 @@ providers:
         self, temp_home: Path, temp_cwd: Path, clean_env: None
     ) -> None:
         """Test that YAML takes precedence over JSON."""
-        mlg_dir = temp_home / ".mlg"
-        mlg_dir.mkdir()
-        (mlg_dir / "settings.yaml").write_text("providers:\n  default: openai")
-        (mlg_dir / "settings.json").write_text('{"providers": {"default": "anthropic"}}')
+        henchman_dir = temp_home / ".henchman"
+        henchman_dir.mkdir()
+        (henchman_dir / "settings.yaml").write_text("providers:\n  default: openai")
+        (henchman_dir / "settings.json").write_text('{"providers": {"default": "anthropic"}}')
         settings = load_settings()
         assert settings.providers.default == "openai"
 
@@ -210,11 +210,11 @@ providers:
         self, temp_home: Path, temp_cwd: Path, clean_env: None
     ) -> None:
         """Test that invalid YAML raises ConfigError."""
-        from mlg.config.settings import ConfigError
+        from henchman.config.settings import ConfigError
 
-        mlg_dir = temp_home / ".mlg"
-        mlg_dir.mkdir()
-        (mlg_dir / "settings.yaml").write_text("invalid: yaml: content:")
+        henchman_dir = temp_home / ".henchman"
+        henchman_dir.mkdir()
+        (henchman_dir / "settings.yaml").write_text("invalid: yaml: content:")
         with pytest.raises(ConfigError):
             load_settings()
 
@@ -222,11 +222,11 @@ providers:
         self, temp_home: Path, temp_cwd: Path, clean_env: None
     ) -> None:
         """Test that invalid settings structure raises ConfigError."""
-        from mlg.config.settings import ConfigError
+        from henchman.config.settings import ConfigError
 
-        mlg_dir = temp_home / ".mlg"
-        mlg_dir.mkdir()
-        (mlg_dir / "settings.yaml").write_text(
+        henchman_dir = temp_home / ".henchman"
+        henchman_dir.mkdir()
+        (henchman_dir / "settings.yaml").write_text(
             """
 tools:
   sandbox: invalid_value
@@ -258,8 +258,8 @@ class TestSettingsFileDiscovery:
     def test_no_config_directories(
         self, temp_home: Path, temp_cwd: Path
     ) -> None:
-        """Test when no .mlg directories exist."""
-        from mlg.config.settings import discover_settings_files
+        """Test when no .henchman directories exist."""
+        from henchman.config.settings import discover_settings_files
 
         files = discover_settings_files()
         assert files == []
@@ -268,11 +268,11 @@ class TestSettingsFileDiscovery:
         self, temp_home: Path, temp_cwd: Path
     ) -> None:
         """Test discovering user config only."""
-        from mlg.config.settings import discover_settings_files
+        from henchman.config.settings import discover_settings_files
 
-        mlg_dir = temp_home / ".mlg"
-        mlg_dir.mkdir()
-        settings_file = mlg_dir / "settings.yaml"
+        henchman_dir = temp_home / ".henchman"
+        henchman_dir.mkdir()
+        settings_file = henchman_dir / "settings.yaml"
         settings_file.write_text("providers:\n  default: openai")
 
         files = discover_settings_files()
@@ -283,11 +283,11 @@ class TestSettingsFileDiscovery:
         self, temp_home: Path, temp_cwd: Path
     ) -> None:
         """Test discovering workspace config only."""
-        from mlg.config.settings import discover_settings_files
+        from henchman.config.settings import discover_settings_files
 
-        mlg_dir = temp_cwd / ".mlg"
-        mlg_dir.mkdir()
-        settings_file = mlg_dir / "settings.yaml"
+        henchman_dir = temp_cwd / ".henchman"
+        henchman_dir.mkdir()
+        settings_file = henchman_dir / "settings.yaml"
         settings_file.write_text("tools:\n  shell_timeout: 120")
 
         files = discover_settings_files()
@@ -298,14 +298,14 @@ class TestSettingsFileDiscovery:
         self, temp_home: Path, temp_cwd: Path
     ) -> None:
         """Test that user config comes before workspace config."""
-        from mlg.config.settings import discover_settings_files
+        from henchman.config.settings import discover_settings_files
 
-        user_dir = temp_home / ".mlg"
+        user_dir = temp_home / ".henchman"
         user_dir.mkdir()
         user_file = user_dir / "settings.yaml"
         user_file.write_text("providers:\n  default: openai")
 
-        workspace_dir = temp_cwd / ".mlg"
+        workspace_dir = temp_cwd / ".henchman"
         workspace_dir.mkdir()
         workspace_file = workspace_dir / "settings.yaml"
         workspace_file.write_text("tools:\n  shell_timeout: 120")
@@ -319,26 +319,26 @@ class TestSettingsFileDiscovery:
         self, temp_home: Path, temp_cwd: Path
     ) -> None:
         """Test discovering .yml extension files."""
-        from mlg.config.settings import discover_settings_files
+        from henchman.config.settings import discover_settings_files
 
-        mlg_dir = temp_home / ".mlg"
-        mlg_dir.mkdir()
-        settings_file = mlg_dir / "settings.yml"
+        henchman_dir = temp_home / ".henchman"
+        henchman_dir.mkdir()
+        settings_file = henchman_dir / "settings.yml"
         settings_file.write_text("providers:\n  default: openai")
 
         files = discover_settings_files()
         assert len(files) == 1
         assert files[0] == settings_file
 
-    def test_empty_mlg_directory(
+    def test_empty_henchman_directory(
         self, temp_home: Path, temp_cwd: Path
     ) -> None:
-        """Test when .mlg directory exists but has no settings files."""
-        from mlg.config.settings import discover_settings_files
+        """Test when .henchman directory exists but has no settings files."""
+        from henchman.config.settings import discover_settings_files
 
-        # Create empty .mlg directories
-        (temp_home / ".mlg").mkdir()
-        (temp_cwd / ".mlg").mkdir()
+        # Create empty .henchman directories
+        (temp_home / ".henchman").mkdir()
+        (temp_cwd / ".henchman").mkdir()
 
         files = discover_settings_files()
         assert files == []
@@ -347,11 +347,11 @@ class TestSettingsFileDiscovery:
         self, temp_home: Path, temp_cwd: Path
     ) -> None:
         """Test discovering JSON when no YAML files exist."""
-        from mlg.config.settings import discover_settings_files
+        from henchman.config.settings import discover_settings_files
 
-        mlg_dir = temp_home / ".mlg"
-        mlg_dir.mkdir()
-        settings_file = mlg_dir / "settings.json"
+        henchman_dir = temp_home / ".henchman"
+        henchman_dir.mkdir()
+        settings_file = henchman_dir / "settings.json"
         settings_file.write_text('{"providers": {"default": "openai"}}')
 
         files = discover_settings_files()

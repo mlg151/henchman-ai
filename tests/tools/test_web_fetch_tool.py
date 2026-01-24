@@ -2,8 +2,8 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from mlg.tools.base import ToolKind
-from mlg.tools.builtins.web_fetch import WebFetchTool
+from henchman.tools.base import ToolKind
+from henchman.tools.builtins.web_fetch import WebFetchTool
 
 
 class TestWebFetchTool:

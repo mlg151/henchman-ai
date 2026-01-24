@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 import pytest
 from rich.console import Console
 
-from mlg.cli.commands import CommandContext
-from mlg.cli.commands.mcp import McpCommand
+from henchman.cli.commands import CommandContext
+from henchman.cli.commands.mcp import McpCommand
 
 
 class TestMcpCommand:

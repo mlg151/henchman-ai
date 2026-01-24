@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mlg.mcp.config import McpServerConfig
-from mlg.mcp.manager import McpManager
+from henchman.mcp.config import McpServerConfig
+from henchman.mcp.manager import McpManager
 
 
 class TestMcpManager:
@@ -53,7 +53,7 @@ class TestMcpManager:
         """Test connecting to all servers."""
         manager = McpManager(configs)
 
-        with patch("mlg.mcp.manager.McpClient") as MockClient:
+        with patch("henchman.mcp.manager.McpClient") as MockClient:
             mock_client = AsyncMock()
             mock_client.connect = AsyncMock()
             mock_client.discover_tools = AsyncMock(return_value=[])
@@ -69,7 +69,7 @@ class TestMcpManager:
         """Test disconnecting from all servers."""
         manager = McpManager(configs)
 
-        with patch("mlg.mcp.manager.McpClient") as MockClient:
+        with patch("henchman.mcp.manager.McpClient") as MockClient:
             mock_client = AsyncMock()
             mock_client.connect = AsyncMock()
             mock_client.disconnect = AsyncMock()
@@ -95,7 +95,7 @@ class TestMcpManager:
         mock_tool2.description = "List issues"
         mock_tool2.input_schema = {}
 
-        with patch("mlg.mcp.manager.McpClient") as MockClient:
+        with patch("henchman.mcp.manager.McpClient") as MockClient:
             # Different tools for different servers
             mock_client1 = MagicMock()
             mock_client1.name = "filesystem"
@@ -127,7 +127,7 @@ class TestMcpManager:
         mock_result.content = "file contents"
         mock_result.is_error = False
 
-        with patch("mlg.mcp.manager.McpClient") as MockClient:
+        with patch("henchman.mcp.manager.McpClient") as MockClient:
             mock_client = AsyncMock()
             mock_client.name = "filesystem"
             mock_client.connect = AsyncMock()

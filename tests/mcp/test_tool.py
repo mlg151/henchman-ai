@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from mlg.mcp.client import McpToolDefinition, McpToolResult
-from mlg.mcp.tool import McpTool
-from mlg.tools.base import ToolKind
+from henchman.mcp.client import McpToolDefinition, McpToolResult
+from henchman.mcp.tool import McpTool
+from henchman.tools.base import ToolKind
 
 
 class TestMcpTool:

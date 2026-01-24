@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from mlg.core.agent import Agent
-from mlg.core.events import EventType
-from mlg.providers.base import (
+from henchman.core.agent import Agent
+from henchman.core.events import EventType
+from henchman.providers.base import (
     FinishReason,
     Message,
     ModelProvider,

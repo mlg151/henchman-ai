@@ -2,9 +2,9 @@
 
 import pytest
 
-from mlg.providers.base import ModelProvider, StreamChunk
-from mlg.providers.deepseek import DeepSeekProvider
-from mlg.providers.registry import ProviderRegistry, get_default_registry
+from henchman.providers.base import ModelProvider, StreamChunk
+from henchman.providers.deepseek import DeepSeekProvider
+from henchman.providers.registry import ProviderRegistry, get_default_registry
 
 
 class MockProvider(ModelProvider):

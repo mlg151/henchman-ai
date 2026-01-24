@@ -2,8 +2,8 @@
 
 import tempfile
 
-from mlg.tools.base import ToolKind
-from mlg.tools.builtins.shell import ShellTool
+from henchman.tools.base import ToolKind
+from henchman.tools.builtins.shell import ShellTool
 
 
 class TestShellTool:
@@ -60,10 +60,10 @@ class TestShellTool:
         assert "out" in result.content
         assert "err" in result.content
 
-    async def test_shell_sets_mlg_cli_env(self) -> None:
-        """MLG_CLI=1 environment variable is set."""
+    async def test_shell_sets_henchman_cli_env(self) -> None:
+        """HENCHMAN_CLI=1 environment variable is set."""
         tool = ShellTool()
-        result = await tool.execute(command="echo $MLG_CLI")
+        result = await tool.execute(command="echo $HENCHMAN_CLI")
         assert result.success is True
         assert "1" in result.content
 

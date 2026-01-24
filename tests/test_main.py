@@ -3,8 +3,8 @@
 import subprocess
 import sys
 
-from mlg import __main__  # Test that module can be imported
-from mlg.cli.app import main
+from henchman import __main__  # Test that module can be imported
+from henchman.cli.app import main
 
 
 def test_main_module_imports() -> None:
@@ -13,10 +13,10 @@ def test_main_module_imports() -> None:
     assert __main__.main is main
 
 
-def test_python_m_mlg_version() -> None:
-    """Test that python -m mlg --version works."""
+def test_python_m_henchman_version() -> None:
+    """Test that python -m henchman --version works."""
     result = subprocess.run(
-        [sys.executable, "-m", "mlg", "--version"],
+        [sys.executable, "-m", "henchman", "--version"],
         capture_output=True,
         text=True,
     )
@@ -24,10 +24,10 @@ def test_python_m_mlg_version() -> None:
     assert "0.1.0" in result.stdout
 
 
-def test_python_m_mlg_help() -> None:
-    """Test that python -m mlg --help works."""
+def test_python_m_henchman_help() -> None:
+    """Test that python -m henchman --help works."""
     result = subprocess.run(
-        [sys.executable, "-m", "mlg", "--help"],
+        [sys.executable, "-m", "henchman", "--help"],
         capture_output=True,
         text=True,
     )

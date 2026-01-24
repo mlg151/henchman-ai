@@ -1,4 +1,4 @@
-# MLG-CLI Implementation Plan
+# Henchman-AI Implementation Plan
 
 > **A Model-Agnostic AI Agent CLI in Python**  
 > Inspired by gemini-cli, built for extensibility  
@@ -70,23 +70,23 @@ response = client.chat.completions.create(
 └─────────────────────────────┬───────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼───────────────────────────────────────┐
-│                      mlg/cli/ (UI Layer)                             │
+│                      henchman/cli/ (UI Layer)                             │
 │  • InputHandler (prompt_toolkit)    • OutputRenderer (rich)          │
 │  • CommandParser (/commands)        • ThemeManager                   │
 │  • ConfirmationDialogs              • StatusBar                      │
 └─────────────────────────────┬───────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼───────────────────────────────────────┐
-│                     mlg/core/ (Agent Layer)                          │
+│                     henchman/core/ (Agent Layer)                          │
 │  • AgentLoop (async generator)      • EventBus (typed events)        │
 │  • ToolRegistry                     • PolicyEngine                   │
-│  • SessionManager                   • ContextLoader (MLG.md)         │
+│  • SessionManager                   • ContextLoader (HENCHMAN.md)         │
 └─────────────────────────────┬───────────────────────────────────────┘
                               │
          ┌────────────────────┼────────────────────┐
          │                    │                    │
 ┌────────▼────────┐  ┌────────▼────────┐  ┌───────▼────────┐
-│  mlg/providers/ │  │   mlg/tools/    │  │   mlg/mcp/     │
+│  henchman/providers/ │  │   henchman/tools/    │  │   henchman/mcp/     │
 │  ┌───────────┐  │  │  ┌───────────┐  │  │ ┌───────────┐  │
 │  │ OpenAI    │  │  │  │ ReadFile  │  │  │ │McpManager │  │
 │  │ Compatible│──┼──│  │ WriteFile │  │  │ │McpClient  │  │
@@ -116,14 +116,14 @@ response = client.chat.completions.create(
 ### Directory Structure
 
 ```
-mlg-cli/
+henchman-ai/
 ├── pyproject.toml
 ├── README.md
 ├── LICENSE
 ├── src/
-│   └── mlg/
+│   └── henchman/
 │       ├── __init__.py
-│       ├── __main__.py          # python -m mlg
+│       ├── __main__.py          # python -m henchman
 │       ├── version.py
 │       ├── cli/                 # UI Layer
 │       ├── core/                # Agent Layer  
@@ -140,7 +140,7 @@ mlg-cli/
 
 ```toml
 [project]
-name = "mlg-cli"
+name = "henchman-ai"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
@@ -155,14 +155,14 @@ dependencies = [
 ]
 
 [project.scripts]
-mlg = "mlg.cli.app:main"
+henchman = "henchman.cli.app:main"
 ```
 
 ### Acceptance Criteria
 
 - `pip install -e .` works
-- `mlg --version` prints version
-- `mlg --help` shows help text
+- `henchman --version` prints version
+- `henchman --help` shows help text
 - All linting passes
 
 ---
@@ -185,7 +185,7 @@ mlg = "mlg.cli.app:main"
 ### Core Types
 
 ```python
-# mlg/providers/base.py
+# henchman/providers/base.py
 
 @dataclass
 class Message:
@@ -230,7 +230,7 @@ class ModelProvider(ABC):
 ### DeepSeek Implementation
 
 ```python
-# mlg/providers/deepseek.py
+# henchman/providers/deepseek.py
 
 class DeepSeekProvider(OpenAICompatibleProvider):
     name = "deepseek"
@@ -273,7 +273,7 @@ class DeepSeekProvider(OpenAICompatibleProvider):
 ### Event Types
 
 ```python
-# mlg/core/events.py
+# henchman/core/events.py
 
 class EventType(Enum):
     CONTENT = auto()           # Text from model
@@ -293,7 +293,7 @@ class AgentEvent:
 ### Agent Implementation
 
 ```python
-# mlg/core/agent.py
+# henchman/core/agent.py
 
 class Agent:
     def __init__(
@@ -355,7 +355,7 @@ class Agent:
 ### Tool Base Class
 
 ```python
-# mlg/tools/base.py
+# henchman/tools/base.py
 
 class ToolKind(Enum):
     READ = "read"       # Auto-approve (read_file, ls, glob)
@@ -400,7 +400,7 @@ class Tool(ABC):
 ### Tool Registry
 
 ```python
-# mlg/tools/registry.py
+# henchman/tools/registry.py
 
 class ToolRegistry:
     def __init__(self):
@@ -443,7 +443,7 @@ class ToolRegistry:
 ### Example: ReadFile Tool
 
 ```python
-# mlg/tools/file_read.py
+# henchman/tools/file_read.py
 
 class ReadFileTool(Tool):
     name = "read_file"
@@ -472,7 +472,7 @@ class ReadFileTool(Tool):
 ### Example: Shell Tool
 
 ```python
-# mlg/tools/shell.py
+# henchman/tools/shell.py
 
 class ShellTool(Tool):
     name = "run_shell_command"
@@ -493,7 +493,7 @@ class ShellTool(Tool):
             command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env={**os.environ, "MLG_CLI": "1"},
+            env={**os.environ, "HENCHMAN_CLI": "1"},
         )
         stdout, stderr = await asyncio.wait_for(process.communicate(), timeout)
         return ToolResult(
@@ -507,7 +507,7 @@ class ShellTool(Tool):
 - All tools execute correctly
 - Error handling is robust
 - Tools respect workspace boundaries
-- Shell tool sets `MLG_CLI=1` env var
+- Shell tool sets `HENCHMAN_CLI=1` env var
 
 ---
 
@@ -523,14 +523,14 @@ class ShellTool(Tool):
 - [x] **6.2** Implement settings file discovery
 - [x] **6.3** Implement hierarchical merging
 - [x] **6.4** Add environment variable overrides
-- [x] **6.5** Implement context file (MLG.md) loading
+- [x] **6.5** Implement context file (HENCHMAN.md) loading
 - [x] **6.6** Add settings validation
 - [x] **6.7** Add unit tests (100% coverage, 271 tests)
 
 ### Settings Schema
 
 ```python
-# mlg/config/schema.py
+# henchman/config/schema.py
 
 class ProviderSettings(BaseModel):
     default: str = "deepseek"
@@ -558,42 +558,53 @@ class Settings(BaseModel):
 ### Settings Loading
 
 ```python
-# mlg/config/settings.py
+# henchman/config/settings.py
 
 def load_settings() -> Settings:
     """Load settings with precedence: defaults < user < workspace < env"""
     settings = {}
     
     # User settings
-    user_path = Path.home() / ".mlg" / "settings.yaml"
+    user_path = Path.home() / ".henchman" / "settings.yaml"
     if user_path.exists():
         settings = deep_merge(settings, yaml.safe_load(user_path.read_text()))
     
     # Workspace settings
-    workspace_path = Path.cwd() / ".mlg" / "settings.yaml"
+    workspace_path = Path.cwd() / ".henchman" / "settings.yaml"
     if workspace_path.exists():
         settings = deep_merge(settings, yaml.safe_load(workspace_path.read_text()))
     
     # Environment overrides
-    if provider := os.environ.get("MLG_PROVIDER"):
+    if provider := os.environ.get("HENCHMAN_PROVIDER"):
         settings.setdefault("providers", {})["default"] = provider
     
     return Settings(**settings)
 ```
 
-### Context Loading (MLG.md)
+### Context Loading (HENCHMAN.md + GitHub Copilot Instructions)
+
+Context files provide project-specific instructions to the agent. Multiple formats are supported:
+
+| File | Location | Purpose |
+|------|----------|--------|
+| `HENCHMAN.md` | `~/.henchman/`, ancestors, subdirs | MLG-native context |
+| `.github/copilot-instructions.md` | Workspace root | GitHub Copilot compatibility |
 
 ```python
-# mlg/core/context.py
+# henchman/core/context.py
 
 class ContextLoader:
-    FILENAME = "MLG.md"
+    CONTEXT_FILES = [
+        "HENCHMAN.md",
+        ".github/copilot-instructions.md",
+    ]
     
     def discover_files(self) -> list[Path]:
-        """Find all MLG.md files in hierarchy"""
+        """Find all context files in hierarchy"""
         files = []
-        # Global: ~/.mlg/MLG.md
-        # Ancestors: walk up to git root
+        # Global: ~/.henchman/HENCHMAN.md
+        # Workspace: .github/copilot-instructions.md
+        # Ancestors: walk up to git root for HENCHMAN.md
         # Subdirectories: walk down respecting .gitignore
         return files
     
@@ -610,7 +621,8 @@ class ContextLoader:
 - Settings load from correct locations
 - Merge precedence works correctly
 - Env vars override file settings
-- MLG.md files discovered and concatenated
+- HENCHMAN.md files discovered and concatenated
+- `.github/copilot-instructions.md` loaded when present
 
 ---
 
@@ -635,7 +647,7 @@ class ContextLoader:
 ### Main CLI Loop
 
 ```python
-# mlg/cli/app.py
+# henchman/cli/app.py
 
 async def run_cli():
     console = Console()
@@ -644,7 +656,7 @@ async def run_cli():
     tools = create_tool_registry(settings)
     agent = Agent(provider, tools, system_prompt=load_context())
     
-    session = PromptSession(history=FileHistory(".mlg_history"))
+    session = PromptSession(history=FileHistory(".henchman_history"))
     
     console.print("[bold blue]MLG CLI[/] - /help for commands, /quit to exit\n")
     
@@ -676,7 +688,7 @@ async def run_cli():
 ### Slash Commands
 
 ```python
-# mlg/cli/commands/
+# henchman/cli/commands/
 
 /help      - Show help
 /quit      - Exit CLI
@@ -717,7 +729,7 @@ async def run_cli():
 ### Session Model
 
 ```python
-# mlg/core/session.py
+# henchman/core/session.py
 
 @dataclass
 class SessionMessage:
@@ -746,7 +758,7 @@ class Session:
     
 class SessionManager:
     def __init__(self, data_dir: Path = None):
-        self.data_dir = data_dir or (Path.home() / ".mlg" / "sessions")
+        self.data_dir = data_dir or (Path.home() / ".henchman" / "sessions")
     
     def create_session(self, project_hash: str, tag: str | None = None) -> Session: ...
     def save(self, session: Session) -> Path: ...
@@ -784,7 +796,7 @@ class SessionManager:
 ### MCP Configuration
 
 ```yaml
-# ~/.mlg/settings.yaml
+# ~/.henchman/settings.yaml
 mcp_servers:
   filesystem:
     command: npx
@@ -802,7 +814,7 @@ mcp_servers:
 ### MCP Client
 
 ```python
-# mlg/mcp/client.py
+# henchman/mcp/client.py
 
 class McpClient:
     def __init__(self, name: str, config: McpServerConfig):
@@ -846,7 +858,7 @@ class McpClient:
 ### Extension Interface
 
 ```python
-# mlg/extensions/base.py
+# henchman/extensions/base.py
 
 class Extension(ABC):
     @property
@@ -873,23 +885,23 @@ class Extension(ABC):
 
 ```python
 # Entry points in pyproject.toml
-[project.entry-points."mlg.extensions"]
+[project.entry-points."henchman.extensions"]
 my_extension = "my_package:MyExtension"
 
 # Directory-based
-~/.mlg/extensions/my-ext/extension.py
+~/.henchman/extensions/my-ext/extension.py
 ```
 
 ### ExtensionManager Usage
 
 ```python
-from mlg.extensions import Extension, ExtensionManager
+from henchman.extensions import Extension, ExtensionManager
 from pathlib import Path
 
 # Create manager and discover extensions
 manager = ExtensionManager()
 manager.discover_entry_points()  # From installed packages
-manager.discover_directory(Path.home() / ".mlg" / "extensions")
+manager.discover_directory(Path.home() / ".henchman" / "extensions")
 
 # Use discovered extensions
 tools = manager.get_all_tools()
@@ -926,7 +938,7 @@ context = manager.get_combined_context()
 Native Claude SDK integration with streaming support:
 
 ```python
-from mlg.providers import AnthropicProvider
+from henchman.providers import AnthropicProvider
 
 provider = AnthropicProvider(api_key="sk-ant-...", model="claude-sonnet-4-20250514")
 async for chunk in provider.chat_completion_stream(messages):
@@ -945,7 +957,7 @@ Supported models:
 Local model support via Ollama's OpenAI-compatible API:
 
 ```python
-from mlg.providers import OllamaProvider
+from henchman.providers import OllamaProvider
 
 provider = OllamaProvider(model="llama3.2")  # No API key needed
 async for chunk in provider.chat_completion_stream(messages):
@@ -956,19 +968,19 @@ async for chunk in provider.chat_completion_stream(messages):
 
 ```bash
 # Simple prompt
-mlg --prompt "Explain this code" < file.py
+henchman --prompt "Explain this code" < file.py
 
 # JSON output for scripting
-mlg -p "Summarize README.md" --output-format json
+henchman -p "Summarize README.md" --output-format json
 
 # Streaming JSON for real-time
-mlg -p "Run tests" --output-format stream-json
+henchman -p "Run tests" --output-format stream-json
 ```
 
 ### Hooks System
 
 ```python
-# ~/.mlg/hooks/before_tool/validate.py
+# ~/.henchman/hooks/before_tool/validate.py
 # Receives JSON on stdin, outputs JSON on stdout
 # Exit 0 = allow, Exit 2 = block
 
@@ -987,6 +999,175 @@ class HookRunner:
 
 ---
 
+## Phase 13: Skills & Learning
+
+**Goal**: Enable agent to learn and reuse successful task patterns
+
+### Tasks
+
+- [ ] **13.1** Define `Skill` model and `SkillStep` types
+- [ ] **13.2** Implement `SkillStore` with git-backed storage
+- [ ] **13.3** Implement `SkillLearner` for extracting skills from sessions
+- [ ] **13.4** Implement `SkillExecutor` for replaying skills
+- [ ] **13.5** Add skill detection heuristics to agent
+- [ ] **13.6** Implement `/skill` commands (list, show, run, delete, etc.)
+- [ ] **13.7** Support `.github/skills/` directory format
+- [ ] **13.8** Add skill import/export and remote sync
+
+### Skill Storage Formats
+
+Skills can be stored in two formats:
+
+| Format | Location | Use Case |
+|--------|----------|----------|
+| YAML | `~/.henchman/skills/*.skill.yaml` | User-learned skills |
+| Markdown | `.github/skills/<name>/SKILL.md` | Shareable, repo-committed skills |
+
+### YAML Format (User Skills)
+
+```yaml
+# ~/.henchman/skills/add-api-endpoint.skill.yaml
+name: add-api-endpoint
+description: Create a new REST API endpoint with router, handler, and tests
+version: 1
+created: 2026-01-23T10:30:00Z
+author: matthew
+tags: [api, fastapi, backend]
+
+triggers:
+  - "add a new endpoint"
+  - "create an API route"
+
+parameters:
+  resource:
+    description: "Name of the resource (e.g., users, products)"
+    required: true
+
+steps:
+  - description: "Create router file"
+    tool: write_file
+    arguments:
+      path: "src/api/routers/{{resource}}.py"
+      content: |
+        from fastapi import APIRouter
+        router = APIRouter(prefix="/{{resource}}")
+```
+
+### Markdown Format (GitHub Skills)
+
+```markdown
+<!-- .github/skills/add-endpoint/SKILL.md -->
+# add-endpoint
+
+Create a new REST API endpoint with router and tests.
+
+## Triggers
+
+- "add a new endpoint"
+- "create an API route for {resource}"
+
+## Parameters
+
+| Name | Required | Description |
+|------|----------|-------------|
+| resource | yes | Name of the resource |
+| methods | no | HTTP methods (default: GET, POST) |
+
+## Steps
+
+### 1. Create router file
+
+**Tool:** `write_file`
+
+```python
+# Path: src/api/routers/{{resource}}.py
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/{{resource}}", tags=["{{resource}}"])
+
+@router.get("/")
+async def list_{{resource}}():
+    return []
+```
+
+### 2. Register router
+
+**Tool:** `edit_file`
+
+Add import and include router in `src/api/main.py`.
+```
+
+### Git-Backed Storage
+
+```python
+# henchman/skills/storage.py
+
+class SkillStore:
+    def __init__(self, path: Path = None):
+        self.path = path or Path.home() / ".henchman" / "skills"
+        self._ensure_git_repo()
+    
+    def _ensure_git_repo(self) -> None:
+        """Initialize git repo for version history"""
+        if not (self.path / ".git").exists():
+            subprocess.run(["git", "init"], cwd=self.path)
+    
+    def save(self, skill: Skill, message: str = None) -> None:
+        """Save skill and commit to git"""
+        ...
+    
+    def history(self, skill_name: str) -> list[SkillVersion]:
+        """Get version history from git log"""
+        ...
+    
+    def rollback(self, skill_name: str, commit: str) -> None:
+        """Restore skill to previous version"""
+        ...
+```
+
+### Agent Behavior
+
+**Learning** (agent-initiated):
+```
+✅ Done! I created the products endpoint.
+
+💡 This looks like a reusable pattern. Should I remember this as a skill?
+   [Yes, save skill] [No thanks]
+```
+
+**Usage** (agent-driven with announcement):
+```
+❯ I need an orders endpoint
+
+🎯 Using learned skill: add-api-endpoint
+   Parameters: resource=orders
+```
+
+### Slash Commands
+
+```
+/skill list                    # List all skills
+/skill show <name>             # Show skill steps
+/skill run <name> [--param=val]  # Execute skill
+/skill history <name>          # Version history (git log)
+/skill rollback <name> <hash>  # Restore version
+/skill edit <name>             # Open in $EDITOR
+/skill delete <name>           # Remove skill
+/skill export <name>           # Print to stdout
+/skill import <path|url>       # Import from file/URL
+/skill remote [add|push|pull]  # Git remote sync
+```
+
+### Acceptance Criteria
+
+- Skills save in YAML format with git commits
+- `.github/skills/*/SKILL.md` files discovered and loaded
+- Agent offers to save skill-worthy completions
+- Agent announces when using learned skills
+- Skills shareable via export/import or git remotes
+
+---
+
 ## Phase 12: Polish & Release
 
 **Goal**: Production-ready release
@@ -998,18 +1179,54 @@ class HookRunner:
 - [ ] **12.3** Session auto-save on graceful exit
 - [x] **12.4** Comprehensive test suite (>80% coverage) - Achieved 100%!
 - [ ] **12.5** Documentation site (mkdocs)
-- [ ] **12.6** PyPI packaging and publishing
-- [ ] **12.7** GitHub Actions CI/CD
-- [ ] **12.8** Multiple theme support
-- [ ] **12.9** Performance optimization
-- [ ] **12.10** Error handling audit
-- [ ] **12.11** Security review
+- [ ] **12.6** Rename to "henchman" (see Rename Checklist below)
+- [ ] **12.7** PyPI packaging and publishing
+- [ ] **12.8** GitHub Actions CI/CD
+- [ ] **12.9** Multiple theme support
+- [ ] **12.10** Performance optimization
+- [ ] **12.11** Error handling audit
+- [ ] **12.12** Security review
+
+### 12.6 Rename Checklist: henchman → henchman
+
+Before PyPI publishing, rename the package from `henchman` to `henchman`:
+
+| Item | From | To |
+|------|------|-----|
+| Package directory | `src/henchman/` | `src/henchman/` |
+| CLI entry point | `henchman` | `henchman` |
+| PyPI package name | `henchman-ai` | `henchman-ai` |
+| Config directories | `~/.henchman/`, `.henchman/` | `~/.henchman/`, `.henchman/` |
+| Context files | `HENCHMAN.md` | `HENCHMAN.md` (keep `.github/copilot-instructions.md`) |
+| Environment prefix | `HENCHMAN_*` | `HENCHMAN_*` |
+| Shell detection var | `HENCHMAN_CLI=1` | `HENCHMAN_CLI=1` |
+| Error base class | `MlgError` | `HenchmanError` |
+| Repository name | `henchman-ai` | `henchman` |
+
+**Scrub script** (run before final commit):
+```bash
+# Rename directories
+mv src/henchman src/henchman
+
+# Update all imports and references
+find src tests -name "*.py" -exec sed -i 's/from henchman/from henchman/g' {} +
+find src tests -name "*.py" -exec sed -i 's/import henchman/import henchman/g' {} +
+find . -name "*.md" -exec sed -i 's/henchman-ai/henchman/g' {} +
+find . -name "*.md" -exec sed -i 's/MLG/HENCHMAN/g' {} +
+
+# Update pyproject.toml
+sed -i 's/name = "henchman-ai"/name = "henchman"/' pyproject.toml
+sed -i 's/henchman = "henchman.cli.app:main"/henchman = "henchman.cli.app:main"/' pyproject.toml
+
+# Verify no henchman references remain
+grep -r "henchman" src/ tests/ --include="*.py" | grep -v henchman
+```
 
 ### Completed (12.1, 12.2, 12.4)
 
 **12.1 Interactive REPL Main Loop**
 
-Created `src/mlg/cli/repl.py` with:
+Created `src/henchman/cli/repl.py` with:
 - `ReplConfig` dataclass for REPL configuration
 - `Repl` class orchestrating Agent, ToolRegistry, CommandRegistry, OutputRenderer
 - Event-driven processing of agent responses (content, thinking, tool calls, errors)
@@ -1019,7 +1236,7 @@ Created `src/mlg/cli/repl.py` with:
 
 **12.2 Headless Mode**
 
-Updated `src/mlg/cli/app.py` with:
+Updated `src/henchman/cli/app.py` with:
 - `_get_provider()` - Provider initialization from env or settings
 - `_run_interactive()` - Launches REPL for interactive mode
 - `_run_headless()` - Processes single prompt and exits
@@ -1145,7 +1362,7 @@ async def test_deepseek_real():
 |----------|---------|----------------|
 | **UI Framework** | Rich only vs Textual TUI | Start with Rich, add Textual later |
 | **Async Runtime** | asyncio vs anyio | anyio for flexibility |
-| **Context Filename** | MLG.md vs AGENT.md | MLG.md (matches project) |
+| **Context Filename** | HENCHMAN.md vs AGENT.md | HENCHMAN.md (matches project) |
 | **Default Provider** | DeepSeek vs Ollama | DeepSeek (easy API, free tier) |
 
 ---

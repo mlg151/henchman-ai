@@ -1,7 +1,7 @@
 """Tests for mlg package initialization and version."""
 
-from mlg import __version__
-from mlg.version import VERSION, VERSION_TUPLE
+from henchman import __version__
+from henchman.version import VERSION, VERSION_TUPLE
 
 
 def test_version_string_format() -> None:

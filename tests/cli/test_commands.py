@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from mlg.cli.commands import (
+from henchman.cli.commands import (
     Command,
     CommandContext,
     CommandRegistry,

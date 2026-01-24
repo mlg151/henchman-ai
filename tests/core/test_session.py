@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from mlg.core.session import Session, SessionMessage, SessionMetadata
+from henchman.core.session import Session, SessionMessage, SessionMetadata
 
 
 class TestSessionMessage:

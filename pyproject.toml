@@ -3,16 +3,16 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mlg-cli"
+name = "henchman-ai"
 version = "0.1.0"
-description = "A model-agnostic AI agent CLI in Python"
+description = "A model-agnostic AI agent CLI - your AI henchman for the terminal"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
     { name = "Matthew", email = "matthew@example.com" }
 ]
-keywords = ["cli", "ai", "agent", "llm", "deepseek", "openai", "anthropic"]
+keywords = ["cli", "ai", "agent", "llm", "deepseek", "openai", "anthropic", "henchman"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -50,15 +50,15 @@ dev = [
 ]
 
 [project.scripts]
-mlg = "mlg.cli.app:main"
+henchman = "henchman.cli.app:main"
 
 [project.urls]
-Homepage = "https://github.com/matthew/mlg-cli"
-Repository = "https://github.com/matthew/mlg-cli"
-Documentation = "https://github.com/matthew/mlg-cli#readme"
+Homepage = "https://github.com/mlg151/henchman-ai"
+Repository = "https://github.com/mlg151/henchman-ai"
+Documentation = "https://github.com/mlg151/henchman-ai#readme"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mlg"]
+packages = ["src/henchman"]
 
 [tool.ruff]
 target-version = "py311"
@@ -85,7 +85,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["mlg"]
+known-first-party = ["henchman"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -107,13 +107,13 @@ disallow_incomplete_defs = false
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-v --cov=mlg --cov-report=term-missing"
+addopts = "-v --cov=henchman --cov-report=term-missing"
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
 ]
 
 [tool.coverage.run]
-source = ["src/mlg"]
+source = ["src/henchman"]
 branch = true
 
 [tool.coverage.report]

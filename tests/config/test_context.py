@@ -1,4 +1,4 @@
-"""Tests for context file (MLG.md) loading."""
+"""Tests for context file (HENCHMAN.md) loading."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from mlg.config.context import ContextLoader
+from henchman.config.context import ContextLoader
 
 
 class TestContextLoader:
@@ -29,16 +29,16 @@ class TestContextLoader:
         return cwd
 
     def test_no_context_files(self, temp_home: Path, temp_cwd: Path) -> None:
-        """Test when no MLG.md files exist."""
+        """Test when no HENCHMAN.md files exist."""
         loader = ContextLoader()
         files = loader.discover_files()
         assert files == []
 
     def test_global_context_file(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test discovering global context file."""
-        mlg_dir = temp_home / ".mlg"
-        mlg_dir.mkdir()
-        context_file = mlg_dir / "MLG.md"
+        henchman_dir = temp_home / ".henchman"
+        henchman_dir.mkdir()
+        context_file = henchman_dir / "HENCHMAN.md"
         context_file.write_text("# Global Context")
 
         loader = ContextLoader()
@@ -48,7 +48,7 @@ class TestContextLoader:
 
     def test_workspace_context_file(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test discovering workspace context file."""
-        context_file = temp_cwd / "MLG.md"
+        context_file = temp_cwd / "HENCHMAN.md"
         context_file.write_text("# Workspace Context")
 
         loader = ContextLoader()
@@ -71,16 +71,16 @@ class TestContextLoader:
         (project / ".git").mkdir()
 
         # Create context files at different levels
-        (project / "MLG.md").write_text("# Project Context")
-        (subdir / "MLG.md").write_text("# Subdir Context")
+        (project / "HENCHMAN.md").write_text("# Project Context")
+        (subdir / "HENCHMAN.md").write_text("# Subdir Context")
 
         loader = ContextLoader()
         files = loader.discover_files()
 
         # Should find both, ordered from root to cwd
         assert len(files) == 2
-        assert files[0] == project / "MLG.md"
-        assert files[1] == subdir / "MLG.md"
+        assert files[0] == project / "HENCHMAN.md"
+        assert files[1] == subdir / "HENCHMAN.md"
 
     def test_stops_at_git_root(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -97,16 +97,16 @@ class TestContextLoader:
         (inner / ".git").mkdir()
 
         # Create context file outside git root
-        (outer / "MLG.md").write_text("# Should not be found")
-        (inner / "MLG.md").write_text("# Inner Context")
+        (outer / "HENCHMAN.md").write_text("# Should not be found")
+        (inner / "HENCHMAN.md").write_text("# Inner Context")
 
         loader = ContextLoader()
         files = loader.discover_files()
 
         # Should only find inner, not outer
         paths = [f.name for f in files]
-        assert len([p for p in paths if p == "MLG.md"]) == 1
-        assert inner / "MLG.md" in files
+        assert len([p for p in paths if p == "HENCHMAN.md"]) == 1
+        assert inner / "HENCHMAN.md" in files
 
     def test_load_empty(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test loading when no context files exist."""
@@ -116,7 +116,7 @@ class TestContextLoader:
 
     def test_load_single_file(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test loading a single context file."""
-        context_file = temp_cwd / "MLG.md"
+        context_file = temp_cwd / "HENCHMAN.md"
         context_file.write_text("# My Project\nThis is my project.")
 
         loader = ContextLoader()
@@ -134,16 +134,16 @@ class TestContextLoader:
         monkeypatch.chdir(project)
 
         (project / ".git").mkdir()
-        (workspace.parent / ".mlg").mkdir(parents=True, exist_ok=True)
+        (workspace.parent / ".henchman").mkdir(parents=True, exist_ok=True)
 
         # Create multiple context files
         home = tmp_path / "home"
         home.mkdir()
         monkeypatch.setenv("HOME", str(home))
-        mlg_dir = home / ".mlg"
-        mlg_dir.mkdir()
-        (mlg_dir / "MLG.md").write_text("# Global Context")
-        (project / "MLG.md").write_text("# Project Context")
+        henchman_dir = home / ".henchman"
+        henchman_dir.mkdir()
+        (henchman_dir / "HENCHMAN.md").write_text("# Global Context")
+        (project / "HENCHMAN.md").write_text("# Project Context")
 
         loader = ContextLoader()
         content = loader.load()
@@ -155,13 +155,13 @@ class TestContextLoader:
 
     def test_load_with_file_header(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test that loaded content includes file path header."""
-        context_file = temp_cwd / "MLG.md"
+        context_file = temp_cwd / "HENCHMAN.md"
         context_file.write_text("# My Context")
 
         loader = ContextLoader()
         content = loader.load()
         # Should include context marker
-        assert "Context:" in content or "MLG.md" in content
+        assert "Context:" in content or "HENCHMAN.md" in content
 
     def test_custom_filename(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test using a custom filename."""
@@ -185,13 +185,13 @@ class TestContextLoader:
         # Create subdirectory with context
         subdir = project / "src"
         subdir.mkdir()
-        (subdir / "MLG.md").write_text("# Src Context")
+        (subdir / "HENCHMAN.md").write_text("# Src Context")
 
         loader = ContextLoader(include_subdirs=True)
         files = loader.discover_files()
 
         # Should find subdirectory context
-        assert subdir / "MLG.md" in files
+        assert subdir / "HENCHMAN.md" in files
 
     def test_respects_gitignore(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -208,22 +208,22 @@ class TestContextLoader:
         # Create context in ignored directory
         ignored = project / "node_modules"
         ignored.mkdir()
-        (ignored / "MLG.md").write_text("# Should be ignored")
+        (ignored / "HENCHMAN.md").write_text("# Should be ignored")
 
         loader = ContextLoader(include_subdirs=True)
         files = loader.discover_files()
 
         # Should not find ignored file
-        assert ignored / "MLG.md" not in files
+        assert ignored / "HENCHMAN.md" not in files
 
 
 class TestContextLoaderFilename:
     """Tests for ContextLoader.FILENAME constant."""
 
     def test_default_filename(self) -> None:
-        """Test default filename is MLG.md."""
+        """Test default filename is HENCHMAN.md."""
         loader = ContextLoader()
-        assert loader.filename == "MLG.md"
+        assert loader.filename == "HENCHMAN.md"
 
 
 class TestContextLoaderGitignore:
@@ -251,18 +251,18 @@ dist
         # Create directories
         ignored = project / "node_modules"
         ignored.mkdir()
-        (ignored / "MLG.md").write_text("# Should be ignored")
+        (ignored / "HENCHMAN.md").write_text("# Should be ignored")
 
         also_ignored = project / "dist"
         also_ignored.mkdir()
-        (also_ignored / "MLG.md").write_text("# Also ignored")
+        (also_ignored / "HENCHMAN.md").write_text("# Also ignored")
 
         loader = ContextLoader(include_subdirs=True)
         files = loader.discover_files()
 
         # Should not find ignored files
-        assert ignored / "MLG.md" not in files
-        assert also_ignored / "MLG.md" not in files
+        assert ignored / "HENCHMAN.md" not in files
+        assert also_ignored / "HENCHMAN.md" not in files
 
     def test_pattern_matches_first_path_component(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -279,13 +279,13 @@ dist
         # Create nested directory that matches pattern
         build_dir = project / "build"
         build_dir.mkdir()
-        (build_dir / "MLG.md").write_text("# Build context")
+        (build_dir / "HENCHMAN.md").write_text("# Build context")
 
         loader = ContextLoader(include_subdirs=True)
         files = loader.discover_files()
 
         # Should not find build directory
-        assert build_dir / "MLG.md" not in files
+        assert build_dir / "HENCHMAN.md" not in files
 
 
 class TestContextLoaderSubdirectories:
@@ -303,15 +303,15 @@ class TestContextLoaderSubdirectories:
         # Create a regular file (not a directory)
         (project / "somefile.txt").write_text("content")
 
-        # Create a valid subdirectory with MLG.md
+        # Create a valid subdirectory with HENCHMAN.md
         subdir = project / "src"
         subdir.mkdir()
-        (subdir / "MLG.md").write_text("# Src context")
+        (subdir / "HENCHMAN.md").write_text("# Src context")
 
         loader = ContextLoader(include_subdirs=True)
         files = loader.discover_files()
 
-        assert subdir / "MLG.md" in files
+        assert subdir / "HENCHMAN.md" in files
 
     def test_skips_hidden_directories(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -325,12 +325,12 @@ class TestContextLoaderSubdirectories:
         # Create hidden directory
         hidden = project / ".hidden"
         hidden.mkdir()
-        (hidden / "MLG.md").write_text("# Should not be found")
+        (hidden / "HENCHMAN.md").write_text("# Should not be found")
 
         loader = ContextLoader(include_subdirs=True)
         files = loader.discover_files()
 
-        assert hidden / "MLG.md" not in files
+        assert hidden / "HENCHMAN.md" not in files
 
     def test_subdirs_without_git_root(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -343,18 +343,18 @@ class TestContextLoaderSubdirectories:
 
         subdir = project / "src"
         subdir.mkdir()
-        (subdir / "MLG.md").write_text("# Src context")
+        (subdir / "HENCHMAN.md").write_text("# Src context")
 
         loader = ContextLoader(include_subdirs=True)
         files = loader.discover_files()
 
         # Should not search subdirs without git root
-        assert subdir / "MLG.md" not in files
+        assert subdir / "HENCHMAN.md" not in files
 
     def test_subdir_without_context_file(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test subdirectory without MLG.md file."""
+        """Test subdirectory without HENCHMAN.md file."""
         project = tmp_path / "project"
         project.mkdir()
         (project / ".git").mkdir()
@@ -368,7 +368,7 @@ class TestContextLoaderSubdirectories:
         files = loader.discover_files()
 
         # Should not fail, just not find anything
-        assert subdir / "MLG.md" not in files
+        assert subdir / "HENCHMAN.md" not in files
 
 
 class TestContextLoaderIsIgnored:
@@ -448,12 +448,12 @@ class TestContextLoaderAncestorSearch:
         monkeypatch.chdir(project)
 
         # No .git directory - should only check cwd
-        (project / "MLG.md").write_text("# Project context")
+        (project / "HENCHMAN.md").write_text("# Project context")
 
         loader = ContextLoader()
         files = loader.discover_files()
 
-        assert project / "MLG.md" in files
+        assert project / "HENCHMAN.md" in files
 
     def test_cwd_equals_git_root(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -462,11 +462,11 @@ class TestContextLoaderAncestorSearch:
         project = tmp_path / "project"
         project.mkdir()
         (project / ".git").mkdir()
-        (project / "MLG.md").write_text("# Project context")
+        (project / "HENCHMAN.md").write_text("# Project context")
         monkeypatch.chdir(project)
 
         loader = ContextLoader()
         files = loader.discover_files()
 
         # Should find the context file at git root
-        assert project / "MLG.md" in files
+        assert project / "HENCHMAN.md" in files

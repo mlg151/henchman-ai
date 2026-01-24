@@ -2,9 +2,9 @@
 
 import pytest
 
-from mlg.cli.commands import Command, CommandContext
-from mlg.extensions.base import Extension
-from mlg.tools.base import Tool, ToolKind, ToolResult
+from henchman.cli.commands import Command, CommandContext
+from henchman.extensions.base import Extension
+from henchman.tools.base import Tool, ToolKind, ToolResult
 
 
 class DummyTool(Tool):
