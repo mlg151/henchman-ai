@@ -181,18 +181,24 @@ class TestRunInteractive:
         mock_repl_instance = MagicMock()
         mock_loader_instance = MagicMock()
         mock_loader_instance.load.return_value = "system prompt"
+        mock_settings = MagicMock()
 
         with (
             patch("henchman.cli.app._get_provider") as mock_provider,
             patch("henchman.config.ContextLoader", return_value=mock_loader_instance),
+            patch("henchman.config.load_settings", return_value=mock_settings),
             patch("henchman.cli.repl.Repl", return_value=mock_repl_instance) as mock_repl,
             patch("henchman.cli.app.anyio") as mock_anyio,
         ):
             mock_provider.return_value = MagicMock()
-
             _run_interactive("text")
 
-            mock_repl.assert_called_once()
+            # Verify Repl was called with correct arguments
+            assert mock_repl.call_count == 1
+            call_kwargs = mock_repl.call_args[1]
+            assert call_kwargs["provider"] == mock_provider.return_value
+            assert call_kwargs["settings"] == mock_settings
+            assert call_kwargs["config"].system_prompt == "system prompt"
             mock_anyio.run.assert_called_once_with(mock_repl_instance.run)
 
 
@@ -210,13 +216,18 @@ class TestRunHeadless:
         with (
             patch("henchman.cli.app._get_provider") as mock_provider,
             patch("henchman.config.ContextLoader", return_value=mock_loader_instance),
-            patch("henchman.cli.repl.Repl", return_value=mock_repl_instance),
+            patch("henchman.cli.repl.Repl", return_value=mock_repl_instance) as mock_repl,
             patch("henchman.cli.app.anyio") as mock_anyio,
         ):
             mock_provider.return_value = MagicMock()
 
             _run_headless("Hello world", "text")
 
+            # Verify Repl was called with correct arguments
+            assert mock_repl.call_count == 1
+            call_kwargs = mock_repl.call_args[1]
+            assert call_kwargs["provider"] == mock_provider.return_value
+            assert call_kwargs["config"].system_prompt == ""
             # Check anyio.run was called with an async function
             mock_anyio.run.assert_called_once()
             # The function passed to anyio.run should be the run_single_prompt coroutine

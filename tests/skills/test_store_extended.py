@@ -1,6 +1,8 @@
 
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from henchman.skills.models import Skill
 from henchman.skills.store import SkillStore
 
@@ -17,10 +19,10 @@ def test_export_import_skill(tmp_path):
     store = SkillStore(skills_dir=tmp_path / "skills")
     skill = Skill(name="ex", description="d", steps=[])
     store.save(skill)
-    
+
     exported = store.export_skill("ex")
     assert "name: ex" in exported
-    
+
     # Import into another store
     store2 = SkillStore(skills_dir=tmp_path / "skills2")
     imported = store2.import_skill(exported)
@@ -34,6 +36,6 @@ def test_remote_push_pull(tmp_path):
     with patch.object(store, "_run_git") as mock_git:
         store.remote_push()
         mock_git.assert_called_with(["push", "origin", "main"])
-        
+
         store.remote_pull("upstream")
         mock_git.assert_called_with(["pull", "upstream", "main"])

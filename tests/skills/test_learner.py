@@ -1,3 +1,4 @@
+from henchman.core.session import SessionMessage
 from henchman.providers.base import Message, ToolCall
 from henchman.skills.learner import SkillLearner
 from henchman.skills.models import Skill
@@ -44,9 +45,6 @@ def test_skill_learner_extract_multiple_steps():
     assert len(skill.steps) == 2
     assert skill.steps[0].tool == "ls"
     assert skill.steps[1].tool == "read_file"
-
-from henchman.core.session import SessionMessage
-
 
 
 def test_skill_learner_extract_session_message():

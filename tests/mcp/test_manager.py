@@ -54,9 +54,9 @@ class TestMcpManager:
         manager = McpManager(configs)
 
         with patch("henchman.mcp.manager.McpClient") as MockClient:
-            mock_client = AsyncMock()
+            mock_client = MagicMock()
             mock_client.connect = AsyncMock()
-            mock_client.discover_tools = AsyncMock(return_value=[])
+            mock_client.get_tools = MagicMock(return_value=[])
             MockClient.return_value = mock_client
 
             await manager.connect_all()
@@ -70,10 +70,10 @@ class TestMcpManager:
         manager = McpManager(configs)
 
         with patch("henchman.mcp.manager.McpClient") as MockClient:
-            mock_client = AsyncMock()
+            mock_client = MagicMock()
             mock_client.connect = AsyncMock()
             mock_client.disconnect = AsyncMock()
-            mock_client.discover_tools = AsyncMock(return_value=[])
+            mock_client.get_tools = MagicMock(return_value=[])
             MockClient.return_value = mock_client
 
             await manager.connect_all()
@@ -128,10 +128,10 @@ class TestMcpManager:
         mock_result.is_error = False
 
         with patch("henchman.mcp.manager.McpClient") as MockClient:
-            mock_client = AsyncMock()
+            mock_client = MagicMock()
             mock_client.name = "filesystem"
             mock_client.connect = AsyncMock()
-            mock_client.discover_tools = AsyncMock(return_value=[mock_tool])
+            mock_client.get_tools = MagicMock(return_value=[mock_tool])
             mock_client.call_tool = AsyncMock(return_value=mock_result)
             MockClient.return_value = mock_client
 

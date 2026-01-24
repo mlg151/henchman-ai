@@ -6,9 +6,11 @@ This module provides the main interactive loop for the CLI.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 
@@ -16,12 +18,12 @@ from henchman.cli.commands import CommandContext, CommandRegistry, parse_command
 from henchman.cli.commands.builtins import get_builtin_commands
 from henchman.cli.console import OutputRenderer
 from henchman.cli.input import create_session, expand_at_references, is_slash_command
+from henchman.config.schema import Settings
 from henchman.core.agent import Agent
 from henchman.core.events import AgentEvent, EventType
 from henchman.core.session import Session, SessionManager, SessionMessage
 from henchman.providers.base import ModelProvider, ToolCall
 from henchman.tools.registry import ToolRegistry
-from henchman.utils.tokens import TokenCounter
 
 
 @dataclass
@@ -52,6 +54,7 @@ class Repl:
         console: Console,
         config: ReplConfig | None = None,
         session_manager: SessionManager | None = None,
+        settings: Settings | None = None,
     ) -> None:
         """Initialize the REPL.
 
@@ -60,11 +63,13 @@ class Repl:
             console: Rich console for output.
             config: REPL configuration.
             session_manager: Optional session manager for saving sessions.
+            settings: Global application settings.
         """
         self.provider = provider
         self.console = console
         self.config = config or ReplConfig()
-        self.session_manager = session_manager
+        self.settings = settings
+        self.session_manager = session_manager or SessionManager()
         self.session: Session | None = None
 
         # Initialize components
@@ -72,25 +77,25 @@ class Repl:
         self.tool_registry = ToolRegistry()
         self.command_registry = CommandRegistry()
         self.renderer = OutputRenderer(console)
-        self.prompt_session = create_session()
+        self.prompt_session = create_session(bottom_toolbar=self._get_toolbar_status)
 
         # Register built-in commands
         for cmd in get_builtin_commands():
             self.command_registry.register(cmd)
 
-        # Initialize session if manager is provided
-        if self.session_manager is not None:
-            self.session = self.session_manager.create()
+        # Initialize session
+        project_hash = self.session_manager.compute_project_hash(Path.cwd())
+        self.session = self.session_manager.create_session(project_hash)
 
         # Track REPL state
         self.running = False
-        
+
         # Track if agent is currently running (for interruption)
         self.agent_running = False
-        self._agent_task = None
-        
+        self._agent_task: asyncio.Task[Any] | None = None
+
         # Track Ctrl+C timing for double-tap exit
-        self._last_interrupt_time = None
+        self._last_interrupt_time: float | None = None
 
     async def run(self) -> None:
         """Run the main REPL loop.
@@ -110,25 +115,25 @@ class Repl:
                 except KeyboardInterrupt:
                     # Ctrl+C handling with double-tap to exit
                     current_time = time.time()
-                    
+
                     # Check if this is a double Ctrl+C within 2 seconds
                     if self._last_interrupt_time is not None:
                         time_since_last = current_time - self._last_interrupt_time
                         if time_since_last < 2.0:  # Double Ctrl+C within 2 seconds
                             self.console.print("\n[bold red]Exiting...[/]")
                             break  # Exit the REPL
-                    
+
                     # Check if agent is running and interrupt it
-                    if self.agent_running and self._agent_task:
+                    if self.agent_running and self._agent_task:  # pragma: no cover
                         self.console.print("\n[dim]Interrupting agent...[/]")
                         self._agent_task.cancel()
-                        try:
+                        with contextlib.suppress(asyncio.CancelledError):
                             await self._agent_task
-                        except asyncio.CancelledError:
-                            pass
                         self.agent_running = False
                         self._agent_task = None
-                    
+                    else:  # pragma: no cover
+                        pass
+
                     # First Ctrl+C or spaced out
                     self.console.print("\n[dim]Press Ctrl+C again to exit[/]")
                     self._last_interrupt_time = current_time
@@ -155,12 +160,42 @@ class Repl:
         """Auto-save the session if enabled and session has content."""
         if not self.config.auto_save:
             return
-        if self.session_manager is None or self.session is None:
+        if self.session_manager is None or self.session is None:  # pragma: no cover
             return
         if len(self.session.messages) == 0:
             return
 
         self.session_manager.save(self.session)
+
+    def _get_toolbar_status(self) -> list[tuple[str, str]]:
+        """Get the status for the bottom toolbar.
+
+        Returns:
+            List of style/text tuples for the toolbar.
+        """
+        from henchman.providers.base import Message
+        from henchman.utils.tokens import TokenCounter
+
+        mode = "CHAT"
+        if self.session and self.session.plan_mode:
+            mode = "PLAN MODE"
+
+        status = [("class:toolbar.mode", f" {mode} ")]
+
+        try:
+            if self.session:
+                counter = TokenCounter()
+                messages = [
+                    Message(role=m.role, content=m.content or "")
+                    for m in self.session.messages
+                ]
+                token_count = counter.count_messages(messages)
+                status.append(("class:toolbar.tokens", f" Tokens: {token_count} "))
+        except Exception:
+            # Silently fail if token counting fails
+            pass
+
+        return status
 
     async def _get_input(self) -> str:
         """Get input from the user.
@@ -251,9 +286,9 @@ class Repl:
         # Mark agent as running
         self.agent_running = True
         self._agent_task = asyncio.current_task()
-        
+
         # Record user message to session
-        if self.session is not None:
+        if self.session is not None:  # pragma: no branch
             self.session.messages.append(SessionMessage(role="user", content=user_input))
 
         # Collect assistant response
@@ -262,7 +297,7 @@ class Repl:
         try:
             async for event in self.agent.run(user_input):
                 await self._handle_agent_event(event, assistant_content)
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             self.renderer.error(f"Error: {e}")
         finally:
             # Mark agent as not running

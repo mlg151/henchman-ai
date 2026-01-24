@@ -3,7 +3,7 @@
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -14,18 +14,18 @@ def test_ctrl_c_double_tap_logic():
     """Verify the double Ctrl+C exit logic works correctly."""
     # Test the timing logic
     last_time = time.time() - 3.0  # 3 seconds ago
-    
+
     # First Ctrl+C after 3 seconds should not exit
     current_time = time.time()
     time_since_last = current_time - last_time
     assert time_since_last > 2.0, "Should be more than 2 seconds"
-    
+
     # Second Ctrl+C within 1 second should exit
     last_time = time.time() - 0.5  # 0.5 seconds ago
     current_time = time.time()
     time_since_last = current_time - last_time
     assert time_since_last < 2.0, "Should be less than 2 seconds"
-    
+
     print("✓ Ctrl+C double-tap timing logic works correctly")
 
 
@@ -36,13 +36,13 @@ def test_escape_handler_implementation():
         ("", True, "Empty buffer should raise KeyboardInterrupt"),
         ("some text", False, "Non-empty buffer should clear text"),
     ]
-    
+
     for buffer_text, should_raise, description in test_cases:
         try:
             if not buffer_text:
                 raise KeyboardInterrupt("Escape pressed on empty buffer")
                 # If we get here, test fails
-                assert False, f"{description}: Should have raised"
+                raise AssertionError(f"{description}: Should have raised")
             else:
                 # Simulate clearing buffer
                 buffer_text = ""
@@ -50,7 +50,7 @@ def test_escape_handler_implementation():
         except KeyboardInterrupt as e:
             assert should_raise, f"{description}: Should not have raised"
             assert "Escape pressed on empty buffer" in str(e)
-    
+
     print("✓ Escape handler logic works correctly")
 
 
@@ -61,24 +61,24 @@ async def test_agent_interruption():
     mock_provider = MagicMock()
     mock_console = MagicMock()
     config = ReplConfig()
-    
+
     repl = Repl(mock_provider, mock_console, config)
-    
+
     # Set agent as running
     repl.agent_running = True
     repl._agent_task = asyncio.current_task()
-    
+
     # Verify agent can be cancelled
     assert repl.agent_running is True
     assert repl._agent_task is not None
-    
+
     # Simulate interruption
     repl.agent_running = False
     repl._agent_task = None
-    
+
     assert repl.agent_running is False
     assert repl._agent_task is None
-    
+
     print("✓ Agent interruption tracking works correctly")
 
 
@@ -106,17 +106,17 @@ def test_implementation_summary():
 if __name__ == "__main__":
     print("Running verification tests for keyboard interrupt fixes...")
     print()
-    
+
     test_ctrl_c_double_tap_logic()
     print()
-    
+
     test_escape_handler_implementation()
     print()
-    
+
     # Run async test
     asyncio.run(test_agent_interruption())
     print()
-    
+
     test_implementation_summary()
     print()
     print("✅ All keyboard interrupt fixes verified!")

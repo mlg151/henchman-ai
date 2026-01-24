@@ -38,7 +38,8 @@ def test_escape_key_empty_buffer():
     for binding in kb.bindings:
         if binding.keys == (Keys.Escape,):
             handler = binding.handler
-            handler(event)
+            with pytest.raises(KeyboardInterrupt):
+                handler(event)
             break
     else:
         pytest.fail("Escape handler not found")

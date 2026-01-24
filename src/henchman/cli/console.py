@@ -217,3 +217,52 @@ class OutputRenderer:
     def clear(self) -> None:
         """Clear the console screen."""
         self.console.clear()
+
+    def tool_call(self, name: str, arguments: dict[str, object]) -> None:
+        """Display a tool call.
+
+        Args:
+            name: Tool name.
+            arguments: Tool arguments.
+        """
+        import json
+        args_str = json.dumps(arguments, indent=2)
+        content = f"### 🛠️ Tool Call: `{name}`\n\n```json\n{args_str}\n```"
+        self.markdown(content)
+
+    def tool_result(
+        self, content: str, success: bool = True, error: str | None = None
+    ) -> None:
+        """Display a tool result.
+
+        Args:
+            content: Result content.
+            success: Whether the tool execution was successful.
+            error: Optional error message if failed.
+        """
+        # Truncate content if too long
+        max_len = 1000
+        if len(content) > max_len:
+            content = content[:max_len] + "\n... (truncated)"
+
+        status = "Result" if success else "Failed"
+        emoji = "✅" if success else "❌"
+        title = f"### {emoji} Tool {status}"
+
+        md_content = f"{title}\n\n{content}"
+        if error:
+            md_content += f"\n\n**Error:** {error}"
+
+        self.markdown(md_content)
+
+    def tool_summary(self, name: str, duration: float | None = None) -> None:
+        """Display a summary of tool execution.
+
+        Args:
+            name: Tool name.
+            duration: Execution duration in seconds.
+        """
+        msg = f"Executed {name}"
+        if duration is not None:
+            msg += f" ({duration:.2f}s)"
+        self.console.print(msg)

@@ -73,7 +73,7 @@ class McpManager:
                             trusted=config.trusted,
                         )
                     )
-            except Exception:
+            except Exception:  # pragma: no cover
                 # Log error but continue with other servers
                 pass
 

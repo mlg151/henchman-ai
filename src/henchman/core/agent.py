@@ -66,7 +66,7 @@ class Agent:
         if self.system_prompt:
             messages.append(Message(role="system", content=self.system_prompt))
         messages.extend(self.history)
-        
+
         # Apply automatic compaction if context is too large
         from henchman.utils.compaction import ContextCompactor
         compactor = ContextCompactor(max_tokens=self.max_tokens)

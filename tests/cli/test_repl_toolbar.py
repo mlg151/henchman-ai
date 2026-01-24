@@ -10,7 +10,8 @@ from henchman.core.session import Session
 def repl():
     with patch("henchman.cli.repl.create_session"):
         provider = Mock()
-        return Repl(provider=provider)
+        console = Mock()
+        return Repl(provider=provider, console=console)
 
 def test_get_toolbar_status_chat(repl):
     repl.session = Session(id="1", project_hash="abc", started="now", last_updated="now")
