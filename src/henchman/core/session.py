@@ -10,7 +10,7 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -245,7 +245,7 @@ class SessionManager:
 
     def _now_iso(self) -> str:
         """Get current time as ISO string."""
-        return datetime.now(UTC).isoformat()
+        return datetime.now(timezone.utc).isoformat()
 
     def _generate_id(self) -> str:
         """Generate a unique session ID."""
