@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.commands.plan import PlanCommand
+from henchman.cli.commands.skill import SkillCommand
 
 
 class HelpCommand(Command):
@@ -48,6 +49,7 @@ class HelpCommand(Command):
         ctx.console.print("\n[bold blue]Henchman-AI Commands[/]\n")
         ctx.console.print("  /help     - Show this help message")
         ctx.console.print("  /plan     - Toggle Plan Mode (Read-Only)")
+        ctx.console.print("  /skill    - Manage and execute learned skills")
         ctx.console.print("  /quit     - Exit the CLI")
         ctx.console.print("  /clear    - Clear the screen")
         ctx.console.print("  /tools    - List available tools")
@@ -202,4 +204,5 @@ def get_builtin_commands() -> list[Command]:
         ClearCommand(),
         ToolsCommand(),
         PlanCommand(),
+        SkillCommand(),
     ]

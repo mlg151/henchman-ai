@@ -1,10 +1,7 @@
 import subprocess
-from pathlib import Path
-
 import yaml
-
+from pathlib import Path
 from .models import Skill
-
 
 class SkillStore:
     """Storage for skills with git-backed versioning."""
@@ -39,48 +36,29 @@ class SkillStore:
         )
 
     def save(self, skill: Skill, message: str | None = None) -> None:
-        """Save skill to YAML and commit.
-
-        Args:
-            skill: Skill to save.
-            message: Optional commit message.
-        """
+        """Save skill to YAML and commit."""
         file_path = self.skills_dir / f"{skill.name}.yaml"
-
-        # Serialize to dict with JSON-compatible types (handling datetimes)
         data = skill.model_dump(mode="json")
-
         with open(file_path, "w") as f:
             yaml.dump(data, f, sort_keys=False)
-
         self._run_git(["add", file_path.name])
         msg = message or f"Update skill: {skill.name}"
         self._run_git(["commit", "-m", msg])
 
-    def load(self, name: str) -> Skill:
-        """Load skill by name.
-
-        Args:
-            name: Skill name.
-
-        Returns:
-            The loaded Skill.
-        """
-        file_path = self.skills_dir / f"{name}.yaml"
-        if not file_path.exists():
-            raise FileNotFoundError(f"Skill not found: {name}")
-
-        with open(file_path) as f:
-            data = yaml.safe_load(f)
-
-        return Skill(**data)
+    def discover_workspace_skills(self) -> list[Path]:
+        """Find all SKILL.md files in .github/skills/ hierarchy."""
+        workspace_skills = []
+        github_skills = Path.cwd() / ".github" / "skills"
+        if github_skills.exists() and github_skills.is_dir():
+            for skill_dir in github_skills.iterdir():
+                if skill_dir.is_dir():
+                    skill_md = skill_dir / "SKILL.md"
+                    if skill_md.exists():
+                        workspace_skills.append(skill_md)
+        return workspace_skills
 
     def list_skills(self) -> list[Skill]:
-        """List all available skills.
-
-        Returns:
-            List of Skills.
-        """
+        """List all available skills (user and workspace)."""
         skills = []
         for file_path in self.skills_dir.glob("*.yaml"):
             try:
@@ -88,17 +66,67 @@ class SkillStore:
                     data = yaml.safe_load(f)
                     skills.append(Skill(**data))
             except Exception:
-                continue  # Skip malformed files
+                continue
+        for md_path in self.discover_workspace_skills():
+            try:
+                skill = self._load_from_markdown(md_path)
+                skills.append(skill)
+            except Exception:
+                continue
         return skills
 
-    def delete(self, name: str) -> None:
-        """Delete a skill and commit.
+    def _load_from_markdown(self, path: Path) -> Skill:
+        """Parse a Skill from a SKILL.md file."""
+        content = path.read_text()
+        lines = content.splitlines()
+        name = path.parent.name
+        for line in lines:
+            if line.startswith("# "):
+                name = line[2:].strip()
+                break
+        return Skill(name=name, description="Workspace skill", steps=[])
 
-        Args:
-            name: Name of skill to delete.
-        """
+    def load(self, name: str) -> Skill:
+        """Load skill by name."""
+        file_path = self.skills_dir / f"{name}.yaml"
+        if file_path.exists():
+            with open(file_path) as f:
+                data = yaml.safe_load(f)
+            return Skill(**data)
+        for md_path in self.discover_workspace_skills():
+            if md_path.parent.name == name:
+                return self._load_from_markdown(md_path)
+        raise FileNotFoundError(f"Skill not found: {name}")
+
+    def delete(self, name: str) -> None:
+        """Delete a skill and commit."""
         file_path = self.skills_dir / f"{name}.yaml"
         if file_path.exists():
             file_path.unlink()
             self._run_git(["add", file_path.name])
             self._run_git(["commit", "-m", f"Delete skill: {name}"])
+
+    def export_skill(self, name: str) -> str:
+        """Get skill content as YAML string."""
+        skill = self.load(name)
+        data = skill.model_dump(mode="json")
+        return yaml.dump(data, sort_keys=False)
+
+    def import_skill(self, yaml_content: str) -> Skill:
+        """Create and save a skill from YAML string."""
+        data = yaml.safe_load(yaml_content)
+        skill = Skill(**data)
+        self.save(skill, message=f"Import skill: {skill.name}")
+        return skill
+
+    def remote_add(self, url: str, name: str = "origin") -> None:
+        """Add a git remote to the skills store."""
+        self._run_git(["remote", "add", name, url])
+
+    def remote_push(self, remote: str = "origin") -> None:
+        """Push local skills to a remote repository."""
+        self._run_git(["push", remote, "main"])
+
+    def remote_pull(self, remote: str = "origin") -> None:
+        """Pull remote skills into the local store."""
+        self._run_git(["pull", remote, "main"])
