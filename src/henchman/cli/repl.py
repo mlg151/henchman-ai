@@ -5,6 +5,8 @@ This module provides the main interactive loop for the CLI.
 
 from __future__ import annotations
 
+import asyncio
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +21,7 @@ from henchman.core.events import AgentEvent, EventType
 from henchman.core.session import Session, SessionManager, SessionMessage
 from henchman.providers.base import ModelProvider, ToolCall
 from henchman.tools.registry import ToolRegistry
+from henchman.utils.tokens import TokenCounter
 
 
 @dataclass
@@ -28,125 +31,66 @@ class ReplConfig:
     Attributes:
         prompt: The prompt string to display.
         system_prompt: System prompt for the agent.
-        auto_save: Whether to auto-save sessions on exit.
-        history_file: Path to history file.
+        auto_save: Whether to auto-save sessions.
     """
 
     prompt: str = "❯ "
     system_prompt: str = ""
     auto_save: bool = True
-    history_file: Path | None = None
 
 
 class Repl:
-    """Interactive REPL for the CLI.
+    """The main REPL (Read-Eval-Print Loop) for interactive mode.
 
     The Repl class orchestrates the main interaction loop, connecting
-    the Agent, InputHandler, OutputRenderer, and command system.
-
-    Example:
-        >>> provider = DeepSeekProvider(api_key="...")
-        >>> repl = Repl(provider=provider)
-        >>> await repl.run()
+    the agent, tools, commands, and UI components.
     """
 
     def __init__(
         self,
         provider: ModelProvider,
-        console: Console | None = None,
+        console: Console,
         config: ReplConfig | None = None,
+        session_manager: SessionManager | None = None,
     ) -> None:
         """Initialize the REPL.
 
         Args:
-            provider: Model provider for LLM interactions.
+            provider: The model provider to use.
             console: Rich console for output.
             config: REPL configuration.
+            session_manager: Optional session manager for saving sessions.
         """
         self.provider = provider
-        self.console = console or Console()
+        self.console = console
         self.config = config or ReplConfig()
-        self.renderer = OutputRenderer(console=self.console)
+        self.session_manager = session_manager
+        self.session: Session | None = None
 
-        # Initialize tool registry with built-in tools
+        # Initialize components
+        self.agent = Agent(provider, system_prompt=self.config.system_prompt)
         self.tool_registry = ToolRegistry()
-        self._register_builtin_tools()
-
-        # Initialize agent
-        self.agent = Agent(
-            provider=provider,
-            tools=self.tool_registry.get_declarations(),
-            system_prompt=self.config.system_prompt,
-        )
-
-        # Initialize command registry
         self.command_registry = CommandRegistry()
+        self.renderer = OutputRenderer(console)
+        self.prompt_session = create_session()
+
+        # Register built-in commands
         for cmd in get_builtin_commands():
             self.command_registry.register(cmd)
 
+        # Initialize session if manager is provided
+        if self.session_manager is not None:
+            self.session = self.session_manager.create()
+
+        # Track REPL state
         self.running = False
-
-        # Initialize PromptSession
-        history_file = self.config.history_file or Path.home() / ".henchman_history"
-        self.prompt_session = create_session(
-            history_file,
-            bottom_toolbar=self._get_toolbar_status
-        )
-
-        # Session management (can be set externally for testing)
-        self.session_manager: SessionManager | None = None
-        self.session: Session | None = None
-
-    def _get_toolbar_status(self) -> list[tuple[str, str]]:
-        """Get status bar content."""
-        from henchman.utils.tokens import TokenCounter
-
-        status = []
-
-        # Plan Mode
-        plan_mode = self.session.plan_mode if self.session else False
-        if plan_mode:
-            status.append(("bg:yellow fg:black bold", " PLAN MODE "))
-        else:
-            status.append(("bg:blue fg:white bold", " CHAT "))
-
-        # Tokens
-        try:
-            msgs = self.agent.get_messages_for_api()
-            tokens = TokenCounter.count_messages(msgs)
-            status.append(("", f" Tokens: ~{tokens} "))
-        except Exception:
-            pass
-
-        return status
-
-    def _register_builtin_tools(self) -> None:
-        """Register built-in tools with the registry."""
-        from henchman.tools.builtins import (
-            AskUserTool,
-            EditFileTool,
-            GlobTool,
-            GrepTool,
-            LsTool,
-            ReadFileTool,
-            ShellTool,
-            WebFetchTool,
-            WriteFileTool,
-        )
-
-        tools = [
-            AskUserTool(),
-            ReadFileTool(),
-            WriteFileTool(),
-            EditFileTool(),
-            LsTool(),
-            GlobTool(),
-            GrepTool(),
-            ShellTool(),
-            WebFetchTool(),
-        ]
-        for tool in tools:
-            self.tool_registry.register(tool)
+        
+        # Track if agent is currently running (for interruption)
+        self.agent_running = False
+        self._agent_task = None
+        
+        # Track Ctrl+C timing for double-tap exit
+        self._last_interrupt_time = None
 
     async def run(self) -> None:
         """Run the main REPL loop.
@@ -164,8 +108,30 @@ class Repl:
                     if not should_continue:
                         break
                 except KeyboardInterrupt:
-                    # In PromptSession, Ctrl-C raises KeyboardInterrupt
-                    # We treat it as clearing the line or exiting if repeated
+                    # Ctrl+C handling with double-tap to exit
+                    current_time = time.time()
+                    
+                    # Check if this is a double Ctrl+C within 2 seconds
+                    if self._last_interrupt_time is not None:
+                        time_since_last = current_time - self._last_interrupt_time
+                        if time_since_last < 2.0:  # Double Ctrl+C within 2 seconds
+                            self.console.print("\n[bold red]Exiting...[/]")
+                            break  # Exit the REPL
+                    
+                    # Check if agent is running and interrupt it
+                    if self.agent_running and self._agent_task:
+                        self.console.print("\n[dim]Interrupting agent...[/]")
+                        self._agent_task.cancel()
+                        try:
+                            await self._agent_task
+                        except asyncio.CancelledError:
+                            pass
+                        self.agent_running = False
+                        self._agent_task = None
+                    
+                    # First Ctrl+C or spaced out
+                    self.console.print("\n[dim]Press Ctrl+C again to exit[/]")
+                    self._last_interrupt_time = current_time
                     continue
                 except EOFError:
                     self.console.print()
@@ -282,6 +248,10 @@ class Repl:
         Args:
             user_input: The processed user input.
         """
+        # Mark agent as running
+        self.agent_running = True
+        self._agent_task = asyncio.current_task()
+        
         # Record user message to session
         if self.session is not None:
             self.session.messages.append(SessionMessage(role="user", content=user_input))
@@ -294,6 +264,10 @@ class Repl:
                 await self._handle_agent_event(event, assistant_content)
         except Exception as e:
             self.renderer.error(f"Error: {e}")
+        finally:
+            # Mark agent as not running
+            self.agent_running = False
+            self._agent_task = None
 
         # Record assistant response to session
         if self.session is not None and assistant_content:

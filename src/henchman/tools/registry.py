@@ -151,7 +151,7 @@ class ToolRegistry:
 
         # Check Plan Mode
         from henchman.tools.base import ToolKind
-        if self._plan_mode and tool.kind in (ToolKind.WRITE, ToolKind.EXECUTE):
+        if self._plan_mode and tool.kind in (ToolKind.WRITE, ToolKind.EXECUTE, ToolKind.NETWORK):
              return ToolResult(
                 content=f"Tool '{name}' is disabled in Plan Mode. Use /plan to toggle.",
                 success=False,

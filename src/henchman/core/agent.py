@@ -32,6 +32,7 @@ class Agent:
         provider: ModelProvider,
         tools: list[ToolDeclaration] | None = None,
         system_prompt: str = "",
+        max_tokens: int = 8000,
     ) -> None:
         """Initialize the agent.
 
@@ -39,10 +40,12 @@ class Agent:
             provider: The model provider to use.
             tools: Optional list of tools available to the model.
             system_prompt: Optional system prompt.
+            max_tokens: Maximum tokens to keep in context before compaction.
         """
         self.provider = provider
         self.tools = tools or []
         self.system_prompt = system_prompt
+        self.max_tokens = max_tokens
         self.history: list[Message] = []
         self._pending_tool_calls: list[ToolCall] = []
         self._pending_tool_results: dict[str, str] = {}
@@ -63,7 +66,11 @@ class Agent:
         if self.system_prompt:
             messages.append(Message(role="system", content=self.system_prompt))
         messages.extend(self.history)
-        return messages
+        
+        # Apply automatic compaction if context is too large
+        from henchman.utils.compaction import ContextCompactor
+        compactor = ContextCompactor(max_tokens=self.max_tokens)
+        return compactor.compact(messages)
 
     async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
         """Run the agent with user input.

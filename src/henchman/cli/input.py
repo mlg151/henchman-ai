@@ -116,11 +116,12 @@ def create_session(
         """Handle Escape key: cancel input or clear buffer."""
         buffer = event.current_buffer
         if buffer.text:
+            # Clear buffer if there is text
             buffer.text = ""
         else:
-            # If buffer is empty, we might want to signal cancellation
-            # For now, just keep it empty
-            pass
+            # If buffer is empty, raise KeyboardInterrupt to signal cancellation
+            # This will be caught by the REPL and can trigger exit
+            raise KeyboardInterrupt("Escape pressed on empty buffer")
 
     history = FileHistory(str(history_file)) if history_file else None
 

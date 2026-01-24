@@ -25,7 +25,8 @@
 12. [Phase 12: Polish & Release](#phase-12-polish--release)
 13. [Phase 13: Skills & Learning](#phase-13-skills--learning)
 14. [Phase 14: Enhanced Interaction & Context](#phase-14-enhanced-interaction--context)
-15. [Technical Reference](#technical-reference)
+15. [Phase 15: Reinforced Memory System](#phase-15-reinforced-memory-system)
+16. [Technical Reference](#technical-reference)
 
 ---
 
@@ -1199,6 +1200,214 @@ class SkillStore:
     - [x] 14.3.2 Display "Tokens: Used/Max" in Status Bar
     - [x] 14.3.3 Implement `ContextCompactor` (Summary/Pruning strategies)
     - [x] 14.3.4 Add configuration for auto-compaction thresholds
+
+---
+
+## Phase 15: Reinforced Memory System
+
+**Goal**: Enable agent to build persistent, weighted memory that strengthens through use
+
+### Overview
+
+Memory uses a reinforcement model where facts gain strength when used successfully and decay when unused, mimicking human memory patterns.
+
+### Tasks
+
+- [ ] **15.1** Define `Fact` model with weight, uses, decay_rate
+- [ ] **15.2** Implement `ReinforcedMemory` store with YAML persistence
+- [ ] **15.3** Implement reinforcement logic (strengthen on success, weaken on failure)
+- [ ] **15.4** Implement Ebbinghaus decay curve for unused memories
+- [ ] **15.5** Add `remember` tool for agent to store facts
+- [ ] **15.6** Add `memory_feedback` tool for explicit reinforcement
+- [ ] **15.7** Integrate memory into system prompt via `ContextLoader`
+- [ ] **15.8** Implement `/memory` commands (show, add, forget, prune)
+- [ ] **15.9** Add memory visualization in REPL status
+
+### Memory Model
+
+```python
+# henchman/core/memory.py
+
+@dataclass
+class Fact:
+    id: str
+    content: str
+    weight: float = 1.0          # Strength (0-10)
+    uses: int = 0                # Times recalled
+    created: datetime
+    last_used: datetime
+    decay_rate: float = 0.1      # Daily decay when unused
+    scope: Literal["project", "user"] = "project"
+    
+    def reinforce(self, success: bool = True) -> None:
+        """Strengthen or weaken based on outcome"""
+        self.uses += 1
+        self.last_used = datetime.now()
+        
+        if success:
+            # Diminishing returns: harder to strengthen strong memories
+            boost = 1.0 / (1 + self.weight * 0.1)
+            self.weight = min(10.0, self.weight + boost)
+        else:
+            self.weight = max(0.0, self.weight - 0.5)
+    
+    def apply_decay(self) -> None:
+        """Ebbinghaus forgetting curve - strong memories decay slower"""
+        days_unused = (datetime.now() - self.last_used).days
+        if days_unused > 0:
+            decay = self.decay_rate * (1 / (1 + self.weight * 0.1))
+            self.weight = max(0.0, self.weight - (decay * days_unused))
+```
+
+### Memory Storage
+
+```yaml
+# .henchman/memory.yaml (project) or ~/.henchman/memory.yaml (user)
+facts:
+  - id: f_001
+    content: "API routes go in src/api/routers/"
+    weight: 8.5
+    uses: 12
+    created: 2026-01-15T10:30:00Z
+    last_used: 2026-01-23T14:22:00Z
+    decay_rate: 0.1
+    
+  - id: f_002
+    content: "User prefers pytest over unittest"
+    weight: 2.3
+    uses: 2
+    created: 2026-01-20T09:00:00Z
+    last_used: 2026-01-21T11:00:00Z
+    decay_rate: 0.1
+```
+
+### ReinforcedMemory Manager
+
+```python
+class ReinforcedMemory:
+    def __init__(self, project_path: Path, user_path: Path):
+        self.project_path = project_path / ".henchman" / "memory.yaml"
+        self.user_path = user_path / ".henchman" / "memory.yaml"
+        self.recall_threshold = 1.0  # Minimum weight to include
+    
+    def recall(self, limit: int = 20) -> list[Fact]:
+        """Get facts above threshold, sorted by weight"""
+        self.apply_all_decay()
+        active = [f for f in self.facts if f.weight >= self.recall_threshold]
+        active.sort(key=lambda f: f.weight, reverse=True)
+        return active[:limit]
+    
+    def remember(self, content: str, scope: str = "project") -> Fact:
+        """Add new fact or reinforce existing similar fact"""
+        existing = self._find_similar(content)
+        if existing:
+            existing.reinforce(success=True)
+            return existing
+        return self._create_fact(content, scope)
+    
+    def feedback(self, fact_id: str, helpful: bool) -> None:
+        """Explicit feedback strengthens or weakens fact"""
+        fact = self._get_by_id(fact_id)
+        if fact:
+            fact.reinforce(success=helpful)
+    
+    def to_context(self) -> str:
+        """Format strong memories for system prompt"""
+        facts = self.recall(limit=15)
+        if not facts:
+            return ""
+        
+        lines = ["## What I Remember"]
+        for f in facts:
+            strength = "●" * int(f.weight) + "○" * (10 - int(f.weight))
+            lines.append(f"- [{strength}] {f.content}")
+        return "\n".join(lines)
+```
+
+### Reinforcement Triggers
+
+| Trigger | Weight Change |
+|---------|---------------|
+| Fact used, task succeeded | +0.5 to +1.0 (diminishing returns) |
+| Fact used, task failed | -0.5 |
+| User says "that's wrong" | -1.0 |
+| User confirms fact | +1.0 |
+| Day passes unused | -decay_rate × (weaker decay for strong facts) |
+| Weight drops below 0.5 | Excluded from context |
+| Weight drops below 0.1 | Archived/pruned |
+
+### Tools
+
+```python
+class RememberTool(Tool):
+    name = "remember"
+    description = "Store a fact for future reference"
+    kind = ToolKind.WRITE
+    
+    parameters = {
+        "type": "object",
+        "properties": {
+            "fact": {"type": "string"},
+            "scope": {"enum": ["project", "user"], "default": "project"},
+        },
+        "required": ["fact"]
+    }
+
+class MemoryFeedbackTool(Tool):
+    name = "memory_feedback"
+    description = "Mark a remembered fact as helpful or not"
+    kind = ToolKind.READ
+    
+    parameters = {
+        "type": "object",
+        "properties": {
+            "fact_id": {"type": "string"},
+            "helpful": {"type": "boolean"},
+        },
+        "required": ["fact_id", "helpful"]
+    }
+```
+
+### Slash Commands
+
+```
+/memory                     # Show all memories with strength visualization
+/memory add <fact>          # Manually add a fact
+/memory forget <id>         # Remove a specific fact
+/memory prune               # Remove all weak memories (weight < 1.0)
+/memory export              # Export memories to YAML
+/memory import <path>       # Import memories from file
+```
+
+### REPL Visualization
+
+```
+❯ /memory
+
+📚 Memory (15 facts, 3 forgotten)
+
+Strong (weight 7+):
+  ●●●●●●●●○○ "API routes go in src/api/routers/" (12 uses)
+  ●●●●●●●○○○ "Run ./scripts/ci.sh before commits" (8 uses)
+
+Medium (weight 3-7):
+  ●●●●○○○○○○ "User prefers detailed explanations" (4 uses)
+
+Weak (weight 1-3):
+  ●●○○○○○○○○ "Database migrations in alembic/" (1 use, decaying)
+
+💀 Forgotten (weight < 1): 3 facts pruned
+```
+
+### Acceptance Criteria
+
+- Facts persist in YAML at project and user level
+- Weight increases on successful use (diminishing returns)
+- Weight decreases on failure or explicit negative feedback
+- Unused facts decay over time (Ebbinghaus curve)
+- Only facts above threshold appear in context
+- Agent can use `remember` tool to store new facts
+- `/memory` commands work for manual management
 
 ---
 

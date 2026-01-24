@@ -58,23 +58,38 @@ def _get_provider() -> ModelProvider:
     )
 
 
-def _run_interactive(output_format: str) -> None:
+def _run_interactive(output_format: str, plan_mode: bool = False) -> None:
     """Run interactive REPL mode.
 
     Args:
         output_format: Output format (text, json, stream-json).
+        plan_mode: Whether to start in plan mode.
     """
     from henchman.cli.repl import Repl, ReplConfig
-    from henchman.config import ContextLoader
+    from henchman.config import ContextLoader, load_settings
 
     provider = _get_provider()
+    settings = load_settings()
 
     # Load context from MLG.md files
     context_loader = ContextLoader()
     system_prompt = context_loader.load()
 
     config = ReplConfig(system_prompt=system_prompt)
-    repl = Repl(provider=provider, console=console, config=config)
+    repl = Repl(
+        provider=provider, 
+        console=console, 
+        config=config,
+        settings=settings
+    )
+    
+    # Set plan mode if requested
+    if plan_mode and repl.session:
+        repl.session.plan_mode = True
+        repl.tool_registry.set_plan_mode(True)
+        # Add plan mode prompt to system prompt
+        from henchman.cli.commands.plan import PLAN_MODE_PROMPT
+        repl.agent.system_prompt += PLAN_MODE_PROMPT
 
     if output_format == "text":
         anyio.run(repl.run)
@@ -86,12 +101,13 @@ def _run_interactive(output_format: str) -> None:
         anyio.run(repl.run)
 
 
-def _run_headless(prompt: str, output_format: str) -> None:
+def _run_headless(prompt: str, output_format: str, plan_mode: bool = False) -> None:
     """Run headless mode with a single prompt.
 
     Args:
         prompt: The prompt to process.
         output_format: Output format (text, json, stream-json).
+        plan_mode: Whether to run in plan mode.
     """
     from henchman.cli.json_output import JsonOutputRenderer
     from henchman.cli.repl import Repl, ReplConfig
@@ -103,9 +119,19 @@ def _run_headless(prompt: str, output_format: str) -> None:
     # Load context from MLG.md files
     context_loader = ContextLoader()
     system_prompt = context_loader.load()
+    
+    # Add plan mode prompt if requested
+    if plan_mode:
+        from henchman.cli.commands.plan import PLAN_MODE_PROMPT
+        system_prompt += PLAN_MODE_PROMPT
 
     config = ReplConfig(system_prompt=system_prompt)
     repl = Repl(provider=provider, console=console, config=config)
+    
+    # Set plan mode if requested
+    if plan_mode and repl.session:
+        repl.session.plan_mode = True
+        repl.tool_registry.set_plan_mode(True)
 
     async def run_single_prompt_text() -> None:
         """Process a single prompt and exit with text output."""
@@ -144,15 +170,21 @@ def _run_headless(prompt: str, output_format: str) -> None:
     default="text",
     help="Output format for responses",
 )
-def cli(prompt: str | None, output_format: str) -> None:
+@click.option(
+    "--plan",
+    is_flag=True,
+    default=False,
+    help="Start in plan mode (read-only)",
+)
+def cli(prompt: str | None, output_format: str, plan: bool) -> None:
     """Henchman-AI: A model-agnostic AI agent CLI.
 
     Start an interactive session or run with --prompt for headless mode.
     """
     if prompt:
-        _run_headless(prompt, output_format)
+        _run_headless(prompt, output_format, plan)
     else:
-        _run_interactive(output_format)
+        _run_interactive(output_format, plan)
 
 
 def main() -> None:  # pragma: no cover

@@ -59,6 +59,20 @@ class UISettings(BaseModel):
     show_line_numbers: bool = True
 
 
+class ContextSettings(BaseModel):
+    """Settings for context management.
+
+    Attributes:
+        max_tokens: Maximum tokens to keep in context before compaction.
+        compaction_threshold: Percentage of max_tokens at which to start compaction.
+        auto_compact: Whether to automatically compact context.
+    """
+
+    max_tokens: int = 8000
+    compaction_threshold: float = 0.9  # 90% of max_tokens
+    auto_compact: bool = True
+
+
 class McpServerConfig(BaseModel):
     """Configuration for an MCP server.
 
@@ -82,10 +96,12 @@ class Settings(BaseModel):
         providers: Provider configuration.
         tools: Tool behavior configuration.
         ui: UI settings.
+        context: Context management settings.
         mcp_servers: MCP server configurations.
     """
 
     providers: ProviderSettings = Field(default_factory=ProviderSettings)
     tools: ToolSettings = Field(default_factory=ToolSettings)
     ui: UISettings = Field(default_factory=UISettings)
+    context: ContextSettings = Field(default_factory=ContextSettings)
     mcp_servers: dict[str, McpServerConfig] = Field(default_factory=dict)
