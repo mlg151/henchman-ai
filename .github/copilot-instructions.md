@@ -14,7 +14,8 @@ MLG-CLI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. 
 - **Phase 8**: Session Management ✅
 - **Phase 9**: MCP Integration ✅
 - **Phase 10**: Extensions & Plugins ✅
-- **Phases 11-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
+- **Phase 11**: Advanced Features (Multiple Providers ✅, others deferred)
+- **Phase 12**: Polish & Release - See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
 
 ## Architecture Overview
 
@@ -61,10 +62,16 @@ Run `./scripts/ci.sh` to execute:
 ### Provider System (Implemented)
 
 ```python
-from mlg.providers import DeepSeekProvider, Message
+from mlg.providers import DeepSeekProvider, AnthropicProvider, OllamaProvider, Message
 
-# Create provider
+# DeepSeek (default)
 provider = DeepSeekProvider(api_key="your-key")
+
+# Anthropic Claude
+provider = AnthropicProvider(api_key="sk-ant-...", model="claude-sonnet-4-20250514")
+
+# Ollama (local, no API key)
+provider = OllamaProvider(model="llama3.2")
 
 # Stream chat completion
 async for chunk in provider.chat_completion_stream(
@@ -76,6 +83,14 @@ async for chunk in provider.chat_completion_stream(
     if chunk.finish_reason:
         break
 ```
+
+### Available Providers
+
+| Provider | API Key Env Var | Default Model | Notes |
+|----------|----------------|---------------|-------|
+| `deepseek` | `DEEPSEEK_API_KEY` | deepseek-chat | OpenAI-compatible |
+| `anthropic` | `ANTHROPIC_API_KEY` | claude-sonnet-4-20250514 | Native SDK |
+| `ollama` | None required | llama3.2 | Local models |
 
 ### Core Types
 
@@ -485,6 +500,8 @@ mlg-cli/
 │   │   ├── base.py             # Message, ToolCall, StreamChunk, ModelProvider
 │   │   ├── openai_compat.py    # OpenAICompatibleProvider
 │   │   ├── deepseek.py         # DeepSeekProvider
+│   │   ├── anthropic.py        # AnthropicProvider (native Claude SDK)
+│   │   ├── ollama.py           # OllamaProvider (local models)
 │   │   └── registry.py         # ProviderRegistry
 │   └── tools/                  # Tool system
 │       ├── base.py             # Tool ABC, ToolKind, ToolResult

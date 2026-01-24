@@ -906,18 +906,51 @@ context = manager.get_combined_context()
 
 ---
 
-## Phase 11: Advanced Features
+## Phase 11: Advanced Features (Partial)
 
 **Goal**: Implement remaining gemini-cli features
 
 ### Tasks
 
-- [ ] **11.1** Checkpointing (file state snapshots before edits)
-- [ ] **11.2** Sandboxing (Docker container execution)
-- [ ] **11.3** Hooks system (before/after events)
-- [ ] **11.4** Headless mode (`--prompt` flag)
-- [ ] **11.5** JSON output mode (`--output-format json`)
-- [ ] **11.6** Multiple providers (Anthropic, Ollama)
+- [ ] **11.1** Checkpointing (file state snapshots before edits) - DEFERRED
+- [ ] **11.2** Sandboxing (Docker container execution) - DEFERRED
+- [ ] **11.3** Hooks system (before/after events) - DEFERRED
+- [ ] **11.4** Headless mode (`--prompt` flag) - MOVED to Phase 12
+- [ ] **11.5** JSON output mode (`--output-format json`) - MOVED to Phase 12
+- [x] **11.6** Multiple providers (Anthropic, Ollama) ✅
+
+### Implemented: Multiple Providers
+
+#### AnthropicProvider
+
+Native Claude SDK integration with streaming support:
+
+```python
+from mlg.providers import AnthropicProvider
+
+provider = AnthropicProvider(api_key="sk-ant-...", model="claude-sonnet-4-20250514")
+async for chunk in provider.chat_completion_stream(messages):
+    print(chunk.content, end="")
+```
+
+Supported models:
+- claude-sonnet-4-20250514 (default)
+- claude-3-7-sonnet-20250219
+- claude-3-5-sonnet-20241022
+- claude-3-5-haiku-20241022
+- claude-3-opus-20240229
+
+#### OllamaProvider
+
+Local model support via Ollama's OpenAI-compatible API:
+
+```python
+from mlg.providers import OllamaProvider
+
+provider = OllamaProvider(model="llama3.2")  # No API key needed
+async for chunk in provider.chat_completion_stream(messages):
+    print(chunk.content, end="")
+```
 
 ### Headless Mode
 

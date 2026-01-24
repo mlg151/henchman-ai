@@ -86,8 +86,12 @@ def get_default_registry() -> ProviderRegistry:
         _default_registry = ProviderRegistry()
 
         # Register built-in providers
+        from mlg.providers.anthropic import AnthropicProvider
         from mlg.providers.deepseek import DeepSeekProvider
+        from mlg.providers.ollama import OllamaProvider
 
         _default_registry.register("deepseek", DeepSeekProvider)
+        _default_registry.register("anthropic", AnthropicProvider)
+        _default_registry.register("ollama", OllamaProvider)
 
     return _default_registry
