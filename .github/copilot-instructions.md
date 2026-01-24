@@ -11,7 +11,8 @@ MLG-CLI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. 
 - **Phase 5**: Built-in Tools ✅
 - **Phase 6**: Configuration System ✅
 - **Phase 7**: Terminal UI ✅
-- **Phases 8-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
+- **Phase 8**: Session Management ✅
+- **Phases 9-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
 
 ## Architecture Overview
 
@@ -265,6 +266,52 @@ await expand_at_references("Check @file.txt")  # Expands file content
 - `/quit` - Exit the CLI
 - `/clear` - Clear the screen
 - `/tools` - List available tools
+- `/chat save [tag]` - Save current session
+- `/chat list` - List saved sessions
+- `/chat resume <tag>` - Resume a saved session
+
+### Session Management (Implemented)
+
+Sessions persist conversation history for later resumption:
+
+```python
+from mlg.core import Session, SessionManager, SessionMessage, SessionMetadata
+
+# Create a session manager
+manager = SessionManager()  # Uses ~/.mlg/sessions by default
+
+# Create a new session for a project
+project_hash = manager.compute_project_hash(Path.cwd())
+session = manager.create_session(project_hash=project_hash, tag="my-feature")
+
+# Add messages to session
+session.messages.append(SessionMessage(role="user", content="Hello"))
+session.messages.append(SessionMessage(role="assistant", content="Hi there!"))
+
+# Save session to disk
+manager.save(session)
+
+# List sessions for current project
+for meta in manager.list_sessions(project_hash):
+    print(f"{meta.tag}: {meta.message_count} messages")
+
+# Load session by tag
+loaded = manager.load_by_tag("my-feature", project_hash)
+
+# Delete a session
+manager.delete(session.id)
+```
+
+**Session Data Model:**
+- `SessionMessage` - A message with role, content, optional tool_calls/tool_call_id
+- `Session` - Full session with id, project_hash, timestamps, messages, optional tag
+- `SessionMetadata` - Lightweight summary without messages (for listing)
+- `SessionManager` - CRUD operations, current session tracking, project hash computation
+
+**Session Storage:**
+- Sessions stored as JSON in `~/.mlg/sessions/`
+- Each session is `{session_id}.json`
+- Scoped by project_hash to isolate per-project
 
 ## Conventions
 
@@ -310,10 +357,12 @@ mlg-cli/
 │   │   ├── input.py            # InputHandler, @file expansion, !shell
 │   │   └── commands/           # Slash command system
 │   │       ├── __init__.py     # Command, CommandRegistry, parse_command
-│   │       └── builtins.py     # HelpCommand, QuitCommand, ClearCommand, ToolsCommand
+│   │       ├── builtins.py     # HelpCommand, QuitCommand, ClearCommand, ToolsCommand
+│   │       └── chat.py         # ChatCommand for session management
 │   ├── core/                   # Core agent system
 │   │   ├── events.py           # EventType, AgentEvent
-│   │   └── agent.py            # Agent class
+│   │   ├── agent.py            # Agent class
+│   │   └── session.py          # Session, SessionMessage, SessionMetadata, SessionManager
 │   ├── config/                 # Configuration system
 │   │   ├── schema.py           # Settings, ProviderSettings, ToolSettings, UISettings
 │   │   ├── settings.py         # load_settings, discover_settings_files, deep_merge

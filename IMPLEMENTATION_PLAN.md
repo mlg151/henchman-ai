@@ -699,23 +699,41 @@ async def run_cli():
 
 ---
 
-## Phase 8: Session Management
+## Phase 8: Session Management ✅
 
 **Goal**: Save and restore conversation sessions
 
+**Status**: Completed January 2026
+
 ### Tasks
 
-- [ ] **8.1** Define session data model
-- [ ] **8.2** Implement session persistence (JSON)
-- [ ] **8.3** Implement `/chat save <tag>`
-- [ ] **8.4** Implement `/chat resume <tag>`
-- [ ] **8.5** Implement `/chat list`
-- [ ] **8.6** Add auto-save on exit
+- [x] **8.1** Define session data model
+- [x] **8.2** Implement session persistence (JSON)
+- [x] **8.3** Implement `/chat save <tag>`
+- [x] **8.4** Implement `/chat resume <tag>`
+- [x] **8.5** Implement `/chat list`
+- [x] **8.6** Add auto-save on exit (deferred to main loop integration)
 
 ### Session Model
 
 ```python
 # mlg/core/session.py
+
+@dataclass
+class SessionMessage:
+    role: str
+    content: str | None = None
+    tool_calls: list[dict[str, Any]] | None = None
+    tool_call_id: str | None = None
+
+@dataclass
+class SessionMetadata:
+    id: str
+    tag: str | None
+    project_hash: str
+    started: str
+    last_updated: str
+    message_count: int
 
 @dataclass
 class Session:
@@ -724,22 +742,27 @@ class Session:
     started: str
     last_updated: str
     messages: list[SessionMessage]
+    tag: str | None = None
     
 class SessionManager:
     def __init__(self, data_dir: Path = None):
         self.data_dir = data_dir or (Path.home() / ".mlg" / "sessions")
     
-    def save(self, tag: str | None = None) -> Path: ...
+    def create_session(self, project_hash: str, tag: str | None = None) -> Session: ...
+    def save(self, session: Session) -> Path: ...
     def load(self, session_id: str) -> Session: ...
-    def list_sessions(self, project_hash: str) -> list[Session]: ...
+    def load_by_tag(self, tag: str, project_hash: str | None = None) -> Session | None: ...
+    def list_sessions(self, project_hash: str | None = None) -> list[SessionMetadata]: ...
+    def delete(self, session_id: str) -> None: ...
+    def compute_project_hash(self, directory: Path) -> str: ...
 ```
 
 ### Acceptance Criteria
 
-- Sessions save with all messages
-- Sessions restore history correctly
-- Project-scoped session listing
-- Auto-save on graceful exit
+- ✅ Sessions save with all messages
+- ✅ Sessions restore history correctly
+- ✅ Project-scoped session listing
+- ⏳ Auto-save on graceful exit (requires Phase 12 main loop)
 
 ---
 
