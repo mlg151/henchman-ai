@@ -1,0 +1,62 @@
+site_name: Henchman-AI
+site_url: https://github.com/matthew/henchman-ai
+site_description: A Model-Agnostic AI Agent CLI in Python
+site_author: Matthew
+
+repo_name: matthew/henchman-ai
+repo_url: https://github.com/matthew/henchman-ai
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Configuration: configuration.md
+  - Providers: providers.md
+  - Tools: tools.md
+  - MCP Integration: mcp.md
+  - Extensions: extensions.md
+  - API Reference: api.md
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/matthew/henchman-ai
