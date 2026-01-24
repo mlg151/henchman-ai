@@ -12,7 +12,8 @@ MLG-CLI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. 
 - **Phase 6**: Configuration System ✅
 - **Phase 7**: Terminal UI ✅
 - **Phase 8**: Session Management ✅
-- **Phases 9-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
+- **Phase 9**: MCP Integration ✅
+- **Phases 10-12**: See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
 
 ## Architecture Overview
 
@@ -313,6 +314,62 @@ manager.delete(session.id)
 - Each session is `{session_id}.json`
 - Scoped by project_hash to isolate per-project
 
+### MCP Integration (Implemented)
+
+MCP (Model Context Protocol) enables connecting to external tool servers:
+
+```python
+from mlg.mcp import McpServerConfig, McpClient, McpManager, McpTool
+
+# Configure an MCP server
+config = McpServerConfig(
+    command="npx",
+    args=["@anthropic-ai/mcp-filesystem-server", "/home/user"],
+    trusted=False,  # Untrusted servers require tool confirmation
+)
+
+# Connect to a single server
+client = McpClient(name="filesystem", config=config)
+await client.connect()
+tools = await client.discover_tools()
+result = await client.call_tool("read_file", {"path": "/etc/hosts"})
+await client.disconnect()
+
+# Or manage multiple servers
+configs = {"filesystem": config, "github": github_config}
+manager = McpManager(configs)
+await manager.connect_all()
+all_tools = manager.get_all_tools()  # List[McpTool]
+await manager.disconnect_all()
+```
+
+**MCP Configuration (settings.yaml):**
+```yaml
+mcp_servers:
+  filesystem:
+    command: npx
+    args: ["@anthropic-ai/mcp-filesystem-server", "/home/user"]
+    trusted: false
+  
+  github:
+    command: uvx
+    args: ["mcp-github"]
+    env:
+      GITHUB_TOKEN: "${GITHUB_TOKEN}"
+    trusted: true
+```
+
+**MCP Commands:**
+- `/mcp list` - List configured MCP servers and connection status
+- `/mcp status` - Show connection status and available tools
+
+**Key Types:**
+- `McpServerConfig` - Server configuration (command, args, env, trusted)
+- `McpClient` - Single server connection manager
+- `McpManager` - Multi-server connection manager
+- `McpTool` - Wraps MCP tools as internal Tool instances
+- `McpToolResult` - Result from MCP tool execution
+
 ## Conventions
 
 - **Pydantic v2** for all data models and settings schemas
@@ -358,7 +415,8 @@ mlg-cli/
 │   │   └── commands/           # Slash command system
 │   │       ├── __init__.py     # Command, CommandRegistry, parse_command
 │   │       ├── builtins.py     # HelpCommand, QuitCommand, ClearCommand, ToolsCommand
-│   │       └── chat.py         # ChatCommand for session management
+│   │       ├── chat.py         # ChatCommand for session management
+│   │       └── mcp.py          # McpCommand for MCP server management
 │   ├── core/                   # Core agent system
 │   │   ├── events.py           # EventType, AgentEvent
 │   │   ├── agent.py            # Agent class
@@ -367,6 +425,11 @@ mlg-cli/
 │   │   ├── schema.py           # Settings, ProviderSettings, ToolSettings, UISettings
 │   │   ├── settings.py         # load_settings, discover_settings_files, deep_merge
 │   │   └── context.py          # ContextLoader for MLG.md files
+│   ├── mcp/                    # MCP (Model Context Protocol) integration
+│   │   ├── config.py           # McpServerConfig
+│   │   ├── client.py           # McpClient, McpToolResult, McpToolDefinition
+│   │   ├── manager.py          # McpManager
+│   │   └── tool.py             # McpTool wrapper
 │   ├── providers/              # Provider implementations
 │   │   ├── base.py             # Message, ToolCall, StreamChunk, ModelProvider
 │   │   ├── openai_compat.py    # OpenAICompatibleProvider

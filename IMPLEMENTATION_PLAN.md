@@ -766,18 +766,20 @@ class SessionManager:
 
 ---
 
-## Phase 9: MCP Integration
+## Phase 9: MCP Integration ✅
 
 **Goal**: Support Model Context Protocol servers
 
+**Status**: Completed January 2026
+
 ### Tasks
 
-- [ ] **9.1** Add `mcp` package dependency
-- [ ] **9.2** Implement `McpClient` for single server
-- [ ] **9.3** Implement `McpManager` for multiple servers
-- [ ] **9.4** Implement `McpTool` wrapper as internal Tool
-- [ ] **9.5** Add MCP server configuration
-- [ ] **9.6** Implement `/mcp list/refresh` commands
+- [x] **9.1** Add `mcp` package dependency
+- [x] **9.2** Implement `McpClient` for single server
+- [x] **9.3** Implement `McpManager` for multiple servers
+- [x] **9.4** Implement `McpTool` wrapper as internal Tool
+- [x] **9.5** Add MCP server configuration (McpServerConfig)
+- [x] **9.6** Implement `/mcp list` and `/mcp status` commands
 
 ### MCP Configuration
 
@@ -822,10 +824,10 @@ class McpClient:
 
 ### Acceptance Criteria
 
-- Can connect to MCP servers
-- Tools discovered and registered
-- Tool execution works through MCP
-- Trusted servers skip confirmation
+- ✅ Can connect to MCP servers
+- ✅ Tools discovered and registered
+- ✅ Tool execution works through MCP
+- ✅ Trusted servers skip confirmation (use ToolKind.READ)
 
 ---
 
