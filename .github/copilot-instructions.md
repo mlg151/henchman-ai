@@ -134,19 +134,54 @@ agent = Agent(provider=provider, system_prompt="You are a helpful assistant.")
 
 # Stream agent events
 async for event in agent.run("Hello, world!"):
-    if event.event_type == EventType.CONTENT:
+    if event.type == EventType.CONTENT:
         print(event.data, end="")
-    elif event.event_type == EventType.TOOL_CALL_REQUEST:
+    elif event.type == EventType.TOOL_CALL_REQUEST:
         # Handle tool call
         tool_call = event.data
         result = execute_tool(tool_call)
         agent.submit_tool_result(tool_call.id, result)
-    elif event.event_type == EventType.FINISHED:
+    elif event.type == EventType.FINISHED:
         break
 
 # Continue after tool results
 async for event in agent.continue_with_tool_results():
     ...
+```
+
+### Interactive REPL (Implemented)
+
+The Repl class provides the main interactive loop:
+
+```python
+from mlg.cli import Repl, ReplConfig
+from mlg.providers import DeepSeekProvider
+
+# Create provider and REPL
+provider = DeepSeekProvider(api_key="...")
+config = ReplConfig(system_prompt="You are helpful", auto_save=True)
+repl = Repl(provider=provider, config=config)
+
+# Run interactive mode
+import anyio
+anyio.run(repl.run)
+```
+
+**REPL Features:**
+- Slash commands (/quit, /clear, /help, /tools)
+- @file reference expansion
+- !shell command execution
+- Tool call execution with confirmation
+- Streaming output with Rich console
+
+**CLI Usage:**
+```bash
+# Interactive mode
+mlg
+
+# Headless mode (single prompt)
+mlg --prompt "What is 2+2?"
+mlg -p "Summarize this file: @document.txt"
 ```
 
 **Event Types:**

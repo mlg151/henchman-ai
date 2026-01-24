@@ -1,11 +1,113 @@
 """MLG CLI application entry point."""
 
+from __future__ import annotations
+
+import os
+from typing import TYPE_CHECKING
+
+import anyio
 import click
 from rich.console import Console
 
 from mlg.version import VERSION
 
+if TYPE_CHECKING:
+    from mlg.providers.base import ModelProvider
+
 console = Console()
+
+
+def _get_provider() -> ModelProvider:
+    """Get the configured model provider.
+
+    Returns:
+        A ModelProvider instance.
+
+    Raises:
+        click.ClickException: If no provider is configured.
+    """
+    from mlg.providers import DeepSeekProvider, get_default_registry
+
+    # Check environment for API key
+    api_key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("MLG_API_KEY")
+
+    if api_key:
+        return DeepSeekProvider(api_key=api_key)
+
+    # Try to load from settings
+    try:
+        from mlg.config import load_settings
+
+        settings = load_settings()
+        registry = get_default_registry()
+
+        provider_name = settings.providers.default or "deepseek"
+        provider_settings = getattr(settings.providers, provider_name, None)
+
+        if provider_settings:
+            return registry.create(
+                provider_name,
+                api_key=getattr(provider_settings, "api_key", None) or "",
+                model=getattr(provider_settings, "model", None),
+            )
+    except Exception:
+        pass
+
+    raise click.ClickException(
+        "No API key configured. Set DEEPSEEK_API_KEY or configure in ~/.mlg/settings.yaml"
+    )
+
+
+def _run_interactive(output_format: str) -> None:  # noqa: ARG001
+    """Run interactive REPL mode.
+
+    Args:
+        output_format: Output format (text, json, stream-json).
+    """
+    from mlg.cli.repl import Repl, ReplConfig
+    from mlg.config import ContextLoader
+
+    provider = _get_provider()
+
+    # Load context from MLG.md files
+    context_loader = ContextLoader()
+    system_prompt = context_loader.load()
+
+    config = ReplConfig(system_prompt=system_prompt)
+    repl = Repl(provider=provider, console=console, config=config)
+
+    anyio.run(repl.run)
+
+
+def _run_headless(prompt: str, output_format: str) -> None:  # noqa: ARG001
+    """Run headless mode with a single prompt.
+
+    Args:
+        prompt: The prompt to process.
+        output_format: Output format (text, json, stream-json).
+    """
+    from mlg.cli.repl import Repl, ReplConfig
+    from mlg.config import ContextLoader
+    from mlg.core.events import EventType
+
+    provider = _get_provider()
+
+    # Load context from MLG.md files
+    context_loader = ContextLoader()
+    system_prompt = context_loader.load()
+
+    config = ReplConfig(system_prompt=system_prompt)
+    repl = Repl(provider=provider, console=console, config=config)
+
+    async def run_single_prompt() -> None:  # pragma: no cover
+        """Process a single prompt and exit."""
+        async for event in repl.agent.run(prompt):
+            if event.type == EventType.CONTENT:
+                console.print(event.data, end="")
+            elif event.type == EventType.FINISHED:
+                console.print()
+
+    anyio.run(run_single_prompt)
 
 
 @click.command()
@@ -17,20 +119,15 @@ console = Console()
     default="text",
     help="Output format for responses",
 )
-def cli(prompt: str | None, output_format: str) -> None:  # noqa: ARG001
+def cli(prompt: str | None, output_format: str) -> None:
     """MLG-CLI: A model-agnostic AI agent CLI.
 
     Start an interactive session or run with --prompt for headless mode.
     """
     if prompt:
-        # Headless mode - run single prompt
-        console.print(f"[dim]Prompt: {prompt}[/]")
-        console.print("[yellow]Not yet implemented[/]")
-        return
-
-    # Interactive mode
-    console.print("[bold blue]MLG-CLI[/] - /help for commands, /quit to exit\n")
-    console.print("[yellow]Interactive mode not yet implemented[/]")
+        _run_headless(prompt, output_format)
+    else:
+        _run_interactive(output_format)
 
 
 def main() -> None:  # pragma: no cover

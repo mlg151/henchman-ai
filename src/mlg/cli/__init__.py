@@ -12,10 +12,13 @@ from mlg.cli.input import (
     is_slash_command,
     parse_shell_command,
 )
+from mlg.cli.repl import Repl, ReplConfig
 
 __all__ = [
     "InputHandler",
     "OutputRenderer",
+    "Repl",
+    "ReplConfig",
     "Theme",
     "ThemeManager",
     "expand_at_references",
