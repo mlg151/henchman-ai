@@ -90,7 +90,7 @@ class ShellTool(Tool):
                     process.communicate(),
                     timeout=timeout,
                 )
-            except TimeoutError:
+            except (TimeoutError, asyncio.TimeoutError):
                 process.kill()
                 await process.wait()
                 return ToolResult(
