@@ -6,6 +6,7 @@ This module provides the default slash commands like /help, /quit, /clear, /tool
 from __future__ import annotations
 
 from henchman.cli.commands import Command, CommandContext
+from henchman.cli.commands.plan import PlanCommand
 
 
 class HelpCommand(Command):
@@ -46,6 +47,7 @@ class HelpCommand(Command):
         """
         ctx.console.print("\n[bold blue]Henchman-AI Commands[/]\n")
         ctx.console.print("  /help     - Show this help message")
+        ctx.console.print("  /plan     - Toggle Plan Mode (Read-Only)")
         ctx.console.print("  /quit     - Exit the CLI")
         ctx.console.print("  /clear    - Clear the screen")
         ctx.console.print("  /tools    - List available tools")
@@ -199,4 +201,5 @@ def get_builtin_commands() -> list[Command]:
         QuitCommand(),
         ClearCommand(),
         ToolsCommand(),
+        PlanCommand(),
     ]

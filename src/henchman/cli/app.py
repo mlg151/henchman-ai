@@ -58,7 +58,7 @@ def _get_provider() -> ModelProvider:
     )
 
 
-def _run_interactive(output_format: str) -> None:  # noqa: ARG001
+def _run_interactive(output_format: str) -> None:
     """Run interactive REPL mode.
 
     Args:
@@ -76,16 +76,24 @@ def _run_interactive(output_format: str) -> None:  # noqa: ARG001
     config = ReplConfig(system_prompt=system_prompt)
     repl = Repl(provider=provider, console=console, config=config)
 
-    anyio.run(repl.run)
+    if output_format == "text":
+        anyio.run(repl.run)
+    else:
+        console.print(
+            "[yellow]Warning: JSON output formats not supported in interactive mode. "
+            "Using text format.[/yellow]"
+        )
+        anyio.run(repl.run)
 
 
-def _run_headless(prompt: str, output_format: str) -> None:  # noqa: ARG001
+def _run_headless(prompt: str, output_format: str) -> None:
     """Run headless mode with a single prompt.
 
     Args:
         prompt: The prompt to process.
         output_format: Output format (text, json, stream-json).
     """
+    from henchman.cli.json_output import JsonOutputRenderer
     from henchman.cli.repl import Repl, ReplConfig
     from henchman.config import ContextLoader
     from henchman.core.events import EventType
@@ -99,15 +107,32 @@ def _run_headless(prompt: str, output_format: str) -> None:  # noqa: ARG001
     config = ReplConfig(system_prompt=system_prompt)
     repl = Repl(provider=provider, console=console, config=config)
 
-    async def run_single_prompt() -> None:  # pragma: no cover
-        """Process a single prompt and exit."""
+    async def run_single_prompt_text() -> None:
+        """Process a single prompt and exit with text output."""
         async for event in repl.agent.run(prompt):
             if event.type == EventType.CONTENT:
                 console.print(event.data, end="")
             elif event.type == EventType.FINISHED:
                 console.print()
 
-    anyio.run(run_single_prompt)
+    async def run_single_prompt_json() -> None:
+        """Process a single prompt and exit with JSON output."""
+        json_renderer = JsonOutputRenderer(console)
+        async for event in repl.agent.run(prompt):
+            json_renderer.render(event)
+
+    async def run_single_prompt_stream_json() -> None:
+        """Process a single prompt and exit with streaming JSON output."""
+        json_renderer = JsonOutputRenderer(console)
+        async for event in repl.agent.run(prompt):
+            json_renderer.render_stream_json(event)
+
+    if output_format == "text":
+        anyio.run(run_single_prompt_text)
+    elif output_format == "json":
+        anyio.run(run_single_prompt_json)
+    elif output_format == "stream-json":
+        anyio.run(run_single_prompt_stream_json)
 
 
 @click.command()

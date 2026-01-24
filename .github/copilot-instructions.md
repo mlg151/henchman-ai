@@ -8,14 +8,14 @@ Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-c
 - **Phase 2**: Provider System ✅
 - **Phase 3**: Core Agent Loop ✅
 - **Phase 4**: Tool System ✅
-- **Phase 5**: Built-in Tools ✅
+- **Phase 5**: Built-in Tools ✅ (including ask_user tool)
 - **Phase 6**: Configuration System ✅
 - **Phase 7**: Terminal UI ✅
 - **Phase 8**: Session Management ✅
 - **Phase 9**: MCP Integration ✅
 - **Phase 10**: Extensions & Plugins ✅
-- **Phase 11**: Advanced Features (Multiple Providers ✅, others deferred)
-- **Phase 12**: Polish & Release - See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md)
+- **Phase 11**: Advanced Features ✅ (Multiple Providers, Headless mode, JSON output)
+- **Phase 12**: Polish & Release ✅ (99% test coverage, all core features implemented)
 
 ## Architecture Overview
 

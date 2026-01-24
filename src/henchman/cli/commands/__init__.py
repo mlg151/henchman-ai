@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
     from henchman.config import Settings
     from henchman.core import Agent
+    from henchman.core.session import Session
+    from henchman.tools.registry import ToolRegistry
 
 
 def parse_command(input_text: str) -> tuple[str, list[str]] | None:
@@ -45,12 +47,16 @@ class CommandContext:
         args: Command arguments.
         settings: Application settings.
         agent: Agent instance if available.
+        tool_registry: ToolRegistry instance if available.
+        session: Current Session if available.
     """
 
     console: Console
     args: list[str] = field(default_factory=list)
     settings: Settings | None = None
     agent: Agent | None = None
+    tool_registry: ToolRegistry | None = None
+    session: Session | None = None
 
 
 class Command(ABC):

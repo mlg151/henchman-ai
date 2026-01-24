@@ -28,6 +28,15 @@ class ToolRegistry:
         self._tools: dict[str, Tool] = {}
         self._confirmation_handler: ConfirmationHandler | None = None
         self._auto_approve_policies: set[str] = set()
+        self._plan_mode: bool = False
+
+    def set_plan_mode(self, enabled: bool) -> None:
+        """Enable or disable Plan Mode (Read-Only).
+
+        Args:
+            enabled: True to enable Plan Mode.
+        """
+        self._plan_mode = enabled
 
     def register(self, tool: Tool) -> None:
         """Register a tool with the registry.
@@ -120,9 +129,10 @@ class ToolRegistry:
 
         This method handles the full execution flow:
         1. Look up the tool
-        2. Check if confirmation is needed (unless auto-approved or READ tool)
-        3. Call confirmation handler if needed
-        4. Execute the tool if approved
+        2. Check Plan Mode restrictions
+        3. Check if confirmation is needed (unless auto-approved or READ tool)
+        4. Call confirmation handler if needed
+        5. Execute the tool if approved
 
         Args:
             name: The name of the tool to execute.
@@ -137,6 +147,15 @@ class ToolRegistry:
                 content=f"Error: Tool '{name}' not found",
                 success=False,
                 error=f"Tool '{name}' not found",
+            )
+
+        # Check Plan Mode
+        from henchman.tools.base import ToolKind
+        if self._plan_mode and tool.kind in (ToolKind.WRITE, ToolKind.EXECUTE):
+             return ToolResult(
+                content=f"Tool '{name}' is disabled in Plan Mode. Use /plan to toggle.",
+                success=False,
+                error="Tool disabled in Plan Mode",
             )
 
         # Check if confirmation is needed

@@ -2,7 +2,7 @@
 
 from io import StringIO
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from rich.console import Console
@@ -53,6 +53,13 @@ class TestReplConfig:
 
 class TestRepl:
     """Tests for Repl class."""
+
+    @pytest.fixture(autouse=True)
+    def mock_create_session(self):
+        with patch("henchman.cli.repl.create_session") as mock:
+            mock.return_value = AsyncMock()
+            mock.return_value.prompt_async.return_value = "mock input"
+            yield mock
 
     @pytest.fixture
     def mock_provider(self) -> MockProvider:
@@ -336,13 +343,23 @@ class TestRepl:
     ) -> None:
         """Test the _get_input method."""
         repl = Repl(provider=mock_provider, console=console)
-        with patch("builtins.input", return_value="test input"):
-            result = repl._get_input()
-            assert result == "test input"
+        # We need to verify it calls prompt_async
+        # The mock is already set up by autouse fixture
+        # But we need to make sure Repl uses it
+
+        result = await repl._get_input()
+        assert result == "mock input"
 
 
 class TestReplRun:
     """Tests for the run loop."""
+
+    @pytest.fixture(autouse=True)
+    def mock_create_session(self):
+        with patch("henchman.cli.repl.create_session") as mock:
+            mock.return_value = AsyncMock()
+            mock.return_value.prompt_async.return_value = "mock input"
+            yield mock
 
     @pytest.mark.anyio
     async def test_run_single_turn(self) -> None:
@@ -354,7 +371,10 @@ class TestReplRun:
 
         # Mock input to return one message then /quit
         inputs = iter(["Hello", "/quit"])
-        with patch("henchman.cli.repl.Repl._get_input", side_effect=lambda: next(inputs)):
+        async def get_input():
+            return next(inputs)
+
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=get_input):
             await repl.run()
 
         output = console.file.getvalue()  # type: ignore[union-attr]
@@ -369,7 +389,7 @@ class TestReplRun:
         repl = Repl(provider=provider, console=console)
 
         # On first input, set running to False to exit the loop naturally
-        def get_input_and_stop() -> str:
+        async def get_input_and_stop() -> str:
             repl.running = False
             return ""  # Empty input to be skipped
 
@@ -386,7 +406,8 @@ class TestReplRun:
 
         repl = Repl(provider=provider, console=console)
 
-        with patch("henchman.cli.repl.Repl._get_input", side_effect=KeyboardInterrupt):
+        # Raise KeyboardInterrupt then EOFError to exit
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=[KeyboardInterrupt, EOFError]):
             await repl.run()
 
         # Should exit gracefully
@@ -408,6 +429,13 @@ class TestReplRun:
 
 class TestSessionAutoSave:
     """Tests for session auto-save functionality."""
+
+    @pytest.fixture(autouse=True)
+    def mock_create_session(self):
+        with patch("henchman.cli.repl.create_session") as mock:
+            mock.return_value = AsyncMock()
+            mock.return_value.prompt_async.return_value = "mock input"
+            yield mock
 
     @pytest.mark.anyio
     async def test_auto_save_enabled_saves_session_on_exit(
@@ -435,7 +463,10 @@ class TestSessionAutoSave:
 
         # Run with /quit to exit gracefully
         inputs = iter(["/quit"])
-        with patch("henchman.cli.repl.Repl._get_input", side_effect=lambda: next(inputs)):
+        async def get_input():
+            return next(inputs)
+
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=get_input):
             await repl.run()
 
         # Verify session was saved
@@ -466,7 +497,10 @@ class TestSessionAutoSave:
 
         # Run with /quit
         inputs = iter(["/quit"])
-        with patch("henchman.cli.repl.Repl._get_input", side_effect=lambda: next(inputs)):
+        async def get_input():
+            return next(inputs)
+
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=get_input):
             await repl.run()
 
         # Verify session was NOT saved
@@ -495,8 +529,8 @@ class TestSessionAutoSave:
 
         repl.session.messages.append(SessionMessage(role="user", content="Hello"))
 
-        # Simulate Ctrl+C
-        with patch("henchman.cli.repl.Repl._get_input", side_effect=KeyboardInterrupt):
+        # Simulate Ctrl+C then EOF
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=[KeyboardInterrupt, EOFError]):
             await repl.run()
 
         # Verify session was saved
@@ -523,7 +557,10 @@ class TestSessionAutoSave:
 
         # Run with /quit
         inputs = iter(["/quit"])
-        with patch("henchman.cli.repl.Repl._get_input", side_effect=lambda: next(inputs)):
+        async def get_input():
+            return next(inputs)
+
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=get_input):
             await repl.run()
 
         # Verify empty session was NOT saved
@@ -551,7 +588,10 @@ class TestSessionAutoSave:
 
         # Run a conversation then quit
         inputs = iter(["Hello assistant", "/quit"])
-        with patch("henchman.cli.repl.Repl._get_input", side_effect=lambda: next(inputs)):
+        async def get_input():
+            return next(inputs)
+
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=get_input):
             await repl.run()
 
         # Load the saved session and check messages

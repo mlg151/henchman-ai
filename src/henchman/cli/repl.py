@@ -6,13 +6,14 @@ This module provides the main interactive loop for the CLI.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from rich.console import Console
 
 from henchman.cli.commands import CommandContext, CommandRegistry, parse_command
 from henchman.cli.commands.builtins import get_builtin_commands
 from henchman.cli.console import OutputRenderer
-from henchman.cli.input import expand_at_references, is_slash_command
+from henchman.cli.input import create_session, expand_at_references, is_slash_command
 from henchman.core.agent import Agent
 from henchman.core.events import AgentEvent, EventType
 from henchman.core.session import Session, SessionManager, SessionMessage
@@ -28,11 +29,13 @@ class ReplConfig:
         prompt: The prompt string to display.
         system_prompt: System prompt for the agent.
         auto_save: Whether to auto-save sessions on exit.
+        history_file: Path to history file.
     """
 
     prompt: str = "❯ "
     system_prompt: str = ""
     auto_save: bool = True
+    history_file: Path | None = None
 
 
 class Repl:
@@ -83,13 +86,44 @@ class Repl:
 
         self.running = False
 
+        # Initialize PromptSession
+        history_file = self.config.history_file or Path.home() / ".henchman_history"
+        self.prompt_session = create_session(
+            history_file,
+            bottom_toolbar=self._get_toolbar_status
+        )
+
         # Session management (can be set externally for testing)
         self.session_manager: SessionManager | None = None
         self.session: Session | None = None
 
+    def _get_toolbar_status(self) -> list[tuple[str, str]]:
+        """Get status bar content."""
+        from henchman.utils.tokens import TokenCounter
+
+        status = []
+
+        # Plan Mode
+        plan_mode = self.session.plan_mode if self.session else False
+        if plan_mode:
+            status.append(("bg:yellow fg:black bold", " PLAN MODE "))
+        else:
+            status.append(("bg:blue fg:white bold", " CHAT "))
+
+        # Tokens
+        try:
+            msgs = self.agent.get_messages_for_api()
+            tokens = TokenCounter.count_messages(msgs)
+            status.append(("", f" Tokens: ~{tokens} "))
+        except Exception:
+            pass
+
+        return status
+
     def _register_builtin_tools(self) -> None:
         """Register built-in tools with the registry."""
         from henchman.tools.builtins import (
+            AskUserTool,
             EditFileTool,
             GlobTool,
             GrepTool,
@@ -101,6 +135,7 @@ class Repl:
         )
 
         tools = [
+            AskUserTool(),
             ReadFileTool(),
             WriteFileTool(),
             EditFileTool(),
@@ -124,13 +159,14 @@ class Repl:
         try:
             while self.running:
                 try:
-                    user_input = self._get_input()
+                    user_input = await self._get_input()
                     should_continue = await self.process_input(user_input)
                     if not should_continue:
                         break
                 except KeyboardInterrupt:
-                    self.console.print("\n[dim]Use /quit to exit[/]")
-                    break
+                    # In PromptSession, Ctrl-C raises KeyboardInterrupt
+                    # We treat it as clearing the line or exiting if repeated
+                    continue
                 except EOFError:
                     self.console.print()
                     break
@@ -160,7 +196,7 @@ class Repl:
 
         self.session_manager.save(self.session)
 
-    def _get_input(self) -> str:
+    async def _get_input(self) -> str:
         """Get input from the user.
 
         Returns:
@@ -170,7 +206,7 @@ class Repl:
             KeyboardInterrupt: If user presses Ctrl+C.
             EOFError: If user presses Ctrl+D.
         """
-        return input(self.config.prompt)
+        return await self.prompt_session.prompt_async(self.config.prompt)
 
     async def process_input(self, user_input: str) -> bool:
         """Process a single user input.
@@ -234,6 +270,8 @@ class Repl:
             console=self.console,
             args=args,
             agent=self.agent,
+            tool_registry=self.tool_registry,
+            session=self.session,
         )
         await cmd.execute(ctx)
         return True

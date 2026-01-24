@@ -130,6 +130,7 @@ class Session:
         last_updated: ISO timestamp of last update.
         messages: List of session messages.
         tag: Optional human-readable tag.
+        plan_mode: Whether the session is in Plan Mode (read-only).
     """
 
     id: str
@@ -138,6 +139,7 @@ class Session:
     last_updated: str
     messages: list[SessionMessage] = field(default_factory=list)
     tag: str | None = None
+    plan_mode: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary.
@@ -151,6 +153,7 @@ class Session:
             "project_hash": self.project_hash,
             "started": self.started,
             "last_updated": self.last_updated,
+            "plan_mode": self.plan_mode,
             "messages": [msg.to_dict() for msg in self.messages],
         }
 
@@ -170,6 +173,7 @@ class Session:
             project_hash=data["project_hash"],
             started=data["started"],
             last_updated=data["last_updated"],
+            plan_mode=data.get("plan_mode", False),
             messages=[SessionMessage.from_dict(m) for m in data.get("messages", [])],
         )
 
