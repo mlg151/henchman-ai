@@ -157,6 +157,13 @@ class TestOutputRenderer:
         output = console.file.getvalue()  # type: ignore[union-attr]
         assert "Debug info" in output
 
+    def test_print_info(self, renderer: OutputRenderer, console: Console) -> None:
+        """Test printing info message."""
+        renderer.info("Information")
+        output = console.file.getvalue()  # type: ignore[union-attr]
+        assert "Information" in output
+        assert "ℹ" in output
+
     def test_print_heading(self, renderer: OutputRenderer, console: Console) -> None:
         """Test printing a heading."""
         renderer.heading("Section Title")

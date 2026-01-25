@@ -1,0 +1,213 @@
+### /home/matthew/mlg-cli/src/henchman/providers/openai_compat.py
+```python
+1: """OpenAI-compatible provider base class.
+2: 
+3: This provider works with any API that follows the OpenAI chat completions format,
+4: including DeepSeek, Together, Groq, Fireworks, and others.
+5: """
+6: 
+7: import json
+8: from collections.abc import AsyncIterator
+9: from typing import Any
+10: 
+11: from openai import AsyncOpenAI
+12: 
+13: from henchman.providers.base import (
+14:     FinishReason,
+15:     Message,
+16:     ModelProvider,
+17:     StreamChunk,
+18:     ToolCall,
+19:     ToolDeclaration,
+20: )
+21: 
+22: __all__ = ["OpenAICompatibleProvider"]
+23: 
+24: 
+25: class OpenAICompatibleProvider(ModelProvider):
+26:     """Base provider for OpenAI-compatible APIs."""
+27: 
+28:     def __init__(
+29:         self,
+30:         api_key: str,
+31:         base_url: str,
+32:         default_model: str,
+33:     ) -> None:
+34:         """Initialize the provider.
+35: 
+36:         Args:
+37:             api_key: API key for authentication.
+38:             base_url: Base URL for the API.
+39:             default_model: Default model to use for completions.
+40:         """
+41:         self.api_key = api_key
+42:         self.base_url = base_url
+43:         self.default_model = default_model
+44:         self._client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+45: 
+46:     @property
+47:     def name(self) -> str:
+48:         """The unique name of this provider."""
+49:         return "openai-compatible"
+50: 
+51:     def _format_tool(self, tool: ToolDeclaration) -> dict[str, Any]:
+52:         """Format a tool declaration for the OpenAI API."""
+53:         return {
+54:             "type": "function",
+55:             "function": {
+56:                 "name": tool.name,
+57:                 "description": tool.description,
+58:                 "parameters": tool.parameters,
+59:             },
+60:         }
+61: 
+62:     def _format_message(self, message: Message) -> dict[str, Any]:
+63:         """Format a message for the OpenAI API."""
+64:         result: dict[str, Any] = {
+65:             "role": message.role,
+66:             "content": message.content,
+67:         }
+68: 
+69:         if message.tool_calls:
+70:             result["tool_calls"] = [
+71:                 {
+72:                     "id": tc.id,
+73:                     "type": "function",
+74:                     "function": {
+75:                         "name": tc.name,
+76:                         "arguments": json.dumps(tc.arguments),
+77:                     },
+78:                 }
+79:                 for tc in message.tool_calls
+80:             ]
+81: 
+82:         if message.tool_call_id:
+83:             result["tool_call_id"] = message.tool_call_id
+84: 
+85:         return result
+86: 
+87:     def _parse_finish_reason(self, reason: str | None) -> FinishReason | None:
+88:         """Parse OpenAI finish reason to our enum."""
+89:         if reason is None:
+90:             return None
+91:         mapping = {
+92:             "stop": FinishReason.STOP,
+93:             "tool_calls": FinishReason.TOOL_CALLS,
+94:             "length": FinishReason.LENGTH,
+95:             "content_filter": FinishReason.CONTENT_FILTER,
+96:         }
+97:         return mapping.get(reason, FinishReason.STOP)
+98: 
+99:     def _parse_tool_calls(self, tool_calls: list[Any] | None) -> list[ToolCall] | None:
+100:         """Parse tool calls from the API response."""
+101:         if not tool_calls:
+102:             return None
+103: 
+104:         result = []
+105:         for tc in tool_calls:
+106:             try:
+107:                 arguments = json.loads(tc.function.arguments)
+108:             except (json.JSONDecodeError, AttributeError):
+109:                 arguments = {}
+110: 
+111:             result.append(
+112:                 ToolCall(
+113:                     id=tc.id,
+114:                     name=tc.function.name,
+115:                     arguments=arguments,
+116:                 )
+117:             )
+118:         return result if result else None
+119: 
+120:     async def chat_completion_stream(
+121:         self,
+122:         messages: list[Message],
+123:         tools: list[ToolDeclaration] | None = None,
+124:         **kwargs: Any,
+125:     ) -> AsyncIterator[StreamChunk]:
+126:         """Stream a chat completion from the model.
+127: 
+128:         Args:
+129:             messages: The conversation history.
+130:             tools: Optional list of tools available to the model.
+131:             **kwargs: Additional parameters passed to the API.
+132: 
+133:         Yields:
+134:             StreamChunk objects as the response is generated.
+135:         """
+136:         # Build request parameters
+137:         params: dict[str, Any] = {
+138:             "model": kwargs.pop("model", self.default_model),
+139:             "messages": [self._format_message(m) for m in messages],
+140:             "stream": True,
+141:             **kwargs,
+142:         }
+143: 
+144:         if tools:
+145:             params["tools"] = [self._format_tool(t) for t in tools]
+146: 
+147:         # Stream the response
+148:         response = await self._client.chat.completions.create(**params)
+149: 
+150:         # Track tool calls across chunks (they come in pieces)
+151:         pending_tool_calls: dict[int, dict[str, Any]] = {}
+152: 
+153:         async for chunk in response:
+154:             if not chunk.choices:
+155:                 continue
+156: 
+157:             choice = chunk.choices[0]
+158:             delta = choice.delta
+159: 
+160:             # Handle content
+161:             content = getattr(delta, "content", None)
+162: 
+163:             # Handle thinking (for reasoning models)
+164:             thinking = getattr(delta, "reasoning_content", None)
+165: 
+166:             # Handle tool calls (they come incrementally)
+167:             tool_calls = None
+168:             if hasattr(delta, "tool_calls") and delta.tool_calls:
+169:                 for tc_delta in delta.tool_calls:
+170:                     idx = tc_delta.index
+171:                     if idx not in pending_tool_calls:
+172:                         pending_tool_calls[idx] = {
+173:                             "id": tc_delta.id or "",
+174:                             "name": "",
+175:                             "arguments": "",
+176:                         }
+177: 
+178:                     if tc_delta.id:
+179:                         pending_tool_calls[idx]["id"] = tc_delta.id
+180:                     if tc_delta.function:
+181:                         if tc_delta.function.name:
+182:                             pending_tool_calls[idx]["name"] = tc_delta.function.name
+183:                         if tc_delta.function.arguments:
+184:                             pending_tool_calls[idx]["arguments"] += tc_delta.function.arguments
+185: 
+186:             # Handle finish reason
+187:             finish_reason = self._parse_finish_reason(choice.finish_reason)
+188: 
+189:             # If we're done and have pending tool calls, emit them
+190:             if finish_reason and pending_tool_calls:
+191:                 tool_calls = []
+192:                 for tc_data in pending_tool_calls.values():
+193:                     try:
+194:                         arguments = json.loads(tc_data["arguments"])
+195:                     except json.JSONDecodeError:
+196:                         arguments = {}
+197:                     tool_calls.append(
+198:                         ToolCall(
+199:                             id=tc_data["id"],
+200:                             name=tc_data["name"],
+201:                             arguments=arguments,
+202:                         )
+203:                     )
+204: 
+205:             yield StreamChunk(
+206:                 content=content,
+207:                 tool_calls=tool_calls,
+208:                 finish_reason=finish_reason,
+209:                 thinking=thinking,
+210:             )
+```

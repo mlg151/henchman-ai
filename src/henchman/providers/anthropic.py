@@ -170,6 +170,23 @@ class AnthropicProvider(ModelProvider):
         Yields:
             StreamChunk objects as the response is generated.
         """
+        # Validate messages are not empty
+        if not messages:
+            raise ValueError("Messages list cannot be empty")
+
+        # Validate each message has content (unless it's a tool call response)
+        for message in messages:
+            # Tool/function messages can have empty content
+            if message.role in ["tool", "function"]:
+                continue
+
+            # Assistant messages with tool calls can have empty content
+            if message.role == "assistant" and message.tool_calls:
+                continue
+
+            # All other messages must have non-empty content
+            if not (message.content or '').strip():
+                raise ValueError(f"Message with role '{message.role}' cannot have empty content")
         system_prompt, formatted_messages = self._format_messages(messages)
 
         params: dict[str, Any] = {

@@ -124,6 +124,14 @@ class CommandRegistry:
         """
         return self._commands.get(name)
 
+    def get_commands(self) -> list[Command]:
+        """Get all registered commands.
+
+        Returns:
+            List of registered command objects.
+        """
+        return list(self._commands.values())
+
     def list_commands(self) -> list[str]:
         """List all registered command names.
 

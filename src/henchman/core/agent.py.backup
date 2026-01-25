@@ -1,0 +1,185 @@
+### /home/matthew/mlg-cli/src/henchman/core/agent.py
+```python
+1: """Core Agent implementation for orchestrating LLM interactions."""
+2: 
+3: from collections.abc import AsyncIterator
+4: 
+5: from henchman.core.events import AgentEvent, EventType
+6: from henchman.providers.base import (
+7:     FinishReason,
+8:     Message,
+9:     ModelProvider,
+10:     ToolCall,
+11:     ToolDeclaration,
+12: )
+13: 
+14: __all__ = ["Agent"]
+15: 
+16: 
+17: class Agent:
+18:     """The main agent that orchestrates LLM interactions.
+19: 
+20:     The Agent manages conversation history, streams responses from the model,
+21:     and handles tool call requests.
+22: 
+23:     Attributes:
+24:         provider: The model provider to use for completions.
+25:         tools: List of tool declarations available to the model.
+26:         system_prompt: Optional system prompt to include in all requests.
+27:         history: The conversation history.
+28:     """
+29: 
+30:     def __init__(
+31:         self,
+32:         provider: ModelProvider,
+33:         tools: list[ToolDeclaration] | None = None,
+34:         system_prompt: str = "",
+35:         max_tokens: int = 8000,
+36:     ) -> None:
+37:         """Initialize the agent.
+38: 
+39:         Args:
+40:             provider: The model provider to use.
+41:             tools: Optional list of tools available to the model.
+42:             system_prompt: Optional system prompt.
+43:             max_tokens: Maximum tokens to keep in context before compaction.
+44:         """
+45:         self.provider = provider
+46:         self.tools = tools or []
+47:         self.system_prompt = system_prompt
+48:         self.max_tokens = max_tokens
+49:         self.history: list[Message] = []
+50:         self._pending_tool_calls: list[ToolCall] = []
+51:         self._pending_tool_results: dict[str, str] = {}
+52: 
+53:     def clear_history(self) -> None:
+54:         """Clear the conversation history."""
+55:         self.history = []
+56:         self._pending_tool_calls = []
+57:         self._pending_tool_results = {}
+58: 
+59:     def get_messages_for_api(self) -> list[Message]:
+60:         """Get the messages to send to the API.
+61: 
+62:         Returns:
+63:             List of messages including system prompt and history.
+64:         """
+65:         messages = []
+66:         if self.system_prompt:
+67:             messages.append(Message(role="system", content=self.system_prompt))
+68:         messages.extend(self.history)
+69: 
+70:         # Apply automatic compaction if context is too large
+71:         from henchman.utils.compaction import ContextCompactor
+72:         compactor = ContextCompactor(max_tokens=self.max_tokens)
+73:         return compactor.compact(messages)
+74: 
+75:     async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
+76:         """Run the agent with user input.
+77: 
+78:         This is the main entry point for agent execution. It adds the user
+79:         message to history, streams the model response, and yields events
+80:         as they occur.
+81: 
+82:         Args:
+83:             user_input: The user's input message.
+84: 
+85:         Yields:
+86:             AgentEvent objects as the agent processes the request.
+87:         """
+88:         # Add user message to history
+89:         self.history.append(Message(role="user", content=user_input))
+90: 
+91:         # Stream response
+92:         async for event in self._stream_response():
+93:             yield event
+94: 
+95:     async def continue_with_tool_results(self) -> AsyncIterator[AgentEvent]:
+96:         """Continue execution after tool results have been submitted.
+97: 
+98:         This should be called after submit_tool_result() to continue
+99:         the conversation with the tool results.
+100: 
+101:         Yields:
+102:             AgentEvent objects as the agent continues processing.
+103:         """
+104:         # Add tool results to history
+105:         for tool_call_id, result in self._pending_tool_results.items():
+106:             self.history.append(
+107:                 Message(role="tool", content=result, tool_call_id=tool_call_id)
+108:             )
+109:         self._pending_tool_results = {}
+110:         self._pending_tool_calls = []
+111: 
+112:         # Continue streaming
+113:         async for event in self._stream_response():
+114:             yield event
+115: 
+116:     def submit_tool_result(self, tool_call_id: str, result: str) -> None:
+117:         """Submit a tool result.
+118: 
+119:         Args:
+120:             tool_call_id: The ID of the tool call this result is for.
+121:             result: The result from the tool execution.
+122:         """
+123:         self._pending_tool_results[tool_call_id] = result
+124: 
+125:     async def _stream_response(self) -> AsyncIterator[AgentEvent]:
+126:         """Stream response from the model.
+127: 
+128:         Yields:
+129:             AgentEvent objects for content, thinking, tool calls, etc.
+130:         """
+131:         try:
+132:             messages = self.get_messages_for_api()
+133:             tools = self.tools if self.tools else None
+134: 
+135:             accumulated_content = ""
+136:             tool_calls: list[ToolCall] = []
+137: 
+138:             async for chunk in self.provider.chat_completion_stream(
+139:                 messages=messages,
+140:                 tools=tools,
+141:             ):
+142:                 # Handle thinking/reasoning content
+143:                 if chunk.thinking:
+144:                     yield AgentEvent(type=EventType.THOUGHT, data=chunk.thinking)
+145: 
+146:                 # Handle regular content
+147:                 if chunk.content:
+148:                     accumulated_content += chunk.content
+149:                     yield AgentEvent(type=EventType.CONTENT, data=chunk.content)
+150: 
+151:                 # Handle tool calls
+152:                 if chunk.tool_calls:
+153:                     tool_calls.extend(chunk.tool_calls)
+154: 
+155:                 # Handle finish
+156:                 if chunk.finish_reason:
+157:                     # If we have tool calls, emit them
+158:                     if chunk.finish_reason == FinishReason.TOOL_CALLS and tool_calls:
+159:                         # Add assistant message with tool calls to history
+160:                         self.history.append(
+161:                             Message(
+162:                                 role="assistant",
+163:                                 content=accumulated_content if accumulated_content else None,
+164:                                 tool_calls=tool_calls,
+165:                             )
+166:                         )
+167:                         self._pending_tool_calls = tool_calls
+168: 
+169:                         # Emit tool call request events
+170:                         for tc in tool_calls:
+171:                             yield AgentEvent(type=EventType.TOOL_CALL_REQUEST, data=tc)
+172:                     else:
+173:                         # Normal completion - add assistant message to history
+174:                         if accumulated_content:
+175:                             self.history.append(
+176:                                 Message(role="assistant", content=accumulated_content)
+177:                             )
+178: 
+179:                     yield AgentEvent(type=EventType.FINISHED)
+180: 
+181:         except Exception as e:
+182:             yield AgentEvent(type=EventType.ERROR, data=str(e))
+```

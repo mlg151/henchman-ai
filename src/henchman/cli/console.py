@@ -152,6 +152,14 @@ class OutputRenderer:
         """
         self.console.print(f"[{self.theme.success}]✓[/] {message}")
 
+    def info(self, message: str) -> None:
+        """Print an info message.
+
+        Args:
+            message: Info message text.
+        """
+        self.console.print(f"[{self.theme.primary}]ℹ[/] {message}")
+
     def warning(self, message: str) -> None:
         """Print a warning message.
 
@@ -266,3 +274,31 @@ class OutputRenderer:
         if duration is not None:
             msg += f" ({duration:.2f}s)"
         self.console.print(msg)
+
+    def agent_content(self, content: str) -> None:
+        """Display content from the agent.
+
+        Args:
+            content: Content string.
+        """
+        self.console.print(content, end="")
+
+    def thinking(self, content: str) -> None:
+        """Display thinking process.
+
+        Args:
+            content: Thinking content.
+        """
+        self.console.print(content, style=self.theme.muted)
+
+    async def confirm_tool_execution(self, message: str) -> bool:
+        """Ask user for confirmation.
+
+        Args:
+            message: Confirmation message.
+
+        Returns:
+            True if confirmed.
+        """
+        from rich.prompt import Confirm
+        return Confirm.ask(message, console=self.console)

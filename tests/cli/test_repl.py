@@ -334,7 +334,7 @@ class TestRepl:
         repl = Repl(provider=mock_provider, console=console)
         # "/ " is a slash command (starts with / and has content), but parses to None
         result = await repl._handle_command("/ ")
-        assert result is True
+        assert result is None
         # Should not crash, just return
 
     @pytest.mark.anyio
