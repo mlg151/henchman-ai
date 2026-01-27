@@ -34,13 +34,14 @@ Implemented safety limits in `GrepTool` and `LsTool`.
 
 #### ContextCompactor (`src/henchman/utils/compaction.py`)
 - Added a "Final Safety Net": `enforce_safety_limits` method.
-- Before compacting, every individual message is checked.
-- If any message's content exceeds `MAX_MESSAGE_CHARS` (100,000), it is truncated.
-- This protects against any future tools (or current ones) returning excessively large outputs that might slip through tool-specific limits.
+- Before compacting, every individual message is checked using token counting (`tiktoken`).
+- If any message's token count exceeds **75% of the configured max_tokens**, it is truncated.
+- This ensures that no single message can crash the context window, while being less aggressive than fixed character limits.
 
 ## Verification
 - Created a reproduction script `reproduce_context_overflow.py` that generated a large file.
 - Before fix: Output was ~5.8MB, causing context overflow.
 - After fix: Output was truncated to ~55KB, safely within context limits.
+- Validated `ContextCompactor` safety limits with `tests/e2e/test_context_safety.py`.
 
 These changes prevent the agent from accidentally crashing the conversation by reading or listing too much data.
