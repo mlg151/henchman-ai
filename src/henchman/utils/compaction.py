@@ -69,9 +69,6 @@ class ContextCompactor:
     Preserves atomic sequences, especially tool call sequences.
     """
 
-    # Safety limit for individual message size
-    MAX_MESSAGE_CHARS = 100_000
-
     def __init__(self, max_tokens: int = 8000) -> None:
         """Initialize compactor.
 
@@ -81,10 +78,10 @@ class ContextCompactor:
         self.max_tokens = max_tokens
 
     def enforce_safety_limits(self, messages: list[Message]) -> list[Message]:
-        """Enforce hard safety limits on individual message content size.
+        """Enforce limits on individual message size using tokens.
         
         This prevents context overflow from individual massive messages
-        that might slip through tool-specific limits.
+        by truncating them to fit within the context window.
         
         Args:
             messages: List of messages to check.
@@ -93,12 +90,34 @@ class ContextCompactor:
             List of messages with content limits enforced.
         """
         safe_messages = []
+        # Reserve tokens for overhead/other messages.
+        # We use 75% of max_tokens to allow for message overhead, system prompts,
+        # and the truncation suffix itself.
+        limit = int(self.max_tokens * 0.75)
+        
         for msg in messages:
-            # Check content length
-            if msg.content and len(msg.content) > self.MAX_MESSAGE_CHARS:
-                # Create a new message with truncated content
-                new_content = msg.content[:self.MAX_MESSAGE_CHARS] + f"\n... (truncated by safety limit: > {self.MAX_MESSAGE_CHARS} chars)"
+            if not msg.content:
+                safe_messages.append(msg)
+                continue
 
+            # Quick character check optimization:
+            # If chars < limit, tokens are definitely < limit (1 token >= 1 char usually)
+            # Actually, 1 token ~ 4 chars. So if chars < limit, it's definitely safe? 
+            # No, if chars < limit, tokens could be anything. 
+            # But if chars < limit (tokens), then tokens < limit is guaranteed since token count <= char count?
+            # Tiktoken: "hello" (5 chars) -> 1 token. " " (1 char) -> 1 token.
+            # Generally token count < char count.
+            # So if len(msg.content) < limit, we are safe.
+            if len(msg.content) < limit:
+                safe_messages.append(msg)
+                continue
+
+            # Check token count
+            if TokenCounter.count_text(msg.content) > limit:
+                # Truncate
+                truncated_content = TokenCounter.truncate_text(msg.content, limit)
+                new_content = truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
+                
                 # Create copy with modified content
                 safe_msg = Message(
                     role=msg.role,
@@ -109,9 +128,8 @@ class ContextCompactor:
                 safe_messages.append(safe_msg)
             else:
                 safe_messages.append(msg)
-
+        
         return safe_messages
-
     def _group_into_sequences(self, messages: list[Message]) -> list[MessageSequence]:
         """Group messages into atomic sequences that must be kept together.
 

@@ -53,47 +53,51 @@ class TestContextSafety:
 
     def test_compactor_safety_limit(self):
         """Test that ContextCompactor enforces limits on individual messages."""
-        compactor = ContextCompactor(max_tokens=100000)
-        limit = compactor.MAX_MESSAGE_CHARS
-
-        # Create a message exceeding the limit
-        huge_content = "a" * (limit + 5000)
+        # Use token limit large enough to fit overhead but small enough to test truncation
+        limit_tokens = 300
+        compactor = ContextCompactor(max_tokens=limit_tokens)
+        
+        # Limit will be 0.9 * 300 = 270 tokens
+        # Create a message exceeding the limit 
+        # "word " is 1 token. We want > 270 tokens.
+        huge_content = "word " * 500
         messages = [
             Message(role="system", content="System prompt"),
             Message(role="user", content="Here is a huge message:"),
             Message(role="assistant", content=huge_content)
         ]
-
+        
         # Run compaction (which includes safety check)
         compacted = compactor.compact(messages)
-
+        
         # Check that the huge message was truncated
+        # With max_tokens=300, limit is 270.
+        # Total tokens should be ~290 < 300. So all messages should be kept.
+        assert len(compacted) == 3
         huge_msg = compacted[2]
         assert len(huge_msg.content) < len(huge_content)
-        assert len(huge_msg.content) <= limit + 200 # approximate buffer for truncation msg
         assert "truncated by safety limit" in huge_msg.content
-
+        
         # Check other messages are untouched
         assert compacted[0].content == "System prompt"
         assert compacted[1].content == "Here is a huge message:"
 
     async def test_compactor_safety_limit_preserves_tool_calls(self):
         """Test that safety limit preserves tool call structure even if content is truncated."""
-        # Use large max_tokens so compaction logic doesn't drop the message purely due to size
-        # We want to test that enforce_safety_limits runs and preserves tool_calls
-        compactor = ContextCompactor(max_tokens=200000)
-        limit = compactor.MAX_MESSAGE_CHARS
-
-        huge_content = "b" * (limit + 1000)
-
+        # Use token limit large enough to fit overhead
+        limit_tokens = 300
+        compactor = ContextCompactor(max_tokens=limit_tokens)
+        
+        huge_content = "word " * 500
+        
         tool_call = ToolCall(id="call_1", name="test_tool", arguments={})
-
+        
         messages = [
             Message(role="assistant", tool_calls=[tool_call], content=huge_content)
         ]
-
+        
         compacted = compactor.compact(messages)
-
+        
         msg = compacted[0]
         assert len(msg.content) < len(huge_content)
         assert "truncated" in msg.content

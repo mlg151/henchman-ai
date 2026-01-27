@@ -21,7 +21,7 @@ def test_main_module_imports() -> None:
             text=True,
         )
         assert result.returncode == 0
-        assert "0.1.6" in result.stdout
+        assert "0.1.7" in result.stdout
 
 def test_python_m_henchman_help() -> None:
     """Test that python -m henchman --help works."""
