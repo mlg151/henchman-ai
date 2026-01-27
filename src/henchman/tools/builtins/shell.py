@@ -13,6 +13,9 @@ class ShellTool(Tool):
     It sets the HENCHMAN_CLI=1 environment variable for script detection.
     """
 
+    # Safety limits
+    MAX_OUTPUT_CHARS = 100_000
+
     @property
     def name(self) -> str:
         """Tool name."""
@@ -111,6 +114,10 @@ class ShellTool(Tool):
                 output_parts.append(stderr_text)
 
             output = "\n".join(output_parts)
+
+            # Truncate if too long
+            if len(output) > self.MAX_OUTPUT_CHARS:
+                output = output[:self.MAX_OUTPUT_CHARS] + f"\n... (output truncated after {self.MAX_OUTPUT_CHARS} chars)"
 
             return ToolResult(
                 content=output if output else "(no output)",

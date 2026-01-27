@@ -11,6 +11,9 @@ class LsTool(Tool):
     This tool lists the files and directories in a given path.
     """
 
+    # Safety limits
+    MAX_ITEMS = 1000
+
     @property
     def name(self) -> str:
         """Tool name."""
@@ -82,7 +85,29 @@ class LsTool(Tool):
 
             # List directory contents
             entries = []
-            for item in sorted(target.iterdir()):
+            truncated = False
+
+            # Use iterdir() which returns an iterator
+            iterator = target.iterdir()
+            # We can't sort immediately if we want to limit processing,
+            # but for consistent output on small dirs, sorting is better.
+            # So we collect up to limit + 1
+
+            all_items = []
+            try:
+                for _ in range(self.MAX_ITEMS + 1):
+                    all_items.append(next(iterator))
+            except StopIteration:
+                pass
+
+            if len(all_items) > self.MAX_ITEMS:
+                truncated = True
+                all_items = all_items[:self.MAX_ITEMS]
+
+            # Sort the collected items
+            all_items.sort(key=lambda p: p.name)
+
+            for item in all_items:
                 # Skip hidden files unless requested
                 if not show_hidden and item.name.startswith("."):
                     continue
@@ -92,6 +117,9 @@ class LsTool(Tool):
                     entries.append(f"{item.name}/")
                 else:
                     entries.append(item.name)
+
+            if truncated:
+                entries.append(f"... Output truncated (limit reached: {self.MAX_ITEMS} items) ...")
 
             return ToolResult(
                 content="\n".join(entries) if entries else "(empty directory)",

@@ -13,16 +13,15 @@ def test_main_module_imports() -> None:
     assert __main__.main is main
 
 
-def test_python_m_henchman_version() -> None:
-    """Test that python -m henchman --version works."""
-    result = subprocess.run(
-        [sys.executable, "-m", "henchman", "--version"],
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0
-    assert "0.1.3" in result.stdout
-
+    def test_python_m_henchman_version() -> None:
+        """Test that python -m henchman --version works."""
+        result = subprocess.run(
+            [sys.executable, "-m", "henchman", "--version"],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert "0.1.6" in result.stdout
 
 def test_python_m_henchman_help() -> None:
     """Test that python -m henchman --help works."""

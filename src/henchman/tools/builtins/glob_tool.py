@@ -12,6 +12,9 @@ class GlobTool(Tool):
     in a directory and its subdirectories.
     """
 
+    # Safety limits
+    MAX_MATCHES = 1000
+
     @property
     def name(self) -> str:
         """Tool name."""
@@ -74,7 +77,22 @@ class GlobTool(Tool):
                 )
 
             # Find matching files
-            matches = list(base_path.glob(pattern))
+            # Use a generator approach to avoid loading all files into memory if possible
+            # But glob() returns a generator anyway.
+            matches_iter = base_path.glob(pattern)
+
+            matches = []
+            truncated = False
+
+            try:
+                for _ in range(self.MAX_MATCHES + 1):
+                    matches.append(next(matches_iter))
+            except StopIteration:
+                pass
+
+            if len(matches) > self.MAX_MATCHES:
+                truncated = True
+                matches = matches[:self.MAX_MATCHES]
 
             if not matches:
                 return ToolResult(
@@ -90,6 +108,9 @@ class GlobTool(Tool):
                     results.append(str(rel_path))
                 except ValueError:  # pragma: no cover
                     results.append(str(match))
+
+            if truncated:
+                results.append(f"... Output truncated (limit reached: {self.MAX_MATCHES} matches) ...")
 
             return ToolResult(
                 content="\n".join(results),

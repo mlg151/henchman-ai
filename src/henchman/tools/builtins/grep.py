@@ -13,6 +13,10 @@ class GrepTool(Tool):
     similar to the grep command.
     """
 
+    # Safety limits
+    MAX_MATCHES = 1000
+    MAX_OUTPUT_CHARS = 100_000
+
     @property
     def name(self) -> str:
         """Tool name."""
@@ -116,17 +120,28 @@ class GrepTool(Tool):
 
             # Search files
             results = []
+            total_chars = 0
+            truncated = False
+
             for file_path in files:
+                if truncated:
+                    break
                 try:
                     content = file_path.read_text()
                     lines = content.splitlines()
                     for i, line in enumerate(lines, 1):
                         if regex.search(line):
                             prefix = f"{file_path}:" if len(files) > 1 else ""
-                            if line_numbers:
-                                results.append(f"{prefix}{i}:{line}")
-                            else:
-                                results.append(f"{prefix}{line}")
+                            match_str = f"{prefix}{i}:{line}" if line_numbers else f"{prefix}{line}"
+
+                            results.append(match_str)
+                            total_chars += len(match_str) + 1  # +1 for newline
+
+                            if len(results) >= self.MAX_MATCHES or total_chars >= self.MAX_OUTPUT_CHARS:
+                                truncated = True
+                                results.append(f"... Output truncated (limit reached: {len(results)} matches or {total_chars} chars) ...")
+                                break
+
                 except (PermissionError, UnicodeDecodeError):  # pragma: no cover
                     # Skip files we can't read
                     continue
