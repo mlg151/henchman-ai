@@ -1,41 +1,69 @@
-"""Context file (HENCHMAN.md) loading.
+"""Context file loading for project instructions.
 
-This module handles discovery and loading of HENCHMAN.md context files
+This module handles discovery and loading of project instruction files
+(HENCHMAN.md, .github/copilot-instructions.md, .gemini/GEMINI.md)
 from the directory hierarchy.
 """
 
 from __future__ import annotations
 
 import fnmatch
+from collections.abc import Sequence
 from pathlib import Path
+
+DEFAULT_FILENAMES: tuple[str, ...] = (
+    "HENCHMAN.md",
+    ".github/copilot-instructions.md",
+    ".gemini/GEMINI.md",
+)
+"""Default context filenames to search for, in priority order."""
 
 
 class ContextLoader:
-    """Discovers and loads HENCHMAN.md context files.
+    """Discovers and loads project instruction / context files.
 
-    Context files are discovered in this order:
+    Searches for multiple context file patterns (HENCHMAN.md,
+    .github/copilot-instructions.md, .gemini/GEMINI.md) in this order:
+
     1. Global: ~/.henchman/HENCHMAN.md
     2. Ancestors: Walk up from cwd to git root
     3. Subdirectories: Walk down from cwd (optional)
 
+    At each directory, all configured filenames are checked in priority
+    order and all matches are included.
+
     Attributes:
-        filename: The name of context files to discover.
+        filenames: Tuple of context file paths to discover.
         include_subdirs: Whether to search subdirectories.
     """
 
     def __init__(
         self,
-        filename: str = "HENCHMAN.md",
+        filename: str | None = None,
+        filenames: Sequence[str] | None = None,
         include_subdirs: bool = False,
     ) -> None:
         """Initialize the context loader.
 
         Args:
-            filename: Name of context files to discover.
+            filename: Single filename to discover (backward compat).
+                Mutually exclusive with *filenames*.
+            filenames: Sequence of filenames / relative paths to discover.
+                Defaults to :data:`DEFAULT_FILENAMES`.
             include_subdirs: Whether to search subdirectories.
         """
-        self.filename = filename
+        if filename is not None:
+            self.filenames: tuple[str, ...] = (filename,)
+        elif filenames is not None:
+            self.filenames = tuple(filenames)
+        else:
+            self.filenames = DEFAULT_FILENAMES
         self.include_subdirs = include_subdirs
+
+    @property
+    def filename(self) -> str:
+        """Return the first (primary) filename for backward compatibility."""
+        return self.filenames[0]
 
     def _find_git_root(self, start: Path) -> Path | None:
         """Find the git repository root.
@@ -106,29 +134,37 @@ class ContextLoader:
         files: list[Path] = []
         cwd = Path.cwd().resolve()
 
-        # Global context: ~/.henchman/HENCHMAN.md
-        global_file = Path.home() / ".henchman" / self.filename
-        if global_file.exists():
-            files.append(global_file)
+        # Global context: ~/.henchman/<filename> for each filename
+        henchman_home = Path.home() / ".henchman"
+        for fn in self.filenames:
+            global_file = henchman_home / fn
+            if global_file.exists():
+                files.append(global_file)
 
         # Find git root to limit ancestor search
         git_root = self._find_git_root(cwd)
         stop_at = git_root if git_root else cwd
 
         # Ancestor context files (from root to cwd)
-        ancestors: list[Path] = []
+        ancestor_groups: list[list[Path]] = []
         current = cwd
         # Walk up from cwd to stop_at (inclusive)
         while True:
-            context_file = current / self.filename
-            if context_file.exists() and context_file not in files:
-                ancestors.append(context_file)
+            group: list[Path] = []
+            for fn in self.filenames:
+                context_file = current / fn
+                if context_file.exists() and context_file not in files:
+                    group.append(context_file)
+            if group:
+                ancestor_groups.append(group)
             if current == stop_at:
                 break
             current = current.parent
 
-        # Add ancestors in root-to-cwd order
-        files.extend(reversed(ancestors))
+        # Add ancestors in root-to-cwd order (reverse dir order,
+        # but preserve filename priority within each directory)
+        for group in reversed(ancestor_groups):
+            files.extend(group)
 
         # Subdirectory context files
         if self.include_subdirs and git_root:
@@ -140,9 +176,10 @@ class ContextLoader:
                     continue
                 if self._is_ignored(subdir, patterns, cwd):
                     continue
-                context_file = subdir / self.filename
-                if context_file.exists():
-                    files.append(context_file)
+                for fn in self.filenames:
+                    context_file = subdir / fn
+                    if context_file.exists():
+                        files.append(context_file)
 
         return files
 

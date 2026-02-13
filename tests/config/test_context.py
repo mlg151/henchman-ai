@@ -1,4 +1,4 @@
-"""Tests for context file (HENCHMAN.md) loading."""
+"""Tests for context file loading."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from henchman.config.context import ContextLoader
+from henchman.config.context import DEFAULT_FILENAMES, ContextLoader
 
 
 class TestContextLoader:
@@ -210,12 +210,143 @@ class TestContextLoader:
 
 
 class TestContextLoaderFilename:
-    """Tests for ContextLoader.FILENAME constant."""
+    """Tests for ContextLoader filename defaults and backward compat."""
 
-    def test_default_filename(self) -> None:
-        """Test default filename is HENCHMAN.md."""
+    def test_default_filenames(self) -> None:
+        """Test default filenames include all three instruction files."""
+        loader = ContextLoader()
+        assert loader.filenames == DEFAULT_FILENAMES
+        assert loader.filenames == (
+            "HENCHMAN.md",
+            ".github/copilot-instructions.md",
+            ".gemini/GEMINI.md",
+        )
+
+    def test_filename_property_returns_first(self) -> None:
+        """Test filename property returns first entry for backward compat."""
         loader = ContextLoader()
         assert loader.filename == "HENCHMAN.md"
+
+    def test_custom_single_filename(self) -> None:
+        """Test passing a single custom filename."""
+        loader = ContextLoader(filename="AGENT.md")
+        assert loader.filenames == ("AGENT.md",)
+        assert loader.filename == "AGENT.md"
+
+    def test_custom_filenames_sequence(self) -> None:
+        """Test passing a custom sequence of filenames."""
+        loader = ContextLoader(filenames=["A.md", "B.md"])
+        assert loader.filenames == ("A.md", "B.md")
+        assert loader.filename == "A.md"
+
+
+class TestContextLoaderMultipleFilenames:
+    """Tests for discovering multiple context file types."""
+
+    @pytest.fixture
+    def temp_home(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        """Create a temporary home directory."""
+        home = tmp_path / "home"
+        home.mkdir()
+        monkeypatch.setenv("HOME", str(home))
+        return home
+
+    def test_discovers_copilot_instructions(
+        self, temp_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test discovering .github/copilot-instructions.md."""
+        project = tmp_path / "project"
+        project.mkdir()
+        monkeypatch.chdir(project)
+
+        github_dir = project / ".github"
+        github_dir.mkdir()
+        copilot_file = github_dir / "copilot-instructions.md"
+        copilot_file.write_text("# Copilot Instructions")
+
+        loader = ContextLoader()
+        files = loader.discover_files()
+        assert copilot_file in files
+
+    def test_discovers_gemini_md(
+        self, temp_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test discovering .gemini/GEMINI.md."""
+        project = tmp_path / "project"
+        project.mkdir()
+        monkeypatch.chdir(project)
+
+        gemini_dir = project / ".gemini"
+        gemini_dir.mkdir()
+        gemini_file = gemini_dir / "GEMINI.md"
+        gemini_file.write_text("# Gemini Context")
+
+        loader = ContextLoader()
+        files = loader.discover_files()
+        assert gemini_file in files
+
+    def test_discovers_all_three_in_order(
+        self, temp_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that all three file types are discovered in priority order."""
+        project = tmp_path / "project"
+        project.mkdir()
+        monkeypatch.chdir(project)
+
+        # Create all three context files
+        (project / "HENCHMAN.md").write_text("# Henchman")
+
+        (project / ".github").mkdir()
+        copilot = project / ".github" / "copilot-instructions.md"
+        copilot.write_text("# Copilot")
+
+        (project / ".gemini").mkdir()
+        gemini = project / ".gemini" / "GEMINI.md"
+        gemini.write_text("# Gemini")
+
+        loader = ContextLoader()
+        files = loader.discover_files()
+
+        assert len(files) == 3
+        assert files[0] == project / "HENCHMAN.md"
+        assert files[1] == copilot
+        assert files[2] == gemini
+
+    def test_ancestor_copilot_instructions(
+        self, temp_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test discovering copilot-instructions.md in ancestor dir."""
+        project = tmp_path / "project"
+        subdir = project / "subdir"
+        subdir.mkdir(parents=True)
+        (project / ".git").mkdir()
+        monkeypatch.chdir(subdir)
+
+        (project / ".github").mkdir()
+        copilot = project / ".github" / "copilot-instructions.md"
+        copilot.write_text("# Copilot at root")
+
+        loader = ContextLoader()
+        files = loader.discover_files()
+        assert copilot in files
+
+    def test_load_concatenates_all_file_types(
+        self, temp_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that load() includes content from all discovered file types."""
+        project = tmp_path / "project"
+        project.mkdir()
+        monkeypatch.chdir(project)
+
+        (project / "HENCHMAN.md").write_text("Henchman content")
+        (project / ".gemini").mkdir()
+        (project / ".gemini" / "GEMINI.md").write_text("Gemini content")
+
+        loader = ContextLoader()
+        content = loader.load()
+
+        assert "Henchman content" in content
+        assert "Gemini content" in content
 
 
 class TestContextLoaderGitignore:
