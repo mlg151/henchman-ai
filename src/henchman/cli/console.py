@@ -7,8 +7,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import anyio
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.markup import escape
 from rich.syntax import Syntax
 
 
@@ -150,7 +152,7 @@ class OutputRenderer:
         Args:
             message: Success message text.
         """
-        self.console.print(f"[{self.theme.success}]✓[/] {message}")
+        self.console.print(f"[{self.theme.success}]✓[/] {escape(message)}")
 
     def info(self, message: str) -> None:
         """Print an info message.
@@ -158,7 +160,7 @@ class OutputRenderer:
         Args:
             message: Info message text.
         """
-        self.console.print(f"[{self.theme.primary}]ℹ[/] {message}")
+        self.console.print(f"[{self.theme.primary}]ℹ[/] {escape(message)}")
 
     def warning(self, message: str) -> None:
         """Print a warning message.
@@ -166,7 +168,7 @@ class OutputRenderer:
         Args:
             message: Warning message text.
         """
-        self.console.print(f"[{self.theme.warning}]⚠[/] {message}")
+        self.console.print(f"[{self.theme.warning}]⚠[/] {escape(message)}")
 
     def error(self, message: str) -> None:
         """Print an error message.
@@ -174,7 +176,7 @@ class OutputRenderer:
         Args:
             message: Error message text.
         """
-        self.console.print(f"[{self.theme.error}]✗[/] {message}")
+        self.console.print(f"[{self.theme.error}]✗[/] {escape(message)}")
 
     def muted(self, text: str) -> None:
         """Print muted/dim text.
@@ -190,7 +192,7 @@ class OutputRenderer:
         Args:
             text: Heading text.
         """
-        self.console.print(f"\n[bold {self.theme.primary}]{text}[/]\n")
+        self.console.print(f"\n[bold {self.theme.primary}]{escape(text)}[/]\n")
 
     def markdown(self, content: str) -> None:
         """Render markdown content.
@@ -234,13 +236,12 @@ class OutputRenderer:
             arguments: Tool arguments.
         """
         import json
+
         args_str = json.dumps(arguments, indent=2)
         content = f"### 🛠️ Tool Call: `{name}`\n\n```json\n{args_str}\n```"
         self.markdown(content)
 
-    def tool_result(
-        self, content: str, success: bool = True, error: str | None = None
-    ) -> None:
+    def tool_result(self, content: str, success: bool = True, error: str | None = None) -> None:
         """Display a tool result.
 
         Args:
@@ -301,4 +302,5 @@ class OutputRenderer:
             True if confirmed.
         """
         from rich.prompt import Confirm
-        return Confirm.ask(message, console=self.console)
+
+        return await anyio.to_thread.run_sync(lambda: Confirm.ask(message, console=self.console))

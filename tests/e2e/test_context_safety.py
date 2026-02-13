@@ -1,5 +1,3 @@
-
-
 import pytest
 
 from henchman.providers.base import Message, ToolCall
@@ -10,7 +8,6 @@ from henchman.utils.compaction import ContextCompactor
 
 @pytest.mark.asyncio
 class TestContextSafety:
-
     async def test_shell_tool_truncation(self):
         """Test that ShellTool truncates excessive output."""
         tool = ShellTool()
@@ -56,20 +53,20 @@ class TestContextSafety:
         # Use token limit large enough to fit overhead but small enough to test truncation
         limit_tokens = 300
         compactor = ContextCompactor(max_tokens=limit_tokens)
-        
+
         # Limit will be 0.9 * 300 = 270 tokens
-        # Create a message exceeding the limit 
+        # Create a message exceeding the limit
         # "word " is 1 token. We want > 270 tokens.
         huge_content = "word " * 500
         messages = [
             Message(role="system", content="System prompt"),
             Message(role="user", content="Here is a huge message:"),
-            Message(role="assistant", content=huge_content)
+            Message(role="assistant", content=huge_content),
         ]
-        
+
         # Run compaction (which includes safety check)
         compacted = compactor.compact(messages)
-        
+
         # Check that the huge message was truncated
         # With max_tokens=300, limit is 270.
         # Total tokens should be ~290 < 300. So all messages should be kept.
@@ -77,7 +74,7 @@ class TestContextSafety:
         huge_msg = compacted[2]
         assert len(huge_msg.content) < len(huge_content)
         assert "truncated by safety limit" in huge_msg.content
-        
+
         # Check other messages are untouched
         assert compacted[0].content == "System prompt"
         assert compacted[1].content == "Here is a huge message:"
@@ -87,17 +84,15 @@ class TestContextSafety:
         # Use token limit large enough to fit overhead
         limit_tokens = 300
         compactor = ContextCompactor(max_tokens=limit_tokens)
-        
+
         huge_content = "word " * 500
-        
+
         tool_call = ToolCall(id="call_1", name="test_tool", arguments={})
-        
-        messages = [
-            Message(role="assistant", tool_calls=[tool_call], content=huge_content)
-        ]
-        
+
+        messages = [Message(role="assistant", tool_calls=[tool_call], content=huge_content)]
+
         compacted = compactor.compact(messages)
-        
+
         msg = compacted[0]
         assert len(msg.content) < len(huge_content)
         assert "truncated" in msg.content

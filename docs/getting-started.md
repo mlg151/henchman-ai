@@ -48,7 +48,7 @@ Start the interactive REPL:
 henchman
 ```
 
-You'll see a welcome message and prompt:
+You'll see a welcome message and prompt. By default, you are talking to the **Tech Lead** of a multi-agent team.
 
 ```
 Henchman-AI - /help for commands, /quit to exit

@@ -141,9 +141,7 @@ class TestMcpManager:
             assert result.content == "file contents"
 
     @pytest.mark.anyio
-    async def test_call_tool_unknown_server(
-        self, configs: dict[str, McpServerConfig]
-    ) -> None:
+    async def test_call_tool_unknown_server(self, configs: dict[str, McpServerConfig]) -> None:
         """Test calling a tool on unknown server raises error."""
         manager = McpManager(configs)
 
@@ -156,9 +154,7 @@ class TestMcpManager:
         assert not manager.is_trusted("filesystem")
         assert manager.is_trusted("github")
 
-    def test_is_trusted_unknown_server(
-        self, configs: dict[str, McpServerConfig]
-    ) -> None:
+    def test_is_trusted_unknown_server(self, configs: dict[str, McpServerConfig]) -> None:
         """Test is_trusted returns False for unknown server."""
         manager = McpManager(configs)
         assert not manager.is_trusted("unknown")

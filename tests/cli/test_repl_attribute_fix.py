@@ -48,9 +48,9 @@ class TestReplHasRunMethod:
 
     def test_repl_run_is_async(self) -> None:
         """Ensure run is an async method."""
-        assert inspect.iscoroutinefunction(
-            Repl.run
-        ), "Repl.run must be an async method (coroutine function)"
+        assert inspect.iscoroutinefunction(Repl.run), (
+            "Repl.run must be an async method (coroutine function)"
+        )
 
     def test_repl_run_callable(self) -> None:
         """Ensure run is callable and not None."""
@@ -244,9 +244,7 @@ class TestNoAttributeErrorRegression:
         """Regression: Verify Repl.run method always exists."""
         # This test will fail if someone accidentally removes the run method
         assert hasattr(Repl, "run"), "REGRESSION: Repl.run method is missing!"
-        assert (
-            "run" in dir(Repl)
-        ), "REGRESSION: Repl.run is not in Repl's public interface!"
+        assert "run" in dir(Repl), "REGRESSION: Repl.run is not in Repl's public interface!"
 
     def test_repl_run_is_coroutine_function(self) -> None:
         """Regression: Verify Repl.run is a coroutine function."""

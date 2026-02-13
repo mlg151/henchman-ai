@@ -49,6 +49,7 @@ class CommandContext:
         agent: Agent instance if available.
         tool_registry: ToolRegistry instance if available.
         session: Current Session if available.
+        repl: REPL instance if available.
     """
 
     console: Console
@@ -57,6 +58,9 @@ class CommandContext:
     agent: Agent | None = None
     tool_registry: ToolRegistry | None = None
     session: Session | None = None
+    repl: object | None = None
+    session_manager: object | None = None
+    project_hash: str | None = None
 
 
 class Command(ABC):

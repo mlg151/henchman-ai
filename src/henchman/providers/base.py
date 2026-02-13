@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any
 
 __all__ = [
+    "ContextTooLargeError",
     "FinishReason",
     "Message",
     "ModelProvider",
@@ -14,6 +15,22 @@ __all__ = [
     "ToolCall",
     "ToolDeclaration",
 ]
+
+
+class ContextTooLargeError(Exception):
+    """Raised when the context/request is too large for the API.
+
+    This typically happens when the conversation history plus tool outputs
+    exceeds the model's context window or the API's request size limit.
+    """
+
+    def __init__(self, message: str = "Request too large for API") -> None:
+        """Initialize the error.
+
+        Args:
+            message: Error message with guidance for the user.
+        """
+        super().__init__(message)
 
 
 class FinishReason(Enum):

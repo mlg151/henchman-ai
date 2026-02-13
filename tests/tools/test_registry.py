@@ -8,7 +8,8 @@ from henchman.tools.base import (
     ToolKind,
     ToolResult,
 )
-from henchman.tools.registry import ToolRegistry
+from henchman.tools.registry import BatchResult, ToolRegistry
+from henchman.utils.retry import RetryConfig
 
 
 class MockReadTool(Tool):
@@ -80,6 +81,82 @@ class MockWriteTool(Tool):
         """Execute the tool."""
         path = params.get("path", "")
         return ToolResult(content=f"Wrote to {path}")
+
+
+class MockNetworkTool(Tool):
+    """A mock network tool for testing retries."""
+
+    def __init__(self) -> None:
+        """Initialize with call counter."""
+        self.call_count = 0
+
+    @property
+    def name(self) -> str:
+        """Tool name."""
+        return "fetch_url"
+
+    @property
+    def description(self) -> str:
+        """Tool description."""
+        return "Fetch a URL"
+
+    @property
+    def parameters(self) -> dict:
+        """JSON Schema for parameters."""
+        return {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string"},
+            },
+            "required": ["url"],
+        }
+
+    @property
+    def kind(self) -> ToolKind:
+        """Network tool."""
+        return ToolKind.NETWORK
+
+    async def execute(self, **params: object) -> ToolResult:
+        """Execute the tool."""
+        self.call_count += 1
+        url = params.get("url", "")
+        return ToolResult(content=f"Fetched {url}")
+
+
+class MockFailingNetworkTool(Tool):
+    """A mock network tool that fails initially then succeeds."""
+
+    def __init__(self, fail_count: int = 2) -> None:
+        """Initialize with failure count."""
+        self.call_count = 0
+        self.fail_count = fail_count
+
+    @property
+    def name(self) -> str:
+        """Tool name."""
+        return "flaky_fetch"
+
+    @property
+    def description(self) -> str:
+        """Tool description."""
+        return "Flaky fetch"
+
+    @property
+    def parameters(self) -> dict:
+        """JSON Schema for parameters."""
+        return {"type": "object", "properties": {}}
+
+    @property
+    def kind(self) -> ToolKind:
+        """Network tool."""
+        return ToolKind.NETWORK
+
+    async def execute(self, **params: object) -> ToolResult:
+        """Execute the tool, failing initially."""
+        self.call_count += 1
+        if self.call_count <= self.fail_count:
+            raise ConnectionError("Network error")
+        return ToolResult(content="Success after retry")
 
 
 class TestToolRegistry:
@@ -271,3 +348,183 @@ class TestToolRegistryPolicyEngine:
         policies = registry.list_auto_approve_policies()
         assert "write_file" in policies
         assert "shell" in policies
+
+
+class TestToolRegistryRetry:
+    """Tests for retry logic in ToolRegistry."""
+
+    async def test_network_tool_retries_on_failure(self) -> None:
+        """Network tools are retried on transient failures."""
+        tool = MockFailingNetworkTool(fail_count=2)
+        registry = ToolRegistry(retry_config=RetryConfig(max_retries=3, base_delay=0.01))
+        registry.register(tool)
+        registry.add_auto_approve_policy("flaky_fetch")
+
+        result = await registry.execute("flaky_fetch", {})
+        assert result.success is True
+        assert result.content == "Success after retry"
+        assert tool.call_count == 3  # Failed twice, succeeded third time
+
+    async def test_network_tool_exhausts_retries(self) -> None:
+        """Network tools return error after exhausting retries."""
+        tool = MockFailingNetworkTool(fail_count=10)  # Always fail
+        registry = ToolRegistry(retry_config=RetryConfig(max_retries=2, base_delay=0.01))
+        registry.register(tool)
+        registry.add_auto_approve_policy("flaky_fetch")
+
+        result = await registry.execute("flaky_fetch", {})
+        assert result.success is False
+        assert "Network error" in result.error
+        assert tool.call_count == 3  # Initial + 2 retries
+
+    async def test_non_network_tool_no_retry(self) -> None:
+        """Non-network tools are not retried."""
+
+        class FailingReadTool(Tool):
+            """A read tool that always fails."""
+
+            call_count = 0
+
+            @property
+            def name(self) -> str:
+                return "failing_read"
+
+            @property
+            def description(self) -> str:
+                return "Fails"
+
+            @property
+            def parameters(self) -> dict:
+                return {"type": "object", "properties": {}}
+
+            @property
+            def kind(self) -> ToolKind:
+                return ToolKind.READ
+
+            async def execute(self, **params: object) -> ToolResult:
+                FailingReadTool.call_count += 1
+                raise ConnectionError("Should not retry")
+
+        registry = ToolRegistry(retry_config=RetryConfig(max_retries=3, base_delay=0.01))
+        registry.register(FailingReadTool())
+
+        result = await registry.execute("failing_read", {})
+        assert result.success is False
+        assert FailingReadTool.call_count == 1  # No retries for READ tools
+
+    async def test_set_retry_config(self) -> None:
+        """Can update retry config after creation."""
+        tool = MockFailingNetworkTool(fail_count=1)
+        registry = ToolRegistry()  # Default config
+        registry.set_retry_config(RetryConfig(max_retries=2, base_delay=0.01))
+        registry.register(tool)
+        registry.add_auto_approve_policy("flaky_fetch")
+
+        result = await registry.execute("flaky_fetch", {})
+        assert result.success is True
+        assert tool.call_count == 2
+
+    async def test_zero_retries_disables_retry(self) -> None:
+        """Zero max_retries disables retry logic."""
+        tool = MockFailingNetworkTool(fail_count=1)
+        registry = ToolRegistry(retry_config=RetryConfig(max_retries=0))
+        registry.register(tool)
+        registry.add_auto_approve_policy("flaky_fetch")
+
+        result = await registry.execute("flaky_fetch", {})
+        assert result.success is False
+        assert tool.call_count == 1
+
+
+class TestToolRegistryBatch:
+    """Tests for batch execution in ToolRegistry."""
+
+    async def test_execute_batch_empty(self) -> None:
+        """Empty batch returns empty result."""
+        registry = ToolRegistry()
+        result = await registry.execute_batch([])
+        assert result.results == {}
+        assert result.successful == 0
+        assert result.failed == 0
+
+    async def test_execute_batch_single(self) -> None:
+        """Single tool in batch executes correctly."""
+        registry = ToolRegistry()
+        registry.register(MockReadTool())
+
+        result = await registry.execute_batch(
+            [
+                ("read_file", {"path": "/test.txt"}),
+            ]
+        )
+
+        assert result.successful == 1
+        assert result.failed == 0
+        assert len(result.results) == 1
+        assert result.results["read_file_0"].content == "Contents of /test.txt"
+
+    async def test_execute_batch_multiple(self) -> None:
+        """Multiple tools execute in parallel."""
+        registry = ToolRegistry()
+        registry.register(MockReadTool())
+        registry.register(MockWriteTool())
+
+        result = await registry.execute_batch(
+            [
+                ("read_file", {"path": "/a.txt"}),
+                ("read_file", {"path": "/b.txt"}),
+                ("write_file", {"path": "/c.txt", "content": "hello"}),
+            ]
+        )
+
+        assert result.successful == 3
+        assert result.failed == 0
+        assert len(result.results) == 3
+
+    async def test_execute_batch_with_failures(self) -> None:
+        """Batch continues executing even when some tools fail."""
+        registry = ToolRegistry()
+        registry.register(MockReadTool())
+
+        result = await registry.execute_batch(
+            [
+                ("read_file", {"path": "/good.txt"}),
+                ("nonexistent_tool", {}),
+                ("read_file", {"path": "/also_good.txt"}),
+            ]
+        )
+
+        assert result.successful == 2
+        assert result.failed == 1
+        assert result.results["read_file_0"].success is True
+        assert result.results["nonexistent_tool_1"].success is False
+        assert result.results["read_file_2"].success is True
+
+    async def test_execute_batch_duplicate_tool_names(self) -> None:
+        """Duplicate tool names get unique keys."""
+        registry = ToolRegistry()
+        registry.register(MockReadTool())
+
+        result = await registry.execute_batch(
+            [
+                ("read_file", {"path": "/1.txt"}),
+                ("read_file", {"path": "/2.txt"}),
+                ("read_file", {"path": "/3.txt"}),
+            ]
+        )
+
+        assert result.successful == 3
+        assert "read_file_0" in result.results
+        assert "read_file_1" in result.results
+        assert "read_file_2" in result.results
+
+    async def test_batch_result_dataclass(self) -> None:
+        """BatchResult dataclass works correctly."""
+        result = BatchResult(
+            results={"tool_0": ToolResult(content="ok")},
+            successful=1,
+            failed=0,
+        )
+        assert result.successful == 1
+        assert result.failed == 0
+        assert result.results["tool_0"].content == "ok"

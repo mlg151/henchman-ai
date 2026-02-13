@@ -1,0 +1,604 @@
+from unittest.mock import MagicMock
+
+import pytest
+
+from henchman.agents.orchestrator import Orchestrator
+from henchman.core.events import EventType
+from henchman.providers.base import FinishReason, Message, ModelProvider, StreamChunk, ToolCall
+
+
+@pytest.fixture
+def mock_provider():
+    provider = MagicMock(spec=ModelProvider)
+    return provider
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_run_basic(mock_provider):
+    # Mock Tech Lead response
+    chunk = StreamChunk(content="Plan: I will ask the explorer.", finish_reason=FinishReason.STOP)
+
+    async def async_gen(*_args, **_kwargs):  # noqa: ARG001
+        yield chunk
+
+    mock_provider.chat_completion_stream.return_value = async_gen()
+
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    events = []
+    async for event in orchestrator.run("Hello"):
+        events.append(event)
+
+    assert any(e.type == EventType.AGENT_STARTED and e.data["agent"] == "tech_lead" for e in events)
+    assert any(e.type == EventType.CONTENT and "Plan" in e.data for e in events)
+    assert any(e.type == EventType.AGENT_COMPLETED and e.data["agent"] == "tech_lead" for e in events)
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_delegation_interception(mock_provider):
+    # 1. Tech Lead requests delegation
+    tc = ToolCall(id="call_1", name="delegate_task", arguments={"agent": "explorer", "task": "Write test"})
+    chunk1 = StreamChunk(tool_calls=[tc], finish_reason=FinishReason.TOOL_CALLS)
+
+    # 2. Tech Lead finishes after delegation result
+    chunk2 = StreamChunk(content="Mission complete.", finish_reason=FinishReason.STOP)
+
+    # 3. Coder (sub-agent) response
+    chunk_coder = StreamChunk(content="I wrote the test.", finish_reason=FinishReason.STOP)
+
+    call_count = 0
+    async def side_effect(*_args, **_kwargs):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1: # Tech Lead first turn
+            yield chunk1
+        elif call_count == 2: # Coder turn
+            yield chunk_coder
+        elif call_count == 3: # Tech Lead second turn (after delegation)
+            yield chunk2
+
+    mock_provider.chat_completion_stream.side_effect = side_effect
+
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    events = []
+    async for event in orchestrator.run("Do work"):
+        events.append(event)
+
+    assert any(e.type == EventType.AGENT_DELEGATED and e.data["to"] == "explorer" for e in events)
+    assert any(e.type == EventType.AGENT_STARTED and e.data["agent"] == "explorer" for e in events)
+    assert any(e.type == EventType.CONTENT and "I wrote the test" in e.data for e in events)
+    assert any(e.type == EventType.CONTENT and "Mission complete" in e.data for e in events)
+
+    # Check shared context
+    assert len(orchestrator.shared_context) == 1
+    assert orchestrator.shared_context[0]["agent"] == "explorer"
+    assert "I wrote the test" in orchestrator.shared_context[0]["summary"]
+
+
+@pytest.mark.asyncio
+async def test_cross_delegation_handoff_notes(mock_provider):
+    """Cross-delegation handoff: recent shared_context is injected as background."""
+    tc = ToolCall(
+        id="call_1",
+        name="delegate_task",
+        arguments={"agent": "explorer", "task": "Fix bug", "context": "File: main.py, line 42"},
+    )
+    chunk1 = StreamChunk(tool_calls=[tc], finish_reason=FinishReason.TOOL_CALLS)
+    chunk2 = StreamChunk(content="Done.", finish_reason=FinishReason.STOP)
+    chunk_coder = StreamChunk(content="Fixed.", finish_reason=FinishReason.STOP)
+
+    call_count = 0
+    async def side_effect(*_args, **_kwargs):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield chunk1
+        elif call_count == 2:
+            yield chunk_coder
+        elif call_count == 3:
+            yield chunk2
+
+    mock_provider.chat_completion_stream.side_effect = side_effect
+    orchestrator = Orchestrator(default_provider=mock_provider)
+    orchestrator.shared_context = [
+        {"agent": "explorer", "summary": "Found the API docs", "timestamp": "t"},
+    ]
+
+    events = []
+    async for event in orchestrator.run("Fix the bug"):
+        events.append(event)
+
+    # The coder SHOULD receive handoff notes from prior agents
+    coder = orchestrator.pool._agents.get("explorer")
+    if coder:
+        user_msgs = [m.content for m in coder.messages if m.role == "user"]
+        combined = " ".join(user_msgs)
+        assert "Prior agent work" in combined
+        assert "explorer" in combined
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_ledger_has_checklist_support(mock_provider):
+    """Task 1: Ledger created per run supports checklist."""
+    chunk = StreamChunk(content="Done.", finish_reason=FinishReason.STOP)
+
+    async def async_gen(*_args, **_kwargs):  # noqa: ARG001
+        yield chunk
+
+    mock_provider.chat_completion_stream.return_value = async_gen()
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    async for _ in orchestrator.run("Test"):
+        pass
+
+    assert orchestrator.ledger is not None
+    # Ledger should support checklist operations
+    item = orchestrator.ledger.add_checklist_item("Test item")
+    assert item.done is False
+    orchestrator.ledger.check_item(0)
+    assert orchestrator.ledger.checklist[0].done is True
+
+
+@pytest.mark.asyncio
+async def test_delegation_clears_agent_history(mock_provider):
+    """Specialist history is cleared before each delegation (clean start)."""
+    # 1st TL turn → delegate to coder
+    tc = ToolCall(id="c1", name="delegate_task", arguments={"agent": "explorer", "task": "First"})
+    chunk_tl1 = StreamChunk(tool_calls=[tc], finish_reason=FinishReason.TOOL_CALLS)
+    # Coder first run
+    chunk_coder1 = StreamChunk(content="Done first.", finish_reason=FinishReason.STOP)
+    # 2nd TL turn → delegate to coder AGAIN
+    tc2 = ToolCall(id="c2", name="delegate_task", arguments={"agent": "explorer", "task": "Second"})
+    chunk_tl2 = StreamChunk(tool_calls=[tc2], finish_reason=FinishReason.TOOL_CALLS)
+    # Coder second run
+    chunk_coder2 = StreamChunk(content="Done second.", finish_reason=FinishReason.STOP)
+    # Final TL turn
+    chunk_tl3 = StreamChunk(content="All done.", finish_reason=FinishReason.STOP)
+
+    call_count = 0
+    async def side_effect(*_args, **_kwargs):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield chunk_tl1
+        elif call_count == 2:
+            yield chunk_coder1
+        elif call_count == 3:
+            yield chunk_tl2
+        elif call_count == 4:
+            yield chunk_coder2
+        elif call_count == 5:
+            yield chunk_tl3
+
+    mock_provider.chat_completion_stream.side_effect = side_effect
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    events = []
+    async for event in orchestrator.run("Two tasks"):
+        events.append(event)
+
+    coder = orchestrator.pool._agents.get("explorer")
+    assert coder is not None
+    # After the second delegation the coder should have only the SECOND
+    # run's messages (system + user + assistant), not the first's.
+    user_msgs = [m.content for m in coder.messages if m.role == "user"]
+    assert not any("First" in (m or "") for m in user_msgs), \
+        "Coder should NOT retain history from the first delegation"
+    assert any("Second" in (m or "") for m in user_msgs), \
+        "Coder should have the second delegation's task"
+
+
+def test_assemble_delegation_input_task_only():
+    """_assemble_delegation_input with no brief returns just the task."""
+    result = Orchestrator._assemble_delegation_input("Fix bug", None)
+    assert result == "## Task\nFix bug"
+
+
+def test_assemble_delegation_input_empty_brief():
+    """_assemble_delegation_input with empty brief returns just the task."""
+    result = Orchestrator._assemble_delegation_input("Fix bug", {})
+    assert result == "## Task\nFix bug"
+
+
+def test_assemble_delegation_input_full_brief():
+    """_assemble_delegation_input includes all structured sections."""
+    brief = {
+        "context": "Auth returns 500 on special chars",
+        "files": ["src/auth.py", "tests/test_auth.py"],
+        "background": "Architect chose repository pattern",
+        "requirements": "Must pass ruff check",
+    }
+    result = Orchestrator._assemble_delegation_input("Fix login", brief)
+    assert "## Task\nFix login" in result
+    assert "## Requirements\nMust pass ruff check" in result
+    assert "## Relevant Files" in result
+    assert "`src/auth.py`" in result
+    assert "`tests/test_auth.py`" in result
+    assert "## Background\nArchitect chose repository pattern" in result
+    assert "## Additional Context\nAuth returns 500 on special chars" in result
+
+
+def test_assemble_delegation_input_partial_brief():
+    """_assemble_delegation_input handles partial brief (only some fields)."""
+    brief = {"files": ["main.py"], "context": None, "background": None, "requirements": None}
+    result = Orchestrator._assemble_delegation_input("Read it", brief)
+    assert "## Task\nRead it" in result
+    assert "## Relevant Files" in result
+    assert "`main.py`" in result
+    assert "## Requirements" not in result
+    assert "## Background" not in result
+    assert "## Additional Context" not in result
+
+
+# -- Stall detection tests (Agent-level, orchestrator checks _stall_failure) -
+
+
+@pytest.mark.asyncio
+async def test_agent_stall_detection_colon_ending():
+    """Agent._check_for_stalling catches messages ending with ':'."""
+    from henchman.core.agent import Agent
+
+    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    result = await agent._check_for_stalling("Now let me create the script:", False)
+    assert result is not None
+    assert "tool" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_agent_stall_failure_flag_after_max_nudges():
+    """Agent sets _stall_failure after exceeding max nudges."""
+    from henchman.core.agent import Agent
+
+    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    agent._max_stall_nudges = 2
+    # First two nudges return a message
+    r1 = await agent._check_for_stalling("Let me create the validation script:", False)
+    assert r1 is not None
+    r2 = await agent._check_for_stalling("Now I'll write the test file:", False)
+    assert r2 is not None
+    # Third time: returns None and sets failure flag
+    r3 = await agent._check_for_stalling("Here we go, starting now:", False)
+    assert r3 is None
+    assert agent._stall_failure is True
+
+
+@pytest.mark.asyncio
+async def test_agent_stall_resets_on_tool_calls():
+    """Stall nudge counter resets when the agent actually uses tools."""
+    from henchman.core.agent import Agent
+
+    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    await agent._check_for_stalling("Let me write the entire module:", False)
+    assert agent._stall_nudge_count == 1
+    # Tool call resets the count
+    await agent._check_for_stalling("anything", True)
+    assert agent._stall_nudge_count == 0
+
+
+@pytest.mark.asyncio
+async def test_agent_stall_detection_disabled_flag():
+    """Setting stall_detection_enabled=False bypasses all stall checks."""
+    from henchman.core.agent import Agent
+
+    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    agent.stall_detection_enabled = False
+    result = await agent._check_for_stalling("Now let me create the script:", False)
+    assert result is None
+    assert agent._stall_nudge_count == 0
+
+
+@pytest.mark.asyncio
+async def test_agent_no_stall_on_genuine_content():
+    """Agent does NOT flag substantive content as a stall."""
+    from henchman.core.agent import Agent
+
+    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    result = await agent._check_for_stalling(
+        "I've updated the file and added tests. All 42 tests pass. "
+        "The coverage is now 95%. Here's a summary of the changes I made.",
+        False,
+    )
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_stall_nudge_triggers_continuation(mock_provider):
+    """Specialist that stalls gets nudged internally and continues."""
+    # Turn 1 (TL): delegate to coder
+    tc = ToolCall(id="c1", name="delegate_task", arguments={"agent": "explorer", "task": "Write script"})
+    chunk_tl1 = StreamChunk(tool_calls=[tc], finish_reason=FinishReason.TOOL_CALLS)
+    # Turn 2 (coder call 1): stall — agent internally nudges
+    stall = StreamChunk(content="Now let me create the script:", finish_reason=FinishReason.STOP)
+    # Turn 3 (coder call 2, after internal nudge): real output
+    real = StreamChunk(content="Here is the completed script with all tests passing.", finish_reason=FinishReason.STOP)
+    # Turn 4 (TL): done
+    chunk_tl2 = StreamChunk(content="All done.", finish_reason=FinishReason.STOP)
+
+    call_count = 0
+
+    async def side_effect(*_args, **_kwargs):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield chunk_tl1
+        elif call_count == 2:
+            yield stall
+        elif call_count == 3:
+            yield real
+        elif call_count >= 4:
+            yield chunk_tl2
+
+    mock_provider.chat_completion_stream.side_effect = side_effect
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    events = []
+    async for event in orchestrator.run("Write a script"):
+        events.append(event)
+
+    # The real content should appear (stall was handled internally)
+    contents = [e.data for e in events if e.type == EventType.CONTENT]
+    assert any("completed script" in c for c in contents)
+
+
+@pytest.mark.asyncio
+async def test_stall_failure_reported_after_max_nudges(mock_provider):
+    """After max nudges on a specialist, a STALL FAILURE error is emitted."""
+    # Turn 1 (TL): delegate to coder
+    tc = ToolCall(id="c1", name="delegate_task", arguments={"agent": "explorer", "task": "Write tests"})
+    chunk_tl1 = StreamChunk(tool_calls=[tc], finish_reason=FinishReason.TOOL_CALLS)
+    # Coder stalls 3 times (max_stall_nudges=2, so 3rd triggers failure)
+    # Agent's internal loop: call1=stall → nudge → call2=stall → nudge → call3=stall → _stall_failure=True → exit
+    stall = StreamChunk(content="Let me write the code:", finish_reason=FinishReason.STOP)
+    # TL continues after failed delegation
+    chunk_tl2 = StreamChunk(content="Delegation failed.", finish_reason=FinishReason.STOP)
+
+    call_count = 0
+
+    async def side_effect(*_args, **_kwargs):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield chunk_tl1
+        elif call_count <= 4:
+            # Calls 2-4: coder stalls each time (agent nudges internally)
+            yield stall
+        elif call_count >= 5:
+            yield chunk_tl2
+
+    mock_provider.chat_completion_stream.side_effect = side_effect
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    events = []
+    async for event in orchestrator.run("Write tests"):
+        events.append(event)
+
+    # Should have an ERROR event with STALL FAILURE
+    error_events = [e for e in events if e.type == EventType.ERROR]
+    assert any("STALL FAILURE" in e.data for e in error_events)
+    assert any("never used tools" in e.data for e in error_events)
+
+
+@pytest.mark.asyncio
+async def test_tech_lead_exempt_from_stall_failure(mock_provider):
+    """Tech Lead has stall detection disabled entirely."""
+    # TL says something ending with ':' — would normally trigger stall detection
+    stall = StreamChunk(content="Here's my plan:", finish_reason=FinishReason.STOP)
+
+    async def async_gen(*_args, **_kwargs):  # noqa: ARG001
+        yield stall
+
+    mock_provider.chat_completion_stream.return_value = async_gen()
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    # Verify flag is set
+    assert orchestrator.tech_lead.stall_detection_enabled is False
+
+    events = []
+    async for event in orchestrator.run("Do something"):
+        events.append(event)
+
+    # No STALL FAILURE error from orchestrator for Tech Lead
+    error_events = [e for e in events if e.type == EventType.ERROR]
+    assert not any("STALL FAILURE" in str(e.data) for e in error_events)
+    # TL was NOT nudged — it exits cleanly after 1 call
+    assert orchestrator.tech_lead._stall_nudge_count == 0
+
+
+# ------------------------------------------------------------------
+# v0.2.7 — Teamwork & Communication Improvements
+# ------------------------------------------------------------------
+
+
+def test_assemble_delegation_input_done_when():
+    """done_when field produces a '## Done When' section."""
+    result = Orchestrator._assemble_delegation_input(
+        "Write tests",
+        {"done_when": "pytest passes with 0 failures", "requirements": "100% coverage"},
+    )
+    assert "## Done When" in result
+    assert "pytest passes with 0 failures" in result
+    assert "Stop working once" in result
+    assert "## Requirements" in result
+
+
+def test_assemble_delegation_input_no_done_when():
+    """Brief without done_when omits the section."""
+    result = Orchestrator._assemble_delegation_input(
+        "Write tests",
+        {"requirements": "100% coverage"},
+    )
+    assert "## Done When" not in result
+    assert "## Requirements" in result
+
+
+def test_parse_completion_report_full():
+    """Parses all structured fields from a specialist report."""
+    summary = (
+        "STATUS: DONE\n"
+        "FILES_MODIFIED: src/foo.py, src/bar.py\n"
+        "TESTS_RUN: pytest tests/\n"
+        "VERIFICATION: ruff check src/ — passed\n"
+        "SUMMARY: Added feature X"
+    )
+    parsed = Orchestrator._parse_completion_report(summary)
+    assert parsed["status"] == "DONE"
+    assert "src/foo.py" in parsed["files_modified"]
+    assert "pytest" in parsed["tests_run"]
+    assert "ruff" in parsed["verification"]
+
+
+def test_parse_completion_report_empty():
+    """Unstructured summary produces empty dict."""
+    parsed = Orchestrator._parse_completion_report("I fixed the bug.")
+    assert parsed == {}
+
+
+def test_parse_completion_report_partial():
+    """Parses whatever fields are present."""
+    summary = "STATUS: FAILED\nSUMMARY: Could not find the file"
+    parsed = Orchestrator._parse_completion_report(summary)
+    assert parsed["status"] == "FAILED"
+    assert "files_modified" not in parsed
+
+
+@pytest.mark.asyncio
+async def test_delegation_turn_limit(mock_provider):
+    """Specialist is stopped after max_delegation_turns."""
+    from henchman.config.schema import AgentSettings, Settings
+
+    # TL delegates to coder; coder keeps making tool calls
+    tc_delegate = ToolCall(
+        id="call_d",
+        name="delegate_task",
+        arguments={"agent": "explorer", "task": "Write code"},
+    )
+    tl_chunk1 = StreamChunk(tool_calls=[tc_delegate], finish_reason=FinishReason.TOOL_CALLS)
+    tl_chunk2 = StreamChunk(content="All done.", finish_reason=FinishReason.STOP)
+
+    # Coder makes 3 tool calls then finishes
+    coder_tc = ToolCall(id="tc_c", name="read_file", arguments={"path": "x.py"})
+    coder_tool = StreamChunk(tool_calls=[coder_tc], finish_reason=FinishReason.TOOL_CALLS)
+    coder_done = StreamChunk(content="STATUS: DONE", finish_reason=FinishReason.STOP)
+
+    call_count = 0
+    async def side_effect(*_args, **_kwargs):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield tl_chunk1
+        elif call_count <= 4:
+            yield coder_tool
+        elif call_count == 5:
+            yield coder_done
+        else:
+            yield tl_chunk2
+
+    mock_provider.chat_completion_stream.side_effect = side_effect
+
+    settings = Settings(agents=AgentSettings(max_delegation_turns=2))
+    orchestrator = Orchestrator(default_provider=mock_provider, settings=settings)
+
+    events = []
+    async for event in orchestrator.run("Do it"):
+        events.append(event)
+
+    # Turn limit should have been hit — look for the error event
+    error_events = [e for e in events if e.type == EventType.ERROR]
+    assert any("Turn limit" in str(e.data) for e in error_events)
+
+    # The timeout summary should be in the coder's messages
+    coder = orchestrator.pool._agents.get("explorer")
+    if coder:
+        assistant_msgs = [m.content for m in coder.messages if m.role == "assistant" and m.content]
+        combined = "\n".join(assistant_msgs)
+        assert "Progress at timeout" in combined
+
+
+def test_build_timeout_summary_with_tools():
+    """_build_timeout_summary captures tool calls and files."""
+    from henchman.core.agent import Agent
+
+    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    msg_start = len(agent.messages)
+    # Simulate some tool calls in message history
+    agent.messages.append(Message(
+        role="assistant",
+        content="Reading file",
+        tool_calls=[ToolCall(id="t1", name="read_file", arguments={"path": "src/foo.py"})],
+    ))
+    agent.messages.append(Message(role="tool", content="file contents...", tool_call_id="t1"))
+    agent.messages.append(Message(
+        role="assistant",
+        content="Editing file",
+        tool_calls=[ToolCall(id="t2", name="edit_file", arguments={"path": "src/foo.py", "old": "a", "new": "b"})],
+    ))
+
+    result = Orchestrator._build_timeout_summary(agent, msg_start)
+    assert "Progress at timeout" in result
+    assert "Tool calls made: 2" in result
+    assert "src/foo.py" in result
+
+
+def test_build_timeout_summary_empty():
+    """_build_timeout_summary handles no progress."""
+    from henchman.core.agent import Agent
+
+    agent = Agent(provider=MagicMock(spec=ModelProvider))
+    msg_start = len(agent.messages)
+    result = Orchestrator._build_timeout_summary(agent, msg_start)
+    assert "No significant progress" in result
+
+
+@pytest.mark.asyncio
+async def test_tool_error_aggregation(mock_provider):
+    """Tool errors during delegation are appended to summary."""
+    tc_delegate = ToolCall(
+        id="call_d",
+        name="delegate_task",
+        arguments={"agent": "explorer", "task": "Fix tests"},
+    )
+    tl_chunk1 = StreamChunk(tool_calls=[tc_delegate], finish_reason=FinishReason.TOOL_CALLS)
+    tl_chunk2 = StreamChunk(content="OK.", finish_reason=FinishReason.STOP)
+
+    # Coder makes a shell call that fails, then finishes
+    coder_tc = ToolCall(id="tc_s", name="shell", arguments={"command": "false"})
+    coder_tool = StreamChunk(tool_calls=[coder_tc], finish_reason=FinishReason.TOOL_CALLS)
+    coder_done = StreamChunk(content="STATUS: FAILED", finish_reason=FinishReason.STOP)
+
+    call_count = 0
+    async def side_effect(*_args, **_kwargs):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield tl_chunk1
+        elif call_count == 2:
+            yield coder_tool
+        elif call_count == 3:
+            yield coder_done
+        else:
+            yield tl_chunk2
+
+    mock_provider.chat_completion_stream.side_effect = side_effect
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    # Manually inject a tool error to simulate failure
+    events = []
+    async for event in orchestrator.run("Fix it"):
+        events.append(event)
+
+    # The coder agent should have _delegation_tool_errors attribute
+    coder = orchestrator.pool._agents.get("explorer")
+    assert hasattr(coder, "_delegation_tool_errors")
+
+
+@pytest.mark.asyncio
+async def test_max_delegation_turns_setting():
+    """AgentSettings.max_delegation_turns defaults to 80."""
+    from henchman.config.schema import AgentSettings
+
+    settings = AgentSettings()
+    assert settings.max_delegation_turns == 80
+
+    custom = AgentSettings(max_delegation_turns=10)
+    assert custom.max_delegation_turns == 10

@@ -36,9 +36,7 @@ class TestMcpTool:
         client.name = "filesystem"
         return client
 
-    def test_name(
-        self, mcp_tool_info: McpToolDefinition, client: AsyncMock
-    ) -> None:
+    def test_name(self, mcp_tool_info: McpToolDefinition, client: AsyncMock) -> None:
         """Test tool name includes server prefix."""
         tool = McpTool(
             mcp_tool=mcp_tool_info,
@@ -48,9 +46,7 @@ class TestMcpTool:
         )
         assert tool.name == "mcp_filesystem_read_file"
 
-    def test_description(
-        self, mcp_tool_info: McpToolDefinition, client: AsyncMock
-    ) -> None:
+    def test_description(self, mcp_tool_info: McpToolDefinition, client: AsyncMock) -> None:
         """Test tool description."""
         tool = McpTool(
             mcp_tool=mcp_tool_info,
@@ -61,9 +57,7 @@ class TestMcpTool:
         assert "Read a file" in tool.description
         assert "[MCP:filesystem]" in tool.description
 
-    def test_parameters(
-        self, mcp_tool_info: McpToolDefinition, client: AsyncMock
-    ) -> None:
+    def test_parameters(self, mcp_tool_info: McpToolDefinition, client: AsyncMock) -> None:
         """Test tool parameters from schema."""
         tool = McpTool(
             mcp_tool=mcp_tool_info,
@@ -75,9 +69,7 @@ class TestMcpTool:
         assert params["type"] == "object"
         assert "path" in params["properties"]
 
-    def test_kind_untrusted(
-        self, mcp_tool_info: McpToolDefinition, client: AsyncMock
-    ) -> None:
+    def test_kind_untrusted(self, mcp_tool_info: McpToolDefinition, client: AsyncMock) -> None:
         """Test untrusted server tools require confirmation."""
         tool = McpTool(
             mcp_tool=mcp_tool_info,
@@ -87,9 +79,7 @@ class TestMcpTool:
         )
         assert tool.kind == ToolKind.NETWORK
 
-    def test_kind_trusted(
-        self, mcp_tool_info: McpToolDefinition, client: AsyncMock
-    ) -> None:
+    def test_kind_trusted(self, mcp_tool_info: McpToolDefinition, client: AsyncMock) -> None:
         """Test trusted server tools are auto-approved."""
         tool = McpTool(
             mcp_tool=mcp_tool_info,
@@ -100,9 +90,7 @@ class TestMcpTool:
         assert tool.kind == ToolKind.READ
 
     @pytest.mark.anyio
-    async def test_execute(
-        self, mcp_tool_info: McpToolDefinition, client: AsyncMock
-    ) -> None:
+    async def test_execute(self, mcp_tool_info: McpToolDefinition, client: AsyncMock) -> None:
         """Test executing tool."""
         mock_result = McpToolResult(content="file contents", is_error=False)
         client.call_tool = AsyncMock(return_value=mock_result)
@@ -121,9 +109,7 @@ class TestMcpTool:
         client.call_tool.assert_called_once_with("read_file", {"path": "/test/file.txt"})
 
     @pytest.mark.anyio
-    async def test_execute_error(
-        self, mcp_tool_info: McpToolDefinition, client: AsyncMock
-    ) -> None:
+    async def test_execute_error(self, mcp_tool_info: McpToolDefinition, client: AsyncMock) -> None:
         """Test executing tool that returns error."""
         mock_result = McpToolResult(content="Error: File not found", is_error=True)
         client.call_tool = AsyncMock(return_value=mock_result)

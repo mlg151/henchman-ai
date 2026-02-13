@@ -1,45 +1,67 @@
 # Henchman-AI
 
-> A Model-Agnostic AI Agent CLI in Python
+> Your AI Henchman for the Terminal - A Model-Agnostic AI Agent CLI
 
-Henchman-AI is a terminal-based AI agent that supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, Ollama) through a unified interface. Inspired by gemini-cli, built for extensibility.
+[![PyPI version](https://img.shields.io/pypi/v/henchman-ai.svg)](https://pypi.org/project/henchman-ai/)
+[![Python versions](https://img.shields.io/pypi/pyversions/henchman-ai.svg)](https://pypi.org/project/henchman-ai/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Features
+Henchman-AI is a powerful, terminal-based AI agent that supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, Ollama, and more) through a unified interface. Inspired by gemini-cli, built for extensibility and production use.
 
-- 🔄 **Model-Agnostic**: Support any LLM provider through a unified abstraction
-- 🐍 **Pythonic**: Leverages Python's async ecosystem and rich libraries
-- 🔌 **Extensible**: Plugin system for tools, providers, and commands
-- 🚀 **Production-Ready**: Proper error handling, testing, and packaging
+## ✨ Features
 
-## Installation
+- 🤝 **Multi-Agent Dev Team**: Orchestrate a team of specialists (Architect, Coder, Reviewer, Tester, etc.) to solve complex engineering tasks.
+- 🔄 **Model-Agnostic**: Support any LLM provider through a unified abstraction layer
+- 🐍 **Pythonic**: Leverages Python's async ecosystem and rich libraries for optimal performance
+- 🔌 **Extensible**: Plugin system for tools, providers, and custom commands
+- 🚀 **Production-Ready**: Proper error handling, comprehensive testing, and semantic versioning
+- 🛠️ **Tool Integration**: Built-in support for file operations, web search, code execution, and more
+- ⚡ **Fast & Efficient**: Async-first design with intelligent caching and rate limiting
+- 🔒 **Secure**: Environment-based configuration and safe execution sandboxing
 
+## 📦 Installation
+
+### From PyPI (Recommended)
 ```bash
 pip install henchman-ai
 ```
 
-Or install from source:
-
+### From Source
 ```bash
-git clone https://github.com/matthew/henchman-ai.git
+git clone https://github.com/mlg151/henchman-ai.git
 cd henchman-ai
 pip install -e ".[dev]"
 ```
 
-## Quick Start
-
+### With uv (Fastest)
 ```bash
-# Set your API key
-export DEEPSEEK_API_KEY="your-api-key"
-
-# Start the CLI
-henchman
-
-# Or run with a prompt directly
-henchman --prompt "Explain this code" < file.py
+uv pip install henchman-ai
 ```
 
-## Usage
+## 🚀 Quick Start
 
+1. **Set your API key** (choose your preferred provider):
+   ```bash
+   export DEEPSEEK_API_KEY="your-api-key-here"
+   # or
+   export OPENAI_API_KEY="your-api-key-here"
+   # or
+   export ANTHROPIC_API_KEY="your-api-key-here"
+   ```
+
+2. **Start the CLI**:
+   ```bash
+   henchman
+   ```
+
+3. **Or run with a prompt directly**:
+   ```bash
+   henchman --prompt "Explain this Python code" < example.py
+   ```
+
+## 📖 Usage Examples
+
+### Basic Commands
 ```bash
 # Show version
 henchman --version
@@ -51,47 +73,189 @@ henchman --help
 henchman
 
 # Headless mode with prompt
-henchman -p "Summarize README.md"
+henchman -p "Summarize the key points from README.md"
+
+# Specify a provider
+henchman --provider openai -p "Write a Python function to calculate fibonacci"
+
+# Use a specific model
+henchman --model gpt-4-turbo -p "Analyze this code for security issues"
 ```
 
-## Configuration
+### File Operations
+```bash
+# Read and analyze a file
+henchman -p "Review this code for bugs" < script.py
 
-Henchman-AI uses hierarchical configuration:
+# Process multiple files
+cat *.py | henchman -p "Find common patterns in these files"
 
-1. Default settings
-2. User settings: `~/.henchman/settings.yaml`
-3. Workspace settings: `.henchman/settings.yaml`
-4. Environment variables
+# Generate documentation
+henchman -p "Create API documentation for this module" < module.py > docs.md
+```
 
-Example `settings.yaml`:
+## ⚙️ Configuration
 
+Henchman-AI uses hierarchical configuration (later settings override earlier ones):
+
+1. **Default settings** (built-in sensible defaults)
+2. **User settings**: `~/.henchman/settings.yaml`
+3. **Workspace settings**: `.henchman/settings.yaml` (project-specific)
+4. **Environment variables** (highest priority)
+
+### Example `settings.yaml`
 ```yaml
+# Provider configuration
 providers:
-  default: deepseek
+  default: deepseek  # or openai, anthropic, ollama
   deepseek:
     model: deepseek-chat
+    base_url: "https://api.deepseek.com"
+    temperature: 0.7
+  openai:
+    model: gpt-4-turbo-preview
+    organization: "org-xxx"
 
+# Tool settings
 tools:
   auto_accept_read: true
   shell_timeout: 60
+  web_search_max_results: 5
+
+# UI settings
+ui:
+  theme: "monokai"
+  show_tokens: true
+  streaming: true
+
+# System settings
+system:
+  cache_enabled: true
+  cache_ttl: 3600
+  max_tokens: 4096
 ```
 
-## Development
-
+### Environment Variables
 ```bash
-# Install dev dependencies
-pip install -e ".[dev]"
+# Provider API keys
+export DEEPSEEK_API_KEY="sk-xxx"
+export OPENAI_API_KEY="sk-xxx"
+export ANTHROPIC_API_KEY="sk-xxx"
 
-# Run tests
+# Configuration overrides
+export HENCHMAN_DEFAULT_PROVIDER="openai"
+export HENCHMAN_DEFAULT_MODEL="gpt-4"
+export HENCHMAN_TEMPERATURE="0.5"
+```
+
+## 🔌 Supported Providers
+
+| Provider | Models | Features |
+|----------|--------|----------|
+| **DeepSeek** | deepseek-chat, deepseek-coder | Free tier, Code completion |
+| **OpenAI** | gpt-4, gpt-3.5-turbo, etc. | Function calling, JSON mode |
+| **Anthropic** | claude-3-opus, claude-3-sonnet | Long context, Constitutional AI |
+| **Ollama** | llama2, mistral, codellama | Local models, Custom models |
+| **Custom** | Any OpenAI-compatible API | Self-hosted, Local inference |
+
+## 🛠️ Development
+
+### Setup Development Environment
+```bash
+# Clone and install
+git clone https://github.com/mlg151/henchman-ai.git
+cd henchman-ai
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e ".[dev]"
+```
+
+### Running Tests
+```bash
+# Run all tests
 pytest
 
+# Run with coverage
+pytest --cov=henchman --cov-report=html
+
+# Run specific test categories
+pytest tests/unit/ -v
+pytest tests/integration/ -v
+```
+
+### Code Quality
+```bash
 # Linting
 ruff check src/ tests/
+ruff format src/ tests/
 
 # Type checking
 mypy src/
+
+# Security scanning
+bandit -r src/
 ```
 
-## License
+### Building and Publishing
+```bash
+# Build package
+hatch build
 
-MIT License - see [LICENSE](LICENSE) for details.
+# Test build
+hatch run test
+
+# Publish to PyPI (requires credentials)
+hatch publish
+```
+
+## 📚 Documentation
+
+### Online Documentation
+For detailed documentation, see the [docs directory](docs/) in this repository:
+
+- [Getting Started](docs/getting-started.md)
+- [Configuration Guide](docs/configuration.md)
+- [API Reference](docs/api.md)
+- [Tool Development](docs/tools.md)
+- [Provider Integration](docs/providers.md)
+- [MCP Integration](docs/mcp.md)
+- [Extensions](docs/extensions.md)
+
+### Building Documentation Locally
+You can build and view the documentation locally:
+
+```bash
+# Install documentation dependencies
+pip install mkdocs mkdocs-material mkdocstrings[python]
+
+# Build static HTML documentation
+python scripts/build_docs.py
+
+# Or serve documentation locally (live preview)
+mkdocs serve
+```
+
+The documentation will be available at `http://localhost:8000` when served locally.
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+## 🐛 Reporting Issues
+
+Found a bug or have a feature request? Please [open an issue](https://github.com/mlg151/henchman-ai/issues) on GitHub.
+
+## 📄 License
+
+Henchman-AI is released under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Inspired by [gemini-cli](https://github.com/google/gemini-cli)
+- Built with [Rich](https://github.com/Textualize/rich) for beautiful terminal output
+- Uses [Pydantic](https://docs.pydantic.dev/) for data validation
+- Powered by the Python async ecosystem
+
+---
+
+**Happy coding with your AI Henchman!** 🦸‍♂️🤖

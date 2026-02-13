@@ -19,6 +19,7 @@ class MockProvider(ModelProvider):
     async def chat_completion_stream(self, messages: list[Message], **kwargs: Any) -> Any:
         yield StreamChunk(content="Hi", finish_reason=FinishReason.STOP)
 
+
 @pytest.mark.anyio
 async def test_repl_startup_displays_info_message() -> None:
     """Verify that the REPL displays the startup info message."""
@@ -31,7 +32,7 @@ async def test_repl_startup_displays_info_message() -> None:
         await repl.run()
 
     output = console.file.getvalue()
-    # Check for the info message content
-    assert "Henchman REPL started" in output
-    # Check for the info icon which proves the info method was used
-    assert "ℹ" in output
+    # Check for the actual startup message
+    assert "Henchman-AI" in output
+    # Check for the help hint (styled text will be present in some form)
+    assert "help" in output.lower()

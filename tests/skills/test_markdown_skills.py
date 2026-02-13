@@ -15,6 +15,7 @@ def test_discover_workspace_skills(tmp_path):
 
     # Mock CWD
     import os
+
     original_cwd = os.getcwd()
     os.chdir(workspace)
     try:
@@ -25,6 +26,7 @@ def test_discover_workspace_skills(tmp_path):
         assert found[0].parent.name == "my-skill"
     finally:
         os.chdir(original_cwd)
+
 
 def test_load_from_markdown_simple(tmp_path):
     store = SkillStore(skills_dir=tmp_path / "user_skills")

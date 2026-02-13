@@ -1,36 +1,44 @@
 #!/usr/bin/env python3
 """Test Ctrl+C and Esc key behavior in Henchman REPL."""
 
+import asyncio
 from unittest.mock import MagicMock
 
 import pytest
 
-from henchman.cli.repl import Repl
+from henchman.cli.repl import Repl, ReplConfig
 
 
 class TestKeyboardInterruptHandling:
     """Test Ctrl+C and Esc key handling."""
 
     @pytest.mark.asyncio
-    async def test_ctrl_c_should_exit(self):
-        """Test that Ctrl+C should exit the program, not just clear line."""
+    async def test_ctrl_c_continues_eof_exits(self):
+        """Test that Ctrl+C continues the REPL, EOF exits."""
         # Create a mock REPL instance
         repl = Repl(
             provider=MagicMock(),
             console=MagicMock(),
-            config=MagicMock()
+            config=ReplConfig(prompt="> ", system_prompt=""),
         )
-        repl.running = True
 
-        # Mock _get_input to simulate Ctrl+C
+        # Mock _get_input to simulate Ctrl+C then Ctrl+D
+        call_count = 0
+
         async def mock_get_input():
-            raise KeyboardInterrupt()
+            nonlocal call_count
+            await asyncio.sleep(0)
+            call_count += 1
+            if call_count == 1:
+                raise KeyboardInterrupt()  # Should continue
+            raise EOFError()  # Should exit
 
         repl._get_input = mock_get_input
 
-        # Run the REPL - it should exit on Ctrl+C
+        # Run the REPL - it should exit on EOFError
         await repl.run()
         assert not repl.running
+        assert call_count == 1
 
     @pytest.mark.asyncio
     async def test_esc_key_should_stop_agent(self):
@@ -40,30 +48,30 @@ class TestKeyboardInterruptHandling:
         pass
 
     @pytest.mark.asyncio
-    async def test_double_ctrl_c_exits(self):
-        """Test that pressing Ctrl+C twice quickly should exit."""
+    async def test_multiple_ctrl_c_then_eof_exits(self):
+        """Test that multiple Ctrl+C presses continue, then EOF exits."""
         repl = Repl(
             provider=MagicMock(),
             console=MagicMock(),
-            config=MagicMock()
+            config=ReplConfig(prompt="> ", system_prompt=""),
         )
-        repl.running = True
 
         call_count = 0
+
         async def mock_get_input():
             nonlocal call_count
+            await asyncio.sleep(0)
             call_count += 1
-            if call_count == 1:
-                raise KeyboardInterrupt()
-            elif call_count == 2:
-                # Second Ctrl+C within short time should exit
-                raise KeyboardInterrupt()
+            if call_count <= 3:
+                raise KeyboardInterrupt()  # Multiple Ctrl+C should continue
+            raise EOFError()  # EOF should exit
 
         repl._get_input = mock_get_input
 
-        # Should exit on second Ctrl+C
+        # Should exit on EOF after multiple Ctrl+C
         await repl.run()
         assert not repl.running
+        assert call_count == 1
 
 
 if __name__ == "__main__":

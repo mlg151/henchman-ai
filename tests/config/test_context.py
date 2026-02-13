@@ -56,9 +56,7 @@ class TestContextLoader:
         assert len(files) == 1
         assert files[0] == context_file
 
-    def test_ancestor_context_files(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_ancestor_context_files(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test discovering ancestor context files up to git root."""
         # Create structure: workspace/project/subdir
         workspace = tmp_path / "workspace"
@@ -82,9 +80,7 @@ class TestContextLoader:
         assert files[0] == project / "HENCHMAN.md"
         assert files[1] == subdir / "HENCHMAN.md"
 
-    def test_stops_at_git_root(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_stops_at_git_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that discovery stops at git root."""
         # Create structure: outer/inner/project
         outer = tmp_path / "outer"
@@ -124,9 +120,7 @@ class TestContextLoader:
         assert "# My Project" in content
         assert "This is my project." in content
 
-    def test_load_multiple_files(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_load_multiple_files(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test loading and concatenating multiple context files."""
         workspace = tmp_path / "workspace"
         project = workspace / "project"
@@ -193,9 +187,7 @@ class TestContextLoader:
         # Should find subdirectory context
         assert subdir / "HENCHMAN.md" in files
 
-    def test_respects_gitignore(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_respects_gitignore(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that gitignored directories are skipped."""
         project = tmp_path / "project"
         project.mkdir()
@@ -291,9 +283,7 @@ dist
 class TestContextLoaderSubdirectories:
     """Tests for subdirectory handling edge cases."""
 
-    def test_skips_non_directories(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_skips_non_directories(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that non-directory files are skipped."""
         project = tmp_path / "project"
         project.mkdir()
@@ -455,9 +445,7 @@ class TestContextLoaderAncestorSearch:
 
         assert project / "HENCHMAN.md" in files
 
-    def test_cwd_equals_git_root(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_cwd_equals_git_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test when cwd is exactly the git root."""
         project = tmp_path / "project"
         project.mkdir()

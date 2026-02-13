@@ -77,9 +77,7 @@ class TestRepl:
         assert repl.provider is mock_provider
         assert repl.running is False
 
-    def test_repl_with_config(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    def test_repl_with_config(self, mock_provider: MockProvider, console: Console) -> None:
         """Test REPL with custom config."""
         config = ReplConfig(prompt=">> ", system_prompt="Be helpful")
         repl = Repl(provider=mock_provider, console=console, config=config)
@@ -118,7 +116,9 @@ class TestRepl:
         # Clear history
         result = await repl.process_input("/clear")
         assert result is True
-        assert len(repl.agent.history) == 0
+        # Should have 1 message (the system prompt)
+        assert len(repl.agent.history) == 1
+        assert repl.agent.history[0].role == "system"
 
     @pytest.mark.anyio
     async def test_process_input_help_command(
@@ -133,9 +133,7 @@ class TestRepl:
         assert "quit" in output.lower() or "help" in output.lower()
 
     @pytest.mark.anyio
-    async def test_process_input_empty(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_process_input_empty(self, mock_provider: MockProvider, console: Console) -> None:
         """Test empty input is ignored."""
         repl = Repl(provider=mock_provider, console=console)
         result = await repl.process_input("")
@@ -170,9 +168,7 @@ class TestRepl:
             mock_expand.assert_called_once()
 
     @pytest.mark.anyio
-    async def test_process_tool_call(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_process_tool_call(self, mock_provider: MockProvider, console: Console) -> None:
         """Test processing a tool call from the agent."""
         from henchman.providers.base import FinishReason, StreamChunk, ToolCall
 
@@ -180,7 +176,8 @@ class TestRepl:
 
         # Set up provider to return a tool call on first call, then content
         async def mock_stream(
-            *args: Any, **kwargs: Any  # noqa: ARG001
+            *args: Any,  # noqa: ARG001
+            **kwargs: Any,  # noqa: ARG001
         ) -> Any:
             nonlocal call_count
             call_count += 1
@@ -227,9 +224,7 @@ class TestRepl:
         assert "mock_tool" in output or "Done!" in output
 
     @pytest.mark.anyio
-    async def test_unknown_command(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_unknown_command(self, mock_provider: MockProvider, console: Console) -> None:
         """Test unknown command shows error."""
         repl = Repl(provider=mock_provider, console=console)
         result = await repl.process_input("/nonexistent")
@@ -244,11 +239,11 @@ class TestRepl:
         """Test handling of agent errors in _run_agent."""
         repl = Repl(provider=mock_provider, console=console)
 
-        # Make _handle_agent_event raise an exception
-        async def raise_error(event: Any) -> None:  # noqa: ARG001
+        # Make _process_agent_stream raise an exception
+        async def raise_error(*args: Any, **kwargs: Any) -> None:  # noqa: ARG001
             raise RuntimeError("Handler error")
 
-        repl._handle_agent_event = raise_error  # type: ignore[method-assign]
+        repl._process_agent_stream = raise_error  # type: ignore[method-assign]
 
         await repl._run_agent("Hello")
         output = console.file.getvalue()  # type: ignore[union-attr]
@@ -262,7 +257,8 @@ class TestRepl:
         from henchman.providers.base import FinishReason, StreamChunk
 
         async def thinking_stream(
-            *args: Any, **kwargs: Any  # noqa: ARG001
+            *args: Any,  # noqa: ARG001
+            **kwargs: Any,  # noqa: ARG001
         ) -> Any:
             yield StreamChunk(thinking="Thinking about this...")
             yield StreamChunk(content="Answer", finish_reason=FinishReason.STOP)
@@ -296,16 +292,15 @@ class TestRepl:
         # No error should occur
 
     @pytest.mark.anyio
-    async def test_tool_call_failure(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_tool_call_failure(self, mock_provider: MockProvider, console: Console) -> None:
         """Test handling of tool call that fails."""
         from henchman.providers.base import FinishReason, StreamChunk, ToolCall
 
         call_count = 0
 
         async def mock_stream(
-            *args: Any, **kwargs: Any  # noqa: ARG001
+            *args: Any,  # noqa: ARG001
+            **kwargs: Any,  # noqa: ARG001
         ) -> Any:
             nonlocal call_count
             call_count += 1
@@ -327,20 +322,16 @@ class TestRepl:
         assert "not found" in output.lower() or "error" in output.lower()
 
     @pytest.mark.anyio
-    async def test_slash_only_command(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_slash_only_command(self, mock_provider: MockProvider, console: Console) -> None:
         """Test slash command that parses to None."""
         repl = Repl(provider=mock_provider, console=console)
         # "/ " is a slash command (starts with / and has content), but parses to None
         result = await repl._handle_command("/ ")
-        assert result is None
-        # Should not crash, just return
+        # Should return True to continue running (not crash)
+        assert result is True
 
     @pytest.mark.anyio
-    async def test_get_input_method(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_get_input_method(self, mock_provider: MockProvider, console: Console) -> None:
         """Test the _get_input method."""
         repl = Repl(provider=mock_provider, console=console)
         # We need to verify it calls prompt_async
@@ -371,6 +362,7 @@ class TestReplRun:
 
         # Mock input to return one message then /quit
         inputs = iter(["Hello", "/quit"])
+
         async def get_input():
             return next(inputs)
 
@@ -438,9 +430,7 @@ class TestSessionAutoSave:
             yield mock
 
     @pytest.mark.anyio
-    async def test_auto_save_enabled_saves_session_on_exit(
-        self, tmp_path: Any
-    ) -> None:
+    async def test_auto_save_enabled_saves_session_on_exit(self, tmp_path: Any) -> None:
         """Test that session is saved on graceful exit when auto_save is True."""
         from henchman.core.session import SessionManager
 
@@ -463,6 +453,7 @@ class TestSessionAutoSave:
 
         # Run with /quit to exit gracefully
         inputs = iter(["/quit"])
+
         async def get_input():
             return next(inputs)
 
@@ -497,6 +488,7 @@ class TestSessionAutoSave:
 
         # Run with /quit
         inputs = iter(["/quit"])
+
         async def get_input():
             return next(inputs)
 
@@ -557,6 +549,7 @@ class TestSessionAutoSave:
 
         # Run with /quit
         inputs = iter(["/quit"])
+
         async def get_input():
             return next(inputs)
 
@@ -568,9 +561,7 @@ class TestSessionAutoSave:
         assert len(saved_sessions) == 0
 
     @pytest.mark.anyio
-    async def test_session_messages_recorded_during_conversation(
-        self, tmp_path: Any
-    ) -> None:
+    async def test_session_messages_recorded_during_conversation(self, tmp_path: Any) -> None:
         """Test that messages are recorded to session during conversation."""
         from henchman.core.session import SessionManager
 
@@ -588,6 +579,7 @@ class TestSessionAutoSave:
 
         # Run a conversation then quit
         inputs = iter(["Hello assistant", "/quit"])
+
         async def get_input():
             return next(inputs)
 
@@ -607,3 +599,111 @@ class TestSessionAutoSave:
         # First message should be user
         assert session_data["messages"][0]["role"] == "user"
         assert session_data["messages"][0]["content"] == "Hello assistant"
+
+    @pytest.mark.anyio
+    async def test_session_records_tool_calls_and_results(self, tmp_path: Any) -> None:
+        """Test that tool calls and results are recorded to session."""
+        from henchman.core.session import SessionManager
+        from henchman.providers.base import FinishReason, StreamChunk, ToolCall
+        from henchman.tools.base import Tool, ToolKind, ToolResult
+
+        console = Console(file=StringIO(), force_terminal=True)
+
+        # Create a provider that returns a tool call
+        class ToolCallProvider(MockProvider):
+            def __init__(self) -> None:
+                super().__init__([])
+                self.call_count = 0
+
+            async def chat_completion_stream(self, *args, **kwargs):
+                self.call_count += 1
+                if self.call_count == 1:
+                    # First call: return tool call
+                    yield StreamChunk(
+                        tool_calls=[
+                            ToolCall(
+                                id="call_abc", name="test_tool_xyz", arguments={"input": "test"}
+                            )
+                        ],
+                        finish_reason=FinishReason.TOOL_CALLS,
+                    )
+                else:
+                    # Second call: return final response
+                    yield StreamChunk(
+                        content="Tool executed successfully!", finish_reason=FinishReason.STOP
+                    )
+
+        # Create a mock tool with unique name
+        class MockTestTool(Tool):
+            @property
+            def name(self) -> str:
+                return "test_tool_xyz"
+
+            @property
+            def description(self) -> str:
+                return "A test tool"
+
+            @property
+            def parameters(self) -> dict[str, object]:
+                return {"type": "object", "properties": {"input": {"type": "string"}}}
+
+            @property
+            def kind(self) -> ToolKind:
+                return ToolKind.READ
+
+            async def execute(self, **params: object) -> ToolResult:
+                return ToolResult(content="Tool result: success")
+
+        provider = ToolCallProvider()
+        session_dir = tmp_path / "sessions"
+        session_dir.mkdir()
+
+        manager = SessionManager(data_dir=session_dir)
+        config = ReplConfig(auto_save=True)
+
+        repl = Repl(provider=provider, console=console, config=config)
+        repl.tool_registry.register(MockTestTool())
+        repl.session_manager = manager
+        repl.session = manager.create_session(project_hash="test-project")
+
+        # Run a conversation with tool call
+        inputs = iter(["Run test tool", "/quit"])
+
+        async def get_input():
+            return next(inputs)
+
+        with patch("henchman.cli.repl.Repl._get_input", side_effect=get_input):
+            await repl.run()
+
+        # Load the saved session
+        saved_sessions = list(session_dir.glob("*.json"))
+        assert len(saved_sessions) == 1
+
+        import json
+
+        with open(saved_sessions[0]) as f:
+            session_data = json.load(f)
+
+        messages = session_data["messages"]
+
+        # Should have: user, assistant (with tool_calls), tool result, assistant response
+        assert len(messages) >= 4
+
+        # User message
+        assert messages[0]["role"] == "user"
+        assert "test tool" in messages[0]["content"].lower()
+
+        # Assistant with tool_calls
+        assert messages[1]["role"] == "assistant"
+        assert messages[1].get("tool_calls") is not None
+        assert len(messages[1]["tool_calls"]) == 1
+        assert messages[1]["tool_calls"][0]["id"] == "call_abc"
+        assert messages[1]["tool_calls"][0]["name"] == "test_tool_xyz"
+
+        # Tool result
+        assert messages[2]["role"] == "tool"
+        assert messages[2]["tool_call_id"] == "call_abc"
+        assert "success" in messages[2]["content"].lower()
+
+        # Final assistant response
+        assert messages[3]["role"] == "assistant"

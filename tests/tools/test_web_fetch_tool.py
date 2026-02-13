@@ -131,7 +131,6 @@ class TestWebFetchTool:
         """Handle request timeout."""
         tool = WebFetchTool()
 
-
         mock_session = MagicMock()
         mock_session.get = MagicMock(side_effect=TimeoutError())
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)

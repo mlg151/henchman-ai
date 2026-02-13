@@ -8,7 +8,29 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+class AgentConfig(BaseModel):
+    """Configuration for an agent in the team."""
+
+    name: str = Field(..., description="Display name of the agent")
+    role: str = Field(..., description="Unique role identifier")
+    description: str = Field(..., description="One-line description of the agent's purpose")
+    system_prompt: str | None = Field(None, description="Role-specific instructions (None for default)")
+    tools: list[str] = Field(default_factory=list, description="Allowlist of tool names")
+    provider: str | None = Field(None, description="Override model provider")
+    model: str | None = Field(None, description="Override model name")
+    auto_approve: list[str] = Field(default_factory=list, description="Tools to auto-approve")
+    can_delegate_to: list[str] = Field(default_factory=list, description="Roles this agent can delegate to")
+    enabled: bool = Field(True, description="Whether this agent is active")
+
+    @field_validator("tools")
+    @classmethod
+    def tools_must_not_be_empty(cls, v: list[str]) -> list[str]:
+        if not v:
+            raise ValueError("Agent must have at least one tool")
+        return v
 
 
 class ProviderSettings(BaseModel):
@@ -43,7 +65,7 @@ class ToolSettings(BaseModel):
     """
 
     auto_approve_read: bool = True
-    shell_timeout: int = 60
+    shell_timeout: int = 3600
     sandbox: Literal["none", "docker"] = "none"
 
 
@@ -68,8 +90,8 @@ class ContextSettings(BaseModel):
         auto_compact: Whether to automatically compact context.
     """
 
-    max_tokens: int = 8000
-    compaction_threshold: float = 0.9  # 90% of max_tokens
+    max_tokens: int = 128000
+    compaction_threshold: float = 0.75  # 75% of max_tokens
     auto_compact: bool = True
 
 
@@ -89,6 +111,116 @@ class McpServerConfig(BaseModel):
     trusted: bool = False
 
 
+class AgentSettings(BaseModel):
+    """Settings for the multi-agent system.
+
+    Attributes:
+        team_preset: Which preset team to use ("default").
+        agents: Custom agent configurations or overrides.
+        max_delegation_depth: Maximum recursive delegation depth.
+        max_delegation_turns: Maximum tool-call turns per specialist delegation.
+        shared_context_max_tokens: Max tokens for shared context between agents.
+    """
+
+    team_preset: str = "default"
+    agents: dict[str, AgentConfig] = Field(default_factory=dict)
+    max_delegation_depth: int = 3
+    max_delegation_turns: int = 80
+    shared_context_max_tokens: int = 4000
+
+
+class RagSettings(BaseModel):
+    """Settings for RAG (Retrieval Augmented Generation).
+
+    Attributes:
+        enabled: Whether RAG is enabled.
+        chunk_size: Target tokens per chunk.
+        chunk_overlap: Token overlap between chunks.
+        top_k: Number of results to return from search.
+        embedding_model: FastEmbed model name.
+        cache_dir: Optional custom directory for RAG cache.
+            If not set, uses ~/.henchman/rag_indices/
+        file_extensions: File extensions to index.
+    """
+
+    enabled: bool = True
+    chunk_size: int = 512
+    chunk_overlap: int = 50
+    top_k: int = 5
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    cache_dir: str | None = None
+    file_extensions: list[str] = Field(
+        default_factory=lambda: [
+            # Python
+            ".py",
+            ".pyx",
+            ".pyi",
+            ".pyw",
+            # JavaScript/TypeScript
+            ".js",
+            ".jsx",
+            ".ts",
+            ".tsx",
+            ".mjs",
+            ".cjs",
+            # Web
+            ".html",
+            ".htm",
+            ".css",
+            ".scss",
+            ".sass",
+            ".less",
+            # Data formats
+            ".json",
+            ".yaml",
+            ".yml",
+            ".toml",
+            ".xml",
+            # Documentation
+            ".md",
+            ".markdown",
+            ".rst",
+            ".txt",
+            # Shell
+            ".sh",
+            ".bash",
+            ".zsh",
+            ".fish",
+            # C/C++
+            ".c",
+            ".h",
+            ".cpp",
+            ".hpp",
+            ".cc",
+            ".hh",
+            ".cxx",
+            # Java/Kotlin
+            ".java",
+            ".kt",
+            ".kts",
+            # Go
+            ".go",
+            # Rust
+            ".rs",
+            # Ruby
+            ".rb",
+            ".rake",
+            # PHP
+            ".php",
+            # Swift
+            ".swift",
+            # Config
+            ".ini",
+            ".cfg",
+            ".conf",
+            # Other
+            ".sql",
+            ".graphql",
+            ".proto",
+        ]
+    )
+
+
 class Settings(BaseModel):
     """Main settings model for mlg-cli.
 
@@ -98,6 +230,7 @@ class Settings(BaseModel):
         ui: UI settings.
         context: Context management settings.
         mcp_servers: MCP server configurations.
+        rag: RAG (Retrieval Augmented Generation) settings.
     """
 
     providers: ProviderSettings = Field(default_factory=ProviderSettings)
@@ -105,3 +238,5 @@ class Settings(BaseModel):
     ui: UISettings = Field(default_factory=UISettings)
     context: ContextSettings = Field(default_factory=ContextSettings)
     mcp_servers: dict[str, McpServerConfig] = Field(default_factory=dict)
+    rag: RagSettings = Field(default_factory=RagSettings)
+    agents: AgentSettings = Field(default_factory=AgentSettings)

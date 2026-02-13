@@ -36,15 +36,30 @@ class TestSessionMessage:
 
     def test_message_with_tool_calls(self) -> None:
         """Test message with tool calls."""
-        tool_calls = [
-            {"id": "call_1", "name": "read_file", "arguments": {"path": "test.txt"}}
-        ]
+        tool_calls = [{"id": "call_1", "name": "read_file", "arguments": {"path": "test.txt"}}]
         msg = SessionMessage(
             role="assistant",
             content=None,
             tool_calls=tool_calls,
         )
         assert msg.tool_calls == tool_calls
+
+    def test_message_with_agent(self) -> None:
+        """Test message with agent attribution."""
+        msg = SessionMessage(
+            role="assistant",
+            content="Hello",
+            agent_id="coder-1",
+            agent_role="coder"
+        )
+        assert msg.agent_id == "coder-1"
+        assert msg.agent_role == "coder"
+        data = msg.to_dict()
+        assert data["agent_id"] == "coder-1"
+        assert data["agent_role"] == "coder"
+
+        msg2 = SessionMessage.from_dict(data)
+        assert msg2.agent_id == "coder-1"
 
     def test_to_dict(self) -> None:
         """Test converting message to dict."""
@@ -185,6 +200,23 @@ class TestSession:
         )
         assert len(session.messages) == 2
 
+    def test_session_with_agents_and_delegation(self) -> None:
+        """Test session with multi-agent data."""
+        session = Session(
+            id="session_123",
+            project_hash="abc123",
+            started="2026-01-23T12:00:00Z",
+            last_updated="2026-01-23T12:00:00Z",
+            active_agents=["tech_lead", "coder"],
+            delegation_log=[{"from": "tech_lead", "to": "coder", "task": "test"}]
+        )
+        data = session.to_dict()
+        assert data["active_agents"] == ["tech_lead", "coder"]
+        assert len(data["delegation_log"]) == 1
+
+        session2 = Session.from_dict(data)
+        assert session2.active_agents == ["tech_lead", "coder"]
+
     def test_to_dict(self) -> None:
         """Test converting session to dict."""
         session = Session(
@@ -231,13 +263,15 @@ class TestSession:
 
     def test_from_json(self) -> None:
         """Test deserializing session from JSON."""
-        json_str = json.dumps({
-            "id": "session_123",
-            "project_hash": "abc123",
-            "started": "2026-01-23T12:00:00Z",
-            "last_updated": "2026-01-23T12:00:00Z",
-            "messages": [],
-        })
+        json_str = json.dumps(
+            {
+                "id": "session_123",
+                "project_hash": "abc123",
+                "started": "2026-01-23T12:00:00Z",
+                "last_updated": "2026-01-23T12:00:00Z",
+                "messages": [],
+            }
+        )
         session = Session.from_json(json_str)
         assert session.id == "session_123"
 

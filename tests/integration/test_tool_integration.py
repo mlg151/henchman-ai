@@ -34,25 +34,15 @@ class MockProviderWithToolSupport(ModelProvider):
             yield StreamChunk(
                 content="",
                 tool_calls=[
-                    ToolCall(
-                        id="test_tool_call",
-                        name="shell",
-                        arguments={"command": "echo test"}
-                    )
+                    ToolCall(id="test_tool_call", name="shell", arguments={"command": "echo test"})
                 ],
-                finish_reason=FinishReason.TOOL_CALLS
+                finish_reason=FinishReason.TOOL_CALLS,
             )
             # Simulate continuation after tool result
-            yield StreamChunk(
-                content="Tool executed successfully",
-                finish_reason=FinishReason.STOP
-            )
+            yield StreamChunk(content="Tool executed successfully", finish_reason=FinishReason.STOP)
         else:
             # Regular response
-            yield StreamChunk(
-                content="Hello, I'm a mock provider",
-                finish_reason=FinishReason.STOP
-            )
+            yield StreamChunk(content="Hello, I'm a mock provider", finish_reason=FinishReason.STOP)
 
 
 class TestReplToolIntegration:
@@ -99,8 +89,9 @@ class TestReplToolIntegration:
         # Note: Can't register new tool since all built-ins are already registered
         # This test verifies the connection exists
         assert initial_agent_tool_count > 0
-        # Agent should have same tools as registry (connected by REPL)
-        assert len(repl.agent.tools) == len(repl.tool_registry.get_declarations())
+        # Agent (Tech Lead) has base tools plus delegate_task
+        base_tool_count = len(repl.tool_registry.get_declarations())
+        assert len(repl.agent.tools) >= base_tool_count
 
     def test_agent_with_tools_can_act_as_chatbot(self):
         """Test that agent with tools can still act as a simple chatbot."""
@@ -153,17 +144,14 @@ class TestToolSystemE2E:
                     content="",
                     tool_calls=[
                         ToolCall(
-                            id="test_call_1",
-                            name="shell",
-                            arguments={"command": "echo hello"}
+                            id="test_call_1", name="shell", arguments={"command": "echo hello"}
                         )
                     ],
-                    finish_reason=FinishReason.TOOL_CALLS
+                    finish_reason=FinishReason.TOOL_CALLS,
                 )
                 # Second response: continue with result
                 yield StreamChunk(
-                    content="Tool executed successfully.",
-                    finish_reason=FinishReason.STOP
+                    content="Tool executed successfully.", finish_reason=FinishReason.STOP
                 )
 
         provider = ToolCallProvider()
@@ -175,16 +163,13 @@ class TestToolSystemE2E:
         # Connect tools to agent (already done by REPL)
 
         # Mock the tool execution to avoid actually running shell commands
-        with patch.object(ShellTool, 'execute') as mock_execute:
+        with patch.object(ShellTool, "execute") as mock_execute:
             # Create a proper async mock that returns a ToolResult
             from henchman.tools.base import ToolResult
+
             async def mock_execute_func(**_):
-                return ToolResult(
-                    content="hello\n",
-                    success=True,
-                    display=None,
-                    error=None
-                )
+                return ToolResult(content="hello\n", success=True, display=None, error=None)
+
             mock_execute.side_effect = mock_execute_func
 
             # Run agent
@@ -195,10 +180,7 @@ class TestToolSystemE2E:
                 # Handle tool call
                 if event.type == EventType.TOOL_CALL_REQUEST:
                     # Execute tool
-                    result = await repl.tool_registry.execute(
-                        event.data.name,
-                        event.data.arguments
-                    )
+                    result = await repl.tool_registry.execute(event.data.name, event.data.arguments)
                     # Submit result back to agent
                     await repl.agent.submit_tool_result(event.data.id, result.content)
 

@@ -96,17 +96,13 @@ class TestLoadSettings:
                 monkeypatch.delenv(key, raising=False)
         yield
 
-    def test_default_settings(
-        self, temp_home: Path, temp_cwd: Path, clean_env: None
-    ) -> None:
+    def test_default_settings(self, temp_home: Path, temp_cwd: Path, clean_env: None) -> None:
         """Test loading default settings when no files exist."""
         settings = load_settings()
         assert isinstance(settings, Settings)
         assert settings.providers.default == "deepseek"
 
-    def test_user_settings(
-        self, temp_home: Path, temp_cwd: Path, clean_env: None
-    ) -> None:
+    def test_user_settings(self, temp_home: Path, temp_cwd: Path, clean_env: None) -> None:
         """Test loading user settings from ~/.henchman/settings.yaml."""
         henchman_dir = temp_home / ".henchman"
         henchman_dir.mkdir()
@@ -122,9 +118,7 @@ providers:
         assert settings.providers.default == "openai"
         assert settings.providers.openai == {"model": "gpt-4o"}
 
-    def test_workspace_settings(
-        self, temp_home: Path, temp_cwd: Path, clean_env: None
-    ) -> None:
+    def test_workspace_settings(self, temp_home: Path, temp_cwd: Path, clean_env: None) -> None:
         """Test loading workspace settings from .henchman/settings.yaml."""
         henchman_dir = temp_cwd / ".henchman"
         henchman_dir.mkdir()
@@ -183,15 +177,11 @@ providers:
         provider = settings.providers.default
         assert settings.providers.model_dump()[provider].get("model") == "gpt-4-turbo"
 
-    def test_json_settings_file(
-        self, temp_home: Path, temp_cwd: Path, clean_env: None
-    ) -> None:
+    def test_json_settings_file(self, temp_home: Path, temp_cwd: Path, clean_env: None) -> None:
         """Test loading settings from JSON file."""
         henchman_dir = temp_home / ".henchman"
         henchman_dir.mkdir()
-        (henchman_dir / "settings.json").write_text(
-            '{"providers": {"default": "anthropic"}}'
-        )
+        (henchman_dir / "settings.json").write_text('{"providers": {"default": "anthropic"}}')
         settings = load_settings()
         assert settings.providers.default == "anthropic"
 
@@ -255,18 +245,14 @@ class TestSettingsFileDiscovery:
         monkeypatch.chdir(cwd)
         return cwd
 
-    def test_no_config_directories(
-        self, temp_home: Path, temp_cwd: Path
-    ) -> None:
+    def test_no_config_directories(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test when no .henchman directories exist."""
         from henchman.config.settings import discover_settings_files
 
         files = discover_settings_files()
         assert files == []
 
-    def test_user_config_only(
-        self, temp_home: Path, temp_cwd: Path
-    ) -> None:
+    def test_user_config_only(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test discovering user config only."""
         from henchman.config.settings import discover_settings_files
 
@@ -279,9 +265,7 @@ class TestSettingsFileDiscovery:
         assert len(files) == 1
         assert files[0] == settings_file
 
-    def test_workspace_config_only(
-        self, temp_home: Path, temp_cwd: Path
-    ) -> None:
+    def test_workspace_config_only(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test discovering workspace config only."""
         from henchman.config.settings import discover_settings_files
 
@@ -294,9 +278,7 @@ class TestSettingsFileDiscovery:
         assert len(files) == 1
         assert files[0] == settings_file
 
-    def test_both_configs_ordered(
-        self, temp_home: Path, temp_cwd: Path
-    ) -> None:
+    def test_both_configs_ordered(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test that user config comes before workspace config."""
         from henchman.config.settings import discover_settings_files
 
@@ -315,9 +297,7 @@ class TestSettingsFileDiscovery:
         assert files[0] == user_file
         assert files[1] == workspace_file
 
-    def test_yml_extension(
-        self, temp_home: Path, temp_cwd: Path
-    ) -> None:
+    def test_yml_extension(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test discovering .yml extension files."""
         from henchman.config.settings import discover_settings_files
 
@@ -330,9 +310,7 @@ class TestSettingsFileDiscovery:
         assert len(files) == 1
         assert files[0] == settings_file
 
-    def test_empty_henchman_directory(
-        self, temp_home: Path, temp_cwd: Path
-    ) -> None:
+    def test_empty_henchman_directory(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test when .henchman directory exists but has no settings files."""
         from henchman.config.settings import discover_settings_files
 
@@ -343,9 +321,7 @@ class TestSettingsFileDiscovery:
         files = discover_settings_files()
         assert files == []
 
-    def test_json_fallback(
-        self, temp_home: Path, temp_cwd: Path
-    ) -> None:
+    def test_json_fallback(self, temp_home: Path, temp_cwd: Path) -> None:
         """Test discovering JSON when no YAML files exist."""
         from henchman.config.settings import discover_settings_files
 

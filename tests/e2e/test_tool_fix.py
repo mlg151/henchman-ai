@@ -20,21 +20,15 @@ class E2EProvider(ModelProvider):
         self.responses = [
             # First response: use ls tool
             {
-                "tool_calls": [
-                    ToolCall(
-                        id="call_1",
-                        name="ls",
-                        arguments={"path": "."}
-                    )
-                ],
+                "tool_calls": [ToolCall(id="call_1", name="ls", arguments={"path": "."})],
                 "content": "",
-                "finish_reason": FinishReason.TOOL_CALLS
+                "finish_reason": FinishReason.TOOL_CALLS,
             },
             # Second response: continue after tool result
             {
                 "content": "Here are the files in the current directory.",
-                "finish_reason": FinishReason.STOP
-            }
+                "finish_reason": FinishReason.STOP,
+            },
         ]
 
     @property
@@ -48,7 +42,7 @@ class E2EProvider(ModelProvider):
         yield StreamChunk(
             content=response.get("content", ""),
             tool_calls=response.get("tool_calls"),
-            finish_reason=response["finish_reason"]
+            finish_reason=response["finish_reason"],
         )
 
 
@@ -60,6 +54,7 @@ async def test_e2e_tool_execution():
     config = ReplConfig()
 
     repl = Repl(provider=provider, console=console, config=config)
+    repl.config.auto_approve_tools = True
 
     # Verify tools are registered
     assert len(repl.tool_registry.list_tools()) > 0
@@ -74,20 +69,25 @@ async def test_e2e_tool_execution():
 
         if event.type == EventType.TOOL_CALL_REQUEST:
             # Execute the tool
-            result = await repl.tool_registry.execute(
-                event.data.name,
-                event.data.arguments
-            )
+            result = await repl.tool_registry.execute(event.data.name, event.data.arguments)
             tool_results.append(result)
 
             # Submit result to agent
             repl.agent.submit_tool_result(event.data.id, result.content)
 
-    # Verify results
-    assert len(events) >= 2
+    # Verify tool call was requested and executed
     assert EventType.TOOL_CALL_REQUEST in events
     assert len(tool_results) == 1
     assert tool_results[0].success is True
+
+    # Continue after tool result - this triggers the second response
+    continuation_events = []
+    async for event in repl.agent.continue_with_tool_results():
+        continuation_events.append(event.type)
+
+    # Total events from full flow should be 2+ (tool request + content)
+    all_events = events + continuation_events
+    assert len(all_events) >= 2
 
 
 @pytest.mark.asyncio
@@ -102,12 +102,10 @@ async def test_shell_tool_execution():
                 content="",
                 tool_calls=[
                     ToolCall(
-                        id="shell_1",
-                        name="shell",
-                        arguments={"command": "echo 'test output'"}
+                        id="shell_1", name="shell", arguments={"command": "echo 'test output'"}
                     )
                 ],
-                finish_reason=FinishReason.TOOL_CALLS
+                finish_reason=FinishReason.TOOL_CALLS,
             )
 
         @property
@@ -118,6 +116,7 @@ async def test_shell_tool_execution():
     config = ReplConfig()
 
     repl = Repl(provider=provider, console=console, config=config)
+    repl.config.auto_approve_tools = True
 
     # Run agent
     events = []
@@ -126,10 +125,7 @@ async def test_shell_tool_execution():
 
         if event.type == EventType.TOOL_CALL_REQUEST:
             # Execute shell tool
-            result = await repl.tool_registry.execute(
-                event.data.name,
-                event.data.arguments
-            )
+            result = await repl.tool_registry.execute(event.data.name, event.data.arguments)
             assert result.success is True
             assert "test output" in result.content.lower()
 
@@ -156,13 +152,9 @@ async def test_file_read_tool():
                 yield StreamChunk(
                     content="",
                     tool_calls=[
-                        ToolCall(
-                            id="read_1",
-                            name="read_file",
-                            arguments={"path": test_file}
-                        )
+                        ToolCall(id="read_1", name="read_file", arguments={"path": test_file})
                     ],
-                    finish_reason=FinishReason.TOOL_CALLS
+                    finish_reason=FinishReason.TOOL_CALLS,
                 )
 
             @property
@@ -173,6 +165,7 @@ async def test_file_read_tool():
         config = ReplConfig()
 
         repl = Repl(provider=provider, console=console, config=config)
+        repl.config.auto_approve_tools = True
 
         # Run agent
         events = []
@@ -181,10 +174,7 @@ async def test_file_read_tool():
 
             if event.type == EventType.TOOL_CALL_REQUEST:
                 # Execute read file tool
-                result = await repl.tool_registry.execute(
-                    event.data.name,
-                    event.data.arguments
-                )
+                result = await repl.tool_registry.execute(event.data.name, event.data.arguments)
                 assert result.success is True
                 assert "Line 1" in result.content
                 assert "Line 2" in result.content
@@ -215,11 +205,19 @@ def test_all_builtin_tools_registered():
     config = ReplConfig()
 
     repl = Repl(provider=provider, console=console, config=config)
+    repl.config.auto_approve_tools = True
 
     # Check that all expected tools are registered
     expected_tools = [
-        'ask_user', 'edit_file', 'glob', 'grep', 'ls',
-        'read_file', 'shell', 'web_fetch', 'write_file'
+        "ask_user",
+        "edit_file",
+        "glob",
+        "grep",
+        "ls",
+        "read_file",
+        "shell",
+        "web_fetch",
+        "write_file",
     ]
 
     registered_tools = repl.tool_registry.list_tools()
@@ -227,8 +225,11 @@ def test_all_builtin_tools_registered():
     for tool in expected_tools:
         assert tool in registered_tools, f"Tool {tool} not registered"
 
-    # Check agent has same number of tool declarations
-    assert len(repl.agent.tools) == len(registered_tools)
+    # Agent (Tech Lead) has base tools plus delegate_task
+    agent_tools = repl.agent.tools.list_tools()
+    for tool in expected_tools:
+        assert tool in agent_tools, f"Tool {tool} not in agent tools"
+    assert "delegate_task" in agent_tools, "delegate_task not in agent tools"
 
 
 if __name__ == "__main__":

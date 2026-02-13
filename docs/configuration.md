@@ -142,3 +142,55 @@ session:
   auto_save: true  # Save sessions on exit
   sessions_dir: ~/.henchman/sessions  # Session storage location
 ```
+
+## Multi-Agent Settings
+
+Configure the team of specialist agents.
+
+```yaml
+agents:
+  # Which preset team to use (default: "default")
+  team_preset: "default"
+
+  # Max recursive delegation depth (default: 3)
+  max_delegation_depth: 3
+
+  # Max tokens for shared context between agents (default: 4000)
+  shared_context_max_tokens: 4000
+
+  # Agent overrides and custom agents
+  agents:
+    # Example: give Architect a more powerful model
+    architect:
+      provider: "anthropic"
+      model: "claude-3-5-sonnet-20240620"
+
+    # Example: disable DevOps agent
+    devops:
+      enabled: false
+
+    # Example: add extra tools to Coder
+    coder:
+      tools:
+        - read_file
+        - write_file
+        - edit_file
+        - ls
+        - glob
+        - grep
+        - shell
+        - web_fetch  # Allow Coder to search docs directly
+
+    # Example: fully custom agent
+    security_auditor:
+      name: "Security Auditor"
+      role: "security_auditor"
+      description: "Audits code for security vulnerabilities"
+      system_prompt: "You are a security expert. Analyze code for OWASP Top 10..."
+      tools:
+        - read_file
+        - grep
+        - glob
+        - web_fetch
+      can_delegate_to: ["researcher"]
+```

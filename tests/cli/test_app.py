@@ -110,7 +110,7 @@ class TestGetProvider:
         # Create mock settings
         mock_settings = MagicMock()
         mock_settings.providers.default = "deepseek"
-        mock_settings.providers.deepseek = MagicMock(api_key="settings-key", model="deepseek-chat")
+        mock_settings.providers.deepseek = {"api_key": "settings-key", "model": "deepseek-chat"}
 
         orig_environ = os.environ.copy()
         try:

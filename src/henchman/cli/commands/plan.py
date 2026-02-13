@@ -10,6 +10,7 @@ Focus on creating detailed implementation plans.
 ---
 """
 
+
 class PlanCommand(Command):
     """Toggle Plan Mode (Read-Only)."""
 

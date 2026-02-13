@@ -15,6 +15,10 @@ class TestEventType:
         assert EventType.TOOL_CONFIRMATION is not None
         assert EventType.ERROR is not None
         assert EventType.FINISHED is not None
+        assert EventType.AGENT_DELEGATED is not None
+        assert EventType.AGENT_STARTED is not None
+        assert EventType.AGENT_COMPLETED is not None
+        assert EventType.AGENT_MESSAGE is not None
 
     def test_event_types_are_unique(self) -> None:
         """Test that all event types have unique values."""
@@ -80,3 +84,18 @@ class TestAgentEvent:
         event1 = AgentEvent(type=EventType.CONTENT, data="Hello")
         event2 = AgentEvent(type=EventType.CONTENT, data="World")
         assert event1 != event2
+
+    def test_event_with_source_agent(self) -> None:
+        """Test creating an event with a source agent."""
+        event = AgentEvent(
+            type=EventType.CONTENT,
+            data="Hello",
+            source_agent="agent-1"
+        )
+        assert event.source_agent == "agent-1"
+
+    def test_multi_agent_events(self) -> None:
+        """Test creating multi-agent orchestration events."""
+        event = AgentEvent(type=EventType.AGENT_DELEGATED, data={"to": "coder"})
+        assert event.type == EventType.AGENT_DELEGATED
+        assert event.data["to"] == "coder"

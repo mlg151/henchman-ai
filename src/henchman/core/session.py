@@ -30,6 +30,8 @@ class SessionMessage:
     content: str | None = None
     tool_calls: list[dict[str, Any]] | None = None
     tool_call_id: str | None = None
+    agent_id: str | None = None
+    agent_role: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary.
@@ -44,6 +46,10 @@ class SessionMessage:
             data["tool_calls"] = self.tool_calls
         if self.tool_call_id is not None:
             data["tool_call_id"] = self.tool_call_id
+        if self.agent_id is not None:
+            data["agent_id"] = self.agent_id
+        if self.agent_role is not None:
+            data["agent_role"] = self.agent_role
         return data
 
     @classmethod
@@ -61,6 +67,8 @@ class SessionMessage:
             content=data.get("content"),
             tool_calls=data.get("tool_calls"),
             tool_call_id=data.get("tool_call_id"),
+            agent_id=data.get("agent_id"),
+            agent_role=data.get("agent_role"),
         )
 
 
@@ -120,6 +128,46 @@ class SessionMetadata:
 
 
 @dataclass
+class TurnSummaryRecord:
+    """Summary of a completed turn for persistence.
+
+    Attributes:
+        turn_number: Sequential turn number in session.
+        summary_text: LLM-generated summary of the turn.
+        files_modified: List of files modified during the turn.
+        tool_count: Number of tool calls made.
+        timestamp: ISO timestamp when turn completed.
+    """
+
+    turn_number: int
+    summary_text: str
+    files_modified: list[str]
+    tool_count: int
+    timestamp: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "turn_number": self.turn_number,
+            "summary_text": self.summary_text,
+            "files_modified": self.files_modified,
+            "tool_count": self.tool_count,
+            "timestamp": self.timestamp,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> TurnSummaryRecord:
+        """Create from dictionary."""
+        return cls(
+            turn_number=data["turn_number"],
+            summary_text=data["summary_text"],
+            files_modified=data.get("files_modified", []),
+            tool_count=data.get("tool_count", 0),
+            timestamp=data["timestamp"],
+        )
+
+
+@dataclass
 class Session:
     """A conversation session.
 
@@ -131,6 +179,7 @@ class Session:
         messages: List of session messages.
         tag: Optional human-readable tag.
         plan_mode: Whether the session is in Plan Mode (read-only).
+        turn_summaries: Summaries of completed turns.
     """
 
     id: str
@@ -140,6 +189,9 @@ class Session:
     messages: list[SessionMessage] = field(default_factory=list)
     tag: str | None = None
     plan_mode: bool = False
+    turn_summaries: list[TurnSummaryRecord] = field(default_factory=list)
+    active_agents: list[str] = field(default_factory=list)
+    delegation_log: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary.
@@ -155,6 +207,9 @@ class Session:
             "last_updated": self.last_updated,
             "plan_mode": self.plan_mode,
             "messages": [msg.to_dict() for msg in self.messages],
+            "turn_summaries": [ts.to_dict() for ts in self.turn_summaries],
+            "active_agents": self.active_agents,
+            "delegation_log": self.delegation_log,
         }
 
     @classmethod
@@ -175,6 +230,11 @@ class Session:
             last_updated=data["last_updated"],
             plan_mode=data.get("plan_mode", False),
             messages=[SessionMessage.from_dict(m) for m in data.get("messages", [])],
+            turn_summaries=[
+                TurnSummaryRecord.from_dict(ts) for ts in data.get("turn_summaries", [])
+            ],
+            active_agents=data.get("active_agents", []),
+            delegation_log=data.get("delegation_log", []),
         )
 
     def to_json(self) -> str:
@@ -306,18 +366,32 @@ class SessionManager:
         """Load a session from disk.
 
         Args:
-            session_id: ID of session to load.
+            session_id: ID or ID prefix of session to load.
 
         Returns:
             Loaded Session instance.
 
         Raises:
-            FileNotFoundError: If session doesn't exist.
+            FileNotFoundError: If session doesn't exist or is ambiguous.
         """
         path = self._get_session_path(session_id)
-        if not path.exists():
+        if path.exists():
+            return Session.from_json(path.read_text())
+
+        # If not found by exact ID, try as prefix
+        if not self.data_dir.exists():
             raise FileNotFoundError(f"Session not found: {session_id}")
-        return Session.from_json(path.read_text())
+
+        matches = list(self.data_dir.glob(f"{session_id}*.json"))
+        if not matches:
+            raise FileNotFoundError(f"Session not found: {session_id}")
+
+        if len(matches) > 1:
+            # Prefer exact match if somehow multiple match prefix but one is exact
+            # (though glob already failed exact match if we are here)
+            raise ValueError(f"Ambiguous session ID prefix: {session_id}")
+
+        return Session.from_json(matches[0].read_text())
 
     def load_by_tag(
         self,

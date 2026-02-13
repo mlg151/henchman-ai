@@ -53,7 +53,6 @@ class EditFileTool(Tool):
         return ToolKind.WRITE
 
     async def execute(  # type: ignore[override]
-
         self,
         path: str = "",
         old_str: str = "",

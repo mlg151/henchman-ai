@@ -12,7 +12,6 @@ def test_main_module_imports() -> None:
     assert hasattr(__main__, "main")
     assert __main__.main is main
 
-
     def test_python_m_henchman_version() -> None:
         """Test that python -m henchman --version works."""
         result = subprocess.run(
@@ -22,6 +21,7 @@ def test_main_module_imports() -> None:
         )
         assert result.returncode == 0
         assert "0.1.7" in result.stdout
+
 
 def test_python_m_henchman_help() -> None:
     """Test that python -m henchman --help works."""

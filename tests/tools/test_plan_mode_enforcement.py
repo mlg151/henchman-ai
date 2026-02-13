@@ -1,6 +1,5 @@
 """Test plan mode enforcement for write/execute tools."""
 
-
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.registry import ToolRegistry
 
@@ -148,6 +147,7 @@ class TestPlanModeEnforcement:
 
     async def test_network_tool_blocked_in_plan_mode(self) -> None:
         """Network tools should be blocked in plan mode."""
+
         class MockNetworkTool(Tool):
             @property
             def name(self) -> str:

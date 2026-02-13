@@ -1,78 +1,186 @@
 """Message sequence validation for OpenAI API compatibility."""
 
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from henchman.providers.base import Message
 
+logger = logging.getLogger(__name__)
 
-def validate_message_sequence(messages: list['Message']) -> None:
+
+def validate_message_sequence(messages: list["Message"]) -> None:
     """Validate that a message sequence follows OpenAI API rules.
-    
+
+    OpenAI requires:
+    1. An assistant message with tool_calls must be immediately followed
+       by tool messages for ALL of its tool_call_ids (no other roles in between).
+    2. Tool messages must have a tool_call_id matching the preceding assistant.
+    3. Every tool_call must have exactly one tool response.
+
     Raises:
         ValueError: If the sequence violates OpenAI API rules.
     """
-    # Track which tool calls have been responded to
-    pending_tool_calls = {}
-    
-    for i, msg in enumerate(messages):
-        if msg.role == "tool":
-            # Tool messages must follow an assistant with tool_calls
-            if i == 0:
-                raise ValueError(
-                    f"Tool message at index {i} has no preceding message. "
-                    "Tool messages must follow assistant messages with tool_calls."
-                )
-            
-            # Find the nearest preceding assistant message with tool calls
-            assistant_idx = -1
-            for j in range(i-1, -1, -1):
-                if messages[j].role == "assistant" and messages[j].tool_calls:
-                    assistant_idx = j
-                    break
-            
-            if assistant_idx == -1:
-                raise ValueError(
-                    f"Tool message at index {i} doesn't follow any assistant message with tool_calls. "
-                    "Tool messages must follow assistant messages that have tool_calls."
-                )
-            
-            # Check if this tool call ID matches one of the assistant's tool calls
-            assistant_msg = messages[assistant_idx]
-            tool_call_ids = {tc.id for tc in assistant_msg.tool_calls}
-            
-            if msg.tool_call_id not in tool_call_ids:
-                raise ValueError(
-                    f"Tool call ID {msg.tool_call_id} at index {i} doesn't match "
-                    f"any tool call from assistant at index {assistant_idx}. "
-                    f"Assistant tool call IDs: {list(tool_call_ids)}"
-                )
-            
-            # Track that this tool call has been responded to
-            if assistant_idx not in pending_tool_calls:
-                pending_tool_calls[assistant_idx] = set(tool_call_ids)
-            
-            pending_tool_calls[assistant_idx].discard(msg.tool_call_id)
-    
-    # Check that all assistant tool calls have corresponding tool responses
-    for i, msg in enumerate(messages):
+    i = 0
+    while i < len(messages):
+        msg = messages[i]
+
         if msg.role == "assistant" and msg.tool_calls:
-            tool_call_ids = {tc.id for tc in msg.tool_calls}
-            
-            # Remove tool calls that have been responded to
-            if i in pending_tool_calls:
-                remaining = pending_tool_calls[i]
-                if remaining:
+            # This assistant expects tool responses immediately following
+            expected_ids = {tc.id for tc in msg.tool_calls}
+            seen_ids: set[str] = set()
+            j = i + 1
+
+            # Consume all immediately-following tool messages
+            while j < len(messages) and messages[j].role == "tool":
+                tool_msg = messages[j]
+                if tool_msg.tool_call_id not in expected_ids:
                     raise ValueError(
-                        f"Assistant message at index {i} has tool calls without responses: "
-                        f"{list(remaining)}. "
-                        "All tool calls must be followed by tool messages with matching IDs."
+                        f"Tool message at index {j} has tool_call_id "
+                        f"'{tool_msg.tool_call_id}' which doesn't match any "
+                        f"tool call from assistant at index {i}. "
+                        f"Expected one of: {list(expected_ids)}"
                     )
+                if tool_msg.tool_call_id in seen_ids:
+                    raise ValueError(
+                        f"Duplicate tool response for tool_call_id "
+                        f"'{tool_msg.tool_call_id}' at index {j}."
+                    )
+                seen_ids.add(tool_msg.tool_call_id)
+                j += 1
+
+            missing = expected_ids - seen_ids
+            if missing:
+                raise ValueError(
+                    f"Assistant message at index {i} has tool calls without "
+                    f"responses: {list(missing)}. "
+                    "All tool calls must be followed by tool messages with "
+                    "matching IDs."
+                )
+            # Skip past the tool messages we consumed
+            i = j
+            continue
+
+        if msg.role == "tool":
+            # A tool message outside of an assistant+tool block is invalid
+            raise ValueError(
+                f"Tool message at index {i} doesn't follow any assistant "
+                "message with tool_calls. "
+                "Tool messages must follow assistant messages that have "
+                "tool_calls."
+            )
+
+        i += 1
 
 
-def is_valid_message_sequence(messages: list['Message']) -> bool:
+def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
+    """Repair a broken message sequence so it follows OpenAI API rules.
+
+    This removes orphaned tool messages (those without a matching preceding
+    assistant message with tool_calls) and strips tool_calls from assistant
+    messages whose tool responses are missing or incomplete.
+
+    This is intended as a recovery mechanism when compaction or session restore
+    produces an invalid sequence, so the agent can continue instead of being
+    stuck in an unrecoverable error loop.
+
+    Args:
+        messages: The potentially broken message sequence.
+
+    Returns:
+        A repaired message sequence that passes validation.
+    """
+    from henchman.providers.base import Message as Msg
+
+    if not messages:
+        return messages
+
+    result: list["Message"] = []
+    repaired = False
+    i = 0
+
+    while i < len(messages):
+        msg = messages[i]
+
+        if msg.role == "assistant" and msg.tool_calls:
+            expected_ids = {tc.id for tc in msg.tool_calls}
+
+            # Gather immediately-following tool messages
+            tool_msgs: list["Message"] = []
+            j = i + 1
+            while j < len(messages) and messages[j].role == "tool":
+                if messages[j].tool_call_id in expected_ids:
+                    tool_msgs.append(messages[j])
+                else:
+                    # Orphaned tool message — drop it
+                    repaired = True
+                    logger.warning(
+                        "Repair: dropping orphaned tool message at index %d "
+                        "(tool_call_id=%s)",
+                        j,
+                        messages[j].tool_call_id,
+                    )
+                j += 1
+
+            seen_ids = {tm.tool_call_id for tm in tool_msgs}
+            missing = expected_ids - seen_ids
+
+            if missing:
+                # Incomplete tool responses — strip tool_calls entirely
+                repaired = True
+                logger.warning(
+                    "Repair: assistant at index %d missing tool responses for "
+                    "%s — stripping tool_calls",
+                    i,
+                    list(missing),
+                )
+                result.append(
+                    Msg(
+                        role="assistant",
+                        content=msg.content
+                        or "(tool calls removed during repair)",
+                        tool_calls=None,
+                        tool_call_id=None,
+                    )
+                )
+                # Drop ALL tool messages for this assistant (they're now orphaned)
+            else:
+                # Complete — keep assistant + tool messages
+                result.append(msg)
+                result.extend(tool_msgs)
+
+            i = j
+            continue
+
+        if msg.role == "tool":
+            # Tool message outside of an assistant+tool block — orphaned
+            repaired = True
+            logger.warning(
+                "Repair: dropping orphaned tool message at index %d "
+                "(tool_call_id=%s, no preceding assistant with tool_calls)",
+                i,
+                msg.tool_call_id,
+            )
+            i += 1
+            continue
+
+        # Normal message (user, system, assistant without tool_calls)
+        result.append(msg)
+        i += 1
+
+    if repaired:
+        logger.warning(
+            "Message sequence repaired: %d → %d messages",
+            len(messages),
+            len(result),
+        )
+
+    return result
+
+
+def is_valid_message_sequence(messages: list["Message"]) -> bool:
     """Check if a message sequence follows OpenAI API rules.
-    
+
     Returns:
         True if the sequence is valid, False otherwise.
     """
@@ -83,9 +191,9 @@ def is_valid_message_sequence(messages: list['Message']) -> bool:
         return False
 
 
-def format_message_sequence_for_debug(messages: list['Message']) -> str:
+def format_message_sequence_for_debug(messages: list["Message"]) -> str:
     """Format message sequence for debugging purposes.
-    
+
     Returns:
         A formatted string showing the message sequence.
     """
@@ -96,8 +204,7 @@ def format_message_sequence_for_debug(messages: list['Message']) -> str:
             tool_info = f" tool_calls={[tc.id for tc in msg.tool_calls]}"
         elif msg.tool_call_id:
             tool_info = f" tool_call_id={msg.tool_call_id}"
-        
-        lines.append(f"{i:3d}: {msg.role:10s} content={repr(msg.content)[:50]}{tool_info}")
-    
-    return "\n".join(lines)
 
+        lines.append(f"{i:3d}: {msg.role:10s} content={repr(msg.content)[:50]}{tool_info}")
+
+    return "\n".join(lines)

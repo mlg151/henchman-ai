@@ -229,9 +229,7 @@ class TestSessionManagerProjectHash:
         assert hash1 is not None
         assert len(hash1) > 0
 
-    def test_project_hash_is_consistent(
-        self, manager: SessionManager, tmp_path: Path
-    ) -> None:
+    def test_project_hash_is_consistent(self, manager: SessionManager, tmp_path: Path) -> None:
         """Test that project hash is consistent for same directory."""
         project_dir = tmp_path / "my-project"
         project_dir.mkdir()

@@ -96,3 +96,33 @@ class TestShellTool:
         assert "line1" in result.content
         assert "line2" in result.content
         assert "line3" in result.content
+
+    def test_default_timeout_constructor(self) -> None:
+        """Constructor accepts custom default_timeout."""
+        tool = ShellTool(default_timeout=120)
+        assert tool._default_timeout == 120
+
+    def test_default_timeout_is_3600(self) -> None:
+        """Default timeout is 1 hour (3600s)."""
+        tool = ShellTool()
+        assert tool._default_timeout == 3600
+
+    async def test_timeout_zero_means_no_timeout(self) -> None:
+        """Timeout=0 should mean no timeout (wait indefinitely)."""
+        tool = ShellTool()
+        # Quick command with timeout=0 should still complete
+        result = await tool.execute(command="echo done", timeout=0)
+        assert result.success is True
+        assert "done" in result.content
+
+    async def test_custom_default_timeout_used_on_timeout(self) -> None:
+        """Custom default_timeout is applied when no timeout passed."""
+        tool = ShellTool(default_timeout=1)
+        result = await tool.execute(command="sleep 10")
+        assert result.success is False
+        assert "timeout" in result.error.lower()
+
+    def test_description_mentions_long_running(self) -> None:
+        """Description communicates long-running support."""
+        tool = ShellTool()
+        assert "long-running" in tool.description.lower() or "long" in tool.description.lower()

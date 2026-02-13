@@ -1,6 +1,5 @@
 """Web fetch tool implementation."""
 
-
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
 
@@ -50,7 +49,6 @@ class WebFetchTool(Tool):
         return ToolKind.NETWORK
 
     async def execute(  # type: ignore[override]
-
         self,
         url: str = "",
         max_length: int = 10000,

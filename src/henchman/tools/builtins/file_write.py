@@ -46,7 +46,6 @@ class WriteFileTool(Tool):
         return ToolKind.WRITE
 
     async def execute(  # type: ignore[override]
-
         self,
         path: str = "",
         content: str = "",

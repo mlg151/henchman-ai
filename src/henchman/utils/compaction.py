@@ -53,10 +53,7 @@ class MessageSequence:
     @property
     def is_tool_sequence(self) -> bool:
         """Check if this sequence contains tool calls."""
-        return any(
-            msg.role == "assistant" and msg.tool_calls
-            for msg in self.messages
-        )
+        return any(msg.role == "assistant" and msg.tool_calls for msg in self.messages)
 
     def __repr__(self) -> str:
         roles = [msg.role for msg in self.messages]
@@ -67,25 +64,34 @@ class ContextCompactor:
     """Manages context size by pruning older messages.
 
     Preserves atomic sequences, especially tool call sequences.
+    Supports a protected zone for current-turn messages that won't be dropped.
     """
 
-    def __init__(self, max_tokens: int = 8000) -> None:
+    def __init__(
+        self,
+        max_tokens: int = 8000,
+        max_protected_ratio: float = 0.3,
+    ) -> None:
         """Initialize compactor.
 
         Args:
             max_tokens: Maximum tokens to keep in context.
+            max_protected_ratio: Maximum ratio of context that can be protected.
+                If protected zone exceeds this, oldest protected content is truncated.
         """
         self.max_tokens = max_tokens
+        self.max_protected_ratio = max_protected_ratio
+        self.max_protected_tokens = int(max_tokens * max_protected_ratio)
 
     def enforce_safety_limits(self, messages: list[Message]) -> list[Message]:
         """Enforce limits on individual message size using tokens.
-        
+
         This prevents context overflow from individual massive messages
         by truncating them to fit within the context window.
-        
+
         Args:
             messages: List of messages to check.
-            
+
         Returns:
             List of messages with content limits enforced.
         """
@@ -94,7 +100,7 @@ class ContextCompactor:
         # We use 75% of max_tokens to allow for message overhead, system prompts,
         # and the truncation suffix itself.
         limit = int(self.max_tokens * 0.75)
-        
+
         for msg in messages:
             if not msg.content:
                 safe_messages.append(msg)
@@ -102,8 +108,8 @@ class ContextCompactor:
 
             # Quick character check optimization:
             # If chars < limit, tokens are definitely < limit (1 token >= 1 char usually)
-            # Actually, 1 token ~ 4 chars. So if chars < limit, it's definitely safe? 
-            # No, if chars < limit, tokens could be anything. 
+            # Actually, 1 token ~ 4 chars. So if chars < limit, it's definitely safe?
+            # No, if chars < limit, tokens could be anything.
             # But if chars < limit (tokens), then tokens < limit is guaranteed since token count <= char count?
             # Tiktoken: "hello" (5 chars) -> 1 token. " " (1 char) -> 1 token.
             # Generally token count < char count.
@@ -116,8 +122,10 @@ class ContextCompactor:
             if TokenCounter.count_text(msg.content) > limit:
                 # Truncate
                 truncated_content = TokenCounter.truncate_text(msg.content, limit)
-                new_content = truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
-                
+                new_content = (
+                    truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
+                )
+
                 # Create copy with modified content
                 safe_msg = Message(
                     role=msg.role,
@@ -128,15 +136,16 @@ class ContextCompactor:
                 safe_messages.append(safe_msg)
             else:
                 safe_messages.append(msg)
-        
+
         return safe_messages
+
     def _group_into_sequences(self, messages: list[Message]) -> list[MessageSequence]:
         """Group messages into atomic sequences that must be kept together.
 
         Rules:
         1. Each user message starts a new sequence (except the first)
         2. Assistant messages with tool_calls include all following tool messages
-           for those specific tool calls
+           for those specific tool calls (even if not immediately consecutive)
         3. Other messages continue the current sequence
 
         Args:
@@ -150,9 +159,15 @@ class ContextCompactor:
 
         sequences: list[MessageSequence] = []
         current_sequence: list[Message] = []
+        # Track which message indices have been consumed by a tool sequence
+        consumed_indices: set[int] = set()
 
         i = 0
         while i < len(messages):
+            if i in consumed_indices:
+                i += 1
+                continue
+
             msg = messages[i]
             current_sequence.append(msg)
 
@@ -161,18 +176,23 @@ class ContextCompactor:
                 # Get all tool call IDs from this assistant
                 tool_call_ids = {tc.id for tc in msg.tool_calls}
 
-                # Include all immediately following tool messages for these IDs
-                j = i + 1
-                while j < len(messages) and messages[j].role == "tool":
-                    if messages[j].tool_call_id in tool_call_ids:
+                # Scan ALL following messages to find tool responses for these IDs
+                # This handles cases where tool messages might not be immediately consecutive
+                for j in range(i + 1, len(messages)):
+                    tool_call_id = messages[j].tool_call_id
+                    if messages[j].role == "tool" and tool_call_id in tool_call_ids:
                         current_sequence.append(messages[j])
-                        j += 1
-                    else:
-                        # Different tool call, start new sequence
+                        consumed_indices.add(j)
+                        if tool_call_id is not None:
+                            tool_call_ids.discard(tool_call_id)
+                        # Stop if all tool calls have responses
+                        if not tool_call_ids:
+                            break
+                    elif messages[j].role == "user":
+                        # Stop at next user message - tool responses should be before this
                         break
-                i = j
-            else:
-                i += 1
+
+            i += 1
 
             # Start a new sequence on user messages (except at the very beginning)
             # This helps with more granular pruning
@@ -186,15 +206,23 @@ class ContextCompactor:
 
         return sequences
 
-    def compact(self, messages: list[Message]) -> list[Message]:
+    def compact(
+        self,
+        messages: list[Message],
+        protect_from_index: int = -1,
+    ) -> list[Message]:
         """Compact messages to fit within max_tokens.
 
         Always preserves system messages and the last user message.
+        Messages at or after protect_from_index are protected from dropping
+        (up to max_protected_ratio of context).
         Prunes from the beginning of history (after system prompts).
         Preserves tool call sequences as atomic units.
 
         Args:
             messages: The messages to compact.
+            protect_from_index: Index from which messages are protected.
+                Set to -1 to disable protection (default behavior).
 
         Returns:
             Compacted messages that fit within max_tokens.
@@ -210,41 +238,63 @@ class ContextCompactor:
         if current_tokens <= self.max_tokens:
             return messages
 
-        # Group messages into atomic sequences
-        sequences = self._group_into_sequences(messages)
+        # Separate protected messages (current turn) if protection is enabled
+        protected_msgs: list[Message] = []
+        unprotected_msgs: list[Message] = []
 
-        if not sequences:
-            return []
+        if protect_from_index >= 0 and protect_from_index < len(messages):
+            unprotected_msgs = messages[:protect_from_index]
+            protected_msgs = messages[protect_from_index:]
+        else:
+            unprotected_msgs = messages
+
+        # Calculate protected zone tokens
+        protected_tokens = TokenCounter.count_messages(protected_msgs) if protected_msgs else 0
+
+        # If protected zone exceeds budget, truncate tool results within it
+        if protected_tokens > self.max_protected_tokens and protected_msgs:
+            protected_msgs = self._truncate_protected_zone(
+                protected_msgs, self.max_protected_tokens
+            )
+            protected_tokens = TokenCounter.count_messages(protected_msgs)
 
         # Separate system messages (always kept)
-        system_msgs = [msg for msg in messages if msg.role == "system"]
+        system_msgs = [msg for msg in unprotected_msgs if msg.role == "system"]
         system_tokens = TokenCounter.count_messages(system_msgs)
 
-        # Identify the last sequence (critical to keep if it's a user message)
+        # Group non-system unprotected messages into atomic sequences
+        non_system_unprotected = [msg for msg in unprotected_msgs if msg.role != "system"]
+        sequences = self._group_into_sequences(non_system_unprotected)
+
+        # Calculate budget for unprotected sequences
+        # Must fit: system + kept sequences + protected zone
+        budget = self.max_tokens - system_tokens - protected_tokens
+
+        if budget <= 0:
+            # Degenerate case: system + protected already exceed limit
+            # Keep system and as much of protected as possible
+            degenerate_result = system_msgs.copy()
+            degenerate_result.extend(protected_msgs)
+            return degenerate_result
+
+        if not sequences:
+            compacted_msgs = system_msgs.copy()
+            compacted_msgs.extend(protected_msgs)
+            return compacted_msgs
+
+        # Identify the last unprotected sequence
         last_sequence = sequences[-1]
-        last_sequence_is_user = (
-            last_sequence.messages and
-            last_sequence.messages[-1].role == "user"
-        )
+        last_sequence_is_user = last_sequence.messages and last_sequence.messages[-1].role == "user"
 
-        # Calculate fixed cost (system + last sequence if it's user-initiated)
-        fixed_tokens = system_tokens
-        if last_sequence_is_user:
-            fixed_tokens += last_sequence.token_count
-
-        budget = self.max_tokens - fixed_tokens
-
-        if budget <= 0:  # pragma: no cover
-            # Degenerate case: essential messages already exceed limit
-            result = system_msgs.copy()
-            if last_sequence_is_user:
-                result.extend(last_sequence.messages)
-            return result
+        # If last unprotected sequence is user-initiated and we have no protected msgs,
+        # treat it as fixed (original behavior)
+        if last_sequence_is_user and not protected_msgs:
+            budget -= last_sequence.token_count
+            sequences_to_consider = sequences[:-1]
+        else:
+            sequences_to_consider = sequences
 
         # Keep sequences from the end until budget is full
-        # We skip the last sequence if it's already accounted for as fixed
-        sequences_to_consider = sequences[:-1] if last_sequence_is_user else sequences
-
         kept_sequences: list[MessageSequence] = []
         used_tokens = 0
 
@@ -267,9 +317,68 @@ class ContextCompactor:
         for seq in reversed(kept_sequences):
             result.extend(seq.messages)
 
-        # Add the last sequence if it was user-initiated
-        if last_sequence_is_user:
+        # Add the last unprotected sequence if it was user-initiated and no protected msgs
+        if last_sequence_is_user and not protected_msgs:
             result.extend(last_sequence.messages)
+
+        # Add protected messages last (current turn)
+        result.extend(protected_msgs)
+
+        return result
+
+    def _truncate_protected_zone(
+        self,
+        messages: list[Message],
+        max_tokens: int,
+    ) -> list[Message]:
+        """Truncate protected zone to fit within budget.
+
+        Truncates tool result content (oldest first) while preserving
+        structure. Never drops messages entirely, just truncates content.
+
+        Args:
+            messages: Protected zone messages.
+            max_tokens: Maximum tokens allowed for protected zone.
+
+        Returns:
+            Messages with truncated content to fit budget.
+        """
+        current_tokens = TokenCounter.count_messages(messages)
+        if current_tokens <= max_tokens:
+            return messages
+
+        # Make copies to avoid mutating originals
+        result = []
+        tokens_to_trim = current_tokens - max_tokens
+
+        for msg in messages:
+            if tokens_to_trim <= 0 or msg.role != "tool":
+                result.append(msg)
+                continue
+
+            # Truncate tool message content
+            if msg.content and len(msg.content) > 500:
+                # Estimate how much to keep (rough: 4 chars per token)
+                chars_to_trim = tokens_to_trim * 4
+                if chars_to_trim < len(msg.content) - 200:
+                    new_content = msg.content[: len(msg.content) - chars_to_trim]
+                    new_content += "\n[... truncated to fit context limit ...]"
+                else:
+                    new_content = msg.content[:200] + "\n[... heavily truncated ...]"
+
+                trimmed_tokens = (len(msg.content) - len(new_content)) // 4
+                tokens_to_trim -= trimmed_tokens
+
+                result.append(
+                    Message(
+                        role=msg.role,
+                        content=new_content,
+                        tool_calls=msg.tool_calls,
+                        tool_call_id=msg.tool_call_id,
+                    )
+                )
+            else:
+                result.append(msg)
 
         return result
 
@@ -287,7 +396,7 @@ class ContextCompactor:
                 # Tool messages must follow assistant with tool_calls
                 if i == 0:
                     return False
-                prev_msg = messages[i-1]
+                prev_msg = messages[i - 1]
                 if prev_msg.role != "assistant" or not prev_msg.tool_calls:
                     return False
 
@@ -302,8 +411,9 @@ class ContextCompactor:
                 tool_call_ids = {tc.id for tc in msg.tool_calls}
                 j = i + 1
                 while j < len(messages) and messages[j].role == "tool":
-                    if messages[j].tool_call_id in tool_call_ids:
-                        tool_call_ids.remove(messages[j].tool_call_id)
+                    tool_call_id = messages[j].tool_call_id
+                    if tool_call_id is not None and tool_call_id in tool_call_ids:
+                        tool_call_ids.discard(tool_call_id)
                     j += 1
 
                 # If there are still tool calls without responses, it's invalid
@@ -312,11 +422,16 @@ class ContextCompactor:
 
         return True
 
-    def compact_with_result(self, messages: list[Message]) -> CompactionResult:
+    def compact_with_result(
+        self,
+        messages: list[Message],
+        protect_from_index: int = -1,
+    ) -> CompactionResult:
         """Compact messages and return detailed result.
 
         Args:
             messages: The messages to compact.
+            protect_from_index: Index from which messages are protected.
 
         Returns:
             CompactionResult with compacted messages and metadata.
@@ -329,7 +444,7 @@ class ContextCompactor:
             return CompactionResult(messages=messages, was_compacted=False)
 
         # Perform compaction
-        compacted = self.compact(messages)
+        compacted = self.compact(messages, protect_from_index=protect_from_index)
         dropped_count = len(messages) - len(compacted)
 
         return CompactionResult(
@@ -449,6 +564,8 @@ async def compact_with_summarization(
     max_tokens: int,
     provider: ModelProvider | None = None,
     summarize: bool = True,
+    protect_from_index: int = -1,
+    max_protected_ratio: float = 0.3,
 ) -> CompactionResult:
     """Compact messages with optional summarization of dropped content.
 
@@ -461,11 +578,16 @@ async def compact_with_summarization(
         max_tokens: Maximum tokens to keep.
         provider: Model provider for summarization (optional).
         summarize: Whether to attempt summarization.
+        protect_from_index: Index from which messages are protected from dropping.
+        max_protected_ratio: Maximum ratio of context that can be protected.
 
     Returns:
         CompactionResult with compacted messages and metadata.
     """
-    compactor = ContextCompactor(max_tokens=max_tokens)
+    compactor = ContextCompactor(
+        max_tokens=max_tokens,
+        max_protected_ratio=max_protected_ratio,
+    )
 
     # Check if compaction is needed
     current_tokens = TokenCounter.count_messages(messages)
@@ -473,7 +595,7 @@ async def compact_with_summarization(
         return CompactionResult(messages=messages, was_compacted=False)
 
     # Get the compacted result
-    result = compactor.compact_with_result(messages)
+    result = compactor.compact_with_result(messages, protect_from_index=protect_from_index)
 
     if not result.was_compacted:
         return result

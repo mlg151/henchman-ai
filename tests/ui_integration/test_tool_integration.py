@@ -4,6 +4,7 @@ Integration tests for tool execution through UI - MINIMAL WORKING VERSION.
 Tests that verify all built-in tools can be executed through the REPL
 and their results are properly displayed in the UI.
 """
+
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
@@ -23,19 +24,13 @@ class TestToolCallHandling:
     def mock_repl(self):
         """REPL with mocked components for tool call testing."""
         console = Console(record=True)
-        repl = Repl(
-            provider=Mock(),
-            console=console,
-            config=ReplConfig()
-        )
+        repl = Repl(provider=Mock(), console=console, config=ReplConfig())
 
-        # Mock tool registry
+        # Mock tool registry's execute method (the REPL calls execute, not get)
         repl.tool_registry = Mock(spec=ToolRegistry)
-        # Ensure tool.needs_confirmation returns None
-        mock_tool = Mock()
-        mock_tool.needs_confirmation.return_value = None
-        mock_tool.execute = AsyncMock(return_value=ToolResult(content="Result", success=True))
-        repl.tool_registry.get.return_value = mock_tool
+        repl.tool_registry.execute = AsyncMock(
+            return_value=ToolResult(content="Result", success=True)
+        )
 
         # Mock agent
         repl.agent = Mock(spec=Agent)
@@ -50,7 +45,7 @@ class TestToolCallHandling:
         repl.agent.continue_with_tool_results = MagicMock(return_value=async_iter())
 
         # Mock other agent methods
-        repl.agent.submit_tool_result = AsyncMock()
+        repl.agent.submit_tool_result = Mock()
 
         # Mock renderer
         repl.renderer.muted = Mock()
@@ -62,33 +57,22 @@ class TestToolCallHandling:
 
     async def test_handle_tool_call_success(self, mock_repl):
         """Test successful tool call handling."""
-        tool_call = ToolCall(
-            id="test-id",
-            name="test_tool",
-            arguments={"param": "value"}
-        )
+        tool_call = ToolCall(id="test-id", name="test_tool", arguments={"param": "value"})
 
         # Handle tool call
         await mock_repl._handle_tool_call(tool_call)
 
-        # Verify tool was executed
-        mock_tool = mock_repl.tool_registry.get.return_value
-        mock_tool.execute.assert_called_once_with(param="value")
+        # Verify tool was executed via registry.execute
+        mock_repl.tool_registry.execute.assert_called_once_with("test_tool", {"param": "value"})
 
         # Verify agent received the result
-        mock_repl.agent.submit_tool_result.assert_called_once_with(
-            "test-id", "Result"
-        )
+        mock_repl.agent.submit_tool_result.assert_called_once_with("test-id", "Result")
 
     async def test_handle_tool_call_nonexistent_tool(self, mock_repl):
         """Test handling of call to non-existent tool."""
         mock_repl.tool_registry.execute.side_effect = ValueError("Tool not found")
 
-        tool_call = ToolCall(
-            id="test-id",
-            name="nonexistent_tool",
-            arguments={}
-        )
+        tool_call = ToolCall(id="test-id", name="nonexistent_tool", arguments={})
 
         # Handle tool call - should handle the error gracefully
         try:
@@ -110,11 +94,7 @@ class TestToolDisplayFormatting:
     def repl_with_mock_display(self):
         """REPL with mocked display components."""
         console = Console(record=True)
-        repl = Repl(
-            provider=Mock(),
-            console=console,
-            config=ReplConfig()
-        )
+        repl = Repl(provider=Mock(), console=console, config=ReplConfig())
 
         # Mock renderer methods to capture calls
         repl.renderer = Mock()
@@ -125,11 +105,7 @@ class TestToolDisplayFormatting:
         """Test that tool calls trigger display methods."""
         # This test verifies that when a tool call is handled,
         # appropriate display methods are called
-        tool_call = ToolCall(
-            id="test-id",
-            name="read_file",
-            arguments={"path": "/tmp/test.txt"}
-        )
+        tool_call = ToolCall(id="test-id", name="read_file", arguments={"path": "/tmp/test.txt"})
 
         # Mock agent methods needed by _handle_tool_call
         async def empty_async_iterator():
@@ -137,27 +113,30 @@ class TestToolDisplayFormatting:
                 yield
 
         repl_with_mock_display.agent = Mock(spec=Agent)
-        repl_with_mock_display.agent.submit_tool_result = AsyncMock()
+        repl_with_mock_display.agent.submit_tool_result = Mock()
         repl_with_mock_display.agent.continue_with_tool_results = MagicMock(
             return_value=empty_async_iterator()
         )
 
         # Mock the renderer.muted method (which is what _handle_tool_call calls)
         repl_with_mock_display.renderer.muted = Mock()
-        repl_with_mock_display.renderer.tool_result = Mock()
+        repl_with_mock_display.renderer.error = Mock()
 
-        # Mock tool registry
+        # Mock tool registry's execute method (REPL calls execute, not get)
         repl_with_mock_display.tool_registry = Mock(spec=ToolRegistry)
-        mock_tool = Mock()
-        mock_tool.needs_confirmation.return_value = None
-        mock_tool.execute = AsyncMock(return_value=ToolResult(content="Test content", success=True))
-        repl_with_mock_display.tool_registry.get.return_value = mock_tool
+        repl_with_mock_display.tool_registry.execute = AsyncMock(
+            return_value=ToolResult(content="Test content", success=True)
+        )
 
         # Handle the tool call directly (not through event)
         await repl_with_mock_display._handle_tool_call(tool_call)
 
         # Verify display interaction happened
-        # We check tool_result was called
-        repl_with_mock_display.renderer.tool_result.assert_called_once_with(
-            "Test content", True, None
-        )
+        # REPL calls renderer.muted for tool calls and results
+        assert repl_with_mock_display.renderer.muted.call_count >= 2
+        # First call shows the tool call
+        first_call_args = repl_with_mock_display.renderer.muted.call_args_list[0][0][0]
+        assert "read_file" in first_call_args
+        # Second call shows the result
+        second_call_args = repl_with_mock_display.renderer.muted.call_args_list[1][0][0]
+        assert "result" in second_call_args.lower() or "Test content" in second_call_args

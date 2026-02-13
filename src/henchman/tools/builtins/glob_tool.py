@@ -50,7 +50,6 @@ class GlobTool(Tool):
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-
         self,
         pattern: str = "",
         path: str = ".",
@@ -92,7 +91,7 @@ class GlobTool(Tool):
 
             if len(matches) > self.MAX_MATCHES:
                 truncated = True
-                matches = matches[:self.MAX_MATCHES]
+                matches = matches[: self.MAX_MATCHES]
 
             if not matches:
                 return ToolResult(
@@ -110,7 +109,9 @@ class GlobTool(Tool):
                     results.append(str(match))
 
             if truncated:
-                results.append(f"... Output truncated (limit reached: {self.MAX_MATCHES} matches) ...")
+                results.append(
+                    f"... Output truncated (limit reached: {self.MAX_MATCHES} matches) ..."
+                )
 
             return ToolResult(
                 content="\n".join(results),

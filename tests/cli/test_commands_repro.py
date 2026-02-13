@@ -1,4 +1,3 @@
-
 import pytest
 
 from henchman.cli.commands import Command, CommandContext, CommandRegistry
@@ -12,12 +11,19 @@ class TestCommandRegistryAttribute:
         # Register a dummy command
         class DummyCommand(Command):
             @property
-            def name(self) -> str: return "dummy"
+            def name(self) -> str:
+                return "dummy"
+
             @property
-            def description(self) -> str: return "dummy desc"
+            def description(self) -> str:
+                return "dummy desc"
+
             @property
-            def usage(self) -> str: return "/dummy"
-            async def execute(self, ctx: CommandContext) -> None: pass
+            def usage(self) -> str:
+                return "/dummy"
+
+            async def execute(self, ctx: CommandContext) -> None:
+                pass
 
         registry.register(DummyCommand())
 

@@ -1,6 +1,7 @@
 """
 Integration tests for skill commands.
 """
+
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -30,11 +31,7 @@ class TestSkillCommandIntegration:
     @pytest.fixture
     def repl_instance(self, mock_provider, console_with_recording):
         """REPL instance with mock components."""
-        repl = Repl(
-            provider=mock_provider,
-            console=console_with_recording,
-            config=ReplConfig()
-        )
+        repl = Repl(provider=mock_provider, console=console_with_recording, config=ReplConfig())
         # We want to use the real CommandRegistry which includes SkillCommand
         # but we need to mock internal components like Agent if they are complex.
         # Actually Repl initializes Agent.
@@ -45,7 +42,7 @@ class TestSkillCommandIntegration:
             project_hash="test-hash",
             started="2024-01-01T00:00:00Z",
             last_updated="2024-01-01T00:00:00Z",
-            messages=[]
+            messages=[],
         )
 
         return repl
@@ -57,7 +54,7 @@ class TestSkillCommandIntegration:
             mock_store.list_skills.return_value = []
 
             # Execute command
-            with patch('henchman.cli.repl.expand_at_references', side_effect=lambda x: x):
+            with patch("henchman.cli.repl.expand_at_references", side_effect=lambda x: x):
                 result = await repl_instance.process_input("/skill list")
 
             assert result is True
@@ -68,26 +65,21 @@ class TestSkillCommandIntegration:
     async def test_skill_run(self, repl_instance):
         """Test /skill run <name>."""
         mock_step = SkillStep(
-            description="echo hello",
-            tool="run_shell_command",
-            arguments={"command": "echo hello"}
+            description="echo hello", tool="run_shell_command", arguments={"command": "echo hello"}
         )
-        mock_skill = Skill(
-            name="echo-skill",
-            description="Echoes hello",
-            steps=[mock_step]
-        )
+        mock_skill = Skill(name="echo-skill", description="Echoes hello", steps=[mock_step])
 
-        with patch("henchman.cli.commands.skill.SkillStore") as MockStore, \
-             patch("henchman.cli.commands.skill.SkillExecutor") as MockExecutor:
-
+        with (
+            patch("henchman.cli.commands.skill.SkillStore") as MockStore,
+            patch("henchman.cli.commands.skill.SkillExecutor") as MockExecutor,
+        ):
             mock_store = MockStore.return_value
             mock_store.load.return_value = mock_skill
 
             mock_executor_instance = MockExecutor.return_value
 
             # Mock executor.run to yield a result
-            async def mock_run_gen(skill):
+            async def mock_run_gen(_skill):
                 result = Mock()
                 result.success = True
                 result.content = "hello"
@@ -96,7 +88,7 @@ class TestSkillCommandIntegration:
             mock_executor_instance.run.side_effect = mock_run_gen
 
             # Execute command
-            with patch('henchman.cli.repl.expand_at_references', side_effect=lambda x: x):
+            with patch("henchman.cli.repl.expand_at_references", side_effect=lambda x: x):
                 result = await repl_instance.process_input("/skill run echo-skill")
 
             assert result is True
@@ -112,16 +104,13 @@ class TestSkillCommandIntegration:
         repl_instance.session.messages = [
             SessionMessage(role="user", content="list files"),
             SessionMessage(
-                role="assistant",
-                tool_calls=[ToolCall(id="1", name="ls", arguments={"path": "."})]
-            )
+                role="assistant", tool_calls=[ToolCall(id="1", name="ls", arguments={"path": "."})]
+            ),
         ]
 
-        with patch("henchman.cli.commands.skill.SkillStore") as MockStore:
-            mock_store = MockStore.return_value
-
+        with patch("henchman.cli.commands.skill.SkillStore"):
             # Execute command
-            with patch('henchman.cli.repl.expand_at_references', side_effect=lambda x: x):
+            with patch("henchman.cli.repl.expand_at_references", side_effect=lambda x: x):
                 result = await repl_instance.process_input("/skill learn ls-skill 'Lists files'")
 
             assert result is True

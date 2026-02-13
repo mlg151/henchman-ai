@@ -34,9 +34,7 @@ class SkillStore:
 
     def _run_git(self, args: list[str]) -> None:  # pragma: no cover
         """Run a git command in the skills directory."""
-        subprocess.run(
-            ["git", *args], cwd=self.skills_dir, check=True, capture_output=True
-        )
+        subprocess.run(["git", *args], cwd=self.skills_dir, check=True, capture_output=True)
 
     def save(self, skill: Skill, message: str | None = None) -> None:
         """Save skill to YAML and commit."""

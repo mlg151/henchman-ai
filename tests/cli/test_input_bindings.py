@@ -29,7 +29,9 @@ def test_escape_key_clears_buffer():
 
     assert event.current_buffer.text == ""
 
+
 def test_escape_key_empty_buffer():
+    """Escape on empty buffer calls app.exit(result='') for graceful exit."""
     session = create_session()
     event = Mock()
     event.current_buffer.text = ""
@@ -38,10 +40,26 @@ def test_escape_key_empty_buffer():
     for binding in kb.bindings:
         if binding.keys == (Keys.Escape,):
             handler = binding.handler
-            with pytest.raises(KeyboardInterrupt):
-                handler(event)
+            handler(event)
             break
     else:
         pytest.fail("Escape handler not found")
 
-    assert event.current_buffer.text == ""
+    # Verify app.exit was called with empty string
+    event.app.exit.assert_called_once_with(result="")
+
+
+def test_ctrl_c_raises_keyboard_interrupt():
+    """Ctrl+C raises KeyboardInterrupt for clean exit."""
+    session = create_session()
+    event = Mock()
+
+    kb = session.key_bindings
+    for binding in kb.bindings:
+        if binding.keys == (Keys.ControlC,):
+            handler = binding.handler
+            with pytest.raises(KeyboardInterrupt):
+                handler(event)
+            break
+    else:
+        pytest.fail("Ctrl+C handler not found")

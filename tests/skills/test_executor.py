@@ -16,7 +16,7 @@ async def test_skill_executor_run():
         steps=[
             SkillStep(description="s1", tool="t1", arguments={"a": 1}),
             SkillStep(description="s2", tool="t2", arguments={"b": 2}),
-        ]
+        ],
     )
 
     registry = AsyncMock(spec=ToolRegistry)
@@ -35,6 +35,7 @@ async def test_skill_executor_run():
     assert results[1].content == "r2"
     assert registry.execute.call_count == 2
 
+
 @pytest.mark.asyncio
 async def test_skill_executor_stop_on_failure():
     skill = Skill(
@@ -43,7 +44,7 @@ async def test_skill_executor_stop_on_failure():
         steps=[
             SkillStep(description="s1", tool="t1", arguments={}),
             SkillStep(description="s2", tool="t2", arguments={}),
-        ]
+        ],
     )
 
     registry = AsyncMock(spec=ToolRegistry)

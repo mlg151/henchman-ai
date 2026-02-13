@@ -141,7 +141,10 @@ class TestModelProviderProtocol:
 
         class IncompleteProvider(ModelProvider):
             async def chat_completion_stream(
-                self, messages, tools=None, **kwargs  # noqa: ARG002
+                self,
+                messages,
+                tools=None,
+                **kwargs,  # noqa: ARG002
             ):
                 yield StreamChunk()
 

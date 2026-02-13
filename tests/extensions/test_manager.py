@@ -341,9 +341,7 @@ class MyExtension(Extension):
         manager.discover_directory(ext_dir)
         assert manager.list_extensions() == []
 
-    def test_discover_directory_skips_dirs_without_extension_py(
-        self, tmp_path: Path
-    ) -> None:
+    def test_discover_directory_skips_dirs_without_extension_py(self, tmp_path: Path) -> None:
         """Test discovery skips directories without extension.py."""
         ext_dir = tmp_path / "extensions"
         ext_dir.mkdir()
@@ -355,9 +353,7 @@ class MyExtension(Extension):
         manager.discover_directory(ext_dir)
         assert manager.list_extensions() == []
 
-    def test_discover_directory_handles_instantiation_failure(
-        self, tmp_path: Path
-    ) -> None:
+    def test_discover_directory_handles_instantiation_failure(self, tmp_path: Path) -> None:
         """Test discovery handles extension that fails to instantiate."""
         ext_dir = tmp_path / "extensions"
         ext_dir.mkdir()
@@ -398,9 +394,7 @@ class FailExtension(Extension):
         fail_dir.mkdir()
         (fail_dir / "extension.py").write_text("pass")
 
-        with patch.object(
-            manager, "_load_extension_from_file", side_effect=RuntimeError("Boom!")
-        ):
+        with patch.object(manager, "_load_extension_from_file", side_effect=RuntimeError("Boom!")):
             manager.discover_directory(ext_dir)
 
         assert manager.list_extensions() == []

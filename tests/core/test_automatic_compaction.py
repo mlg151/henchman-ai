@@ -1,6 +1,5 @@
 """Test automatic context compaction."""
 
-
 from unittest.mock import Mock
 
 from henchman.core.agent import Agent
@@ -20,9 +19,7 @@ class TestAutomaticContextCompaction:
 
         # Add many messages to exceed token limit
         for i in range(10):
-            agent.history.append(
-                Message(role="user", content=f"Message {i}: " + "x" * 100)
-            )
+            agent.history.append(Message(role="user", content=f"Message {i}: " + "x" * 100))
 
         # Get messages for API (should trigger compaction)
         messages = agent.get_messages_for_api()
@@ -61,16 +58,12 @@ class TestAutomaticContextCompaction:
 
         # Create agent with system prompt
         agent = Agent(
-            provider=mock_provider,
-            system_prompt="You are a helpful assistant.",
-            max_tokens=100
+            provider=mock_provider, system_prompt="You are a helpful assistant.", max_tokens=100
         )
 
         # Add many messages to exceed token limit
         for i in range(10):
-            agent.history.append(
-                Message(role="user", content=f"Message {i}: " + "x" * 100)
-            )
+            agent.history.append(Message(role="user", content=f"Message {i}: " + "x" * 100))
 
         # Get messages for API
         messages = agent.get_messages_for_api()
@@ -89,16 +82,10 @@ class TestAutomaticContextCompaction:
 
         # Add messages ending with user message
         for i in range(5):
-            agent.history.append(
-                Message(role="user", content=f"Message {i}: " + "x" * 50)
-            )
-            agent.history.append(
-                Message(role="assistant", content=f"Response {i}: " + "x" * 50)
-            )
+            agent.history.append(Message(role="user", content=f"Message {i}: " + "x" * 50))
+            agent.history.append(Message(role="assistant", content=f"Response {i}: " + "x" * 50))
         # Add final user message
-        agent.history.append(
-            Message(role="user", content="Final user message")
-        )
+        agent.history.append(Message(role="user", content="Final user message"))
 
         # Get messages for API
         messages = agent.get_messages_for_api()

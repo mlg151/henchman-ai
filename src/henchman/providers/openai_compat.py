@@ -8,9 +8,10 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
-from openai import AsyncOpenAI
+from openai import APIStatusError, AsyncOpenAI
 
 from henchman.providers.base import (
+    ContextTooLargeError,
     FinishReason,
     Message,
     ModelProvider,
@@ -143,14 +144,24 @@ class OpenAICompatibleProvider(ModelProvider):
             if message.role in ["tool", "function"]:
                 continue
 
-            # Assistant messages with tool calls can have empty content
-            if message.role == "assistant" and message.tool_calls:
+            # Assistant messages can have empty content (e.g., when only tool calls are made)
+            if message.role == "assistant":
                 continue
 
             # All other messages must have non-empty content
-            if not (message.content or '').strip():
+            if not (message.content or "").strip():
                 raise ValueError(f"Message with role '{message.role}' cannot have empty content")
         # Build request parameters
+        # Last-resort defense: validate and repair message sequence to
+        # prevent 400 errors from the API about broken tool sequences.
+        from henchman.utils.validation import (
+            is_valid_message_sequence,
+            repair_message_sequence,
+        )
+
+        if not is_valid_message_sequence(messages):
+            messages = repair_message_sequence(messages)
+
         params: dict[str, Any] = {
             "model": kwargs.pop("model", self.default_model),
             "messages": [self._format_message(m) for m in messages],
@@ -161,8 +172,16 @@ class OpenAICompatibleProvider(ModelProvider):
         if tools:
             params["tools"] = [self._format_tool(t) for t in tools]
 
-        # Stream the response
-        response = await self._client.chat.completions.create(**params)
+        # Stream the response with error handling
+        try:
+            response = await self._client.chat.completions.create(**params)
+        except APIStatusError as e:
+            if e.status_code == 413:
+                raise ContextTooLargeError(
+                    "Request too large. Try using start_line/end_line when reading "
+                    "files to limit context size, or start a new conversation."
+                ) from e
+            raise
 
         # Track tool calls across chunks (they come in pieces)
         pending_tool_calls: dict[int, dict[str, Any]] = {}

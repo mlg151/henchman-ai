@@ -63,9 +63,7 @@ class TestMcpClient:
 
         mock_session = AsyncMock()
         mock_session.initialize = AsyncMock()
-        mock_session.list_tools = AsyncMock(
-            return_value=MagicMock(tools=[mock_tool])
-        )
+        mock_session.list_tools = AsyncMock(return_value=MagicMock(tools=[mock_tool]))
 
         with patch.object(client, "_create_session", return_value=mock_session):
             await client.connect()

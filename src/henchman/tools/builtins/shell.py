@@ -16,6 +16,16 @@ class ShellTool(Tool):
     # Safety limits
     MAX_OUTPUT_CHARS = 100_000
 
+    def __init__(self, default_timeout: int = 3600) -> None:
+        """Initialize the shell tool.
+
+        Args:
+            default_timeout: Default command timeout in seconds.
+                Commands will be killed after this duration.
+                Defaults to 3600 (1 hour).
+        """
+        self._default_timeout = default_timeout
+
     @property
     def name(self) -> str:
         """Tool name."""
@@ -24,7 +34,11 @@ class ShellTool(Tool):
     @property
     def description(self) -> str:
         """Tool description."""
-        return "Execute a shell command and return its output."
+        return (
+            "Execute a shell command and return its output. "
+            "Long-running commands (builds, tests, data jobs) are fully "
+            "supported — the tool will wait until the command completes."
+        )
 
     @property
     def parameters(self) -> dict[str, object]:
@@ -38,8 +52,11 @@ class ShellTool(Tool):
                 },
                 "timeout": {
                     "type": "integer",
-                    "description": "Command timeout in seconds",
-                    "default": 60,
+                    "description": (
+                        "Command timeout in seconds. Defaults to 3600 (1 hour). "
+                        "Use 0 for no timeout. Increase for long-running data "
+                        "transformation or build jobs."
+                    ),
                 },
                 "cwd": {
                     "type": "string",
@@ -56,10 +73,9 @@ class ShellTool(Tool):
         return ToolKind.EXECUTE
 
     async def execute(  # type: ignore[override]
-
         self,
         command: str = "",
-        timeout: int = 60,
+        timeout: int | None = None,
         cwd: str | None = None,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
@@ -67,13 +83,17 @@ class ShellTool(Tool):
 
         Args:
             command: Shell command to execute.
-            timeout: Command timeout in seconds.
+            timeout: Command timeout in seconds. None uses the default.
+                0 means no timeout (wait indefinitely).
             cwd: Working directory for the command.
             **kwargs: Additional arguments (ignored).
 
         Returns:
             ToolResult with command output or error.
         """
+        effective_timeout: float | None = (
+            self._default_timeout if timeout is None else (None if timeout == 0 else timeout)
+        )
         try:
             # Set up environment with HENCHMAN_CLI marker
             env = {**os.environ, "HENCHMAN_CLI": "1"}
@@ -89,18 +109,25 @@ class ShellTool(Tool):
 
             # Wait for completion with timeout
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=timeout,
-                )
+                if effective_timeout is not None:
+                    stdout, stderr = await asyncio.wait_for(
+                        process.communicate(),
+                        timeout=effective_timeout,
+                    )
+                else:
+                    stdout, stderr = await process.communicate()
             except (TimeoutError, asyncio.TimeoutError):
                 process.kill()
                 await process.wait()
                 return ToolResult(
-                    content=f"Command timed out after {timeout} seconds",
+                    content=f"Command timed out after {effective_timeout} seconds",
                     success=False,
-                    error=f"Timeout after {timeout} seconds",
+                    error=f"Timeout after {effective_timeout} seconds",
                 )
+            except asyncio.CancelledError:
+                process.kill()
+                await process.wait()
+                raise
 
             # Decode output
             stdout_text = stdout.decode("utf-8", errors="replace")
@@ -117,7 +144,10 @@ class ShellTool(Tool):
 
             # Truncate if too long
             if len(output) > self.MAX_OUTPUT_CHARS:
-                output = output[:self.MAX_OUTPUT_CHARS] + f"\n... (output truncated after {self.MAX_OUTPUT_CHARS} chars)"
+                output = (
+                    output[: self.MAX_OUTPUT_CHARS]
+                    + f"\n... (output truncated after {self.MAX_OUTPUT_CHARS} chars)"
+                )
 
             return ToolResult(
                 content=output if output else "(no output)",

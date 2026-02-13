@@ -52,7 +52,7 @@ class TestToolSettings:
         """Test default tool settings."""
         settings = ToolSettings()
         assert settings.auto_approve_read is True
-        assert settings.shell_timeout == 60
+        assert settings.shell_timeout == 3600
         assert settings.sandbox == "none"
 
     def test_custom_values(self) -> None:
@@ -123,6 +123,30 @@ class TestSettings:
         assert isinstance(settings.tools, ToolSettings)
         assert isinstance(settings.ui, UISettings)
         assert settings.mcp_servers == {}
+        assert settings.agents.team_preset == "default"
+        assert settings.agents.max_delegation_depth == 3
+
+    def test_agent_settings(self) -> None:
+        """Test agent settings customization."""
+        data = {
+            "agents": {
+                "team_preset": "custom",
+                "max_delegation_depth": 5,
+                "agents": {
+                    "coder": {
+                        "name": "Custom Coder",
+                        "role": "coder",
+                        "description": "Custom desc",
+                        "tools": ["ls"]
+                    }
+                }
+            }
+        }
+        settings = Settings(**data)
+        assert settings.agents.team_preset == "custom"
+        assert settings.agents.max_delegation_depth == 5
+        assert "coder" in settings.agents.agents
+        assert settings.agents.agents["coder"].name == "Custom Coder"
 
     def test_nested_settings(self) -> None:
         """Test nested settings customization."""
@@ -136,9 +160,7 @@ class TestSettings:
     def test_mcp_servers(self) -> None:
         """Test MCP servers configuration."""
         settings = Settings(
-            mcp_servers={
-                "github": McpServerConfig(command="uvx", args=["mcp-github"])
-            }
+            mcp_servers={"github": McpServerConfig(command="uvx", args=["mcp-github"])}
         )
         assert "github" in settings.mcp_servers
         assert settings.mcp_servers["github"].command == "uvx"

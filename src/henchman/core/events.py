@@ -15,8 +15,17 @@ class EventType(Enum):
     TOOL_CALL_REQUEST = auto()  # Model is requesting a tool call
     TOOL_CALL_RESULT = auto()  # Result from a tool execution
     TOOL_CONFIRMATION = auto()  # Awaiting user approval for a tool
+    CONTEXT_COMPACTED = auto()  # Context was compacted to fit model limits
+    TURN_SUMMARIZED = auto()  # Previous turn was summarized
+    TURN_STATUS = auto()  # Status update for current turn
     ERROR = auto()  # An error occurred
     FINISHED = auto()  # Agent has finished processing
+
+    # Multi-agent orchestration events
+    AGENT_DELEGATED = auto()  # Tech Lead delegating a task to a specialist
+    AGENT_STARTED = auto()  # Specialist agent beginning work
+    AGENT_COMPLETED = auto()  # Specialist agent finished
+    AGENT_MESSAGE = auto()  # Inter-agent message via EventBus
 
 
 @dataclass
@@ -25,15 +34,10 @@ class AgentEvent:
 
     Attributes:
         type: The type of event.
-        data: Optional data associated with the event. The type depends on
-            the event type:
-            - CONTENT: str (text content)
-            - THOUGHT: str (reasoning content)
-            - TOOL_CALL_REQUEST: ToolCall object
-            - TOOL_CALL_RESULT: dict with tool_call_id and result
-            - ERROR: str or Exception
-            - FINISHED: None
+        data: Optional data associated with the event.
+        source_agent: ID of the agent that produced this event.
     """
 
     type: EventType
     data: Any = None
+    source_agent: str | None = None

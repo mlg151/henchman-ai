@@ -190,9 +190,7 @@ class TestOutputRenderer:
         # Rule produces line characters
         assert len(output) > 0
 
-    def test_print_rule_with_title(
-        self, renderer: OutputRenderer, console: Console
-    ) -> None:
+    def test_print_rule_with_title(self, renderer: OutputRenderer, console: Console) -> None:
         """Test printing a rule with title."""
         renderer.rule(title="Separator")
         output = console.file.getvalue()  # type: ignore[union-attr]
@@ -214,3 +212,54 @@ class TestOutputRenderer:
         renderer = OutputRenderer()
         assert renderer.console is not None
         assert isinstance(renderer.console, Console)
+
+    def test_error_with_rich_markup_in_message(
+        self, renderer: OutputRenderer, console: Console
+    ) -> None:
+        """Test that error messages containing Rich-like markup don't crash."""
+        # This should not raise MarkupError - the key test is that it doesn't crash
+        renderer.error("Error: [/dim] failed to parse")
+        output = console.file.getvalue()  # type: ignore[union-attr]
+        # The message text should be present (brackets are escaped/rendered)
+        assert "dim" in output
+        assert "failed to parse" in output
+        assert "✗" in output
+
+    def test_warning_with_rich_markup_in_message(
+        self, renderer: OutputRenderer, console: Console
+    ) -> None:
+        """Test that warning messages containing Rich-like markup don't crash."""
+        renderer.warning("Warning: [bold]unbalanced[/red] tags")
+        output = console.file.getvalue()  # type: ignore[union-attr]
+        assert "bold" in output
+        assert "unbalanced" in output
+        assert "⚠" in output
+
+    def test_success_with_rich_markup_in_message(
+        self, renderer: OutputRenderer, console: Console
+    ) -> None:
+        """Test that success messages containing Rich-like markup don't crash."""
+        renderer.success("Created file [test.txt]")
+        output = console.file.getvalue()  # type: ignore[union-attr]
+        assert "test.txt" in output
+        assert "✓" in output
+
+    def test_info_with_rich_markup_in_message(
+        self, renderer: OutputRenderer, console: Console
+    ) -> None:
+        """Test that info messages containing Rich-like markup don't crash."""
+        renderer.info("Status: [green]active[/] and [red]warning[/]")
+        output = console.file.getvalue()  # type: ignore[union-attr]
+        assert "green" in output
+        assert "active" in output
+        assert "ℹ" in output
+
+    def test_heading_with_rich_markup_in_text(
+        self, renderer: OutputRenderer, console: Console
+    ) -> None:
+        """Test that heading text containing Rich-like markup doesn't crash."""
+        renderer.heading("Section [1/3]")
+        output = console.file.getvalue()  # type: ignore[union-attr]
+        assert "Section" in output
+        assert "1" in output
+        assert "3" in output

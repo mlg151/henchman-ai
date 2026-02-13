@@ -66,7 +66,6 @@ class GrepTool(Tool):
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-
         self,
         pattern: str = "",
         path: str = ".",
@@ -137,9 +136,14 @@ class GrepTool(Tool):
                             results.append(match_str)
                             total_chars += len(match_str) + 1  # +1 for newline
 
-                            if len(results) >= self.MAX_MATCHES or total_chars >= self.MAX_OUTPUT_CHARS:
+                            if (
+                                len(results) >= self.MAX_MATCHES
+                                or total_chars >= self.MAX_OUTPUT_CHARS
+                            ):
                                 truncated = True
-                                results.append(f"... Output truncated (limit reached: {len(results)} matches or {total_chars} chars) ...")
+                                results.append(
+                                    f"... Output truncated (limit reached: {len(results)} matches or {total_chars} chars) ..."
+                                )
                                 break
 
                 except (PermissionError, UnicodeDecodeError):  # pragma: no cover

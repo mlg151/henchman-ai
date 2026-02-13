@@ -34,7 +34,9 @@ class TestJsonOutputRenderer:
         renderer = JsonOutputRenderer(console=mock_console)
         assert renderer.console is mock_console
 
-    def test_render_content_event(self, renderer: JsonOutputRenderer, mock_console: MagicMock) -> None:
+    def test_render_content_event(
+        self, renderer: JsonOutputRenderer, mock_console: MagicMock
+    ) -> None:
         """Test rendering a content event."""
         event = AgentEvent(EventType.CONTENT, "Hello, world!")
         renderer.render(event)
@@ -47,7 +49,9 @@ class TestJsonOutputRenderer:
         assert output["type"] == "content"
         assert output["data"] == "Hello, world!"
 
-    def test_render_thought_event(self, renderer: JsonOutputRenderer, mock_console: MagicMock) -> None:
+    def test_render_thought_event(
+        self, renderer: JsonOutputRenderer, mock_console: MagicMock
+    ) -> None:
         """Test rendering a thought event."""
         event = AgentEvent(EventType.THOUGHT, "Let me think about this...")
         renderer.render(event)
@@ -58,7 +62,9 @@ class TestJsonOutputRenderer:
         assert output["type"] == "thought"
         assert output["data"] == "Let me think about this..."
 
-    def test_render_tool_call_event(self, renderer: JsonOutputRenderer, mock_console: MagicMock) -> None:
+    def test_render_tool_call_event(
+        self, renderer: JsonOutputRenderer, mock_console: MagicMock
+    ) -> None:
         """Test rendering a tool call event."""
         tool_call = {"id": "123", "name": "read_file", "arguments": {"path": "test.txt"}}
         event = AgentEvent(EventType.TOOL_CALL_REQUEST, tool_call)
@@ -70,7 +76,9 @@ class TestJsonOutputRenderer:
         assert output["type"] == "tool_call_request"
         assert output["data"] == tool_call
 
-    def test_render_error_event(self, renderer: JsonOutputRenderer, mock_console: MagicMock) -> None:
+    def test_render_error_event(
+        self, renderer: JsonOutputRenderer, mock_console: MagicMock
+    ) -> None:
         """Test rendering an error event."""
         error = {"message": "Something went wrong", "code": 500}
         event = AgentEvent(EventType.ERROR, error)
@@ -82,7 +90,9 @@ class TestJsonOutputRenderer:
         assert output["type"] == "error"
         assert output["data"] == error
 
-    def test_render_finished_event(self, renderer: JsonOutputRenderer, mock_console: MagicMock) -> None:
+    def test_render_finished_event(
+        self, renderer: JsonOutputRenderer, mock_console: MagicMock
+    ) -> None:
         """Test rendering a finished event."""
         event = AgentEvent(EventType.FINISHED)
         renderer.render(event)
@@ -93,7 +103,9 @@ class TestJsonOutputRenderer:
         assert output["type"] == "finished"
         assert "data" not in output  # No data for finished event
 
-    def test_render_stream_json(self, renderer: JsonOutputRenderer, mock_console: MagicMock) -> None:
+    def test_render_stream_json(
+        self, renderer: JsonOutputRenderer, mock_console: MagicMock
+    ) -> None:
         """Test rendering with stream_json method."""
         event = AgentEvent(EventType.CONTENT, "Streaming content")
         renderer.render_stream_json(event)
@@ -125,6 +137,7 @@ class TestJsonOutputRenderer:
 
     def test_event_to_dict_with_object(self, renderer: JsonOutputRenderer) -> None:
         """Test converting an event with an object as data."""
+
         class TestObject:
             def __init__(self):
                 self.name = "test"

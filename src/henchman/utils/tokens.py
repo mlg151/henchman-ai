@@ -27,6 +27,7 @@ MODEL_LIMITS: dict[str, int] = {
     "gpt-4": 8192,
     "gpt-3.5-turbo": 16385,
     # Anthropic models (these use different tokenization but we estimate)
+    "claude-opus-4-6": 200000,
     "claude-sonnet-4-20250514": 200000,
     "claude-3-7-sonnet-20250219": 200000,
     "claude-3-5-sonnet-20241022": 200000,
@@ -129,7 +130,7 @@ class TokenCounter:
         tokens = encoding.encode(text)
         if len(tokens) <= max_tokens:
             return text
-        
+
         # Decode the truncated tokens
         # Note: We don't handle partial unicode bytes here as tiktoken handles text -> tokens -> text
         return encoding.decode(tokens[:max_tokens])
@@ -171,6 +172,7 @@ class TokenCounter:
                     # Approximate: function name + arguments as JSON
                     total += len(encoding.encode(tc.name))
                     import json
+
                     total += len(encoding.encode(json.dumps(tc.arguments)))
                     total += 10  # Overhead for tool call structure
 

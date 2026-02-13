@@ -108,9 +108,7 @@ class Tool(ABC):
         """
         return ToolKind.READ
 
-    def needs_confirmation(
-        self, params: dict[str, object]
-    ) -> ConfirmationRequest | None:
+    def needs_confirmation(self, params: dict[str, object]) -> ConfirmationRequest | None:
         """Check if this tool needs user confirmation.
 
         Args:

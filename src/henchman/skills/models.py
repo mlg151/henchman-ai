@@ -6,18 +6,23 @@ from pydantic import BaseModel, Field
 
 class SkillStep(BaseModel):
     """A single step in a skill execution."""
+
     description: str
     tool: str
     arguments: dict[str, Any]
 
+
 class SkillParameter(BaseModel):
     """A parameter for a skill."""
+
     description: str
     required: bool = False
     default: Any | None = None
 
+
 class Skill(BaseModel):
     """A learned skill that can be replayed."""
+
     name: str
     description: str
     version: int = 1

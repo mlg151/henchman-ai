@@ -46,6 +46,7 @@ class TestAnthropicProvider:
         """Test listing available models."""
         provider = AnthropicProvider(api_key="test-key")
         models = provider.list_models()
+        assert "claude-opus-4-6" in models
         assert "claude-sonnet-4-20250514" in models
         assert "claude-3-5-sonnet-20241022" in models
 

@@ -1,4 +1,3 @@
-
 from unittest.mock import patch
 
 import pytest
@@ -15,6 +14,7 @@ def test_store_default_dir():
         store = SkillStore()
         assert "/tmp/mockhome/.henchman/skills" in str(store.skills_dir)
 
+
 def test_export_import_skill(tmp_path):
     store = SkillStore(skills_dir=tmp_path / "skills")
     skill = Skill(name="ex", description="d", steps=[])
@@ -28,6 +28,7 @@ def test_export_import_skill(tmp_path):
     imported = store2.import_skill(exported)
     assert imported.name == "ex"
     assert store2.load("ex").name == "ex"
+
 
 def test_remote_push_pull(tmp_path):
     store = SkillStore(skills_dir=tmp_path)

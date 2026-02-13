@@ -5,9 +5,11 @@ This module provides the /chat command for saving, listing, and resuming session
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 from henchman.cli.commands import Command, CommandContext
+from henchman.providers.base import Message, ToolCall
 
 if TYPE_CHECKING:
     from henchman.core.session import SessionManager
@@ -66,9 +68,9 @@ class ChatCommand(Command):
     async def _show_help(self, ctx: CommandContext) -> None:
         """Show help for /chat command."""
         ctx.console.print("\n[bold blue]Chat Session Commands[/]\n")
-        ctx.console.print("  /chat save [tag]    - Save current session")
-        ctx.console.print("  /chat list          - List saved sessions")
-        ctx.console.print("  /chat resume <tag>  - Resume a saved session")
+        ctx.console.print("  /chat save [tag]       - Save current session")
+        ctx.console.print("  /chat list             - List saved sessions")
+        ctx.console.print("  /chat resume <tag|id>  - Resume a saved session")
         ctx.console.print("")
 
     async def _save(self, ctx: CommandContext) -> None:
@@ -110,8 +112,7 @@ class ChatCommand(Command):
         for meta in sessions:
             tag_display = f"[cyan]{meta.tag}[/]" if meta.tag else f"[dim]{meta.id[:8]}[/]"
             ctx.console.print(
-                f"  {tag_display} - {meta.message_count} messages, "
-                f"updated {meta.last_updated[:10]}"
+                f"  {tag_display} - {meta.message_count} messages, updated {meta.last_updated[:10]}"
             )
         ctx.console.print("")
 
@@ -123,18 +124,58 @@ class ChatCommand(Command):
             return
 
         if len(ctx.args) < 2:
-            ctx.console.print("[yellow]Usage: /chat resume <tag>[/]")
+            ctx.console.print("[yellow]Usage: /chat resume <tag|id>[/]")
             return
 
-        tag = ctx.args[1]
+        tag_or_id = ctx.args[1]
         project_hash = getattr(ctx, "project_hash", None)
 
-        session = manager.load_by_tag(tag, project_hash)
+        # Try loading by tag first
+        session = manager.load_by_tag(tag_or_id, project_hash)
+
+        # If that fails, try loading by ID
         if session is None:
-            ctx.console.print(f"[red]Session not found: {tag}[/]")
+            with contextlib.suppress(ValueError, FileNotFoundError):
+                session = manager.load(tag_or_id)
+
+        if session is None:
+            ctx.console.print(f"[red]Session not found: {tag_or_id}[/]")
             return
 
-        manager.set_current(session)
+        # Use repl.set_session if available to handle all sync logic
+        if ctx.repl and hasattr(ctx.repl, "set_session"):
+            ctx.repl.set_session(session)
+        else:
+            # Fallback for when REPL isn't available (e.g. some tests)
+            manager.set_current(session)
+
+            # Restore session messages to agent history
+            if ctx.agent is not None:
+                # Clear agent history (keeping system prompt)
+                ctx.agent.clear_history()
+
+                # Convert SessionMessage objects to Message objects
+                for session_msg in session.messages:
+                    # Convert tool_calls from dicts to ToolCall objects if present
+                    tool_calls = None
+                    if session_msg.tool_calls:
+                        tool_calls = [
+                            ToolCall(
+                                id=tc.get("id", ""),
+                                name=tc.get("name", ""),
+                                arguments=tc.get("arguments", {}),
+                            )
+                            for tc in session_msg.tool_calls
+                        ]
+
+                    msg = Message(
+                        role=session_msg.role,
+                        content=session_msg.content,
+                        tool_calls=tool_calls,
+                        tool_call_id=session_msg.tool_call_id,
+                    )
+                    ctx.agent.messages.append(msg)
+
         ctx.console.print(
-            f"[green]✓[/] Resumed session '{tag}' ({len(session.messages)} messages)"
+            f"[green]✓[/] Resumed session '{tag_or_id}' ({len(session.messages)} messages)"
         )

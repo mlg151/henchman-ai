@@ -63,6 +63,4 @@ class ExtensionsCommand(Command):
             ext = self._manager.get(name)
             # ext is guaranteed to exist since we iterate over registered names
             assert ext is not None
-            ctx.console.print(
-                f"  • [cyan]{ext.name}[/] v{ext.version} - {ext.description}"
-            )
+            ctx.console.print(f"  • [cyan]{ext.name}[/] v{ext.version} - {ext.description}")

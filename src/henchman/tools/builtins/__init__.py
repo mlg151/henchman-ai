@@ -7,8 +7,10 @@ from henchman.tools.builtins.file_write import WriteFileTool
 from henchman.tools.builtins.glob_tool import GlobTool
 from henchman.tools.builtins.grep import GrepTool
 from henchman.tools.builtins.ls import LsTool
+from henchman.tools.builtins.rag_search import RagSearchTool
 from henchman.tools.builtins.shell import ShellTool
 from henchman.tools.builtins.web_fetch import WebFetchTool
+from henchman.tools.builtins.web_search import DuckDuckGoSearchTool
 
 __all__ = [
     "AskUserTool",
@@ -16,8 +18,10 @@ __all__ = [
     "GlobTool",
     "GrepTool",
     "LsTool",
+    "RagSearchTool",
     "ReadFileTool",
     "ShellTool",
     "WebFetchTool",
+    "DuckDuckGoSearchTool",
     "WriteFileTool",
 ]

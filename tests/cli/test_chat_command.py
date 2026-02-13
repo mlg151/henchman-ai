@@ -34,9 +34,7 @@ class TestChatCommand:
         return SessionManager(data_dir=temp_data_dir)
 
     @pytest.fixture
-    def ctx(
-        self, console: Console, session_manager: SessionManager
-    ) -> CommandContext:
+    def ctx(self, console: Console, session_manager: SessionManager) -> CommandContext:
         """Create a command context."""
         ctx = CommandContext(console=console, args=[])
         ctx.session_manager = session_manager  # type: ignore[attr-defined]
@@ -207,3 +205,138 @@ class TestChatCommand:
 
         output = ctx.console.file.getvalue()  # type: ignore[union-attr]
         assert "usage" in output.lower()
+
+    @pytest.mark.anyio
+    async def test_chat_resume_restores_agent_history(self, ctx: CommandContext) -> None:
+        """Test /chat resume restores session messages to agent history."""
+        from unittest.mock import AsyncMock, Mock
+
+        from henchman.core.agent import Agent
+
+        # Create a mock agent
+        mock_provider = Mock()
+        mock_provider.chat_completion_stream = AsyncMock()
+        agent = Agent(provider=mock_provider)
+        ctx.agent = agent
+
+        # Create and save a session with messages
+        session = ctx.session_manager.create_session(project_hash="test", tag="history-test")  # type: ignore[attr-defined]
+        session.messages.append(SessionMessage(role="user", content="Hello"))
+        session.messages.append(SessionMessage(role="assistant", content="Hi there!"))
+        ctx.session_manager.save(session)  # type: ignore[attr-defined]
+
+        ctx.args = ["resume", "history-test"]
+        ctx.project_hash = "test"  # type: ignore[attr-defined]
+        cmd = ChatCommand()
+        await cmd.execute(ctx)
+
+        # Verify agent history was restored
+        assert len(agent.messages) == 2
+        assert agent.messages[0].role == "user"
+        assert agent.messages[0].content == "Hello"
+        assert agent.messages[1].role == "assistant"
+        assert agent.messages[1].content == "Hi there!"
+
+    @pytest.mark.anyio
+    async def test_chat_resume_restores_tool_calls(self, ctx: CommandContext) -> None:
+        """Test /chat resume correctly restores sessions with tool calls."""
+        from unittest.mock import AsyncMock, Mock
+
+        from henchman.core.agent import Agent
+
+        # Create a mock agent
+        mock_provider = Mock()
+        mock_provider.chat_completion_stream = AsyncMock()
+        agent = Agent(provider=mock_provider)
+        ctx.agent = agent
+
+        # Create and save a session with tool calls
+        session = ctx.session_manager.create_session(project_hash="test", tag="tool-test")  # type: ignore[attr-defined]
+        session.messages.append(SessionMessage(role="user", content="Read file.txt"))
+        session.messages.append(
+            SessionMessage(
+                role="assistant",
+                content=None,
+                tool_calls=[
+                    {"id": "call_123", "name": "read_file", "arguments": {"path": "file.txt"}}
+                ],
+            )
+        )
+        session.messages.append(
+            SessionMessage(role="tool", content="File content here", tool_call_id="call_123")
+        )
+        session.messages.append(SessionMessage(role="assistant", content="The file contains: ..."))
+        ctx.session_manager.save(session)  # type: ignore[attr-defined]
+
+        ctx.args = ["resume", "tool-test"]
+        ctx.project_hash = "test"  # type: ignore[attr-defined]
+        cmd = ChatCommand()
+        await cmd.execute(ctx)
+
+        # Verify agent history was restored correctly
+        assert len(agent.messages) == 4
+
+        # User message
+        assert agent.messages[0].role == "user"
+        assert agent.messages[0].content == "Read file.txt"
+
+        # Assistant with tool_calls
+        assert agent.messages[1].role == "assistant"
+        assert agent.messages[1].tool_calls is not None
+        assert len(agent.messages[1].tool_calls) == 1
+        assert agent.messages[1].tool_calls[0].id == "call_123"
+        assert agent.messages[1].tool_calls[0].name == "read_file"
+
+        # Tool result
+        assert agent.messages[2].role == "tool"
+        assert agent.messages[2].content == "File content here"
+        assert agent.messages[2].tool_call_id == "call_123"
+
+        # Final assistant response
+        assert agent.messages[3].role == "assistant"
+        assert "file contains" in agent.messages[3].content.lower()
+
+    @pytest.mark.anyio
+    async def test_chat_resume_validates_restored_history(self, ctx: CommandContext) -> None:
+        """Test that restored session history passes message validation."""
+        from unittest.mock import AsyncMock, Mock
+
+        from henchman.core.agent import Agent
+        from henchman.utils.validation import validate_message_sequence
+
+        # Create a mock agent
+        mock_provider = Mock()
+        mock_provider.chat_completion_stream = AsyncMock()
+        agent = Agent(provider=mock_provider)
+        ctx.agent = agent
+
+        # Create session with complete tool call sequence
+        session = ctx.session_manager.create_session(project_hash="test", tag="validate-test")  # type: ignore[attr-defined]
+        session.messages.append(SessionMessage(role="user", content="List files"))
+        session.messages.append(
+            SessionMessage(
+                role="assistant",
+                content=None,
+                tool_calls=[
+                    {"id": "call_1", "name": "ls", "arguments": {"path": "."}},
+                    {"id": "call_2", "name": "glob", "arguments": {"pattern": "*.py"}},
+                ],
+            )
+        )
+        session.messages.append(
+            SessionMessage(role="tool", content="file1.py\nfile2.py", tool_call_id="call_1")
+        )
+        session.messages.append(
+            SessionMessage(role="tool", content="test.py", tool_call_id="call_2")
+        )
+        session.messages.append(SessionMessage(role="assistant", content="Found these files..."))
+        ctx.session_manager.save(session)  # type: ignore[attr-defined]
+
+        ctx.args = ["resume", "validate-test"]
+        ctx.project_hash = "test"  # type: ignore[attr-defined]
+        cmd = ChatCommand()
+        await cmd.execute(ctx)
+
+        # Validate the restored message sequence
+        # This should NOT raise ValueError
+        validate_message_sequence(agent.messages)

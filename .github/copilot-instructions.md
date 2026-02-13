@@ -1,7 +1,7 @@
-### /home/matthew/mlg-cli/.github/copilot-instructions.md
-```markdown
 # Henchman-AI Copilot Instructions
+
 Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. It supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, Ollama) via a unified provider abstraction.
+
 ## Project Status
 - **Phase 1**: Project Foundation ✅
 - **Phase 2**: Provider System ✅
@@ -15,16 +15,18 @@ Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-c
 - **Phase 10**: Extensions & Plugins ✅
 - **Phase 11**: Advanced Features ✅ (Multiple Providers, Headless mode, JSON output)
 - **Phase 12**: Polish & Release ✅ (99% test coverage, all core features implemented)
+- **Phase 13**: Multi-Agent Dev Team ✅ (Orchestrator, EventBus, Team Delegation)
 ## Architecture Overview
 ```
-src/mlg/
-├── cli/        # UI layer: Rich console, prompt_toolkit input, slash commands
-├── core/       # Agent layer: AgentLoop, EventBus, ToolRegistry, PolicyEngine
+src/henchman/
+├── agents/     # Multi-agent system: Orchestrator, AgentPool, Identity, Prompts, Presets
+├── cli/        # UI layer: Rich console, prompt_toolkit input, slash commands (/agent, /team)
+├── core/       # Agent layer: Agent, EventBus, events, session
 ├── providers/  # Model providers: OpenAICompatible base, DeepSeek, Anthropic, Ollama
-├── tools/      # Built-in tools: read_file, write_file, shell, grep, glob, web_fetch
+├── tools/      # Built-in tools: read_file, write_file, delegate_task, send_message
 ├── mcp/        # MCP integration: McpClient, McpManager, McpTool wrapper
 ├── extensions/ # Plugin system: Extension ABC, ExtensionManager, /extensions command
-├── config/     # Pydantic settings, hierarchical YAML loading, HENCHMAN.md context
+├── config/     # Pydantic settings, hierarchical YAML loading, AgentConfig
 └── utils/      # Utility functions and helpers
 ```
 **Key insight**: DeepSeek uses OpenAI-compatible API, so `OpenAICompatibleProvider` handles DeepSeek, OpenAI, Together, Groq, and similar APIs.
@@ -58,13 +60,13 @@ provider = AnthropicProvider(api_key="sk-ant-...", model="claude-sonnet-4-202505
 provider = OllamaProvider(model="llama3.2")
 # Stream chat completion
 async for chunk in provider.chat_completion_stream(
-messages=[Message(role="user", content="Hello")],
-tools=[...],  # Optional tool declarations
+    messages=[Message(role="user", content="Hello")],
+    tools=[...],  # Optional tool declarations
 ):
-if chunk.content:
-print(chunk.content, end="")
-if chunk.finish_reason:
-break
+    if chunk.content:
+        print(chunk.content, end="")
+    if chunk.finish_reason:
+        break
 ```
 ### Available Providers
 | Provider | API Key Env Var | Default Model | Notes |
@@ -104,18 +106,18 @@ provider = DeepSeekProvider(api_key="...", model="deepseek-chat")
 agent = Agent(provider=provider, system_prompt="You are a helpful assistant.")
 # Stream agent events
 async for event in agent.run("Hello, world!"):
-if event.type == EventType.CONTENT:
-print(event.data, end="")
-elif event.type == EventType.TOOL_CALL_REQUEST:
-# Handle tool call
-tool_call = event.data
-result = execute_tool(tool_call)
-agent.submit_tool_result(tool_call.id, result)
-elif event.type == EventType.FINISHED:
-break
+    if event.type == EventType.CONTENT:
+        print(event.data, end="")
+    elif event.type == EventType.TOOL_CALL_REQUEST:
+        # Handle tool call
+        tool_call = event.data
+        result = execute_tool(tool_call)
+        agent.submit_tool_result(tool_call.id, result)
+    elif event.type == EventType.FINISHED:
+        break
 # Continue after tool results
 async for event in agent.continue_with_tool_results():
-...
+    ...
 ```
 ### Interactive REPL (Implemented)
 The Repl class provides the main interactive loop:
@@ -160,24 +162,28 @@ Tools extend the `Tool` ABC with a `ToolKind` that determines auto-approval:
 from henchman.tools import Tool, ToolKind, ToolResult, ToolRegistry, ConfirmationRequest
 # Define a custom tool
 class MyTool(Tool):
-@property
-def name(self) -> str:
-return "my_tool"
-@property
-def description(self) -> str:
-return "Does something useful"
-@property
-def parameters(self) -> dict[str, object]:
-return {
-"type": "object",
-"properties": {"input": {"type": "string"}},
-"required": ["input"],
-}
-@property
-def kind(self) -> ToolKind:
-return ToolKind.READ  # Auto-approved
-async def execute(self, **params: object) -> ToolResult:
-return ToolResult(content=f"Result: {params.get('input')}")
+    @property
+    def name(self) -> str:
+        return "my_tool"
+    
+    @property
+    def description(self) -> str:
+        return "Does something useful"
+    
+    @property
+    def parameters(self) -> dict[str, object]:
+        return {
+            "type": "object",
+            "properties": {"input": {"type": "string"}},
+            "required": ["input"],
+        }
+    
+    @property
+    def kind(self) -> ToolKind:
+        return ToolKind.READ  # Auto-approved
+    
+    async def execute(self, **params: object) -> ToolResult:
+        return ToolResult(content=f"Result: {params.get('input')}")
 # Register and use tools
 registry = ToolRegistry()
 registry.register(MyTool())
@@ -266,7 +272,7 @@ session.messages.append(SessionMessage(role="assistant", content="Hi there!"))
 manager.save(session)
 # List sessions for current project
 for meta in manager.list_sessions(project_hash):
-print(f"{meta.tag}: {meta.message_count} messages")
+    print(f"{meta.tag}: {meta.message_count} messages")
 # Load session by tag
 loaded = manager.load_by_tag("my-feature", project_hash)
 # Delete a session
@@ -287,9 +293,9 @@ MCP (Model Context Protocol) enables connecting to external tool servers:
 from henchman.mcp import McpServerConfig, McpClient, McpManager, McpTool
 # Configure an MCP server
 config = McpServerConfig(
-command="npx",
-args=["@anthropic-ai/mcp-filesystem-server", "/home/user"],
-trusted=False,  # Untrusted servers require tool confirmation
+    command="npx",
+    args=["@anthropic-ai/mcp-filesystem-server", "/home/user"],
+    trusted=False,  # Untrusted servers require tool confirmation
 )
 # Connect to a single server
 client = McpClient(name="filesystem", config=config)
@@ -335,21 +341,26 @@ from henchman.tools.base import Tool
 from henchman.cli.commands import Command
 # Define a custom extension
 class MyExtension(Extension):
-@property
-def name(self) -> str:
-return "my_extension"
-@property
-def version(self) -> str:
-return "1.0.0"
-@property
-def description(self) -> str:
-return "My custom extension"
-def get_tools(self) -> list[Tool]:
-return [MyCustomTool()]
-def get_commands(self) -> list[Command]:
-return [MyCustomCommand()]
-def get_context(self) -> str:
-return "Additional system prompt context"
+    @property
+    def name(self) -> str:
+        return "my_extension"
+    
+    @property
+    def version(self) -> str:
+        return "1.0.0"
+    
+    @property
+    def description(self) -> str:
+        return "My custom extension"
+    
+    def get_tools(self) -> list[Tool]:
+        return [MyCustomTool()]
+    
+    def get_commands(self) -> list[Command]:
+        return [MyCustomCommand()]
+    
+    def get_context(self) -> str:
+        return "Additional system prompt context"
 # Load extensions
 manager = ExtensionManager()
 manager.discover_entry_points()  # From installed packages
@@ -373,13 +384,15 @@ manager.discover_directory(Path.home() / ".mlg" / "extensions")
 ```python
 # Mock providers for unit tests
 from unittest.mock import AsyncMock, MagicMock
+
 @pytest.fixture
 def mock_provider():
-provider = AsyncMock(spec=ModelProvider)
-async def mock_stream(*args, **kwargs):
-yield StreamChunk(content="Hello")
-provider.chat_completion_stream = mock_stream
-return provider
+    provider = AsyncMock(spec=ModelProvider)
+    async def mock_stream(*args, **kwargs):
+        yield StreamChunk(content="Hello")
+    provider.chat_completion_stream = mock_stream
+    return provider
+
 # Mark integration tests that call real APIs
 @pytest.mark.integration
 async def test_real_api(): ...
@@ -477,4 +490,3 @@ This project follows **Test-Driven Development (TDD)** with strict quality requi
 6. Update relevant documentation
 ## Implementation Reference
 See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md) for the 12-phase implementation roadmap with detailed code examples for each component.
-```

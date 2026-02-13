@@ -36,11 +36,7 @@ def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]
     """
     result = base.copy()
     for key, value in override.items():
-        if (
-            key in result
-            and isinstance(result[key], dict)
-            and isinstance(value, dict)
-        ):
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = deep_merge(result[key], value)
         else:
             result[key] = value
@@ -95,9 +91,7 @@ def _load_file(path: Path) -> dict[str, Any]:
     content = path.read_text()
     try:
         data: dict[str, Any] = (
-            yaml.safe_load(content)
-            if path.suffix in (".yaml", ".yml")
-            else json.loads(content)
+            yaml.safe_load(content) if path.suffix in (".yaml", ".yml") else json.loads(content)
         )
         return data if data else {}
     except (yaml.YAMLError, json.JSONDecodeError) as e:

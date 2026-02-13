@@ -48,6 +48,7 @@ def test_ctrl_c_double_tap_exits():
 
 def test_escape_raises_keyboard_interrupt():
     """Test that escape on empty buffer raises KeyboardInterrupt."""
+
     # This tests the input.py escape handler logic
     class MockBuffer:
         def __init__(self, text):

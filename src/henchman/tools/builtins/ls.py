@@ -50,7 +50,6 @@ class LsTool(Tool):
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-
         self,
         path: str = ".",
         show_hidden: bool = False,
@@ -102,7 +101,7 @@ class LsTool(Tool):
 
             if len(all_items) > self.MAX_ITEMS:
                 truncated = True
-                all_items = all_items[:self.MAX_ITEMS]
+                all_items = all_items[: self.MAX_ITEMS]
 
             # Sort the collected items
             all_items.sort(key=lambda p: p.name)

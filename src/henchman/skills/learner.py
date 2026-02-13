@@ -46,4 +46,3 @@ class SkillLearner:
                     steps.append(step)
 
         return Skill(name=name, description=description, steps=steps)
-

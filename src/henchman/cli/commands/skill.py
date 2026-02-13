@@ -139,6 +139,7 @@ class SkillCommand(Command):
         learner = SkillLearner()
         # Cast to avoid invariance issue or use Union
         from typing import Any, cast
+
         messages = cast(list[Any], ctx.session.messages)
         skill = learner.extract_skill(name, description, messages)
 

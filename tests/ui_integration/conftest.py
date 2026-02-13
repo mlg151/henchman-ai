@@ -1,6 +1,7 @@
 """
 Test fixtures for UI integration tests.
 """
+
 from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, Mock
 
@@ -26,12 +27,7 @@ def mock_provider() -> Mock:
         mock_response.choices = [Mock()]
         mock_response.choices[0].message = Mock()
         mock_response.choices[0].message.tool_calls = [
-            Mock(
-                function=Mock(
-                    name="read_file",
-                    arguments='{"path": "/tmp/test.txt"}'
-                )
-            )
+            Mock(function=Mock(name="read_file", arguments='{"path": "/tmp/test.txt"}'))
         ]
         return mock_response
 
@@ -48,11 +44,7 @@ def console_with_recording() -> Console:
 @pytest.fixture
 def repl_with_tools(mock_provider, console_with_recording) -> Repl:
     """REPL instance with all tools registered."""
-    repl = Repl(
-        provider=mock_provider,
-        console=console_with_recording,
-        config=ReplConfig()
-    )
+    repl = Repl(provider=mock_provider, console=console_with_recording, config=ReplConfig())
     return repl
 
 
@@ -65,10 +57,7 @@ def mock_agent_with_tools() -> Mock:
     async def mock_run_agent(*_, **__):
         yield AgentEvent(
             type=EventType.TOOL_CALL_REQUEST,
-            data=ToolCall(
-                tool_name="read_file",
-                arguments={"path": "/tmp/test.txt"}
-            )
+            data=ToolCall(tool_name="read_file", arguments={"path": "/tmp/test.txt"}),
         )
         yield AgentEvent(type=EventType.FINISHED, data=None)
 
