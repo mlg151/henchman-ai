@@ -18,14 +18,15 @@ from rich.status import Status
 from henchman.agents.orchestrator import Orchestrator
 from henchman.cli.commands import CommandContext, CommandRegistry, parse_command
 from henchman.cli.commands.builtins import get_builtin_commands
-from henchman.cli.console import OutputRenderer
 from henchman.cli.input import create_session, expand_at_references, is_slash_command
+from henchman.cli.session_manager import ReplSessionManager
+from henchman.cli.tool_manager import ToolManager
+from henchman.cli.ui_renderer import UIRenderer
 from henchman.core.eventbus import EventBus
 from henchman.core.events import AgentEvent, EventType
-from henchman.core.session import Session, SessionManager, SessionMessage
-from henchman.providers.base import Message, ModelProvider, ToolCall
+from henchman.core.session import Session
+from henchman.providers.base import ModelProvider, ToolCall
 from henchman.tools.base import ConfirmationRequest
-from henchman.tools.registry import ToolRegistry
 
 if TYPE_CHECKING:
     from henchman.config.schema import Settings
@@ -85,12 +86,14 @@ class Repl:
         self.console = console or Console()
         self.config = config or ReplConfig()
         self.settings = settings
-        self.renderer = OutputRenderer(console=self.console)
+        self.renderer = UIRenderer(console=self.console)
 
-        # Initialize tool registry with built-in tools
-        self.tool_registry = ToolRegistry()
-        self.tool_registry.set_confirmation_handler(self._handle_confirmation)
-        self._register_builtin_tools()
+        # Initialize tool manager
+        self.tool_manager = ToolManager(settings=settings)
+        self.tool_manager.set_auto_approve(self.config.auto_approve_tools)
+        self.tool_manager.set_confirmation_handler(self._handle_confirmation)
+        self.tool_manager.register_builtin_tools()
+        self.tool_registry = self.tool_manager.registry  # Backwards compatibility
 
         # Determine max_tokens from settings
         # Apply compaction_threshold to get the actual limit
@@ -132,9 +135,10 @@ class Repl:
         history_file = self.config.history_file or Path.home() / ".henchman_history"
         self.prompt_session = create_session(history_file, bottom_toolbar=self._get_toolbar_status)
 
-        # Session management (can be set externally for testing)
-        self.session_manager: SessionManager | None = None
-        self.session: Session | None = None
+        # Session management
+        self.session_manager = ReplSessionManager(
+            auto_save=self.config.auto_save
+        )
 
         # RAG system (set externally by app.py)
         self.rag_system: object | None = None
@@ -146,35 +150,7 @@ class Repl:
         Args:
             session: The session to activate.
         """
-        self.session = session
-        if self.session_manager:
-            self.session_manager.set_current(session)
-
-        # Restore session messages to agent history
-        # Clear agent history (keeping current system prompt)
-        self.agent.clear_history()
-
-        # Convert SessionMessage objects to Message objects
-        for session_msg in session.messages:
-            # Convert tool_calls from dicts to ToolCall objects if present
-            tool_calls = None
-            if session_msg.tool_calls:
-                tool_calls = [
-                    ToolCall(
-                        id=tc.get("id", ""),
-                        name=tc.get("name", ""),
-                        arguments=tc.get("arguments", {}),
-                    )
-                    for tc in session_msg.tool_calls
-                ]
-
-            msg = Message(
-                role=session_msg.role,
-                content=session_msg.content,
-                tool_calls=tool_calls,
-                tool_call_id=session_msg.tool_call_id,
-            )
-            self.agent.messages.append(msg)
+        self.session_manager.set_session(session, self.orchestrator)
 
     def _get_toolbar_status(self) -> list[tuple[str, str]]:
         """Get status bar content."""
@@ -183,7 +159,7 @@ class Repl:
         status = []
 
         # Plan Mode
-        plan_mode = self.session.plan_mode if self.session else False
+        plan_mode = self.session_manager.session.plan_mode if self.session_manager.session else False
         if plan_mode:
             status.append(("bg:yellow fg:black bold", " PLAN MODE "))
         else:
@@ -205,65 +181,7 @@ class Repl:
 
     def _get_rich_status_message(self) -> str:
         """Get rich status message for persistent display."""
-        from henchman.utils.tokens import TokenCounter
-
-        parts = []
-
-        # Plan Mode
-        plan_mode = self.session.plan_mode if self.session else False
-        parts.append("[yellow]PLAN[/]" if plan_mode else "[blue]CHAT[/]")
-
-        # Tokens
-        try:
-            msgs = self.agent.get_messages_for_api()
-            tokens = TokenCounter.count_messages(msgs)
-            parts.append(f"Tokens: ~[cyan]{tokens}[/]")
-        except Exception:
-            pass
-
-        # RAG Status
-        if self.rag_system and getattr(self.rag_system, "is_indexing", False):
-            parts.append("[cyan]RAG: Indexing...[/]")
-
-        return " | ".join(parts)
-
-    def _register_builtin_tools(self) -> None:
-        """Register built-in tools with the registry."""
-        from henchman.tools.builtins import (
-            AskUserTool,
-            DuckDuckGoSearchTool,
-            EditFileTool,
-            GlobTool,
-            GrepTool,
-            KgQueryTool,
-            KgUpdateTool,
-            LsTool,
-            ReadFileTool,
-            ShellTool,
-            WebFetchTool,
-            WriteFileTool,
-        )
-
-        tools = [
-            AskUserTool(),
-            ReadFileTool(),
-            WriteFileTool(),
-            EditFileTool(),
-            LsTool(),
-            GlobTool(),
-            GrepTool(),
-            ShellTool(
-                default_timeout=(
-                    self.settings.tools.shell_timeout if self.settings else 3600
-                )
-            ),
-            WebFetchTool(),
-            DuckDuckGoSearchTool(),
-            KgQueryTool(),
-            KgUpdateTool(),
-        ]
-        for tool in tools:
-            self.tool_registry.register(tool)
+        return self.renderer.get_rich_status_message(self.session_manager.session, self.agent, self.rag_system)
 
     async def _handle_confirmation(self, request: ConfirmationRequest) -> bool:
         """Handle a tool confirmation request from the registry.
@@ -274,10 +192,8 @@ class Repl:
         Returns:
             True if approved, False otherwise.
         """
-        # Auto-approve if configured
-        if self.config.auto_approve_tools:
-            return True
-
+        # Auto-approve is handled by tool_manager.handle_confirmation
+        # This method only contains the interactive confirmation logic
         # Formulate a clear message for the user
         import json
 
@@ -327,7 +243,7 @@ class Repl:
                     self.running = False
                     break
                 except EOFError:
-                    self.console.print()
+                    self.renderer.print_newline()
                     break
         finally:
             self.running = False
@@ -336,22 +252,15 @@ class Repl:
 
     def _print_welcome(self) -> None:
         """Print welcome message."""
-        self.console.print("[bold blue]Henchman-AI[/] - /help for commands, /quit to exit\n")
+        self.renderer.print_welcome()
 
     def _print_goodbye(self) -> None:
         """Print goodbye message."""
-        self.console.print("[dim]Goodbye![/]")
+        self.renderer.print_goodbye()
 
     def _auto_save_session(self) -> None:
         """Auto-save the session if enabled and session has content."""
-        if not self.config.auto_save:
-            return
-        if self.session_manager is None or self.session is None:
-            return
-        if len(self.session.messages) == 0:
-            return
-
-        self.session_manager.save(self.session)
+        self.session_manager.auto_save_session()
 
     async def _get_input(self) -> str:
         """Get input from the user.
@@ -364,7 +273,7 @@ class Repl:
             EOFError: If user presses Ctrl+D.
         """
         # Ensure a fresh line for the prompt
-        self.console.print()
+        self.renderer.print_newline()
         return await self.prompt_session.prompt_async(self.config.prompt)
 
     async def process_input(self, user_input: str) -> bool:
@@ -430,15 +339,14 @@ class Repl:
             args=args,
             agent=self.agent,
             tool_registry=self.tool_registry,
-            session=self.session,
+            session=self.session_manager.session,
             repl=self,
         )
         # Add session_manager and project_hash for /chat command
-        if self.session_manager:
-            ctx.session_manager = self.session_manager
-            from pathlib import Path
+        ctx.session_manager = self.session_manager.session_manager
+        from pathlib import Path
 
-            ctx.project_hash = self.session_manager.compute_project_hash(Path.cwd())
+        ctx.project_hash = self.session_manager.compute_project_hash(Path.cwd())
 
         await cmd.execute(ctx)
         return True
@@ -450,8 +358,7 @@ class Repl:
             user_input: The processed user input.
         """
         # Record user message to session
-        if self.session is not None:
-            self.session.messages.append(SessionMessage(role="user", content=user_input))
+        self.session_manager.record_user_message(user_input)
 
         # Collect assistant response - now also tracks tool calls for session
         assistant_content: list[str] = []
@@ -462,7 +369,7 @@ class Repl:
         self.current_monitor = monitor
         monitor_task = asyncio.create_task(monitor.monitor())
 
-        with self.console.status(self._get_rich_status_message(), spinner="dots") as status_obj:
+        with self.renderer.create_status(self._get_rich_status_message(), spinner="dots") as status_obj:
             # Run the orchestrator stream processing as a separate task so we can cancel it
             agent_task = asyncio.create_task(
                 self._process_agent_stream(
@@ -506,8 +413,7 @@ class Repl:
             user_input: The user's input.
         """
         # Record user message to session
-        if self.session is not None:
-            self.session.messages.append(SessionMessage(role="user", content=f"[@{role}] {user_input}"))
+        self.session_manager.record_user_message(f"[@{role}] {user_input}")
 
         assistant_content: list[str] = []
 
@@ -516,7 +422,7 @@ class Repl:
         self.current_monitor = monitor
         monitor_task = asyncio.create_task(monitor.monitor())
 
-        with self.console.status(f"[bold cyan]@{role}[/] thinking...", spinner="dots") as status_obj:
+        with self.renderer.create_status(f"[bold cyan]@{role}[/] thinking...", spinner="dots") as status_obj:
             agent_task = asyncio.create_task(
                 self._process_agent_stream(
                     self.orchestrator.run_direct(role, user_input), assistant_content, status_obj
@@ -600,7 +506,7 @@ class Repl:
 
             if event.type == EventType.CONTENT:
                 # Stream content to console
-                self.console.print(event.data, end="")
+                self.renderer.print_agent_content(event.data)
                 if content_collector is not None and event.data:
                     content_collector.append(event.data)
                 if event.data:
@@ -637,30 +543,20 @@ class Repl:
 
                     # Record to session: flush assistant tool_calls msg once,
                     # then each tool result as it arrives.
-                    if self.session is not None:
-                        if not _session_tool_calls_flushed and pending_tool_calls:
-                            tool_calls_dicts = [
-                                {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                                for tc in pending_tool_calls
-                            ]
-                            self.session.messages.append(
-                                SessionMessage(
-                                    role="assistant",
-                                    content="".join(accumulated_content) if accumulated_content else None,
-                                    tool_calls=tool_calls_dicts,
-                                    agent_id=last_agent_id,
-                                )
-                            )
-                            accumulated_content.clear()
-                            _session_tool_calls_flushed = True
-
-                        self.session.messages.append(
-                            SessionMessage(
-                                role="tool",
-                                content=result_text,
-                                tool_call_id=tc_id,
-                            )
+                    if not _session_tool_calls_flushed and pending_tool_calls:
+                        tool_calls_dicts = [
+                            {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
+                            for tc in pending_tool_calls
+                        ]
+                        self.session_manager.record_agent_message(
+                            content="".join(accumulated_content) if accumulated_content else None,
+                            tool_calls=tool_calls_dicts,
+                            agent_id=last_agent_id,
                         )
+                        accumulated_content.clear()
+                        _session_tool_calls_flushed = True
+
+                    self.session_manager.record_tool_result(tc_id, result_text)
 
             elif event.type == EventType.AGENT_DELEGATED:
                 from_agent = event.data.get("from", "unknown")
@@ -683,45 +579,36 @@ class Repl:
                 self.renderer.muted(f"\n[bold cyan]→ {to_agent}[/]: {msg}")
 
             elif event.type == EventType.FINISHED:
-                self.console.print()
+                self.renderer.print_newline()
 
             elif event.type == EventType.ERROR:
                 self.renderer.error(str(event.data))
 
         # After the stream ends, record assistant message to session
         # Skip if tool calls were already flushed inline by the orchestrator
-        if self.session is not None and not _session_tool_calls_flushed:
+        if not _session_tool_calls_flushed:
             if pending_tool_calls:
                 # Convert ToolCall objects to dicts for session storage
                 tool_calls_dicts = [
                     {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
                     for tc in pending_tool_calls
                 ]
-                self.session.messages.append(
-                    SessionMessage(
-                        role="assistant",
-                        content="".join(accumulated_content) if accumulated_content else None,
-                        tool_calls=tool_calls_dicts,
-                        agent_id=last_agent_id,
-                    )
+                self.session_manager.record_agent_message(
+                    content="".join(accumulated_content) if accumulated_content else None,
+                    tool_calls=tool_calls_dicts,
+                    agent_id=last_agent_id,
                 )
             elif accumulated_content:
                 # Content-only response (no tool calls)
-                self.session.messages.append(
-                    SessionMessage(
-                        role="assistant",
-                        content="".join(accumulated_content),
-                        agent_id=last_agent_id,
-                    )
-                )
-        elif self.session is not None and _session_tool_calls_flushed and accumulated_content:
-            # Record post-tool-execution content as a separate assistant message
-            self.session.messages.append(
-                SessionMessage(
-                    role="assistant",
+                self.session_manager.record_agent_message(
                     content="".join(accumulated_content),
                     agent_id=last_agent_id,
                 )
+        elif _session_tool_calls_flushed and accumulated_content:
+            # Record post-tool-execution content as a separate assistant message
+            self.session_manager.record_agent_message(
+                content="".join(accumulated_content),
+                agent_id=last_agent_id,
             )
 
         # Execute only tool calls that were NOT already handled by the orchestrator
@@ -779,10 +666,7 @@ class Repl:
                 result=result,
             )
             self.agent.submit_tool_result(tc.id, result.content)
-            if self.session is not None:
-                self.session.messages.append(
-                    SessionMessage(role="tool", content=result.content, tool_call_id=tc.id)
-                )
+            self.session_manager.record_tool_result(tc.id, result.content)
 
             # Show result
             if result.success:
@@ -813,20 +697,13 @@ class Repl:
                 if tool_call.id not in responded_ids:
                     cancel_msg = "Tool execution was interrupted or cancelled."
                     self.agent.submit_tool_result(tool_call.id, cancel_msg)
-                    if self.session is not None:
-                        self.session.messages.append(
-                            SessionMessage(
-                                role="tool",
-                                content=cancel_msg,
-                                tool_call_id=tool_call.id,
-                            )
-                        )
+                    self.session_manager.record_tool_result(tool_call.id, cancel_msg)
 
         # Show turn status after tool execution
         self._show_turn_status()
 
         # Add spacing after tool execution
-        self.console.print()
+        self.renderer.print_newline()
 
         # Now that ALL results are submitted, continue the agent loop
         await self._process_agent_stream(self.agent.continue_with_tool_results(), content_collector)
@@ -859,7 +736,7 @@ class Repl:
         """
         if event.type == EventType.CONTENT:
             # Stream content to console
-            self.console.print(event.data, end="")
+            self.renderer.print_agent_content(event.data)
             # Collect for session recording
             if content_collector is not None and event.data:
                 content_collector.append(event.data)
@@ -875,7 +752,7 @@ class Repl:
 
         elif event.type == EventType.FINISHED:
             # Print newline after streaming content
-            self.console.print()
+            self.renderer.print_newline()
 
         elif event.type == EventType.ERROR:
             self.renderer.error(str(event.data))  # pragma: no branch

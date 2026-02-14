@@ -1,0 +1,247 @@
+"""Session management for the REPL.
+
+This module provides the ReplSessionManager class that encapsulates
+all session management logic for the REPL, including auto-saving,
+session creation/loading, and session state tracking.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from henchman.core.session import Session, SessionManager, SessionMessage, SessionMetadata
+from henchman.providers.base import Message, ToolCall
+
+if TYPE_CHECKING:
+    from henchman.agents.orchestrator import Orchestrator
+
+
+class ReplSessionManager:
+    """Manages session state and persistence for the REPL.
+
+    This class wraps the core SessionManager and adds REPL-specific
+    session logic including auto-saving and session-agent history
+    synchronization.
+
+    Attributes:
+        session_manager: The core session manager for persistence.
+        session: The current active session.
+        auto_save: Whether to auto-save sessions on exit.
+    """
+
+    def __init__(
+        self,
+        session_manager: SessionManager | None = None,
+        auto_save: bool = True,
+    ) -> None:
+        """Initialize the REPL session manager.
+
+        Args:
+            session_manager: Core session manager for persistence.
+                If None, creates a default SessionManager.
+            auto_save: Whether to auto-save sessions on exit.
+        """
+        self.session_manager = session_manager or SessionManager()
+        self.session: Session | None = None
+        self.auto_save = auto_save
+
+    def set_session(self, session: Session, agent: Orchestrator | None = None) -> None:
+        """Set the current session and sync with agent history.
+
+        Args:
+            session: The session to activate.
+            agent: Optional agent to sync session messages with.
+        """
+        self.session = session
+        self.session_manager.set_current(session)
+
+        if agent:
+            self._sync_session_to_agent(session, agent)
+
+    def _sync_session_to_agent(self, session: Session, agent: Orchestrator) -> None:
+        """Restore session messages to agent history.
+
+        Args:
+            session: Session containing messages to restore.
+            agent: Agent to restore messages to.
+        """
+        # Clear agent history (keeping current system prompt)
+        agent.tech_lead.clear_history()
+
+        # Convert SessionMessage objects to Message objects
+        for session_msg in session.messages:
+            # Convert tool_calls from dicts to ToolCall objects if present
+            tool_calls = None
+            if session_msg.tool_calls:
+                tool_calls = [
+                    ToolCall(
+                        id=tc.get("id", ""),
+                        name=tc.get("name", ""),
+                        arguments=tc.get("arguments", {}),
+                    )
+                    for tc in session_msg.tool_calls
+                ]
+
+            msg = Message(
+                role=session_msg.role,
+                content=session_msg.content,
+                tool_calls=tool_calls,
+                tool_call_id=session_msg.tool_call_id,
+            )
+            agent.tech_lead.messages.append(msg)
+
+    def auto_save_session(self) -> None:
+        """Auto-save the session if enabled and session has content."""
+        if not self.auto_save:
+            return
+        if self.session is None:
+            return
+        if len(self.session.messages) == 0:
+            return
+
+        self.session_manager.save(self.session)
+
+    def create_session(
+        self,
+        project_hash: str,
+        tag: str | None = None,
+    ) -> Session:
+        """Create a new session.
+
+        Args:
+            project_hash: Hash identifying the project.
+            tag: Optional human-readable tag.
+
+        Returns:
+            New Session instance.
+        """
+        return self.session_manager.create_session(project_hash, tag)
+
+    def load(self, session_id: str) -> Session:
+        """Load a session from disk.
+
+        Args:
+            session_id: ID or ID prefix of session to load.
+
+        Returns:
+            Loaded Session instance.
+
+        Raises:
+            FileNotFoundError: If session doesn't exist or is ambiguous.
+        """
+        return self.session_manager.load(session_id)
+
+    def load_by_tag(
+        self,
+        tag: str,
+        project_hash: str | None = None,
+    ) -> Session | None:
+        """Load a session by tag.
+
+        Args:
+            tag: Tag to search for.
+            project_hash: Optional project hash to filter by.
+
+        Returns:
+            Session if found, None otherwise.
+        """
+        return self.session_manager.load_by_tag(tag, project_hash)
+
+    def save(self, session: Session | None = None) -> Path:
+        """Save a session to disk.
+
+        Args:
+            session: Session to save. If None, saves current session.
+
+        Returns:
+            Path to saved file.
+
+        Raises:
+            ValueError: If no session is provided and no current session exists.
+        """
+        session_to_save = session or self.session
+        if session_to_save is None:
+            raise ValueError("No session to save")
+
+        return self.session_manager.save(session_to_save)
+
+    def list_sessions(
+        self,
+        project_hash: str | None = None,
+    ) -> list[SessionMetadata]:
+        """List saved sessions.
+
+        Args:
+            project_hash: Optional project hash to filter by.
+
+        Returns:
+            List of session metadata.
+        """
+        return self.session_manager.list_sessions(project_hash)
+
+    def delete(self, session_id: str) -> None:
+        """Delete a session.
+
+        Args:
+            session_id: ID of session to delete.
+
+        Raises:
+            FileNotFoundError: If session doesn't exist.
+        """
+        self.session_manager.delete(session_id)
+
+    def compute_project_hash(self, directory: Path) -> str:
+        """Compute a hash for a project directory.
+
+        Args:
+            directory: Project directory.
+
+        Returns:
+            Hash string identifying the project.
+        """
+        return self.session_manager.compute_project_hash(directory)
+
+    def record_user_message(self, content: str) -> None:
+        """Record a user message to the current session.
+
+        Args:
+            content: The message content.
+        """
+        if self.session is not None:
+            self.session.messages.append(SessionMessage(role="user", content=content))
+
+    def record_agent_message(
+        self,
+        content: str | None = None,
+        tool_calls: list[dict[str, Any]] | None = None,
+        agent_id: str | None = None,
+    ) -> None:
+        """Record an agent message to the current session.
+
+        Args:
+            content: The message content.
+            tool_calls: Tool calls made by the agent.
+            agent_id: ID of the agent that generated the message.
+        """
+        if self.session is not None:
+            self.session.messages.append(
+                SessionMessage(
+                    role="assistant",
+                    content=content,
+                    tool_calls=tool_calls,
+                    agent_id=agent_id,
+                )
+            )
+
+    def record_tool_result(self, tool_call_id: str, content: str) -> None:
+        """Record a tool result to the current session.
+
+        Args:
+            tool_call_id: ID of the tool call this result responds to.
+            content: The tool result content.
+        """
+        if self.session is not None:
+            self.session.messages.append(
+                SessionMessage(role="tool", content=content, tool_call_id=tool_call_id)
+            )

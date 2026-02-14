@@ -27,15 +27,43 @@ def _get_provider() -> ModelProvider:
     Raises:
         click.ClickException: If no provider is configured.
     """
-    from henchman.providers import DeepSeekProvider, get_default_registry
+    # Try to get provider from environment first
+    provider_from_env = _get_provider_from_environment()
+    if provider_from_env:
+        return provider_from_env
 
-    # Check environment for API key
+    # Try to get provider from settings
+    provider_from_settings = _get_provider_from_settings()
+    if provider_from_settings:
+        return provider_from_settings
+
+    raise click.ClickException(  # pragma: no cover
+        "No API key configured. Set DEEPSEEK_API_KEY or configure in ~/.henchman/settings.yaml"
+    )
+
+
+def _get_provider_from_environment() -> ModelProvider | None:
+    """Get provider from environment variables.
+
+    Returns:
+        ModelProvider instance if environment provides configuration, None otherwise.
+    """
+    from henchman.providers import DeepSeekProvider
+
     api_key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("HENCHMAN_API_KEY")
-
     if api_key:
         return DeepSeekProvider(api_key=api_key)
+    return None
 
-    # Try to load from settings
+
+def _get_provider_from_settings() -> ModelProvider | None:
+    """Get provider from settings configuration.
+
+    Returns:
+        ModelProvider instance if settings provide configuration, None otherwise.
+    """
+    from henchman.providers import get_default_registry
+
     try:
         from henchman.config import load_settings
 
@@ -45,23 +73,39 @@ def _get_provider() -> ModelProvider:
         provider_name = settings.providers.default or "deepseek"
         provider_settings = getattr(settings.providers, provider_name, {})
 
-        if isinstance(provider_settings, dict):
-            # Ensure api_key is handled correctly (backward compatibility or env var)
-            kwargs = provider_settings.copy()
-            if not kwargs.get("api_key"):
-                kwargs["api_key"] = (
-                    os.environ.get("ANTHROPIC_API_KEY")
-                    if provider_name == "anthropic"
-                    else os.environ.get("HENCHMAN_API_KEY")
-                )
+        if not isinstance(provider_settings, dict):
+            return None
 
-            return registry.create(provider_name, **kwargs)
+        kwargs = provider_settings.copy()
+        _ensure_api_key_in_kwargs(provider_name, kwargs)
+        
+        return registry.create(provider_name, **kwargs)
     except Exception:  # pragma: no cover
-        pass
+        # Log the error for debugging but don't crash
+        import logging
+        logging.getLogger(__name__).debug(
+            "Failed to load provider from settings", exc_info=True
+        )
+        return None
 
-    raise click.ClickException(  # pragma: no cover
-        "No API key configured. Set DEEPSEEK_API_KEY or configure in ~/.henchman/settings.yaml"
-    )
+
+def _ensure_api_key_in_kwargs(provider_name: str, kwargs: dict[str, object]) -> None:
+    """Ensure api_key is present in kwargs, falling back to environment variables.
+
+    Args:
+        provider_name: Name of the provider (e.g., "deepseek", "anthropic").
+        kwargs: Provider configuration dictionary to modify.
+    """
+    if kwargs.get("api_key"):
+        return
+
+    if provider_name == "anthropic":
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+    else:
+        api_key = os.environ.get("HENCHMAN_API_KEY")
+
+    if api_key:
+        kwargs["api_key"] = api_key
 
 
 def _show_team_info() -> None:
@@ -132,7 +176,7 @@ def _run_interactive(
     # Set plan mode if requested
     if plan_mode and repl.session:
         repl.session.plan_mode = True
-        repl.tool_registry.set_plan_mode(True)
+        repl.tool_manager.set_plan_mode(True)
         # Add plan mode prompt to system prompt
         from henchman.cli.commands.plan import PLAN_MODE_PROMPT
 
@@ -211,7 +255,7 @@ def _run_headless(
     # Set plan mode if requested
     if plan_mode and repl.session:  # pragma: no cover
         repl.session.plan_mode = True
-        repl.tool_registry.set_plan_mode(True)
+        repl.tool_manager.set_plan_mode(True)
 
     async def run_single_prompt_text() -> None:  # pragma: no cover
         """Process a single prompt and exit with text output."""

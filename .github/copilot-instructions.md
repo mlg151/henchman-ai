@@ -490,3 +490,26 @@ This project follows **Test-Driven Development (TDD)** with strict quality requi
 6. Update relevant documentation
 ## Implementation Reference
 See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md) for the 12-phase implementation roadmap with detailed code examples for each component.
+
+
+**Agent Workspace — `.agent_tasks/` Convention (MANDATORY)**:
+All non-source artifacts (analysis scripts, design docs, research notes, validation reports, scratch files) MUST be placed inside the `.agent_tasks/` directory in the project root. NEVER create these files in the repo root or alongside source code.
+
+Structure:
+```
+.agent_tasks/
+├── <task-slug>/            # One folder per task or project
+│   ├── README.md           # Task description, status, and findings
+│   ├── analysis/           # Analysis scripts, notebooks, data exploration
+│   ├── docs/               # Design docs, RFCs, research notes
+│   └── scripts/            # Utility/validation/automation scripts
+```
+
+Rules:
+1. Create `.agent_tasks/` if it doesn't exist.
+2. Use a short, descriptive slug for each task folder (e.g., `elo-parameter-tuning`, `api-migration`).
+3. Include a `README.md` in each task folder summarizing the goal and current status.
+4. Source code changes go in the normal project directories — only supporting artifacts go here.
+5. If a prior task folder exists for the same topic, reuse it instead of creating a new one.
+6. ALWAYS KEEP THIS DOCUMENTATION UP TO DATE. If you create or modify files in the project, update the README with what you did and what you found.
+7. We update this documentation before we work, while we work, and after we work. It is our single source of truth for what we've done and what we know.

@@ -125,7 +125,7 @@ class AgentSettings(BaseModel):
     team_preset: str = "default"
     agents: dict[str, AgentConfig] = Field(default_factory=dict)
     max_delegation_depth: int = 3
-    max_delegation_turns: int = 80
+    max_delegation_turns: int = 150
     shared_context_max_tokens: int = 4000
 
 
