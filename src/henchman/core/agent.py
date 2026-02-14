@@ -16,7 +16,6 @@ from henchman.utils.tokens import TokenCounter, get_model_limit
 from henchman.utils.validation import (
     is_valid_message_sequence,
     repair_message_sequence,
-    validate_message_sequence,
 )
 
 if TYPE_CHECKING:

@@ -95,7 +95,7 @@ def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
     if not messages:
         return messages
 
-    result: list["Message"] = []
+    result: list[Message] = []
     repaired = False
     i = 0
 
@@ -106,7 +106,7 @@ def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
             expected_ids = {tc.id for tc in msg.tool_calls}
 
             # Gather immediately-following tool messages
-            tool_msgs: list["Message"] = []
+            tool_msgs: list[Message] = []
             j = i + 1
             while j < len(messages) and messages[j].role == "tool":
                 if messages[j].tool_call_id in expected_ids:

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -60,7 +59,7 @@ class Entity(BaseModel):
     entity_type: str
     name: str
     description: str = ""
-    file_path: Optional[str] = None
+    file_path: str | None = None
     tags: list[str] = Field(default_factory=list)
     observations: list[Observation] = Field(default_factory=list)
 

@@ -12,7 +12,6 @@ from henchman.cli.commands.mcp import McpCommand
 from henchman.cli.commands.model import ModelCommand
 from henchman.cli.commands.plan import PlanCommand
 from henchman.cli.commands.rag import RagCommand
-
 from henchman.cli.commands.team import TeamCommand
 from henchman.cli.commands.unlimited import UnlimitedCommand
 

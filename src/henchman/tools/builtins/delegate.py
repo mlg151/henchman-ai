@@ -39,7 +39,7 @@ class DelegateTaskTool(Tool):
                     "type": "string",
                     "description": (
                         "The role of the specialist agent to delegate to "
-                        "(e.g., 'coder', 'tester', 'reviewer')"
+                        "(e.g., 'planner', 'explorer', 'engineer')"
                     ),
                 },
                 "task": {

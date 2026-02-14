@@ -1,13 +1,11 @@
 """Tests for KnowledgeStore."""
 
-import json
 from pathlib import Path
 
 import pytest
 
 from henchman.knowledge.models import Entity, Observation, Relation
 from henchman.knowledge.store import KnowledgeStore, _slugify
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

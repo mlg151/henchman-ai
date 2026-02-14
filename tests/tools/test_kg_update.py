@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from henchman.knowledge.models import Entity, Observation, Relation
+from henchman.knowledge.models import Entity
 from henchman.knowledge.store import KnowledgeStore
 from henchman.tools.builtins.kg_update import KgUpdateTool
 

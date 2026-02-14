@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Any, Optional
 
-from henchman.knowledge.models import Entity
 from henchman.knowledge.scanner import scan_repository
 from henchman.knowledge.store import KnowledgeStore
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -149,8 +147,13 @@ class KgQueryTool(Tool):
         action = str(params.get("action", "search"))
         query = str(params.get("query", ""))
         entity_type = params.get("entity_type")
-        depth = int(params.get("depth", 1))  # type: ignore[arg-type]
-        top_k = int(params.get("top_k", 10))  # type: ignore[arg-type]
+
+        # Safely convert depth and top_k to int
+        depth_val = params.get("depth", 1)
+        depth = int(depth_val) if isinstance(depth_val, (int, str)) and str(depth_val).isdigit() else 1
+
+        top_k_val = params.get("top_k", 10)
+        top_k = int(top_k_val) if isinstance(top_k_val, (int, str)) and str(top_k_val).isdigit() else 10
 
         if action == "search":
             if not query:

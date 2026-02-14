@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from henchman.knowledge.models import Entity
 from henchman.knowledge.scanner import (
     _extract_imports,
     _extract_top_level_defs,
@@ -14,7 +13,6 @@ from henchman.knowledge.scanner import (
     scan_repository,
 )
 from henchman.knowledge.store import KnowledgeStore
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

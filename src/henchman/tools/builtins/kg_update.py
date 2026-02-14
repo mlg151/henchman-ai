@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Any, Optional
 
 from henchman.knowledge.models import Entity, Observation, Relation
 from henchman.knowledge.store import KnowledgeStore

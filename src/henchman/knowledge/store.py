@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any
 
 import networkx as nx
+from networkx import DiGraph
 
 from henchman.knowledge.models import Entity, GraphMeta, Observation, Relation
 from henchman.rag.repo_id import compute_repository_id
@@ -106,7 +108,7 @@ class KnowledgeStore:
         self._base_dir = base_dir or (Path.home() / ".henchman" / "knowledge")
         self._repo_hash = compute_repository_id(self._git_root)
         self._store_dir = self._base_dir / self._repo_hash
-        self._graph: nx.DiGraph = nx.DiGraph()
+        self._graph: DiGraph[str] = DiGraph()
         self._meta: GraphMeta = GraphMeta(
             repo_path=str(self._git_root),
             repo_hash=self._repo_hash,
@@ -121,7 +123,7 @@ class KnowledgeStore:
         return self._store_dir
 
     @property
-    def graph(self) -> nx.DiGraph:
+    def graph(self) -> DiGraph[str]:
         """The underlying NetworkX directed graph."""
         return self._graph
 
