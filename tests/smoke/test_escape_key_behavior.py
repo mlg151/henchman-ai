@@ -150,7 +150,7 @@ class TestEscapeKeyReturnsToPrompt:
             try:
                 async for event in slow_agent_run(user_input):
                     if event.type == EventType.CONTENT:
-                        repl.renderer.print(event.data)
+                        repl.renderer.print_agent_content(event.data)
             except asyncio.CancelledError:
                 pass  # Gracefully handle cancellation
 

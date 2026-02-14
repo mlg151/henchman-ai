@@ -94,6 +94,14 @@ class TestMCPUIIntegration:
         repl.renderer.error = Mock()
         repl.renderer.muted = Mock()
         repl.renderer.info = Mock()
+        repl.renderer.warning = Mock()
+        repl.renderer.print_newline = Mock()
+        repl.renderer.print_agent_content = Mock()
+        # create_status must return a context manager
+        mock_status = Mock()
+        mock_status.__enter__ = Mock(return_value=mock_status)
+        mock_status.__exit__ = Mock(return_value=False)
+        repl.renderer.create_status = Mock(return_value=mock_status)
 
         # Add MCP manager to repl (simulating real REPL setup)
         repl.mcp_manager = mock_mcp_manager

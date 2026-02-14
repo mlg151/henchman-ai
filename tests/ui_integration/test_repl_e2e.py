@@ -30,10 +30,13 @@ class TestReplE2E:
         repl = Repl(provider=mock_provider, console=console, config=config)
         repl.config.auto_save = False
         # Manually initialize session manager and session as we skip repl.run()
+        from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
 
-        repl.session_manager = SessionManager()
-        repl.session = repl.session_manager.create_session(project_hash="test_hash")
+        manager = SessionManager()
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=False)
+        session = manager.create_session(project_hash="test_hash")
+        repl.set_session(session)
         return repl
 
     async def test_tool_execution_flow(self, repl, mock_provider):
@@ -78,8 +81,8 @@ class TestReplE2E:
 
         # Verify session - user message is recorded
         # Note: content from tool call continuation is rendered but not separately recorded
-        assert len(repl.session.messages) >= 1
-        assert repl.session.messages[0].role == "user"
+        assert len(repl.session_manager.current.messages) >= 1
+        assert repl.session_manager.current.messages[0].role == "user"
 
     async def test_multi_turn_conversation(self, repl, mock_provider):
         """Test that context is maintained across multiple turns."""
@@ -106,11 +109,11 @@ class TestReplE2E:
 
         # Run 1
         await repl._run_agent("Hi")
-        assert len(repl.session.messages) == 2
+        assert len(repl.session_manager.current.messages) == 2
 
         # Run 2
         await repl._run_agent("How are you?")
-        assert len(repl.session.messages) == 4
+        assert len(repl.session_manager.current.messages) == 4
 
         # Verify Agent history
         assert len(repl.agent.history) >= 4

@@ -46,6 +46,11 @@ class ReplSessionManager:
         self.session: Session | None = None
         self.auto_save = auto_save
 
+    @property
+    def current(self) -> Session | None:
+        """Get the current session (alias for session attribute)."""
+        return self.session
+
     def set_session(self, session: Session, agent: Orchestrator | None = None) -> None:
         """Set the current session and sync with agent history.
 

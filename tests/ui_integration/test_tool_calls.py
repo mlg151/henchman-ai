@@ -79,8 +79,8 @@ class TestToolCalls:
         provider = self.create_tool_call_provider("read_file", {"path": str(temp_test_file)})
 
         # Create REPL with real tools
-        repl = Repl(provider=provider, console=console_with_recording, config=ReplConfig())
-        repl.config.auto_approve_tools = True
+        config = ReplConfig(auto_approve_tools=True)
+        repl = Repl(provider=provider, console=console_with_recording, config=config)
 
         # Run agent to trigger tool call
         events = []
@@ -117,8 +117,8 @@ class TestToolCalls:
         )
 
         # Create REPL with real tools
-        repl = Repl(provider=provider, console=console_with_recording, config=ReplConfig())
-        repl.config.auto_approve_tools = True
+        config = ReplConfig(auto_approve_tools=True)
+        repl = Repl(provider=provider, console=console_with_recording, config=config)
 
         # Run agent to trigger tool call
         events = []
@@ -151,8 +151,8 @@ class TestToolCalls:
         provider = self.create_tool_call_provider("ls", {"path": str(temp_test_dir)})
 
         # Create REPL with real tools
-        repl = Repl(provider=provider, console=console_with_recording, config=ReplConfig())
-        repl.config.auto_approve_tools = True
+        config = ReplConfig(auto_approve_tools=True)
+        repl = Repl(provider=provider, console=console_with_recording, config=config)
 
         # Run agent to trigger tool call
         events = []
@@ -187,8 +187,8 @@ class TestToolCalls:
         )
 
         # Create REPL with real tools
-        repl = Repl(provider=provider, console=console_with_recording, config=ReplConfig())
-        repl.config.auto_approve_tools = True
+        config = ReplConfig(auto_approve_tools=True)
+        repl = Repl(provider=provider, console=console_with_recording, config=config)
 
         # Run agent to trigger tool call
         events = []
@@ -218,8 +218,8 @@ class TestToolCalls:
         )
 
         # Create REPL with real tools
-        repl = Repl(provider=provider, console=console_with_recording, config=ReplConfig())
-        repl.config.auto_approve_tools = True
+        config = ReplConfig(auto_approve_tools=True)
+        repl = Repl(provider=provider, console=console_with_recording, config=config)
 
         # Run agent to trigger tool call
         events = []
@@ -249,8 +249,8 @@ class TestToolCalls:
         )
 
         # Create REPL with real tools
-        repl = Repl(provider=provider, console=console_with_recording, config=ReplConfig())
-        repl.config.auto_approve_tools = True
+        config = ReplConfig(auto_approve_tools=True)
+        repl = Repl(provider=provider, console=console_with_recording, config=config)
 
         # Run agent to trigger tool call
         events = []
@@ -283,8 +283,8 @@ class TestToolCalls:
         )
 
         # Create REPL with real tools
-        repl = Repl(provider=provider, console=console_with_recording, config=ReplConfig())
-        repl.config.auto_approve_tools = True
+        config = ReplConfig(auto_approve_tools=True)
+        repl = Repl(provider=provider, console=console_with_recording, config=config)
 
         # Run agent to trigger tool call
         events = []
@@ -313,8 +313,8 @@ class TestToolCalls:
         provider = self.create_tool_call_provider("read_file", {"path": "/non/existent/file.txt"})
 
         # Create REPL with real tools
-        repl = Repl(provider=provider, console=console_with_recording, config=ReplConfig())
-        repl.config.auto_approve_tools = True
+        config = ReplConfig(auto_approve_tools=True)
+        repl = Repl(provider=provider, console=console_with_recording, config=config)
 
         # Run agent to trigger tool call
         events = []
@@ -349,8 +349,8 @@ class TestToolCalls:
         provider = TestProvider()
 
         # Create REPL
-        repl = Repl(provider=provider, console=console_with_recording, config=ReplConfig())
-        repl.config.auto_approve_tools = True
+        config = ReplConfig(auto_approve_tools=True)
+        repl = Repl(provider=provider, console=console_with_recording, config=config)
 
         # Check that all expected tools are registered
         expected_tools = [

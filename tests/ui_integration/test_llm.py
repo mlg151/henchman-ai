@@ -41,10 +41,13 @@ class TestLLMCommunicationBasic:
         repl = Repl(provider=mock_provider, console=console, config=config)
         repl.config.auto_save = False
         # Manually initialize session manager and session as we skip repl.run()
+        from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
 
-        repl.session_manager = SessionManager()
-        repl.session = repl.session_manager.create_session(project_hash="test_hash")
+        manager = SessionManager()
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=False)
+        session = manager.create_session(project_hash="test_hash")
+        repl.set_session(session)
         return repl
 
     async def test_user_input_sent_to_llm(self, repl, mock_provider):
@@ -221,10 +224,13 @@ class TestToolCallExecutionFlow:
         repl.tool_registry.register(test_tool)
 
         # Manually initialize session manager and session
+        from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
 
-        repl.session_manager = SessionManager()
-        repl.session = repl.session_manager.create_session(project_hash="test_hash")
+        manager = SessionManager()
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=False)
+        session = manager.create_session(project_hash="test_hash")
+        repl.set_session(session)
         return repl
 
     async def test_tool_call_requested_and_executed(
@@ -248,7 +254,7 @@ class TestToolCallExecutionFlow:
 
         # Check session messages
         # Should have at least user message
-        assert len(repl_with_tools.session.messages) >= 1
+        assert len(repl_with_tools.session_manager.current.messages) >= 1
 
 
 class TestLLMErrorHandling:
@@ -272,10 +278,13 @@ class TestLLMErrorHandling:
         config = ReplConfig()
         repl = Repl(provider=mock_provider_with_error, console=console, config=config)
         repl.config.auto_save = False
+        from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
 
-        repl.session_manager = SessionManager()
-        repl.session = repl.session_manager.create_session(project_hash="test_hash")
+        manager = SessionManager()
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=False)
+        session = manager.create_session(project_hash="test_hash")
+        repl.set_session(session)
         return repl
 
     async def test_llm_error_handled_gracefully(self, repl_with_error_provider):
@@ -325,10 +334,13 @@ class TestEndToEndLLMIntegration:
         config = ReplConfig()
         repl = Repl(provider=mock_provider, console=console, config=config)
         repl.config.auto_save = False
+        from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
 
-        repl.session_manager = SessionManager()
-        repl.session = repl.session_manager.create_session(project_hash="test_hash")
+        manager = SessionManager()
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=False)
+        session = manager.create_session(project_hash="test_hash")
+        repl.set_session(session)
 
         # Run a simple conversation
         await repl._run_agent("Hello, mock LLM!")

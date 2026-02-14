@@ -6,8 +6,7 @@ from henchman.tools.base import ConfirmationRequest
 from henchman.tools.registry import ToolRegistry
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable
-    from typing import Callable
+    from collections.abc import Awaitable, Callable
 
     from henchman.config.schema import Settings
 
@@ -82,17 +81,17 @@ class ToolManager:
         # Auto-approve if configured
         if self.auto_approve:
             return True
-        
+
         # Use custom confirmation handler if provided
         if self._confirmation_handler:
             return await self._confirmation_handler(request)
-        
+
         # Default behavior: require confirmation
         # In the actual REPL, this would show a prompt to the user
         return False
 
     def set_confirmation_handler(
-        self, 
+        self,
         handler: "Callable[[ConfirmationRequest], Awaitable[bool]] | None" = None
     ) -> None:
         """Set the confirmation handler on the registry.

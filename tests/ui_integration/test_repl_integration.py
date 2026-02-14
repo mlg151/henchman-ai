@@ -17,6 +17,7 @@ from rich.console import Console
 from henchman.cli.commands import CommandRegistry
 from henchman.cli.console import OutputRenderer
 from henchman.cli.repl import Repl, ReplConfig
+from henchman.cli.ui_renderer import UIRenderer
 from henchman.core.agent import Agent
 from henchman.core.session import SessionManager
 from henchman.tools.registry import ToolRegistry
@@ -94,13 +95,13 @@ class TestREPLComponentConnections:
         assert isinstance(repl.session_manager, SessionManager)
 
     def test_repl_output_renderer_connection(self):
-        """Test REPL ↔ OutputRenderer connection."""
+        """Test REPL ↔ UIRenderer connection."""
         console = Console()
         repl = Repl(provider=Mock(), console=console, config=ReplConfig())
 
         # Verify renderer is initialized
         assert repl.renderer is not None
-        assert isinstance(repl.renderer, OutputRenderer)
+        assert isinstance(repl.renderer, UIRenderer)
 
         # Verify renderer has console
         assert repl.renderer.console is console
@@ -120,7 +121,7 @@ class TestREPLComponentCommunication:
         repl.agent = Mock(spec=Agent)
         repl.command_registry = Mock(spec=CommandRegistry)
         repl.session_manager = Mock(spec=SessionManager)
-        repl.renderer = Mock(spec=OutputRenderer)
+        repl.renderer = Mock(spec=UIRenderer)
 
         return repl
 

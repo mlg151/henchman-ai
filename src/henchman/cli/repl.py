@@ -159,7 +159,8 @@ class Repl:
         status = []
 
         # Plan Mode
-        plan_mode = self.session_manager.session.plan_mode if self.session_manager.session else False
+        session = self.session_manager.current
+        plan_mode = session.plan_mode if session else False
         if plan_mode:
             status.append(("bg:yellow fg:black bold", " PLAN MODE "))
         else:
@@ -181,7 +182,9 @@ class Repl:
 
     def _get_rich_status_message(self) -> str:
         """Get rich status message for persistent display."""
-        return self.renderer.get_rich_status_message(self.session_manager.session, self.agent, self.rag_system)
+        return self.renderer.get_rich_status_message(
+            self.session_manager.current, self.agent, self.rag_system
+        )
 
     async def _handle_confirmation(self, request: ConfirmationRequest) -> bool:
         """Handle a tool confirmation request from the registry.
@@ -260,7 +263,12 @@ class Repl:
 
     def _auto_save_session(self) -> None:
         """Auto-save the session if enabled and session has content."""
-        self.session_manager.auto_save_session()
+        if hasattr(self.session_manager, "auto_save_session"):
+            self.session_manager.auto_save_session()
+        elif hasattr(self.session_manager, "save") and hasattr(self.session_manager, "current"):
+             # Fallback for SessionManager
+             if self.session_manager.current:
+                 self.session_manager.save(self.session_manager.current)
 
     async def _get_input(self) -> str:
         """Get input from the user.
@@ -339,11 +347,11 @@ class Repl:
             args=args,
             agent=self.agent,
             tool_registry=self.tool_registry,
-            session=self.session_manager.session,
+            session=self.session_manager.current,
             repl=self,
         )
         # Add session_manager and project_hash for /chat command
-        ctx.session_manager = self.session_manager.session_manager
+        ctx.session_manager = getattr(self.session_manager, "session_manager", self.session_manager)
         from pathlib import Path
 
         ctx.project_hash = self.session_manager.compute_project_hash(Path.cwd())

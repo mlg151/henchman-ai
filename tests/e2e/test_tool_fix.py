@@ -113,10 +113,9 @@ async def test_shell_tool_execution():
             return "shell_test"
 
     provider = ShellProvider()
-    config = ReplConfig()
+    config = ReplConfig(auto_approve_tools=True)
 
     repl = Repl(provider=provider, console=console, config=config)
-    repl.config.auto_approve_tools = True
 
     # Run agent
     events = []

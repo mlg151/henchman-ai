@@ -52,3 +52,4 @@ ENV/
 .DS_Store
 Thumbs.db
 site/
+MagicMock/

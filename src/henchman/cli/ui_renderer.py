@@ -7,7 +7,7 @@ and error messages.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from rich.console import Console
 from rich.status import Status
@@ -50,7 +50,12 @@ class UIRenderer:
         """Print goodbye message."""
         self.console.print("[dim]Goodbye![/]")
 
-    def get_rich_status_message(self, session: Session | None, agent: Any | None, rag_system: Any | None = None) -> str:
+    def get_rich_status_message(
+        self,
+        session: Session | None,
+        agent: Any | None,
+        rag_system: Any | None = None,
+    ) -> str:
         """Get rich status message for persistent display.
 
         Args:

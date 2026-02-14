@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from henchman.cli.repl import Repl
+from henchman.cli.session_manager import ReplSessionManager
 from henchman.core.session import SessionManager
 from henchman.tools.builtins import ReadFileTool, WriteFileTool
 from henchman.tools.registry import ToolRegistry
@@ -23,12 +24,14 @@ async def test_plan_mode_workflow(tmp_path):
 
     repl = Repl(provider=provider)
     repl.tool_registry = registry
-    repl.session_manager = SessionManager(data_dir=tmp_path)
-    repl.session = repl.session_manager.create_session("test-project")
+    manager = SessionManager(data_dir=tmp_path)
+    repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=False)
+    session = manager.create_session("test-project")
+    repl.set_session(session)
 
     # 1. Enable Plan Mode
     await repl.process_input("/plan")
-    assert repl.session.plan_mode is True
+    assert repl.session_manager.current.plan_mode is True
     assert registry._plan_mode is True
 
     # 2. Try to write a file (should be blocked)
@@ -49,7 +52,7 @@ async def test_plan_mode_workflow(tmp_path):
 
     # 4. Disable Plan Mode
     await repl.process_input("/plan")
-    assert repl.session.plan_mode is False
+    assert repl.session_manager.current.plan_mode is False
     assert registry._plan_mode is False
 
     # 5. Try to write a file (should be allowed now)

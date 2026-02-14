@@ -598,7 +598,7 @@ async def test_max_delegation_turns_setting():
     from henchman.config.schema import AgentSettings
 
     settings = AgentSettings()
-    assert settings.max_delegation_turns == 80
+    assert settings.max_delegation_turns == 150
 
     custom = AgentSettings(max_delegation_turns=10)
     assert custom.max_delegation_turns == 10

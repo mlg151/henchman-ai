@@ -78,7 +78,7 @@ def _get_provider_from_settings() -> ModelProvider | None:
 
         kwargs = provider_settings.copy()
         _ensure_api_key_in_kwargs(provider_name, kwargs)
-        
+
         return registry.create(provider_name, **kwargs)
     except Exception:  # pragma: no cover
         # Log the error for debugging but don't crash
@@ -146,7 +146,6 @@ def _run_interactive(
 
     from henchman.cli.repl import Repl, ReplConfig
     from henchman.config import ContextLoader, load_settings
-    from henchman.core.session import SessionManager
     from henchman.rag import initialize_rag
 
     provider = _get_provider()
@@ -160,12 +159,9 @@ def _run_interactive(
     repl = Repl(provider=provider, console=console, config=config, settings=settings)
 
     # Initialize session management
-    session_manager = SessionManager()
-    project_hash = session_manager.compute_project_hash(Path.cwd())
-    session = session_manager.create_session(project_hash)
-
-    repl.session_manager = session_manager
-    repl.session = session
+    project_hash = repl.session_manager.compute_project_hash(Path.cwd())
+    session = repl.session_manager.create_session(project_hash)
+    repl.set_session(session)
 
     # Initialize RAG system
     rag_system = initialize_rag(settings.rag, console=console, index=False)
@@ -174,8 +170,8 @@ def _run_interactive(
         repl.rag_system = rag_system
 
     # Set plan mode if requested
-    if plan_mode and repl.session:
-        repl.session.plan_mode = True
+    if plan_mode and repl.session_manager.current:
+        repl.session_manager.current.plan_mode = True
         repl.tool_manager.set_plan_mode(True)
         # Add plan mode prompt to system prompt
         from henchman.cli.commands.plan import PLAN_MODE_PROMPT
@@ -219,7 +215,6 @@ def _run_headless(
     from henchman.cli.repl import Repl, ReplConfig
     from henchman.config import ContextLoader, load_settings
     from henchman.core.events import EventType
-    from henchman.core.session import SessionManager
     from henchman.rag import initialize_rag
 
     provider = _get_provider()
@@ -239,12 +234,9 @@ def _run_headless(
     repl = Repl(provider=provider, console=console, config=config, settings=settings)
 
     # Initialize session management
-    session_manager = SessionManager()
-    project_hash = session_manager.compute_project_hash(Path.cwd())
-    session = session_manager.create_session(project_hash)
-
-    repl.session_manager = session_manager
-    repl.session = session
+    project_hash = repl.session_manager.compute_project_hash(Path.cwd())
+    session = repl.session_manager.create_session(project_hash)
+    repl.set_session(session)
 
     # Initialize RAG system
     rag_system = initialize_rag(settings.rag, index=False)  # No console output in headless
@@ -253,8 +245,8 @@ def _run_headless(
         repl.rag_system = rag_system
 
     # Set plan mode if requested
-    if plan_mode and repl.session:  # pragma: no cover
-        repl.session.plan_mode = True
+    if plan_mode and repl.session_manager.current:  # pragma: no cover
+        repl.session_manager.current.plan_mode = True
         repl.tool_manager.set_plan_mode(True)
 
     async def run_single_prompt_text() -> None:  # pragma: no cover

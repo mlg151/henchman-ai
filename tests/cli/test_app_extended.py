@@ -27,7 +27,8 @@ def test_run_interactive_json_warning():
 def test_run_interactive_plan_mode():
     """Test starting interactive mode in plan mode."""
     mock_repl_instance = MagicMock()
-    mock_repl_instance.session = MagicMock()
+    mock_session = MagicMock()
+    mock_repl_instance.session_manager.current = mock_session
     mock_repl_instance.agent = MagicMock()
     mock_repl_instance.agent.system_prompt = "Original"
     mock_repl_instance.tool_registry = MagicMock()
@@ -38,8 +39,8 @@ def test_run_interactive_plan_mode():
         patch("henchman.cli.app.anyio.run"),
     ):
         _run_interactive("text", plan_mode=True)
-        assert mock_repl_instance.session.plan_mode is True
-        mock_repl_instance.tool_registry.set_plan_mode.assert_called_once_with(True)
+        assert mock_session.plan_mode is True
+        mock_repl_instance.tool_manager.set_plan_mode.assert_called_once_with(True)
         assert "PLAN" in mock_repl_instance.agent.system_prompt
 
 

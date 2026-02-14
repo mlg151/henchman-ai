@@ -15,8 +15,9 @@ def repl():
 
 
 def test_get_toolbar_status_chat(repl):
-    repl.session = Session(id="1", project_hash="abc", started="now", last_updated="now")
-    repl.session.plan_mode = False
+    session = Session(id="1", project_hash="abc", started="now", last_updated="now")
+    session.plan_mode = False
+    repl.session_manager.session = session
 
     status = repl._get_toolbar_status()
     # Check for CHAT
@@ -26,8 +27,9 @@ def test_get_toolbar_status_chat(repl):
 
 
 def test_get_toolbar_status_plan(repl):
-    repl.session = Session(id="1", project_hash="abc", started="now", last_updated="now")
-    repl.session.plan_mode = True
+    session = Session(id="1", project_hash="abc", started="now", last_updated="now")
+    session.plan_mode = True
+    repl.session_manager.session = session
 
     status = repl._get_toolbar_status()
     # Check for PLAN MODE
@@ -35,13 +37,14 @@ def test_get_toolbar_status_plan(repl):
 
 
 def test_get_toolbar_status_no_session(repl):
-    repl.session = None
+    repl.session_manager.session = None
     status = repl._get_toolbar_status()
     assert any("CHAT" in text for style, text in status)
 
 
 def test_get_toolbar_status_exception(repl):
-    repl.session = Session(id="1", project_hash="abc", started="now", last_updated="now")
+    session = Session(id="1", project_hash="abc", started="now", last_updated="now")
+    repl.session_manager.session = session
     # Force exception in count_messages
     with patch("henchman.utils.tokens.TokenCounter.count_messages", side_effect=Exception("error")):
         status = repl._get_toolbar_status()

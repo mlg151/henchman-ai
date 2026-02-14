@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.19] - 2026-02-14
+
+### Fixed
+- **Headless and interactive modes crash** — After the REPL refactoring that
+  extracted `ReplSessionManager`, both `_run_headless` and `_run_interactive`
+  in `app.py` were overwriting `repl.session_manager` with a raw `SessionManager`,
+  causing `AttributeError: 'SessionManager' object has no attribute 'record_user_message'`.
+  Now properly uses the REPL's `set_session()` method.
+- **Plan mode in headless/interactive** — Fixed `repl.session` references to use
+  `repl.session_manager.current` throughout `app.py`.
+- **Shell tool test stdin error** — Fixed `test_shell_tool_execution` to pass
+  `auto_approve_tools=True` via `ReplConfig` constructor so the tool manager
+  receives it during initialization.
+- **All UI integration tests** — Updated 15 tests across `ui_integration/` and
+  `smoke/` directories to work with the refactored REPL architecture
+  (`UIRenderer`, `ReplSessionManager`, `ToolManager`).
+- **Max delegation turns test** — Updated test to match the new default of 150.
+
+### Added
+- **`mlg` CLI alias** — Added `mlg` as a second entry point in `pyproject.toml`
+  alongside `henchman`, so both commands work.
+
+### Removed
+- Stale `repl.py.backup` and `repl.py.backup2` files.
+
 ## [0.2.17] - 2026-02-14
 
 ### Added

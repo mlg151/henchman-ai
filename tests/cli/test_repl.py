@@ -444,6 +444,7 @@ class TestSessionAutoSave:
     @pytest.mark.anyio
     async def test_auto_save_enabled_saves_session_on_exit(self, tmp_path: Any) -> None:
         """Test that session is saved on graceful exit when auto_save is True."""
+        from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
 
         console = Console(file=StringIO(), force_terminal=True)
@@ -455,13 +456,14 @@ class TestSessionAutoSave:
         config = ReplConfig(auto_save=True)
 
         repl = Repl(provider=provider, console=console, config=config)
-        repl.session_manager = manager
-        repl.session = manager.create_session(project_hash="test-project")
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
+        session = manager.create_session(project_hash="test-project")
+        repl.set_session(session)
 
         # Add a message to the session
         from henchman.core.session import SessionMessage
 
-        repl.session.messages.append(SessionMessage(role="user", content="Hello"))
+        repl.session_manager.current.messages.append(SessionMessage(role="user", content="Hello"))
 
         # Run with /quit to exit gracefully
         inputs = iter(["/quit"])
@@ -479,6 +481,7 @@ class TestSessionAutoSave:
     @pytest.mark.anyio
     async def test_auto_save_disabled_does_not_save(self, tmp_path: Any) -> None:
         """Test that session is not saved when auto_save is False."""
+        from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
 
         console = Console(file=StringIO(), force_terminal=True)
@@ -490,13 +493,14 @@ class TestSessionAutoSave:
         config = ReplConfig(auto_save=False)
 
         repl = Repl(provider=provider, console=console, config=config)
-        repl.session_manager = manager
-        repl.session = manager.create_session(project_hash="test-project")
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=False)
+        session = manager.create_session(project_hash="test-project")
+        repl.set_session(session)
 
         # Add a message to the session
         from henchman.core.session import SessionMessage
 
-        repl.session.messages.append(SessionMessage(role="user", content="Hello"))
+        repl.session_manager.current.messages.append(SessionMessage(role="user", content="Hello"))
 
         # Run with /quit
         inputs = iter(["/quit"])
@@ -514,6 +518,7 @@ class TestSessionAutoSave:
     @pytest.mark.anyio
     async def test_auto_save_on_keyboard_interrupt(self, tmp_path: Any) -> None:
         """Test that session is saved on Ctrl+C when auto_save is True."""
+        from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
 
         console = Console(file=StringIO(), force_terminal=True)
@@ -525,13 +530,14 @@ class TestSessionAutoSave:
         config = ReplConfig(auto_save=True)
 
         repl = Repl(provider=provider, console=console, config=config)
-        repl.session_manager = manager
-        repl.session = manager.create_session(project_hash="test-project")
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
+        session = manager.create_session(project_hash="test-project")
+        repl.set_session(session)
 
         # Add a message
         from henchman.core.session import SessionMessage
 
-        repl.session.messages.append(SessionMessage(role="user", content="Hello"))
+        repl.session_manager.current.messages.append(SessionMessage(role="user", content="Hello"))
 
         # Simulate Ctrl+C then EOF
         with patch("henchman.cli.repl.Repl._get_input", side_effect=[KeyboardInterrupt, EOFError]):
@@ -544,6 +550,7 @@ class TestSessionAutoSave:
     @pytest.mark.anyio
     async def test_auto_save_skips_empty_session(self, tmp_path: Any) -> None:
         """Test that empty sessions are not saved."""
+        from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
 
         console = Console(file=StringIO(), force_terminal=True)
@@ -555,8 +562,9 @@ class TestSessionAutoSave:
         config = ReplConfig(auto_save=True)
 
         repl = Repl(provider=provider, console=console, config=config)
-        repl.session_manager = manager
-        repl.session = manager.create_session(project_hash="test-project")
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
+        session = manager.create_session(project_hash="test-project")
+        repl.set_session(session)
         # Don't add any messages
 
         # Run with /quit
@@ -575,6 +583,7 @@ class TestSessionAutoSave:
     @pytest.mark.anyio
     async def test_session_messages_recorded_during_conversation(self, tmp_path: Any) -> None:
         """Test that messages are recorded to session during conversation."""
+        from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
 
         console = Console(file=StringIO(), force_terminal=True)
@@ -586,8 +595,9 @@ class TestSessionAutoSave:
         config = ReplConfig(auto_save=True)
 
         repl = Repl(provider=provider, console=console, config=config)
-        repl.session_manager = manager
-        repl.session = manager.create_session(project_hash="test-project")
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
+        session = manager.create_session(project_hash="test-project")
+        repl.set_session(session)
 
         # Run a conversation then quit
         inputs = iter(["Hello assistant", "/quit"])
@@ -615,6 +625,7 @@ class TestSessionAutoSave:
     @pytest.mark.anyio
     async def test_session_records_tool_calls_and_results(self, tmp_path: Any) -> None:
         """Test that tool calls and results are recorded to session."""
+        from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
         from henchman.providers.base import FinishReason, StreamChunk, ToolCall
         from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -675,8 +686,9 @@ class TestSessionAutoSave:
 
         repl = Repl(provider=provider, console=console, config=config)
         repl.tool_registry.register(MockTestTool())
-        repl.session_manager = manager
-        repl.session = manager.create_session(project_hash="test-project")
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
+        session = manager.create_session(project_hash="test-project")
+        repl.set_session(session)
 
         # Run a conversation with tool call
         inputs = iter(["Run test tool", "/quit"])
