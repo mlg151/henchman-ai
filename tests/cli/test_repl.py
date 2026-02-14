@@ -83,6 +83,18 @@ class TestRepl:
         repl = Repl(provider=mock_provider, console=console, config=config)
         assert repl.agent.system_prompt == "Be helpful"
 
+    def test_builtin_tools_registered(self, mock_provider: MockProvider, console: Console) -> None:
+        """All built-in tools must be registered in the REPL tool registry."""
+        repl = Repl(provider=mock_provider, console=console)
+        expected = [
+            "ask_user", "read_file", "write_file", "edit_file",
+            "ls", "glob", "grep", "shell",
+            "web_fetch", "web_search",
+            "kg_query", "kg_update",
+        ]
+        for name in expected:
+            assert repl.tool_registry.get(name) is not None, f"Missing tool: {name}"
+
     @pytest.mark.anyio
     async def test_process_input_regular_message(
         self, mock_provider: MockProvider, console: Console

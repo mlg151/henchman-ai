@@ -235,6 +235,8 @@ class Repl:
             EditFileTool,
             GlobTool,
             GrepTool,
+            KgQueryTool,
+            KgUpdateTool,
             LsTool,
             ReadFileTool,
             ShellTool,
@@ -257,6 +259,8 @@ class Repl:
             ),
             WebFetchTool(),
             DuckDuckGoSearchTool(),
+            KgQueryTool(),
+            KgUpdateTool(),
         ]
         for tool in tools:
             self.tool_registry.register(tool)

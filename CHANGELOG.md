@@ -5,9 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.12] - 2026-02-13
+## [0.2.17] - 2026-02-14
 
 ### Added
+- **4-agent team** — Expanded multi-agent system from 2 agents (Leader + Explorer)
+  to 4 agents (Leader + Planner + Explorer + Engineer).
+  - **Planner**: Architecture design, task decomposition, and structured planning.
+    Has read/search/write/knowledge-graph tools but no `shell` — plans, doesn't execute.
+  - **Engineer**: Code implementation, testing, and debugging. Has file manipulation
+    and `shell` tools but no web tools — builds and verifies.
+  - **Leader** prompt updated to reference and delegate to all three specialists.
+  - Each agent has role-specific system prompts with appropriate cross-cutting rules.
+
+## [0.2.16] - 2026-02-14
+
+### Fixed
+- **Knowledge graph validation hardened** — `kg_update` now rejects invalid
+  `entity_type` and `relation_type` values via enum validation (both in JSON
+  schema and at runtime). `add_relation` requires both source and target entities
+  to exist before creating an edge — previously NetworkX silently created phantom
+  nodes with no attributes, which crashed `kg_query` when iterating. Entity IDs
+  are sanitized (stripped, reject empty/whitespace/None). All node iteration in
+  `KnowledgeStore` now uses a safe deserializer that skips malformed nodes
+  instead of crashing.
+
+## [0.2.15] - 2026-02-14
+
+### Fixed
+- **`kg_query` and `kg_update` tools not available** — Both knowledge graph tools
+  were exported from the builtins package and added to the explorer preset, but
+  were never instantiated in `Repl._register_builtin_tools()`. The Tech Lead
+  (and any agent using the parent registry) could not see them. Added both tools
+  to the REPL registration list and added a regression test that verifies all
+  expected built-in tools are present.
+
+## [0.2.14] - 2026-02-14
+
+### Fixed
+- **Context length bug** — Agents were stuck at 8,000 tokens instead of using
+  the model's full context window. The `Agent` now auto-detects `default_model`
+  from the provider and sizes context to 85% of the model limit (e.g. 108,800
+  tokens for DeepSeek's 128k window). Previously, both the Tech Lead and
+  delegated agents received `model=None`, falling through to the 8,000-token
+  safe default.
+
+## [0.2.13] - 2026-02-13
+
+### Added
+- **Project knowledge graph** — Persistent, structured understanding of codebases
+  that survives between agent sessions. Uses NetworkX for graph structure (entities,
+  relations, graph algorithms) with JSON persistence.
+  - Auto-populated from lightweight code analysis (imports, directory structure,
+    top-level definitions) via `scanner.py`
+  - Agent-curated additions via `kg_update` tool (observations, relations, decisions)
+  - Query via `kg_query` tool: semantic search, neighbors, PageRank importance, stats
+  - Storage: `~/.henchman/knowledge/<repo-hash>/graph.json`
+  - Only activates for directories inside git repositories
+- **`kg_query` tool** (READ) — 6 actions: search, get, neighbors, relations,
+  important, stats. Auto-scans repository on first query if graph is empty.
+- **`kg_update` tool** (WRITE) — 4 actions: add_entity, add_observation,
+  add_relation, remove_entity. Auto-saves after every write.
+- **`networkx>=3.0`** added as a dependency for graph algorithms
 - **Multi-file context discovery** — `ContextLoader` now searches for
   `HENCHMAN.md`, `.github/copilot-instructions.md`, and `.gemini/GEMINI.md`
   (in that priority order) at every directory in the hierarchy. All matches
@@ -15,6 +73,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   get picked up automatically.
 - New `DEFAULT_FILENAMES` constant and `filenames` constructor parameter for
   full control over which instruction files are discovered.
+
+### Removed
+- **Skills system** — The entire `src/henchman/skills/` module and `/skill`
+  command have been removed. The skills system never worked reliably and has
+  been replaced by the knowledge graph.
 
 ## [0.2.11] - 2026-02-13
 

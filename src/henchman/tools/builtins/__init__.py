@@ -6,6 +6,8 @@ from henchman.tools.builtins.file_read import ReadFileTool
 from henchman.tools.builtins.file_write import WriteFileTool
 from henchman.tools.builtins.glob_tool import GlobTool
 from henchman.tools.builtins.grep import GrepTool
+from henchman.tools.builtins.kg_query import KgQueryTool
+from henchman.tools.builtins.kg_update import KgUpdateTool
 from henchman.tools.builtins.ls import LsTool
 from henchman.tools.builtins.rag_search import RagSearchTool
 from henchman.tools.builtins.shell import ShellTool
@@ -17,6 +19,8 @@ __all__ = [
     "EditFileTool",
     "GlobTool",
     "GrepTool",
+    "KgQueryTool",
+    "KgUpdateTool",
     "LsTool",
     "RagSearchTool",
     "ReadFileTool",

@@ -4,17 +4,35 @@ from henchman.agents.config import AgentConfig
 
 
 def get_default_team() -> dict[str, AgentConfig]:
-    """Get the default 2-agent team configuration.
+    """Get the default 4-agent team configuration.
 
-    The Leader (Tech Lead) handles planning, coding, architecture,
-    testing, and review directly.  The Explorer is a lightweight
-    subagent for research and documentation that writes findings
-    into the `.agent_tasks/` workspace.
+    The Leader (Tech Lead) handles orchestration, delegation, and quality
+    gating.  The Planner designs architectures and breaks down tasks.
+    The Explorer researches and documents findings.  The Engineer
+    implements code and runs tests.
 
     Returns:
         Dictionary mapping role ID to AgentConfig.
     """
     return {
+        "planner": AgentConfig(
+            name="Planner",
+            role="planner",
+            description="Architecture, task decomposition, and design docs in .agent_tasks/",
+            tools=[
+                "read_file",
+                "write_file",
+                "edit_file",
+                "ls",
+                "glob",
+                "grep",
+                "web_fetch",
+                "web_search",
+                "rag_search",
+                "kg_query",
+                "kg_update",
+            ],
+        ),
         "explorer": AgentConfig(
             name="Explorer",
             role="explorer",
@@ -30,6 +48,22 @@ def get_default_team() -> dict[str, AgentConfig]:
                 "web_fetch",
                 "web_search",
                 "rag_search",
+                "kg_query",
+                "kg_update",
+            ],
+        ),
+        "engineer": AgentConfig(
+            name="Engineer",
+            role="engineer",
+            description="Code implementation, testing, and debugging",
+            tools=[
+                "read_file",
+                "write_file",
+                "edit_file",
+                "ls",
+                "glob",
+                "grep",
+                "shell",
             ],
         ),
     }

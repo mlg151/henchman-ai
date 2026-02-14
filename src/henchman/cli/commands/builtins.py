@@ -12,7 +12,7 @@ from henchman.cli.commands.mcp import McpCommand
 from henchman.cli.commands.model import ModelCommand
 from henchman.cli.commands.plan import PlanCommand
 from henchman.cli.commands.rag import RagCommand
-from henchman.cli.commands.skill import SkillCommand
+
 from henchman.cli.commands.team import TeamCommand
 from henchman.cli.commands.unlimited import UnlimitedCommand
 
@@ -59,7 +59,6 @@ class HelpCommand(Command):
         ctx.console.print("  /team     - Show team status or reset agents")
         ctx.console.print("  /plan     - Toggle Plan Mode (Read-Only)")
         ctx.console.print("  /rag      - Manage semantic search index")
-        ctx.console.print("  /skill    - Manage and execute learned skills")
         ctx.console.print("  /chat     - Manage chat sessions (save, list, resume)")
         ctx.console.print("  /mcp      - Manage MCP server connections")
         ctx.console.print("  /model    - Show or change model/provider")
@@ -222,6 +221,5 @@ def get_builtin_commands() -> list[Command]:
         ModelCommand(),
         PlanCommand(),
         RagCommand(),
-        SkillCommand(),
         UnlimitedCommand(),
     ]

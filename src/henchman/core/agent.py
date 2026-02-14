@@ -54,17 +54,21 @@ class Agent:
         self.provider = provider
         self.tool_registry = tool_registry if tool_registry is not None else ToolRegistry()
         self.system_prompt = system_prompt
-        self.model = model
         self.summarize_dropped = summarize_dropped
         self.base_tool_iterations = base_tool_iterations
         self.max_protected_ratio = max_protected_ratio
         self.identity = identity
 
+        # Auto-detect model from provider if not explicitly given
+        if not model and hasattr(provider, "default_model"):
+            model = provider.default_model
+        self.model = model
+
         # Determine max tokens from model limit if not specified
         if max_tokens > 0:
             self.max_tokens = max_tokens
         elif model:
-            self.max_tokens = int(get_model_limit(model) * 0.9)  # 90% of limit
+            self.max_tokens = int(get_model_limit(model) * 0.85)  # 85% of limit
         else:
             self.max_tokens = 8000  # Safe default
 

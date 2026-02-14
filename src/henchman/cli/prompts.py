@@ -157,7 +157,6 @@ Run tests. Confirm the mission is complete. Report results.
 - `/clear` - Clear conversation history
 - `/plan` - Toggle plan mode (read-only reconnaissance)
 - `/memory` - View and manage memories
-- `/skill list` - Show learned skills
 - `/chat save <tag>` - Save this session
 - `/chat resume <tag>` - Resume a saved session
 

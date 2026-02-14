@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "henchman-ai"
-version = "0.2.12"
+version = "0.2.17"
 description = "A model-agnostic AI agent CLI - your AI henchman for the terminal"
 readme = "README.md"
 license = "MIT"
@@ -49,6 +49,7 @@ dependencies = [
     "tiktoken>=0.5",
     "fastembed>=0.3",
     "chromadb>=0.4",
+    "networkx>=3.0",
 ]
 
 [project.optional-dependencies]
