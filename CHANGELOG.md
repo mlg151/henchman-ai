@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.20] - 2026-02-16
+
+### Added
+- **Agent environment context injection** — All agents (Tech Lead, Planner, Explorer,
+  Engineer) now receive a structured `<environment_context>` block in their system
+  prompt containing: working directory, git root/branch/status, OS, shell, Python
+  version, detected project type, top-level directory snapshot, and available CLI tools.
+  This eliminates wasteful ad-hoc tool calls for environment discovery.
+- New module `henchman.config.environment` with `EnvironmentContext` dataclass,
+  `gather_environment()`, and `format_environment_block()`.
+- `get_agent_prompt()` now accepts an optional `environment_context` parameter.
+- 49 new tests for environment detection with 100% coverage on the new module.
+
 ## [0.2.19] - 2026-02-14
 
 ### Fixed
