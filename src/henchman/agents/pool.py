@@ -69,6 +69,7 @@ class AgentPool:
         provider_registry: "ProviderRegistry | None",
         parent_tool_registry: ToolRegistry,
         event_bus: "EventBus",
+        environment_context: str | None = None,
     ) -> None:
         """Initialize the AgentPool.
 
@@ -78,12 +79,14 @@ class AgentPool:
             provider_registry: Registry to look up provider overrides.
             parent_tool_registry: Registry containing all available tools.
             event_bus: The event bus for inter-agent communication.
+            environment_context: Pre-formatted environment block for agents.
         """
         self.configs = configs
         self.default_provider = default_provider
         self.provider_registry = provider_registry
         self.parent_tool_registry = parent_tool_registry
         self.event_bus = event_bus
+        self.environment_context = environment_context
         self._agents: dict[str, Agent] = {}
 
     def get_agent(self, role: str) -> Agent:
@@ -136,6 +139,7 @@ class AgentPool:
                 role=role,
                 team_members=team_members,
                 delegatable_agents=config.can_delegate_to,
+                environment_context=self.environment_context,
             )
 
         identity = AgentIdentity(

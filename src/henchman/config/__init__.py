@@ -4,6 +4,11 @@ This module provides configuration loading and context file discovery.
 """
 
 from henchman.config.context import DEFAULT_FILENAMES, ContextLoader
+from henchman.config.environment import (
+    EnvironmentContext,
+    format_environment_block,
+    gather_environment,
+)
 from henchman.config.schema import (
     ContextSettings,
     McpServerConfig,
@@ -20,6 +25,7 @@ __all__ = [
     "ContextLoader",
     "DEFAULT_FILENAMES",
     "ContextSettings",
+    "EnvironmentContext",
     "McpServerConfig",
     "ProviderSettings",
     "RagSettings",
@@ -27,5 +33,7 @@ __all__ = [
     "ToolSettings",
     "UISettings",
     "deep_merge",
+    "format_environment_block",
+    "gather_environment",
     "load_settings",
 ]

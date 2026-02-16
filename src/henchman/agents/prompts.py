@@ -235,6 +235,7 @@ def get_agent_prompt(
     role: str,
     team_members: list[str] | None = None,
     delegatable_agents: list[str] | None = None,
+    environment_context: str | None = None,
 ) -> str:
     """Generate a role-specific system prompt.
 
@@ -242,6 +243,7 @@ def get_agent_prompt(
         role: The role identifier (e.g., 'tech_lead', 'explorer').
         team_members: List of names/roles of other agents in the team.
         delegatable_agents: List of roles this agent can delegate to.
+        environment_context: Pre-formatted environment context block to inject.
 
     Returns:
         The full system prompt string.
@@ -258,11 +260,13 @@ def get_agent_prompt(
         targets_str = ", ".join(delegatable_agents)
         delegation_context += f"You can delegate specialized tasks to: {targets_str} via the `delegate_task` tool.\n"
 
+    env_block = f"\n{environment_context}\n" if environment_context else ""
+
     return f"""
 {BASE_IDENTITY}
 
 {BASE_RULES}
-
+{env_block}
 {role_instr}
 
 {team_context}

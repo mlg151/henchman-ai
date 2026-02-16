@@ -173,3 +173,25 @@ def test_planner_instructions_nonempty():
 def test_engineer_instructions_nonempty():
     """Engineer instructions have content."""
     assert len(ENGINEER_INSTRUCTIONS) > 100
+
+
+def test_get_agent_prompt_with_environment_context():
+    """Environment context block is injected when provided."""
+    env_block = "<environment_context>\n* Working directory: /tmp\n</environment_context>"
+    prompt = get_agent_prompt("tech_lead", environment_context=env_block)
+    assert "<environment_context>" in prompt
+    assert "Working directory: /tmp" in prompt
+
+
+def test_get_agent_prompt_without_environment_context():
+    """No environment block when not provided."""
+    prompt = get_agent_prompt("tech_lead")
+    assert "<environment_context>" not in prompt
+
+
+def test_get_agent_prompt_env_context_all_roles():
+    """All roles include the environment context when provided."""
+    env_block = "<environment_context>\n* OS: Linux\n</environment_context>"
+    for role in ("tech_lead", "planner", "explorer", "engineer"):
+        prompt = get_agent_prompt(role, environment_context=env_block)
+        assert "<environment_context>" in prompt, f"{role} missing env context"

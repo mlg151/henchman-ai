@@ -35,6 +35,7 @@ class Orchestrator:
         event_bus: EventBus | None = None,
         settings: Settings | None = None,
         system_prompt: str | None = None,
+        environment_context: str | None = None,
     ) -> None:
         """Initialize the Orchestrator.
 
@@ -45,12 +46,14 @@ class Orchestrator:
             event_bus: Optional existing event bus.
             settings: Optional application settings.
             system_prompt: Optional override for Tech Lead system prompt.
+            environment_context: Pre-formatted environment block for agents.
         """
         self.default_provider = default_provider
         self.provider_registry = provider_registry
         self.tool_registry = tool_registry or ToolRegistry()
         self.event_bus = event_bus or EventBus()
         self.settings = settings or Settings()
+        self.environment_context = environment_context
 
         # Load agent configs
         agent_configs = get_default_team()
@@ -65,6 +68,7 @@ class Orchestrator:
             provider_registry=provider_registry,
             parent_tool_registry=self.tool_registry,
             event_bus=self.event_bus,
+            environment_context=environment_context,
         )
 
         # Shared context history
@@ -91,7 +95,8 @@ class Orchestrator:
         tl_prompt = system_prompt or get_agent_prompt(
             role="tech_lead",
             team_members=team_members,
-            delegatable_agents=[c.role for c in agent_configs.values() if c.enabled]
+            delegatable_agents=[c.role for c in agent_configs.values() if c.enabled],
+            environment_context=environment_context,
         )
 
         from henchman.agents.identity import AgentIdentity

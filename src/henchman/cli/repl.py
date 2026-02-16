@@ -73,6 +73,7 @@ class Repl:
         console: Console | None = None,
         config: ReplConfig | None = None,
         settings: Settings | None = None,
+        environment_context: str | None = None,
     ) -> None:
         """Initialize the REPL.
 
@@ -81,6 +82,7 @@ class Repl:
             console: Rich console for output.
             config: REPL configuration.
             settings: Application settings for context limits, etc.
+            environment_context: Pre-formatted environment block for agents.
         """
         self.provider = provider
         self.console = console or Console()
@@ -119,6 +121,7 @@ class Repl:
             event_bus=self.event_bus,
             settings=settings,
             system_prompt=self.config.system_prompt,
+            environment_context=environment_context,
         )
 
         # Reference Tech Lead as self.agent for backwards compatibility

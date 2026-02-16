@@ -146,6 +146,7 @@ def _run_interactive(
 
     from henchman.cli.repl import Repl, ReplConfig
     from henchman.config import ContextLoader, load_settings
+    from henchman.config.environment import format_environment_block, gather_environment
     from henchman.rag import initialize_rag
 
     provider = _get_provider()
@@ -155,8 +156,18 @@ def _run_interactive(
     context_loader = ContextLoader()
     system_prompt = context_loader.load()
 
+    # Gather environment context once
+    env_ctx = gather_environment()
+    env_block = format_environment_block(env_ctx)
+
     config = ReplConfig(system_prompt=system_prompt, auto_approve_tools=yes)
-    repl = Repl(provider=provider, console=console, config=config, settings=settings)
+    repl = Repl(
+        provider=provider,
+        console=console,
+        config=config,
+        settings=settings,
+        environment_context=env_block,
+    )
 
     # Initialize session management
     project_hash = repl.session_manager.compute_project_hash(Path.cwd())
@@ -214,6 +225,7 @@ def _run_headless(
     from henchman.cli.json_output import JsonOutputRenderer
     from henchman.cli.repl import Repl, ReplConfig
     from henchman.config import ContextLoader, load_settings
+    from henchman.config.environment import format_environment_block, gather_environment
     from henchman.core.events import EventType
     from henchman.rag import initialize_rag
 
@@ -224,6 +236,10 @@ def _run_headless(
     context_loader = ContextLoader()
     system_prompt = context_loader.load()
 
+    # Gather environment context once
+    env_ctx = gather_environment()
+    env_block = format_environment_block(env_ctx)
+
     # Add plan mode prompt if requested
     if plan_mode:  # pragma: no cover
         from henchman.cli.commands.plan import PLAN_MODE_PROMPT
@@ -231,7 +247,13 @@ def _run_headless(
         system_prompt += PLAN_MODE_PROMPT
 
     config = ReplConfig(system_prompt=system_prompt, auto_approve_tools=yes)
-    repl = Repl(provider=provider, console=console, config=config, settings=settings)
+    repl = Repl(
+        provider=provider,
+        console=console,
+        config=config,
+        settings=settings,
+        environment_context=env_block,
+    )
 
     # Initialize session management
     project_hash = repl.session_manager.compute_project_hash(Path.cwd())
