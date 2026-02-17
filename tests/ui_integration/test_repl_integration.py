@@ -15,7 +15,6 @@ import pytest
 from rich.console import Console
 
 from henchman.cli.commands import CommandRegistry
-from henchman.cli.console import OutputRenderer
 from henchman.cli.repl import Repl, ReplConfig
 from henchman.cli.ui_renderer import UIRenderer
 from henchman.core.agent import Agent

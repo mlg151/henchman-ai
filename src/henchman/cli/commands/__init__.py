@@ -12,9 +12,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from rich.console import Console
 
+    from henchman.cli.repl import Repl
     from henchman.config import Settings
     from henchman.core import Agent
     from henchman.core.session import Session
+    from henchman.mcp.manager import McpManager
     from henchman.tools.registry import ToolRegistry
 
 
@@ -58,9 +60,10 @@ class CommandContext:
     agent: Agent | None = None
     tool_registry: ToolRegistry | None = None
     session: Session | None = None
-    repl: object | None = None
+    repl: Repl | None = None
     session_manager: object | None = None
     project_hash: str | None = None
+    mcp_manager: McpManager | None = None
 
 
 class Command(ABC):

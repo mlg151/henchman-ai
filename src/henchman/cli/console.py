@@ -290,7 +290,7 @@ class OutputRenderer:
         Args:
             content: Thinking content.
         """
-        self.console.print(content, style=self.theme.muted)
+        self.console.print(content, style=self.theme.muted, end="")
 
     async def confirm_tool_execution(self, message: str) -> bool:
         """Ask user for confirmation.

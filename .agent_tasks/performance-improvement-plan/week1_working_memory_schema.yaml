@@ -1,0 +1,277 @@
+# Working Memory Schema for Agent Performance Improvement
+
+## Schema Definition
+
+```yaml
+working_memory:
+  # Core task tracking
+  current_task:
+    description: "What we're currently working on"
+    type: string
+    required: true
+    example: "Implement authentication middleware for FastAPI"
+  
+  task_objectives:
+    description: "Specific goals for the current task"
+    type: array
+    items: string
+    example: ["Create JWT authentication", "Add user model", "Write tests"]
+  
+  # Context tracking
+  recent_files:
+    description: "Files accessed in the last 5 interactions"
+    type: array
+    items:
+      type: object
+      properties:
+        path: {type: string}
+        purpose: {type: string}
+        timestamp: {type: string, format: datetime}
+    max_items: 10
+  
+  active_context:
+    description: "Key information relevant to current task"
+    type: object
+    properties:
+      project_structure: {type: string}
+      relevant_patterns: {type: array, items: string}
+      constraints: {type: array, items: string}
+      dependencies: {type: array, items: string}
+  
+  # Decision tracking
+  decisions_made:
+    description: "Key decisions made during this session"
+    type: array
+    items:
+      type: object
+      properties:
+        decision: {type: string}
+        rationale: {type: string}
+        timestamp: {type: string, format: datetime}
+        impact: {type: string, enum: [high, medium, low]}
+  
+  # Progress tracking
+  completed_steps:
+    description: "Steps that have been completed"
+    type: array
+    items: string
+  
+  next_actions:
+    description: "Planned next steps"
+    type: array
+    items:
+      type: object
+      properties:
+        action: {type: string}
+        priority: {type: string, enum: [high, medium, low]}
+        estimated_effort: {type: string}
+  
+  # Learning tracking
+  insights_gained:
+    description: "New learnings from this session"
+    type: array
+    items: string
+  
+  problems_encountered:
+    description: "Issues or blockers encountered"
+    type: array
+    items:
+      type: object
+      properties:
+        problem: {type: string}
+        status: {type: string, enum: [open, in_progress, resolved]}
+        resolution: {type: string}
+```
+
+## Update Protocol
+
+### When to Update Working Memory
+1. **After reading a file**: Add to `recent_files`
+2. **After making a decision**: Add to `decisions_made`
+3. **After completing a step**: Add to `completed_steps`
+4. **When planning next steps**: Update `next_actions`
+5. **When learning something new**: Add to `insights_gained`
+6. **When encountering a problem**: Add to `problems_encountered`
+
+### Update Format
+```yaml
+# Example update after file read
+UPDATE working_memory:
+  recent_files:
+    - path: "src/henchman/core/agent.py"
+      purpose: "Understand agent architecture for delegation implementation"
+      timestamp: "2024-01-15T10:30:00Z"
+
+# Example update after decision
+UPDATE working_memory:
+  decisions_made:
+    - decision: "Use JWT for authentication instead of session-based"
+      rationale: "JWT is stateless and scales better for API"
+      timestamp: "2024-01-15T10:35:00Z"
+      impact: "high"
+```
+
+## Memory Maintenance Rules
+
+### Retention Policy
+- `recent_files`: Keep last 10 files, remove older entries
+- `decisions_made`: Keep all decisions for current session
+- `completed_steps`: Keep all steps for current task
+- `insights_gained`: Keep all insights, summarize if too many
+
+### Memory Optimization
+1. **Summarize when needed**: If memory gets large, create summary
+2. **Group related items**: Combine similar files or decisions
+3. **Remove irrelevant items**: Clean memory between major task changes
+4. **Archive completed tasks**: Move to knowledge graph when task done
+
+## Integration with Existing Systems
+
+### Knowledge Graph Integration
+```yaml
+# When task is complete, archive to knowledge graph
+ARCHIVE_TO_KG:
+  entity_type: "task"
+  entity_id: "auth-middleware-implementation"
+  name: "Authentication Middleware Implementation"
+  description: "Implemented JWT authentication for FastAPI"
+  tags: ["authentication", "fastapi", "security"]
+  files: ${working_memory.recent_files}
+  decisions: ${working_memory.decisions_made}
+  insights: ${working_memory.insights_gained}
+```
+
+### Tool Integration
+```python
+# Tools should update working memory automatically
+async def read_file_with_memory(path: str, **kwargs):
+    content = await read_file(path, **kwargs)
+    
+    # Update working memory
+    memory_update = {
+        "recent_files": [{
+            "path": path,
+            "purpose": f"Read file for {kwargs.get('purpose', 'analysis')}",
+            "timestamp": datetime.now().isoformat()
+        }]
+    }
+    update_working_memory(memory_update)
+    
+    return content
+```
+
+## Example Session Flow
+
+### Starting a New Task
+```yaml
+INITIALIZE working_memory:
+  current_task: "Fix test coverage gap in agent.py"
+  task_objectives: ["Increase coverage to 100%", "Add missing tests", "Document edge cases"]
+  recent_files: []
+  active_context:
+    project_structure: "FastAPI application with agent system"
+    relevant_patterns: ["test-driven-development", "coverage-analysis"]
+    constraints: ["Must maintain 100% coverage standard", "No breaking changes"]
+    dependencies: ["pytest", "pytest-cov", "existing test infrastructure"]
+  decisions_made: []
+  completed_steps: []
+  next_actions: [
+    {action: "Analyze current coverage report", priority: "high", estimated_effort: "15min"},
+    {action: "Identify untested code paths", priority: "high", estimated_effort: "30min"}
+  ]
+  insights_gained: []
+  problems_encountered: []
+```
+
+### During Task Execution
+```yaml
+# After analyzing coverage
+UPDATE working_memory:
+  completed_steps: ["Analyzed current coverage report"]
+  insights_gained: ["Coverage is at 85%, missing tests for error handling"]
+  next_actions: [
+    {action: "Write tests for error handling in process_message()", priority: "high", estimated_effort: "45min"},
+    {action: "Test edge cases for tool calls", priority: "medium", estimated_effort: "30min"}
+  ]
+
+# After reading relevant file
+UPDATE working_memory:
+  recent_files: [
+    {
+      "path": "src/henchman/core/agent.py",
+      "purpose": "Examine process_message() method for testing",
+      "timestamp": "2024-01-15T11:00:00Z"
+    }
+  ]
+```
+
+### Task Completion
+```yaml
+FINALIZE working_memory:
+  completed_steps: [
+    "Analyzed current coverage report",
+    "Wrote tests for error handling",
+    "Tested edge cases for tool calls",
+    "Ran full test suite",
+    "Verified 100% coverage"
+  ]
+  insights_gained: [
+    "Error handling was the main coverage gap",
+    "Mocking tool calls requires careful setup",
+    "Integration tests catch issues unit tests miss"
+  ]
+  problems_encountered: [
+    {
+      "problem": "Mock setup was interfering with other tests",
+      "status": "resolved",
+      "resolution": "Used pytest fixtures for proper isolation"
+    }
+  ]
+  
+# Archive to knowledge graph
+ARCHIVE task_completion:
+  success: true
+  metrics:
+    coverage_before: 85
+    coverage_after: 100
+    tests_added: 12
+    time_spent: "2.5 hours"
+```
+
+## Validation Rules
+
+### Memory Consistency Checks
+1. **Current task must be set**: Error if `current_task` is empty
+2. **Files must have purpose**: Every file in `recent_files` needs a purpose
+3. **Decisions need rationale**: Every decision must have rationale
+4. **Actions need priority**: Every next action must have priority
+
+### Performance Guidelines
+1. **Keep memory concise**: Summarize rather than list every detail
+2. **Update incrementally**: Small, frequent updates better than large dumps
+3. **Reference, don't repeat**: Reference knowledge graph instead of repeating information
+4. **Clean between tasks**: Reset memory when starting significantly different work
+
+## Implementation Priority
+
+### Phase 1 (Week 1): Core Memory
+- Implement `current_task`, `recent_files`, `next_actions`
+- Basic update protocol
+- Simple validation
+
+### Phase 2 (Week 2): Enhanced Tracking
+- Add `decisions_made`, `insights_gained`
+- Integration with thinking frameworks
+- Advanced validation
+
+### Phase 3 (Week 3): Learning Integration
+- Connect to knowledge graph
+- Pattern recognition from memory
+- Automated summarization
+
+### Phase 4 (Week 4): Optimization
+- Performance optimization
+- Memory compression
+- Intelligent cleanup
+
+This schema provides a foundation for effective working memory that reduces context re-reading while maintaining task focus and learning capture.

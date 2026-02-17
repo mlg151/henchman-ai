@@ -22,13 +22,15 @@ class McpManager:
     tools across multiple MCP servers.
     """
 
-    def __init__(self, configs: dict[str, McpServerConfig]) -> None:
+    def __init__(self, configs: dict[str, McpServerConfig], verbose: bool = False) -> None:
         """Initialize the manager.
 
         Args:
             configs: Map of server name to configuration.
+            verbose: If True, show MCP server logs. If False, suppress INFO/DEBUG logs.
         """
         self.configs = configs
+        self.verbose = verbose
         self.clients: dict[str, McpClient] = {}
         self._tools: list[McpTool] = []
 
@@ -58,7 +60,7 @@ class McpManager:
         from henchman.mcp.tool import McpTool
 
         for name, config in self.configs.items():
-            client = McpClient(name=name, config=config)
+            client = McpClient(name=name, config=config, verbose=self.verbose)
             try:
                 await client.connect()
                 self.clients[name] = client

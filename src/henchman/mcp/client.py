@@ -6,6 +6,10 @@ a connection to an MCP server.
 
 from __future__ import annotations
 
+import io
+import re
+import sys
+from contextlib import AsyncExitStack, suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -13,6 +17,83 @@ from henchman.mcp.config import McpServerConfig
 
 if TYPE_CHECKING:
     from mcp.client.session import ClientSession
+
+from mcp.client.stdio import stdio_client
+
+from mcp import ClientSession, StdioServerParameters
+
+
+class FilteredStream(io.StringIO):
+    """A stream that filters out unwanted log messages.
+
+    This stream can be used as errlog for stdio_client to suppress
+    INFO and DEBUG logs while still capturing errors.
+    """
+
+    def __init__(self, verbose: bool = False) -> None:
+        """Initialize the filtered stream.
+
+        Args:
+            verbose: If True, pass through all messages. If False, filter out INFO/DEBUG.
+        """
+        super().__init__()
+        self.verbose = verbose
+
+    def write(self, text: str) -> int:
+        """Write text to the stream, filtering if not verbose.
+
+        Args:
+            text: Text to write.
+
+        Returns:
+            Number of characters that would have been written.
+        """
+        if self.verbose:
+            # In verbose mode, pass through to stderr
+            return sys.stderr.write(text)
+
+        # Filter out common log patterns
+        lines = text.split('\n')
+        filtered_lines = []
+
+        # Regex patterns for common log formats
+        info_pattern = re.compile(r'^(INFO|DEBUG)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2},\d{3}')
+        bracketed_pattern = re.compile(r'^\[(INFO|DEBUG)\]')
+        colon_pattern = re.compile(r'^(INFO|DEBUG):')
+
+        for line in lines:
+            # Skip empty lines
+            if not line.strip():
+                continue
+
+            # Check for various log format patterns
+            line_stripped = line.strip()
+            if (info_pattern.match(line_stripped) or
+                bracketed_pattern.match(line_stripped) or
+                colon_pattern.match(line_stripped)):
+                # This is an INFO/DEBUG log line, skip it
+                continue
+
+            # Also check for common Python logging format variations
+            if (line_stripped.startswith('INFO ') or
+                line_stripped.startswith('DEBUG ') or
+                '[INFO]' in line_stripped or
+                '[DEBUG]' in line_stripped or
+                line_stripped.startswith('INFO:') or
+                line_stripped.startswith('DEBUG:')):
+                continue
+
+            # For non-INFO/DEBUG lines (errors, warnings, regular output), pass through
+            if line.strip():
+                filtered_lines.append(line)
+
+        if filtered_lines:
+            # Write filtered output to stderr
+            output = '\n'.join(filtered_lines) + ('\n' if text.endswith('\n') else '')
+            return sys.stderr.write(output)
+
+        return len(text)
+
 
 
 @dataclass
@@ -49,35 +130,37 @@ class McpClient:
     Manages the connection lifecycle and tool discovery/execution.
     """
 
-    def __init__(self, name: str, config: McpServerConfig) -> None:
+    def __init__(self, name: str, config: McpServerConfig, verbose: bool = False) -> None:
         """Initialize the client.
 
         Args:
             name: Server name.
             config: Server configuration.
+            verbose: If True, show server logs. If False, suppress INFO/DEBUG logs.
         """
         self.name = name
         self.config = config
+        self.verbose = verbose
         self._session: ClientSession | None = None
         self._tools: list[McpToolDefinition] = []
+        self._exit_stack: AsyncExitStack | None = None
 
     @property
     def is_connected(self) -> bool:
         """Check if connected to server."""
         return self._session is not None
 
-    async def _create_session(self) -> ClientSession:  # pragma: no cover
-        """Create the MCP client session.
+    async def connect(self) -> None:  # pragma: no cover
+        """Connect to the MCP server.
 
-        This method requires a real MCP server and is excluded from
-        unit test coverage. It is tested via integration tests.
-
-        Returns:
-            ClientSession connected to the server.
+        Uses AsyncExitStack to properly manage the stdio_client and
+        ClientSession context managers, keeping their task groups alive
+        for the duration of the connection.
         """
-        from mcp.client.stdio import stdio_client
+        if self._session is not None:
+            return
 
-        from mcp import ClientSession, StdioServerParameters
+
 
         server_params = StdioServerParameters(
             command=self.config.command,
@@ -85,26 +168,40 @@ class McpClient:
             env=self.config.env if self.config.env else None,
         )
 
-        # Create the stdio transport
-        read, write = await stdio_client(server_params).__aenter__()
+        self._exit_stack = AsyncExitStack()
+        await self._exit_stack.__aenter__()
 
-        # Create and initialize session
-        session = ClientSession(read, write)
-        return session
+        try:
+            # Create filtered error stream based on verbosity
+            errlog = FilteredStream(verbose=self.verbose)
 
-    async def connect(self) -> None:
-        """Connect to the MCP server."""
-        if self._session is not None:
-            return
+            # Enter stdio_client context — keeps task group alive
+            read, write = await self._exit_stack.enter_async_context(
+                stdio_client(server_params, errlog=errlog)
+            )
 
-        self._session = await self._create_session()
-        await self._session.initialize()
+            # Enter ClientSession context
+            session = await self._exit_stack.enter_async_context(
+                ClientSession(read, write)
+            )
 
-        # Discover tools on connect
-        await self.discover_tools()
+            self._session = session
+            await self._session.initialize()
+
+            # Discover tools on connect
+            await self.discover_tools()
+        except Exception:
+            await self._exit_stack.aclose()
+            self._exit_stack = None
+            self._session = None
+            raise
 
     async def disconnect(self) -> None:
         """Disconnect from the MCP server."""
+        if self._exit_stack is not None:
+            with suppress(Exception):
+                await self._exit_stack.aclose()
+            self._exit_stack = None
         self._session = None
         self._tools = []
 

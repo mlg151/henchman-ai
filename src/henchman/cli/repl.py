@@ -25,6 +25,7 @@ from henchman.cli.ui_renderer import UIRenderer
 from henchman.core.eventbus import EventBus
 from henchman.core.events import AgentEvent, EventType
 from henchman.core.session import Session
+from henchman.mcp.manager import McpManager
 from henchman.providers.base import ModelProvider, ToolCall
 from henchman.tools.base import ConfirmationRequest
 
@@ -96,6 +97,75 @@ class Repl:
         self.tool_manager.set_confirmation_handler(self._handle_confirmation)
         self.tool_manager.register_builtin_tools()
         self.tool_registry = self.tool_manager.registry  # Backwards compatibility
+
+        # Initialize MCP manager if servers are configured
+        self.mcp_manager: McpManager | None = None
+        if settings and settings.mcp_servers:
+            # Convert Pydantic McpServerConfig to mcp.config.McpServerConfig
+            import henchman.mcp.config as mcp_config
+
+            mcp_configs: dict[str, mcp_config.McpServerConfig] = {}
+            for name, server_config in settings.mcp_servers.items():
+                # Start with the environment from config
+                env = dict(server_config.env)
+
+                # Suppress server logs if mcp_logging is disabled
+                if not settings.ui.mcp_logging:
+                    # Apply logging suppression for known server types
+
+                    # Check if this is a Python-based server
+                    is_python = (
+                        "python" in server_config.command.lower() or
+                        "uvx" in server_config.command.lower() or
+                        any(".py" in arg.lower() for arg in server_config.args)
+                    )
+
+                    # Check if this is a Node.js-based server
+                    is_node = (
+                        "node" in server_config.command.lower() or
+                        "npx" in server_config.command.lower() or
+                        "npm" in server_config.command.lower()
+                    )
+
+                    # Check if this is Serena specifically
+                    is_serena = (
+                        "serena" in name.lower() or
+                        any("serena" in arg.lower() for arg in server_config.args)
+                    )
+
+                    # Apply environment variables based on server type
+                    if is_serena:
+                        # Serena-specific logging control
+                        env["SERENA_LOG_LEVEL"] = "WARNING"
+                        # Also set general Python logging variables
+                        env["PYTHONWARNINGS"] = "ignore"
+                        env["LOGLEVEL"] = "WARNING"
+                        env["PYTHON_LOG_LEVEL"] = "WARNING"
+                    elif is_python:
+                        # Generic Python server logging suppression
+                        env["PYTHONWARNINGS"] = "ignore"
+                        env["LOGLEVEL"] = "WARNING"
+                        env["PYTHON_LOG_LEVEL"] = "WARNING"
+                    elif is_node:
+                        # Node.js server logging suppression
+                        env["NODE_ENV"] = "production"
+
+                    # For any server, add common logging suppression
+                    env["NO_COLOR"] = "1"  # Disable ANSI colors in logs
+                    env["TERM"] = "dumb"   # Basic terminal type
+                mcp_configs[name] = mcp_config.McpServerConfig(
+                    command=server_config.command,
+                    args=server_config.args,
+                    env=env,
+                    trusted=server_config.trusted,
+                )
+
+            self.mcp_manager = McpManager(
+                mcp_configs,
+                verbose=settings.ui.mcp_logging if settings else False
+            )
+            # Note: We'll connect to servers and register tools in run() method
+            # to avoid async initialization in __init__
 
         # Determine max_tokens from settings
         # Apply compaction_threshold to get the actual limit
@@ -225,6 +295,23 @@ class Repl:
 
         return await self.renderer.confirm_tool_execution(msg)
 
+    async def initialize_mcp(self) -> None:
+        """Initialize MCP servers and register tools.
+
+        This method can be called separately for headless mode.
+        """
+        if self.mcp_manager and not self.mcp_manager.clients:  # Only connect if not already connected
+            try:
+                await self.mcp_manager.connect_all()
+                # Register MCP tools with the tool registry
+                for tool in self.mcp_manager.get_all_tools():
+                    self.tool_registry.register(tool)
+                if self.mcp_manager.get_all_tools() and self.settings and self.settings.ui.mcp_logging:
+                    self.renderer.success(f"Connected to {len(self.mcp_manager.clients)} MCP server(s) with {len(self.mcp_manager.get_all_tools())} tools")
+            except Exception as e:
+                # Always show errors, regardless of logging setting
+                self.renderer.error(f"Failed to connect to MCP servers: {e}")
+
     async def run(self) -> None:
         """Run the main REPL loop.
 
@@ -232,6 +319,9 @@ class Repl:
         """
         self.running = True
         self._print_welcome()
+
+        # Connect to MCP servers and register tools
+        await self.initialize_mcp()
 
         # Start background indexing if RAG is available
         if self.rag_system and hasattr(self.rag_system, "index_async"):
@@ -253,6 +343,9 @@ class Repl:
                     break
         finally:
             self.running = False
+            # Disconnect from MCP servers
+            if self.mcp_manager:
+                await self.mcp_manager.disconnect_all()
             self._auto_save_session()
             self._print_goodbye()
 
@@ -268,10 +361,12 @@ class Repl:
         """Auto-save the session if enabled and session has content."""
         if hasattr(self.session_manager, "auto_save_session"):
             self.session_manager.auto_save_session()
-        elif hasattr(self.session_manager, "save") and hasattr(self.session_manager, "current"):
-             # Fallback for SessionManager
-             if self.session_manager.current:
-                 self.session_manager.save(self.session_manager.current)
+        elif (
+            hasattr(self.session_manager, "save")
+            and hasattr(self.session_manager, "current")
+            and self.session_manager.current
+        ):
+            self.session_manager.save(self.session_manager.current)
 
     async def _get_input(self) -> str:
         """Get input from the user.
@@ -355,6 +450,8 @@ class Repl:
         )
         # Add session_manager and project_hash for /chat command
         ctx.session_manager = getattr(self.session_manager, "session_manager", self.session_manager)
+        # Add MCP manager for /mcp command
+        ctx.mcp_manager = self.mcp_manager
         from pathlib import Path
 
         ctx.project_hash = self.session_manager.compute_project_hash(Path.cwd())
@@ -506,8 +603,14 @@ class Repl:
         # Track whether pending tool calls have been recorded to session
         # (for tool calls handled inline by the orchestrator)
         _session_tool_calls_flushed = False
+        is_thinking = False
 
         async for event in event_stream:
+            # Handle transition out of thinking
+            if is_thinking and event.type != EventType.THOUGHT:
+                self.renderer.print_newline()
+                is_thinking = False
+
             # Update status continuously
             if status_obj:
                 status_obj.update(self._get_rich_status_message())
@@ -524,8 +627,10 @@ class Repl:
                     accumulated_content.append(event.data)
 
             elif event.type == EventType.THOUGHT:
-                # Show thinking in muted style
-                self.renderer.muted(f"[thinking] {event.data}")
+                if not is_thinking:
+                    self.renderer.thinking("\n[thinking] ")
+                    is_thinking = True
+                self.renderer.thinking(event.data)
 
             elif event.type == EventType.CONTEXT_COMPACTED:
                 # Notify user that context was compacted
@@ -590,6 +695,9 @@ class Repl:
                 self.renderer.muted(f"\n[bold cyan]→ {to_agent}[/]: {msg}")
 
             elif event.type == EventType.FINISHED:
+                if is_thinking:
+                    self.renderer.print_newline()
+                    is_thinking = False
                 self.renderer.print_newline()
 
             elif event.type == EventType.ERROR:

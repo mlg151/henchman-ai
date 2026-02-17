@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from henchman.cli.commands import Command, CommandContext
+from henchman.config import load_settings
 
 if TYPE_CHECKING:
     from henchman.mcp.manager import McpManager
@@ -41,7 +42,7 @@ class McpCommand(Command):
         Returns:
             Usage string.
         """
-        return "/mcp <list|status>"
+        return "/mcp <list|status|logging>"
 
     async def execute(self, ctx: CommandContext) -> None:
         """Execute the mcp command.
@@ -58,14 +59,17 @@ class McpCommand(Command):
             await self._list(ctx)
         elif subcommand == "status":
             await self._status(ctx)
+        elif subcommand == "logging":
+            await self._logging(ctx)
         else:
             await self._show_help(ctx)
 
     async def _show_help(self, ctx: CommandContext) -> None:
         """Show help for /mcp command."""
         ctx.console.print("\n[bold blue]MCP Server Commands[/]\n")
-        ctx.console.print("  /mcp list    - List configured MCP servers")
-        ctx.console.print("  /mcp status  - Show connection status and tools")
+        ctx.console.print("  /mcp list      - List configured MCP servers")
+        ctx.console.print("  /mcp status    - Show connection status and tools")
+        ctx.console.print("  /mcp logging   - Control MCP logging (on/off/status)")
         ctx.console.print("")
 
     async def _list(self, ctx: CommandContext) -> None:
@@ -112,3 +116,35 @@ class McpCommand(Command):
             if len(tools) > 10:
                 ctx.console.print(f"  ... and {len(tools) - 10} more")
         ctx.console.print("")
+
+    async def _logging(self, ctx: CommandContext) -> None:
+        """Control MCP logging visibility.
+
+        Args:
+            ctx: Command context.
+        """
+        if len(ctx.args) < 2:
+            ctx.console.print("\n[bold blue]MCP Logging Control[/]\n")
+            ctx.console.print("  /mcp logging on     - Enable MCP logging messages")
+            ctx.console.print("  /mcp logging off    - Disable MCP logging messages")
+            ctx.console.print("  /mcp logging status - Show current logging status")
+            ctx.console.print("")
+            return
+
+        action = ctx.args[1].lower()
+
+        # Get settings from REPL context if available, otherwise load fresh
+        settings = ctx.repl.settings if ctx.repl and ctx.repl.settings else load_settings()
+
+        if action == "on":
+            settings.ui.mcp_logging = True
+            ctx.console.print("[green]✓ MCP logging enabled[/]")
+        elif action == "off":
+            settings.ui.mcp_logging = False
+            ctx.console.print("[yellow]✓ MCP logging disabled[/]")
+        elif action == "status":
+            status = "enabled" if settings.ui.mcp_logging else "disabled"
+            ctx.console.print(f"[bold]MCP logging:[/] {status}")
+        else:
+            ctx.console.print("[red]Error:[/] Invalid argument. Use 'on', 'off', or 'status'.")
+            ctx.console.print("  Example: /mcp logging on")

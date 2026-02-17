@@ -3,7 +3,15 @@
 import re
 from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any
+from typing import Any, TypedDict
+
+
+class Metrics(TypedDict):
+    """Metrics for tracking orchestrator performance."""
+    thinking_pattern_usage: int
+    delegation_count: int
+    delegation_by_type: dict[str, int]
+    thinking_quality_score: int
 
 from henchman.agents.ledger import TaskLedger
 from henchman.agents.pool import AgentPool
@@ -54,6 +62,14 @@ class Orchestrator:
         self.event_bus = event_bus or EventBus()
         self.settings = settings or Settings()
         self.environment_context = environment_context
+
+        # Thinking and delegation metrics
+        self.metrics: Metrics = {
+            "thinking_pattern_usage": 0,
+            "delegation_count": 0,
+            "delegation_by_type": {"planner": 0, "explorer": 0, "engineer": 0},
+            "thinking_quality_score": 0,  # Simple heuristic based on structure
+        }
 
         # Load agent configs
         agent_configs = get_default_team()
@@ -222,6 +238,35 @@ class Orchestrator:
             except StopAsyncIteration:
                 pass
 
+            # Thinking pattern validation for Tech Lead
+            # This runs after agent responds (with or without tool calls)
+            if agent is self.tech_lead and agent.messages:
+                # Check the last assistant message
+                last_message = agent.messages[-1]
+                if last_message.role == "assistant":
+                    content = last_message.content or ""
+                    if content.strip().startswith("THINKING:"):
+                        # Thinking pattern found - update metrics
+                        self.metrics["thinking_pattern_usage"] += 1
+                        # Simple quality heuristic: check if thinking has at least 3 points
+                        lines = content.strip().split('\n')
+                        thinking_lines = [line for line in lines if line.strip().startswith(('1.', '2.', '3.', '4.', '5.'))]
+                        if len(thinking_lines) >= 3:
+                            self.metrics["thinking_quality_score"] = min(100, self.metrics["thinking_quality_score"] + 5)
+                    elif content.strip():  # Only check if there's actual content
+                        # Thinking pattern missing - inject reminder
+                        thinking_reminder = (
+                            "\n[Thinking Required] Your response must start with THINKING: "
+                            "followed by your reasoning process. Please revise."
+                        )
+                        agent.messages.append(Message(role="user", content=thinking_reminder))
+                        # Yield event for UI
+                        yield AgentEvent(
+                            type=EventType.THINKING_REQUIRED,
+                            data="Thinking pattern missing in Tech Lead response",
+                            source_agent="orchestrator",
+                        )
+
             if not pending_tool_calls:
                 # Check if the agent's built-in stall detection exhausted
                 # its nudge budget.  Only report for specialists — the Tech
@@ -263,6 +308,11 @@ class Orchestrator:
                         "background": tool_call.arguments.get("background"),
                         "requirements": tool_call.arguments.get("requirements"),
                     }
+
+                    # Update delegation metrics
+                    self.metrics["delegation_count"] += 1
+                    if target in self.metrics["delegation_by_type"]:
+                        self.metrics["delegation_by_type"][target] += 1
 
                     # Register delegation in ledger
                     ledger_record = None

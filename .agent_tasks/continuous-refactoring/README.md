@@ -96,6 +96,15 @@ This document outlines the continuous refactoring process followed by the Henchm
 - Separated persistence concerns
 - Improved session handling testability
 
+### Phase 4: Agent Coordination Extraction (IN PROGRESS)
+**Problem**: REPL handles complex agent coordination logic including orchestrator interaction, tool call collection/execution, event stream processing, and monitoring
+**Solution**: Creating `AgentCoordinator` class
+- Extracting orchestrator interaction logic
+- Centralizing tool call collection and execution
+- Separating event stream processing
+- Improving agent coordination testability
+- Target: Reduce REPL from 796 to < 596 lines
+
 ## Quality Metrics
 
 ### Before Refactoring

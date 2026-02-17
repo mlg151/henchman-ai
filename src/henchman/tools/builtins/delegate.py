@@ -26,7 +26,18 @@ class DelegateTaskTool(Tool):
             "Delegate a task to a specialist agent. Each specialist starts with a "
             "CLEAN context, so you MUST provide all relevant information in the "
             "structured fields below. Do not assume the agent remembers anything "
-            "from prior delegations."
+            "from prior delegations.\n\n"
+            "**DELEGATION PRIORITY RULES**:\n"
+            "1. ALWAYS consider delegation before doing work yourself\n"
+            "2. Use specialists for their designated expertise\n"
+            "3. Provide COMPLETE context - specialists have no memory\n"
+            "4. Include explicit 'done_when' criteria\n\n"
+            "**WHEN TO DELEGATE**:\n"
+            "- Architecture/design → Planner\n"
+            "- Research/exploration → Explorer\n"
+            "- Implementation/testing → Engineer\n"
+            "- Documentation → Explorer\n"
+            "- Complex debugging → Engineer"
         )
 
     @property

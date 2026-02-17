@@ -27,6 +27,13 @@ class EventType(Enum):
     AGENT_COMPLETED = auto()  # Specialist agent finished
     AGENT_MESSAGE = auto()  # Inter-agent message via EventBus
 
+    # Thinking and reasoning events
+    THINKING_STARTED = auto()  # Agent has started thinking process
+    THINKING_COMPLETED = auto()  # Agent has completed thinking
+    THINKING_REQUIRED = auto()  # Thinking pattern missing in response
+    DELEGATION_DECISION = auto()  # Decision about whether to delegate
+    REFLECTION = auto()  # Reflection on completed work
+
 
 @dataclass
 class AgentEvent:

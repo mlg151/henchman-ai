@@ -67,6 +67,9 @@ class OpenAICompatibleProvider(ModelProvider):
             "content": message.content,
         }
 
+        if message.reasoning_content:
+            result["reasoning_content"] = message.reasoning_content
+
         if message.tool_calls:
             result["tool_calls"] = [
                 {

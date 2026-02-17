@@ -235,12 +235,12 @@ class Agent:
                 "next i ",
             ]
             lower = response_text.lower()
-            if any(phrase in lower for phrase in stall_phrases):
-                # Make sure it's not a question
-                if not ("?" in response_text and "should i" in lower):
-                    # Short narration (<120 chars) is a clearer signal
-                    if len(stripped) < 120 or stripped.endswith(":"):
-                        is_stalling = True
+            if (
+                any(phrase in lower for phrase in stall_phrases)
+                and not ("?" in response_text and "should i" in lower)
+                and (len(stripped) < 120 or stripped.endswith(":"))
+            ):
+                is_stalling = True
 
         if not is_stalling:
             return None
@@ -281,6 +281,7 @@ class Agent:
 
             # Track accumulated content and tool calls for building the assistant message
             accumulated_content = ""
+            accumulated_thinking = ""
             accumulated_tool_calls: list[ToolCall] = []
 
             # Get messages for API (may be compacted)
@@ -296,6 +297,7 @@ class Agent:
                 tools=self.tool_registry.get_declarations(),
             ):
                 if chunk.thinking:
+                    accumulated_thinking += chunk.thinking
                     # Handle thinking/reasoning content
                     yield self._emit(
                         type=EventType.THOUGHT,
@@ -316,6 +318,7 @@ class Agent:
                         role="assistant",
                         content=accumulated_content,
                         tool_calls=accumulated_tool_calls if accumulated_tool_calls else None,
+                        reasoning_content=accumulated_thinking if accumulated_thinking else None,
                     )
                     self.messages.append(assistant_msg)
 
@@ -335,6 +338,7 @@ class Agent:
                         tool_calls=accumulated_tool_calls
                         if accumulated_tool_calls
                         else chunk.tool_calls,
+                        reasoning_content=accumulated_thinking if accumulated_thinking else None,
                     )
                     self.messages.append(assistant_msg)
 
@@ -396,6 +400,7 @@ class Agent:
 
         # Track accumulated content and tool calls for building the assistant message
         accumulated_content = ""
+        accumulated_thinking = ""
         accumulated_tool_calls: list[ToolCall] = []
 
         # Get messages for API (may be compacted)
@@ -411,6 +416,7 @@ class Agent:
             tools=self.tool_registry.get_declarations(),
         ):
             if chunk.thinking:
+                accumulated_thinking += chunk.thinking
                 # Handle thinking/reasoning content
                 yield self._emit(
                     type=EventType.THOUGHT,
@@ -430,6 +436,7 @@ class Agent:
                     role="assistant",
                     content=accumulated_content,
                     tool_calls=accumulated_tool_calls if accumulated_tool_calls else None,
+                    reasoning_content=accumulated_thinking if accumulated_thinking else None,
                 )
                 self.messages.append(assistant_msg)
 
@@ -448,6 +455,7 @@ class Agent:
                     tool_calls=accumulated_tool_calls
                     if accumulated_tool_calls
                     else chunk.tool_calls,
+                    reasoning_content=accumulated_thinking if accumulated_thinking else None,
                 )
                 self.messages.append(assistant_msg)
 

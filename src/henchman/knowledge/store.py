@@ -104,6 +104,13 @@ class KnowledgeStore:
         git_root: Path,
         base_dir: Path | None = None,
     ) -> None:
+        """Initialize the knowledge store.
+
+        Args:
+            git_root: Root of the git repository to track.
+            base_dir: Override for the storage base directory
+                (defaults to ``~/.henchman/knowledge``).
+        """
         self._git_root = git_root.resolve()
         self._base_dir = base_dir or (Path.home() / ".henchman" / "knowledge")
         self._repo_hash = compute_repository_id(self._git_root)

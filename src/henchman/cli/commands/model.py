@@ -186,7 +186,7 @@ class ModelCommand(Command):
 
             # Update REPL's provider reference
             if ctx.repl is not None:
-                ctx.repl.provider = new_provider  # type: ignore[attr-defined]
+                ctx.repl.provider = new_provider
 
             ctx.console.print(
                 f"\n[bold green]✓ Switched from {old_provider.name} to {new_provider.name}[/]"

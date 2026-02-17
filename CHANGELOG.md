@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.21] - 2026-02-16
+
+### Added
+- **Thinking protocol enforcement** — Orchestrator now validates Tech Lead responses start with `THINKING:` pattern and injects reminders when missing. Metrics track thinking pattern usage and quality.
+- **New thinking event types** — Added `THINKING_STARTED`, `THINKING_COMPLETED`, `THINKING_REQUIRED`, `DELEGATION_DECISION`, and `REFLECTION` event types to core event system.
+- **MCP client filtered stream** — Suppresses INFO/DEBUG logs from MCP servers while preserving errors and warnings, improving terminal output clarity.
+- **Performance improvement framework** — Comprehensive performance improvement plan with working memory system, smart file reading patterns, structured thinking protocols, and delegation optimization added to copilot instructions.
+- **Enhanced thinking protocols** — All agent prompts updated with mandatory thinking frameworks: Tech Lead uses 5-phase thinking protocol, specialists use 4-phase specialist thinking.
+- **Delegation decision matrix** — Clear delegation guidelines added to Tech Lead prompt with task type to specialist mapping.
+
+### Changed
+- **MCP initialization in headless mode** — Fixed MCP server initialization in headless and interactive modes to ensure tools are available.
+- **Orchestrator metrics** — Added thinking and delegation metrics tracking to orchestrator for performance monitoring.
+- **Copilot instructions overhaul** — Updated `.github/copilot-instructions.md` with performance improvement strategies, thinking frameworks, and agent effectiveness guidelines.
+
+### Fixed
+- **MCP logging verbosity** — Reduced noise from MCP server logs in console output.
+- **Test updates** — Updated tests for thinking protocol validation and MCP integration.
+
 ## [0.2.20] - 2026-02-16
 
 ### Added
@@ -535,7 +554,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Rebranded from mlg-cli to henchman-ai
 
-[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.2.21...HEAD
+[0.2.21]: https://github.com/mlg151/henchman-ai/compare/v0.2.20...v0.2.21
+[0.2.20]: https://github.com/mlg151/henchman-ai/compare/v0.2.19...v0.2.20
 [0.1.8]: https://github.com/mlg151/henchman-ai/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/mlg151/henchman-ai/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/mlg151/henchman-ai/compare/v0.1.5...v0.1.6

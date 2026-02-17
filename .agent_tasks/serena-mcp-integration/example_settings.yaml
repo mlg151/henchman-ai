@@ -1,0 +1,104 @@
+# Example settings.yaml with Serena MCP server configuration
+# Copy to ~/.henchman/settings.yaml or .mlg/settings.yaml
+
+# Provider settings
+providers:
+  default: deepseek
+  deepseek:
+    model: deepseek-chat
+    api_key: "${DEEPSEEK_API_KEY}"
+  anthropic:
+    model: claude-3-5-sonnet-20241022
+    api_key: "${ANTHROPIC_API_KEY}"
+  ollama:
+    model: llama3.2
+
+# Tool settings
+tools:
+  shell_timeout: 60
+  auto_approve_read: true
+  web_fetch_timeout: 30
+  web_search_max_results: 5
+
+# MCP server configurations
+mcp_servers:
+  # File system access (requires npx)
+  filesystem:
+    command: npx
+    args: ["@anthropic-ai/mcp-filesystem-server", "${HOME}"]
+    trusted: false  # Requires confirmation for write operations
+  
+  # GitHub integration (requires uvx and GITHUB_TOKEN)
+  github:
+    command: uvx
+    args: ["mcp-github"]
+    env:
+      GITHUB_TOKEN: "${GITHUB_TOKEN}"
+    trusted: true
+  
+  # Serena - Semantic code retrieval and editing (RECOMMENDED for coding tasks)
+  # Requires: uv installation (https://docs.astral.sh/uv/)
+  serena:
+    command: uvx
+    args: ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"]
+    env:
+      # Set workspace to current project
+      SERENA_WORKSPACE: "${PROJECT_ROOT:-.}"
+      # Backend: "lsp" (default) or "jetbrains" (if plugin installed)
+      SERENA_BACKEND: "lsp"
+      # Log level: DEBUG, INFO, WARNING, ERROR
+      SERENA_LOG_LEVEL: "INFO"
+    trusted: true  # Serena tools are safe for auto-approval
+  
+  # PostgreSQL integration (optional)
+  # postgres:
+  #   command: npx
+  #   args: ["@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost/db"]
+  #   trusted: false
+  
+  # SQLite integration (optional)
+  # sqlite:
+  #   command: npx
+  #   args: ["@modelcontextprotocol/server-sqlite", "database.db"]
+  #   trusted: false
+
+# UI settings
+ui:
+  theme: default
+  show_thoughts: true
+  streaming: true
+  markdown_rendering: true
+
+# Context settings
+context:
+  max_tokens: 8000
+  include_ancestors: true
+  include_subdirectories: false
+  respect_gitignore: true
+
+# RAG settings
+rag:
+  enabled: true
+  chunk_size: 1000
+  chunk_overlap: 200
+  embedding_model: all-MiniLM-L6-v2
+  top_k: 5
+
+# Agent team configuration
+agents:
+  team_preset: default
+  agents:
+    # Custom agent configurations can be added here
+    # planner:
+    #   name: "Architect"
+    #   role: "planner"
+    #   description: "Designs system architecture and plans implementations"
+    #   tools: ["read_file", "write_file", "delegate_task"]
+    #   auto_approve: ["read_file"]
+
+# Environment variable substitution
+# Use ${VAR_NAME} or ${VAR_NAME:-default} syntax
+# Variables are resolved in this order:
+# 1. Environment variables
+# 2. .env file in current directory
+# 3. Default values in this file

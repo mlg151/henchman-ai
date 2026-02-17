@@ -28,6 +28,17 @@ class AgentConfig(BaseModel):
     @field_validator("tools")
     @classmethod
     def tools_must_not_be_empty(cls, v: list[str]) -> list[str]:
+        """Validate that agent has at least one tool.
+
+        Args:
+            v: List of tool names.
+
+        Returns:
+            The validated list.
+
+        Raises:
+            ValueError: If the list is empty.
+        """
         if not v:
             raise ValueError("Agent must have at least one tool")
         return v
@@ -75,10 +86,12 @@ class UISettings(BaseModel):
     Attributes:
         theme: UI color theme name.
         show_line_numbers: Whether to show line numbers in file output.
+        mcp_logging: Whether to show MCP connection/logging messages in terminal.
     """
 
     theme: str = "dark"
     show_line_numbers: bool = True
+    mcp_logging: bool = False
 
 
 class ContextSettings(BaseModel):

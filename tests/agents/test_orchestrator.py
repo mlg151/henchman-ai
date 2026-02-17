@@ -602,3 +602,82 @@ async def test_max_delegation_turns_setting():
 
     custom = AgentSettings(max_delegation_turns=10)
     assert custom.max_delegation_turns == 10
+
+
+@pytest.mark.asyncio
+async def test_thinking_pattern_validation(mock_provider):
+    """Test that thinking pattern validation works for Tech Lead."""
+    # Mock Tech Lead response WITHOUT thinking pattern
+    chunk = StreamChunk(content="I'll do this task.", finish_reason=FinishReason.STOP)
+
+    async def async_gen(*_args, **_kwargs):  # noqa: ARG001
+        yield chunk
+
+    mock_provider.chat_completion_stream.return_value = async_gen()
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    events = []
+    async for event in orchestrator.run("Test task"):
+        events.append(event)
+
+    # Check for thinking required event
+    thinking_events = [e for e in events if e.type == EventType.THINKING_REQUIRED]
+    assert len(thinking_events) > 0, "Should have THINKING_REQUIRED event when thinking pattern is missing"
+    assert "Thinking pattern missing" in thinking_events[0].data
+
+
+@pytest.mark.asyncio
+async def test_thinking_pattern_metrics(mock_provider):
+    """Test that thinking pattern usage updates metrics."""
+    # Mock Tech Lead response WITH thinking pattern
+    chunk = StreamChunk(
+        content="THINKING:\n1. Problem: Test\n2. Context: None\n3. Options: A\n4. Decision: A\n5. Plan: Do it",
+        finish_reason=FinishReason.STOP
+    )
+
+    async def async_gen(*_args, **_kwargs):  # noqa: ARG001
+        yield chunk
+
+    mock_provider.chat_completion_stream.return_value = async_gen()
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    events = []
+    async for event in orchestrator.run("Test task"):
+        events.append(event)
+
+    # Check metrics were updated
+    assert orchestrator.metrics["thinking_pattern_usage"] == 1
+    # Should have some quality score for having at least 3 thinking points
+    assert orchestrator.metrics["thinking_quality_score"] > 0
+
+
+@pytest.mark.asyncio
+async def test_delegation_metrics(mock_provider):
+    """Test that delegation updates metrics."""
+    # Mock Tech Lead delegation
+    tc = ToolCall(id="call_1", name="delegate_task", arguments={"agent": "explorer", "task": "Write test"})
+    chunk1 = StreamChunk(tool_calls=[tc], finish_reason=FinishReason.TOOL_CALLS)
+    chunk2 = StreamChunk(content="Done.", finish_reason=FinishReason.STOP)
+    chunk_coder = StreamChunk(content="Test written.", finish_reason=FinishReason.STOP)
+
+    call_count = 0
+    async def side_effect(*_args, **_kwargs):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield chunk1
+        elif call_count == 2:
+            yield chunk_coder
+        elif call_count == 3:
+            yield chunk2
+
+    mock_provider.chat_completion_stream.side_effect = side_effect
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    events = []
+    async for event in orchestrator.run("Do work"):
+        events.append(event)
+
+    # Check delegation metrics
+    assert orchestrator.metrics["delegation_count"] == 1
+    assert orchestrator.metrics["delegation_by_type"]["explorer"] == 1

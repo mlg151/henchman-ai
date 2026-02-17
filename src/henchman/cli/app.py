@@ -192,6 +192,11 @@ def _run_interactive(
     if output_format == "text":
         if agent_role:
             async def start_repl() -> None:
+                """Start the REPL with agent role context.
+
+                This wrapper function allows passing agent_role context
+                to the REPL in future implementations.
+                """
                 # In the future we might want to do something with agent_role here
                 await repl.run()
             anyio.run(start_repl)
@@ -273,6 +278,9 @@ def _run_headless(
 
     async def run_single_prompt_text() -> None:  # pragma: no cover
         """Process a single prompt and exit with text output."""
+        # Initialize MCP servers
+        await repl.initialize_mcp()
+
         if repl.rag_system:
             asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]
 
@@ -286,6 +294,9 @@ def _run_headless(
         from collections.abc import AsyncIterator
 
         from henchman.core.events import AgentEvent
+
+        # Initialize MCP servers
+        await repl.initialize_mcp()
 
         if repl.rag_system:
             asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]
@@ -325,6 +336,9 @@ def _run_headless(
 
         from henchman.core.events import AgentEvent
 
+        # Initialize MCP servers
+        await repl.initialize_mcp()
+
         if repl.rag_system:
             asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]
 
@@ -359,6 +373,9 @@ def _run_headless(
         from collections.abc import AsyncIterator
 
         from henchman.core.events import AgentEvent
+
+        # Initialize MCP servers
+        await repl.initialize_mcp()
 
         if repl.rag_system:
             asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]

@@ -111,9 +111,8 @@ def _extract_imports(source: str) -> list[str]:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 modules.append(alias.name.split(".")[0])
-        elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                modules.append(node.module.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            modules.append(node.module.split(".")[0])
     return list(set(modules))
 
 

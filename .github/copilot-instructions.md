@@ -291,20 +291,45 @@ manager.delete(session.id)
 MCP (Model Context Protocol) enables connecting to external tool servers:
 ```python
 from henchman.mcp import McpServerConfig, McpClient, McpManager, McpTool
-# Configure an MCP server
-config = McpServerConfig(
+
+# Configure MCP servers (filesystem, github, serena, etc.)
+filesystem_config = McpServerConfig(
     command="npx",
     args=["@anthropic-ai/mcp-filesystem-server", "/home/user"],
     trusted=False,  # Untrusted servers require tool confirmation
 )
+
+github_config = McpServerConfig(
+    command="uvx",
+    args=["mcp-github"],
+    env={"GITHUB_TOKEN": "your-token-here"},
+    trusted=True,
+)
+
+# RECOMMENDED: Serena for semantic code analysis
+serena_config = McpServerConfig(
+    command="uvx",
+    args=["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"],
+    trusted=True,  # Serena tools are safe for auto-approval
+)
+
 # Connect to a single server
-client = McpClient(name="filesystem", config=config)
+client = McpClient(name="serena", config=serena_config)
 await client.connect()
 tools = await client.discover_tools()
-result = await client.call_tool("read_file", {"path": "/etc/hosts"})
+# Use Serena's semantic tools
+result = await client.call_tool("find_symbol", {
+    "name": "authenticate_user",
+    "kind": "function"
+})
 await client.disconnect()
+
 # Or manage multiple servers
-configs = {"filesystem": config, "github": github_config}
+configs = {
+    "filesystem": filesystem_config,
+    "github": github_config,
+    "serena": serena_config,  # Highly recommended for coding tasks
+}
 manager = McpManager(configs)
 await manager.connect_all()
 all_tools = manager.get_all_tools()  # List[McpTool]
@@ -313,20 +338,143 @@ await manager.disconnect_all()
 **MCP Configuration (settings.yaml):**
 ```yaml
 mcp_servers:
-filesystem:
-command: npx
-args: ["@anthropic-ai/mcp-filesystem-server", "/home/user"]
-trusted: false
-github:
-command: uvx
-args: ["mcp-github"]
-env:
-GITHUB_TOKEN: "${GITHUB_TOKEN}"
-trusted: true
+  # File system access
+  filesystem:
+    command: npx
+    args: ["@anthropic-ai/mcp-filesystem-server", "/home/user"]
+    trusted: false
+  
+  # GitHub integration
+  github:
+    command: uvx
+    args: ["mcp-github"]
+    env:
+      GITHUB_TOKEN: "${GITHUB_TOKEN}"
+    trusted: true
+  
+  # Serena - Semantic code retrieval and editing (RECOMMENDED)
+  serena:
+    command: uvx
+    args: ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"]
+    env:
+      # Optional: Set workspace directory (defaults to current directory)
+      SERENA_WORKSPACE: "${PROJECT_ROOT}"
+      # Optional: Enable JetBrains plugin backend if available
+      SERENA_USE_JETBRAINS: "false"
+    trusted: true
+    # Note: Serena requires uv to be installed: https://docs.astral.sh/uv/
+  
+  # Optional: Add more MCP servers as needed
+  # postgres:
+  #   command: npx
+  #   args: ["@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost/db"]
+  #   trusted: false
 ```
 **MCP Commands:**
 - `/mcp list` - List configured MCP servers and connection status
 - `/mcp status` - Show connection status and available tools
+
+### Serena MCP Server Integration
+
+**Serena** is a powerful coding agent toolkit that provides semantic code retrieval and editing capabilities via MCP. It enhances coding agents with IDE-like tools for efficient code navigation and manipulation.
+
+#### Key Features of Serena:
+- **Semantic Code Retrieval**: Find symbols, functions, classes by name with context
+- **Precise Code Editing**: Insert, replace, or delete code at symbol level
+- **Cross-Reference Analysis**: Find referencing symbols and dependencies
+- **Multi-Language Support**: 30+ programming languages via LSP backends
+- **JetBrains Integration**: Optional plugin for enhanced analysis capabilities
+
+#### Serena Tools Available via MCP:
+```python
+# Example Serena tool usage
+result = await client.call_tool("find_symbol", {
+    "name": "authenticate_user",
+    "kind": "function"
+})
+
+result = await client.call_tool("find_referencing_symbols", {
+    "symbol_id": "function:authenticate_user:42"
+})
+
+result = await client.call_tool("insert_after_symbol", {
+    "symbol_id": "function:authenticate_user:42",
+    "content": "    # Added logging\n    logger.info(f\"User authenticated: {username}\")"
+})
+```
+
+#### Setting Up Serena:
+1. **Install uv** (required for Serena):
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+2. **Configure in settings.yaml** (as shown above)
+
+3. **Start Henchman-AI** - Serena will auto-connect if configured
+
+4. **Verify connection**:
+   ```bash
+   mlg
+   /mcp status  # Check if Serena is connected
+   /tools       # List available tools including Serena's
+   ```
+
+#### When to Use Serena:
+- **Large codebases**: Efficient navigation without reading entire files
+- **Refactoring tasks**: Precise symbol-level edits
+- **Code understanding**: Cross-reference analysis and dependencies
+- **Complex implementations**: Semantic search for relevant code patterns
+
+#### Performance Benefits:
+- **Reduces token usage**: Semantic retrieval vs. reading entire files
+- **Improves accuracy**: Symbol-level precision over string matching
+- **Enhances productivity**: IDE-like capabilities in the CLI
+- **Scales with codebase**: Efficient even in large, complex projects
+
+#### Example Workflow with Serena:
+```python
+# Without Serena: Read entire files, grep for patterns
+files = await glob("**/*.py")
+for file in files:
+    content = await read_file(file)  # Inefficient for large codebases
+    if "authenticate" in content:
+        # Manual analysis needed
+
+# With Serena: Semantic search
+symbols = await serena_client.call_tool("find_symbol", {
+    "name": "authenticate",
+    "kind": ["function", "method"]
+})
+# Returns precise locations and contexts
+```
+
+#### Configuration Options:
+```yaml
+serena:
+  command: uvx
+  args: ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"]
+  env:
+    # Workspace directory (default: current directory)
+    SERENA_WORKSPACE: "/path/to/project"
+    
+    # Backend selection: "lsp" or "jetbrains" (if plugin installed)
+    SERENA_BACKEND: "lsp"
+    
+    # Language server configuration
+    SERENA_LSP_PYTHON_PATH: "/usr/bin/python3"
+    
+    # Logging level
+    SERENA_LOG_LEVEL: "INFO"
+  trusted: true
+```
+
+#### Troubleshooting:
+- **"uvx not found"**: Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **Connection failed**: Check `uvx --version` and internet connectivity
+- **No tools discovered**: Verify Serena starts correctly with `uvx --from git+https://github.com/oraios/serena serena start-mcp-server --help`
+- **Performance issues**: Consider using JetBrains plugin backend for better analysis
+
 **Key Types:**
 - `McpServerConfig` - Server configuration (command, args, env, trusted)
 - `McpClient` - Single server connection manager
@@ -371,6 +519,287 @@ manager.discover_directory(Path.home() / ".mlg" / "extensions")
 - Directory: Place `extension.py` with Extension subclass in `~/.henchman/extensions/<name>/`
 **Built-in Commands:**
 - `/extensions` - List loaded extensions with name, version, and description
+
+## Performance Optimization & Agent Effectiveness
+
+### Agent Performance Improvement Framework
+
+To maximize agent effectiveness and efficiency, follow these structured approaches:
+
+#### 1. Working Memory System
+Maintain context efficiently to reduce file re-reading:
+
+```yaml
+# Working Memory Template (UPDATE AFTER EACH ACTION)
+working_memory:
+  current_task: "string describing active task"
+  task_objectives: ["specific", "goals", "for", "task"]
+  recent_files:
+    - path: "file/path.py"
+      purpose: "why this file was read"
+      timestamp: "ISO timestamp"
+  active_context:
+    project_structure: "brief description"
+    relevant_patterns: ["patterns", "from", "knowledge", "graph"]
+    constraints: ["known", "limitations"]
+    dependencies: ["required", "components"]
+  decisions_made:
+    - decision: "key decision"
+      rationale: "why this decision"
+      impact: "high|medium|low"
+  completed_steps: ["step1", "step2"]
+  next_actions:
+    - action: "next step"
+      priority: "high|medium|low"
+      estimated_effort: "time estimate"
+  insights_gained: ["new", "learnings"]
+  problems_encountered:
+    - problem: "issue encountered"
+      status: "open|in_progress|resolved"
+      resolution: "how it was fixed"
+```
+
+**Memory Update Protocol**:
+1. After reading a file → Add to `recent_files`
+2. After making a decision → Add to `decisions_made`
+3. After completing a step → Add to `completed_steps`
+4. When planning next steps → Update `next_actions`
+5. When learning something new → Add to `insights_gained`
+6. When encountering a problem → Add to `problems_encountered`
+
+#### 2. Smart File Reading Patterns
+Optimize file reading to avoid context window waste:
+
+**Pattern 1: Initial Exploration** (new file)
+```python
+# Read first 50 lines for overview
+content = await read_file(path, start_line=1, end_line=50)
+```
+
+**Pattern 2: Error Analysis** (debugging)
+```python
+# Read lines around error (error_line ± 10)
+context = await read_file(path, start_line=max(1, error_line-10), end_line=error_line+10)
+```
+
+**Pattern 3: Function/Class Analysis**
+```python
+# Find definition, then read it
+definition_line = await find_definition(path, "function_name")
+if definition_line:
+    content = await read_file(path, start_line=definition_line, end_line=definition_line+50)
+```
+
+**Pattern 4: Recent Changes**
+```python
+# Read last 100 lines for recent activity
+recent = await read_file(path, start_line=-100, end_line=-1)
+```
+
+**Pattern 5: Structure Analysis**
+```python
+# Read only imports and definitions
+imports = await grep("^import |^from ", path)
+classes = await grep("^class ", path)
+functions = await grep("^def ", path)
+```
+
+**File Size Guidelines**:
+- < 100 lines → Read entire file
+- 100-1000 lines → Read targeted sections
+- > 1000 lines → ALWAYS use line ranges
+- > 10000 lines → Consider alternative approaches
+
+#### 3. Structured Thinking Protocols
+**REQUIRED FOR ALL COMPLEX TASKS**:
+
+```
+THINKING PROTOCOL:
+
+## Phase 1: Problem Analysis
+1. What exactly needs to be solved? (Be specific)
+2. What are the success criteria? (How will we know we're done?)
+3. What constraints exist? (Time, resources, dependencies)
+
+## Phase 2: Context Gathering
+4. What do we already know? (Check knowledge graph, recent files)
+5. What similar problems have we solved? (Search .agent_tasks/)
+6. What tools are available? (Review tool capabilities)
+
+## Phase 3: Solution Design
+7. What are possible approaches? (Generate 2-3 options)
+8. What are the pros/cons of each? (Risk assessment)
+9. Which approach is best? (Decision with rationale)
+
+## Phase 4: Execution Planning
+10. What specific steps are needed? (Break down into actionable items)
+11. What could go wrong? (Risk mitigation)
+12. How will we verify success? (Validation criteria)
+```
+
+#### 4. Delegation Optimization
+**Delegation Decision Matrix** (USE BEFORE ANY WORK):
+
+| Task Type              | Primary Specialist | When to Delegate                |
+|------------------------|-------------------|---------------------------------|
+| Architecture/Design    | Planner           | Always for complex designs      |
+| Research/Exploration   | Explorer          | When new information is needed  |
+| Implementation/Testing | Engineer          | For coding tasks > 10 lines     |
+| Documentation          | Explorer          | For comprehensive documentation|
+| Debugging             | Engineer          | For complex bugs                |
+
+**Delegation Checklist** (If ANY answer is YES → DELEGATE):
+1. ✅ Is this a specialized task type?
+2. ✅ Would a specialist do this better/faster?
+3. ✅ Can I provide clear requirements?
+4. ✅ Is the specialist available/appropriate?
+
+#### 5. Performance Metrics Tracking
+Track effectiveness for continuous improvement:
+
+```markdown
+## Performance Metrics Dashboard
+
+### Efficiency Metrics
+- **Task Completion Time**: [start] to [end] = [duration]
+- **Files Accessed**: [count] files read/written
+- **Tool Usage**: [count] by tool type
+- **Delegation Rate**: [delegations]/[total tasks] = [percentage]
+
+### Quality Metrics
+- **Test Results**: [passing]/[total] tests = [percentage]
+- **Code Coverage**: [coverage percentage]
+- **Linting Status**: [errors]/[warnings]
+- **Documentation Coverage**: [documented]/[total] public APIs
+
+### Target Performance Metrics
+- File re-reads per task: Target < 1.3 (60% reduction from 3.2)
+- Delegation rate: Target > 40% (from current 25%)
+- Error rate: Target reduction of 50%
+- Context window usage: Target < 40% (from 65%)
+```
+
+#### 6. Pre-flight Checklists
+**Before Running Tests**:
+- [ ] Test database is clean and seeded
+- [ ] Environment variables are set
+- [ ] Dependencies are installed
+- [ ] No pending migrations
+- [ ] Test isolation is configured
+
+**Before File Modification**:
+- [ ] Read existing tests for the file
+- [ ] Check for dependent modules
+- [ ] Create backup/checkpoint
+- [ ] Verify understanding of requirements
+- [ ] Plan rollback strategy
+
+**Before Delegation**:
+- [ ] Requirements are clearly documented
+- [ ] Success criteria are explicit
+- [ ] Context is complete
+- [ ] Files to modify are specified
+- [ ] Done_when condition is verifiable
+
+#### 7. Tool Combination Patterns
+Optimize tool usage with effective sequences:
+
+**Research Task Pattern**:
+1. `rag_search` - Find related code
+2. `read_file` - Examine key files
+3. `kg_query` - Check knowledge graph
+4. `web_search` - External research if needed
+5. `write_file` - Document findings
+
+**Debugging Task Pattern**:
+1. `grep` - Find error patterns
+2. `read_file` - Examine error location
+3. `shell` - Run specific test
+4. `kg_query` - Find related code
+5. `edit_file` - Fix the issue
+
+**Implementation Task Pattern**:
+1. `read_file` - Understand existing code
+2. `write_file` - Create test stubs
+3. `edit_file` - Implement functionality
+4. `shell` - Run tests
+5. `write_file` - Update documentation
+
+#### 8. Learning Database Integration
+Capture and reuse successful patterns:
+
+```markdown
+# .agent_tasks/patterns/ directory structure
+patterns/
+├── successful_approaches.md      # What worked well
+├── common_errors.md              # What to avoid
+├── tool_combinations.md          # Effective tool sequences
+├── debugging_patterns.md         # Problem-solving approaches
+└── decision_frameworks.md        # How to make specific decisions
+
+# Example pattern entry:
+## Pattern: Debugging Test Failures
+**When to use**: When pytest fails unexpectedly
+**Steps**:
+1. Run specific test: `pytest tests/path/test.py::test_name -xvs`
+2. Check recent changes: `git diff HEAD~3`
+3. Examine imports: Look for circular dependencies
+4. Check environment: Verify required variables
+**Success Rate**: 85% (from 20 instances)
+**Last Updated**: 2024-01-15
+```
+
+### Performance Improvement Targets
+
+#### Week 1: Context Management
+- **Goal**: Reduce file re-reads by 60%
+- **Focus**: Working memory system, smart reading patterns
+- **Success Metric**: File reads per task < 1.3 (from 3.2)
+
+#### Week 2: Thinking & Delegation
+- **Goal**: Increase delegation rate to 40%
+- **Focus**: Structured thinking protocols, delegation optimization
+- **Success Metric**: Delegation rate > 40% (from 25%)
+
+#### Week 3: Metrics & Learning
+- **Goal**: Implement quantitative performance tracking
+- **Focus**: Metrics dashboard, learning database
+- **Success Metric**: All metrics tracked and reported
+
+#### Week 4: Optimization
+- **Goal**: Reduce error rate by 50%
+- **Focus**: Pre-flight checklists, tool combination patterns
+- **Success Metric**: Error rate reduction of 50%
+
+### Common Anti-Patterns to Avoid
+
+❌ **Reading entire large files** → Use line ranges
+❌ **Repeated full reads** → Use working memory cache
+❌ **Reading without purpose** → Have clear goal before reading
+❌ **Not delegating specialized work** → Use delegation matrix
+❌ **Skipping thinking phase** → Always use thinking protocol
+❌ **Not tracking metrics** → Update performance dashboard
+
+### Quick Reference
+
+**Before starting work**:
+1. Check working memory for existing context
+2. Use thinking protocol for complex tasks
+3. Consult delegation matrix for specialist work
+4. Apply appropriate file reading pattern
+
+**During work**:
+1. Update working memory after each action
+2. Track metrics for performance measurement
+3. Document insights in learning database
+4. Use tool combination patterns
+
+**After work**:
+1. Archive completed task to knowledge graph
+2. Update performance metrics
+3. Record successful patterns
+4. Clean working memory for next task
+
 ## Conventions
 - **Pydantic v2** for all data models and settings schemas
 - **anyio** for async (not raw asyncio) to support multiple backends

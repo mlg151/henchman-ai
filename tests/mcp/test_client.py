@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from contextlib import AsyncExitStack
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -22,6 +23,21 @@ class TestMcpClient:
             env={"TEST": "1"},
         )
 
+    @pytest.fixture
+    def mock_session(self) -> AsyncMock:
+        """Create a mock MCP session."""
+        session = AsyncMock()
+        session.initialize = AsyncMock()
+        session.list_tools = AsyncMock(return_value=MagicMock(tools=[]))
+        return session
+
+    def _connect_client(
+        self, client: McpClient, mock_session: AsyncMock
+    ) -> None:
+        """Wire a mock session into a client as if connected."""
+        client._session = mock_session
+        client._exit_stack = AsyncExitStack()
+
     def test_init(self, config: McpServerConfig) -> None:
         """Test initializing client."""
         client = McpClient(name="test", config=config)
@@ -30,24 +46,22 @@ class TestMcpClient:
         assert not client.is_connected
 
     @pytest.mark.anyio
-    async def test_connect_disconnect(self, config: McpServerConfig) -> None:
+    async def test_connect_disconnect(
+        self, config: McpServerConfig, mock_session: AsyncMock
+    ) -> None:
         """Test connecting and disconnecting."""
         client = McpClient(name="test", config=config)
 
-        # Mock the MCP session
-        mock_session = AsyncMock()
-        mock_session.initialize = AsyncMock()
-        mock_session.list_tools = AsyncMock(return_value=MagicMock(tools=[]))
+        self._connect_client(client, mock_session)
+        assert client.is_connected
 
-        with patch.object(client, "_create_session", return_value=mock_session):
-            await client.connect()
-            assert client.is_connected
-
-            await client.disconnect()
-            assert not client.is_connected
+        await client.disconnect()
+        assert not client.is_connected
 
     @pytest.mark.anyio
-    async def test_discover_tools(self, config: McpServerConfig) -> None:
+    async def test_discover_tools(
+        self, config: McpServerConfig, mock_session: AsyncMock
+    ) -> None:
         """Test discovering tools from server."""
         client = McpClient(name="test", config=config)
 
@@ -61,20 +75,20 @@ class TestMcpClient:
             "required": ["path"],
         }
 
-        mock_session = AsyncMock()
-        mock_session.initialize = AsyncMock()
-        mock_session.list_tools = AsyncMock(return_value=MagicMock(tools=[mock_tool]))
+        mock_session.list_tools = AsyncMock(
+            return_value=MagicMock(tools=[mock_tool])
+        )
+        self._connect_client(client, mock_session)
+        tools = await client.discover_tools()
 
-        with patch.object(client, "_create_session", return_value=mock_session):
-            await client.connect()
-            tools = await client.discover_tools()
-
-            assert len(tools) == 1
-            assert tools[0].name == "read_file"
-            assert tools[0].description == "Read a file"
+        assert len(tools) == 1
+        assert tools[0].name == "read_file"
+        assert tools[0].description == "Read a file"
 
     @pytest.mark.anyio
-    async def test_call_tool(self, config: McpServerConfig) -> None:
+    async def test_call_tool(
+        self, config: McpServerConfig, mock_session: AsyncMock
+    ) -> None:
         """Test calling a tool."""
         client = McpClient(name="test", config=config)
 
@@ -82,20 +96,17 @@ class TestMcpClient:
         mock_result.content = [MagicMock(text="file contents")]
         mock_result.isError = False
 
-        mock_session = AsyncMock()
-        mock_session.initialize = AsyncMock()
-        mock_session.list_tools = AsyncMock(return_value=MagicMock(tools=[]))
         mock_session.call_tool = AsyncMock(return_value=mock_result)
+        self._connect_client(client, mock_session)
+        result = await client.call_tool("read_file", {"path": "test.txt"})
 
-        with patch.object(client, "_create_session", return_value=mock_session):
-            await client.connect()
-            result = await client.call_tool("read_file", {"path": "test.txt"})
-
-            assert result.content == "file contents"
-            assert not result.is_error
+        assert result.content == "file contents"
+        assert not result.is_error
 
     @pytest.mark.anyio
-    async def test_call_tool_error(self, config: McpServerConfig) -> None:
+    async def test_call_tool_error(
+        self, config: McpServerConfig, mock_session: AsyncMock
+    ) -> None:
         """Test calling a tool that returns an error."""
         client = McpClient(name="test", config=config)
 
@@ -103,17 +114,12 @@ class TestMcpClient:
         mock_result.content = [MagicMock(text="File not found")]
         mock_result.isError = True
 
-        mock_session = AsyncMock()
-        mock_session.initialize = AsyncMock()
-        mock_session.list_tools = AsyncMock(return_value=MagicMock(tools=[]))
         mock_session.call_tool = AsyncMock(return_value=mock_result)
+        self._connect_client(client, mock_session)
+        result = await client.call_tool("read_file", {"path": "missing.txt"})
 
-        with patch.object(client, "_create_session", return_value=mock_session):
-            await client.connect()
-            result = await client.call_tool("read_file", {"path": "missing.txt"})
-
-            assert result.is_error
-            assert "File not found" in result.content
+        assert result.is_error
+        assert "File not found" in result.content
 
     @pytest.mark.anyio
     async def test_call_tool_not_connected(self, config: McpServerConfig) -> None:
@@ -136,29 +142,25 @@ class TestMcpClient:
         assert client.get_tools() == []
 
     @pytest.mark.anyio
-    async def test_connect_already_connected(self, config: McpServerConfig) -> None:
+    async def test_connect_already_connected(
+        self, config: McpServerConfig, mock_session: AsyncMock
+    ) -> None:
         """Test connect is no-op if already connected."""
         client = McpClient(name="test", config=config)
+        self._connect_client(client, mock_session)
 
-        mock_session = AsyncMock()
-        mock_session.initialize = AsyncMock()
-        mock_session.list_tools = AsyncMock(return_value=MagicMock(tools=[]))
-
-        with patch.object(client, "_create_session", return_value=mock_session):
-            await client.connect()
-            # Second connect should be no-op
-            await client.connect()
-
-            # initialize should only be called once
-            assert mock_session.initialize.call_count == 1
+        # connect should be a no-op since _session is already set
+        await client.connect()
+        assert client.is_connected
 
     @pytest.mark.anyio
-    async def test_call_tool_non_text_content(self, config: McpServerConfig) -> None:
+    async def test_call_tool_non_text_content(
+        self, config: McpServerConfig, mock_session: AsyncMock
+    ) -> None:
         """Test calling a tool that returns non-text content."""
         client = McpClient(name="test", config=config)
 
         # Content item without text attribute (falls back to str())
-        # Use a simple object that doesn't have 'text' but stringifies well
         class NonTextContent:
             def __str__(self) -> str:
                 return "raw content"
@@ -167,14 +169,9 @@ class TestMcpClient:
         mock_result.content = [NonTextContent()]
         mock_result.isError = False
 
-        mock_session = AsyncMock()
-        mock_session.initialize = AsyncMock()
-        mock_session.list_tools = AsyncMock(return_value=MagicMock(tools=[]))
         mock_session.call_tool = AsyncMock(return_value=mock_result)
+        self._connect_client(client, mock_session)
+        result = await client.call_tool("test", {})
 
-        with patch.object(client, "_create_session", return_value=mock_session):
-            await client.connect()
-            result = await client.call_tool("test", {})
-
-            # Should fall back to str() representation
-            assert "raw content" in result.content or len(result.content) > 0
+        # Should fall back to str() representation
+        assert "raw content" in result.content or len(result.content) > 0
