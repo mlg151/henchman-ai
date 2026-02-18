@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "henchman-ai"
-version = "0.2.21"
+version = "0.3.0"
 description = "A model-agnostic AI agent CLI - your AI henchman for the terminal"
 readme = "README.md"
 license = "MIT"
