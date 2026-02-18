@@ -5,14 +5,6 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Any, TypedDict
 
-
-class Metrics(TypedDict):
-    """Metrics for tracking orchestrator performance."""
-    thinking_pattern_usage: int
-    delegation_count: int
-    delegation_by_type: dict[str, int]
-    thinking_quality_score: int
-
 from henchman.agents.ledger import TaskLedger
 from henchman.agents.pool import AgentPool
 from henchman.agents.presets import get_default_team
@@ -24,6 +16,16 @@ from henchman.providers.base import Message, ModelProvider, ToolCall
 from henchman.providers.registry import ProviderRegistry
 from henchman.tools.builtins.delegate import DelegateTaskTool
 from henchman.tools.registry import ToolRegistry
+
+
+class Metrics(TypedDict):
+    """Metrics for tracking orchestrator performance."""
+
+    thinking_pattern_usage: int
+    delegation_count: int
+    delegation_by_type: dict[str, int]
+    thinking_quality_score: int
+
 
 # Interval (in tool calls) at which role anchoring reminders are injected
 _ROLE_ANCHOR_INTERVAL = 8
@@ -104,9 +106,7 @@ class Orchestrator:
 
         from henchman.agents.prompts import get_agent_prompt
 
-        team_members = [
-            f"{c.name} ({c.role})" for c in agent_configs.values() if c.enabled
-        ]
+        team_members = [f"{c.name} ({c.role})" for c in agent_configs.values() if c.enabled]
 
         tl_prompt = system_prompt or get_agent_prompt(
             role="tech_lead",
@@ -116,6 +116,7 @@ class Orchestrator:
         )
 
         from henchman.agents.identity import AgentIdentity
+
         tl_identity = AgentIdentity(
             id="tech_lead",
             name="Leader",
@@ -146,18 +147,14 @@ class Orchestrator:
         self.ledger = TaskLedger(goal=user_input[:500])
 
         yield AgentEvent(
-            type=EventType.AGENT_STARTED,
-            data={"agent": "tech_lead"},
-            source_agent="orchestrator"
+            type=EventType.AGENT_STARTED, data={"agent": "tech_lead"}, source_agent="orchestrator"
         )
 
         async for event in self._run_agent_loop(self.tech_lead, user_input):
             yield event
 
         yield AgentEvent(
-            type=EventType.AGENT_COMPLETED,
-            data={"agent": "tech_lead"},
-            source_agent="orchestrator"
+            type=EventType.AGENT_COMPLETED, data={"agent": "tech_lead"}, source_agent="orchestrator"
         )
 
     async def run_direct(self, role: str, user_input: str) -> AsyncIterator[AgentEvent]:
@@ -173,18 +170,14 @@ class Orchestrator:
         agent = self.pool.get_agent(role)
 
         yield AgentEvent(
-            type=EventType.AGENT_STARTED,
-            data={"agent": role},
-            source_agent="orchestrator"
+            type=EventType.AGENT_STARTED, data={"agent": role}, source_agent="orchestrator"
         )
 
         async for event in self._run_agent_loop(agent, user_input):
             yield event
 
         yield AgentEvent(
-            type=EventType.AGENT_COMPLETED,
-            data={"agent": role},
-            source_agent="orchestrator"
+            type=EventType.AGENT_COMPLETED, data={"agent": role}, source_agent="orchestrator"
         )
 
     async def _run_agent_loop(
@@ -238,52 +231,55 @@ class Orchestrator:
             except StopAsyncIteration:
                 pass
 
-            # Thinking pattern validation for Tech Lead
-            # This runs after agent responds (with or without tool calls)
-            if agent is self.tech_lead and agent.messages:
-                # Check the last assistant message
-                last_message = agent.messages[-1]
-                if last_message.role == "assistant":
-                    content = last_message.content or ""
-                    if content.strip().startswith("THINKING:"):
-                        # Thinking pattern found - update metrics
-                        self.metrics["thinking_pattern_usage"] += 1
-                        # Simple quality heuristic: check if thinking has at least 3 points
-                        lines = content.strip().split('\n')
-                        thinking_lines = [line for line in lines if line.strip().startswith(('1.', '2.', '3.', '4.', '5.'))]
-                        if len(thinking_lines) >= 3:
-                            self.metrics["thinking_quality_score"] = min(100, self.metrics["thinking_quality_score"] + 5)
-                    elif content.strip():  # Only check if there's actual content
-                        # Thinking pattern missing - inject reminder
-                        thinking_reminder = (
-                            "\n[Thinking Required] Your response must start with THINKING: "
-                            "followed by your reasoning process. Please revise."
-                        )
-                        agent.messages.append(Message(role="user", content=thinking_reminder))
-                        # Yield event for UI
-                        yield AgentEvent(
-                            type=EventType.THINKING_REQUIRED,
-                            data="Thinking pattern missing in Tech Lead response",
-                            source_agent="orchestrator",
-                        )
-
             if not pending_tool_calls:
+                # Thinking pattern validation for Tech Lead
+                # Only check when the agent is NOT making tool calls, because
+                # injecting a user message when tool_calls are pending would
+                # break the assistant→tool message sequence required by the
+                # OpenAI API (the injected message lands between the assistant
+                # with tool_calls and the tool response messages, causing
+                # repeated repair_message_sequence cycles).
+                if agent is self.tech_lead and agent.messages:
+                    last_message = agent.messages[-1]
+                    if last_message.role == "assistant":
+                        content = last_message.content or ""
+                        if content.strip().startswith("THINKING:"):
+                            self.metrics["thinking_pattern_usage"] += 1
+                            lines = content.strip().split("\n")
+                            thinking_lines = [
+                                line
+                                for line in lines
+                                if line.strip().startswith(("1.", "2.", "3.", "4.", "5."))
+                            ]
+                            if len(thinking_lines) >= 3:
+                                self.metrics["thinking_quality_score"] = min(
+                                    100, self.metrics["thinking_quality_score"] + 5
+                                )
+                        elif content.strip():
+                            thinking_reminder = (
+                                "\n[Thinking Required] Your response must start with THINKING: "
+                                "followed by your reasoning process. Please revise."
+                            )
+                            agent.messages.append(
+                                Message(role="user", content=thinking_reminder)
+                            )
+                            yield AgentEvent(
+                                type=EventType.THINKING_REQUIRED,
+                                data="Thinking pattern missing in Tech Lead response",
+                                source_agent="orchestrator",
+                            )
                 # Check if the agent's built-in stall detection exhausted
                 # its nudge budget.  Only report for specialists — the Tech
                 # Lead legitimately narrates plans.
                 if agent is not self.tech_lead and agent._stall_failure:
-                    role_label = (
-                        agent.identity.role if agent.identity else "agent"
-                    )
+                    role_label = agent.identity.role if agent.identity else "agent"
                     fail_msg = (
                         f"STALL FAILURE: {role_label} announced intent but "
                         f"never used tools after "
                         f"{agent._stall_nudge_count} nudges. "
                         f"The task was NOT completed."
                     )
-                    agent.messages.append(
-                        Message(role="assistant", content=fail_msg)
-                    )
+                    agent.messages.append(Message(role="assistant", content=fail_msg))
                     yield AgentEvent(
                         type=EventType.ERROR,
                         data=fail_msg,
@@ -332,7 +328,9 @@ class Orchestrator:
                     # Run delegation and collect summary
                     result_content = ""
                     delegation_had_error = False
-                    async for sub_event in self._run_delegation(target, task, delegation_brief, depth + 1):
+                    async for sub_event in self._run_delegation(
+                        target, task, delegation_brief, depth + 1
+                    ):
                         if sub_event.type == EventType.AGENT_COMPLETED:
                             result_content = sub_event.data.get("summary", "Completed.")
                         if sub_event.type == EventType.ERROR:
@@ -417,9 +415,7 @@ class Orchestrator:
                         f"{progress}\n\n"
                         "The Tech Lead will decide how to proceed."
                     )
-                    agent.messages.append(
-                        Message(role="assistant", content=timeout_msg)
-                    )
+                    agent.messages.append(Message(role="assistant", content=timeout_msg))
                     yield AgentEvent(
                         type=EventType.ERROR,
                         data=f"Turn limit ({max_turns}) reached for "
@@ -427,19 +423,14 @@ class Orchestrator:
                         source_agent="orchestrator",
                     )
                     break
-                if (
-                    not wrapup_warned
-                    and remaining <= _WRAPUP_WARNING_OFFSET
-                ):
+                if not wrapup_warned and remaining <= _WRAPUP_WARNING_OFFSET:
                     wrapup_warned = True
                     warn_msg = (
                         f"[WRAP-UP WARNING] You have {remaining} tool-call "
                         f"turn(s) remaining. Start wrapping up: run any "
                         f"final verification and produce your completion summary."
                     )
-                    agent.messages.append(
-                        Message(role="user", content=warn_msg)
-                    )
+                    agent.messages.append(Message(role="user", content=warn_msg))
 
             # All tool results submitted — continue the agent
             generator = agent.continue_with_tool_results()
@@ -488,34 +479,28 @@ class Orchestrator:
             yield AgentEvent(
                 type=EventType.ERROR,
                 data=f"Error: Maximum delegation depth ({self.settings.agents.max_delegation_depth}) exceeded.",
-                source_agent="orchestrator"
+                source_agent="orchestrator",
             )
             yield AgentEvent(
                 type=EventType.AGENT_COMPLETED,
                 data={"summary": "Max depth exceeded"},
-                source_agent="orchestrator"
+                source_agent="orchestrator",
             )
             return
 
         try:
             target_agent = self.pool.get_agent(target_role)
         except ValueError as e:
-            yield AgentEvent(
-                type=EventType.ERROR,
-                data=str(e),
-                source_agent="orchestrator"
-            )
+            yield AgentEvent(type=EventType.ERROR, data=str(e), source_agent="orchestrator")
             yield AgentEvent(
                 type=EventType.AGENT_COMPLETED,
                 data={"summary": f"Agent {target_role} not found"},
-                source_agent="orchestrator"
+                source_agent="orchestrator",
             )
             return
 
         yield AgentEvent(
-            type=EventType.AGENT_STARTED,
-            data={"agent": target_role},
-            source_agent="orchestrator"
+            type=EventType.AGENT_STARTED, data={"agent": target_role}, source_agent="orchestrator"
         )
 
         # Clean start: wipe prior conversation so the specialist has no
@@ -530,14 +515,11 @@ class Orchestrator:
         if self.shared_context:
             handoff_lines = []
             for entry in self.shared_context[-5:]:
-                handoff_lines.append(
-                    f"- **{entry['agent']}**: {entry['summary'][:200]}"
-                )
+                handoff_lines.append(f"- **{entry['agent']}**: {entry['summary'][:200]}")
             handoff_notes = "### Prior agent work\n" + "\n".join(handoff_lines)
             existing_bg = brief.get("background") or ""
             brief["background"] = (
-                f"{existing_bg}\n\n{handoff_notes}" if existing_bg
-                else handoff_notes
+                f"{existing_bg}\n\n{handoff_notes}" if existing_bg else handoff_notes
             )
 
         # Assemble the full task from the structured brief fields
@@ -548,8 +530,11 @@ class Orchestrator:
         max_turns = self.settings.agents.max_delegation_turns
         msg_start = len(target_agent.messages)
         async for event in self._run_agent_loop(
-            target_agent, full_task, depth,
-            max_turns=max_turns, msg_start_index=msg_start,
+            target_agent,
+            full_task,
+            depth,
+            max_turns=max_turns,
+            msg_start_index=msg_start,
         ):
             yield event
 
@@ -563,9 +548,7 @@ class Orchestrator:
         summary = "\n\n".join(summary_parts)
 
         # Append tool-error digest so the Tech Lead sees what failed
-        tool_errors: list[str] = getattr(
-            target_agent, "_delegation_tool_errors", []
-        )
+        tool_errors: list[str] = getattr(target_agent, "_delegation_tool_errors", [])
         if tool_errors:
             error_digest = "\n--- ⚠️ TOOL ERRORS ---\n" + "\n".join(
                 f"• {e}" for e in tool_errors[-10:]
@@ -577,11 +560,13 @@ class Orchestrator:
 
         # Update shared context (still tracked for Tech Lead's use, just not
         # injected into specialist prompts)
-        self.shared_context.append({
-            "agent": target_role,
-            "summary": summary[:500],
-            "timestamp": datetime.now().isoformat()
-        })
+        self.shared_context.append(
+            {
+                "agent": target_role,
+                "summary": summary[:500],
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
         yield AgentEvent(
             type=EventType.AGENT_COMPLETED,
@@ -590,7 +575,7 @@ class Orchestrator:
                 "summary": summary,
                 **parsed,
             },
-            source_agent="orchestrator"
+            source_agent="orchestrator",
         )
 
     @staticmethod
@@ -685,7 +670,9 @@ class Orchestrator:
             if msg.role == "assistant":
                 if msg.tool_calls:
                     for tc in msg.tool_calls:
-                        tools_used.append(f"{tc.name}({', '.join(f'{k}={v!r}' for k, v in list(tc.arguments.items())[:2])})")
+                        tools_used.append(
+                            f"{tc.name}({', '.join(f'{k}={v!r}' for k, v in list(tc.arguments.items())[:2])})"
+                        )
                         # Track file paths from common tools
                         path = tc.arguments.get("path") or tc.arguments.get("file_path")
                         if path and isinstance(path, str):

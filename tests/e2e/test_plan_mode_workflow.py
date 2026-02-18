@@ -5,27 +5,19 @@ import pytest
 from henchman.cli.repl import Repl
 from henchman.cli.session_manager import ReplSessionManager
 from henchman.core.session import SessionManager
-from henchman.tools.builtins import ReadFileTool, WriteFileTool
-from henchman.tools.registry import ToolRegistry
 
 
 @pytest.mark.asyncio
 async def test_plan_mode_workflow(tmp_path):
     # Setup
     provider = MagicMock()
-    # Mock provider.run to return a tool call followed by finished
-
-    # We'll use actual tools but mock the provider response
-    registry = ToolRegistry()
-    write_tool = WriteFileTool()
-    read_tool = ReadFileTool()
-    registry.register(write_tool)
-    registry.register(read_tool)
 
     repl = Repl(provider=provider)
-    repl.tool_registry = registry
+    registry = repl.tool_registry  # Use the Repl's actual registry
     manager = SessionManager(data_dir=tmp_path)
     repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=False)
+    # Update the command processor's session_manager reference to match
+    repl.command_processor.session_manager = repl.session_manager
     session = manager.create_session("test-project")
     repl.set_session(session)
 
@@ -56,8 +48,8 @@ async def test_plan_mode_workflow(tmp_path):
     assert registry._plan_mode is False
 
     # 5. Try to write a file (should be allowed now)
-    # Mock confirmation to return True
-    repl.config.auto_approve_tools = True
+    # Auto-approve write_file confirmation for testing
+    registry.add_auto_approve_policy("write_file")
     result = await registry.execute(
         "write_file", {"path": str(tmp_path / "test.txt"), "content": "hello"}
     )

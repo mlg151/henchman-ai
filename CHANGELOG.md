@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.22] - 2026-02-18
+
+### Fixed
+- **Thinking pattern check breaking tool sequences** — The orchestrator's thinking pattern validation was injecting a user message between assistant tool_calls and their tool responses, breaking the OpenAI API message sequence contract. This caused repeated `repair_message_sequence` cycles that stripped tool calls and dropped tool results, making the agent unable to use tools effectively. Fixed by only running the thinking check when the agent has no pending tool calls.
+
 ## [0.2.21] - 2026-02-16
 
 ### Added

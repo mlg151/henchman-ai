@@ -83,7 +83,9 @@ class TestMcpEndToEnd:
         mock_client2.name = "filesystem"
         mock_client2.get_tools.return_value = [mock_tool_def2]
 
-        def create_mock_client(name: str, _config: McpServerConfig, _verbose: bool = False) -> McpClient:
+        def create_mock_client(
+            name: str, config: McpServerConfig | None = None, verbose: bool = False
+        ) -> McpClient:
             if name == "serena":
                 return mock_client1
             else:
@@ -132,14 +134,16 @@ class TestMcpEndToEnd:
 
         # Setup mock MCP server response
         mock_result = McpToolResult(
-            content=json.dumps([
-                {
-                    "symbol_id": "function:calculate_total:15",
-                    "name": "calculate_total",
-                    "file": "src/calculator.py",
-                    "line": 15,
-                }
-            ]),
+            content=json.dumps(
+                [
+                    {
+                        "symbol_id": "function:calculate_total:15",
+                        "name": "calculate_total",
+                        "file": "src/calculator.py",
+                        "line": 15,
+                    }
+                ]
+            ),
             is_error=False,
         )
 
@@ -265,7 +269,7 @@ class TestMcpEndToEnd:
         mock_failing_client.name = "failing"
         mock_failing_client.connect = AsyncMock(side_effect=Exception("Connection failed"))
 
-        def create_mock_client(name: str, _config: McpServerConfig) -> McpClient:
+        def create_mock_client(name: str, config: McpServerConfig | None = None, verbose: bool = False) -> McpClient:
             if name == "serena":
                 return mock_serena_client
             else:
@@ -340,7 +344,7 @@ class TestMcpEndToEnd:
             McpToolDefinition(name="unsafe_tool", description="Unsafe tool", input_schema={})
         ]
 
-        def create_mock_client(name: str, _config: McpServerConfig) -> McpClient:
+        def create_mock_client(name: str, config: McpServerConfig | None = None, verbose: bool = False) -> McpClient:
             if name == "trusted_server":
                 return mock_trusted_client
             else:

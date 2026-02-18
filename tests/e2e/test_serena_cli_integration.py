@@ -48,6 +48,7 @@ class TestSerenaCliIntegration:
         """Test that CLI can load settings with MCP configuration."""
         # Set environment variable to use temp settings
         import os
+
         os.environ["HENCHMAN_SETTINGS_PATH"] = str(temp_settings_file)
 
         try:
@@ -116,6 +117,7 @@ class TestSerenaCliIntegration:
 
         # Verify MCP tools can be registered
         import henchman.mcp.tool as mcp_tool_module
+
         assert hasattr(mcp_tool_module, "McpTool")
 
     @pytest.mark.anyio
@@ -163,7 +165,11 @@ class TestSerenaCliIntegration:
                     "type": "object",
                     "properties": {
                         "symbol_id": {"type": "string", "description": "ID of the symbol"},
-                        "context_lines": {"type": "integer", "description": "Number of context lines", "default": 10},
+                        "context_lines": {
+                            "type": "integer",
+                            "description": "Number of context lines",
+                            "default": 10,
+                        },
                     },
                     "required": ["symbol_id"],
                 },
@@ -329,7 +335,7 @@ class TestSerenaCliIntegration:
             McpToolDefinition(name="list_issues", description="GitHub tool", input_schema={})
         ]
 
-        def create_mock_client(name: str, _config: McpServerConfig) -> McpClient:
+        def create_mock_client(name: str, config: McpServerConfig | None = None, verbose: bool = False) -> McpClient:
             clients = {
                 "serena": mock_serena_client,
                 "filesystem": mock_fs_client,
