@@ -85,9 +85,9 @@ class TestHenchmanTextualApp:
         assert chat_pane.highlight is True
         assert chat_pane.markup is True
 
-        # Test ThinkingPane
+        # Test ThinkingPane (legacy - thinking now appears in chat)
         thinking_pane = ThinkingPane()
-        assert thinking_pane.border_title == "Thinking"
+        assert thinking_pane.border_title == "Thinking (legacy)"
         assert thinking_pane.wrap is True
         assert thinking_pane.highlight is True
         assert thinking_pane.markup is True
@@ -289,14 +289,17 @@ class TestHenchmanTextualApp:
     @patch.object(HenchmanTextualApp, "query_one")
     def test_clear_thinking_pane(self, mock_query_one, textual_app):
         """Test clearing the thinking pane."""
-        # Mock the thinking pane and status bar
+        # Mock the thinking pane, chat pane, and status bar
         mock_thinking_pane = MagicMock()
+        mock_chat_pane = MagicMock()
         mock_status_bar = MagicMock()
 
         # Set up mock to return different values based on query
         def query_one_side_effect(query, widget_type):
             if query == "#thinking-pane" and widget_type == ThinkingPane:
                 return mock_thinking_pane
+            elif query == "#chat-pane" and widget_type == ChatPane:
+                return mock_chat_pane
             elif query == "#status-bar" and widget_type == StatusBar:
                 return mock_status_bar
             else:
@@ -307,9 +310,10 @@ class TestHenchmanTextualApp:
         # Call the action method
         textual_app.action_clear_thinking_pane()
 
-        # Verify pane was cleared and status bar updated
+        # Verify pane was cleared, chat thinking messages cleared, and status bar updated
         mock_thinking_pane.clear.assert_called_once()
-        mock_status_bar.status_text = "Thinking pane cleared"
+        mock_chat_pane.clear_thinking_messages.assert_called_once()
+        assert mock_status_bar.status_text == "Thinking cleared (legacy pane and chat messages)"
 
     @patch.object(HenchmanTextualApp, "query_one")
     def test_clear_tool_pane(self, mock_query_one, textual_app):

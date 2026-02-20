@@ -200,9 +200,11 @@ class TestTextualSearch:
         assert textual_app._current_match_index == 0, "Should move to previous match"
 
     def test_search_also_in_thinking_pane(self):
-        """Test that search works in thinking pane too."""
-        # This test ensures search functionality considers all panes
-        # Implementation will need to search ChatPane, ThinkingPane, and ToolPane
+        """Test that search works in chat pane (including thinking messages)."""
+        # Since thinking now appears in chat pane as ThinkingMessage widgets,
+        # search functionality should search ChatPane (which includes both
+        # ChatMessage and ThinkingMessage widgets) and ToolPane
+        # The legacy ThinkingPane still exists but contains only informational text
         pass
 
     def test_case_insensitive_search(self):

@@ -85,9 +85,9 @@ class TestTextualFunctionalFinal:
         assert chat_pane.highlight is True
         assert chat_pane.markup is True
 
-        # ThinkingPane
+        # ThinkingPane (legacy - thinking now appears in chat)
         thinking_pane = ThinkingPane()
-        assert thinking_pane.border_title == "Thinking"
+        assert thinking_pane.border_title == "Thinking (legacy)"
         assert thinking_pane.wrap is True
         assert thinking_pane.highlight is True
         assert thinking_pane.markup is True
@@ -298,6 +298,7 @@ class TestTextualFunctionalFinal:
         """Test clearing panes."""
         # Mock panes and status bar
         mock_thinking_pane = MagicMock()
+        mock_chat_pane = MagicMock()
         mock_tool_pane = MagicMock()
         mock_status_bar = MagicMock()
 
@@ -308,6 +309,7 @@ class TestTextualFunctionalFinal:
             call_count += 1
             pane_map = {
                 "#thinking-pane": mock_thinking_pane,
+                "#chat-pane": mock_chat_pane,
                 "#tool-pane": mock_tool_pane,
                 "#status-bar": mock_status_bar,
             }
@@ -317,10 +319,11 @@ class TestTextualFunctionalFinal:
 
         mock_query_one.side_effect = query_one_side_effect
 
-        # Test clear thinking pane
+        # Test clear thinking pane (now also clears chat thinking messages)
         textual_app.action_clear_thinking_pane()
         mock_thinking_pane.clear.assert_called_once()
-        mock_status_bar.status_text = "Thinking pane cleared"
+        mock_chat_pane.clear_thinking_messages.assert_called_once()
+        assert mock_status_bar.status_text == "Thinking cleared (legacy pane and chat messages)"
 
         # Test clear tool pane
         textual_app.action_clear_tool_pane()
@@ -459,7 +462,9 @@ class TestTextualFunctionalFinal:
             textual_app.on_mount()
 
         # Verify
-        mock_query_one.assert_called_with("#input", TextArea)
+        # Note: query_one is called multiple times in on_mount, including for TabbedContent
+        # to force the Chat tab to be active. We check that it was called with #input at some point.
+        mock_query_one.assert_any_call("#input", TextArea)
         mock_input.focus.assert_called()
         # Check sub_title format includes version
         assert "Henchman-AI v" in textual_app.sub_title
