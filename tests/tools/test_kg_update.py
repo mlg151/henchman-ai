@@ -57,9 +57,7 @@ async def test_add_entity_defaults(tool: KgUpdateTool, store: KnowledgeStore) ->
 
 
 @pytest.mark.asyncio
-async def test_add_entity_with_file_path(
-    tool: KgUpdateTool, store: KnowledgeStore
-) -> None:
+async def test_add_entity_with_file_path(tool: KgUpdateTool, store: KnowledgeStore) -> None:
     """Add entity with a file_path."""
     result = await tool.execute(
         action="add_entity",
@@ -215,9 +213,7 @@ async def test_no_git_repo() -> None:
     import unittest.mock as mock
 
     t = KgUpdateTool(store=None)
-    with mock.patch(
-        "henchman.tools.builtins.kg_update._find_git_root", return_value=None
-    ):
+    with mock.patch("henchman.tools.builtins.kg_update._find_git_root", return_value=None):
         result = await t.execute(action="add_entity", entity_id="x")
         assert "Not in a git repository" in result.content
 

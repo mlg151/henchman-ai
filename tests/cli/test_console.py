@@ -66,6 +66,48 @@ class TestThemeManager:
         assert theme.name == "light"
         assert theme.primary == "blue"
 
+    def test_get_theme_solarized_dark(self) -> None:
+        """Test getting the solarized-dark theme."""
+        manager = ThemeManager()
+        theme = manager.get_theme("solarized-dark")
+        assert theme.name == "solarized-dark"
+        assert theme.primary == "cyan"
+
+    def test_get_theme_solarized_light(self) -> None:
+        """Test getting the solarized-light theme."""
+        manager = ThemeManager()
+        theme = manager.get_theme("solarized-light")
+        assert theme.name == "solarized-light"
+        assert theme.primary == "blue"
+
+    def test_get_theme_monokai(self) -> None:
+        """Test getting the monokai theme."""
+        manager = ThemeManager()
+        theme = manager.get_theme("monokai")
+        assert theme.name == "monokai"
+        assert theme.primary == "magenta"
+
+    def test_get_theme_dracula(self) -> None:
+        """Test getting the dracula theme."""
+        manager = ThemeManager()
+        theme = manager.get_theme("dracula")
+        assert theme.name == "dracula"
+        assert theme.primary == "purple"
+
+    def test_get_theme_high_contrast_dark(self) -> None:
+        """Test getting the high-contrast-dark theme."""
+        manager = ThemeManager()
+        theme = manager.get_theme("high-contrast-dark")
+        assert theme.name == "high-contrast-dark"
+        assert theme.primary == "bright_white"
+
+    def test_get_theme_high_contrast_light(self) -> None:
+        """Test getting the high-contrast-light theme."""
+        manager = ThemeManager()
+        theme = manager.get_theme("high-contrast-light")
+        assert theme.name == "high-contrast-light"
+        assert theme.primary == "black"
+
     def test_get_theme_unknown_returns_default(self) -> None:
         """Test that unknown theme returns default."""
         manager = ThemeManager()
@@ -78,12 +120,55 @@ class TestThemeManager:
         manager.set_theme("light")
         assert manager.current.name == "light"
 
+    def test_set_theme_solarized_dark(self) -> None:
+        """Test setting the solarized-dark theme."""
+        manager = ThemeManager()
+        manager.set_theme("solarized-dark")
+        assert manager.current.name == "solarized-dark"
+
+    def test_set_theme_solarized_light(self) -> None:
+        """Test setting the solarized-light theme."""
+        manager = ThemeManager()
+        manager.set_theme("solarized-light")
+        assert manager.current.name == "solarized-light"
+
+    def test_set_theme_monokai(self) -> None:
+        """Test setting the monokai theme."""
+        manager = ThemeManager()
+        manager.set_theme("monokai")
+        assert manager.current.name == "monokai"
+
+    def test_set_theme_dracula(self) -> None:
+        """Test setting the dracula theme."""
+        manager = ThemeManager()
+        manager.set_theme("dracula")
+        assert manager.current.name == "dracula"
+
+    def test_set_theme_high_contrast_dark(self) -> None:
+        """Test setting the high-contrast-dark theme."""
+        manager = ThemeManager()
+        manager.set_theme("high-contrast-dark")
+        assert manager.current.name == "high-contrast-dark"
+
+    def test_set_theme_high_contrast_light(self) -> None:
+        """Test setting the high-contrast-light theme."""
+        manager = ThemeManager()
+        manager.set_theme("high-contrast-light")
+        assert manager.current.name == "high-contrast-light"
+
     def test_list_themes(self) -> None:
         """Test listing available themes."""
         manager = ThemeManager()
         themes = manager.list_themes()
         assert "dark" in themes
         assert "light" in themes
+        assert "solarized-dark" in themes
+        assert "solarized-light" in themes
+        assert "monokai" in themes
+        assert "dracula" in themes
+        assert "high-contrast-dark" in themes
+        assert "high-contrast-light" in themes
+        assert len(themes) == 8  # Should have exactly 8 themes
 
     def test_register_custom_theme(self) -> None:
         """Test registering a custom theme."""

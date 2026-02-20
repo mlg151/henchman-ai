@@ -150,10 +150,14 @@ class KgQueryTool(Tool):
 
         # Safely convert depth and top_k to int
         depth_val = params.get("depth", 1)
-        depth = int(depth_val) if isinstance(depth_val, (int, str)) and str(depth_val).isdigit() else 1
+        depth = (
+            int(depth_val) if isinstance(depth_val, (int, str)) and str(depth_val).isdigit() else 1
+        )
 
         top_k_val = params.get("top_k", 10)
-        top_k = int(top_k_val) if isinstance(top_k_val, (int, str)) and str(top_k_val).isdigit() else 10
+        top_k = (
+            int(top_k_val) if isinstance(top_k_val, (int, str)) and str(top_k_val).isdigit() else 10
+        )
 
         if action == "search":
             if not query:
@@ -201,10 +205,7 @@ class KgQueryTool(Tool):
                 return ToolResult(content="Knowledge graph is empty.")
             lines = ["# Most Important Entities (by PageRank)\n"]
             for entity, score in ranked:
-                lines.append(
-                    f"- **{entity.name}** ({entity.entity_type}) — "
-                    f"score: {score:.4f}"
-                )
+                lines.append(f"- **{entity.name}** ({entity.entity_type}) — score: {score:.4f}")
             return ToolResult(content="\n".join(lines))
 
         elif action == "stats":

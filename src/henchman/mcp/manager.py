@@ -12,6 +12,7 @@ from henchman.mcp.client import McpClient, McpToolResult
 from henchman.mcp.config import McpServerConfig
 
 if TYPE_CHECKING:
+    from henchman.config.schema import Settings
     from henchman.mcp.tool import McpTool
 
 
@@ -117,3 +118,71 @@ class McpManager:
             raise KeyError(f"Unknown MCP server: {server_name}")
 
         return await self.clients[server_name].call_tool(tool_name, arguments)
+
+    @staticmethod
+    def create_from_settings(
+        settings: Settings | None, mcp_logging_enabled: bool = False
+    ) -> McpManager | None:
+        """Create McpManager from application settings.
+
+        Args:
+            settings: Application settings with mcp_servers.
+            mcp_logging_enabled: Whether MCP logging is enabled.
+
+        Returns:
+            McpManager instance or None if no servers configured.
+        """
+        if not settings or not hasattr(settings, "mcp_servers") or not settings.mcp_servers:
+            return None
+
+        from henchman.mcp.config import McpServerConfig
+
+        mcp_configs: dict[str, McpServerConfig] = {}
+        for name, server_config in settings.mcp_servers.items():
+            # Start with the environment from config
+            env = dict(server_config.env)
+
+            # Suppress server logs if mcp_logging is disabled
+            if not mcp_logging_enabled:
+                # Apply logging suppression for known server types
+                is_python = (
+                    "python" in server_config.command.lower()
+                    or "uvx" in server_config.command.lower()
+                    or any(".py" in arg.lower() for arg in server_config.args)
+                )
+
+                is_node = (
+                    "node" in server_config.command.lower()
+                    or "npx" in server_config.command.lower()
+                    or "npm" in server_config.command.lower()
+                )
+
+                is_serena = "serena" in name.lower() or any(
+                    "serena" in arg.lower() for arg in server_config.args
+                )
+
+                # Apply environment variables based on server type
+                if is_serena:
+                    env["SERENA_LOG_LEVEL"] = "WARNING"
+                    env["PYTHONWARNINGS"] = "ignore"
+                    env["LOGLEVEL"] = "WARNING"
+                    env["PYTHON_LOG_LEVEL"] = "WARNING"
+                elif is_python:
+                    env["PYTHONWARNINGS"] = "ignore"
+                    env["LOGLEVEL"] = "WARNING"
+                    env["PYTHON_LOG_LEVEL"] = "WARNING"
+                elif is_node:
+                    env["NODE_ENV"] = "production"
+
+                # Common logging suppression
+                env["NO_COLOR"] = "1"
+                env["TERM"] = "dumb"
+
+            mcp_configs[name] = McpServerConfig(
+                command=server_config.command,
+                args=server_config.args,
+                env=env,
+                trusted=server_config.trusted,
+            )
+
+        return McpManager(mcp_configs, verbose=mcp_logging_enabled)

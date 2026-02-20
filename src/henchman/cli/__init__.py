@@ -1,4 +1,4 @@
-"""CLI package for MLG.
+"""CLI package for HENCHMAN.
 
 This module provides the terminal UI with Rich console output,
 prompt_toolkit input, and slash command support.

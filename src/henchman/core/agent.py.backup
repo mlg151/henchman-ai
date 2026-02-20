@@ -1,4 +1,4 @@
-### /home/matthew/mlg-cli/src/henchman/core/agent.py
+### /home/matthew/henchman-cli/src/henchman/core/agent.py
 ```python
 1: """Core Agent implementation for orchestrating LLM interactions."""
 2: 

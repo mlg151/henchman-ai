@@ -21,9 +21,7 @@ class EventBus:
         self._history: deque[AgentEvent] = deque(maxlen=history_limit)
         self._lock = anyio.Lock()
 
-    async def subscribe(
-        self, event_type: EventType, handler: Callable[[AgentEvent], Any]
-    ) -> str:
+    async def subscribe(self, event_type: EventType, handler: Callable[[AgentEvent], Any]) -> str:
         """Subscribe to a specific event type.
 
         Args:
@@ -79,6 +77,7 @@ class EventBus:
         for handler in handlers_to_call:
             try:
                 import inspect
+
                 if inspect.iscoroutinefunction(handler):
                     await handler(event)
                 else:

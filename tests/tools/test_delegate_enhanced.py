@@ -3,7 +3,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from src.henchman.tools.builtins.delegate import DelegateTaskTool
 
@@ -13,14 +13,11 @@ def test_delegate_tool_has_enhanced_description() -> None:
     tool = DelegateTaskTool()
     description = tool.description
 
-    # Check for enhanced guidance sections
-    assert "DELEGATION PRIORITY RULES" in description
-    assert "ALWAYS consider delegation before doing work yourself" in description
-    assert "Architecture/design → Planner" in description
-    assert "Research/exploration → Explorer" in description
-    assert "Implementation/testing → Engineer" in description
-    assert "Documentation → Explorer" in description
-    assert "Complex debugging → Engineer" in description
+    # Check for essential guidance sections
+    assert "Delegate a task to a specialist agent" in description
+    assert "CLEAN context" in description
+    assert "MUST provide all relevant information" in description
+    assert "Do not assume the agent remembers anything" in description
 
 
 def test_delegate_tool_parameters() -> None:
@@ -37,6 +34,7 @@ def test_delegate_tool_parameters() -> None:
     assert "files" in params["properties"]
     assert "background" in params["properties"]
     assert "requirements" in params["properties"]
+    assert "depends_on" in params["properties"]
 
     # Check required fields
     assert "required" in params
@@ -48,3 +46,18 @@ def test_delegate_tool_kind() -> None:
     """Test that delegation tool is read-only (auto-approved)."""
     tool = DelegateTaskTool()
     assert tool.kind.name == "READ"
+
+
+def test_delegate_tool_files_description_emphasizes_importance() -> None:
+    """Test that files field description emphasizes importance (#3)."""
+    tool = DelegateTaskTool()
+    files_desc = tool.parameters["properties"]["files"]["description"]
+    assert "STRONGLY RECOMMENDED" in files_desc
+
+
+def test_delegate_tool_depends_on_field() -> None:
+    """Test that depends_on field exists with correct schema (#10)."""
+    tool = DelegateTaskTool()
+    depends_on = tool.parameters["properties"]["depends_on"]
+    assert depends_on["type"] == "string"
+    assert "prior agent work" in depends_on["description"]

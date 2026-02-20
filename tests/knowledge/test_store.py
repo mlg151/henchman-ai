@@ -262,9 +262,7 @@ def test_get_important_entities(store: KnowledgeStore) -> None:
         store.add_entity(_make_entity(f"n{i}"))
     # n0 is imported by everyone else
     for i in range(1, 5):
-        store.add_relation(
-            Relation(source=f"n{i}", target="n0", relation_type="imports")
-        )
+        store.add_relation(Relation(source=f"n{i}", target="n0", relation_type="imports"))
     ranked = store.get_important_entities(top_k=3)
     assert len(ranked) == 3
     assert ranked[0][0].id == "n0"  # most imported

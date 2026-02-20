@@ -12,6 +12,7 @@ from henchman.providers.base import (
 from henchman.providers.deepseek import DeepSeekProvider
 from henchman.providers.ollama import OllamaProvider
 from henchman.providers.openai_compat import OpenAICompatibleProvider
+from henchman.providers.openrouter import OpenRouterProvider
 from henchman.providers.registry import ProviderRegistry, get_default_registry
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "Message",
     "ModelProvider",
     "OllamaProvider",
+    "OpenRouterProvider",
     "OpenAICompatibleProvider",
     "ProviderRegistry",
     "StreamChunk",

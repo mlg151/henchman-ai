@@ -47,10 +47,7 @@ class TestSessionMessage:
     def test_message_with_agent(self) -> None:
         """Test message with agent attribution."""
         msg = SessionMessage(
-            role="assistant",
-            content="Hello",
-            agent_id="coder-1",
-            agent_role="coder"
+            role="assistant", content="Hello", agent_id="coder-1", agent_role="coder"
         )
         assert msg.agent_id == "coder-1"
         assert msg.agent_role == "coder"
@@ -208,7 +205,7 @@ class TestSession:
             started="2026-01-23T12:00:00Z",
             last_updated="2026-01-23T12:00:00Z",
             active_agents=["tech_lead", "coder"],
-            delegation_log=[{"from": "tech_lead", "to": "coder", "task": "test"}]
+            delegation_log=[{"from": "tech_lead", "to": "coder", "task": "test"}],
         )
         data = session.to_dict()
         assert data["active_agents"] == ["tech_lead", "coder"]

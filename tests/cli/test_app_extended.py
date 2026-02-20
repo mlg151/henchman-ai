@@ -27,9 +27,11 @@ def test_run_interactive_json_warning():
 def test_run_interactive_plan_mode():
     """Test starting interactive mode in plan mode."""
     mock_repl_instance = MagicMock()
+
     # Mock initialize_mcp method
     async def mock_initialize_mcp():
         pass
+
     mock_repl_instance.initialize_mcp = mock_initialize_mcp
     mock_session = MagicMock()
     mock_repl_instance.session_manager.current = mock_session
@@ -51,9 +53,11 @@ def test_run_interactive_plan_mode():
 def test_run_headless_json():
     """Test headless mode with JSON output."""
     mock_repl_instance = MagicMock()
+
     # Mock initialize_mcp method
     async def mock_initialize_mcp():
         pass
+
     mock_repl_instance.initialize_mcp = mock_initialize_mcp
     with (
         patch("henchman.cli.app._get_provider"),
@@ -71,9 +75,11 @@ def test_run_headless_json():
 def test_run_headless_stream_json():
     """Test headless mode with stream-json output."""
     mock_repl_instance = MagicMock()
+
     # Mock initialize_mcp method
     async def mock_initialize_mcp():
         pass
+
     mock_repl_instance.initialize_mcp = mock_initialize_mcp
     with (
         patch("henchman.cli.app._get_provider"),
@@ -98,6 +104,7 @@ async def test_run_single_prompt_json_inner():
     # Mock initialize_mcp method
     async def mock_initialize_mcp():
         pass
+
     mock_repl_instance.initialize_mcp = mock_initialize_mcp
 
     # Mock the async generator
@@ -127,6 +134,7 @@ async def test_run_single_prompt_stream_json_inner():
     # Mock initialize_mcp method
     async def mock_initialize_mcp():
         pass
+
     mock_repl_instance.initialize_mcp = mock_initialize_mcp
 
     async def mock_run_gen(_p):

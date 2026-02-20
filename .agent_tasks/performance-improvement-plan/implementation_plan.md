@@ -4,7 +4,7 @@
 
 ### Day 1: Working Memory Foundation
 **Tasks**:
-1. Analyze current prompt structure in `/home/matthew/mlg-cli/.github/copilot-instructions.md`
+1. Analyze current prompt structure in `/home/matthew/henchman-cli/.github/copilot-instructions.md`
 2. Design working memory schema
 3. Create template for memory updates
 
@@ -31,7 +31,7 @@
 3. Test with sample tasks
 
 **Deliverables**:
-- Updated `/home/matthew/mlg-cli/.github/copilot-instructions.md`
+- Updated `/home/matthew/henchman-cli/.github/copilot-instructions.md`
 - `test_context_management.py` - Validation tests
 - Performance baseline measurements
 

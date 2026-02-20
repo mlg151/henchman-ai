@@ -560,3 +560,271 @@ class TestOpenAICompatibleProvider:
             assert chunks[0].tool_calls is not None
             assert chunks[0].tool_calls[0].name == "no_args_tool"
             assert chunks[0].tool_calls[0].arguments == {}
+
+    def test_format_message_with_reasoning_content(self) -> None:
+        """Test formatting message with reasoning content."""
+        provider = OpenAICompatibleProvider(
+            api_key="test-key",
+            base_url="https://api.example.com",
+            default_model="test-model",
+        )
+        msg = Message(role="assistant", content="Final answer", reasoning_content="Let me think...")
+        formatted = provider._format_message(msg)
+        assert formatted["role"] == "assistant"
+        assert formatted["content"] == "Final answer"
+        assert formatted["reasoning_content"] == "Let me think..."
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_stream_empty_messages_validation(self) -> None:
+        """Test validation for empty messages list."""
+        provider = OpenAICompatibleProvider(
+            api_key="test-key",
+            base_url="https://api.example.com",
+            default_model="test-model",
+        )
+
+        messages = []
+        with pytest.raises(ValueError, match="Messages list cannot be empty"):
+            async for _ in provider.chat_completion_stream(messages):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_stream_empty_content_validation(self) -> None:
+        """Test validation for messages with empty content."""
+        provider = OpenAICompatibleProvider(
+            api_key="test-key",
+            base_url="https://api.example.com",
+            default_model="test-model",
+        )
+
+        # Test with user message with empty content
+        messages = [Message(role="user", content="")]
+        with pytest.raises(ValueError, match="Message with role 'user' cannot have empty content"):
+            async for _ in provider.chat_completion_stream(messages):
+                pass
+
+        # Test with system message with empty content
+        messages = [Message(role="system", content="   ")]  # Whitespace only
+        with pytest.raises(
+            ValueError, match="Message with role 'system' cannot have empty content"
+        ):
+            async for _ in provider.chat_completion_stream(messages):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_stream_valid_empty_content(self) -> None:
+        """Test that certain roles can have empty content."""
+        provider = OpenAICompatibleProvider(
+            api_key="test-key",
+            base_url="https://api.example.com",
+            default_model="test-model",
+        )
+
+        # Mock response to allow the test to run
+        mock_chunk = MagicMock()
+        mock_chunk.choices = [MagicMock()]
+        mock_chunk.choices[0].delta.content = "Response"
+        mock_chunk.choices[0].delta.tool_calls = None
+        mock_chunk.choices[0].finish_reason = "stop"
+
+        async def mock_stream():
+            yield mock_chunk
+
+        async def mock_create(**kwargs):  # noqa: ARG001
+            return mock_stream()
+
+        with patch.object(provider, "_client") as mock_client:
+            mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
+
+            # Tool messages can have empty content
+            messages = [Message(role="tool", content="", tool_call_id="call_123")]
+            chunks = []
+            async for chunk in provider.chat_completion_stream(messages):
+                chunks.append(chunk)
+            assert len(chunks) == 1
+
+            # Assistant messages can have empty content (tool calls only)
+            messages = [
+                Message(
+                    role="assistant",
+                    content=None,
+                    tool_calls=[ToolCall(id="call_123", name="test", arguments={})],
+                )
+            ]
+            chunks = []
+            async for chunk in provider.chat_completion_stream(messages):
+                chunks.append(chunk)
+            assert len(chunks) == 1
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_stream_message_sequence_repair(self) -> None:
+        """Test that invalid message sequences are repaired."""
+        provider = OpenAICompatibleProvider(
+            api_key="test-key",
+            base_url="https://api.example.com",
+            default_model="test-model",
+        )
+
+        mock_chunk = MagicMock()
+        mock_chunk.choices = [MagicMock()]
+        mock_chunk.choices[0].delta.content = "Response"
+        mock_chunk.choices[0].delta.tool_calls = None
+        mock_chunk.choices[0].finish_reason = "stop"
+
+        async def mock_stream():
+            yield mock_chunk
+
+        captured_params = {}
+
+        async def mock_create(**kwargs):
+            captured_params.update(kwargs)
+            return mock_stream()
+
+        with (
+            patch.object(provider, "_client") as mock_client,
+            patch("henchman.utils.validation.is_valid_message_sequence") as mock_is_valid,
+            patch("henchman.utils.validation.repair_message_sequence") as mock_repair,
+        ):
+            mock_is_valid.return_value = False
+            mock_repair.return_value = [Message(role="user", content="Repaired message")]
+
+            mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
+
+            messages = [Message(role="user", content="Original message")]
+            chunks = []
+            async for chunk in provider.chat_completion_stream(messages):
+                chunks.append(chunk)
+
+            # Verify repair was called
+            mock_is_valid.assert_called_once_with(messages)
+            mock_repair.assert_called_once_with(messages)
+
+            # Verify the repaired message was used
+            assert captured_params["messages"][0]["content"] == "Repaired message"
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_stream_context_too_large_error(self) -> None:
+        """Test handling of 413 status code (ContextTooLargeError)."""
+        provider = OpenAICompatibleProvider(
+            api_key="test-key",
+            base_url="https://api.example.com",
+            default_model="test-model",
+        )
+
+        import httpx
+        from openai import APIStatusError
+
+        from henchman.providers.base import ContextTooLargeError
+
+        # Create a mock response with status code 413
+        mock_response = httpx.Response(
+            413, request=httpx.Request("POST", "https://api.example.com")
+        )
+
+        async def mock_create(**kwargs):  # noqa: ARG001
+            # Simulate API returning 413
+            error = APIStatusError(message="Request too large", response=mock_response, body=None)
+            raise error
+
+        with patch.object(provider, "_client") as mock_client:
+            mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
+
+            messages = [Message(role="user", content="Test")]
+            with pytest.raises(ContextTooLargeError, match="Request too large"):
+                async for _ in provider.chat_completion_stream(messages):
+                    pass
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_stream_api_status_error(self) -> None:
+        """Test handling of other API status errors."""
+        provider = OpenAICompatibleProvider(
+            api_key="test-key",
+            base_url="https://api.example.com",
+            default_model="test-model",
+        )
+
+        import httpx
+        from openai import APIStatusError
+
+        # Create a mock response with status code 429
+        mock_response = httpx.Response(
+            429, request=httpx.Request("POST", "https://api.example.com")
+        )
+
+        async def mock_create(**kwargs):  # noqa: ARG001
+            # Simulate API returning 429 (rate limit)
+            error = APIStatusError(message="Rate limit exceeded", response=mock_response, body=None)
+            raise error
+
+        with patch.object(provider, "_client") as mock_client:
+            mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
+
+            messages = [Message(role="user", content="Test")]
+            with pytest.raises(APIStatusError, match="Rate limit exceeded"):
+                async for _ in provider.chat_completion_stream(messages):
+                    pass
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_stream_generic_exception(self) -> None:
+        """Test handling of generic exceptions (network errors, etc.)."""
+        provider = OpenAICompatibleProvider(
+            api_key="test-key",
+            base_url="https://api.example.com",
+            default_model="test-model",
+        )
+
+        async def mock_create(**kwargs):  # noqa: ARG001
+            # Simulate a network error
+            raise ConnectionError("Network connection failed")
+
+        with patch.object(provider, "_client") as mock_client:
+            mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
+
+            messages = [Message(role="user", content="Test")]
+            chunks = []
+            async for chunk in provider.chat_completion_stream(messages):
+                chunks.append(chunk)
+
+            # Should yield an error StreamChunk
+            assert len(chunks) == 1
+            assert chunks[0].content.startswith("❌ Provider Error:")
+            assert chunks[0].finish_reason == FinishReason.STOP
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_stream_with_kwargs(self) -> None:
+        """Test streaming with additional kwargs passed to API."""
+        provider = OpenAICompatibleProvider(
+            api_key="test-key",
+            base_url="https://api.example.com",
+            default_model="test-model",
+        )
+
+        mock_chunk = MagicMock()
+        mock_chunk.choices = [MagicMock()]
+        mock_chunk.choices[0].delta.content = "Response"
+        mock_chunk.choices[0].delta.tool_calls = None
+        mock_chunk.choices[0].finish_reason = "stop"
+
+        async def mock_stream():
+            yield mock_chunk
+
+        captured_kwargs = {}
+
+        async def mock_create(**kwargs):
+            captured_kwargs.update(kwargs)
+            return mock_stream()
+
+        with patch.object(provider, "_client") as mock_client:
+            mock_client.chat.completions.create = AsyncMock(side_effect=mock_create)
+
+            messages = [Message(role="user", content="Hi")]
+            async for _ in provider.chat_completion_stream(
+                messages, temperature=0.7, max_tokens=100, top_p=0.9
+            ):
+                pass
+
+            assert captured_kwargs["temperature"] == 0.7
+            assert captured_kwargs["max_tokens"] == 100
+            assert captured_kwargs["top_p"] == 0.9
+            assert captured_kwargs["stream"] is True
+            assert captured_kwargs["model"] == "test-model"

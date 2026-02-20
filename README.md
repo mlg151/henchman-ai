@@ -59,6 +59,66 @@ uv pip install henchman-ai
    henchman --prompt "Explain this Python code" < example.py
    ```
 
+## 🏗️ Architecture
+
+Henchman-AI features a modular, component-based architecture designed for maintainability and extensibility. The core interactive REPL (Read-Eval-Print Loop) has been refactored into specialized components:
+
+### REPL Component Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     REPL (Orchestrator)                      │
+│  ┌──────────┐  ┌───────────┐  ┌─────────────┐  ┌─────────┐  │
+│  │  Input   │  │  Output   │  │   Command   │  │  Tool   │  │
+│  │ Handler  │◄─┤  Handler  │◄─┤  Processor  │◄─┤Executor │  │
+│  └──────────┘  └───────────┘  └─────────────┘  └─────────┘  │
+│         │             │              │               │       │
+│         ▼             ▼              ▼               ▼       │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │                Multi-Agent Orchestrator               │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Component Responsibilities
+
+1. **REPL (Orchestrator)**: Main coordination class (406 lines, down from 559)
+   - Initializes and connects all components
+   - Manages the main interaction loop
+   - Delegates work to specialized components
+   - Maintains backward compatibility
+
+2. **InputHandler**: User input processing
+   - Manages prompt sessions with history
+   - Handles @file expansion and shell command detection
+   - Processes keyboard interrupts and EOF
+   - Validates and sanitizes user input
+
+3. **OutputHandler**: Console output and status display
+   - Manages rich console output and formatting
+   - Displays status bars and tool information
+   - Shows welcome/goodbye messages
+   - Handles event streaming and turn status
+
+4. **CommandProcessor**: Slash command execution
+   - Processes /quit, /clear, /help, and other commands
+   - Manages command registry and argument parsing
+   - Delegates to specialized command handlers
+   - Provides command completion and validation
+
+5. **ToolExecutor**: Tool execution and agent coordination
+   - Executes tool calls from agents
+   - Manages tool confirmation requests
+   - Processes agent event streams
+   - Handles tool iteration limits and cancellation
+
+### Benefits of Component Architecture
+- **Single Responsibility**: Each component has a clear, focused purpose
+- **Testability**: Components can be tested independently (100% test coverage for core components)
+- **Maintainability**: Smaller, focused classes are easier to understand and modify
+- **Extensibility**: New components can be added without modifying the REPL
+- **Performance**: Business logic moved out of REPL, leaving only orchestration
+
 ## 📖 Usage Examples
 
 ### Basic Commands
@@ -107,7 +167,7 @@ Henchman-AI uses hierarchical configuration (later settings override earlier one
 ```yaml
 # Provider configuration
 providers:
-  default: deepseek  # or openai, anthropic, ollama
+  default: deepseek  # or openai, anthropic, ollama, openrouter
   deepseek:
     model: deepseek-chat
     base_url: "https://api.deepseek.com"

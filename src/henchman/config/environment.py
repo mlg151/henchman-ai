@@ -282,9 +282,7 @@ def format_environment_block(ctx: EnvironmentContext) -> str:
     lines.append(f"* Python: {ctx.python_version}")
 
     if ctx.project_types:
-        types_str = ", ".join(
-            f"{ptype} ({marker})" for ptype, marker in ctx.project_types
-        )
+        types_str = ", ".join(f"{ptype} ({marker})" for ptype, marker in ctx.project_types)
         lines.append(f"* Project type: {types_str}")
 
     if ctx.directory_snapshot:

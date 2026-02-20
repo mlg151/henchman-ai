@@ -115,8 +115,7 @@ def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
                     # Orphaned tool message — drop it
                     repaired = True
                     logger.warning(
-                        "Repair: dropping orphaned tool message at index %d "
-                        "(tool_call_id=%s)",
+                        "Repair: dropping orphaned tool message at index %d (tool_call_id=%s)",
                         j,
                         messages[j].tool_call_id,
                     )
@@ -137,8 +136,7 @@ def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
                 result.append(
                     Msg(
                         role="assistant",
-                        content=msg.content
-                        or "(tool calls removed during repair)",
+                        content=msg.content or "(tool calls removed during repair)",
                         tool_calls=None,
                         tool_call_id=None,
                     )

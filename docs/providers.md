@@ -10,6 +10,7 @@ Henchman-AI supports multiple LLM providers through a unified interface.
 | OpenAI | ✅ | Native |
 | Anthropic | ✅ | Native |
 | Ollama | ✅ | OpenAI-compatible |
+| OpenRouter | ✅ | OpenAI-compatible |
 | Together | ✅ | OpenAI-compatible |
 | Groq | ✅ | OpenAI-compatible |
 
@@ -112,6 +113,29 @@ Any model available in Ollama:
 - `mistral`, `mixtral`
 - `phi3`
 - And many more...
+
+## OpenRouter
+
+Access hundreds of models through [OpenRouter](https://openrouter.ai/).
+
+### Setup
+
+```bash
+export OPENROUTER_API_KEY="your-api-key"
+```
+
+### Configuration
+
+```yaml
+providers:
+  default: openrouter
+  openrouter:
+    model: "anthropic/claude-3.5-sonnet"
+```
+
+### Models
+
+OpenRouter supports hundreds of models from various providers. Refer to the [OpenRouter Model List](https://openrouter.ai/models) for specific model identifiers.
 
 ## OpenAI-Compatible Providers
 

@@ -1,4 +1,4 @@
-"""Tests for mlg package initialization and version."""
+"""Tests for henchman package initialization and version."""
 
 from henchman import __version__
 from henchman.version import VERSION, VERSION_TUPLE
@@ -13,7 +13,7 @@ def test_version_string_format() -> None:
 
 def test_version_tuple() -> None:
     """Test that version tuple matches version string."""
-    assert VERSION_TUPLE == (0, 3, 1)
+    assert VERSION_TUPLE == (0, 3, 3)
     assert ".".join(str(v) for v in VERSION_TUPLE) == __version__
 
 

@@ -2,8 +2,8 @@
 
 **Tester**: GitHub Copilot (Claude Opus 4.5)  
 **Date**: February 2, 2026  
-**Version Tested**: v0.1.11 (package name: `mlg`)  
-**CLI Location**: `/home/matthew/mlg-cli`
+**Version Tested**: v0.1.11 (package name: `henchman`)  
+**CLI Location**: `/home/matthew/henchman-cli`
 
 ---
 
@@ -32,7 +32,7 @@ Options:
 
 ### Session 1 - Initial Launch (Prior)
 - **Command**: `henchman`
-- **Working Directory**: `/home/matthew/mlg-cli`
+- **Working Directory**: `/home/matthew/henchman-cli`
 - **Exit Code**: 130 (Ctrl+C interrupt)
 - **Status**: ⚠️ Inconclusive - manual interrupt
 
@@ -98,7 +98,7 @@ Options:
 
 ### Issue #2: Version Mismatch Display
 - **Severity**: Very Low (cosmetic)
-- **Description**: `--version` shows `mlg, version 0.1.11` but product is "Henchman"
+- **Description**: `--version` shows `henchman, version 0.1.11` but product is "Henchman"
 - **Expected**: `henchman, version 0.1.11`
 - **Impact**: Confusion about package vs. product naming
 
@@ -185,7 +185,7 @@ As an agentic coding AI myself, here's my evaluation:
 
 ## Recommendations for Henchman Team
 
-1. **Fix version string**: Change from `mlg` to `henchman` in `--version` output
+1. **Fix version string**: Change from `henchman` to `henchman` in `--version` output
 2. **Tune loop detection**: Current threshold may be too aggressive for legitimate file exploration
 3. **Add batch mode**: For CI/CD integration, add `--yes` flag to skip confirmations
 4. **Document tool set**: List available tools (ls, read_file, write_file, shell, rag_search, glob) in docs

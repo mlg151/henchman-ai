@@ -81,7 +81,9 @@ class TestSerenaMcpIntegration:
 
             # Check tool properties
             for tool in tools:
-                assert tool.name.startswith("mcp_serena_"), f"Tool name should be prefixed: {tool.name}"
+                assert tool.name.startswith("mcp_serena_"), (
+                    f"Tool name should be prefixed: {tool.name}"
+                )
                 assert tool.description, "Tool should have a description"
                 assert tool.kind.name == "READ", "Serena tools should be READ kind (trusted)"
 
@@ -110,7 +112,10 @@ class TestSerenaMcpIntegration:
                     "type": "object",
                     "properties": {
                         "name": {"type": "string", "description": "Symbol name to find"},
-                        "kind": {"type": "string", "description": "Symbol kind (function, class, etc.)"},
+                        "kind": {
+                            "type": "string",
+                            "description": "Symbol kind (function, class, etc.)",
+                        },
                     },
                     "required": ["name"],
                 },
@@ -121,7 +126,10 @@ class TestSerenaMcpIntegration:
                 input_schema={
                     "type": "object",
                     "properties": {
-                        "symbol_id": {"type": "string", "description": "ID of the symbol to find references for"},
+                        "symbol_id": {
+                            "type": "string",
+                            "description": "ID of the symbol to find references for",
+                        },
                     },
                     "required": ["symbol_id"],
                 },
@@ -222,7 +230,12 @@ class TestSerenaMcpIntegration:
             "mcp_servers": {
                 "serena": {
                     "command": "uvx",
-                    "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"],
+                    "args": [
+                        "--from",
+                        "git+https://github.com/oraios/serena",
+                        "serena",
+                        "start-mcp-server",
+                    ],
                     "trusted": True,
                 }
             }
@@ -285,7 +298,7 @@ class TestSerenaMcpIntegration:
             "filesystem": mock_fs_client,
         }
 
-        def create_mock_client(name: str, _config: McpServerConfig) -> McpClient:
+        def create_mock_client(*, name: str, config: McpServerConfig, verbose: bool = False) -> McpClient:  # noqa: ARG001
             return mock_clients[name]
 
         with patch("henchman.mcp.manager.McpClient", side_effect=create_mock_client):

@@ -1,5 +1,5 @@
 # Example settings.yaml with Serena MCP server configuration
-# Copy to ~/.henchman/settings.yaml or .mlg/settings.yaml
+# Copy to ~/.henchman/settings.yaml or .henchman/settings.yaml
 
 # Provider settings
 providers:

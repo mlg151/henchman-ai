@@ -83,11 +83,7 @@ def _get_git_tracked_python_files(git_root: Path) -> list[str]:
         )
         if result.returncode != 0:
             return []
-        return [
-            line.strip()
-            for line in result.stdout.splitlines()
-            if line.strip()
-        ]
+        return [line.strip() for line in result.stdout.splitlines() if line.strip()]
     except (subprocess.SubprocessError, FileNotFoundError):
         return []
 

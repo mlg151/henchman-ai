@@ -27,6 +27,7 @@ from henchman.tools.registry import ToolRegistry
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 class SequencedMockProvider(ModelProvider):
     """A mock provider that returns pre-scripted responses in order.
 
@@ -57,7 +58,9 @@ class SequencedMockProvider(ModelProvider):
     ) -> AsyncIterator[StreamChunk]:
         self.call_log.append(list(messages))
         if self._call_index >= len(self._responses):
-            yield StreamChunk(content="(no more scripted responses)", finish_reason=FinishReason.STOP)
+            yield StreamChunk(
+                content="(no more scripted responses)", finish_reason=FinishReason.STOP
+            )
             return
 
         response = self._responses[self._call_index]
@@ -159,21 +162,32 @@ class TestDelegateTaskEndToEnd:
         return Settings()
 
     async def test_tech_lead_delegates_to_coder_who_uses_tools(
-        self, tool_registry: ToolRegistry, settings: Settings,
+        self,
+        tool_registry: ToolRegistry,
+        settings: Settings,
     ) -> None:
         """Full flow: Tech Lead → delegate_task(coder) → coder reads file → result back."""
-        provider = SequencedMockProvider([
-            # 1. Tech Lead: delegate to coder
-            [ToolCall(id="tc_1", name="delegate_task", arguments={
-                "agent": "explorer", "task": "Read hello.txt and report contents"
-            })],
-            # 2. Coder: call read_file
-            [ToolCall(id="tc_2", name="read_file", arguments={"file_path": "hello.txt"})],
-            # 3. Coder: respond after reading
-            "The file says: Hello World",
-            # 4. Tech Lead: synthesise after delegation result
-            "Done. The file contains: Hello World.",
-        ])
+        provider = SequencedMockProvider(
+            [
+                # 1. Tech Lead: delegate to coder
+                [
+                    ToolCall(
+                        id="tc_1",
+                        name="delegate_task",
+                        arguments={
+                            "agent": "explorer",
+                            "task": "Read hello.txt and report contents",
+                        },
+                    )
+                ],
+                # 2. Coder: call read_file
+                [ToolCall(id="tc_2", name="read_file", arguments={"file_path": "hello.txt"})],
+                # 3. Coder: respond after reading
+                "The file says: Hello World",
+                # 4. Tech Lead: synthesise after delegation result
+                "Done. The file contains: Hello World.",
+            ]
+        )
 
         orchestrator = Orchestrator(
             default_provider=provider,
@@ -191,15 +205,11 @@ class TestDelegateTaskEndToEnd:
         assert delegated[0].data["to"] == "explorer"
 
         # --- Coder agent should have been started & completed ---
-        started_agents = [
-            e.data["agent"]
-            for e in _collect_events(events, EventType.AGENT_STARTED)
-        ]
+        started_agents = [e.data["agent"] for e in _collect_events(events, EventType.AGENT_STARTED)]
         assert "explorer" in started_agents
 
         completed_agents = [
-            e.data["agent"]
-            for e in _collect_events(events, EventType.AGENT_COMPLETED)
+            e.data["agent"] for e in _collect_events(events, EventType.AGENT_COMPLETED)
         ]
         assert "explorer" in completed_agents
 
@@ -221,21 +231,29 @@ class TestDelegateTaskEndToEnd:
         assert provider._call_index == 4
 
     async def test_coder_tool_result_is_in_coder_messages(
-        self, tool_registry: ToolRegistry, settings: Settings,
+        self,
+        tool_registry: ToolRegistry,
+        settings: Settings,
     ) -> None:
         """Verify tool results from read_file go to the Coder's context, not Tech Lead's."""
-        provider = SequencedMockProvider([
-            # 1. Tech Lead: delegate
-            [ToolCall(id="tc_1", name="delegate_task", arguments={
-                "agent": "explorer", "task": "Read the config"
-            })],
-            # 2. Coder: read_file
-            [ToolCall(id="tc_2", name="read_file", arguments={"file_path": "config.yaml"})],
-            # 3. Coder: respond
-            "Config loaded.",
-            # 4. Tech Lead: respond
-            "Done.",
-        ])
+        provider = SequencedMockProvider(
+            [
+                # 1. Tech Lead: delegate
+                [
+                    ToolCall(
+                        id="tc_1",
+                        name="delegate_task",
+                        arguments={"agent": "explorer", "task": "Read the config"},
+                    )
+                ],
+                # 2. Coder: read_file
+                [ToolCall(id="tc_2", name="read_file", arguments={"file_path": "config.yaml"})],
+                # 3. Coder: respond
+                "Config loaded.",
+                # 4. Tech Lead: respond
+                "Done.",
+            ]
+        )
 
         orchestrator = Orchestrator(
             default_provider=provider,
@@ -249,7 +267,9 @@ class TestDelegateTaskEndToEnd:
 
         # The second provider call (index 1) should be the Coder's initial messages.
         # The third call (index 2) should be the Coder's messages INCLUDING the tool result.
-        assert len(provider.call_log) >= 3, f"Expected >= 3 provider calls, got {len(provider.call_log)}"
+        assert len(provider.call_log) >= 3, (
+            f"Expected >= 3 provider calls, got {len(provider.call_log)}"
+        )
 
         coder_continuation = provider.call_log[2]
         # Should have a tool message with the read_file result
@@ -258,25 +278,37 @@ class TestDelegateTaskEndToEnd:
         assert "Hello World" in (tool_messages[0].content or "")
 
     async def test_delegation_depth_limit(
-        self, tool_registry: ToolRegistry, settings: Settings,
+        self,
+        tool_registry: ToolRegistry,
+        settings: Settings,
     ) -> None:
         """Delegation should stop if max depth is exceeded."""
         settings.agents.max_delegation_depth = 1
 
-        provider = SequencedMockProvider([
-            # 1. Tech Lead delegates to coder
-            [ToolCall(id="tc_1", name="delegate_task", arguments={
-                "agent": "explorer", "task": "Implement feature"
-            })],
-            # 2. Coder tries to sub-delegate to researcher (depth=2 > max=1)
-            [ToolCall(id="tc_2", name="delegate_task", arguments={
-                "agent": "explorer", "task": "Look up API docs"
-            })],
-            # 3. Coder continues after depth error
-            "Could not delegate, proceeding myself.",
-            # 4. Tech Lead responds
-            "Feature implemented.",
-        ])
+        provider = SequencedMockProvider(
+            [
+                # 1. Tech Lead delegates to coder
+                [
+                    ToolCall(
+                        id="tc_1",
+                        name="delegate_task",
+                        arguments={"agent": "explorer", "task": "Implement feature"},
+                    )
+                ],
+                # 2. Coder tries to sub-delegate to researcher (depth=2 > max=1)
+                [
+                    ToolCall(
+                        id="tc_2",
+                        name="delegate_task",
+                        arguments={"agent": "explorer", "task": "Look up API docs"},
+                    )
+                ],
+                # 3. Coder continues after depth error
+                "Could not delegate, proceeding myself.",
+                # 4. Tech Lead responds
+                "Feature implemented.",
+            ]
+        )
 
         orchestrator = Orchestrator(
             default_provider=provider,
@@ -292,15 +324,23 @@ class TestDelegateTaskEndToEnd:
         assert any("depth" in str(e.data).lower() for e in errors)
 
     async def test_delegation_to_unknown_agent(
-        self, tool_registry: ToolRegistry, settings: Settings,
+        self,
+        tool_registry: ToolRegistry,
+        settings: Settings,
     ) -> None:
         """Delegating to a non-existent agent should produce an error."""
-        provider = SequencedMockProvider([
-            [ToolCall(id="tc_1", name="delegate_task", arguments={
-                "agent": "nonexistent", "task": "Do something"
-            })],
-            "OK, that agent doesn't exist. Let me handle it.",
-        ])
+        provider = SequencedMockProvider(
+            [
+                [
+                    ToolCall(
+                        id="tc_1",
+                        name="delegate_task",
+                        arguments={"agent": "nonexistent", "task": "Do something"},
+                    )
+                ],
+                "OK, that agent doesn't exist. Let me handle it.",
+            ]
+        )
 
         orchestrator = Orchestrator(
             default_provider=provider,
@@ -316,15 +356,19 @@ class TestDelegateTaskEndToEnd:
         assert any("nonexistent" in str(e.data).lower() for e in errors)
 
     async def test_tech_lead_uses_own_tools_without_delegation(
-        self, tool_registry: ToolRegistry, settings: Settings,
+        self,
+        tool_registry: ToolRegistry,
+        settings: Settings,
     ) -> None:
         """Tech Lead should be able to use tools directly without delegating."""
-        provider = SequencedMockProvider([
-            # 1. Tech Lead calls read_file directly
-            [ToolCall(id="tc_1", name="read_file", arguments={"file_path": "hello.txt"})],
-            # 2. Tech Lead responds after reading
-            "The file says Hello World.",
-        ])
+        provider = SequencedMockProvider(
+            [
+                # 1. Tech Lead calls read_file directly
+                [ToolCall(id="tc_1", name="read_file", arguments={"file_path": "hello.txt"})],
+                # 2. Tech Lead responds after reading
+                "The file says Hello World.",
+            ]
+        )
 
         orchestrator = Orchestrator(
             default_provider=provider,
@@ -345,18 +389,22 @@ class TestDelegateTaskEndToEnd:
         assert "Hello World" in content
 
     async def test_multiple_tool_calls_in_single_turn(
-        self, tool_registry: ToolRegistry, settings: Settings,
+        self,
+        tool_registry: ToolRegistry,
+        settings: Settings,
     ) -> None:
         """Agent should handle multiple tool calls in same response."""
-        provider = SequencedMockProvider([
-            # Tech Lead calls read_file twice in one turn
+        provider = SequencedMockProvider(
             [
-                ToolCall(id="tc_1", name="read_file", arguments={"file_path": "a.txt"}),
-                ToolCall(id="tc_2", name="read_file", arguments={"file_path": "b.txt"}),
-            ],
-            # Tech Lead responds after both reads
-            "Both files say Hello World.",
-        ])
+                # Tech Lead calls read_file twice in one turn
+                [
+                    ToolCall(id="tc_1", name="read_file", arguments={"file_path": "a.txt"}),
+                    ToolCall(id="tc_2", name="read_file", arguments={"file_path": "b.txt"}),
+                ],
+                # Tech Lead responds after both reads
+                "Both files say Hello World.",
+            ]
+        )
 
         orchestrator = Orchestrator(
             default_provider=provider,
@@ -373,22 +421,28 @@ class TestDelegateTaskEndToEnd:
         assert len(tool_results) == 2
 
     async def test_delegate_plus_tool_in_same_turn(
-        self, tool_registry: ToolRegistry, settings: Settings,
+        self,
+        tool_registry: ToolRegistry,
+        settings: Settings,
     ) -> None:
         """Handle delegate_task alongside a regular tool call in same response."""
-        provider = SequencedMockProvider([
-            # Tech Lead reads a file AND delegates simultaneously
+        provider = SequencedMockProvider(
             [
-                ToolCall(id="tc_1", name="read_file", arguments={"file_path": "plan.txt"}),
-                ToolCall(id="tc_2", name="delegate_task", arguments={
-                    "agent": "explorer", "task": "Implement the plan"
-                }),
-            ],
-            # Coder runs
-            "Plan implemented.",
-            # Tech Lead continues
-            "All done. File was read and plan implemented.",
-        ])
+                # Tech Lead reads a file AND delegates simultaneously
+                [
+                    ToolCall(id="tc_1", name="read_file", arguments={"file_path": "plan.txt"}),
+                    ToolCall(
+                        id="tc_2",
+                        name="delegate_task",
+                        arguments={"agent": "explorer", "task": "Implement the plan"},
+                    ),
+                ],
+                # Coder runs
+                "Plan implemented.",
+                # Tech Lead continues
+                "All done. File was read and plan implemented.",
+            ]
+        )
 
         orchestrator = Orchestrator(
             default_provider=provider,
@@ -409,29 +463,44 @@ class TestDelegateTaskEndToEnd:
         assert len(delegated) >= 1
 
     async def test_coder_multiple_tool_iterations(
-        self, tool_registry: ToolRegistry, settings: Settings,
+        self,
+        tool_registry: ToolRegistry,
+        settings: Settings,
     ) -> None:
         """Coder should be able to read a file, then write, across multiple turns."""
         write_tool = FakeWriteFileTool()
         tool_registry.unregister("write_file")
         tool_registry.register(write_tool)
 
-        provider = SequencedMockProvider([
-            # 1. Tech Lead delegates
-            [ToolCall(id="tc_1", name="delegate_task", arguments={
-                "agent": "explorer", "task": "Read hello.txt then write output.txt"
-            })],
-            # 2. Coder reads
-            [ToolCall(id="tc_2", name="read_file", arguments={"file_path": "hello.txt"})],
-            # 3. Coder writes after reading
-            [ToolCall(id="tc_3", name="write_file", arguments={
-                "file_path": "output.txt", "content": "Hello World"
-            })],
-            # 4. Coder reports
-            "Read hello.txt and wrote output.txt.",
-            # 5. Tech Lead wraps up
-            "Coder finished. Output written.",
-        ])
+        provider = SequencedMockProvider(
+            [
+                # 1. Tech Lead delegates
+                [
+                    ToolCall(
+                        id="tc_1",
+                        name="delegate_task",
+                        arguments={
+                            "agent": "explorer",
+                            "task": "Read hello.txt then write output.txt",
+                        },
+                    )
+                ],
+                # 2. Coder reads
+                [ToolCall(id="tc_2", name="read_file", arguments={"file_path": "hello.txt"})],
+                # 3. Coder writes after reading
+                [
+                    ToolCall(
+                        id="tc_3",
+                        name="write_file",
+                        arguments={"file_path": "output.txt", "content": "Hello World"},
+                    )
+                ],
+                # 4. Coder reports
+                "Read hello.txt and wrote output.txt.",
+                # 5. Tech Lead wraps up
+                "Coder finished. Output written.",
+            ]
+        )
 
         orchestrator = Orchestrator(
             default_provider=provider,
@@ -451,7 +520,9 @@ class TestDelegateTaskEndToEnd:
         assert provider._call_index == 5
 
     async def test_streaming_delegation_summary_not_doubled(
-        self, tool_registry: ToolRegistry, settings: Settings,
+        self,
+        tool_registry: ToolRegistry,
+        settings: Settings,
     ) -> None:
         """Summary from a streaming sub-agent should not contain duplicated content.
 
@@ -485,7 +556,8 @@ class TestDelegateTaskEndToEnd:
                 self.call_log.append(list(messages))
                 if self._call_index >= len(self._responses):
                     yield StreamChunk(
-                        content="(exhausted)", finish_reason=FinishReason.STOP,
+                        content="(exhausted)",
+                        finish_reason=FinishReason.STOP,
                     )
                     return
 
@@ -494,7 +566,8 @@ class TestDelegateTaskEndToEnd:
 
                 if isinstance(response, list):
                     yield StreamChunk(
-                        tool_calls=response, finish_reason=FinishReason.TOOL_CALLS,
+                        tool_calls=response,
+                        finish_reason=FinishReason.TOOL_CALLS,
                     )
                 else:
                     # Simulate real streaming: split into word-sized chunks
@@ -503,19 +576,29 @@ class TestDelegateTaskEndToEnd:
                         yield StreamChunk(content=word + " ")
                     # Last word arrives with STOP
                     yield StreamChunk(
-                        content=words[-1], finish_reason=FinishReason.STOP,
+                        content=words[-1],
+                        finish_reason=FinishReason.STOP,
                     )
 
-        provider = StreamingMockProvider([
-            # 1. Tech Lead delegates
-            [ToolCall(id="tc_1", name="delegate_task", arguments={
-                "agent": "explorer", "task": "Fix the bug",
-            })],
-            # 2. Coder streams a response
-            "I fixed the bug in main.py",
-            # 3. Tech Lead continues
-            "Bug is fixed.",
-        ])
+        provider = StreamingMockProvider(
+            [
+                # 1. Tech Lead delegates
+                [
+                    ToolCall(
+                        id="tc_1",
+                        name="delegate_task",
+                        arguments={
+                            "agent": "explorer",
+                            "task": "Fix the bug",
+                        },
+                    )
+                ],
+                # 2. Coder streams a response
+                "I fixed the bug in main.py",
+                # 3. Tech Lead continues
+                "Bug is fixed.",
+            ]
+        )
 
         orchestrator = Orchestrator(
             default_provider=provider,
@@ -534,7 +617,8 @@ class TestDelegateTaskEndToEnd:
 
         # The TOOL_CALL_RESULT for the delegation should carry the real summary
         delegation_results = [
-            e for e in events
+            e
+            for e in events
             if e.type == EventType.TOOL_CALL_RESULT
             and isinstance(e.data, dict)
             and e.data.get("tool_name") == "delegate_task"
@@ -544,25 +628,43 @@ class TestDelegateTaskEndToEnd:
         assert delegation_results[0].data["success"] is True
 
     async def test_ledger_injected_into_tech_lead_context(
-        self, tool_registry: ToolRegistry, settings: Settings,
+        self,
+        tool_registry: ToolRegistry,
+        settings: Settings,
     ) -> None:
         """Task ledger should be appended to the delegation tool result in Tech Lead's messages."""
-        provider = SequencedMockProvider([
-            # 1. Tech Lead delegates to coder
-            [ToolCall(id="tc_1", name="delegate_task", arguments={
-                "agent": "explorer", "task": "Fix auth bug",
-            })],
-            # 2. Coder responds
-            "Fixed the auth bug in auth.py",
-            # 3. Tech Lead delegates to tester
-            [ToolCall(id="tc_2", name="delegate_task", arguments={
-                "agent": "explorer", "task": "Run auth tests",
-            })],
-            # 4. Tester responds
-            "All 12 auth tests pass",
-            # 5. Tech Lead synthesizes
-            "Auth bug fixed and tested.",
-        ])
+        provider = SequencedMockProvider(
+            [
+                # 1. Tech Lead delegates to coder
+                [
+                    ToolCall(
+                        id="tc_1",
+                        name="delegate_task",
+                        arguments={
+                            "agent": "explorer",
+                            "task": "Fix auth bug",
+                        },
+                    )
+                ],
+                # 2. Coder responds
+                "Fixed the auth bug in auth.py",
+                # 3. Tech Lead delegates to tester
+                [
+                    ToolCall(
+                        id="tc_2",
+                        name="delegate_task",
+                        arguments={
+                            "agent": "explorer",
+                            "task": "Run auth tests",
+                        },
+                    )
+                ],
+                # 4. Tester responds
+                "All 12 auth tests pass",
+                # 5. Tech Lead synthesizes
+                "Auth bug fixed and tested.",
+            ]
+        )
 
         orchestrator = Orchestrator(
             default_provider=provider,
@@ -599,24 +701,36 @@ class TestDelegateTaskEndToEnd:
         # ledger should show 2 done. Use the LAST tool msg with a ledger.
         tl_messages_after_second = provider.call_log[4]
         tool_msgs_2 = [
-            m for m in tl_messages_after_second
+            m
+            for m in tl_messages_after_second
             if m.role == "tool" and "TASK LEDGER" in (m.content or "")
         ]
         assert len(tool_msgs_2) >= 2
         assert "2 done" in tool_msgs_2[-1].content
 
     async def test_ledger_tracks_failed_delegation(
-        self, tool_registry: ToolRegistry, settings: Settings,
+        self,
+        tool_registry: ToolRegistry,
+        settings: Settings,
     ) -> None:
         """Ledger should record failures for unknown agents."""
-        provider = SequencedMockProvider([
-            # Tech Lead delegates to nonexistent agent
-            [ToolCall(id="tc_1", name="delegate_task", arguments={
-                "agent": "nonexistent", "task": "Do something",
-            })],
-            # Tech Lead handles the failure
-            "That agent doesn't exist. I'll handle it myself.",
-        ])
+        provider = SequencedMockProvider(
+            [
+                # Tech Lead delegates to nonexistent agent
+                [
+                    ToolCall(
+                        id="tc_1",
+                        name="delegate_task",
+                        arguments={
+                            "agent": "nonexistent",
+                            "task": "Do something",
+                        },
+                    )
+                ],
+                # Tech Lead handles the failure
+                "That agent doesn't exist. I'll handle it myself.",
+            ]
+        )
 
         orchestrator = Orchestrator(
             default_provider=provider,

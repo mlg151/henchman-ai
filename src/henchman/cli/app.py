@@ -1,4 +1,4 @@
-"""MLG CLI application entry point."""
+"""HENCHMAN CLI application entry point."""
 
 from __future__ import annotations
 
@@ -14,6 +14,15 @@ from henchman.version import VERSION
 
 if TYPE_CHECKING:
     from henchman.providers.base import ModelProvider
+
+
+def __getattr__(name: str) -> object:
+    """Lazy import for Textual dev mode (``textual run henchman``)."""
+    if name == "app":
+        from henchman.cli.textual_app import HenchmanTextualApp
+
+        return HenchmanTextualApp
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 console = Console()
 
@@ -83,9 +92,8 @@ def _get_provider_from_settings() -> ModelProvider | None:
     except Exception:  # pragma: no cover
         # Log the error for debugging but don't crash
         import logging
-        logging.getLogger(__name__).debug(
-            "Failed to load provider from settings", exc_info=True
-        )
+
+        logging.getLogger(__name__).debug("Failed to load provider from settings", exc_info=True)
         return None
 
 
@@ -124,16 +132,17 @@ def _show_team_info() -> None:
     table.add_row("tech_lead", "Team orchestrator and strategist", "all + delegate")
 
     for role, config in team.items():
-        table.add_row(role, config.description, ", ".join(config.tools[:5]) + ("..." if len(config.tools) > 5 else ""))
+        table.add_row(
+            role,
+            config.description,
+            ", ".join(config.tools[:5]) + ("..." if len(config.tools) > 5 else ""),
+        )
 
     console.print(table)
 
 
 def _run_interactive(
-    output_format: str,
-    plan_mode: bool = False,
-    yes: bool = False,
-    agent_role: str | None = None
+    output_format: str, plan_mode: bool = False, yes: bool = False, agent_role: str | None = None
 ) -> None:
     """Run interactive REPL mode.
 
@@ -144,7 +153,9 @@ def _run_interactive(
     """
     from pathlib import Path
 
+    from henchman.cli.console import OutputRenderer, ThemeManager
     from henchman.cli.repl import Repl, ReplConfig
+    from henchman.cli.ui_renderer import UIRenderer
     from henchman.config import ContextLoader, load_settings
     from henchman.config.environment import format_environment_block, gather_environment
     from henchman.rag import initialize_rag
@@ -152,13 +163,27 @@ def _run_interactive(
     provider = _get_provider()
     settings = load_settings()
 
-    # Load context from MLG.md files
+    # Load context from HENCHMAN.md files
     context_loader = ContextLoader()
     system_prompt = context_loader.load()
 
     # Gather environment context once
     env_ctx = gather_environment()
     env_block = format_environment_block(env_ctx)
+
+    # Create themed renderer based on settings
+    theme_manager = ThemeManager()
+    theme_name = settings.ui.theme if settings.ui else "dark"
+
+    # Validate theme exists, fall back to default if not
+    if theme_name not in theme_manager.list_themes():
+        console.print(f"[yellow]Warning:[/] Theme '{theme_name}' not found")
+        console.print("[dim]Falling back to default theme (dark)[/]")
+        theme_name = "dark"
+
+    theme = theme_manager.get_theme(theme_name)
+    output_renderer = OutputRenderer(console=console, theme=theme)
+    renderer = UIRenderer(console=console, renderer=output_renderer)
 
     config = ReplConfig(system_prompt=system_prompt, auto_approve_tools=yes)
     repl = Repl(
@@ -167,6 +192,7 @@ def _run_interactive(
         config=config,
         settings=settings,
         environment_context=env_block,
+        renderer=renderer,
     )
 
     # Initialize session management
@@ -191,6 +217,7 @@ def _run_interactive(
 
     if output_format == "text":
         if agent_role:
+
             async def start_repl() -> None:
                 """Start the REPL with agent role context.
 
@@ -199,6 +226,7 @@ def _run_interactive(
                 """
                 # In the future we might want to do something with agent_role here
                 await repl.run()
+
             anyio.run(start_repl)
         else:
             anyio.run(repl.run)
@@ -210,12 +238,63 @@ def _run_interactive(
         anyio.run(repl.run)
 
 
+def _run_textual_tui(
+    output_format: str, plan_mode: bool = False, yes: bool = False, agent_role: str | None = None
+) -> None:
+    """Run Textual TUI mode.
+
+    Args:
+        output_format: Output format (ignored for TUI mode).
+        plan_mode: Whether to start in plan mode.
+        yes: Auto-approve all tool executions.
+        agent_role: Target a specific specialist agent (not yet supported).
+    """
+    from henchman.cli.textual_app import TextualConfig, run_textual_app
+    from henchman.config import ContextLoader, load_settings
+    from henchman.config.environment import format_environment_block, gather_environment
+
+    provider = _get_provider()
+    settings = load_settings()
+
+    # Load context from HENCHMAN.md files
+    context_loader = ContextLoader()
+    system_prompt = context_loader.load()
+
+    # Gather environment context once
+    env_ctx = gather_environment()
+    env_block = format_environment_block(env_ctx)
+
+    # Add plan mode prompt if requested
+    if plan_mode:
+        from henchman.cli.commands.plan import PLAN_MODE_PROMPT
+
+        system_prompt += PLAN_MODE_PROMPT
+
+    config = TextualConfig(system_prompt=system_prompt, auto_approve_tools=yes)
+
+    # TODO: Add agent_role support to Textual TUI
+    if agent_role:
+        console.print("[yellow]Warning:[/] agent_role parameter not yet supported in Textual TUI")
+
+    if output_format != "text":
+        console.print(
+            "[yellow]Warning:[/] Textual TUI only supports text output format. Using text format."
+        )
+
+    run_textual_app(
+        provider=provider,
+        config=config,
+        settings=settings,
+        environment_context=env_block,
+    )
+
+
 def _run_headless(
     prompt: str,
     output_format: str,
     plan_mode: bool = False,
     yes: bool = False,
-    agent_role: str | None = None
+    agent_role: str | None = None,
 ) -> None:
     """Run headless mode with a single prompt.
 
@@ -227,8 +306,10 @@ def _run_headless(
     """
     from pathlib import Path
 
+    from henchman.cli.console import OutputRenderer, ThemeManager
     from henchman.cli.json_output import JsonOutputRenderer
     from henchman.cli.repl import Repl, ReplConfig
+    from henchman.cli.ui_renderer import UIRenderer
     from henchman.config import ContextLoader, load_settings
     from henchman.config.environment import format_environment_block, gather_environment
     from henchman.core.events import EventType
@@ -237,7 +318,7 @@ def _run_headless(
     provider = _get_provider()
     settings = load_settings()
 
-    # Load context from MLG.md files
+    # Load context from HENCHMAN.md files
     context_loader = ContextLoader()
     system_prompt = context_loader.load()
 
@@ -251,6 +332,19 @@ def _run_headless(
 
         system_prompt += PLAN_MODE_PROMPT
 
+    # Create themed renderer based on settings (for text output mode)
+    theme_manager = ThemeManager()
+    theme_name = settings.ui.theme if settings.ui else "dark"
+
+    # Validate theme exists, fall back to default if not
+    if theme_name not in theme_manager.list_themes():
+        # In headless mode, we don't print warnings to console
+        theme_name = "dark"
+
+    theme = theme_manager.get_theme(theme_name)
+    output_renderer = OutputRenderer(console=console, theme=theme)
+    renderer = UIRenderer(console=console, renderer=output_renderer)
+
     config = ReplConfig(system_prompt=system_prompt, auto_approve_tools=yes)
     repl = Repl(
         provider=provider,
@@ -258,6 +352,7 @@ def _run_headless(
         config=config,
         settings=settings,
         environment_context=env_block,
+        renderer=renderer,
     )
 
     # Initialize session management
@@ -418,7 +513,7 @@ def _run_headless(
         pass
 
 
-@click.command()
+@click.command(name="henchman")
 @click.version_option(version=VERSION, prog_name="henchman")
 @click.option("-p", "--prompt", help="Run with a single prompt and exit")
 @click.option("-a", "--agent", help="Target a specific specialist agent")
@@ -436,11 +531,23 @@ def _run_headless(
     help="Start in plan mode (read-only)",
 )
 @click.option(
+    "--debug",
+    is_flag=True,
+    default=False,
+    help="Enable debug output",
+)
+@click.option(
     "-y",
     "--yes",
     is_flag=True,
     default=False,
     help="Auto-approve all tool executions (non-interactive mode)",
+)
+@click.option(
+    "--tui",
+    is_flag=True,
+    default=False,
+    help="Use Textual TUI interface (experimental)",
 )
 def cli(
     prompt: str | None,
@@ -448,25 +555,56 @@ def cli(
     team: bool,
     output_format: str,
     plan: bool,
-    yes: bool
+    yes: bool,
+    tui: bool,
+    debug: bool,
 ) -> None:
     """Henchman-AI: A model-agnostic AI agent CLI.
 
     Start an interactive session or run with --prompt for headless mode.
     """
+    # Configure debug output filtering
+    if not debug:
+        import builtins
+        _orig_print = builtins.print
+        def _filtered_print(*args: object, **kwargs: object) -> None:
+            if args and isinstance(args[0], str) and args[0].startswith("DEBUG"):
+                return
+            _orig_print(*args, **kwargs)  # type: ignore[call-overload]
+        builtins.print = _filtered_print
     if team:
         _show_team_info()
         return
 
+    if tui and prompt:
+        console.print(
+            "[yellow]Warning:[/] Textual TUI does not support headless mode. Using interactive mode."
+        )
+        tui = True
+        prompt = None
+
     if prompt:
         _run_headless(prompt, output_format, plan, yes, agent_role=agent)
+    elif tui:
+        _run_textual_tui(output_format, plan, yes, agent_role=agent)
     else:
         _run_interactive(output_format, plan, yes, agent_role=agent)
 
 
 def main() -> None:  # pragma: no cover
     """Main entry point for the CLI."""
+    import sys
+
+    # If Textual is inspecting this via `textual run`, return the App directly.
+    # This prevents Textual from calling the Click `cli` command which crashes.
+    if "textual" in sys.argv[0] and "run" in sys.argv:
+        # Lazy import to avoid loading Textual for REPL mode
+        from henchman.cli.textual_app import HenchmanTextualApp
+        HenchmanTextualApp().run()
+        return
+
     cli()
+
 
 
 if __name__ == "__main__":  # pragma: no cover

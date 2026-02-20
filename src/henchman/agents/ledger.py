@@ -152,15 +152,9 @@ class TaskLedger:
         Returns:
             A concise status string suitable for injection before actions.
         """
-        completed = sum(
-            1 for d in self.delegations if d.status == DelegationStatus.COMPLETED
-        )
-        failed = sum(
-            1 for d in self.delegations if d.status == DelegationStatus.FAILED
-        )
-        pending = sum(
-            1 for d in self.delegations if d.status == DelegationStatus.PENDING
-        )
+        completed = sum(1 for d in self.delegations if d.status == DelegationStatus.COMPLETED)
+        failed = sum(1 for d in self.delegations if d.status == DelegationStatus.FAILED)
+        pending = sum(1 for d in self.delegations if d.status == DelegationStatus.PENDING)
         checked = sum(1 for c in self.checklist if c.done)
         total_checks = len(self.checklist)
         verification = "✅ verified" if self.verified else "⚠️ unverified"
@@ -216,15 +210,9 @@ class TaskLedger:
             collapsed_count = len(self.delegations) - max_entries
             visible = self.delegations[-max_entries:]
 
-        completed = sum(
-            1 for d in self.delegations if d.status == DelegationStatus.COMPLETED
-        )
-        failed = sum(
-            1 for d in self.delegations if d.status == DelegationStatus.FAILED
-        )
-        pending = sum(
-            1 for d in self.delegations if d.status == DelegationStatus.PENDING
-        )
+        completed = sum(1 for d in self.delegations if d.status == DelegationStatus.COMPLETED)
+        failed = sum(1 for d in self.delegations if d.status == DelegationStatus.FAILED)
+        pending = sum(1 for d in self.delegations if d.status == DelegationStatus.PENDING)
 
         lines.append(
             f"Progress: {completed} done, {pending} in-progress, {failed} failed "

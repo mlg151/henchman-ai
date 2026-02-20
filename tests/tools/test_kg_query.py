@@ -57,9 +57,7 @@ async def test_search(tool: KgQueryTool) -> None:
 @pytest.mark.asyncio
 async def test_search_with_type_filter(tool: KgQueryTool) -> None:
     """Search can filter by entity type."""
-    result = await tool.execute(
-        action="search", query="module", entity_type="module"
-    )
+    result = await tool.execute(action="search", query="module", entity_type="module")
     assert "Auth" in result.content or "Database" in result.content
 
 
@@ -187,9 +185,7 @@ async def test_no_git_repo() -> None:
     t._initialised = False
     import unittest.mock as mock
 
-    with mock.patch(
-        "henchman.tools.builtins.kg_query._find_git_root", return_value=None
-    ):
+    with mock.patch("henchman.tools.builtins.kg_query._find_git_root", return_value=None):
         result = await t.execute(action="stats")
         assert "Not in a git repository" in result.content
 

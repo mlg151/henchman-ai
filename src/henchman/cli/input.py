@@ -15,6 +15,8 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.keys import Keys
+from rich.console import Console
+from rich.prompt import Confirm, IntPrompt, Prompt
 
 
 def is_slash_command(text: str) -> bool:
@@ -101,12 +103,14 @@ async def expand_at_references(text: str) -> str:
 def create_session(
     history_file: Path | None = None,
     bottom_toolbar: Any = None,
+    keybindings: dict[str, str] | None = None,
 ) -> PromptSession[str]:
     """Create a PromptSession with custom key bindings.
 
     Args:
         history_file: Path to history file.
         bottom_toolbar: Optional callback for bottom toolbar.
+        keybindings: Dictionary of keybindings (key -> action).
 
     Returns:
         Configured PromptSession.
@@ -130,6 +134,23 @@ def create_session(
             # Use suppress to handle case where result is already set
             with contextlib.suppress(Exception):
                 event.app.exit(result="")
+
+    # Custom keybindings
+    if keybindings:
+        for key, action in keybindings.items():
+            # Map simplified key names to prompt_toolkit keys if needed
+            # For now, assume key is a valid prompt_toolkit key string (e.g. 'c-t')
+
+            if action == "abort":
+
+                @bindings.add(key)
+                def _(event: Any) -> None:
+                    event.app.exit(exception=KeyboardInterrupt, style="class:aborting")
+            elif action == "exit":
+
+                @bindings.add(key)
+                def _(_event: Any) -> None:
+                    raise EOFError  # Or _event.app.exit(exception=EOFError)
 
     history = FileHistory(str(history_file)) if history_file else None
 
@@ -169,6 +190,68 @@ class InputHandler:
             The prompt string.
         """
         return self._prompt
+
+
+class ToolForm:
+    """Interactive form for tool parameter input."""
+
+    def __init__(self, console: Console):
+        """Initialize the tool form.
+
+        Args:
+            console: Rich console for input/output.
+        """
+        self.console = console
+
+    def prompt_for_parameters(self, tool_name: str, parameters: dict[str, Any]) -> dict[str, Any]:
+        """Prompt user for tool parameters.
+
+        Args:
+            tool_name: Name of the tool.
+            parameters: JSON schema of parameters.
+
+        Returns:
+            Dictionary of parameter values.
+        """
+        results: dict[str, Any] = {}
+        properties = parameters.get("properties", {})
+
+        self.console.print(f"\n[bold blue]Configure {tool_name}[/]")
+
+        for param_name, param_schema in properties.items():
+            param_type = param_schema.get("type", "string")
+            description = param_schema.get("description", "")
+            # is_required = param_name in required  # Not currently used
+            default = param_schema.get("default")
+
+            prompt_text = f"[cyan]{param_name}[/]"
+            if description:
+                prompt_text += f" ({description})"
+
+            # Helper to run rich prompt in thread to avoid blocking asyncio loop if needed
+            # But here we assume this is running in a context where blocking is okay or handled
+            # For strict asyncio compatibility, we might need anyio.to_thread.run_sync
+            # However, prompt_toolkit/rich input is blocking.
+            # Given existing code uses prompt_toolkit async, we should be careful.
+            # But rich.prompt is blocking.
+
+            # Let's use basic blocking calls for now as this is likely invoked from start_tool_form
+            # which might be run in a thread or handled.
+
+            if param_type == "boolean":
+                value = Confirm.ask(
+                    prompt_text,
+                    default=default if default is not None else False,
+                    console=self.console,
+                )
+            elif param_type == "integer":
+                value = IntPrompt.ask(prompt_text, default=default, console=self.console)
+            else:  # string
+                value = Prompt.ask(prompt_text, default=default, console=self.console)
+
+            results[param_name] = value
+
+        return results
 
 
 class KeyMonitor:

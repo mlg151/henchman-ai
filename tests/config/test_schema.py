@@ -137,9 +137,9 @@ class TestSettings:
                         "name": "Custom Coder",
                         "role": "coder",
                         "description": "Custom desc",
-                        "tools": ["ls"]
+                        "tools": ["ls"],
                     }
-                }
+                },
             }
         }
         settings = Settings(**data)

@@ -35,36 +35,50 @@ class ToolManager:
         """Register all built-in tools with the registry."""
         from henchman.tools.builtins import (
             AskUserTool,
+            CodeFormatTool,
+            DiffViewTool,
             DuckDuckGoSearchTool,
             EditFileTool,
             GlobTool,
             GrepTool,
             KgQueryTool,
             KgUpdateTool,
+            LintCheckTool,
             LsTool,
+            PipInspectTool,
+            PytestRunTool,
+            PythonAstTool,
+            PythonExecTool,
             ReadFileTool,
             ShellTool,
+            TracebackParseTool,
             WebFetchTool,
             WriteFileTool,
         )
 
         tools = [
             AskUserTool(),
-            ReadFileTool(),
-            WriteFileTool(),
+            CodeFormatTool(),
+            DiffViewTool(),
             EditFileTool(),
-            LsTool(),
             GlobTool(),
             GrepTool(),
-            ShellTool(
-                default_timeout=(
-                    self.settings.tools.shell_timeout if self.settings else 3600
-                )
-            ),
-            WebFetchTool(),
-            DuckDuckGoSearchTool(),
             KgQueryTool(),
             KgUpdateTool(),
+            LintCheckTool(),
+            LsTool(),
+            PipInspectTool(),
+            PythonAstTool(),
+            PythonExecTool(),
+            PytestRunTool(),
+            ReadFileTool(),
+            ShellTool(
+                default_timeout=(self.settings.tools.shell_timeout if self.settings else 3600)
+            ),
+            TracebackParseTool(),
+            WebFetchTool(),
+            DuckDuckGoSearchTool(),
+            WriteFileTool(),
         ]
         for tool in tools:
             self.registry.register(tool)
@@ -91,8 +105,7 @@ class ToolManager:
         return False
 
     def set_confirmation_handler(
-        self,
-        handler: "Callable[[ConfirmationRequest], Awaitable[bool]] | None" = None
+        self, handler: "Callable[[ConfirmationRequest], Awaitable[bool]] | None" = None
     ) -> None:
         """Set the confirmation handler on the registry.
 

@@ -23,7 +23,7 @@ def test_cli_help_option() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
-    assert "Henchman-AI" in result.output or "mlg" in result.output.lower()
+    assert "Henchman-AI" in result.output or "henchman" in result.output.lower()
     assert "--version" in result.output
     assert "--help" in result.output
 
@@ -92,7 +92,7 @@ class TestGetProvider:
             assert provider is not None
             assert provider.name == "deepseek"
 
-    def test_get_provider_from_mlg_api_key(self) -> None:
+    def test_get_provider_from_henchman_api_key(self) -> None:
         """Test getting provider from HENCHMAN_API_KEY environment variable."""
         from henchman.cli.app import _get_provider
 
@@ -171,7 +171,67 @@ class TestGetProvider:
             os.environ.update(orig_environ)
 
 
-class TestRunInteractive:
+class TestEnsureApiKey:
+    """Tests for _ensure_api_key_in_kwargs."""
+
+    def test_api_key_already_in_kwargs(self) -> None:
+        """Test that existing api_key is not overwritten."""
+        from henchman.cli.app import _ensure_api_key_in_kwargs
+
+        kwargs: dict[str, object] = {"api_key": "existing-key"}
+        _ensure_api_key_in_kwargs("deepseek", kwargs)
+        assert kwargs["api_key"] == "existing-key"
+
+    def test_anthropic_uses_anthropic_api_key(self) -> None:
+        """Test that anthropic provider uses ANTHROPIC_API_KEY env var."""
+        from henchman.cli.app import _ensure_api_key_in_kwargs
+
+        kwargs: dict[str, object] = {}
+        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "ant-key"}, clear=True):
+            _ensure_api_key_in_kwargs("anthropic", kwargs)
+        assert kwargs.get("api_key") == "ant-key"
+
+    def test_other_provider_uses_henchman_api_key(self) -> None:
+        """Test that other providers use HENCHMAN_API_KEY env var."""
+        from henchman.cli.app import _ensure_api_key_in_kwargs
+
+        kwargs: dict[str, object] = {}
+        with patch.dict("os.environ", {"HENCHMAN_API_KEY": "hench-key"}, clear=True):
+            _ensure_api_key_in_kwargs("deepseek", kwargs)
+        assert kwargs.get("api_key") == "hench-key"
+
+    def test_no_env_var_sets_nothing(self) -> None:
+        """Test that missing env var doesn't set api_key."""
+        from henchman.cli.app import _ensure_api_key_in_kwargs
+
+        kwargs: dict[str, object] = {}
+        with patch.dict("os.environ", {}, clear=True):
+            _ensure_api_key_in_kwargs("deepseek", kwargs)
+        assert "api_key" not in kwargs
+
+
+class TestShowTeamInfo:
+    """Tests for _show_team_info."""
+
+    def test_show_team_info_prints_table(self) -> None:
+        """Test that _show_team_info prints a table."""
+        from henchman.cli.app import _show_team_info
+
+        mock_team = {
+            "coder": MagicMock(
+                description="Writes code",
+                tools=["read_file", "write_file", "shell", "grep", "glob"],
+            )
+        }
+
+        with (
+            patch("henchman.agents.presets.get_default_team", return_value=mock_team),
+            patch("henchman.cli.app.console") as mock_console,
+        ):
+            _show_team_info()
+        mock_console.print.assert_called()
+
+
     """Tests for _run_interactive function."""
 
     def test_run_interactive_creates_repl(self) -> None:

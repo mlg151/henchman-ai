@@ -77,8 +77,8 @@ class TestMCPUIIntegration:
         mock_command.execute = AsyncMock(return_value=None)
 
         # Mock command_registry.get to return our mock command
-        repl.command_registry = Mock(spec=CommandRegistry)
-        repl.command_registry.get = Mock(return_value=mock_command)
+        repl.command_processor.command_registry = Mock(spec=CommandRegistry)
+        repl.command_processor.command_registry.get = Mock(return_value=mock_command)
 
         # Store mock_command on repl for assertions
         repl._mock_command = mock_command
@@ -103,6 +103,9 @@ class TestMCPUIIntegration:
         mock_status.__exit__ = Mock(return_value=False)
         repl.renderer.create_status = Mock(return_value=mock_status)
 
+        # Update command_processor's output_handler to use mocked renderer
+        repl.command_processor.output_handler.renderer = repl.renderer
+
         # Add MCP manager to repl (simulating real REPL setup)
         repl.mcp_manager = mock_mcp_manager
 
@@ -110,13 +113,12 @@ class TestMCPUIIntegration:
 
     async def test_mcp_list_command_integration(self, repl_with_mcp):
         """Test /mcp list command integration through REPL."""
-        with patch("henchman.cli.repl.expand_at_references", side_effect=lambda x: x):
-            # Execute /mcp list command through REPL
-            result = await repl_with_mcp.process_input("/mcp list")
+        # Execute /mcp list command through REPL
+        result = await repl_with_mcp.process_input("/mcp list")
 
         # Verify command was executed
         assert result is True
-        repl_with_mcp.command_registry.get.assert_called_with("mcp")
+        repl_with_mcp.command_processor.command_registry.get.assert_called_with("mcp")
         repl_with_mcp._mock_command.execute.assert_called_once()
 
         # Check the context passed to execute
@@ -125,13 +127,12 @@ class TestMCPUIIntegration:
 
     async def test_mcp_status_command_integration(self, repl_with_mcp):
         """Test /mcp status command integration through REPL."""
-        with patch("henchman.cli.repl.expand_at_references", side_effect=lambda x: x):
-            # Execute /mcp status command through REPL
-            result = await repl_with_mcp.process_input("/mcp status")
+        # Execute /mcp status command through REPL
+        result = await repl_with_mcp.process_input("/mcp status")
 
         # Verify command was executed
         assert result is True
-        repl_with_mcp.command_registry.get.assert_called_with("mcp")
+        repl_with_mcp.command_processor.command_registry.get.assert_called_with("mcp")
         repl_with_mcp._mock_command.execute.assert_called_once()
 
         # Check the context passed to execute
@@ -140,13 +141,12 @@ class TestMCPUIIntegration:
 
     async def test_mcp_command_no_args_shows_help(self, repl_with_mcp):
         """Test /mcp with no args shows help through REPL."""
-        with patch("henchman.cli.repl.expand_at_references", side_effect=lambda x: x):
-            # Execute /mcp command without arguments
-            result = await repl_with_mcp.process_input("/mcp")
+        # Execute /mcp command without arguments
+        result = await repl_with_mcp.process_input("/mcp")
 
         # Verify command was executed
         assert result is True
-        repl_with_mcp.command_registry.get.assert_called_with("mcp")
+        repl_with_mcp.command_processor.command_registry.get.assert_called_with("mcp")
         repl_with_mcp._mock_command.execute.assert_called_once()
 
         # Check context has empty args
@@ -174,7 +174,7 @@ class TestMCPUIIntegration:
         mock_tool_registry.execute = AsyncMock(return_value=mock_tool.execute())
         repl_with_mcp.agent.tool_registry = mock_tool_registry
 
-        with patch("henchman.cli.repl.expand_at_references", side_effect=lambda x: x):
+        with patch("henchman.cli.input_handler.expand_at_references", side_effect=lambda x: x):
             # Process input that triggers agent with MCP tool
             result = await repl_with_mcp.process_input("Read the test file")
 
@@ -184,13 +184,12 @@ class TestMCPUIIntegration:
 
     async def test_mcp_unknown_subcommand(self, repl_with_mcp):
         """Test /mcp with unknown subcommand shows help."""
-        with patch("henchman.cli.repl.expand_at_references", side_effect=lambda x: x):
-            # Execute unknown subcommand
-            result = await repl_with_mcp.process_input("/mcp unknown")
+        # Execute unknown subcommand
+        result = await repl_with_mcp.process_input("/mcp unknown")
 
         # Verify command was executed
         assert result is True
-        repl_with_mcp.command_registry.get.assert_called_with("mcp")
+        repl_with_mcp.command_processor.command_registry.get.assert_called_with("mcp")
         repl_with_mcp._mock_command.execute.assert_called_once()
 
         # Check context has "unknown" as argument

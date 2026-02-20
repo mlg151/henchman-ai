@@ -278,7 +278,9 @@ class TestNoAttributeErrorRegression:
     def test_app_py_calls_repl_run_not_repl_start(self) -> None:
         """Ensure app.py calls repl.run(), not repl.start()."""
         # Read app.py and check for repl.run() calls
-        with open("/home/matthew/mlg-cli/src/henchman/cli/app.py") as f:
+        import os
+        app_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src/henchman/cli/app.py")
+        with open(app_path) as f:
             app_content = f.read()
 
         # Should have repl.run calls
@@ -303,7 +305,9 @@ class TestCoverageRegression:
 
     def test_app_py_references_repl_run(self) -> None:
         """Ensure app.py properly references repl.run()."""
-        with open("/home/matthew/mlg-cli/src/henchman/cli/app.py") as f:
+        import os
+        app_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src/henchman/cli/app.py")
+        with open(app_path) as f:
             content = f.read()
 
         # Check that anyio.run is called with repl.run
@@ -327,7 +331,9 @@ class TestCoverageRegression:
 
     def test_repl_run_vs_start_differentiation(self) -> None:
         """Ensure app.py doesn't accidentally use 'start' instead of 'run'."""
-        with open("/home/matthew/mlg-cli/src/henchman/cli/app.py") as f:
+        import os
+        app_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src/henchman/cli/app.py")
+        with open(app_path) as f:
             app_content = f.read()
 
         # Count occurrences to ensure run is used, not start

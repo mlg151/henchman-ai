@@ -137,6 +137,7 @@ class OpenAICompatibleProvider(ModelProvider):
         Yields:
             StreamChunk objects as the response is generated.
         """
+        # Validation errors should be raised, not caught
         # Validate messages are not empty
         if not messages:
             raise ValueError("Messages list cannot be empty")
@@ -154,96 +155,115 @@ class OpenAICompatibleProvider(ModelProvider):
             # All other messages must have non-empty content
             if not (message.content or "").strip():
                 raise ValueError(f"Message with role '{message.role}' cannot have empty content")
-        # Build request parameters
-        # Last-resort defense: validate and repair message sequence to
-        # prevent 400 errors from the API about broken tool sequences.
-        from henchman.utils.validation import (
-            is_valid_message_sequence,
-            repair_message_sequence,
-        )
 
-        if not is_valid_message_sequence(messages):
-            messages = repair_message_sequence(messages)
+        print(f"DEBUG OpenAICompatibleProvider.chat_completion_stream: Starting with {len(messages)} messages")  # Debug
 
-        params: dict[str, Any] = {
-            "model": kwargs.pop("model", self.default_model),
-            "messages": [self._format_message(m) for m in messages],
-            "stream": True,
-            **kwargs,
-        }
-
-        if tools:
-            params["tools"] = [self._format_tool(t) for t in tools]
-
-        # Stream the response with error handling
+        # Run the actual API call with error handling
         try:
-            response = await self._client.chat.completions.create(**params)
-        except APIStatusError as e:
-            if e.status_code == 413:
-                raise ContextTooLargeError(
-                    "Request too large. Try using start_line/end_line when reading "
-                    "files to limit context size, or start a new conversation."
-                ) from e
-            raise
+            # Original implementation continues...
 
-        # Track tool calls across chunks (they come in pieces)
-        pending_tool_calls: dict[int, dict[str, Any]] = {}
+            # Build request parameters
+            # Last-resort defense: validate and repair message sequence to
+            # prevent 400 errors from the API about broken tool sequences.
+            from henchman.utils.validation import (
+                is_valid_message_sequence,
+                repair_message_sequence,
+            )
 
-        async for chunk in response:
-            if not chunk.choices:
-                continue
+            if not is_valid_message_sequence(messages):
+                messages = repair_message_sequence(messages)
 
-            choice = chunk.choices[0]
-            delta = choice.delta
+            params: dict[str, Any] = {
+                "model": kwargs.pop("model", self.default_model),
+                "messages": [self._format_message(m) for m in messages],
+                "stream": True,
+                **kwargs,
+            }
 
-            # Handle content
-            content = getattr(delta, "content", None)
+            if tools:
+                params["tools"] = [self._format_tool(t) for t in tools]
 
-            # Handle thinking (for reasoning models)
-            thinking = getattr(delta, "reasoning_content", None)
+            # Stream the response with error handling
+            try:
+                response = await self._client.chat.completions.create(**params)
+            except APIStatusError as e:
+                if e.status_code == 413:
+                    raise ContextTooLargeError(
+                        "Request too large. Try using start_line/end_line when reading "
+                        "files to limit context size, or start a new conversation."
+                    ) from e
+                raise
 
-            # Handle tool calls (they come incrementally)
-            tool_calls = None
-            if hasattr(delta, "tool_calls") and delta.tool_calls:
-                for tc_delta in delta.tool_calls:
-                    idx = tc_delta.index
-                    if idx not in pending_tool_calls:
-                        pending_tool_calls[idx] = {
-                            "id": tc_delta.id or "",
-                            "name": "",
-                            "arguments": "",
-                        }
+            # Track tool calls across chunks (they come in pieces)
+            pending_tool_calls: dict[int, dict[str, Any]] = {}
 
-                    if tc_delta.id:
-                        pending_tool_calls[idx]["id"] = tc_delta.id
-                    if tc_delta.function:
-                        if tc_delta.function.name:
-                            pending_tool_calls[idx]["name"] = tc_delta.function.name
-                        if tc_delta.function.arguments:
-                            pending_tool_calls[idx]["arguments"] += tc_delta.function.arguments
+            async for chunk in response:
+                if not chunk.choices:
+                    continue
 
-            # Handle finish reason
-            finish_reason = self._parse_finish_reason(choice.finish_reason)
+                choice = chunk.choices[0]
+                delta = choice.delta
 
-            # If we're done and have pending tool calls, emit them
-            if finish_reason and pending_tool_calls:
-                tool_calls = []
-                for tc_data in pending_tool_calls.values():
-                    try:
-                        arguments = json.loads(tc_data["arguments"])
-                    except json.JSONDecodeError:
-                        arguments = {}
-                    tool_calls.append(
-                        ToolCall(
-                            id=tc_data["id"],
-                            name=tc_data["name"],
-                            arguments=arguments,
+                # Handle content
+                content = getattr(delta, "content", None)
+
+                # Handle thinking (for reasoning models)
+                thinking = getattr(delta, "reasoning_content", None)
+
+                # Handle tool calls (they come incrementally)
+                tool_calls = None
+                if hasattr(delta, "tool_calls") and delta.tool_calls:
+                    for tc_delta in delta.tool_calls:
+                        idx = tc_delta.index
+                        if idx not in pending_tool_calls:
+                            pending_tool_calls[idx] = {
+                                "id": tc_delta.id or "",
+                                "name": "",
+                                "arguments": "",
+                            }
+
+                        if tc_delta.id:
+                            pending_tool_calls[idx]["id"] = tc_delta.id
+                        if tc_delta.function:
+                            if tc_delta.function.name:
+                                pending_tool_calls[idx]["name"] = tc_delta.function.name
+                            if tc_delta.function.arguments:
+                                pending_tool_calls[idx]["arguments"] += tc_delta.function.arguments
+
+                # Handle finish reason
+                finish_reason = self._parse_finish_reason(choice.finish_reason)
+
+                # If we're done and have pending tool calls, emit them
+                if finish_reason and pending_tool_calls:
+                    tool_calls = []
+                    for tc_data in pending_tool_calls.values():
+                        try:
+                            arguments = json.loads(tc_data["arguments"])
+                        except json.JSONDecodeError:
+                            arguments = {}
+                        tool_calls.append(
+                            ToolCall(
+                                id=tc_data["id"],
+                                name=tc_data["name"],
+                                arguments=arguments,
+                            )
                         )
-                    )
 
+                yield StreamChunk(
+                    content=content,
+                    tool_calls=tool_calls,
+                    finish_reason=finish_reason,
+                    thinking=thinking,
+                )
+
+        except (ValueError, ContextTooLargeError, APIStatusError):
+            # Re-raise validation, context too large, and API status errors
+            raise
+        except Exception as e:
+            print(f"DEBUG OpenAICompatibleProvider: Caught exception: {e}")  # Debug
+            # Yield an error StreamChunk for API/network errors
+            from henchman.providers.base import FinishReason
             yield StreamChunk(
-                content=content,
-                tool_calls=tool_calls,
-                finish_reason=finish_reason,
-                thinking=thinking,
+                content=f"❌ Provider Error: {e}",
+                finish_reason=FinishReason.STOP,
             )
