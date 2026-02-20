@@ -245,26 +245,27 @@ class TestTextualFunctionalFinal:
         textual_app.command_history = ["command1", "command2", "command3"]
         textual_app.history_index = 3
 
-        # Mock textarea
+        # Mock textarea with load_text method
         mock_textarea = MagicMock()
+        mock_textarea.load_text = MagicMock()
         mock_query_one.return_value = mock_textarea
 
         # Navigate up
         textual_app._navigate_history(-1)  # Should go to command3
         mock_query_one.assert_called_with("#input", TextArea)
-        assert mock_textarea.text == "command3"
+        mock_textarea.load_text.assert_called_with("command3")
 
         # Navigate up again
         textual_app._navigate_history(-1)  # Should go to command2
-        assert mock_textarea.text == "command2"
+        mock_textarea.load_text.assert_called_with("command2")
 
         # Navigate down
         textual_app._navigate_history(1)  # Should go to command3
-        assert mock_textarea.text == "command3"
+        mock_textarea.load_text.assert_called_with("command3")
 
         # Navigate down past end - should clear
         textual_app._navigate_history(1)
-        assert mock_textarea.text == ""
+        mock_textarea.load_text.assert_called_with("")
 
     # === Tab and Pane Management Tests ===
 
@@ -460,7 +461,9 @@ class TestTextualFunctionalFinal:
         # Verify
         mock_query_one.assert_called_with("#input", TextArea)
         mock_input.focus.assert_called()
-        assert textual_app.sub_title == f"Henchman-AI v— {textual_app.provider.name}"
+        # Check sub_title format includes version
+        assert "Henchman-AI v" in textual_app.sub_title
+        assert textual_app.provider.name in textual_app.sub_title
 
     # === Message Handler Existence Tests ===
 

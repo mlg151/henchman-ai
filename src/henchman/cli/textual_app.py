@@ -48,7 +48,7 @@ from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import ModelProvider
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
 
     from henchman.config.schema import Settings
     from henchman.core.session import Session
@@ -81,6 +81,167 @@ class TextualConfig:
     base_tool_iterations: int = 25
     max_tool_calls_per_turn: int = 100
     auto_approve_tools: bool = False
+
+
+# ---------------------------------------------------------------------------
+# Component Initializer
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ComponentConfig:
+    """Configuration for component initialization.
+
+    Attributes:
+        provider: The model provider to use.
+        config: Textual TUI configuration.
+        settings: Application settings.
+        environment_context: Pre-formatted environment context.
+        app: Reference to the Textual app instance.
+    """
+
+    provider: ModelProvider
+    config: TextualConfig
+    settings: Any  # Settings type would cause circular import
+    environment_context: str | None
+    app: Any  # HenchmanTextualApp type would cause circular import
+
+
+class ComponentInitializer:
+    """Handles initialization of core Henchman components for the Textual TUI.
+
+    This class encapsulates the complex component setup logic, making it
+    more testable and maintainable.
+    """
+
+    def __init__(self, config: ComponentConfig) -> None:
+        """Initialize the component initializer.
+
+        Args:
+            config: Component configuration.
+        """
+        self.config = config
+        self.core_context: CoreContext | None = None
+        self.tool_executor: ToolExecutor | None = None
+        self.command_processor: CommandProcessor | None = None
+        self.input_handler: InputHandler | None = None
+        self.output_handler: OutputHandler | None = None
+        self._tui_adapter: TuiConsoleAdapter | None = None
+        self._ui_renderer: UIRenderer | None = None
+
+    def initialize_all(self) -> None:
+        """Initialize all core components."""
+        self._initialize_tui_adapter()
+        self._initialize_core_context()
+        self._initialize_renderer()
+        self._initialize_output_handler()
+        self._initialize_command_processor()
+        self._initialize_tool_executor()
+        self._initialize_input_handler()
+        self._initialize_mcp()
+
+    def _initialize_tui_adapter(self) -> None:
+        """Initialize the TUI console adapter."""
+        self._tui_adapter = TuiConsoleAdapter(self.config.app)
+
+    def _initialize_core_context(self) -> None:
+        """Initialize the core context."""
+        self.core_context = create_core_context(
+            provider=self.config.provider,
+            system_prompt=self.config.config.system_prompt,
+            environment_context=self.config.environment_context,
+            settings=self.config.settings,
+            auto_approve_tools=self.config.config.auto_approve_tools,
+        )
+        self.core_context.plugin_manager.ui_instance = self.config.app  # type: ignore[attr-defined]
+
+    def _initialize_renderer(self) -> None:
+        """Initialize the UI renderer."""
+        from henchman.cli.console import OutputRenderer, ThemeManager
+
+        if not self._tui_adapter:
+            raise RuntimeError("TUI adapter must be initialized first")
+
+        console = self._tui_adapter.console
+        theme_manager = ThemeManager()
+
+        # Determine theme name with safe defaults
+        theme_name = "dark"  # Default theme
+        if self.config.settings and self.config.settings.ui and self.config.settings.ui.theme:
+            theme_name = self.config.settings.ui.theme
+
+        # Validate theme exists
+        if theme_name not in theme_manager.list_themes():
+            theme_name = "dark"
+
+        theme = theme_manager.get_theme(theme_name)
+        output_renderer = OutputRenderer(console=console, theme=theme)
+        self._ui_renderer = UIRenderer(console=console, renderer=output_renderer)
+
+    def _initialize_output_handler(self) -> None:
+        """Initialize the output handler."""
+        if not self.core_context or not self._ui_renderer:
+            raise RuntimeError("Core context and renderer must be initialized first")
+
+        self.output_handler = OutputHandler(
+            renderer=self._ui_renderer,
+            tool_manager=self.core_context.tool_manager,
+            session_manager=self.core_context.session_manager,
+            provider=self.config.provider,
+            settings=self.config.settings,
+            rag_system=None,
+            mcp_manager=self.core_context.mcp_manager,
+        )
+
+    def _initialize_command_processor(self) -> None:
+        """Initialize the command processor."""
+        if not self.core_context or not self.output_handler:
+            raise RuntimeError("Core context and output handler must be initialized first")
+
+        self.command_processor = CommandProcessor(
+            output_handler=self.output_handler,
+            tool_manager=self.core_context.tool_manager,
+            session_manager=self.core_context.session_manager,
+            provider=self.config.provider,
+            mcp_manager=self.core_context.mcp_manager,
+        )
+
+    def _initialize_tool_executor(self) -> None:
+        """Initialize the tool executor."""
+        if not self.core_context or not self.output_handler:
+            raise RuntimeError("Core context and output handler must be initialized first")
+
+        self.tool_executor = ToolExecutor(
+            output_handler=self.output_handler,
+            tool_manager=self.core_context.tool_manager,
+            provider=self.config.provider,
+            base_tool_iterations=self.config.config.base_tool_iterations,
+            max_tool_calls_per_turn=self.config.config.max_tool_calls_per_turn,
+        )
+
+    def _initialize_input_handler(self) -> None:
+        """Initialize the input handler."""
+        if not self._ui_renderer:
+            raise RuntimeError("Renderer must be initialized first")
+
+        history_file = self.config.config.history_file or Path.home() / ".henchman_history"
+        keybindings = (
+            self.config.settings.ui.keybindings
+            if self.config.settings and self.config.settings.ui
+            else None
+        )
+
+        self.input_handler = InputHandler(
+            config=self.config.config,  # type: ignore[arg-type]
+            renderer=self._ui_renderer,
+            history_file=history_file,
+            keybindings=keybindings,
+        )
+
+    def _initialize_mcp(self) -> None:
+        """Initialize MCP if available."""
+        if self.core_context and self.core_context.mcp_manager:
+            initialize_mcp(self.core_context)
 
 
 # ---------------------------------------------------------------------------
@@ -504,7 +665,13 @@ class TuiConsoleAdapter:
         # A Rich Console that writes to our StringIO buffer.
         # force_terminal=True ensures ANSI/markup is rendered by Rich into plain
         # text that we can then forward as Rich markup to RichLog.
-        self._rich_console = RichConsole(file=self._buf, highlight=False, markup=True)
+        self._rich_console = RichConsole(
+            file=self._buf,
+            force_terminal=True,
+            no_color=False,
+            markup=True,
+            highlight=True,
+        )
 
     @property
     def console(self) -> RichConsole:
@@ -552,6 +719,7 @@ class EventBridge:
             app: The Textual application to target.
         """
         self.app = app
+        self._handlers = self._create_handler_registry()
 
     def _post(self, message: Message) -> None:
         """Post a message to the Textual app.
@@ -578,111 +746,215 @@ class EventBridge:
             self._post(AgentStatusMessage(f"Stream error: {exc}"))
             self._post(AgentContentMessage(f"❌ Stream error: {exc}\n```\n{details}\n```"))
 
-    async def _handle_event(self, event: AgentEvent) -> None:  # noqa: C901
+    async def _handle_event(self, event: AgentEvent) -> None:
         """Dispatch a single AgentEvent to the appropriate Textual Message.
 
         Args:
             event: The event to dispatch.
         """
-        t = event.type
-        d = event.data
-        src = event.source_agent
+        handler = self._handlers.get(event.type)
+        if handler:
+            handler(event)  # Handlers are synchronous, don't await
+        else:
+            # Log unhandled event type for debugging
+            self._post(
+                AgentStatusMessage(f"Unhandled event type: {event.type}", event.source_agent)
+            )
 
-        if t == EventType.CONTENT:
-            if d:
-                self._post(AgentContentMessage(str(d), src))
+    def _create_handler_registry(self) -> dict[EventType, Callable[[AgentEvent], None]]:
+        """Create a registry of event type to handler function mappings.
 
-        elif t == EventType.THOUGHT:
-            if d:
-                self._post(AgentThoughtMessage(str(d), src))
+        Returns:
+            Dictionary mapping EventType to handler functions.
+        """
+        return {
+            EventType.CONTENT: self._handle_content,
+            EventType.THOUGHT: self._handle_thought,
+            EventType.TOOL_CALL_REQUEST: self._handle_tool_call_request,
+            EventType.TOOL_CALL_RESULT: self._handle_tool_call_result,
+            EventType.TOOL_CONFIRMATION: self._handle_tool_confirmation,
+            EventType.ERROR: self._handle_error,
+            EventType.FINISHED: self._handle_finished,
+            EventType.CONTEXT_COMPACTED: self._handle_context_compacted,
+            EventType.TURN_SUMMARIZED: self._handle_turn_summarized,
+            EventType.TURN_STATUS: self._handle_turn_status,
+            EventType.AGENT_STARTED: self._handle_agent_started,
+            EventType.AGENT_COMPLETED: self._handle_agent_completed,
+            EventType.AGENT_DELEGATED: self._handle_agent_delegated,
+            EventType.AGENT_MESSAGE: self._handle_agent_message,
+            EventType.THINKING_STARTED: self._handle_thinking_started,
+            EventType.THINKING_COMPLETED: self._handle_thinking_completed,
+            EventType.THINKING_REQUIRED: self._handle_thinking_required,
+            EventType.DELEGATION_DECISION: self._handle_delegation_decision,
+            EventType.REFLECTION: self._handle_reflection,
+        }
 
-        elif t == EventType.TOOL_CALL_REQUEST:
-            if d:
-                self._post(ToolCallRequestMessage(d, src))
+    def _handle_content(self, event: AgentEvent) -> None:
+        """Handle CONTENT events."""
+        if event.data:
+            self._post(AgentContentMessage(str(event.data), event.source_agent))
 
-        elif t == EventType.TOOL_CALL_RESULT:
-            if d:
-                self._post(ToolCallResultMessage(d, src))
+    def _handle_thought(self, event: AgentEvent) -> None:
+        """Handle THOUGHT events."""
+        if event.data:
+            self._post(AgentThoughtMessage(str(event.data), event.source_agent))
 
-        elif t == EventType.TOOL_CONFIRMATION:
-            if d:
-                self._post(ToolConfirmationMessage(d, src))
+    def _handle_tool_call_request(self, event: AgentEvent) -> None:
+        """Handle TOOL_CALL_REQUEST events."""
+        if event.data:
+            self._post(ToolCallRequestMessage(event.data, event.source_agent))
 
-        elif t == EventType.ERROR:
-            if d:
-                err = str(d)
-                if "API key" in err or "authentication" in err.lower():
-                    err = "❌ API Error: Invalid or missing API key."
-                self._post(AgentStatusMessage(f"Error: {err}", src))
-                self._post(AgentContentMessage(f"❌ {err}", src))
+    def _handle_tool_call_result(self, event: AgentEvent) -> None:
+        """Handle TOOL_CALL_RESULT events."""
+        if event.data:
+            self._post(ToolCallResultMessage(event.data, event.source_agent))
 
-        elif t == EventType.FINISHED:
-            self._post(AgentFinishedMessage(src))
+    def _handle_tool_confirmation(self, event: AgentEvent) -> None:
+        """Handle TOOL_CONFIRMATION events."""
+        if event.data:
+            self._post(ToolConfirmationMessage(event.data, event.source_agent))
 
-        elif t == EventType.CONTEXT_COMPACTED:
-            self._post(AgentStatusMessage("Context compacted to fit model limits", src))
-            self._post(CommandOutputMessage("[dim]ℹ Context window was compacted.[/dim]"))
+    def _handle_error(self, event: AgentEvent) -> None:
+        """Handle ERROR events."""
+        if event.data:
+            error_message = self._format_error_message(str(event.data))
+            self._post(AgentStatusMessage(f"Error: {error_message}", event.source_agent))
+            self._post(AgentContentMessage(f"❌ {error_message}", event.source_agent))
 
-        elif t == EventType.TURN_SUMMARIZED:
-            self._post(AgentStatusMessage("Previous turn summarized", src))
+    def _handle_finished(self, event: AgentEvent) -> None:
+        """Handle FINISHED events."""
+        self._post(AgentFinishedMessage(event.source_agent))
 
-        elif t == EventType.TURN_STATUS:
-            if d and isinstance(d, dict):
-                iteration = d.get("iteration", "?")
-                max_iter = d.get("max_iterations", "?")
-                tokens = d.get("tokens", None)
-                status = f"Turn {iteration}/{max_iter}"
-                if tokens:
-                    status += f" | {tokens} tokens"
-                self._post(AgentStatusMessage(status, src))
+    def _handle_context_compacted(self, event: AgentEvent) -> None:
+        """Handle CONTEXT_COMPACTED events."""
+        self._post(AgentStatusMessage("Context compacted to fit model limits", event.source_agent))
+        self._post(CommandOutputMessage("[dim]ℹ Context window was compacted.[/dim]"))
 
-        elif t == EventType.AGENT_STARTED:
-            if d and isinstance(d, dict):
-                name = d.get("agent", "unknown")
-                self._post(AgentStatusMessage(f"⚙ {name} working…", src))
+    def _handle_turn_summarized(self, event: AgentEvent) -> None:
+        """Handle TURN_SUMMARIZED events."""
+        self._post(AgentStatusMessage("Previous turn summarized", event.source_agent))
 
-        elif t == EventType.AGENT_COMPLETED:
-            if d and isinstance(d, dict):
-                name = d.get("agent", "unknown")
-                summary = d.get("summary", "")
-                msg = f"✓ {name} completed"
-                if summary:
-                    msg += f": {summary}"
-                self._post(AgentStatusMessage(msg, src))
+    def _handle_turn_status(self, event: AgentEvent) -> None:
+        """Handle TURN_STATUS events."""
+        if event.data and isinstance(event.data, dict):
+            status = self._format_turn_status(event.data)
+            self._post(AgentStatusMessage(status, event.source_agent))
 
-        elif t == EventType.AGENT_DELEGATED:
-            if d and isinstance(d, dict):
-                from_a = d.get("from", "?")
-                to_a = d.get("to", "?")
-                reason = d.get("reason", "")
-                text = f"[dim]↳ Delegating: {from_a} → {to_a}"
-                if reason:
-                    text += f" ({reason})"
-                text += "[/dim]"
-                self._post(CommandOutputMessage(text))
-                self._post(AgentStatusMessage(f"{from_a} → {to_a}", src))
+    def _handle_agent_started(self, event: AgentEvent) -> None:
+        """Handle AGENT_STARTED events."""
+        if event.data and isinstance(event.data, dict):
+            name = event.data.get("agent", "unknown")
+            self._post(AgentStatusMessage(f"⚙ {name} working…", event.source_agent))
 
-        elif t == EventType.AGENT_MESSAGE:
-            if d:
-                self._post(CommandOutputMessage(f"[dim]📨 {d}[/dim]"))
+    def _handle_agent_completed(self, event: AgentEvent) -> None:
+        """Handle AGENT_COMPLETED events."""
+        if event.data and isinstance(event.data, dict):
+            name = event.data.get("agent", "unknown")
+            summary = event.data.get("summary", "")
+            message = self._format_agent_completed_message(name, summary)
+            self._post(AgentStatusMessage(message, event.source_agent))
 
-        elif t == EventType.THINKING_STARTED:
-            self._post(AgentStatusMessage("Thinking…", src))
+    def _handle_agent_delegated(self, event: AgentEvent) -> None:
+        """Handle AGENT_DELEGATED events."""
+        if event.data and isinstance(event.data, dict):
+            from_agent = event.data.get("from", "?")
+            to_agent = event.data.get("to", "?")
+            reason = event.data.get("reason", "")
+            text = self._format_delegation_message(from_agent, to_agent, reason)
+            self._post(CommandOutputMessage(text))
+            self._post(AgentStatusMessage(f"{from_agent} → {to_agent}", event.source_agent))
 
-        elif t == EventType.THINKING_COMPLETED:
-            self._post(AgentStatusMessage("Thinking complete", src))
+    def _handle_agent_message(self, event: AgentEvent) -> None:
+        """Handle AGENT_MESSAGE events."""
+        if event.data:
+            self._post(CommandOutputMessage(f"[dim]📨 {event.data}[/dim]"))
 
-        elif t == EventType.THINKING_REQUIRED:
-            self._post(AgentStatusMessage("⚠ Thinking pattern missing in response", src))
+    def _handle_thinking_started(self, event: AgentEvent) -> None:
+        """Handle THINKING_STARTED events."""
+        self._post(AgentStatusMessage("Thinking…", event.source_agent))
 
-        elif t == EventType.DELEGATION_DECISION:
-            if d:
-                self._post(AgentThoughtMessage(f"Delegation decision: {d}", src))
+    def _handle_thinking_completed(self, event: AgentEvent) -> None:
+        """Handle THINKING_COMPLETED events."""
+        self._post(AgentStatusMessage("Thinking complete", event.source_agent))
 
-        elif t == EventType.REFLECTION and d:
-            self._post(AgentThoughtMessage(f"Reflection: {d}", src))
+    def _handle_thinking_required(self, event: AgentEvent) -> None:
+        """Handle THINKING_REQUIRED events."""
+        self._post(AgentStatusMessage("⚠ Thinking pattern missing in response", event.source_agent))
 
-        await asyncio.sleep(0)  # yield control to event loop
+    def _handle_delegation_decision(self, event: AgentEvent) -> None:
+        """Handle DELEGATION_DECISION events."""
+        if event.data:
+            self._post(
+                AgentThoughtMessage(f"Delegation decision: {event.data}", event.source_agent)
+            )
+
+    def _handle_reflection(self, event: AgentEvent) -> None:
+        """Handle REFLECTION events."""
+        if event.data:
+            self._post(AgentThoughtMessage(f"Reflection: {event.data}", event.source_agent))
+
+    # Helper methods for formatting
+    def _format_error_message(self, error_text: str) -> str:
+        """Format error message, handling special cases like API errors.
+
+        Args:
+            error_text: Raw error text.
+
+        Returns:
+            Formatted error message.
+        """
+        if "API key" in error_text or "authentication" in error_text.lower():
+            return "❌ API Error: Invalid or missing API key."
+        return error_text
+
+    def _format_turn_status(self, status_data: dict[str, Any]) -> str:
+        """Format turn status message.
+
+        Args:
+            status_data: Dictionary with turn status information.
+
+        Returns:
+            Formatted status string.
+        """
+        iteration = status_data.get("iteration", "?")
+        max_iter = status_data.get("max_iterations", "?")
+        tokens = status_data.get("tokens")
+        status = f"Turn {iteration}/{max_iter}"
+        if tokens:
+            status += f" | {tokens} tokens"
+        return status
+
+    def _format_agent_completed_message(self, agent_name: str, summary: str) -> str:
+        """Format agent completed message.
+
+        Args:
+            agent_name: Name of the agent.
+            summary: Summary of what was completed.
+
+        Returns:
+            Formatted completion message.
+        """
+        message = f"✓ {agent_name} completed"
+        if summary:
+            message += f": {summary}"
+        return message
+
+    def _format_delegation_message(self, from_agent: str, to_agent: str, reason: str) -> str:
+        """Format delegation message.
+
+        Args:
+            from_agent: Name of delegating agent.
+            to_agent: Name of receiving agent.
+            reason: Reason for delegation.
+
+        Returns:
+            Formatted delegation message.
+        """
+        text = f"[dim]↳ Delegating: {from_agent} → {to_agent}"
+        if reason:
+            text += f" ({reason})"
+        text += "[/dim]"
+        return text
 
 
 # ---------------------------------------------------------------------------
@@ -1032,10 +1304,18 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
 
             try:
                 self.provider = _get_provider()
-            except Exception:
+            except Exception as exc:
                 from henchman.providers.deepseek import DeepSeekProvider
 
                 self.provider = DeepSeekProvider(api_key="mock-key-for-ui-testing")
+                import warnings
+
+                warnings.warn(
+                    f"Failed to initialize provider from environment: {exc}. "
+                    "Using mock provider for UI testing only.",
+                    RuntimeWarning,
+                    stacklevel=1,
+                )
             self.settings = load_settings()
             self.config = TextualConfig()
             self.environment_context = format_environment_block(gather_environment())
@@ -1205,7 +1485,9 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
     def on_mount(self) -> None:
         """Initialize core components after the DOM is available."""
         self._initialize_core_components()
-        self.sub_title = f"Henchman-AI v— {self.provider.name}"
+        from henchman import __version__
+
+        self.sub_title = f"Henchman-AI v{__version__} — {self.provider.name}"
         self._populate_context_tree()
         self._show_welcome()
         input_widget = self.query_one("#input", TextArea)
@@ -1217,76 +1499,31 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
 
     def _initialize_core_components(self) -> None:
         """Initialize core Henchman components shared with the REPL."""
-        # Build TUI console adapter first
-        self._tui_adapter = TuiConsoleAdapter(self)
-        console = self._tui_adapter.console
-
-        # Core context
-        self.core_context = create_core_context(
+        # Create component configuration
+        component_config = ComponentConfig(
             provider=self.provider,
-            system_prompt=self.config.system_prompt,
+            config=self.config,
+            settings=self.settings,
             environment_context=self.environment_context,
-            settings=self.settings,
-            auto_approve_tools=self.config.auto_approve_tools,
-        )
-        self.core_context.plugin_manager.ui_instance = self  # type: ignore[attr-defined]
-
-        # Renderer wired to the TUI buffer console
-        from henchman.cli.console import OutputRenderer, ThemeManager
-
-        theme_manager = ThemeManager()
-        theme_name = (
-            self.settings.ui.theme
-            if self.settings and self.settings.ui and self.settings.ui.theme
-            else "dark"
-        )
-        if theme_name not in theme_manager.list_themes():
-            theme_name = "dark"
-        theme = theme_manager.get_theme(theme_name)
-        output_renderer = OutputRenderer(console=console, theme=theme)
-        self._ui_renderer = UIRenderer(console=console, renderer=output_renderer)
-        renderer = self._ui_renderer
-
-        self.output_handler = OutputHandler(
-            renderer=renderer,
-            tool_manager=self.core_context.tool_manager,
-            session_manager=self.core_context.session_manager,
-            provider=self.provider,
-            settings=self.settings,
-            rag_system=None,
-            mcp_manager=self.core_context.mcp_manager,
+            app=self,
         )
 
-        self.command_processor = CommandProcessor(
-            output_handler=self.output_handler,
-            tool_manager=self.core_context.tool_manager,
-            session_manager=self.core_context.session_manager,
-            provider=self.provider,
-            mcp_manager=self.core_context.mcp_manager,
-        )
+        # Initialize all components using the ComponentInitializer
+        initializer = ComponentInitializer(component_config)
+        initializer.initialize_all()
 
-        self.tool_executor = ToolExecutor(
-            output_handler=self.output_handler,
-            tool_manager=self.core_context.tool_manager,
-            provider=self.provider,
-            base_tool_iterations=self.config.base_tool_iterations,
-            max_tool_calls_per_turn=self.config.max_tool_calls_per_turn,
-        )
+        # Transfer initialized components to app instance
+        self.core_context = initializer.core_context
+        self.tool_executor = initializer.tool_executor
+        self.command_processor = initializer.command_processor
+        self.input_handler = initializer.input_handler
+        self.output_handler = initializer.output_handler
+        self._tui_adapter = initializer._tui_adapter
+        self._ui_renderer = initializer._ui_renderer
 
         # Replace confirmation handler with Textual-native modal
-        self.core_context.tool_manager.set_confirmation_handler(self._textual_confirm)
-
-        history_file = self.config.history_file or Path.home() / ".henchman_history"
-        keybindings = self.settings.ui.keybindings if self.settings and self.settings.ui else None
-        self.input_handler = InputHandler(
-            config=self.config,  # type: ignore[arg-type]
-            renderer=renderer,
-            history_file=history_file,
-            keybindings=keybindings,
-        )
-
-        if self.core_context.mcp_manager:
-            initialize_mcp(self.core_context)
+        if self.core_context:
+            self.core_context.tool_manager.set_confirmation_handler(self._textual_confirm)
 
         self._update_status_bar()
 
@@ -1299,7 +1536,7 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         Returns:
             True if the user approves, False otherwise.
         """
-        future: asyncio.Future[bool] = asyncio.get_event_loop().create_future()
+        future: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
         req_id = self._confirm_counter
         self._confirm_counter += 1
         self._confirm_futures[req_id] = future
@@ -1440,7 +1677,8 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
             except Exception:
                 pass
 
-        input_widget.text = ""
+        # Clear input using load_text (proper API for replacing all text)
+        input_widget.load_text("")
         self.process_user_input(user_input)
 
     def _navigate_history(self, direction: int) -> None:
@@ -1455,16 +1693,13 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         input_widget = self.query_one("#input", TextArea)
         if 0 <= new_index < len(self.command_history):
             self.history_index = new_index
-            input_widget.text = self.command_history[self.history_index]
-            try:
-                lines = input_widget.text.splitlines()
-                if lines:
-                    input_widget.cursor_location = (len(lines) - 1, len(lines[-1]))
-            except Exception:
-                pass
+            new_text = self.command_history[self.history_index]
+            input_widget.load_text(new_text)
+            # Move cursor to end of line
+            input_widget.cursor_location = (0, len(new_text))
         elif new_index >= len(self.command_history):
             self.history_index = len(self.command_history)
-            input_widget.text = ""
+            input_widget.load_text("")
 
     @work(exclusive=True)
     async def process_user_input(self, user_input: str) -> None:
@@ -1654,6 +1889,8 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
     def _switch_provider(self, provider_name: str) -> None:
         """Reinitialize with a different provider.
 
+        Preserves session history and conversation context while switching the LLM provider.
+
         Args:
             provider_name: Name key of the provider to activate.
         """
@@ -1662,12 +1899,24 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
 
             registry = get_default_registry()
             new_provider = registry.create(provider_name)
+            old_provider_name = self.provider.name if self.provider else "unknown"
             self.provider = new_provider
-            # Reinitialize core components
+
+            # Reinitialize core components but preserve session state
             self._initialize_core_components()
-            self.sub_title = f"Henchman-AI — {self.provider.name}"
+
+            # Update title with version
+            from henchman import __version__
+
+            self.sub_title = f"Henchman-AI v{__version__} — {self.provider.name}"
+
             chat_pane = self.query_one("#chat-pane", ChatPane)
-            chat_pane.add_system_message(f"Switched to provider: [cyan]{provider_name}[/cyan]")
+            chat_pane.add_system_message(
+                f"Provider switched: [cyan]{old_provider_name}[/] → [cyan]{provider_name}[/]"
+            )
+
+            # Update status bar
+            self._update_status_bar()
         except Exception as exc:
             chat_pane = self.query_one("#chat-pane", ChatPane)
             chat_pane.add_error_message(f"Failed to switch provider: {exc}")
@@ -1728,13 +1977,11 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         raw = str(event.option.prompt)
         cmd_part = raw.split("  —")[0].strip()
         input_widget = self.query_one("#input", TextArea)
-        input_widget.text = cmd_part + " "
-        try:
-            lines = input_widget.text.splitlines()
-            if lines:
-                input_widget.cursor_location = (len(lines) - 1, len(lines[-1]))
-        except Exception:
-            pass
+        # Use the proper API to set text and trigger change events
+        new_text = cmd_part + " "
+        input_widget.load_text(new_text)
+        # Move cursor to end of input
+        input_widget.cursor_location = (0, len(new_text))
         input_widget.focus()
         self._hide_command_palette()
 
@@ -1834,18 +2081,39 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
     def _search_richlog(self, pane: RichLog, pane_id: str, query_lower: str) -> None:
         """Collect matches from a RichLog widget.
 
+        Handles different Textual versions' RichLog.lines API.
+
         Args:
             pane: The RichLog widget to search.
             pane_id: Identifier string for the pane ("thinking", "tool").
             query_lower: Lowercase search query.
         """
-        # RichLog.lines is a list[Strip] in Textual 8; Strip wraps Rich Segments.
         try:
-            for idx, strip in enumerate(pane.lines):
-                # Strip.text gives the plain-text content of the line.
-                text = strip.text if hasattr(strip, "text") else "".join(
-                    seg.text for seg in strip if hasattr(seg, "text")
-                )
+            # Try to get line content - handle different Textual versions
+            lines = getattr(pane, "lines", [])
+            if not lines:
+                return
+
+            for idx, item in enumerate(lines):
+                # Handle different representations across Textual versions
+                # Option 1: Has .text attribute (Textual 8 Strip)
+                # Option 2: Has __iter__ (Segment iterable)
+                # Option 3: Is a string directly
+                text = ""
+                if hasattr(item, "text"):
+                    text = str(item.text)
+                elif isinstance(item, str):
+                    text = item
+                else:
+                    # Try to iterate as segments
+                    try:
+                        text = "".join(
+                            str(seg.text) if hasattr(seg, "text") else str(seg)
+                            for seg in item
+                        )
+                    except (TypeError, AttributeError):
+                        text = str(item)
+
                 if query_lower in text.lower():
                     self._search_matches.append((pane_id, idx, text))
         except Exception:
@@ -1864,10 +2132,14 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
                     children[line_idx].scroll_visible(animate=False)
             elif pane_id == "thinking":
                 pane = self.query_one("#thinking-pane", ThinkingPane)
-                pane.scroll_to(y=line_idx * (pane.size.height // max(1, len(pane.lines))), animate=False)
+                # Estimate line height as total height divided by line count
+                line_height = max(1, pane.size.height // max(1, len(pane.lines)))
+                pane.scroll_to(y=line_idx * line_height, animate=False)
             elif pane_id == "tool":
                 tool_pane = self.query_one("#tool-pane", ToolPane)
-                tool_pane.scroll_to(y=line_idx * (tool_pane.size.height // max(1, len(tool_pane.lines))), animate=False)
+                # Estimate line height as total height divided by line count
+                line_height = max(1, tool_pane.size.height // max(1, len(tool_pane.lines)))
+                tool_pane.scroll_to(y=line_idx * line_height, animate=False)
         except Exception:
             pass
 
@@ -1940,8 +2212,9 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         path: Path | None = node.data  # type: ignore[assignment]
         if path and isinstance(path, Path) and path.is_file():
             try:
-                content = path.read_text()[:2000]
-                if len(path.read_text()) > 2000:
+                full_content = path.read_text()
+                content = full_content[:2000]
+                if len(full_content) > 2000:
                     content += "\n… (truncated)"
                 chat_pane = self.query_one("#chat-pane", ChatPane)
                 chat_pane.add_system_message(f"[bold]{path.name}[/bold]\n{content}")
@@ -1963,7 +2236,9 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
                 self.core_context.orchestrator if self.core_context else None,
             )
 
-    def update_status(self, message: str, tokens: int | None = None, cost: float | None = None) -> None:
+    def update_status(
+        self, message: str, tokens: int | None = None, cost: float | None = None
+    ) -> None:
         """Update the status bar.
 
         Args:
