@@ -254,7 +254,7 @@ class HenchmanTextArea(TextArea):
 
     BINDINGS = [
         Binding("ctrl+f", "app.search", "Search", show=False),
-        Binding("enter", "submit_message_internal", "Submit Message", show=False),
+        Binding("enter", "app.action_submit_message", "Submit Message", show=False),
         Binding("shift+enter", "newline", "Newline", show=False),
         Binding("escape", "app.clear_search", "Clear Search", show=False),
         Binding("up", "history_up", "History Up", show=False),
@@ -480,6 +480,49 @@ class ChatMessage(Static):
         self._update_renderable()
 
 
+class ThinkingMessage(Static):
+    """Stub implementation for ThinkingMessage widget.
+    
+    TODO: Implement proper collapsible thinking message display.
+    """
+    
+    def __init__(self, thought: str = "", agent_name: str = "", **kwargs: Any) -> None:
+        """Initialize stub ThinkingMessage.
+        
+        Args:
+            thought: The thinking content.
+            agent_name: Name of the agent doing the thinking.
+            **kwargs: Forwarded to Static.
+        """
+        super().__init__(f"🤔 {agent_name}: {thought}", **kwargs)
+
+
+class ToolMessage(Static):
+    """Stub implementation for ToolMessage widget.
+    
+    TODO: Implement proper collapsible tool call/result display.
+    """
+    
+    def __init__(self, thought: str = "", tool_call: Any = None, **kwargs: Any) -> None:
+        """Initialize stub ToolMessage.
+        
+        Args:
+            thought: Tool thought/description.
+            tool_call: Tool call object.
+            **kwargs: Forwarded to Static.
+        """
+        content = f"🛠️ Tool: {thought}" if thought else "🛠️ Tool call"
+        super().__init__(content, **kwargs)
+    
+    def append(self, chunk: str) -> None:
+        """Stub append method."""
+        pass
+    
+    def toggle_expansion(self) -> None:
+        """Stub toggle expansion method."""
+        pass
+
+
 class ChatPane(VerticalScroll):
     """Scrollable container for chat messages."""
 
@@ -513,6 +556,8 @@ class ChatPane(VerticalScroll):
     def _scroll_to_bottom(self) -> None:
         """Scroll to the latest message."""
         self.scroll_end(animate=False)
+        if self.children:
+            self.scroll_visible(self.children[-1])
 
     def add_user_message(self, text: str) -> None:
         """Append a user message block.
@@ -581,6 +626,20 @@ class ChatPane(VerticalScroll):
         """
         self._active.pop(agent_name, None)
 
+    def clear_thinking_messages(self) -> None:
+        """Remove all ThinkingMessage widgets from the pane.
+        
+        This is used when clearing the thinking pane to also remove
+        thinking messages that appear in the chat window.
+        """
+        # Find and remove all ThinkingMessage widgets
+        thinking_widgets = [
+            child for child in self.children
+            if hasattr(child, '__class__') and child.__class__.__name__ == 'ThinkingMessage'
+        ]
+        for widget in thinking_widgets:
+            widget.remove()
+
     def clear_messages(self) -> None:
         """Remove all messages from the pane."""
         self._active = {}
@@ -602,7 +661,7 @@ class ThinkingPane(RichLog):
             **kwargs: Forwarded to RichLog.
         """
         super().__init__(wrap=True, highlight=True, markup=True, **kwargs)
-        self.border_title = "Thinking"
+        self.border_title = "Thinking (legacy)"
 
 
 class ToolPane(RichLog):
@@ -1233,16 +1292,23 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
     Screen {
         layout: vertical;
     }
-    TabbedContent {
+    TabbedContent, TabPane {
         height: 1fr;
     }
     ChatPane, #chat-pane {
-        height: 100%;
+        height: 1fr;
         width: 100%;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
     }
     #thinking-pane, #tool-pane {
-        height: 100%;
+        height: 1fr;
         width: 100%;
+        overflow-y: auto;
+    }
+    ChatMessage {
+        margin: 1 1 1 1;
+        padding: 1;
     }
     #command-palette {
         width: 100%;
@@ -1256,9 +1322,9 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
     }
     #input {
         width: 100%;
-        height: 5;
+        height: 3;
         border: solid $panel;
-        margin: 1 0 0 0;
+        margin: 0 1;
     }
     #status-bar {
         height: 1;
@@ -1494,6 +1560,13 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         input_widget.focus()
         self._load_history()
         self.call_after_refresh(lambda: input_widget.focus())
+
+        # Force Chat tab
+        try:
+            tabs = self.query_one(TabbedContent)
+            tabs.active = "tab-chat"
+        except Exception:
+            pass
 
     # ---- initialization helpers ----
 
@@ -2165,9 +2238,10 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
     # ---- pane actions ----
 
     def action_clear_thinking_pane(self) -> None:
-        """Clear all content from the thinking pane."""
+        """Clear all content from the thinking pane and thinking messages in chat."""
         self.query_one("#thinking-pane", ThinkingPane).clear()
-        self.query_one("#status-bar", StatusBar).status_text = "Thinking pane cleared"
+        self.query_one("#chat-pane", ChatPane).clear_thinking_messages()
+        self.query_one("#status-bar", StatusBar).status_text = "Thinking cleared (legacy pane and chat messages)"
 
     def action_clear_tool_pane(self) -> None:
         """Clear all content from the tool pane."""

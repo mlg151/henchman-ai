@@ -33,6 +33,7 @@ from henchman.cli.textual_app import (
     HenchmanTextualApp,
     StatusBar,
     TextualConfig,
+    ThinkingMessage,
     ThinkingPane,
     ToolCallRequestMessage,
     ToolCallResultMessage,
@@ -212,7 +213,7 @@ class TestWidgetComposition:
                 thinking = app.query_one("#thinking-pane", ThinkingPane)
                 assert thinking is not None
                 assert isinstance(thinking, RichLog)
-                assert thinking.border_title == "Thinking"
+                assert thinking.border_title == "Thinking (legacy)"
 
     @pytest.mark.asyncio
     async def test_tool_pane_exists_in_tab(self):
@@ -347,8 +348,8 @@ class TestMessageDisplay:
                 assert _chatpane_has_content(chat)
 
     @pytest.mark.asyncio
-    async def test_agent_thought_shows_in_thinking(self):
-        """AgentThoughtMessage should write to the thinking pane."""
+    async def test_agent_thought_shows_in_chat_as_collapsible(self):
+        """AgentThoughtMessage should create a ThinkingMessage in chat pane."""
         app = _make_app()
         with _patch_core_init():
             async with app.run_test() as _pilot:
@@ -356,8 +357,21 @@ class TestMessageDisplay:
                 app.post_message(AgentThoughtMessage("Thinking hard...", source_agent="Bot"))
                 await _pilot.pause()
 
-                thinking = app.query_one("#thinking-pane", ThinkingPane)
-                assert _richlog_has_content(thinking)
+                # Check that thinking pane has legacy message
+                thinking_pane = app.query_one("#thinking-pane", ThinkingPane)
+                assert _richlog_has_content(thinking_pane)
+                
+                # Check that chat pane contains a ThinkingMessage widget
+                chat_pane = app.query_one("#chat-pane", ChatPane)
+                thinking_messages = [
+                    child for child in chat_pane.children 
+                    if isinstance(child, ThinkingMessage)
+                ]
+                assert len(thinking_messages) > 0, "No ThinkingMessage found in chat pane"
+                
+                # Check that the ThinkingMessage has the correct content
+                thinking_msg = thinking_messages[0]
+                assert "Thinking hard" in thinking_msg._thought
 
     @pytest.mark.asyncio
     async def test_tool_call_request_shows_in_tool_pane(self):
