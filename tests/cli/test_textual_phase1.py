@@ -102,6 +102,7 @@ class TestTextualPhase1:
         # Mock query_one to return a mock TextArea
         mock_textarea = MagicMock()
         mock_textarea.text = "Test message"
+        mock_textarea.load_text = MagicMock()
 
         textual_app.query_one = MagicMock()
         textual_app.query_one.return_value = mock_textarea
@@ -112,8 +113,8 @@ class TestTextualPhase1:
         # Verify processing
         textual_app.process_user_input.assert_called_with("Test message")
 
-        # Verify input was cleared
-        assert mock_textarea.text == ""
+        # Verify input was cleared via load_text
+        mock_textarea.load_text.assert_called_with("")
 
         # Verify history update
         assert "Test message" in textual_app.command_history
