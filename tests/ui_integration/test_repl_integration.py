@@ -9,16 +9,16 @@ Tests that verify the REPL properly connects all components:
 - REPL ↔ OutputRenderer connection
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from rich.console import Console
 
 from henchman.cli.commands import CommandRegistry
 from henchman.cli.repl import Repl, ReplConfig
+from henchman.cli.session_manager import ReplSessionManager
 from henchman.cli.ui_renderer import UIRenderer
 from henchman.core.agent import Agent
-from henchman.core.session import SessionManager
 from henchman.tools.registry import ToolRegistry
 
 
@@ -36,11 +36,10 @@ class TestREPLComponentConnections:
         assert repl.config is not None
         assert repl.tool_registry is not None
         assert repl.agent is not None
-        assert repl.command_registry is not None
+        assert repl.command_processor is not None
+        assert repl.command_processor.command_registry is not None
         assert repl.renderer is not None
-        # session_manager is optional and set to None by default
-        # It's initialized when run() is called or can be set externally
-        # For testing, we can check that the attribute exists
+        # session_manager is always initialized (ReplSessionManager)
         assert hasattr(repl, "session_manager")
 
     def test_repl_tool_registry_connection(self):
@@ -76,22 +75,18 @@ class TestREPLComponentConnections:
         console = Console()
         repl = Repl(provider=Mock(), console=console, config=ReplConfig())
 
-        # Verify command registry is initialized
-        assert repl.command_registry is not None
-        assert isinstance(repl.command_registry, CommandRegistry)
+        # Verify command registry is initialized (via command_processor)
+        assert repl.command_processor.command_registry is not None
+        assert isinstance(repl.command_processor.command_registry, CommandRegistry)
 
     def test_repl_session_manager_connection(self):
         """Test REPL ↔ SessionManager connection."""
         console = Console()
         repl = Repl(provider=Mock(), console=console, config=ReplConfig())
 
-        # session_manager is optional - None by default, can be set externally
+        # session_manager is always initialized as ReplSessionManager
         assert hasattr(repl, "session_manager")
-
-        # Test that we can set a session manager
-        repl.session_manager = SessionManager()
-        assert repl.session_manager is not None
-        assert isinstance(repl.session_manager, SessionManager)
+        assert isinstance(repl.session_manager, ReplSessionManager)
 
     def test_repl_output_renderer_connection(self):
         """Test REPL ↔ UIRenderer connection."""
@@ -118,8 +113,7 @@ class TestREPLComponentCommunication:
         # Replace components with mocks
         repl.tool_registry = Mock(spec=ToolRegistry)
         repl.agent = Mock(spec=Agent)
-        repl.command_registry = Mock(spec=CommandRegistry)
-        repl.session_manager = Mock(spec=SessionManager)
+        repl.command_processor.command_registry = Mock(spec=CommandRegistry)
         repl.renderer = Mock(spec=UIRenderer)
 
         return repl
@@ -139,22 +133,24 @@ class TestREPLComponentCommunication:
         mock_command = Mock()
         mock_command.execute = AsyncMock()
 
-        repl_with_mocked_components.command_registry.get.return_value = mock_command
+        repl_with_mocked_components.command_processor.command_registry.get.return_value = mock_command
 
-        # Mock parse_command to return ("test", ["arg1", "arg2"])
-        with patch("henchman.cli.repl.parse_command", return_value=("test", ["arg1", "arg2"])):
-            # Execute command
-            await repl_with_mocked_components._handle_command("/test arg1 arg2")
+        # Execute command through command_processor
+        await repl_with_mocked_components.command_processor.handle_command(
+            "/test arg1 arg2",
+            repl_with_mocked_components.agent,
+            repl_with_mocked_components,
+        )
 
-            # Verify communication flow:
-            # 1. Command registry.get was called to retrieve the command
-            repl_with_mocked_components.command_registry.get.assert_called_once_with("test")
+        # Verify communication flow:
+        # 1. Command registry.get was called to retrieve the command
+        repl_with_mocked_components.command_processor.command_registry.get.assert_called_once_with("test")
 
-            # 2. The command's execute method was called
-            mock_command.execute.assert_called_once()
-            # Verify the context passed to execute
-            ctx = mock_command.execute.call_args[0][0]
-            assert ctx.args == ["arg1", "arg2"]
+        # 2. The command's execute method was called
+        mock_command.execute.assert_called_once()
+        # Verify the context passed to execute
+        ctx = mock_command.execute.call_args[0][0]
+        assert ctx.args == ["arg1", "arg2"]
 
 
 class TestREPLInitializationOrder:
@@ -184,10 +180,10 @@ class TestREPLComponentDependencies:
 
         # Verify required dependencies are satisfied
         assert repl.tool_registry is not None
-        assert repl.command_registry is not None
+        assert repl.command_processor.command_registry is not None
         assert repl.agent is not None
         assert repl.renderer is not None
-        # session_manager is optional - None by default
+        # session_manager is always initialized
         assert hasattr(repl, "session_manager")
 
         # Verify agent has provider
@@ -199,6 +195,6 @@ class TestREPLComponentDependencies:
         # Verify REPL has all required components
         assert repl.tool_registry is not None
         assert repl.agent is not None
-        assert repl.command_registry is not None
+        assert repl.command_processor.command_registry is not None
         assert repl.renderer is not None
-        # session_manager can be None - it's set during run() or externally
+        # session_manager is initialized in __init__

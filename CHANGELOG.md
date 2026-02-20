@@ -5,10 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.22] - 2026-02-18
+## [0.3.5] - 2026-02-20
+
+### Fixed
+- **Textual TUI test suite** — Fixed all failing tests for the TUI implementation: `test_screen_composition`, `test_command_palette_functionality`, `test_pane_widgets_initialization`, `test_slash_command_filter`, `test_search_navigation` (missing import), and the entire `test_textual_integration.py` suite (47 tests).
+- **Textual TUI integration tests** — Fixed `_fake_init` to set `_ui_renderer` (read-only property), added `_chatpane_has_content()` / `_get_chatpane_text()` helpers for `ChatPane` (VerticalScroll, not RichLog), fixed `_show/_hide_command_palette` method names, fixed `ChatPane._active` dict for streaming state, and added mock `command_processor` where required for palette display.
+- **Mypy type error** — Fixed `Select` widget construction in `ProviderScreen.compose()` by replacing `**dict` expansion with an explicit `value=` keyword argument, resolving mypy arg-type error.
+- **Ruff import sorting** — Fixed unsorted import block in `tests/providers/test_openai_compat.py`.
+- **Missing docstring** — Added docstring to inner `callback` function in `HenchmanTextualApp.confirm_tool_execution()`.
+
+### Improved
+- **Test coverage** — Increased coverage from 88.19% to 89%+ by adding targeted tests for previously uncovered code paths:
+  - `agents/pool.py`: `extra_tools` registry deduplication, confirmation handler copying, `get_identity`, `list_active_agents`, `reset_all`, `shutdown`
+  - `cli/session_manager.py`: `_sync_session_to_agent` with `tool_calls` dict-to-object conversion, `create_session`, `load`, `load_by_tag`, `save` (explicit and implicit), `list_sessions`, `delete`
+  - `cli/ui_renderer.py`: All delegation methods (`warning`, `heading`, `markdown`, `code`, `rule`, `clear`, `tool_call`, `tool_result`, `tool_summary`, `agent_content`, `show_thinking`, `confirm_tool_execution`, progress task methods, `create_status`), exception path in token counting, RAG indexing status display
+
+## [0.3.4] - 2026-02-19
+
+### Removed
+- **Status spinner completely removed** — User requested removal of the spinner that was interfering with agent output visibility. All spinner functionality has been removed from REPL and tool executor.
+
+### Fixed
+- **Agent output visibility** — Agent responses now display immediately without being hidden by spinner animations.
+
+## [0.3.3] - 2026-02-19
+
+### Added
+- **Data Engineer agent** — New specialist role for data pipeline development, AWS infrastructure, PySpark/Pandas transformations, and Airflow DAG design.
+- **Enhanced delegation protocols** — Improved delegation briefs with mission context, dependency tracking, and prior failure awareness.
+- **Blocker protocol** — Early blocker detection with structured failure analysis for specialists.
+- **Convention awareness** — Agents now check project conventions before modifying files.
+
+### Improved
+- **Agent prompts** — Enhanced thinking protocols, delegation checklists, and handoff documentation.
+- **Status bar** — Better provider/model information display and token usage tracking.
+- **Theme system** — 8 built-in themes with `/theme` command for interactive management.
+
+### Fixed
+- **Thinking display visibility** — Fixed issue where thinking content was being cleared by the status spinner animation. Now stops the spinner when thinking starts and restarts it when thinking ends, making thinking content fully visible in the terminal.
+- **Status spinner restoration** — Improved handling of status spinner state when transitioning in and out of thinking mode to prevent errors when restoring spinner state.
+
+## [0.3.2] - 2026-02-19
+
+### Fixed
+- **Thinking display visibility** — Fixed issue where thinking content was being cleared by the status spinner animation. Now stops the spinner when thinking starts and restarts it when thinking ends, making thinking content fully visible in the terminal.
+- **Status spinner restoration** — Improved handling of status spinner state when transitioning in and out of thinking mode to prevent errors when restoring spinner state.
+
+## [0.3.1] - 2026-02-19
 
 ### Fixed
 - **Thinking pattern check breaking tool sequences** — The orchestrator's thinking pattern validation was injecting a user message between assistant tool_calls and their tool responses, breaking the OpenAI API message sequence contract. This caused repeated `repair_message_sequence` cycles that stripped tool calls and dropped tool results, making the agent unable to use tools effectively. Fixed by only running the thinking check when the agent has no pending tool calls.
+
+## [0.2.22] - 2026-02-18
+
+### Fixed
+- **MCP test compatibility** — Fixed `create_mock_client` signatures to match keyword arguments in test suite.
+- **Plan mode test compatibility** — Updated plan mode test to use Repl's actual tool registry and session manager.
+- **Version test compatibility** — Updated version test to match current 0.3.0 version.
 
 ## [0.2.21] - 2026-02-16
 
@@ -61,7 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Max delegation turns test** — Updated test to match the new default of 150.
 
 ### Added
-- **`mlg` CLI alias** — Added `mlg` as a second entry point in `pyproject.toml`
+- **`henchman` CLI alias** — Added `henchman` as a second entry point in `pyproject.toml`
   alongside `henchman`, so both commands work.
 
 ### Removed
@@ -557,9 +610,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Rebranded from mlg-cli to henchman-ai
+- Rebranded from henchman-cli to henchman-ai
 
-[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.2.21...HEAD
+[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/mlg151/henchman-ai/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/mlg151/henchman-ai/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/mlg151/henchman-ai/compare/v0.2.22...v0.3.1
+[0.2.22]: https://github.com/mlg151/henchman-ai/compare/v0.2.21...v0.2.22
 [0.2.21]: https://github.com/mlg151/henchman-ai/compare/v0.2.20...v0.2.21
 [0.2.20]: https://github.com/mlg151/henchman-ai/compare/v0.2.19...v0.2.20
 [0.1.8]: https://github.com/mlg151/henchman-ai/compare/v0.1.7...v0.1.8

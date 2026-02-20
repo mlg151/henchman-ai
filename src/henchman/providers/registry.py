@@ -89,9 +89,16 @@ def get_default_registry() -> ProviderRegistry:
         from henchman.providers.anthropic import AnthropicProvider
         from henchman.providers.deepseek import DeepSeekProvider
         from henchman.providers.ollama import OllamaProvider
+        from henchman.providers.openai_compat import OpenAICompatibleProvider
+        from henchman.providers.openrouter import OpenRouterProvider
 
         _default_registry.register("deepseek", DeepSeekProvider)
         _default_registry.register("anthropic", AnthropicProvider)
         _default_registry.register("ollama", OllamaProvider)
+        _default_registry.register("openrouter", OpenRouterProvider)
+        _default_registry.register("openai_compat", OpenAICompatibleProvider)
+        _default_registry.register("together", OpenAICompatibleProvider)
+        _default_registry.register("groq", OpenAICompatibleProvider)
+        _default_registry.register("fireworks", OpenAICompatibleProvider)
 
     return _default_registry

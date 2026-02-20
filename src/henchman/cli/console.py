@@ -8,10 +8,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import anyio
+from rich import box
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.markup import escape
 from rich.syntax import Syntax
+from rich.table import Table
+from rich.tree import Tree
 
 
 @dataclass
@@ -48,6 +51,98 @@ LIGHT_THEME = Theme(
     error="dark_red",
     muted="dim",
 )
+SOLARIZED_DARK_THEME = Theme(
+    name="solarized-dark",
+    primary="cyan",
+    secondary="blue",
+    success="green",
+    warning="yellow",
+    error="red",
+    muted="bright_black",
+)
+SOLARIZED_LIGHT_THEME = Theme(
+    name="solarized-light",
+    primary="blue",
+    secondary="cyan",
+    success="green",
+    warning="yellow",
+    error="red",
+    muted="bright_black",
+)
+MONOKAI_THEME = Theme(
+    name="monokai",
+    primary="magenta",
+    secondary="cyan",
+    success="green",
+    warning="yellow",
+    error="red",
+    muted="white",
+)
+DRACULA_THEME = Theme(
+    name="dracula",
+    primary="purple",
+    secondary="pink",
+    success="green",
+    warning="yellow",
+    error="red",
+    muted="bright_white",
+)
+HIGH_CONTRAST_DARK_THEME = Theme(
+    name="high-contrast-dark",
+    primary="bright_white",
+    secondary="bright_cyan",
+    success="bright_green",
+    warning="bright_yellow",
+    error="bright_red",
+    muted="white",
+)
+HIGH_CONTRAST_LIGHT_THEME = Theme(
+    name="high-contrast-light",
+    primary="black",
+    secondary="blue",
+    success="green",
+    warning="yellow",
+    error="red",
+    muted="bright_black",
+)
+
+THEMES: dict[str, Theme] = {
+    "dark": DARK_THEME,
+    "light": LIGHT_THEME,
+    "solarized-dark": SOLARIZED_DARK_THEME,
+    "solarized-light": SOLARIZED_LIGHT_THEME,
+    "monokai": MONOKAI_THEME,
+    "dracula": DRACULA_THEME,
+    "high-contrast-dark": HIGH_CONTRAST_DARK_THEME,
+    "high-contrast-light": HIGH_CONTRAST_LIGHT_THEME,
+}
+
+
+def get_theme(name: str = "dark", overrides: dict[str, str] | None = None) -> Theme:
+    """Get a theme by name with optional overrides.
+
+    Args:
+        name: Theme name.
+        overrides: Optional style overrides.
+
+    Returns:
+        Theme object.
+    """
+    base_theme = THEMES.get(name, DARK_THEME)
+
+    if not overrides:
+        return base_theme
+
+    # Apply overrides
+    return Theme(
+        name=base_theme.name,
+        primary=overrides.get("primary", base_theme.primary),
+        secondary=overrides.get("secondary", base_theme.secondary),
+        success=overrides.get("success", base_theme.success),
+        warning=overrides.get("warning", base_theme.warning),
+        error=overrides.get("error", base_theme.error),
+        muted=overrides.get("muted", base_theme.muted),
+    )
 
 
 class ThemeManager:
@@ -59,10 +154,7 @@ class ThemeManager:
 
     def __init__(self) -> None:
         """Initialize the theme manager with default themes."""
-        self._themes: dict[str, Theme] = {
-            "dark": DARK_THEME,
-            "light": LIGHT_THEME,
-        }
+        self._themes = THEMES.copy()
         self._current: Theme = DARK_THEME
 
     @property
@@ -106,13 +198,16 @@ class ThemeManager:
         self._themes[theme.name] = theme
 
 
-def get_default_theme() -> Theme:
+def get_default_theme(overrides: dict[str, str] | None = None) -> Theme:
     """Get the default theme.
 
+    Args:
+        overrides: Optional style overrides.
+
     Returns:
-        The default dark theme.
+        The default theme.
     """
-    return DARK_THEME
+    return get_theme("dark", overrides)
 
 
 class OutputRenderer:
@@ -127,15 +222,38 @@ class OutputRenderer:
         self,
         console: Console | None = None,
         theme: Theme | None = None,
+        accessible_mode: bool = False,
+        style_overrides: dict[str, str] | None = None,
+        layout_settings: object | None = None,  # Avoid circular import, pass as object or dict
     ) -> None:
         """Initialize the output renderer.
 
         Args:
             console: Rich Console to use, or creates a new one.
             theme: Theme to use, or uses default.
+            accessible_mode: Whether to enable high-accessibility mode.
+            style_overrides: Optional style overrides.
+            layout_settings: Optional LayoutSettings object.
         """
         self.console = console or Console()
-        self.theme = theme or get_default_theme()
+        self.accessible_mode = accessible_mode
+        self.layout_settings = layout_settings
+        self.theme: Theme = theme or get_theme("dark", overrides=style_overrides)
+
+        if theme is None:
+            # Already set above with overrides
+            pass
+        elif style_overrides:
+            # If theme provided, apply overrides to it
+            self.theme = Theme(
+                name=self.theme.name,
+                primary=style_overrides.get("primary", self.theme.primary),
+                secondary=style_overrides.get("secondary", self.theme.secondary),
+                success=style_overrides.get("success", self.theme.success),
+                warning=style_overrides.get("warning", self.theme.warning),
+                error=style_overrides.get("error", self.theme.error),
+                muted=style_overrides.get("muted", self.theme.muted),
+            )
 
     def print(self, text: str, style: str | None = None) -> None:
         """Print text with optional styling.
@@ -152,7 +270,8 @@ class OutputRenderer:
         Args:
             message: Success message text.
         """
-        self.console.print(f"[{self.theme.success}]✓[/] {escape(message)}")
+        prefix = "[OK]" if self.accessible_mode else "✓"
+        self.console.print(f"[{self.theme.success}]{prefix}[/] {escape(message)}")
 
     def info(self, message: str) -> None:
         """Print an info message.
@@ -160,7 +279,8 @@ class OutputRenderer:
         Args:
             message: Info message text.
         """
-        self.console.print(f"[{self.theme.primary}]ℹ[/] {escape(message)}")
+        prefix = "[INFO]" if self.accessible_mode else "ℹ"
+        self.console.print(f"[{self.theme.primary}]{prefix}[/] {escape(message)}")
 
     def warning(self, message: str) -> None:
         """Print a warning message.
@@ -168,7 +288,8 @@ class OutputRenderer:
         Args:
             message: Warning message text.
         """
-        self.console.print(f"[{self.theme.warning}]⚠[/] {escape(message)}")
+        prefix = "[WARN]" if self.accessible_mode else "⚠"
+        self.console.print(f"[{self.theme.warning}]{prefix}[/] {escape(message)}")
 
     def error(self, message: str) -> None:
         """Print an error message.
@@ -176,7 +297,8 @@ class OutputRenderer:
         Args:
             message: Error message text.
         """
-        self.console.print(f"[{self.theme.error}]✗[/] {escape(message)}")
+        prefix = "[ERR]" if self.accessible_mode else "✗"
+        self.console.print(f"[{self.theme.error}]{prefix}[/] {escape(message)}")
 
     def muted(self, text: str) -> None:
         """Print muted/dim text.
@@ -255,7 +377,10 @@ class OutputRenderer:
             content = content[:max_len] + "\n... (truncated)"
 
         status = "Result" if success else "Failed"
-        emoji = "✅" if success else "❌"
+        if self.accessible_mode:
+            emoji = "[OK]" if success else "[ERR]"
+        else:
+            emoji = "✅" if success else "❌"
         title = f"### {emoji} Tool {status}"
 
         md_content = f"{title}\n\n{content}"
@@ -263,6 +388,96 @@ class OutputRenderer:
             md_content += f"\n\n**Error:** {error}"
 
         self.markdown(md_content)
+
+    def table(self, data: list[dict[str, object]], title: str | None = None) -> None:
+        """Render data as a table.
+
+        Args:
+            data: List of dictionaries to display.
+            title: Optional table title.
+        """
+        if not data:
+            self.muted("No data to display")
+            return
+
+        if (
+            self.layout_settings
+            and hasattr(self.layout_settings, "compact_tables")
+            and self.layout_settings.compact_tables
+        ):
+            table_box = box.MINIMAL
+        else:
+            table_box = box.ASCII if self.accessible_mode else box.HEAVY_HEAD
+
+        table = Table(
+            title=title, show_header=True, header_style=f"bold {self.theme.primary}", box=table_box
+        )
+
+        # Add columns from first row keys
+        for key in data[0]:
+            table.add_column(str(key))
+
+        # Add rows
+        for row in data:
+            table.add_row(*[str(v) for v in row.values()])
+
+        self.console.print(table)
+
+    def tree(self, root_name: str, items: list[tuple[str, str]]) -> None:
+        """Render hierarchical data as a tree.
+
+        Args:
+            root_name: Name of the root node.
+            items: List of (path, value) tuples. Path is slash-separated.
+        """
+        tree = Tree(f"[bold {self.theme.primary}]{root_name}[/]")
+
+        for path, value in items:
+            current = tree
+            parts = path.split("/")
+
+            for part in parts[:-1]:
+                # Find or create branch
+                found = False
+                for child in current.children:
+                    if str(child.label) == part:
+                        current = child
+                        found = True
+                        break
+
+                if not found:
+                    current = current.add(f"[{self.theme.secondary}]{part}[/]")
+
+            # Add leaf with value
+            current.add(f"{parts[-1]}: [bold]{value}[/]")
+
+        self.console.print(tree)
+
+        self.console.print(tree)
+
+    def diff(self, old: str, new: str, filename: str = "") -> None:
+        """Render diff between old and new content.
+
+        Args:
+            old: Old content string.
+            new: New content string.
+            filename: Filename for context.
+        """
+        import difflib
+
+        diff_lines = difflib.unified_diff(
+            old.splitlines(keepends=True),
+            new.splitlines(keepends=True),
+            fromfile=f"a/{filename}",
+            tofile=f"b/{filename}",
+        )
+        diff_text = "".join(diff_lines)
+
+        if diff_text:
+            syntax = Syntax(diff_text, "diff", theme="monokai")
+            self.console.print(syntax)
+        else:
+            self.success("No differences found")
 
     def tool_summary(self, name: str, duration: float | None = None) -> None:
         """Display a summary of tool execution.
@@ -290,7 +505,12 @@ class OutputRenderer:
         Args:
             content: Thinking content.
         """
-        self.console.print(content, style=self.theme.muted, end="")
+        # Escape content to prevent rich markup interpretation
+        # Note: We should eventually render markdown properly, but for now
+        # escape to show raw content including markdown symbols
+        from rich.markup import escape
+
+        self.console.print(escape(content), style=self.theme.muted, end="")
 
     async def confirm_tool_execution(self, message: str) -> bool:
         """Ask user for confirmation.
@@ -304,3 +524,51 @@ class OutputRenderer:
         from rich.prompt import Confirm
 
         return await anyio.to_thread.run_sync(lambda: Confirm.ask(message, console=self.console))
+
+
+class AsyncOutputRenderer:
+    """Async wrapper for OutputRenderer."""
+
+    def __init__(self, renderer: OutputRenderer) -> None:
+        """Initialize the async renderer.
+
+        Args:
+            renderer: Sync OutputRenderer instance.
+        """
+        self.renderer = renderer
+
+    async def print(self, text: str, style: str | None = None) -> None:
+        """Async print."""
+        await anyio.to_thread.run_sync(self.renderer.print, text, style)
+
+    async def success(self, message: str) -> None:
+        """Async success message."""
+        await anyio.to_thread.run_sync(self.renderer.success, message)
+
+    async def info(self, message: str) -> None:
+        """Async info message."""
+        await anyio.to_thread.run_sync(self.renderer.info, message)
+
+    async def warning(self, message: str) -> None:
+        """Async warning message."""
+        await anyio.to_thread.run_sync(self.renderer.warning, message)
+
+    async def error(self, message: str) -> None:
+        """Async error message."""
+        await anyio.to_thread.run_sync(self.renderer.error, message)
+
+    async def markdown(self, content: str) -> None:
+        """Async markdown."""
+        await anyio.to_thread.run_sync(self.renderer.markdown, content)
+
+    async def code(self, code: str, language: str = "python") -> None:
+        """Async code block."""
+        await anyio.to_thread.run_sync(self.renderer.code, code, language)
+
+    async def table(self, data: list[dict[str, object]], title: str | None = None) -> None:
+        """Async table rendering."""
+        await anyio.to_thread.run_sync(self.renderer.table, data, title)
+
+    async def diff(self, old: str, new: str, filename: str = "") -> None:
+        """Async diff rendering."""
+        await anyio.to_thread.run_sync(self.renderer.diff, old, new, filename)

@@ -7,13 +7,90 @@ and error messages.
 
 from __future__ import annotations
 
+from collections.abc import Generator
+from contextlib import contextmanager
 from typing import Any
 
 from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TaskID,
+    TaskProgressColumn,
+    TextColumn,
+    TimeRemainingColumn,
+)
 from rich.status import Status
 
 from henchman.cli.console import OutputRenderer
 from henchman.core.session import Session
+
+
+class ProgressManager:
+    """Manage progress indicators for long operations.
+
+    This class handles creating and updating progress bars using Rich's Progress
+    component. It supports tracking multiple tasks by ID.
+    """
+
+    def __init__(self, console: Console):
+        """Initialize the progress manager.
+
+        Args:
+            console: Rich console to render progress bars.
+        """
+        self.console = console
+        self.tasks: dict[str, tuple[Progress, TaskID]] = {}
+
+    def start_task(self, task_id: str, description: str, total: int = 100) -> Progress:
+        """Start a new progress task.
+
+        Args:
+            task_id: Unique identifier for the task.
+            description: Description to show next to the progress bar.
+            total: Total steps for the task.
+
+        Returns:
+            The created Progress instance.
+        """
+        progress = Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeRemainingColumn(),
+            console=self.console,
+            transient=True,
+        )
+        task = progress.add_task(description, total=total)
+        progress.start()
+        self.tasks[task_id] = (progress, task)
+        return progress
+
+    def update_task(self, task_id: str, advance: int = 1, description: str | None = None) -> None:
+        """Update progress for a task.
+
+        Args:
+            task_id: Task identifier.
+            advance: Number of steps to advance.
+            description: Optional new description.
+        """
+        if task_id in self.tasks:
+            progress, task = self.tasks[task_id]
+            kwargs: dict[str, object] = {"advance": advance}
+            if description:
+                kwargs["description"] = description
+            progress.update(task, **kwargs)  # type: ignore[arg-type]
+
+    def complete_task(self, task_id: str) -> None:
+        """Complete and remove a task.
+
+        Args:
+            task_id: Task identifier.
+        """
+        if task_id in self.tasks:
+            progress, task = self.tasks[task_id]
+            progress.stop()
+            del self.tasks[task_id]
 
 
 class UIRenderer:
@@ -32,15 +109,29 @@ class UIRenderer:
         self,
         console: Console | None = None,
         renderer: OutputRenderer | None = None,
+        accessible_mode: bool = False,
+        style_overrides: dict[str, str] | None = None,
+        layout_settings: object | None = None,
     ) -> None:
         """Initialize the UI renderer.
 
         Args:
             console: Rich Console to use, or creates a new one.
             renderer: OutputRenderer to wrap, or creates a new one.
+            accessible_mode: Whether to enable high-accessibility mode.
+            style_overrides: Optional style overrides.
+            layout_settings: Optional layout settings.
         """
         self.console = console or Console()
-        self.renderer = renderer or OutputRenderer(console=self.console)
+        self.renderer = renderer or OutputRenderer(
+            console=self.console,
+            accessible_mode=accessible_mode,
+            style_overrides=style_overrides,
+            layout_settings=layout_settings,
+        )
+        self.progress_manager = ProgressManager(self.console)
+        self._thinking_status: Status | None = None
+        self._is_thinking: bool = False
 
     def print_welcome(self) -> None:
         """Print welcome message."""
@@ -75,7 +166,7 @@ class UIRenderer:
         parts.append("[yellow]PLAN[/]" if plan_mode else "[blue]CHAT[/]")
 
         # Tokens
-        if agent and hasattr(agent, 'get_messages_for_api'):
+        if agent and hasattr(agent, "get_messages_for_api"):
             try:
                 msgs = agent.get_messages_for_api()
                 tokens = TokenCounter.count_messages(msgs)
@@ -100,6 +191,58 @@ class UIRenderer:
             Rich Status context manager.
         """
         return self.console.status(message, spinner=spinner)
+
+    def start_thinking(self, message: str | None = None, spinner: str = "dots") -> None:
+        """Start a thinking indicator.
+
+        Args:
+            message: Optional custom thinking message.
+            spinner: Spinner style (e.g., "dots", "line", "circle").
+        """
+        if self._is_thinking:
+            self.stop_thinking()
+
+        thinking_msg = "[dim]Thinking...[/]"
+        if message:
+            thinking_msg += f" {message}"
+
+        self._thinking_status = self.console.status(thinking_msg, spinner=spinner)
+        self._thinking_status.__enter__()
+        self._is_thinking = True
+
+    def stop_thinking(self) -> None:
+        """Stop the current thinking indicator."""
+        if self._thinking_status and self._is_thinking:
+            self._thinking_status.__exit__(None, None, None)
+
+        self._thinking_status = None
+        self._is_thinking = False
+
+    @property
+    def is_thinking(self) -> bool:
+        """Check if thinking indicator is active.
+
+        Returns:
+            True if thinking indicator is active.
+        """
+        return self._is_thinking
+
+    @contextmanager
+    def thinking_context(self, message: str | None = None, spinner: str = "dots") -> Generator[None, None, None]:
+        """Context manager for thinking indicator.
+
+        Args:
+            message: Optional custom thinking message.
+            spinner: Spinner style (e.g., "dots", "line", "circle").
+
+        Yields:
+            The context for thinking indicator.
+        """
+        try:
+            self.start_thinking(message, spinner=spinner)
+            yield
+        finally:
+            self.stop_thinking()
 
     def print_newline(self) -> None:
         """Print a newline."""
@@ -171,8 +314,21 @@ class UIRenderer:
         self.renderer.agent_content(content)
 
     def thinking(self, content: str) -> None:
-        """Display thinking process."""
+        """Display thinking process content.
+
+        Args:
+            content: Thinking content to display.
+        """
         self.renderer.thinking(content)
+
+    # Alias for clarity
+    def show_thinking(self, content: str) -> None:
+        """Display thinking process content.
+
+        Args:
+            content: Thinking content to display.
+        """
+        self.thinking(content)
 
     async def confirm_tool_execution(self, message: str) -> bool:
         """Ask user for confirmation.
@@ -184,3 +340,34 @@ class UIRenderer:
             True if confirmed.
         """
         return await self.renderer.confirm_tool_execution(message)
+
+    def start_task(self, task_id: str, description: str, total: int = 100) -> Progress:
+        """Start a new progress task.
+
+        Args:
+            task_id: Unique identifier for the task.
+            description: Description to show next to the progress bar.
+            total: Total steps for the task.
+
+        Returns:
+            The created Progress instance.
+        """
+        return self.progress_manager.start_task(task_id, description, total)
+
+    def update_task(self, task_id: str, advance: int = 1, description: str | None = None) -> None:
+        """Update progress for a task.
+
+        Args:
+            task_id: Task identifier.
+            advance: Number of steps to advance.
+            description: Optional new description.
+        """
+        self.progress_manager.update_task(task_id, advance, description)
+
+    def complete_task(self, task_id: str) -> None:
+        """Complete and remove a task.
+
+        Args:
+            task_id: Task identifier.
+        """
+        self.progress_manager.complete_task(task_id)

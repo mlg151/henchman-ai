@@ -84,7 +84,7 @@ class TestMcpEndToEnd:
         mock_client2.get_tools.return_value = [mock_tool_def2]
 
         def create_mock_client(
-            name: str, config: McpServerConfig | None = None, verbose: bool = False
+            name: str, config: McpServerConfig | None = None, verbose: bool = False  # noqa: ARG001
         ) -> McpClient:
             if name == "serena":
                 return mock_client1
@@ -269,7 +269,7 @@ class TestMcpEndToEnd:
         mock_failing_client.name = "failing"
         mock_failing_client.connect = AsyncMock(side_effect=Exception("Connection failed"))
 
-        def create_mock_client(name: str, config: McpServerConfig | None = None, verbose: bool = False) -> McpClient:
+        def create_mock_client(name: str, config: McpServerConfig | None = None, verbose: bool = False) -> McpClient:  # noqa: ARG001
             if name == "serena":
                 return mock_serena_client
             else:
@@ -344,7 +344,7 @@ class TestMcpEndToEnd:
             McpToolDefinition(name="unsafe_tool", description="Unsafe tool", input_schema={})
         ]
 
-        def create_mock_client(name: str, config: McpServerConfig | None = None, verbose: bool = False) -> McpClient:
+        def create_mock_client(name: str, config: McpServerConfig | None = None, verbose: bool = False) -> McpClient:  # noqa: ARG001
             if name == "trusted_server":
                 return mock_trusted_client
             else:

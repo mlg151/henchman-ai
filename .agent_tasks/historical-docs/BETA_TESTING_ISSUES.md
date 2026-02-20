@@ -38,8 +38,8 @@ henchman
 
 ### 4. Cosmetic: CLI Self-Identification
 **Severity:** Low
-**Description:** `henchman --version` output identifies as `mlg`.
-**Output:** `mlg, version 0.1.11`
+**Description:** `henchman --version` output identifies as `henchman`.
+**Output:** `henchman, version 0.1.11`
 **Expected:** `henchman, version 0.1.11`
 
 ## Verification of Alpha Issues

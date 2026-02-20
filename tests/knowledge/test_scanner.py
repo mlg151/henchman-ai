@@ -103,7 +103,7 @@ def test_extract_top_level_defs() -> None:
     source = (
         'class Foo:\n    """A foo."""\n    pass\n\n'
         'def bar():\n    """Do bar."""\n    pass\n\n'
-        'async def baz():\n    pass\n'
+        "async def baz():\n    pass\n"
     )
     defs = _extract_top_level_defs(source)
     assert len(defs) == 3
@@ -146,9 +146,7 @@ def test_get_package_entities() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_scan_repository_creates_entities(
-    git_repo: Path, store: KnowledgeStore
-) -> None:
+def test_scan_repository_creates_entities(git_repo: Path, store: KnowledgeStore) -> None:
     """Scanning creates file and package entities."""
     count = scan_repository(store, git_repo, incremental=False)
     assert count >= 2  # at least core.py and utils.py
@@ -164,9 +162,7 @@ def test_scan_repository_creates_entities(
     assert len(pkgs) >= 1
 
 
-def test_scan_repository_creates_observations(
-    git_repo: Path, store: KnowledgeStore
-) -> None:
+def test_scan_repository_creates_observations(git_repo: Path, store: KnowledgeStore) -> None:
     """Scanning extracts class/function defs as observations."""
     scan_repository(store, git_repo, incremental=False)
 
@@ -178,9 +174,7 @@ def test_scan_repository_creates_observations(
     assert any("run" in t for t in obs_texts)
 
 
-def test_scan_repository_creates_relations(
-    git_repo: Path, store: KnowledgeStore
-) -> None:
+def test_scan_repository_creates_relations(git_repo: Path, store: KnowledgeStore) -> None:
     """Scanning creates import and contains relations."""
     scan_repository(store, git_repo, incremental=False)
     assert store.relation_count() > 0
@@ -192,9 +186,7 @@ def test_scan_repository_creates_relations(
     assert "imports" in types
 
 
-def test_scan_repository_incremental(
-    git_repo: Path, store: KnowledgeStore
-) -> None:
+def test_scan_repository_incremental(git_repo: Path, store: KnowledgeStore) -> None:
     """Incremental scan skips unchanged files."""
     count1 = scan_repository(store, git_repo, incremental=True)
     assert count1 >= 2
@@ -204,9 +196,7 @@ def test_scan_repository_incremental(
     assert count2 == 0
 
 
-def test_scan_repository_incremental_detects_changes(
-    git_repo: Path, store: KnowledgeStore
-) -> None:
+def test_scan_repository_incremental_detects_changes(git_repo: Path, store: KnowledgeStore) -> None:
     """Incremental scan detects modified files."""
     import subprocess
 
@@ -222,9 +212,7 @@ def test_scan_repository_incremental_detects_changes(
     assert count >= 1  # at least utils.py reprocessed
 
 
-def test_scan_repository_updates_meta(
-    git_repo: Path, store: KnowledgeStore
-) -> None:
+def test_scan_repository_updates_meta(git_repo: Path, store: KnowledgeStore) -> None:
     """Scanning sets last_indexed and file_hashes in meta."""
     scan_repository(store, git_repo, incremental=True)
     assert store.meta.last_indexed != ""

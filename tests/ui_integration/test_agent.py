@@ -273,11 +273,17 @@ class TestAgentProcessing:
         # Create REPL
         repl = Repl(provider=provider, console=console_with_recording, config=ReplConfig())
 
-        # Agent.run() propagates errors - the REPL catches them
-        # So we test that the error is raised properly
-        with pytest.raises(RuntimeError, match="Simulated provider error"):
-            async for _event in repl.agent.run("Trigger error"):
-                pass
+        # Agent.run() now yields ERROR events instead of raising
+        # So we test that the error is captured in an event
+        events = []
+        async for event in repl.agent.run("Trigger error"):
+            events.append(event)
+
+        # Should get ERROR event followed by FINISHED
+        assert len(events) >= 2
+        error_events = [e for e in events if e.type == EventType.ERROR]
+        assert len(error_events) >= 1
+        assert "Simulated provider error" in error_events[0].data
 
     async def test_agent_with_tools_declaration(self, console_with_recording):
         """Test that agent properly declares tools to provider."""

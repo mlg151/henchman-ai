@@ -31,9 +31,7 @@ class TestMcpClient:
         session.list_tools = AsyncMock(return_value=MagicMock(tools=[]))
         return session
 
-    def _connect_client(
-        self, client: McpClient, mock_session: AsyncMock
-    ) -> None:
+    def _connect_client(self, client: McpClient, mock_session: AsyncMock) -> None:
         """Wire a mock session into a client as if connected."""
         client._session = mock_session
         client._exit_stack = AsyncExitStack()
@@ -59,9 +57,7 @@ class TestMcpClient:
         assert not client.is_connected
 
     @pytest.mark.anyio
-    async def test_discover_tools(
-        self, config: McpServerConfig, mock_session: AsyncMock
-    ) -> None:
+    async def test_discover_tools(self, config: McpServerConfig, mock_session: AsyncMock) -> None:
         """Test discovering tools from server."""
         client = McpClient(name="test", config=config)
 
@@ -75,9 +71,7 @@ class TestMcpClient:
             "required": ["path"],
         }
 
-        mock_session.list_tools = AsyncMock(
-            return_value=MagicMock(tools=[mock_tool])
-        )
+        mock_session.list_tools = AsyncMock(return_value=MagicMock(tools=[mock_tool]))
         self._connect_client(client, mock_session)
         tools = await client.discover_tools()
 
@@ -86,9 +80,7 @@ class TestMcpClient:
         assert tools[0].description == "Read a file"
 
     @pytest.mark.anyio
-    async def test_call_tool(
-        self, config: McpServerConfig, mock_session: AsyncMock
-    ) -> None:
+    async def test_call_tool(self, config: McpServerConfig, mock_session: AsyncMock) -> None:
         """Test calling a tool."""
         client = McpClient(name="test", config=config)
 
@@ -104,9 +96,7 @@ class TestMcpClient:
         assert not result.is_error
 
     @pytest.mark.anyio
-    async def test_call_tool_error(
-        self, config: McpServerConfig, mock_session: AsyncMock
-    ) -> None:
+    async def test_call_tool_error(self, config: McpServerConfig, mock_session: AsyncMock) -> None:
         """Test calling a tool that returns an error."""
         client = McpClient(name="test", config=config)
 

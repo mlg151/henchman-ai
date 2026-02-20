@@ -37,6 +37,21 @@ class TestReplE2E:
         repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=False)
         session = manager.create_session(project_hash="test_hash")
         repl.set_session(session)
+
+        # Also update the output_handler's session_manager reference
+        repl.output_handler.session_manager = repl.session_manager
+        repl.tool_executor.output_handler = repl.output_handler
+
+        # Patch _run_agent_with_monitor to bypass KeyMonitor (no stdin in tests)
+        original_tool_executor = repl.tool_executor
+
+        async def _simple_run_agent_with_monitor(event_stream, agent, assistant_content, status_msg):  # noqa: ARG001
+            """Simplified version that skips KeyMonitor for testing."""
+            await original_tool_executor.process_agent_stream(
+                event_stream, agent, assistant_content, None
+            )
+
+        repl._run_agent_with_monitor = _simple_run_agent_with_monitor
         return repl
 
     async def test_tool_execution_flow(self, repl, mock_provider):

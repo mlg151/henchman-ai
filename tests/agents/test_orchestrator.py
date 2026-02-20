@@ -31,13 +31,17 @@ async def test_orchestrator_run_basic(mock_provider):
 
     assert any(e.type == EventType.AGENT_STARTED and e.data["agent"] == "tech_lead" for e in events)
     assert any(e.type == EventType.CONTENT and "Plan" in e.data for e in events)
-    assert any(e.type == EventType.AGENT_COMPLETED and e.data["agent"] == "tech_lead" for e in events)
+    assert any(
+        e.type == EventType.AGENT_COMPLETED and e.data["agent"] == "tech_lead" for e in events
+    )
 
 
 @pytest.mark.asyncio
 async def test_orchestrator_delegation_interception(mock_provider):
     # 1. Tech Lead requests delegation
-    tc = ToolCall(id="call_1", name="delegate_task", arguments={"agent": "explorer", "task": "Write test"})
+    tc = ToolCall(
+        id="call_1", name="delegate_task", arguments={"agent": "explorer", "task": "Write test"}
+    )
     chunk1 = StreamChunk(tool_calls=[tc], finish_reason=FinishReason.TOOL_CALLS)
 
     # 2. Tech Lead finishes after delegation result
@@ -47,14 +51,15 @@ async def test_orchestrator_delegation_interception(mock_provider):
     chunk_coder = StreamChunk(content="I wrote the test.", finish_reason=FinishReason.STOP)
 
     call_count = 0
+
     async def side_effect(*_args, **_kwargs):  # noqa: ARG001
         nonlocal call_count
         call_count += 1
-        if call_count == 1: # Tech Lead first turn
+        if call_count == 1:  # Tech Lead first turn
             yield chunk1
-        elif call_count == 2: # Coder turn
+        elif call_count == 2:  # Coder turn
             yield chunk_coder
-        elif call_count == 3: # Tech Lead second turn (after delegation)
+        elif call_count == 3:  # Tech Lead second turn (after delegation)
             yield chunk2
 
     mock_provider.chat_completion_stream.side_effect = side_effect
@@ -89,6 +94,7 @@ async def test_cross_delegation_handoff_notes(mock_provider):
     chunk_coder = StreamChunk(content="Fixed.", finish_reason=FinishReason.STOP)
 
     call_count = 0
+
     async def side_effect(*_args, **_kwargs):  # noqa: ARG001
         nonlocal call_count
         call_count += 1
@@ -157,6 +163,7 @@ async def test_delegation_clears_agent_history(mock_provider):
     chunk_tl3 = StreamChunk(content="All done.", finish_reason=FinishReason.STOP)
 
     call_count = 0
+
     async def side_effect(*_args, **_kwargs):  # noqa: ARG001
         nonlocal call_count
         call_count += 1
@@ -183,10 +190,12 @@ async def test_delegation_clears_agent_history(mock_provider):
     # After the second delegation the coder should have only the SECOND
     # run's messages (system + user + assistant), not the first's.
     user_msgs = [m.content for m in coder.messages if m.role == "user"]
-    assert not any("First" in (m or "") for m in user_msgs), \
+    assert not any("First" in (m or "") for m in user_msgs), (
         "Coder should NOT retain history from the first delegation"
-    assert any("Second" in (m or "") for m in user_msgs), \
+    )
+    assert any("Second" in (m or "") for m in user_msgs), (
         "Coder should have the second delegation's task"
+    )
 
 
 def test_assemble_delegation_input_task_only():
@@ -306,12 +315,17 @@ async def test_agent_no_stall_on_genuine_content():
 async def test_stall_nudge_triggers_continuation(mock_provider):
     """Specialist that stalls gets nudged internally and continues."""
     # Turn 1 (TL): delegate to coder
-    tc = ToolCall(id="c1", name="delegate_task", arguments={"agent": "explorer", "task": "Write script"})
+    tc = ToolCall(
+        id="c1", name="delegate_task", arguments={"agent": "explorer", "task": "Write script"}
+    )
     chunk_tl1 = StreamChunk(tool_calls=[tc], finish_reason=FinishReason.TOOL_CALLS)
     # Turn 2 (coder call 1): stall — agent internally nudges
     stall = StreamChunk(content="Now let me create the script:", finish_reason=FinishReason.STOP)
     # Turn 3 (coder call 2, after internal nudge): real output
-    real = StreamChunk(content="Here is the completed script with all tests passing.", finish_reason=FinishReason.STOP)
+    real = StreamChunk(
+        content="Here is the completed script with all tests passing.",
+        finish_reason=FinishReason.STOP,
+    )
     # Turn 4 (TL): done
     chunk_tl2 = StreamChunk(content="All done.", finish_reason=FinishReason.STOP)
 
@@ -345,7 +359,9 @@ async def test_stall_nudge_triggers_continuation(mock_provider):
 async def test_stall_failure_reported_after_max_nudges(mock_provider):
     """After max nudges on a specialist, a STALL FAILURE error is emitted."""
     # Turn 1 (TL): delegate to coder
-    tc = ToolCall(id="c1", name="delegate_task", arguments={"agent": "explorer", "task": "Write tests"})
+    tc = ToolCall(
+        id="c1", name="delegate_task", arguments={"agent": "explorer", "task": "Write tests"}
+    )
     chunk_tl1 = StreamChunk(tool_calls=[tc], finish_reason=FinishReason.TOOL_CALLS)
     # Coder stalls 3 times (max_stall_nudges=2, so 3rd triggers failure)
     # Agent's internal loop: call1=stall → nudge → call2=stall → nudge → call3=stall → _stall_failure=True → exit
@@ -482,6 +498,7 @@ async def test_delegation_turn_limit(mock_provider):
     coder_done = StreamChunk(content="STATUS: DONE", finish_reason=FinishReason.STOP)
 
     call_count = 0
+
     async def side_effect(*_args, **_kwargs):  # noqa: ARG001
         nonlocal call_count
         call_count += 1
@@ -522,17 +539,27 @@ def test_build_timeout_summary_with_tools():
     agent = Agent(provider=MagicMock(spec=ModelProvider))
     msg_start = len(agent.messages)
     # Simulate some tool calls in message history
-    agent.messages.append(Message(
-        role="assistant",
-        content="Reading file",
-        tool_calls=[ToolCall(id="t1", name="read_file", arguments={"path": "src/foo.py"})],
-    ))
+    agent.messages.append(
+        Message(
+            role="assistant",
+            content="Reading file",
+            tool_calls=[ToolCall(id="t1", name="read_file", arguments={"path": "src/foo.py"})],
+        )
+    )
     agent.messages.append(Message(role="tool", content="file contents...", tool_call_id="t1"))
-    agent.messages.append(Message(
-        role="assistant",
-        content="Editing file",
-        tool_calls=[ToolCall(id="t2", name="edit_file", arguments={"path": "src/foo.py", "old": "a", "new": "b"})],
-    ))
+    agent.messages.append(
+        Message(
+            role="assistant",
+            content="Editing file",
+            tool_calls=[
+                ToolCall(
+                    id="t2",
+                    name="edit_file",
+                    arguments={"path": "src/foo.py", "old": "a", "new": "b"},
+                )
+            ],
+        )
+    )
 
     result = Orchestrator._build_timeout_summary(agent, msg_start)
     assert "Progress at timeout" in result
@@ -567,6 +594,7 @@ async def test_tool_error_aggregation(mock_provider):
     coder_done = StreamChunk(content="STATUS: FAILED", finish_reason=FinishReason.STOP)
 
     call_count = 0
+
     async def side_effect(*_args, **_kwargs):  # noqa: ARG001
         nonlocal call_count
         call_count += 1
@@ -622,7 +650,9 @@ async def test_thinking_pattern_validation(mock_provider):
 
     # Check for thinking required event
     thinking_events = [e for e in events if e.type == EventType.THINKING_REQUIRED]
-    assert len(thinking_events) > 0, "Should have THINKING_REQUIRED event when thinking pattern is missing"
+    assert len(thinking_events) > 0, (
+        "Should have THINKING_REQUIRED event when thinking pattern is missing"
+    )
     assert "Thinking pattern missing" in thinking_events[0].data
 
 
@@ -632,7 +662,7 @@ async def test_thinking_pattern_metrics(mock_provider):
     # Mock Tech Lead response WITH thinking pattern
     chunk = StreamChunk(
         content="THINKING:\n1. Problem: Test\n2. Context: None\n3. Options: A\n4. Decision: A\n5. Plan: Do it",
-        finish_reason=FinishReason.STOP
+        finish_reason=FinishReason.STOP,
     )
 
     async def async_gen(*_args, **_kwargs):  # noqa: ARG001
@@ -655,12 +685,15 @@ async def test_thinking_pattern_metrics(mock_provider):
 async def test_delegation_metrics(mock_provider):
     """Test that delegation updates metrics."""
     # Mock Tech Lead delegation
-    tc = ToolCall(id="call_1", name="delegate_task", arguments={"agent": "explorer", "task": "Write test"})
+    tc = ToolCall(
+        id="call_1", name="delegate_task", arguments={"agent": "explorer", "task": "Write test"}
+    )
     chunk1 = StreamChunk(tool_calls=[tc], finish_reason=FinishReason.TOOL_CALLS)
     chunk2 = StreamChunk(content="Done.", finish_reason=FinishReason.STOP)
     chunk_coder = StreamChunk(content="Test written.", finish_reason=FinishReason.STOP)
 
     call_count = 0
+
     async def side_effect(*_args, **_kwargs):  # noqa: ARG001
         nonlocal call_count
         call_count += 1
@@ -681,3 +714,95 @@ async def test_delegation_metrics(mock_provider):
     # Check delegation metrics
     assert orchestrator.metrics["delegation_count"] == 1
     assert orchestrator.metrics["delegation_by_type"]["explorer"] == 1
+
+
+# ------------------------------------------------------------------
+# v0.2.8 — Teamwork Prompt Improvements
+# ------------------------------------------------------------------
+
+
+def test_assemble_delegation_input_with_mission():
+    """Mission goal is injected as a header when provided (#6)."""
+    result = Orchestrator._assemble_delegation_input(
+        "Fix the login bug",
+        {"requirements": "Must pass tests"},
+        mission="Implement user authentication system",
+    )
+    assert "## Mission" in result
+    assert "Implement user authentication system" in result
+    assert "## Task\nFix the login bug" in result
+    assert "## Requirements" in result
+
+
+def test_assemble_delegation_input_without_mission():
+    """Without mission, no Mission section is emitted."""
+    result = Orchestrator._assemble_delegation_input(
+        "Fix bug",
+        {"requirements": "Must pass"},
+    )
+    assert "## Mission" not in result
+    assert "## Task\nFix bug" in result
+
+
+def test_assemble_delegation_input_with_depends_on():
+    """depends_on field produces a Depends On section (#10)."""
+    result = Orchestrator._assemble_delegation_input(
+        "Write tests",
+        {"depends_on": "Explorer found API uses OAuth2", "requirements": "100%"},
+    )
+    assert "## Depends On" in result
+    assert "Explorer found API uses OAuth2" in result
+
+
+def test_assemble_delegation_input_no_depends_on():
+    """Brief without depends_on omits the section."""
+    result = Orchestrator._assemble_delegation_input(
+        "Write tests",
+        {"requirements": "100%"},
+    )
+    assert "## Depends On" not in result
+
+
+def test_assemble_delegation_input_mission_no_brief():
+    """Mission is included even when brief is None."""
+    result = Orchestrator._assemble_delegation_input(
+        "Fix bug",
+        None,
+        mission="Big project goal",
+    )
+    assert "## Mission\nBig project goal" in result
+    assert "## Task\nFix bug" in result
+
+
+def test_parse_completion_report_blockers():
+    """Parses BLOCKERS field from specialist report (#11)."""
+    summary = (
+        "STATUS: BLOCKED\n"
+        "BLOCKERS: Missing pytest-mock dependency\n"
+        "SUMMARY: Could not run tests"
+    )
+    parsed = Orchestrator._parse_completion_report(summary)
+    assert parsed["status"] == "BLOCKED"
+    assert "pytest-mock" in parsed["blockers"]
+
+
+def test_parse_completion_report_handoff_notes():
+    """Parses HANDOFF_NOTES field from specialist report (#11)."""
+    summary = (
+        "STATUS: DONE\n"
+        "HANDOFF_NOTES: The API requires OAuth2 bearer tokens\n"
+        "SUMMARY: Completed research"
+    )
+    parsed = Orchestrator._parse_completion_report(summary)
+    assert "OAuth2" in parsed["handoff_notes"]
+
+
+def test_parse_completion_report_artifacts():
+    """Parses ARTIFACTS field from specialist report (#12)."""
+    summary = (
+        "STATUS: DONE\n"
+        "ARTIFACTS: .agent_tasks/auth-research/README.md\n"
+        "SUMMARY: Documented findings"
+    )
+    parsed = Orchestrator._parse_completion_report(summary)
+    assert ".agent_tasks/" in parsed["artifacts"]

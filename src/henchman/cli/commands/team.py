@@ -64,4 +64,6 @@ class TeamCommand(Command):
         if orchestrator.shared_context:
             ctx.console.print("\n[bold yellow]Recent Shared Context Decisions:[/]")
             for item in orchestrator.shared_context[-3:]:
-                ctx.console.print(f"  [dim]{item['timestamp']}[/] [[bold cyan]{item['agent']}[/]]: {item['summary'][:100]}...")
+                ctx.console.print(
+                    f"  [dim]{item['timestamp']}[/] [[bold cyan]{item['agent']}[/]]: {item['summary'][:100]}..."
+                )

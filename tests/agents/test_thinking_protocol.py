@@ -3,7 +3,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from src.henchman.agents.prompts import (
     ENGINEER_INSTRUCTIONS,
@@ -72,14 +72,12 @@ def test_thinking_format_requirements() -> None:
 
 
 def test_delegation_priority_rules() -> None:
-    """Test that delegation tool includes priority rules."""
+    """Test that delegation tool includes context guidance."""
     from henchman.tools.builtins.delegate import DelegateTaskTool
 
     tool = DelegateTaskTool()
     description = tool.description
 
-    assert "DELEGATION PRIORITY RULES" in description
-    assert "ALWAYS consider delegation before doing work yourself" in description
-    assert "Architecture/design → Planner" in description
-    assert "Research/exploration → Explorer" in description
-    assert "Implementation/testing → Engineer" in description
+    assert "Delegate a task to a specialist agent" in description
+    assert "CLEAN context" in description
+    assert "MUST provide all relevant information" in description

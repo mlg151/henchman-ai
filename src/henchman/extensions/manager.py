@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-ENTRY_POINT_GROUP = "mlg.extensions"
+ENTRY_POINT_GROUP = "henchman.extensions"
 
 
 class ExtensionManager:
@@ -117,7 +117,7 @@ class ExtensionManager:
     def discover_entry_points(self) -> None:
         """Discover and load extensions from entry points.
 
-        Looks for entry points in the "mlg.extensions" group.
+        Looks for entry points in the "henchman.extensions" group.
         Each entry point should point to an Extension subclass.
         """
         try:
@@ -170,7 +170,7 @@ class ExtensionManager:
             ext_file: Path to extension.py file.
             ext_name: Name of the extension directory.
         """
-        spec = importlib.util.spec_from_file_location(f"mlg_ext_{ext_name}", ext_file)
+        spec = importlib.util.spec_from_file_location(f"henchman_ext_{ext_name}", ext_file)
         if spec is None or spec.loader is None:
             logger.warning("Could not load spec for %s", ext_file)
             return

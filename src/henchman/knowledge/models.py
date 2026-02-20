@@ -19,9 +19,7 @@ class Observation(BaseModel):
 
     content: str
     source: str = ""
-    timestamp: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     author: str = "agent"
 
 

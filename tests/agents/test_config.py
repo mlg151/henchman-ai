@@ -6,10 +6,7 @@ from henchman.agents.config import AgentConfig
 
 def test_agent_config_valid():
     config = AgentConfig(
-        name="Coder",
-        role="coder",
-        description="Writes code",
-        tools=["read_file", "write_file"]
+        name="Coder", role="coder", description="Writes code", tools=["read_file", "write_file"]
     )
     assert config.name == "Coder"
     assert config.role == "coder"
@@ -19,9 +16,4 @@ def test_agent_config_valid():
 
 def test_agent_config_empty_tools():
     with pytest.raises(ValidationError):
-        AgentConfig(
-            name="Coder",
-            role="coder",
-            description="Writes code",
-            tools=[]
-        )
+        AgentConfig(name="Coder", role="coder", description="Writes code", tools=[])

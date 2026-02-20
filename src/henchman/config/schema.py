@@ -1,6 +1,6 @@
 """Configuration schema using Pydantic models.
 
-This module defines the settings schema for mlg-cli configuration.
+This module defines the settings schema for henchman-cli configuration.
 Settings are loaded from YAML/JSON files and environment variables.
 """
 
@@ -17,12 +17,16 @@ class AgentConfig(BaseModel):
     name: str = Field(..., description="Display name of the agent")
     role: str = Field(..., description="Unique role identifier")
     description: str = Field(..., description="One-line description of the agent's purpose")
-    system_prompt: str | None = Field(None, description="Role-specific instructions (None for default)")
+    system_prompt: str | None = Field(
+        None, description="Role-specific instructions (None for default)"
+    )
     tools: list[str] = Field(default_factory=list, description="Allowlist of tool names")
     provider: str | None = Field(None, description="Override model provider")
     model: str | None = Field(None, description="Override model name")
     auto_approve: list[str] = Field(default_factory=list, description="Tools to auto-approve")
-    can_delegate_to: list[str] = Field(default_factory=list, description="Roles this agent can delegate to")
+    can_delegate_to: list[str] = Field(
+        default_factory=list, description="Roles this agent can delegate to"
+    )
     enabled: bool = Field(True, description="Whether this agent is active")
 
     @field_validator("tools")
@@ -64,6 +68,11 @@ class ProviderSettings(BaseModel):
     ollama: dict[str, object] = Field(
         default_factory=lambda: dict[str, object]({"base_url": "http://localhost:11434"})
     )
+    openrouter: dict[str, object] = Field(default_factory=dict)
+    openai_compat: dict[str, object] = Field(default_factory=dict)
+    together: dict[str, object] = Field(default_factory=dict)
+    groq: dict[str, object] = Field(default_factory=dict)
+    fireworks: dict[str, object] = Field(default_factory=dict)
 
 
 class ToolSettings(BaseModel):
@@ -92,6 +101,14 @@ class UISettings(BaseModel):
     theme: str = "dark"
     show_line_numbers: bool = True
     mcp_logging: bool = False
+    accessible_mode: bool = False
+    keybindings: dict[str, str] = Field(
+        default_factory=lambda: {
+            "c-c": "abort",
+            "c-d": "exit",
+        }
+    )
+    style_overrides: dict[str, str] = Field(default_factory=dict)
 
 
 class ContextSettings(BaseModel):
@@ -235,7 +252,7 @@ class RagSettings(BaseModel):
 
 
 class Settings(BaseModel):
-    """Main settings model for mlg-cli.
+    """Main settings model for henchman-cli.
 
     Attributes:
         providers: Provider configuration.

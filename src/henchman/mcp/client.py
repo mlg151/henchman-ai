@@ -53,13 +53,13 @@ class FilteredStream(io.StringIO):
             return sys.stderr.write(text)
 
         # Filter out common log patterns
-        lines = text.split('\n')
+        lines = text.split("\n")
         filtered_lines = []
 
         # Regex patterns for common log formats
-        info_pattern = re.compile(r'^(INFO|DEBUG)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2},\d{3}')
-        bracketed_pattern = re.compile(r'^\[(INFO|DEBUG)\]')
-        colon_pattern = re.compile(r'^(INFO|DEBUG):')
+        info_pattern = re.compile(r"^(INFO|DEBUG)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2},\d{3}")
+        bracketed_pattern = re.compile(r"^\[(INFO|DEBUG)\]")
+        colon_pattern = re.compile(r"^(INFO|DEBUG):")
 
         for line in lines:
             # Skip empty lines
@@ -68,19 +68,23 @@ class FilteredStream(io.StringIO):
 
             # Check for various log format patterns
             line_stripped = line.strip()
-            if (info_pattern.match(line_stripped) or
-                bracketed_pattern.match(line_stripped) or
-                colon_pattern.match(line_stripped)):
+            if (
+                info_pattern.match(line_stripped)
+                or bracketed_pattern.match(line_stripped)
+                or colon_pattern.match(line_stripped)
+            ):
                 # This is an INFO/DEBUG log line, skip it
                 continue
 
             # Also check for common Python logging format variations
-            if (line_stripped.startswith('INFO ') or
-                line_stripped.startswith('DEBUG ') or
-                '[INFO]' in line_stripped or
-                '[DEBUG]' in line_stripped or
-                line_stripped.startswith('INFO:') or
-                line_stripped.startswith('DEBUG:')):
+            if (
+                line_stripped.startswith("INFO ")
+                or line_stripped.startswith("DEBUG ")
+                or "[INFO]" in line_stripped
+                or "[DEBUG]" in line_stripped
+                or line_stripped.startswith("INFO:")
+                or line_stripped.startswith("DEBUG:")
+            ):
                 continue
 
             # For non-INFO/DEBUG lines (errors, warnings, regular output), pass through
@@ -89,11 +93,10 @@ class FilteredStream(io.StringIO):
 
         if filtered_lines:
             # Write filtered output to stderr
-            output = '\n'.join(filtered_lines) + ('\n' if text.endswith('\n') else '')
+            output = "\n".join(filtered_lines) + ("\n" if text.endswith("\n") else "")
             return sys.stderr.write(output)
 
         return len(text)
-
 
 
 @dataclass
@@ -160,8 +163,6 @@ class McpClient:
         if self._session is not None:
             return
 
-
-
         server_params = StdioServerParameters(
             command=self.config.command,
             args=self.config.args,
@@ -181,9 +182,7 @@ class McpClient:
             )
 
             # Enter ClientSession context
-            session = await self._exit_stack.enter_async_context(
-                ClientSession(read, write)
-            )
+            session = await self._exit_stack.enter_async_context(ClientSession(read, write))
 
             self._session = session
             await self._session.initialize()

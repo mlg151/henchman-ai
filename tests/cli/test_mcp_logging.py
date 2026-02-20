@@ -49,7 +49,7 @@ class TestMcpLogging:
         cmd = McpCommand()
 
         # Mock the load_settings function to return our settings
-        with patch('henchman.cli.commands.mcp.load_settings', return_value=settings):
+        with patch("henchman.cli.commands.mcp.load_settings", return_value=settings):
             await cmd.execute(ctx)
 
         output = ctx.console.file.getvalue()  # type: ignore[union-attr]
@@ -70,7 +70,7 @@ class TestMcpLogging:
         ctx.args = ["logging", "off"]
         cmd = McpCommand()
 
-        with patch('henchman.cli.commands.mcp.load_settings', return_value=settings):
+        with patch("henchman.cli.commands.mcp.load_settings", return_value=settings):
             await cmd.execute(ctx)
 
         output = ctx.console.file.getvalue()  # type: ignore[union-attr]
@@ -91,7 +91,7 @@ class TestMcpLogging:
         ctx.args = ["logging", "status"]
         cmd = McpCommand()
 
-        with patch('henchman.cli.commands.mcp.load_settings', return_value=settings):
+        with patch("henchman.cli.commands.mcp.load_settings", return_value=settings):
             await cmd.execute(ctx)
 
         output = ctx.console.file.getvalue()  # type: ignore[union-attr]
@@ -125,4 +125,3 @@ class TestMcpLogging:
         output = ctx.console.file.getvalue()  # type: ignore[union-attr]
         # Should show MCP logging control help
         assert "logging" in output.lower() and "control" in output.lower()
-

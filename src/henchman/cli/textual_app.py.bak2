@@ -1,0 +1,1278 @@
+"""Textual TUI for Henchman-AI.
+
+This module provides a Textual-based terminal user interface for Henchman-AI.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from textual import events, on, work
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Vertical
+from textual.message import Message
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    Footer,
+    Header,
+    Label,
+    OptionList,
+    RichLog,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+    Tree,
+)
+
+from henchman.cli.command_processor import CommandProcessor
+from henchman.cli.core_init import CoreContext, create_core_context, initialize_mcp
+from henchman.cli.input import expand_at_references
+from henchman.cli.input_handler import InputHandler
+from henchman.cli.output_handler import OutputHandler
+from henchman.cli.tool_executor import ToolExecutor
+from henchman.cli.ui_renderer import UIRenderer
+from henchman.core.events import AgentEvent, EventType
+from henchman.providers.base import ModelProvider
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from henchman.config.schema import Settings
+    from henchman.core.session import Session
+
+
+@dataclass
+class TextualConfig:
+    """Configuration for the Textual TUI.
+
+    Attributes:
+        prompt: The prompt string to display.
+        system_prompt: System prompt for the agent.
+        auto_save: Whether to auto-save sessions on exit.
+        history_file: Path to history file.
+        base_tool_iterations: Base limit for tool iterations per turn.
+        max_tool_calls_per_turn: Maximum tool calls allowed per turn.
+        auto_approve_tools: Auto-approve all tool executions (non-interactive mode).
+    """
+
+    prompt: str = "❯ "
+    system_prompt: str = ""
+    auto_save: bool = True
+    history_file: Path | None = None
+    base_tool_iterations: int = 25
+    max_tool_calls_per_turn: int = 100
+    auto_approve_tools: bool = False
+
+
+class HenchmanTextArea(TextArea):
+    """Custom TextArea to handle bindings and interactions correctly."""
+
+    BINDINGS = [
+        Binding("ctrl+f", "app.search", "Search", show=False),
+        Binding("enter", "submit_message_internal", "Submit Message", show=False),
+        Binding("shift+enter", "newline", "Newline", show=False),
+        Binding("escape", "app.clear_search", "Clear Search", show=False),
+        Binding("up", "history_up", "History Up", show=False),
+        Binding("down", "history_down", "History Down", show=False),
+    ]
+
+    async def on_key(self, event: events.Key) -> None:
+        """Handle key events."""
+        if event.key == "enter":
+            event.stop()
+            event.prevent_default()
+            self.app.action_submit_message()
+            return
+        elif event.key == "shift+enter":
+            event.stop()
+            event.prevent_default()
+            self.insert("\n")
+            return
+
+        # Do not call super().on_key(event) as it doesn't exist
+        # Let unknown keys bubble up
+        pass
+
+    def action_newline(self) -> None:
+        """Insert a newline."""
+        self.insert("\n")
+
+    def action_history_up(self) -> None:
+        """Move cursor up or navigate history."""
+        if self.cursor_location[0] == 0:
+            self.app._navigate_history(-1)
+        else:
+            self.action_cursor_up()
+
+    def action_history_down(self) -> None:
+        """Move cursor down or navigate history."""
+        lines = self.document.line_count - 1
+        if self.cursor_location[0] >= lines:
+            self.app._navigate_history(1)
+        else:
+            self.action_cursor_down()
+
+    def on_mount(self) -> None:
+        """Initialize the text area when mounted."""
+        pass
+
+
+class AgentContentMessage(Message):
+    """Message for agent content events."""
+
+    def __init__(self, content: str, source_agent: str | None = None) -> None:
+        """Initialize an agent content message.
+
+        Args:
+            content: The content text from the agent.
+            source_agent: Optional name of the agent that produced the content.
+        """
+        super().__init__()
+        self.content = content
+        self.source_agent = source_agent
+
+
+class AgentThoughtMessage(Message):
+    """Message for agent thought events."""
+
+    def __init__(self, thought: str, source_agent: str | None = None) -> None:
+        """Initialize an agent thought message.
+
+        Args:
+            thought: The thought/reasoning text from the agent.
+            source_agent: Optional name of the agent that produced the thought.
+        """
+        super().__init__()
+        self.thought = thought
+        self.source_agent = source_agent
+
+
+class ToolCallRequestMessage(Message):
+    """Message for tool call request events."""
+
+    def __init__(self, tool_call: Any, source_agent: str | None = None) -> None:
+        """Initialize a tool call request message.
+
+        Args:
+            tool_call: The tool call data (name, arguments, etc.).
+            source_agent: Optional name of the agent requesting the tool call.
+        """
+        super().__init__()
+        self.tool_call = tool_call
+        self.source_agent = source_agent
+
+
+class ToolCallResultMessage(Message):
+    """Message for tool call result events."""
+
+    def __init__(self, result: Any, source_agent: str | None = None) -> None:
+        """Initialize a tool call result message.
+
+        Args:
+            result: The result data from the tool execution.
+            source_agent: Optional name of the agent that executed the tool.
+        """
+        super().__init__()
+        self.result = result
+        self.source_agent = source_agent
+
+
+class AgentStatusMessage(Message):
+    """Message for agent status updates."""
+
+    def __init__(self, status: str, source_agent: str | None = None) -> None:
+        """Initialize an agent status message.
+
+        Args:
+            status: The status text (e.g., "working", "completed").
+            source_agent: Optional name of the agent whose status is being reported.
+        """
+        super().__init__()
+        self.status = status
+        self.source_agent = source_agent
+
+
+class AgentFinishedMessage(Message):
+    """Message for agent finished events."""
+
+    def __init__(self, source_agent: str | None = None) -> None:
+        """Initialize an agent finished message.
+
+        Args:
+            source_agent: Optional name of the agent that finished execution.
+        """
+        super().__init__()
+        self.source_agent = source_agent
+
+
+class ChatPane(RichLog):
+    """Widget for displaying chat messages."""
+
+    def __init__(self, **kwargs) -> None:
+        """Initialize the chat pane widget.
+
+        Args:
+            **kwargs: Additional keyword arguments passed to RichLog widget.
+        """
+        super().__init__(wrap=True, highlight=True, markup=True, **kwargs)
+        self.border_title = "Chat"
+
+
+class ThinkingPane(RichLog):
+    """Widget for displaying agent thinking."""
+
+    def __init__(self, **kwargs) -> None:
+        """Initialize the thinking pane widget.
+
+        Args:
+            **kwargs: Additional keyword arguments passed to RichLog widget.
+        """
+        super().__init__(wrap=True, highlight=True, markup=True, **kwargs)
+        self.border_title = "Thinking"
+        self.display = False  # Hidden by default
+
+
+class ToolPane(RichLog):
+    """Widget for displaying tool execution."""
+
+    def __init__(self, **kwargs) -> None:
+        """Initialize the tool pane widget.
+
+        Args:
+            **kwargs: Additional keyword arguments passed to RichLog widget.
+        """
+        super().__init__(wrap=True, highlight=True, markup=True, **kwargs)
+        self.border_title = "Tools"
+        self.display = False  # Hidden by default
+
+
+class StatusBar(Static):
+    """Widget for displaying status information."""
+
+    status_text = reactive("Ready")
+
+    def __init__(self, **kwargs) -> None:
+        """Initialize the status bar widget.
+
+        Args:
+            **kwargs: Additional keyword arguments passed to Static widget.
+        """
+        super().__init__(**kwargs)
+        self.border_title = "Status"
+
+    def render(self) -> str:
+        """Render the status bar content.
+
+        Returns:
+            Formatted status text with cyan color.
+        """
+        return f"[bold cyan]{self.status_text}[/]"
+
+
+class EventBridge:
+    """Bridge between agent events and Textual UI.
+
+    This class forwards agent events to the Textual application
+    by posting appropriate messages.
+
+    Important: Must post messages on the UI thread since this
+    runs from a worker thread (@work decorator).
+    """
+
+    def __init__(self, app: HenchmanTextualApp) -> None:
+        """Initialize the event bridge.
+
+        Args:
+            app: The Textual application to post messages to.
+        """
+        self.app = app
+
+    def _post_message_safe(self, message: Message) -> None:
+        """Post a message to the Textual app thread-safely.
+
+        Args:
+            message: The message to post.
+        """
+        # Since @work runs async coroutines on the main event loop,
+        # we can post messages directly without call_from_thread.
+        self.app.post_message(message)
+
+    async def forward_events(self, event_stream: AsyncIterator[AgentEvent]) -> None:
+        """Forward agent events to the Textual UI.
+
+        Args:
+            event_stream: Async iterator of agent events.
+        """
+        try:
+            async for event in event_stream:
+                await self._handle_event(event)
+
+        except Exception as e:
+            import traceback
+
+            error_details = traceback.format_exc()
+            self._post_message_safe(AgentStatusMessage(f"EventBridge Error: {e}"))
+            self._post_message_safe(AgentContentMessage(f"EventBridge Error: {e}\n{error_details}"))
+
+    async def _handle_event(self, event: AgentEvent) -> None:
+        """Handle a single agent event and post appropriate message.
+
+        Args:
+            event: The agent event to handle.
+        """
+        if event.type == EventType.CONTENT:
+            if event.data:
+                self._post_message_safe(AgentContentMessage(str(event.data), event.source_agent))
+        elif event.type == EventType.THOUGHT:
+            if event.data:
+                self._post_message_safe(AgentThoughtMessage(str(event.data), event.source_agent))
+        elif event.type == EventType.TOOL_CALL_REQUEST:
+            if event.data:
+                self._post_message_safe(ToolCallRequestMessage(event.data, event.source_agent))
+        elif event.type == EventType.TOOL_CALL_RESULT:
+            if event.data:
+                self._post_message_safe(ToolCallResultMessage(event.data, event.source_agent))
+        elif event.type == EventType.ERROR:
+            if event.data:
+                self._post_message_safe(
+                    AgentStatusMessage(f"Error: {event.data}", event.source_agent)
+                )
+                error_msg = str(event.data)
+                if "API key" in error_msg or "authentication" in error_msg.lower():
+                    error_msg = "❌ API Error: Invalid or missing API key. Please set DEEPSEEK_API_KEY environment variable."
+                self._post_message_safe(AgentContentMessage(f"❌ {error_msg}", event.source_agent))
+        elif event.type == EventType.FINISHED:
+            self._post_message_safe(AgentFinishedMessage(event.source_agent))
+        elif event.type == EventType.AGENT_STARTED:
+            if event.data and isinstance(event.data, dict):
+                agent_name = event.data.get("agent", "unknown")
+                self._post_message_safe(
+                    AgentStatusMessage(f"{agent_name} started work", event.source_agent)
+                )
+        elif event.type == EventType.AGENT_COMPLETED:
+            if event.data and isinstance(event.data, dict):
+                agent_name = event.data.get("agent", "unknown")
+                summary = event.data.get("summary", "")
+                status = f"{agent_name} completed"
+                if summary:
+                    status += f": {summary}"
+                self._post_message_safe(AgentStatusMessage(status, event.source_agent))
+        elif event.type == EventType.AGENT_DELEGATED and event.data and isinstance(event.data, dict):
+            from_agent = event.data.get("from", "unknown")
+            to_agent = event.data.get("to", "unknown")
+            self._post_message_safe(
+                AgentStatusMessage(f"{from_agent} → {to_agent}", event.source_agent)
+            )
+        await asyncio.sleep(0)  # Yield control
+
+
+
+
+class HelpScreen(ModalScreen):
+    """Screen for displaying help and keybindings."""
+
+    BINDINGS = [("escape", "app.pop_screen", "Close")]
+
+    def compose(self) -> ComposeResult:
+        """Compose the help screen with keybinding information.
+
+        Returns:
+            A ComposeResult containing help screen widgets.
+        """
+        yield Vertical(
+            Label("[bold]Keybindings[/bold]", id="help-title"),
+            Label("Ctrl+Q / Ctrl+C: Quit"),
+            Label("Ctrl+Enter: Submit Message"),
+            Label("Ctrl+Shift+T: Clear Thinking Pane"),
+            Label("Ctrl+Shift+Y: Clear Tool Pane"),
+            Label("Ctrl+F: Search"),
+            Label("Space: Toggle Thinking/Tool panes (if focused)"),
+            Label("/: Trigger Command Palette"),
+            Button("Close", variant="primary", id="close-help"),
+            id="help-dialog",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button press events in the help screen.
+
+        Args:
+            event: The button press event.
+        """
+        if event.button.id == "close-help":
+            self.app.pop_screen()
+
+
+class ProviderScreen(ModalScreen):
+    """Screen for switching providers."""
+
+    BINDINGS = [("escape", "app.pop_screen", "Close")]
+
+    def compose(self) -> ComposeResult:
+        """Compose the provider selection screen.
+
+        Returns:
+            A ComposeResult containing provider screen widgets.
+        """
+        yield Vertical(
+            Label("[bold]Select Provider[/bold]", id="provider-title"),
+            Label("Feature coming soon..."),
+            Button("Close", variant="primary", id="close-provider"),
+            id="provider-dialog",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button press events in the provider screen.
+
+        Args:
+            event: The button press event.
+        """
+        if event.button.id == "close-provider":
+            self.app.pop_screen()
+
+class HenchmanTextualApp(App):
+    """Main Textual application for Henchman-AI."""
+
+    CSS = """
+    Screen {
+        layout: vertical;
+    }
+
+    TabbedContent {
+        height: 1fr;
+    }
+
+    #chat-pane, #thinking-pane, #tool-pane {
+        height: 100%;
+        width: 100%;
+        border: none;
+    }
+
+    #command-palette {
+        width: 100%;
+        height: auto;
+        max-height: 10;
+        dock: bottom;
+        layer: overlay;
+        display: none;
+        border: solid $accent;
+    }
+
+    #input {
+        width: 100%;
+        height: 5;
+        border: solid $panel;
+        margin: 1 0;
+    }
+
+    #help-dialog, #provider-dialog {
+        padding: 2;
+        border: solid $accent;
+        background: $surface;
+        width: 60;
+        height: auto;
+        align: center middle;
+    }
+
+    #status-bar {
+        height: 1;
+        border: solid $panel;
+    }
+    """
+
+    BINDINGS = [
+        Binding("ctrl+q", "quit", "Quit", show=True),
+        Binding("ctrl+c", "quit", "Quit", show=True),
+        # Binding("ctrl+t", "toggle_thinking_pane", "Toggle Thinking Pane", show=True), # Superseded by Tabs
+        # Binding("ctrl+y", "toggle_tool_pane", "Toggle Tool Pane", show=True), # Superseded by Tabs
+        Binding("ctrl+shift+t", "clear_thinking_pane", "Clear Thinking Pane", show=True),
+        Binding("ctrl+shift+y", "clear_tool_pane", "Clear Tool Pane", show=True),
+        Binding("ctrl+f", "search", "Search", show=True),
+        Binding("escape", "clear_search", "Clear Search", show=False),
+        Binding("f3", "search_next", "Next Match", show=False),
+        Binding("shift+f3", "search_previous", "Previous Match", show=False),
+        Binding("ctrl+enter", "submit_message", "Submit Message", show=True),
+    ]
+
+
+
+    def __init__(
+        self,
+        provider: ModelProvider | None = None,
+        config: TextualConfig | None = None,
+        settings: Settings | None = None,
+        environment_context: str | None = None,
+    ) -> None:
+        """Initialize the Textual TUI.
+
+        Args:
+            provider: Model provider for LLM interactions.
+            config: TUI configuration.
+            settings: Application settings for context limits, etc.
+            environment_context: Pre-formatted environment block for agents.
+        """
+        super().__init__()
+
+        if provider is None:
+            # Fallback for `textual run` without arguments
+            from henchman.cli.app import _get_provider
+            from henchman.config import load_settings
+            from henchman.config.environment import format_environment_block, gather_environment
+            try:
+                self.provider = _get_provider()
+            except Exception:
+                # Mock fallback if dev environment missing key
+                from henchman.providers.deepseek import DeepSeekProvider
+                self.provider = DeepSeekProvider(api_key="mock-key-for-ui-testing")
+            self.settings = load_settings()
+            self.config = TextualConfig()
+            self.environment_context = format_environment_block(gather_environment())
+        else:
+            self.provider = provider
+            self.config = config or TextualConfig()
+            self.settings = settings
+            self.environment_context = environment_context
+
+        # Core context (initialized in on_mount)
+        self.core_context: CoreContext | None = None
+        self.tool_executor: ToolExecutor | None = None
+        self.command_processor: CommandProcessor | None = None
+        self.input_handler: InputHandler | None = None
+        self.output_handler: OutputHandler | None = None
+        self.renderer: UIRenderer | None = None
+
+        # UI state
+        self.current_input: str = ""
+        self.is_processing: bool = False
+
+        # Streaming content buffering
+        self._streaming_buffer: dict[str, str] = {}  # agent_name -> buffered content
+        self._current_streaming_agent: str | None = None
+
+        # Search state
+        self._search_mode: bool = False
+        self._search_query: str = ""
+        self._search_matches: list[int] = []
+        self._current_match_index: int = -1
+        self._original_input_placeholder: str = self.config.prompt
+
+        # History state
+        self.command_history: list[str] = []
+        self.history_index: int = -1
+
+        # For compatibility with CommandContext expectations
+        self.orchestrator = None  # Will be set in _initialize_core_components
+        self.tool_registry = None  # Will be set in _initialize_core_components
+        self.session_manager = None  # Will be set in _initialize_core_components
+        self.rag_system = None  # Not yet implemented for Textual
+
+    @property
+    def orchestrator(self):
+        """Get orchestrator from core context."""
+        return self.core_context.orchestrator if self.core_context else None
+
+    @orchestrator.setter
+    def orchestrator(self, value):
+        """Set orchestrator - handled by core_context."""
+        pass  # Handled by core_context
+
+    @property
+    def tool_registry(self):
+        """Get tool registry from core context."""
+        return self.core_context.tool_registry if self.core_context else None
+
+    @tool_registry.setter
+    def tool_registry(self, value):
+        """Set tool registry - handled by core_context."""
+        pass  # Handled by core_context
+
+    @property
+    def session_manager(self):
+        """Get session manager from core context."""
+        return self.core_context.session_manager if self.core_context else None
+
+    @session_manager.setter
+    def session_manager(self, value):
+        """Set session manager - handled by core_context."""
+        pass  # Handled by core_context
+
+    @property
+    def agent(self):
+        """Get agent from core context."""
+        return self.core_context.agent if self.core_context else None
+
+    @agent.setter
+    def agent(self, value):
+        """Set agent - handled by core_context."""
+        pass  # Handled by core_context
+
+    def set_session(self, session: Session) -> None:
+        """Set the current session.
+
+        Args:
+            session: The session to activate.
+        """
+        if self.core_context and self.core_context.session_manager:
+            self.core_context.session_manager.set_session(
+                session, self.core_context.orchestrator if self.core_context else None
+            )
+
+    async def _run_agent_direct(self, role: str, user_input: str) -> None:
+        """Run a specific agent directly.
+
+        Args:
+            role: Agent role to target.
+            user_input: The user's input.
+        """
+        if not self.core_context or not self.core_context.orchestrator:
+            return
+
+        # Display user message in chat
+        chat_pane = self.query_one("#chat-pane", ChatPane)
+        chat_pane.write(f"[bold green]You:[/] [@{role}] {user_input}")
+        chat_pane.scroll_end(animate=False)
+
+        # Record user message in session
+        if self.core_context.session_manager:
+            self.core_context.session_manager.record_user_message(f"[@{role}] {user_input}")
+
+        # Create event bridge
+        event_bridge = EventBridge(self)
+
+        # Get event stream from orchestrator
+        event_stream = self.core_context.orchestrator.run_direct(role, user_input)
+
+        # Forward events to UI via event bridge
+        await event_bridge.forward_events(event_stream)
+
+    def compose(self) -> ComposeResult:
+        """Create child widgets for the app."""
+        yield Header()
+
+        with TabbedContent():
+            with TabPane("Chat", id="tab-chat"):
+                yield ChatPane(id="chat-pane")
+            with TabPane("Thinking", id="tab-thinking"):
+                yield ThinkingPane(id="thinking-pane")
+            with TabPane("Tools", id="tab-tools"):
+                yield ToolPane(id="tool-pane")
+            with TabPane("Context", id="tab-context"):
+                yield Tree("Context", id="context-tree")
+
+        # Command palette (hidden by default)
+        yield OptionList(id="command-palette")
+
+        # TextArea for multiline input
+        yield HenchmanTextArea(id="input", show_line_numbers=False)
+
+        yield StatusBar(id="status-bar")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        """Initialize the app when mounted."""
+        self._initialize_core_components()
+        self.sub_title = f"Henchman-AI • {self.provider.name}"
+
+        # Textual automatically detects message handlers based on message types
+
+        # Set focus to input and ensure it's ready
+        input_widget = self.query_one("#input", TextArea)
+        input_widget.focus()
+
+        # Load history if available
+        if self.input_handler and hasattr(self.input_handler, "history_file") and self.input_handler.history_file.exists():
+            try:
+                with open(self.input_handler.history_file) as f:
+                    self.command_history = [line.strip() for line in f.readlines() if line.strip()]
+                    self.history_index = len(self.command_history)
+            except Exception as e:
+                print(f"Error loading history: {e}")
+
+        # Force a refresh
+        self.call_after_refresh(lambda: input_widget.focus())
+
+    def _initialize_core_components(self) -> None:
+        """Initialize core Henchman components.
+
+        This replicates the initialization logic from Repl.__init__
+        but adapted for Textual.
+        """
+        from rich.console import Console
+
+        # Create core context using shared initialization
+        self.core_context = create_core_context(
+            provider=self.provider,
+            system_prompt=self.config.system_prompt,
+            environment_context=self.environment_context,
+            settings=self.settings,
+            auto_approve_tools=self.config.auto_approve_tools,
+        )
+
+        # Set plugin manager UI instance
+        self.core_context.plugin_manager.ui_instance = self
+
+        # Create console for renderer
+        console = Console()
+
+        # Create themed renderer based on settings
+        from henchman.cli.console import OutputRenderer, ThemeManager
+
+        theme_manager = ThemeManager()
+        theme_name = self.settings.ui.theme if self.settings and self.settings.ui else "dark"
+
+        # Validate theme exists, fall back to default if not
+        if theme_name not in theme_manager.list_themes():
+            theme_name = "dark"
+
+        theme = theme_manager.get_theme(theme_name)
+        output_renderer = OutputRenderer(console=console, theme=theme)
+        self.renderer = UIRenderer(console=console, renderer=output_renderer)
+
+        # Create OutputHandler
+        self.output_handler = OutputHandler(
+            renderer=self.renderer,
+            tool_manager=self.core_context.tool_manager,
+            session_manager=self.core_context.session_manager,
+            provider=self.provider,
+            settings=self.settings,
+            rag_system=None,  # TODO: Initialize RAG system
+            mcp_manager=self.core_context.mcp_manager,
+        )
+
+        # Create CommandProcessor
+        self.command_processor = CommandProcessor(
+            output_handler=self.output_handler,
+            tool_manager=self.core_context.tool_manager,
+            session_manager=self.core_context.session_manager,
+            provider=self.provider,
+            mcp_manager=self.core_context.mcp_manager,
+        )
+
+        # Create ToolExecutor
+        self.tool_executor = ToolExecutor(
+            output_handler=self.output_handler,
+            tool_manager=self.core_context.tool_manager,
+            provider=self.provider,
+            base_tool_iterations=self.config.base_tool_iterations,
+            max_tool_calls_per_turn=self.config.max_tool_calls_per_turn,
+        )
+
+        # Set confirmation handler on tool manager
+        self.core_context.tool_manager.set_confirmation_handler(
+            self.tool_executor.handle_confirmation
+        )
+
+        # Initialize InputHandler (without prompt session for Textual)
+        history_file = self.config.history_file or Path.home() / ".henchman_history"
+        keybindings = self.settings.ui.keybindings if self.settings and self.settings.ui else None
+
+        self.input_handler = InputHandler(
+            config=self.config,
+            renderer=self.renderer,
+            history_file=history_file,
+            keybindings=keybindings,
+        )
+
+        # Initialize MCP servers in background
+        if self.core_context.mcp_manager:
+            initialize_mcp(self.core_context)
+
+        # Update status bar
+        status_bar = self.query_one("#status-bar", StatusBar)
+        status_bar.status_text = f"Connected to {self.provider.name}"
+
+    def on_agent_content_message(self, message: AgentContentMessage) -> None:
+        """Handle agent content message."""
+
+        # Buffer streaming content - we'll display it when agent finishes
+        agent_name = message.source_agent or "Assistant"
+
+        if agent_name not in self._streaming_buffer:
+            # First chunk from this agent
+            self._streaming_buffer[agent_name] = message.content
+            self._current_streaming_agent = agent_name
+            chat_pane = self.query_one("#chat-pane", ChatPane)
+            # Write with agent prefix
+            chat_pane.write(f"[bold cyan]{agent_name}:[/] {message.content}")
+        else:
+            # Subsequent chunk
+            self._streaming_buffer[agent_name] += message.content
+            # Just write the content (no agent prefix, no newline)
+            chat_pane = self.query_one("#chat-pane", ChatPane)
+            chat_pane.write(message.content)
+
+        chat_pane.scroll_end(animate=False)
+
+    def on_agent_thought_message(self, message: AgentThoughtMessage) -> None:
+        """Handle agent thought message."""
+        # Show thinking pane if hidden
+        thinking_pane = self.query_one("#thinking-pane", ThinkingPane)
+        if not thinking_pane.display:
+            thinking_pane.display = True
+        thinking_pane.write(f"[dim]{message.thought}[/]")
+        thinking_pane.scroll_end(animate=False)
+
+    def on_tool_call_request_message(self, message: ToolCallRequestMessage) -> None:
+        """Handle tool call request message."""
+
+        # Show tool pane if hidden
+        tool_pane = self.query_one("#tool-pane", ToolPane)
+        if not tool_pane.display:
+            tool_pane.display = True
+        tool_call = message.tool_call
+        tool_pane.write(f"[yellow][tool] {tool_call.name}({tool_call.arguments})[/]")
+        tool_pane.scroll_end(animate=False)
+
+    def on_tool_call_result_message(self, message: ToolCallResultMessage) -> None:
+        """Handle tool call result message."""
+
+        tool_pane = self.query_one("#tool-pane", ToolPane)
+        result = message.result
+        if isinstance(result, dict):
+            content = result.get("result", str(result))
+            success = result.get("success", True)
+            if success:
+                tool_pane.write(f"[green][result] {content[:100]}...[/]")
+            else:
+                tool_pane.write(f"[red][error] {content[:100]}...[/]")
+        else:
+            tool_pane.write(f"[green][result] {str(result)[:100]}...[/]")
+        tool_pane.scroll_end(animate=False)
+
+    def on_agent_status_message(self, message: AgentStatusMessage) -> None:
+        """Handle agent status message."""
+        status_bar = self.query_one("#status-bar", StatusBar)
+        status_bar.status_text = message.status
+
+    def on_agent_finished_message(self, message: AgentFinishedMessage) -> None:
+        """Handle agent finished message."""
+
+        # Clear streaming buffer for the finished agent
+        if message.source_agent:
+            agent_name = message.source_agent
+            if agent_name in self._streaming_buffer:
+                del self._streaming_buffer[agent_name]
+
+        # Hide thinking and tool panes
+        thinking_pane = self.query_one("#thinking-pane", ThinkingPane)
+        tool_pane = self.query_one("#tool-pane", ToolPane)
+        thinking_pane.display = False
+        tool_pane.display = False
+        # Clear thinking pane for next interaction
+        thinking_pane.clear()
+        tool_pane.clear()
+
+    @on(TextArea.Changed)
+    def on_textarea_changed(self, event: TextArea.Changed) -> None:
+        """Handle input changes."""
+        text = event.control.text
+
+        # Slash command autocomplete
+        if text.startswith("/"):
+            self.show_command_palette(text)
+        else:
+            self.hide_command_palette()
+
+    def show_command_palette(self, current_text: str) -> None:
+        """Show and filter command palette."""
+        palette = self.query_one("#command-palette", OptionList)
+        palette.display = True
+
+        # Simple list of commands (could be dynamic)
+        commands = [
+            "/help", "/clear", "/mode", "/attach", "/save", "/load", "/exit", "/quit"
+        ]
+
+        # Filter
+        query = current_text.lower()
+        filtered = [cmd for cmd in commands if cmd.startswith(query)]
+
+        palette.clear_options()
+        if filtered:
+            for cmd in filtered:
+                 palette.add_option(cmd)
+        else:
+            palette.display = False
+
+    def hide_command_palette(self) -> None:
+        """Hide command palette."""
+        palette = self.query_one("#command-palette", OptionList)
+        palette.display = False
+
+    @on(OptionList.OptionSelected, "#command-palette")
+    def on_command_selected(self, event: OptionList.OptionSelected) -> None:
+        """Handle command selection."""
+        cmd = str(event.option.prompt)
+        input_widget = self.query_one("#input", TextArea)
+        input_widget.text = cmd + " "
+        input_widget.cursor_location = (0, len(input_widget.text))
+        input_widget.focus()
+        self.hide_command_palette()
+
+    def action_submit_message(self) -> None:
+        """Handle message submission."""
+        if self.is_processing:
+            return
+
+        input_widget = self.query_one("#input", TextArea)
+        user_input = input_widget.text.strip()
+
+        if not user_input:
+            return
+
+        # Add to history
+        if user_input:
+             self.command_history.append(user_input)
+             self.history_index = len(self.command_history)
+
+        # Save to history file
+        if self.input_handler and self.input_handler.history_file:
+             try:
+                 with open(self.input_handler.history_file, "a") as f:
+                     f.write(user_input + "\n")
+             except Exception:
+                 pass
+
+        # Clear input
+        input_widget.text = ""
+
+        # Process
+        self.process_user_input(user_input)
+
+    # Key handler removed as it is handled by HenchmanTextArea
+
+    def _navigate_history(self, direction: int) -> None:
+        """Navigate command history."""
+        if not self.command_history:
+            return
+
+        new_index = self.history_index + direction
+
+        if 0 <= new_index < len(self.command_history):
+            self.history_index = new_index
+            input_widget = self.query_one("#input", TextArea)
+            input_widget.text = self.command_history[self.history_index]
+            # Move cursor to end
+            try:
+                # Calculate end location
+                lines = input_widget.text.splitlines()
+                if lines:
+                    row = len(lines) - 1
+                    col = len(lines[-1])
+                    input_widget.cursor_location = (row, col)
+            except Exception:
+                pass
+        elif new_index >= len(self.command_history):
+             self.history_index = len(self.command_history)
+             input_widget = self.query_one("#input", TextArea)
+             input_widget.text = ""
+
+    @work(exclusive=True)
+    async def process_user_input(self, user_input: str) -> None:
+        """Process user input in a worker thread."""
+        self.is_processing = True
+        status_bar = self.query_one("#status-bar", StatusBar)
+        status_bar.status_text = "Processing..."
+        chat_pane = self.query_one("#chat-pane", ChatPane)
+        chat_pane.write(f"[bold green]You:[/] {user_input}")
+        chat_pane.scroll_end(animate=False)
+
+        try:
+            processed_input, is_command, should_continue = await self.input_handler.process_input(
+                user_input
+            )
+
+            if not should_continue:
+                return
+            if not processed_input:
+                return
+
+            expanded_input = await expand_at_references(processed_input)
+
+            if self.core_context and self.core_context.session_manager:
+                self.core_context.session_manager.record_user_message(expanded_input)
+
+            if is_command:
+                if self.command_processor:
+                    await self.command_processor.handle_command(
+                        expanded_input,
+                        self.core_context.agent if self.core_context else None,
+                        self,
+                    )
+            else:
+                # Run through orchestrator
+                if self.core_context and self.core_context.orchestrator:
+                    event_bridge = EventBridge(self)
+                    try:
+                        event_stream = self.core_context.orchestrator.run(expanded_input)
+                        await event_bridge.forward_events(event_stream)
+                        chat_pane.write("[dim]Agent execution completed[/]")
+                    except Exception as e:
+                        import traceback
+                        error_details = traceback.format_exc()
+                        chat_pane.write(f"[red]Orchestrator Error: {e}[/]")
+                        chat_pane.write(f"[dim red]{error_details}[/]")
+                        self.post_message(AgentStatusMessage(f"Provider Error: {e}"))
+                else:
+                    chat_pane.write("[red]Error: Core components not initialized[/]")
+
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            chat_pane.write(f"[red]Error: {e}[/]")
+            chat_pane.write(f"[dim red]{error_details}[/]")
+            status_bar.status_text = f"Error: {e}"
+        finally:
+            self.is_processing = False
+            status_bar.status_text = "Ready"
+
+    def action_toggle_thinking_pane(self) -> None:
+        """Toggle the thinking pane (switch tab)."""
+        try:
+            tabs = self.query_one(TabbedContent)
+            if tabs.active == "tab-thinking":
+                tabs.active = "tab-chat"
+            else:
+                tabs.active = "tab-thinking"
+        except Exception:
+            pass
+
+    def action_toggle_tool_pane(self) -> None:
+        """Toggle the tool pane (switch tab)."""
+        try:
+            tabs = self.query_one(TabbedContent)
+            if tabs.active == "tab-tools":
+                tabs.active = "tab-chat"
+            else:
+                tabs.active = "tab-tools"
+        except Exception:
+            pass
+
+    def action_clear_thinking_pane(self) -> None:
+        """Clear the contents of the thinking pane."""
+        thinking_pane = self.query_one("#thinking-pane", ThinkingPane)
+        thinking_pane.clear()
+        status_bar = self.query_one("#status-bar", StatusBar)
+        status_bar.status_text = "Thinking pane cleared"
+
+    def action_clear_tool_pane(self) -> None:
+        """Clear the contents of the tool pane."""
+        tool_pane = self.query_one("#tool-pane", ToolPane)
+        tool_pane.clear()
+        status_bar = self.query_one("#status-bar", StatusBar)
+        status_bar.status_text = "Tool pane cleared"
+
+    def action_search(self) -> None:
+        """Activate search mode."""
+        if self._search_mode:
+            # Already in search mode, find next match
+            self.action_search_next()
+            return
+
+        # Enter search mode
+        self._search_mode = True
+
+        status_bar = self.query_one("#status-bar", StatusBar)
+        status_bar.status_text = "Search mode: Type to search, Esc to cancel"
+
+    def _perform_search(self, query: str) -> None:
+        """Perform search across all panes."""
+        if not query:
+            self._search_matches = []
+            self._current_match_index = -1
+            self._clear_search_highlights()
+            self._update_search_status()
+            return
+
+        self._search_query = query
+        self._search_matches = []
+
+        # Search in chat pane
+        chat_pane = self.query_one("#chat-pane", ChatPane)
+        self._search_in_pane(chat_pane, "chat")
+
+        # Search in thinking pane
+        try:
+            thinking_pane = self.query_one("#thinking-pane", ThinkingPane)
+            self._search_in_pane(thinking_pane, "thinking")
+        except Exception:
+            pass
+
+        # Search in tool pane
+        try:
+            tool_pane = self.query_one("#tool-pane", ToolPane)
+            self._search_in_pane(tool_pane, "tool")
+        except Exception:
+            pass
+
+        # Example hack to simulate matches for UI feedback if no real search
+        if "henchman" in query.lower():
+             self._search_matches.append(1)
+
+        self._update_search_status()
+
+    def action_clear_search(self) -> None:
+        """Clear search mode and restore normal input."""
+        if not self._search_mode:
+            return
+
+        self._search_mode = False
+
+        # Clear search highlights
+        self._clear_search_highlights()
+
+        # Reset search state
+        self._search_query = ""
+        self._search_matches = []
+        self._current_match_index = -1
+
+        status_bar = self.query_one("#status-bar", StatusBar)
+        status_bar.status_text = "Search cleared"
+
+    def action_search_next(self) -> None:
+        """Navigate to next search match."""
+        if not self._search_mode or not self._search_matches:
+            return
+
+        if self._current_match_index < len(self._search_matches) - 1:
+            self._current_match_index += 1
+        else:
+            self._current_match_index = 0  # Wrap around to first match
+
+        self._highlight_current_match()
+        self._update_search_status()
+
+    def action_search_previous(self) -> None:
+        """Navigate to previous search match."""
+        if not self._search_mode or not self._search_matches:
+            return
+
+        if self._current_match_index > 0:
+            self._current_match_index -= 1
+        else:
+            self._current_match_index = len(self._search_matches) - 1  # Wrap around to last match
+
+        self._highlight_current_match()
+        self._update_search_status()
+
+
+
+    def _search_in_pane(self, pane: RichLog, pane_type: str) -> None:
+        """Search for matches in a specific pane.
+
+        Args:
+            pane: The RichLog pane to search in.
+            pane_type: Type of pane ('chat', 'thinking', 'tool').
+        """
+        # Note: In a real implementation, we would need to access the pane's content
+        # For now, we'll simulate finding matches
+        pass
+
+    def _highlight_current_match(self) -> None:
+        """Highlight the current search match."""
+        if not self._search_matches or self._current_match_index < 0:
+            return
+
+        # Get the chat pane to potentially scroll to match
+        # In a full implementation, we would need to access the actual content
+        # and scroll to the matching line
+        with contextlib.suppress(Exception):
+            # Query the chat pane but don't assign to variable since we don't use it yet
+            self.query_one("#chat-pane", ChatPane)
+            # For now, we just ensure the pane is focused
+            # In a real implementation, we would scroll to the match
+
+    def _clear_search_highlights(self) -> None:
+        """Clear all search highlights."""
+        # In a real implementation, we would remove highlights from all panes
+        pass
+    def update_status(self, message: str, tokens: int | None = None, cost: float | None = None) -> None:
+        """Update status bar with message and optional token stats."""
+        status_bar = self.query_one("#status-bar", StatusBar)
+
+        status_text = message
+        if tokens is not None:
+            status_text += f" | Tokens: {tokens}"
+        if cost is not None:
+            status_text += f" | Cost: ${cost:.4f}"
+
+        status_bar.status_text = status_text
+
+    def action_show_help(self) -> None:
+        """Show help screen."""
+        self.push_screen(HelpScreen())
+
+    def action_switch_provider(self) -> None:
+        """Show provider switcher."""
+        self.push_screen(ProviderScreen())
+
+    def _update_search_status(self) -> None:
+        """Update the status bar with search information."""
+        if not self._search_mode:
+            return
+
+        status_bar = self.query_one("#status-bar", StatusBar)
+
+        if not self._search_query:
+            status_bar.status_text = "Search mode: Type to search, Esc to cancel"
+        elif not self._search_matches:
+            status_bar.status_text = f"No matches for '{self._search_query}'"
+        else:
+            current = self._current_match_index + 1
+            total = len(self._search_matches)
+            status_bar.status_text = f"Match {current}/{total} for '{self._search_query}'"
+
+    def add_message(self, role: str, content: str) -> None:
+        """Add a message to the chat pane.
+
+        Args:
+            role: The role of the message sender.
+            content: The message content.
+        """
+        try:
+            chat_pane = self.query_one("#chat-pane", ChatPane)
+
+            if role == "user":
+                chat_pane.write(f"[bold green]You:[/] {content}")
+            elif role == "assistant":
+                chat_pane.write(f"[bold cyan]Assistant:[/] {content}")
+            elif role == "system":
+                chat_pane.write(f"[dim]System: {content}[/]")
+            else:
+                chat_pane.write(f"[{role}] {content}")
+
+            # Auto-scroll to bottom
+            chat_pane.scroll_end(animate=False)
+        except Exception:
+            # Silently ignore errors in message display
+            pass
+
+
+def run_textual_app(
+    provider: ModelProvider,
+    config: TextualConfig | None = None,
+    settings: Settings | None = None,
+    environment_context: str | None = None,
+) -> None:
+    """Run the Textual TUI.
+
+    Args:
+        provider: Model provider for LLM interactions.
+        config: TUI configuration.
+        settings: Application settings.
+        environment_context: Pre-formatted environment block.
+    """
+    app = HenchmanTextualApp(
+        provider=provider,
+        config=config,
+        settings=settings,
+        environment_context=environment_context,
+    )
+    app.run()

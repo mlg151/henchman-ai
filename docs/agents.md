@@ -84,7 +84,7 @@ graph TD
 By default, you talk to the **Tech Lead**. They will automatically delegate tasks to specialists as needed.
 
 ```bash
-mlg
+henchman
 ❯ Implement a new authentication module
 ```
 
@@ -98,7 +98,7 @@ You can talk to a specific agent directly using the `/agent` command:
 Or from the command line:
 
 ```bash
-mlg --agent researcher --prompt "How do I use the FastAPI background tasks?"
+henchman --agent researcher --prompt "How do I use the FastAPI background tasks?"
 ```
 
 ### Team Management

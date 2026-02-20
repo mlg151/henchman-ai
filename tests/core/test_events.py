@@ -87,11 +87,7 @@ class TestAgentEvent:
 
     def test_event_with_source_agent(self) -> None:
         """Test creating an event with a source agent."""
-        event = AgentEvent(
-            type=EventType.CONTENT,
-            data="Hello",
-            source_agent="agent-1"
-        )
+        event = AgentEvent(type=EventType.CONTENT, data="Hello", source_agent="agent-1")
         assert event.source_agent == "agent-1"
 
     def test_multi_agent_events(self) -> None:

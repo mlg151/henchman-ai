@@ -284,7 +284,11 @@ def initialize_rag(
         stats = rag_system.index(console=console)
 
         # Show summary
-        if console and stats is not None and (stats.files_added or stats.files_updated or stats.files_removed):
+        if (
+            console
+            and stats is not None
+            and (stats.files_added or stats.files_updated or stats.files_removed)
+        ):
             console.print(
                 f"[dim]RAG index updated: "
                 f"{stats.files_added} added, "

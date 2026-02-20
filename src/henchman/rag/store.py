@@ -105,12 +105,15 @@ class VectorStore:
                 last_error = e
                 error_str = str(e).lower()
                 # Retry on HNSW/compactor errors (concurrent access issues)
-                if any(
-                    phrase in error_str
-                    for phrase in ["hnsw", "compactor", "segment", "backfill", "locked"]
-                ) and attempt < max_retries - 1:
-                        time.sleep(0.5 * (attempt + 1))  # Backoff
-                        continue
+                if (
+                    any(
+                        phrase in error_str
+                        for phrase in ["hnsw", "compactor", "segment", "backfill", "locked"]
+                    )
+                    and attempt < max_retries - 1
+                ):
+                    time.sleep(0.5 * (attempt + 1))  # Backoff
+                    continue
                 # Re-raise non-retryable errors immediately
                 raise
         else:

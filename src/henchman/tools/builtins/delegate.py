@@ -26,18 +26,7 @@ class DelegateTaskTool(Tool):
             "Delegate a task to a specialist agent. Each specialist starts with a "
             "CLEAN context, so you MUST provide all relevant information in the "
             "structured fields below. Do not assume the agent remembers anything "
-            "from prior delegations.\n\n"
-            "**DELEGATION PRIORITY RULES**:\n"
-            "1. ALWAYS consider delegation before doing work yourself\n"
-            "2. Use specialists for their designated expertise\n"
-            "3. Provide COMPLETE context - specialists have no memory\n"
-            "4. Include explicit 'done_when' criteria\n\n"
-            "**WHEN TO DELEGATE**:\n"
-            "- Architecture/design → Planner\n"
-            "- Research/exploration → Explorer\n"
-            "- Implementation/testing → Engineer\n"
-            "- Documentation → Explorer\n"
-            "- Complex debugging → Engineer"
+            "from prior delegations."
         )
 
     @property
@@ -50,7 +39,8 @@ class DelegateTaskTool(Tool):
                     "type": "string",
                     "description": (
                         "The role of the specialist agent to delegate to "
-                        "(e.g., 'planner', 'explorer', 'engineer')"
+                        "(e.g., 'planner', 'explorer', 'engineer', "
+                        "'data_engineer')"
                     ),
                 },
                 "task": {
@@ -82,7 +72,9 @@ class DelegateTaskTool(Tool):
                     "items": {"type": "string"},
                     "description": (
                         "List of file paths the agent should read or modify. "
-                        "Be explicit — the agent has no prior knowledge."
+                        "STRONGLY RECOMMENDED — omitting this forces the "
+                        "specialist to waste turns discovering files. Always "
+                        "list at least the primary file the agent will work on."
                     ),
                 },
                 "background": {
@@ -98,6 +90,15 @@ class DelegateTaskTool(Tool):
                     "description": (
                         "Explicit acceptance criteria or constraints "
                         "(e.g., 'Must pass ruff check', 'No new dependencies')."
+                    ),
+                },
+                "depends_on": {
+                    "type": "string",
+                    "description": (
+                        "Brief description of what prior agent work this task "
+                        "depends on (e.g., 'Explorer found the API uses "
+                        "OAuth2 — see background'). Helps the specialist "
+                        "understand the chain of work."
                     ),
                 },
             },
@@ -118,6 +119,7 @@ class DelegateTaskTool(Tool):
         files: list[str] | None = None,
         background: str | None = None,
         requirements: str | None = None,
+        depends_on: str | None = None,
         **kwargs: Any,
     ) -> ToolResult:
         """Stub execution - should be intercepted by Orchestrator.
@@ -130,12 +132,10 @@ class DelegateTaskTool(Tool):
             files: Optional list of relevant file paths.
             background: Optional summary of prior work.
             requirements: Optional acceptance criteria.
+            depends_on: Optional description of prior work dependencies.
             **kwargs: Additional arguments.
 
         Returns:
             ToolResult indicating delegation was handled.
         """
-        return ToolResult(
-            content="Delegation handled by orchestrator",
-            success=True
-        )
+        return ToolResult(content="Delegation handled by orchestrator", success=True)

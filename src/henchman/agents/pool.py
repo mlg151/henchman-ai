@@ -129,9 +129,7 @@ class AgentPool:
         # Get role-specific system prompt
         from henchman.agents.prompts import get_agent_prompt
 
-        team_members = [
-            f"{c.name} ({c.role})" for c in self.configs.values() if c.enabled
-        ]
+        team_members = [f"{c.name} ({c.role})" for c in self.configs.values() if c.enabled]
 
         system_prompt = config.system_prompt
         if system_prompt is None:
@@ -205,9 +203,7 @@ class AgentPool:
         Returns:
             List of AgentIdentities for all active agents.
         """
-        return [
-            agent.identity for agent in self._agents.values() if agent.identity
-        ]
+        return [agent.identity for agent in self._agents.values() if agent.identity]
 
     def reset_agent(self, role: str) -> None:
         """Reset an agent's history.

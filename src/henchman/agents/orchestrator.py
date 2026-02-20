@@ -108,11 +108,17 @@ class Orchestrator:
 
         team_members = [f"{c.name} ({c.role})" for c in agent_configs.values() if c.enabled]
 
+        team_descriptions = {
+            c.role: c.description or ""
+            for c in agent_configs.values()
+            if c.enabled
+        }
         tl_prompt = system_prompt or get_agent_prompt(
             role="tech_lead",
             team_members=team_members,
             delegatable_agents=[c.role for c in agent_configs.values() if c.enabled],
             environment_context=environment_context,
+            team_descriptions=team_descriptions,
         )
 
         from henchman.agents.identity import AgentIdentity
@@ -150,7 +156,9 @@ class Orchestrator:
             type=EventType.AGENT_STARTED, data={"agent": "tech_lead"}, source_agent="orchestrator"
         )
 
+        event_count = 0
         async for event in self._run_agent_loop(self.tech_lead, user_input):
+            event_count += 1
             yield event
 
         yield AgentEvent(
@@ -303,6 +311,7 @@ class Orchestrator:
                         "files": tool_call.arguments.get("files"),
                         "background": tool_call.arguments.get("background"),
                         "requirements": tool_call.arguments.get("requirements"),
+                        "depends_on": tool_call.arguments.get("depends_on"),
                     }
 
                     # Update delegation metrics
@@ -394,10 +403,15 @@ class Orchestrator:
                 and agent.identity
             ):
                 role_id = agent.identity.role or agent.identity.id
+                mission_note = ""
+                if self.ledger:
+                    recap = self.ledger.mission_recap()
+                    if recap:
+                        mission_note = f" Mission: {recap}"
                 anchor_msg = (
                     f"[Role Anchor] You are the {role_id.upper()}. "
                     f"Stay focused on your assigned responsibilities. "
-                    f"Do not overstep your role boundaries."
+                    f"Do not overstep your role boundaries.{mission_note}"
                 )
                 agent.messages.append(Message(role="user", content=anchor_msg))
 
@@ -427,8 +441,11 @@ class Orchestrator:
                     wrapup_warned = True
                     warn_msg = (
                         f"[WRAP-UP WARNING] You have {remaining} tool-call "
-                        f"turn(s) remaining. Start wrapping up: run any "
-                        f"final verification and produce your completion summary."
+                        f"turn(s) remaining. Prioritise:\n"
+                        f"1. Run any final verification (tests, lint).\n"
+                        f"2. Write a completion report using the "
+                        f"DELEGATION_SUMMARY_SCHEMA format.\n"
+                        f"3. List BLOCKERS if you cannot finish in time."
                     )
                     agent.messages.append(Message(role="user", content=warn_msg))
 
@@ -522,8 +539,34 @@ class Orchestrator:
                 f"{existing_bg}\n\n{handoff_notes}" if existing_bg else handoff_notes
             )
 
+        # Inject prior failure context if the same role failed before (#17)
+        if self.ledger:
+            prior_failures = [
+                d for d in self.ledger.delegations
+                if d.agent == target_role
+                and d.status == "FAILED"
+            ]
+            if prior_failures:
+                last_fail = prior_failures[-1]
+                fail_note = (
+                    f"### Prior Attempt Failed\n"
+                    f"A previous delegation to you for "
+                    f"\"{last_fail.task}\" ended with status FAILED. "
+                    f"Avoid repeating the same approach."
+                )
+                existing_bg = brief.get("background") if brief else None
+                if brief is None:
+                    brief = {}
+                brief["background"] = (
+                    f"{existing_bg}\n\n{fail_note}"
+                    if existing_bg
+                    else fail_note
+                )
+
         # Assemble the full task from the structured brief fields
-        full_task = self._assemble_delegation_input(task, brief)
+        full_task = self._assemble_delegation_input(
+            task, brief, mission=self.ledger.goal if self.ledger else None
+        )
 
         # Record where the agent's messages start so we can extract a clean
         # summary afterwards (content events may be duplicated during streaming).
@@ -563,7 +606,8 @@ class Orchestrator:
         self.shared_context.append(
             {
                 "agent": target_role,
-                "summary": summary[:500],
+                "summary": summary[:800],
+                "files_modified": parsed.get("files_modified", ""),
                 "timestamp": datetime.now().isoformat(),
             }
         )
@@ -579,7 +623,11 @@ class Orchestrator:
         )
 
     @staticmethod
-    def _assemble_delegation_input(task: str, brief: dict[str, Any] | None) -> str:
+    def _assemble_delegation_input(
+        task: str,
+        brief: dict[str, Any] | None,
+        mission: str | None = None,
+    ) -> str:
         """Build a self-contained input string from the structured delegation brief.
 
         The resulting text gives the specialist everything it needs without
@@ -588,13 +636,21 @@ class Orchestrator:
         Args:
             task: The core task description.
             brief: Optional structured fields from the Tech Lead.
+            mission: Optional high-level mission statement for context.
 
         Returns:
             A formatted string ready to be passed as user input to the specialist.
         """
-        sections: list[str] = [f"## Task\n{task}"]
+        sections: list[str] = []
+
+        # Mission header gives the specialist project-level context (#6)
+        if mission:
+            sections.append(f"## Mission\n{mission}")
+
+        sections.append(f"## Task\n{task}")
+
         if not brief:
-            return sections[0]
+            return "\n\n".join(sections)
 
         if brief.get("done_when"):
             sections.append(
@@ -609,6 +665,18 @@ class Orchestrator:
         if files:
             file_list = "\n".join(f"- `{f}`" for f in files)
             sections.append(f"## Relevant Files\n{file_list}")
+
+        # Dependency chain awareness (#10)
+        depends_on = brief.get("depends_on")
+        if depends_on:
+            if isinstance(depends_on, str):
+                depends_on = [depends_on]
+            dep_list = "\n".join(f"- {d}" for d in depends_on)
+            sections.append(
+                f"## Depends On\n{dep_list}\n"
+                f"_(These tasks were completed earlier; "
+                f"build on their outputs.)_"
+            )
 
         if brief.get("background"):
             sections.append(f"## Background\n{brief['background']}")
@@ -640,6 +708,9 @@ class Orchestrator:
             "files_modified": r"FILES_MODIFIED:\s*(.+?)(?:\n|$)",
             "tests_run": r"TESTS_RUN:\s*(.+?)(?:\n|$)",
             "verification": r"VERIFICATION:\s*(.+?)(?:\n|$)",
+            "blockers": r"BLOCKERS:\s*(.+?)(?:\n|$)",
+            "handoff_notes": r"HANDOFF_NOTES:\s*(.+?)(?:\n|$)",
+            "artifacts": r"ARTIFACTS:\s*(.+?)(?:\n|$)",
         }
         for key, pattern in patterns.items():
             match = re.search(pattern, summary, re.IGNORECASE)

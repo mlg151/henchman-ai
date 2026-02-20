@@ -20,7 +20,7 @@ fi
 
 echo ""
 echo "To use Serena with Henchman-AI:"
-echo "1. Start Henchman-AI: mlg"
+echo "1. Start Henchman-AI: henchman"
 echo "2. Check MCP status: /mcp list"
 echo "3. List tools: /tools"
 echo ""

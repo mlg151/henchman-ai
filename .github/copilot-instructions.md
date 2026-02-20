@@ -34,7 +34,7 @@ src/henchman/
 ```bash
 pip install -e ".[dev]"       # Install in editable mode with dev deps
 ./scripts/ci.sh               # Run full CI pipeline
-mlg --version                 # Verify CLI entry point
+henchman --version                 # Verify CLI entry point
 ```
 ## CI Pipeline
 Run `./scripts/ci.sh` to execute:
@@ -141,10 +141,10 @@ anyio.run(repl.run)
 **CLI Usage:**
 ```bash
 # Interactive mode
-mlg
+henchman
 # Headless mode (single prompt)
-mlg --prompt "What is 2+2?"
-mlg -p "Summarize this file: @document.txt"
+henchman --prompt "What is 2+2?"
+henchman -p "Summarize this file: @document.txt"
 ```
 **Event Types:**
 - `CONTENT` - Text content from LLM
@@ -217,7 +217,7 @@ context = loader.load()  # Concatenated content from all HENCHMAN.md files
 **Settings Precedence** (later overrides earlier):
 1. Defaults (Pydantic model defaults)
 2. User settings (`~/.henchman/settings.yaml`)
-3. Workspace settings (`.mlg/settings.yaml`)
+3. Workspace settings (`.henchman/settings.yaml`)
 4. Environment variables (`HENCHMAN_PROVIDER`, `HENCHMAN_MODEL`)
 **Context File Discovery** (HENCHMAN.md):
 - Global: `~/.henchman/HENCHMAN.md`
@@ -415,7 +415,7 @@ result = await client.call_tool("insert_after_symbol", {
 
 4. **Verify connection**:
    ```bash
-   mlg
+   henchman
    /mcp status  # Check if Serena is connected
    /tools       # List available tools including Serena's
    ```
@@ -512,7 +512,7 @@ class MyExtension(Extension):
 # Load extensions
 manager = ExtensionManager()
 manager.discover_entry_points()  # From installed packages
-manager.discover_directory(Path.home() / ".mlg" / "extensions")
+manager.discover_directory(Path.home() / ".henchman" / "extensions")
 ```
 **Extension Discovery:**
 - Entry points: Register in `pyproject.toml` under `[project.entry-points."henchman.extensions"]`
@@ -829,9 +829,9 @@ async def test_real_api(): ...
 ## File Structure
 ```
 henchman-ai/
-├── src/mlg/                    # Main package
+├── src/henchman/                    # Main package
 │   ├── __init__.py             # Package init, exports __version__
-│   ├── __main__.py             # Entry point for python -m mlg
+│   ├── __main__.py             # Entry point for python -m henchman
 │   ├── version.py              # Version info (0.1.0)
 │   ├── cli/                    # CLI and UI layer
 │   │   ├── app.py              # CLI application (click)
@@ -913,7 +913,7 @@ This project follows **Test-Driven Development (TDD)** with strict quality requi
 ### Adding New Features
 1. Create test file in `tests/` matching source structure
 2. Write test cases covering all functionality
-3. Implement feature in `src/mlg/`
+3. Implement feature in `src/henchman/`
 4. Add exports to `__init__.py` files
 5. Run `./scripts/ci.sh` until all checks pass
 6. Update relevant documentation

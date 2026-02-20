@@ -47,6 +47,7 @@ def discover_settings_files() -> list[Path]:
     """Discover settings files in order of precedence.
 
     Searches for settings.yaml or settings.json in:
+    0. HENCHMAN_SETTINGS_PATH (if set)
     1. ~/.henchman/ (user settings)
     2. .henchman/ (workspace settings)
 
@@ -54,6 +55,13 @@ def discover_settings_files() -> list[Path]:
         List of paths to settings files, ordered by precedence (user first).
     """
     files: list[Path] = []
+
+    # Custom settings path
+    if env_path := os.environ.get("HENCHMAN_SETTINGS_PATH"):
+        path = Path(env_path)
+        if path.exists():
+            files.append(path)
+            return files  # If explicit path is set, it overrides all others
 
     # User settings
     user_dir = Path.home() / ".henchman"
@@ -157,3 +165,27 @@ def load_settings() -> Settings:
         return Settings(**merged)
     except ValidationError as e:
         raise ConfigError(f"Invalid settings: {e}") from e
+
+
+def save_settings(settings: Settings, path: Path | None = None) -> None:
+    """Save settings to a file.
+
+    Args:
+        settings: Settings object to save.
+        path: Path to save to. If None, uses ~/.henchman/settings.yaml.
+    """
+    if path is None:
+        path = Path.home() / ".henchman" / "settings.yaml"
+
+    # Ensure directory exists
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Convert settings to dict, excluding defaults to keep file clean
+    data = settings.model_dump(exclude_defaults=True, mode="json")
+
+    # Write to file
+    with open(path, "w") as f:
+        if path.suffix in (".yaml", ".yml"):
+            yaml.dump(data, f, default_flow_style=False)
+        else:
+            json.dump(data, f, indent=2)

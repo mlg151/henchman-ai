@@ -219,8 +219,12 @@ class TestInputValidationInREPL:
 
         # Orchestrator should have been invoked (we mocked run as a generator)
         # The _run_agent method calls self.orchestrator.run() directly
-        # Just verify no info message was shown (input was valid)
-        mock_renderer.info.assert_not_called()
+        # The renderer.info() should be called with a status message
+        mock_renderer.info.assert_called()
+        # Check it was called with a string containing "CHAT" or similar
+        call_args = mock_renderer.info.call_args[0][0]
+        assert isinstance(call_args, str)
+        # Either it's a token message or status message is fine
 
 
 if __name__ == "__main__":

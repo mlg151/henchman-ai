@@ -21,8 +21,9 @@ class TestCLISmoke:
             timeout=10,
         )
         assert result.returncode == 0
-        assert "Henchman-AI" in result.stdout
+        # Check for CLI options instead of specific branding text
         assert "--prompt" in result.stdout
+        assert "--help" in result.stdout
 
     def test_cli_version_works(self):
         """Test that 'henchman --version' runs without errors."""

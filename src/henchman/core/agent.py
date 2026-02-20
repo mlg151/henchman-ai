@@ -25,6 +25,38 @@ if TYPE_CHECKING:
 class Agent:
     """Orchestrates interactions between user, LLM, and tools."""
 
+    # Constants
+    DEFAULT_MAX_TOKENS = 8000
+    DEFAULT_TOKEN_RATIO = 0.85  # 85% of model limit
+    MAX_STALL_NUDGES = 2
+    MIN_RESPONSE_LENGTH_FOR_STALL_CHECK = 20
+    MAX_RESPONSE_LENGTH_FOR_INTENT_PHRASE = 120
+
+    # Stall detection patterns
+    STALL_PHRASES = [
+        "let me start by",
+        "i'll start by",
+        "i will start by",
+        "i'll create",
+        "let me create",
+        "i'll write",
+        "let me write",
+        "i'll begin",
+        "now i'll",
+        "let me begin",
+        "i'm going to",
+        "i will now",
+        "step 1:",
+        "first, i will",
+        "let me ",
+        "going to ",
+        "next i ",
+    ]
+    STALL_NUDGE_MESSAGE = (
+        "You stopped without taking action. Do not narrate — use your tools "
+        "to do the work. Call the appropriate tool NOW."
+    )
+
     def __init__(
         self,
         provider: ModelProvider,
@@ -67,9 +99,9 @@ class Agent:
         if max_tokens > 0:
             self.max_tokens = max_tokens
         elif model:
-            self.max_tokens = int(get_model_limit(model) * 0.85)  # 85% of limit
+            self.max_tokens = int(get_model_limit(model) * self.DEFAULT_TOKEN_RATIO)
         else:
-            self.max_tokens = 8000  # Safe default
+            self.max_tokens = self.DEFAULT_MAX_TOKENS
 
         self.messages: list[Message] = []
 
@@ -78,7 +110,7 @@ class Agent:
         self.unlimited_mode = False
         self._stall_nudge_count = 0
         self._stall_failure = False
-        self._max_stall_nudges = 2
+        self._max_stall_nudges = self.MAX_STALL_NUDGES
         self.stall_detection_enabled = True
         self._turn_number = 0
 
@@ -126,45 +158,58 @@ class Agent:
             protect_from_index=self.turn.start_index,
         )
 
-    async def _apply_compaction_if_needed(self) -> bool:
-        """Apply compaction to messages if they exceed token limit.
-
-        Returns:
-            True if compaction was applied, False otherwise.
-        """
-        current_tokens = TokenCounter.count_messages(self.messages, model=self.model)
-
-        # Update turn's protected token count
+    def _update_protected_token_count(self) -> None:
+        """Update the turn's protected token count."""
         if self.turn.start_index < len(self.messages):
             protected_msgs = self.messages[self.turn.start_index :]
             self.turn.protected_tokens = TokenCounter.count_messages(
                 protected_msgs, model=self.model
             )
 
-        if current_tokens <= self.max_tokens:
+    def _calculate_protected_count(self) -> int:
+        """Calculate number of protected messages.
+
+        Protected messages are always placed at the end of the compacted
+        list, so the new start_index = len(compacted) - protected_count.
+        """
+        return max(0, len(self.messages) - self.turn.start_index)
+
+    async def _try_summarization_compaction(self, protected_count: int) -> bool:
+        """Try compaction with summarization if enabled.
+
+        Returns:
+            True if summarization compaction was applied, False otherwise.
+        """
+        if not self.summarize_dropped:
             return False
 
-        # Try summarization if enabled
-        if self.summarize_dropped:
-            from henchman.utils.compaction import compact_with_summarization
+        from henchman.utils.compaction import compact_with_summarization
 
-            result = await compact_with_summarization(
-                messages=self.messages,
-                max_tokens=self.max_tokens,
-                provider=self.provider,
-                summarize=True,
-                protect_from_index=self.turn.start_index,
-                max_protected_ratio=self.max_protected_ratio,
-            )
-            if result.was_compacted:
-                # Validate and repair if needed — summarization can break
-                # tool sequences in edge cases
-                if not is_valid_message_sequence(result.messages):
-                    result.messages = repair_message_sequence(result.messages)
-                self.messages = result.messages
-                return True
+        result = await compact_with_summarization(
+            messages=self.messages,
+            max_tokens=self.max_tokens,
+            provider=self.provider,
+            summarize=True,
+            protect_from_index=self.turn.start_index,
+            max_protected_ratio=self.max_protected_ratio,
+        )
 
-        # Fall back to simple compaction
+        if not result.was_compacted:
+            return False
+
+        # Validate and repair if needed — summarization can break
+        # tool sequences in edge cases
+        if not is_valid_message_sequence(result.messages):
+            result.messages = repair_message_sequence(result.messages)
+
+        self.messages = result.messages
+        # Update start_index so subsequent compaction cycles don't
+        # use stale offsets that could split tool sequences.
+        self.turn.start_index = max(0, len(self.messages) - protected_count)
+        return True
+
+    def _apply_simple_compaction(self, protected_count: int) -> None:
+        """Apply simple compaction without summarization."""
         from henchman.utils.compaction import ContextCompactor
 
         compactor = ContextCompactor(
@@ -179,7 +224,67 @@ class Agent:
         # Validate and repair compacted messages if tool sequences were broken
         if not is_valid_message_sequence(self.messages):
             self.messages = repair_message_sequence(self.messages)
+        # Update start_index so subsequent compaction cycles don't
+        # use stale offsets that could split tool sequences.
+        self.turn.start_index = max(0, len(self.messages) - protected_count)
+
+    async def _apply_compaction_if_needed(self) -> bool:
+        """Apply compaction to messages if they exceed token limit.
+
+        Returns:
+            True if compaction was applied, False otherwise.
+        """
+        current_tokens = TokenCounter.count_messages(self.messages, model=self.model)
+
+        # Update turn's protected token count
+        self._update_protected_token_count()
+
+        if current_tokens <= self.max_tokens:
+            return False
+
+        protected_count = self._calculate_protected_count()
+
+        # Try summarization if enabled
+        if await self._try_summarization_compaction(protected_count):
+            return True
+
+        # Fall back to simple compaction
+        self._apply_simple_compaction(protected_count)
         return True
+
+    def _should_skip_stall_check(self, response_text: str, had_tool_calls: bool) -> bool:
+        """Determine if stall check should be skipped."""
+        if not self.stall_detection_enabled:
+            return True
+        if had_tool_calls:
+            self._stall_nudge_count = 0
+            return True
+        return len(response_text) < self.MIN_RESPONSE_LENGTH_FOR_STALL_CHECK
+
+    def _detect_stalling_patterns(self, response_text: str) -> bool:
+        """Detect stalling patterns in response text.
+
+        Returns:
+            True if stalling is detected, False otherwise.
+        """
+        stripped = response_text.strip()
+
+        # Pattern 1: ends with colon — announcing but not doing
+        if stripped.endswith(":"):
+            return True
+
+        # Pattern 2: intent phrases without action
+        lower = response_text.lower()
+        has_stall_phrase = any(phrase in lower for phrase in self.STALL_PHRASES)
+        is_question = "?" in response_text and "should i" in lower
+
+        return (
+            has_stall_phrase
+            and not is_question
+            and (
+                len(stripped) < self.MAX_RESPONSE_LENGTH_FOR_INTENT_PHRASE or stripped.endswith(":")
+            )
+        )
 
     async def _check_for_stalling(self, response_text: str, had_tool_calls: bool) -> str | None:
         """Detect when the agent narrates intent without acting.
@@ -195,54 +300,10 @@ class Agent:
 
         Returns a nudge message if stalling is detected, None otherwise.
         """
-        if not self.stall_detection_enabled:
+        if self._should_skip_stall_check(response_text, had_tool_calls):
             return None
 
-        if had_tool_calls:
-            self._stall_nudge_count = 0
-            return None
-
-        # If the response is very short, it might just be specific non-action query
-        if len(response_text) < 20:
-            return None
-
-        is_stalling = False
-        stripped = response_text.strip()
-
-        # Pattern 1: ends with colon — announcing but not doing
-        if stripped.endswith(":"):
-            is_stalling = True
-
-        # Pattern 2: intent phrases without action
-        if not is_stalling:
-            stall_phrases = [
-                "let me start by",
-                "i'll start by",
-                "i will start by",
-                "i'll create",
-                "let me create",
-                "i'll write",
-                "let me write",
-                "i'll begin",
-                "now i'll",
-                "let me begin",
-                "i'm going to",
-                "i will now",
-                "step 1:",
-                "first, i will",
-                "let me ",
-                "going to ",
-                "next i ",
-            ]
-            lower = response_text.lower()
-            if (
-                any(phrase in lower for phrase in stall_phrases)
-                and not ("?" in response_text and "should i" in lower)
-                and (len(stripped) < 120 or stripped.endswith(":"))
-            ):
-                is_stalling = True
-
-        if not is_stalling:
+        if not self._detect_stalling_patterns(response_text):
             return None
 
         self._stall_nudge_count += 1
@@ -250,13 +311,147 @@ class Agent:
             self._stall_failure = True
             return None  # Stop nudging — orchestrator will handle failure
 
-        return (
-            "You stopped without taking action. Do not narrate — use your tools "
-            "to do the work. Call the appropriate tool NOW."
-        )
+        return self.STALL_NUDGE_MESSAGE
+
+    async def _process_streaming_response(
+        self,
+    ) -> tuple[list[str], list[str], list[ToolCall], AsyncIterator[AgentEvent]]:
+        """Process streaming response from provider.
+
+        This method handles the common streaming logic shared between
+        run() and continue_with_tool_results().
+
+        Returns:
+            Tuple of (accumulated_content list, accumulated_thinking list,
+                     accumulated_tool_calls list, event_iterator)
+            The lists are mutable and will be updated as the generator runs.
+        """
+        # Validate message sequence, repairing if broken
+        # (can happen after compaction or session restore)
+        if not is_valid_message_sequence(self.messages):
+            self.messages = repair_message_sequence(self.messages)
+
+        # Apply compaction if needed and emit event
+        compacted = await self._apply_compaction_if_needed()
+
+        # Get messages for API (may be compacted)
+        api_messages = self.get_messages_for_api()
+
+        # Final validation before API call — repair if needed
+        if not is_valid_message_sequence(api_messages):
+            api_messages = repair_message_sequence(api_messages)
+
+        # Use mutable lists to accumulate values that can be updated in closure
+        accumulated_content: list[str] = [""]  # Single-element list for mutable string
+        accumulated_thinking: list[str] = [""]
+        accumulated_tool_calls: list[ToolCall] = []
+        content_yielded: list[bool] = [False]  # Track if any content was yielded during streaming
+
+        async def event_generator() -> AsyncIterator[AgentEvent]:
+            """Inner generator for streaming events."""
+            if compacted:
+                yield self._emit(
+                    type=EventType.CONTEXT_COMPACTED,
+                    data={"message": "Context was compacted to fit model limits"},
+                )
+
+            try:
+                # Get stream from provider - use validated messages
+                async for chunk in self.provider.chat_completion_stream(
+                    messages=api_messages,
+                    tools=self.tool_registry.get_declarations(),
+                ):
+                    if chunk.thinking:
+                        accumulated_thinking[0] += chunk.thinking
+                        # Handle thinking/reasoning content
+                        yield self._emit(
+                            type=EventType.THOUGHT,
+                            data=chunk.thinking,
+                        )
+
+                    # Accumulate content and tool calls as they stream
+                    if chunk.content:
+                        accumulated_content[0] += chunk.content
+                    if chunk.tool_calls:
+                        accumulated_tool_calls.extend(chunk.tool_calls)
+
+                    # Update messages based on finish reason FIRST, before yielding events
+                    # This ensures the assistant message is in history before tool results are added
+                    if chunk.finish_reason == FinishReason.STOP:
+                        # Add assistant message to history
+                        assistant_msg = Message(
+                            role="assistant",
+                            content=accumulated_content[0],
+                            tool_calls=accumulated_tool_calls if accumulated_tool_calls else None,
+                            reasoning_content=accumulated_thinking[0]
+                            if accumulated_thinking[0]
+                            else None,
+                        )
+                        self.messages.append(assistant_msg)
+
+                        # Yield content event if we haven't yielded any content yet
+                        # (e.g., non-streaming response where all content comes with STOP)
+                        if accumulated_content[0] and not content_yielded[0]:
+                            yield self._emit(
+                                type=EventType.CONTENT,
+                                data=accumulated_content[0],
+                            )
+                        break
+                    elif chunk.finish_reason == FinishReason.TOOL_CALLS:
+                        # Add assistant message with tool_calls to history FIRST
+                        # This is needed so subsequent tool messages have a valid predecessor
+                        assistant_msg = Message(
+                            role="assistant",
+                            content=accumulated_content[0],
+                            tool_calls=accumulated_tool_calls
+                            if accumulated_tool_calls
+                            else chunk.tool_calls,
+                            reasoning_content=accumulated_thinking[0]
+                            if accumulated_thinking[0]
+                            else None,
+                        )
+                        self.messages.append(assistant_msg)
+
+                        # Now yield tool call events
+                        tool_calls_to_yield = (
+                            accumulated_tool_calls
+                            if accumulated_tool_calls
+                            else (chunk.tool_calls or [])
+                        )
+                        for tool_call in tool_calls_to_yield:
+                            yield self._emit(
+                                type=EventType.TOOL_CALL_REQUEST,
+                                data=tool_call,
+                            )
+                        break
+                    else:
+                        # No finish reason yet - stream content as it comes
+                        # Tool calls are accumulated but NOT yielded until finish_reason
+                        # to ensure proper batching
+                        if chunk.content:
+                            content_yielded[0] = True
+                            yield self._emit(
+                                type=EventType.CONTENT,
+                                data=chunk.content,
+                            )
+            except Exception as e:
+                # Provider error - yield error event
+                yield self._emit(
+                    type=EventType.ERROR,
+                    data=f"Provider error: {e}"
+                )
+            finally:
+                # Always yield finished event
+                yield self._emit(
+                    type=EventType.FINISHED,
+                    data="Stream completed"
+                )
+
+        return accumulated_content, accumulated_thinking, accumulated_tool_calls, event_generator()
 
     async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
         """Run the agent with user input."""
+        print(f"DEBUG Agent.run: Starting with input: {user_input[:100]}")  # Debug
         # Start new turn - record where it begins in message history
         self._turn_number += 1
         self.turn.reset(new_start_index=len(self.messages))
@@ -266,115 +461,51 @@ class Agent:
 
         # Loop to handle potential stalling (narrating without acting)
         while True:
-            # Validate message sequence, repairing if broken
-            # (can happen after compaction or session restore)
-            if not is_valid_message_sequence(self.messages):
-                self.messages = repair_message_sequence(self.messages)
+            try:
+                print("DEBUG Agent.run: Calling _process_streaming_response")  # Debug
+                # Process streaming response
+                (
+                    accumulated_content_list,
+                    accumulated_thinking_list,
+                    accumulated_tool_calls,
+                    event_iter,
+                ) = await self._process_streaming_response()
 
-            # Apply compaction if needed and emit event
-            compacted = await self._apply_compaction_if_needed()
-            if compacted:
-                yield self._emit(
-                    type=EventType.CONTEXT_COMPACTED,
-                    data={"message": "Context was compacted to fit model limits"},
+                event_count = 0
+                async for event in event_iter:
+                    event_count += 1
+                    print(f"DEBUG Agent.run: Yielding event {event_count}: {event.type}")  # Debug
+                    yield event
+
+                print(f"DEBUG Agent.run: Finished yielding {event_count} events")  # Debug
+
+                # Extract actual content from list (mutable container)
+                accumulated_content = accumulated_content_list[0] if accumulated_content_list else ""
+
+                # Check for stalling
+                nudge = await self._check_for_stalling(
+                    accumulated_content, bool(accumulated_tool_calls)
                 )
+                if nudge:
+                    # Add nudge to messages and continue loop
+                    self.messages.append(Message(role="user", content=nudge))
+                    continue
 
-            # Track accumulated content and tool calls for building the assistant message
-            accumulated_content = ""
-            accumulated_thinking = ""
-            accumulated_tool_calls: list[ToolCall] = []
+                # If no stalling, exit the loop
+                break
 
-            # Get messages for API (may be compacted)
-            api_messages = self.get_messages_for_api()
+            except Exception as e:
+                # Yield error event
+                print(f"DEBUG Agent.run: Exception: {e}")  # Debug
+                yield self._emit(
+                    type=EventType.ERROR,
+                    data=f"Agent execution failed: {e}"
+                )
+                break
 
-            # Final validation before API call — repair if needed
-            if not is_valid_message_sequence(api_messages):
-                api_messages = repair_message_sequence(api_messages)
-
-            # Get stream from provider - use validated messages
-            async for chunk in self.provider.chat_completion_stream(
-                messages=api_messages,
-                tools=self.tool_registry.get_declarations(),
-            ):
-                if chunk.thinking:
-                    accumulated_thinking += chunk.thinking
-                    # Handle thinking/reasoning content
-                    yield self._emit(
-                        type=EventType.THOUGHT,
-                        data=chunk.thinking,
-                    )
-
-                # Accumulate content and tool calls as they stream
-                if chunk.content:
-                    accumulated_content += chunk.content
-                if chunk.tool_calls:
-                    accumulated_tool_calls.extend(chunk.tool_calls)
-
-                # Update messages based on finish reason FIRST, before yielding events
-                # This ensures the assistant message is in history before tool results are added
-                if chunk.finish_reason == FinishReason.STOP:
-                    # Add assistant message to history
-                    assistant_msg = Message(
-                        role="assistant",
-                        content=accumulated_content,
-                        tool_calls=accumulated_tool_calls if accumulated_tool_calls else None,
-                        reasoning_content=accumulated_thinking if accumulated_thinking else None,
-                    )
-                    self.messages.append(assistant_msg)
-
-                    # Now yield content event if any
-                    if accumulated_content:
-                        yield self._emit(
-                            type=EventType.CONTENT,
-                            data=accumulated_content,
-                        )
-                    break
-                elif chunk.finish_reason == FinishReason.TOOL_CALLS:
-                    # Add assistant message with tool_calls to history FIRST
-                    # This is needed so subsequent tool messages have a valid predecessor
-                    assistant_msg = Message(
-                        role="assistant",
-                        content=accumulated_content,
-                        tool_calls=accumulated_tool_calls
-                        if accumulated_tool_calls
-                        else chunk.tool_calls,
-                        reasoning_content=accumulated_thinking if accumulated_thinking else None,
-                    )
-                    self.messages.append(assistant_msg)
-
-                    # Now yield tool call events
-                    tool_calls_to_yield = (
-                        accumulated_tool_calls
-                        if accumulated_tool_calls
-                        else (chunk.tool_calls or [])
-                    )
-                    for tool_call in tool_calls_to_yield:
-                        yield self._emit(
-                            type=EventType.TOOL_CALL_REQUEST,
-                            data=tool_call,
-                        )
-                    break
-                else:
-                    # No finish reason yet - stream content as it comes
-                    # Tool calls are accumulated but NOT yielded until finish_reason
-                    # to ensure proper batching
-                    if chunk.content:
-                        yield self._emit(
-                            type=EventType.CONTENT,
-                            data=chunk.content,
-                        )
-
-            # Check for stalling
-            nudge = await self._check_for_stalling(
-                accumulated_content, bool(accumulated_tool_calls)
-            )
-            if nudge:
-                # Add nudge to messages and continue loop
-                self.messages.append(Message(role="user", content=nudge))
-                continue
-
-            # If no stalling, exit the loop
-            break
+        # Yield finished event
+        print("DEBUG Agent.run: Yielding FINISHED event")  # Debug
+        yield self._emit(type=EventType.FINISHED, data="Agent completed execution")
 
     def submit_tool_result(self, tool_call_id: str, result: str) -> None:
         """Submit a tool result to continue the conversation."""
@@ -386,95 +517,8 @@ class Agent:
         This method should be called after submit_tool_result() to continue
         the conversation with the updated message history.
         """
-        # Validate full message history, repairing if broken
-        if not is_valid_message_sequence(self.messages):
-            self.messages = repair_message_sequence(self.messages)
+        # Process streaming response
+        _, _, _, event_iter = await self._process_streaming_response()
 
-        # Apply compaction if needed and emit event
-        compacted = await self._apply_compaction_if_needed()
-        if compacted:
-            yield self._emit(
-                type=EventType.CONTEXT_COMPACTED,
-                data={"message": "Context was compacted to fit model limits"},
-            )
-
-        # Track accumulated content and tool calls for building the assistant message
-        accumulated_content = ""
-        accumulated_thinking = ""
-        accumulated_tool_calls: list[ToolCall] = []
-
-        # Get messages for API (may be compacted)
-        api_messages = self.get_messages_for_api()
-
-        # Final validation before API call — repair if needed
-        if not is_valid_message_sequence(api_messages):
-            api_messages = repair_message_sequence(api_messages)
-
-        # Get stream from provider - use validated messages
-        async for chunk in self.provider.chat_completion_stream(
-            messages=api_messages,
-            tools=self.tool_registry.get_declarations(),
-        ):
-            if chunk.thinking:
-                accumulated_thinking += chunk.thinking
-                # Handle thinking/reasoning content
-                yield self._emit(
-                    type=EventType.THOUGHT,
-                    data=chunk.thinking,
-                )
-
-            # Accumulate content and tool calls as they stream
-            if chunk.content:
-                accumulated_content += chunk.content
-            if chunk.tool_calls:
-                accumulated_tool_calls.extend(chunk.tool_calls)
-
-            # Update messages based on finish reason FIRST, before yielding events
-            if chunk.finish_reason == FinishReason.STOP:
-                # Add assistant message to history
-                assistant_msg = Message(
-                    role="assistant",
-                    content=accumulated_content,
-                    tool_calls=accumulated_tool_calls if accumulated_tool_calls else None,
-                    reasoning_content=accumulated_thinking if accumulated_thinking else None,
-                )
-                self.messages.append(assistant_msg)
-
-                # Now yield content event if any
-                if accumulated_content:
-                    yield self._emit(
-                        type=EventType.CONTENT,
-                        data=accumulated_content,
-                    )
-                break
-            elif chunk.finish_reason == FinishReason.TOOL_CALLS:
-                # Add assistant message with tool_calls to history FIRST
-                assistant_msg = Message(
-                    role="assistant",
-                    content=accumulated_content,
-                    tool_calls=accumulated_tool_calls
-                    if accumulated_tool_calls
-                    else chunk.tool_calls,
-                    reasoning_content=accumulated_thinking if accumulated_thinking else None,
-                )
-                self.messages.append(assistant_msg)
-
-                # Now yield tool call events
-                tool_calls_to_yield = (
-                    accumulated_tool_calls if accumulated_tool_calls else (chunk.tool_calls or [])
-                )
-                for tool_call in tool_calls_to_yield:
-                    yield self._emit(
-                        type=EventType.TOOL_CALL_REQUEST,
-                        data=tool_call,
-                    )
-                break
-            else:
-                # No finish reason yet - stream content as it comes
-                # Tool calls are accumulated but NOT yielded until finish_reason
-                # to ensure proper batching
-                if chunk.content:
-                    yield self._emit(
-                        type=EventType.CONTENT,
-                        data=chunk.content,
-                    )
+        async for event in event_iter:
+            yield event

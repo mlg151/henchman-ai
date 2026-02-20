@@ -13,13 +13,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from rich.console import Console
-from rich.status import Status
 
 from henchman.agents.orchestrator import Orchestrator
-from henchman.cli.commands import CommandContext, CommandRegistry, parse_command
-from henchman.cli.commands.builtins import get_builtin_commands
-from henchman.cli.input import create_session, expand_at_references, is_slash_command
+from henchman.cli.command_processor import CommandProcessor
+from henchman.cli.input_handler import InputHandler
+from henchman.cli.output_handler import OutputHandler
+from henchman.cli.plugins import PluginManager
 from henchman.cli.session_manager import ReplSessionManager
+from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.tool_manager import ToolManager
 from henchman.cli.ui_renderer import UIRenderer
 from henchman.core.eventbus import EventBus
@@ -30,7 +31,11 @@ from henchman.providers.base import ModelProvider, ToolCall
 from henchman.tools.base import ConfirmationRequest
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from henchman.config.schema import Settings
+    from henchman.core.agent import Agent
+    from henchman.core.events import AgentEvent
 
 
 @dataclass
@@ -75,6 +80,7 @@ class Repl:
         config: ReplConfig | None = None,
         settings: Settings | None = None,
         environment_context: str | None = None,
+        renderer: UIRenderer | None = None,
     ) -> None:
         """Initialize the REPL.
 
@@ -84,102 +90,40 @@ class Repl:
             config: REPL configuration.
             settings: Application settings for context limits, etc.
             environment_context: Pre-formatted environment block for agents.
+            renderer: Custom UI renderer to use.
         """
         self.provider = provider
         self.console = console or Console()
         self.config = config or ReplConfig()
         self.settings = settings
-        self.renderer = UIRenderer(console=self.console)
+
+        accessible_mode = settings.ui.accessible_mode if settings and settings.ui else False
+        style_overrides = settings.ui.style_overrides if settings and settings.ui else None
+        layout_settings = getattr(settings.ui, "layout", None) if settings and settings.ui else None
+        self.renderer = renderer or UIRenderer(
+            console=self.console,
+            accessible_mode=accessible_mode,
+            style_overrides=style_overrides,
+            layout_settings=layout_settings,
+        )
 
         # Initialize tool manager
         self.tool_manager = ToolManager(settings=settings)
         self.tool_manager.set_auto_approve(self.config.auto_approve_tools)
-        self.tool_manager.set_confirmation_handler(self._handle_confirmation)
         self.tool_manager.register_builtin_tools()
         self.tool_registry = self.tool_manager.registry  # Backwards compatibility
 
         # Initialize MCP manager if servers are configured
         self.mcp_manager: McpManager | None = None
         if settings and settings.mcp_servers:
-            # Convert Pydantic McpServerConfig to mcp.config.McpServerConfig
-            import henchman.mcp.config as mcp_config
+            mcp_logging = settings.ui.mcp_logging if settings.ui else False
+            self.mcp_manager = McpManager.create_from_settings(settings, mcp_logging)
 
-            mcp_configs: dict[str, mcp_config.McpServerConfig] = {}
-            for name, server_config in settings.mcp_servers.items():
-                # Start with the environment from config
-                env = dict(server_config.env)
-
-                # Suppress server logs if mcp_logging is disabled
-                if not settings.ui.mcp_logging:
-                    # Apply logging suppression for known server types
-
-                    # Check if this is a Python-based server
-                    is_python = (
-                        "python" in server_config.command.lower() or
-                        "uvx" in server_config.command.lower() or
-                        any(".py" in arg.lower() for arg in server_config.args)
-                    )
-
-                    # Check if this is a Node.js-based server
-                    is_node = (
-                        "node" in server_config.command.lower() or
-                        "npx" in server_config.command.lower() or
-                        "npm" in server_config.command.lower()
-                    )
-
-                    # Check if this is Serena specifically
-                    is_serena = (
-                        "serena" in name.lower() or
-                        any("serena" in arg.lower() for arg in server_config.args)
-                    )
-
-                    # Apply environment variables based on server type
-                    if is_serena:
-                        # Serena-specific logging control
-                        env["SERENA_LOG_LEVEL"] = "WARNING"
-                        # Also set general Python logging variables
-                        env["PYTHONWARNINGS"] = "ignore"
-                        env["LOGLEVEL"] = "WARNING"
-                        env["PYTHON_LOG_LEVEL"] = "WARNING"
-                    elif is_python:
-                        # Generic Python server logging suppression
-                        env["PYTHONWARNINGS"] = "ignore"
-                        env["LOGLEVEL"] = "WARNING"
-                        env["PYTHON_LOG_LEVEL"] = "WARNING"
-                    elif is_node:
-                        # Node.js server logging suppression
-                        env["NODE_ENV"] = "production"
-
-                    # For any server, add common logging suppression
-                    env["NO_COLOR"] = "1"  # Disable ANSI colors in logs
-                    env["TERM"] = "dumb"   # Basic terminal type
-                mcp_configs[name] = mcp_config.McpServerConfig(
-                    command=server_config.command,
-                    args=server_config.args,
-                    env=env,
-                    trusted=server_config.trusted,
-                )
-
-            self.mcp_manager = McpManager(
-                mcp_configs,
-                verbose=settings.ui.mcp_logging if settings else False
-            )
-            # Note: We'll connect to servers and register tools in run() method
-            # to avoid async initialization in __init__
-
-        # Determine max_tokens from settings
-        # Apply compaction_threshold to get the actual limit
-        _max_tokens = 0
-        _model_name: str | None = None
-        if settings:
-            context = settings.context
-            if context.max_tokens > 0:
-                # Apply threshold: compact when we reach threshold% of max
-                _max_tokens = int(context.max_tokens * context.compaction_threshold)
-
-        # Get model name from provider if available
-        if hasattr(provider, "default_model"):
-            _model_name = provider.default_model
+        # Initialize Plugin Manager
+        self.plugin_manager = PluginManager(self)
+        self.plugin_manager.load_plugins_from_directory(Path.home() / ".henchman" / "plugins")
+        # Also load from workspace plugins
+        self.plugin_manager.load_plugins_from_directory(Path.cwd() / ".henchman" / "plugins")
 
         # Initialize EventBus
         self.event_bus = EventBus()
@@ -197,25 +141,61 @@ class Repl:
         # Reference Tech Lead as self.agent for backwards compatibility
         self.agent = self.orchestrator.tech_lead
 
-        # Initialize command registry
-        self.command_registry = CommandRegistry()
-        for cmd in get_builtin_commands():
-            self.command_registry.register(cmd)
-
         self.running = False
 
-        # Initialize PromptSession
-        history_file = self.config.history_file or Path.home() / ".henchman_history"
-        self.prompt_session = create_session(history_file, bottom_toolbar=self._get_toolbar_status)
-
         # Session management
-        self.session_manager = ReplSessionManager(
-            auto_save=self.config.auto_save
-        )
+        self.session_manager = ReplSessionManager(auto_save=self.config.auto_save)
 
         # RAG system (set externally by app.py)
         self.rag_system: object | None = None
         self.current_monitor: object | None = None
+
+        # Initialize OutputHandler
+        self.output_handler = OutputHandler(
+            renderer=self.renderer,
+            tool_manager=self.tool_manager,
+            session_manager=self.session_manager,
+            provider=self.provider,
+            settings=self.settings,
+            rag_system=self.rag_system,
+            mcp_manager=self.mcp_manager,
+        )
+
+        # Initialize CommandProcessor
+        self.command_processor = CommandProcessor(
+            output_handler=self.output_handler,
+            tool_manager=self.tool_manager,
+            session_manager=self.session_manager,
+            provider=self.provider,
+            mcp_manager=self.mcp_manager,
+        )
+
+        # Initialize ToolExecutor
+        self.tool_executor = ToolExecutor(
+            output_handler=self.output_handler,
+            tool_manager=self.tool_manager,
+            provider=self.provider,
+            base_tool_iterations=self.config.base_tool_iterations,
+            max_tool_calls_per_turn=self.config.max_tool_calls_per_turn,
+        )
+        # Set confirmation handler on tool manager
+        self.tool_manager.set_confirmation_handler(self.tool_executor.handle_confirmation)
+
+        # Initialize InputHandler
+        history_file = self.config.history_file or Path.home() / ".henchman_history"
+
+        keybindings = settings.ui.keybindings if settings and settings.ui else None
+
+        self.input_handler = InputHandler(
+            config=self.config,
+            renderer=self.renderer,
+            history_file=history_file,
+            keybindings=keybindings,
+        )
+        # Initialize prompt session in InputHandler
+        self.input_handler.initialize_prompt_session(
+            bottom_toolbar=lambda: self.output_handler.get_toolbar_status(self.agent)
+        )
 
     def set_session(self, session: Session) -> None:
         """Set the current session and sync with agent history.
@@ -224,40 +204,6 @@ class Repl:
             session: The session to activate.
         """
         self.session_manager.set_session(session, self.orchestrator)
-
-    def _get_toolbar_status(self) -> list[tuple[str, str]]:
-        """Get status bar content."""
-        from henchman.utils.tokens import TokenCounter
-
-        status = []
-
-        # Plan Mode
-        session = self.session_manager.current
-        plan_mode = session.plan_mode if session else False
-        if plan_mode:
-            status.append(("bg:yellow fg:black bold", " PLAN MODE "))
-        else:
-            status.append(("bg:blue fg:white bold", " CHAT "))
-
-        # Tokens
-        try:
-            msgs = self.agent.get_messages_for_api()
-            tokens = TokenCounter.count_messages(msgs)
-            status.append(("", f" Tokens: ~{tokens} "))
-        except Exception:
-            pass
-
-        # RAG Status
-        if self.rag_system and getattr(self.rag_system, "is_indexing", False):
-            status.append(("bg:cyan fg:black", " RAG: Indexing... "))
-
-        return status
-
-    def _get_rich_status_message(self) -> str:
-        """Get rich status message for persistent display."""
-        return self.renderer.get_rich_status_message(
-            self.session_manager.current, self.agent, self.rag_system
-        )
 
     async def _handle_confirmation(self, request: ConfirmationRequest) -> bool:
         """Handle a tool confirmation request from the registry.
@@ -268,46 +214,29 @@ class Repl:
         Returns:
             True if approved, False otherwise.
         """
-        # Auto-approve is handled by tool_manager.handle_confirmation
-        # This method only contains the interactive confirmation logic
-        # Formulate a clear message for the user
-        import json
-
-        msg = f"Allow tool [bold cyan]{request.tool_name}[/] to "
-
-        if request.tool_name == "shell":
-            command = (
-                request.params.get("command", "unknown command")
-                if request.params
-                else "unknown command"
-            )
-            msg += f"run command: [yellow]{command}[/]"
-        elif request.tool_name == "write_file":
-            path = request.params.get("path", "unknown path") if request.params else "unknown path"
-            msg += f"write to file: [yellow]{path}[/]"
-        elif request.tool_name == "edit_file":
-            path = request.params.get("path", "unknown path") if request.params else "unknown path"
-            msg += f"edit file: [yellow]{path}[/]"
-        else:
-            msg += f"execute: {request.description}"
-            if request.params:
-                msg += f"\nParams: [dim]{json.dumps(request.params)}[/]"
-
-        return await self.renderer.confirm_tool_execution(msg)
+        return await self.tool_executor.handle_confirmation(request)
 
     async def initialize_mcp(self) -> None:
         """Initialize MCP servers and register tools.
 
         This method can be called separately for headless mode.
         """
-        if self.mcp_manager and not self.mcp_manager.clients:  # Only connect if not already connected
+        if (
+            self.mcp_manager and not self.mcp_manager.clients
+        ):  # Only connect if not already connected
             try:
                 await self.mcp_manager.connect_all()
                 # Register MCP tools with the tool registry
                 for tool in self.mcp_manager.get_all_tools():
                     self.tool_registry.register(tool)
-                if self.mcp_manager.get_all_tools() and self.settings and self.settings.ui.mcp_logging:
-                    self.renderer.success(f"Connected to {len(self.mcp_manager.clients)} MCP server(s) with {len(self.mcp_manager.get_all_tools())} tools")
+                if (
+                    self.mcp_manager.get_all_tools()
+                    and self.settings
+                    and self.settings.ui.mcp_logging
+                ):
+                    self.renderer.success(
+                        f"Connected to {len(self.mcp_manager.clients)} MCP server(s) with {len(self.mcp_manager.get_all_tools())} tools"
+                    )
             except Exception as e:
                 # Always show errors, regardless of logging setting
                 self.renderer.error(f"Failed to connect to MCP servers: {e}")
@@ -318,14 +247,11 @@ class Repl:
         This method runs until the user exits with /quit, Ctrl+C, or Ctrl+D.
         """
         self.running = True
-        self._print_welcome()
-
-        # Connect to MCP servers and register tools
+        self.output_handler.print_welcome()
         await self.initialize_mcp()
 
         # Start background indexing if RAG is available
-        if self.rag_system and hasattr(self.rag_system, "index_async"):
-            asyncio.create_task(self.rag_system.index_async())
+        self.output_handler.start_background_indexing()
 
         try:
             while self.running:
@@ -335,7 +261,6 @@ class Repl:
                     if not should_continue:
                         break
                 except KeyboardInterrupt:
-                    # Ctrl-C instantly ends the session
                     self.running = False
                     break
                 except EOFError:
@@ -343,30 +268,14 @@ class Repl:
                     break
         finally:
             self.running = False
-            # Disconnect from MCP servers
             if self.mcp_manager:
                 await self.mcp_manager.disconnect_all()
             self._auto_save_session()
-            self._print_goodbye()
-
-    def _print_welcome(self) -> None:
-        """Print welcome message."""
-        self.renderer.print_welcome()
-
-    def _print_goodbye(self) -> None:
-        """Print goodbye message."""
-        self.renderer.print_goodbye()
+            self.output_handler.print_goodbye()
 
     def _auto_save_session(self) -> None:
         """Auto-save the session if enabled and session has content."""
-        if hasattr(self.session_manager, "auto_save_session"):
-            self.session_manager.auto_save_session()
-        elif (
-            hasattr(self.session_manager, "save")
-            and hasattr(self.session_manager, "current")
-            and self.session_manager.current
-        ):
-            self.session_manager.save(self.session_manager.current)
+        self.session_manager.auto_save_session()
 
     async def _get_input(self) -> str:
         """Get input from the user.
@@ -378,9 +287,7 @@ class Repl:
             KeyboardInterrupt: If user presses Ctrl+C.
             EOFError: If user presses Ctrl+D.
         """
-        # Ensure a fresh line for the prompt
-        self.renderer.print_newline()
-        return await self.prompt_session.prompt_async(self.config.prompt)
+        return await self.input_handler.get_input()
 
     async def process_input(self, user_input: str) -> bool:
         """Process a single user input.
@@ -391,72 +298,24 @@ class Repl:
         Returns:
             True to continue running, False to exit.
         """
-        # Skip empty input
-        stripped = user_input.strip()
-        if not stripped:
-            return True
+        # Use InputHandler to process input
+        processed_input, is_command, should_continue = await self.input_handler.process_input(
+            user_input
+        )
 
-        # Handle slash commands
-        if is_slash_command(stripped):
-            return await self._handle_command(stripped)
-
-        # Expand @file references
-        expanded = await expand_at_references(stripped)
-
-        # Run through agent
-        await self._run_agent(expanded)
-        return True
-
-    async def _handle_command(self, input_text: str) -> bool:
-        """Handle a slash command.
-
-        Args:
-            input_text: The command input (with leading /).
-
-        Returns:
-            True to continue running, False to exit.
-        """
-        parsed = parse_command(input_text)
-        if parsed is None:
-            return True
-
-        cmd_name, args = parsed
-
-        # Special handling for /quit
-        if cmd_name == "quit":
+        if not should_continue:
             return False
 
-        # Special handling for /clear - clear agent history
-        if cmd_name == "clear":
-            self.agent.clear_history()
-            self.renderer.console.clear()
-            self.renderer.success("History cleared")
+        # Skip empty input (already processed by InputHandler, but double-check)
+        if not processed_input:
             return True
 
-        # Try to execute the command
-        cmd = self.command_registry.get(cmd_name)
-        if cmd is None:
-            self.renderer.error(f"Unknown command: /{cmd_name}")
-            self.renderer.muted("Type /help for available commands")
-            return True
+        if is_command:
+            # Handle slash commands
+            return await self.command_processor.handle_command(processed_input, self.agent, self)
 
-        ctx = CommandContext(
-            console=self.console,
-            args=args,
-            agent=self.agent,
-            tool_registry=self.tool_registry,
-            session=self.session_manager.current,
-            repl=self,
-        )
-        # Add session_manager and project_hash for /chat command
-        ctx.session_manager = getattr(self.session_manager, "session_manager", self.session_manager)
-        # Add MCP manager for /mcp command
-        ctx.mcp_manager = self.mcp_manager
-        from pathlib import Path
-
-        ctx.project_hash = self.session_manager.compute_project_hash(Path.cwd())
-
-        await cmd.execute(ctx)
+        # Run through agent with expanded input
+        await self._run_agent(processed_input)
         return True
 
     async def _run_agent(self, user_input: str) -> None:
@@ -465,27 +324,64 @@ class Repl:
         Args:
             user_input: The processed user input.
         """
-        # Record user message to session
         self.session_manager.record_user_message(user_input)
-
-        # Collect assistant response - now also tracks tool calls for session
         assistant_content: list[str] = []
+        status_msg = self.output_handler.get_rich_status_message(self.agent)
+        await self._run_agent_with_monitor(
+            self.orchestrator.run(user_input), self.agent, assistant_content, status_msg
+        )
 
+    async def _run_agent_direct(self, role: str, user_input: str) -> None:
+        """Run a specific agent directly.
+
+        Args:
+            role: Agent role to target.
+            user_input: The user's input.
+        """
+        self.session_manager.record_user_message(f"[@{role}] {user_input}")
+        assistant_content: list[str] = []
+        status_msg = f"[bold cyan]@{role}[/] thinking..."
+        agent = self.orchestrator.pool.get_agent(role)
+        await self._run_agent_with_monitor(
+            self.orchestrator.run_direct(role, user_input), agent, assistant_content, status_msg
+        )
+
+    async def _run_agent_with_monitor(
+        self,
+        event_stream: AsyncIterator[AgentEvent],
+        agent: Agent,
+        assistant_content: list[str],
+        status_msg: str,
+    ) -> None:
+        """Run agent with monitor setup and cancellation handling.
+
+        Args:
+            event_stream: Agent event stream.
+            agent: The agent to run.
+            assistant_content: List to collect assistant content.
+            status_msg: Status message to display.
+        """
         from henchman.cli.input import KeyMonitor
 
         monitor = KeyMonitor()
         self.current_monitor = monitor
         monitor_task = asyncio.create_task(monitor.monitor())
 
-        with self.renderer.create_status(self._get_rich_status_message(), spinner="dots") as status_obj:
-            # Run the orchestrator stream processing as a separate task so we can cancel it
+        try:
+            # Print status message without spinner
+            if status_msg:
+                self.renderer.info(status_msg)
+
             agent_task = asyncio.create_task(
-                self._process_agent_stream(
-                    self.orchestrator.run(user_input), assistant_content, status_obj
+                self.tool_executor.process_agent_stream(
+                    event_stream,
+                    agent,
+                    assistant_content,
+                    None,  # No status object
                 )
             )
 
-        try:
+            # Wait for agent task or monitor cancellation
             while not agent_task.done():
                 if monitor.exit_requested:
                     self.renderer.warning("\n[Exit requested by Ctrl+C]")
@@ -496,412 +392,39 @@ class Repl:
                     self.renderer.warning("\n[Interrupted by Esc]")
                     agent_task.cancel()
                     break
-                # Small sleep to keep the loop responsive
-                await asyncio.sleep(0)
-
-            if not agent_task.done():
-                with contextlib.suppress(asyncio.CancelledError):
-                    await agent_task
-            else:
-                # Task finished normally, await it to raise any exceptions
-                await agent_task
-
-        except Exception as e:
-            self.renderer.error(f"Error: {e}")
-        finally:
-            # Ensure monitor task is cleaned up
-            monitor._stop_event.set()
-            await monitor_task
-
-    async def _run_agent_direct(self, role: str, user_input: str) -> None:
-        """Run a specific agent directly.
-
-        Args:
-            role: Agent role to target.
-            user_input: The user's input.
-        """
-        # Record user message to session
-        self.session_manager.record_user_message(f"[@{role}] {user_input}")
-
-        assistant_content: list[str] = []
-
-        from henchman.cli.input import KeyMonitor
-        monitor = KeyMonitor()
-        self.current_monitor = monitor
-        monitor_task = asyncio.create_task(monitor.monitor())
-
-        with self.renderer.create_status(f"[bold cyan]@{role}[/] thinking...", spinner="dots") as status_obj:
-            agent_task = asyncio.create_task(
-                self._process_agent_stream(
-                    self.orchestrator.run_direct(role, user_input), assistant_content, status_obj
-                )
-            )
-
-        try:
-            while not agent_task.done():
-                if monitor.stop_requested or monitor.exit_requested:
-                    agent_task.cancel()
-                    break
                 await asyncio.sleep(0.1)
 
-            if not agent_task.done():
-                with contextlib.suppress(asyncio.CancelledError):
-                    await agent_task
-            else:
+            # Await agent task (handles cancellation)
+            with contextlib.suppress(asyncio.CancelledError):
                 await agent_task
+
         except Exception as e:
             self.renderer.error(f"Error: {e}")
         finally:
             monitor._stop_event.set()
             await monitor_task
-
-    async def _process_agent_stream(
-        self,
-        event_stream: AsyncIterator[AgentEvent],
-        content_collector: list[str] | None = None,
-        status_obj: Status | None = None,  # New parameter
-    ) -> None:
-        """Process an agent event stream, handling tool calls properly.
-
-        This method collects ALL tool calls from a single response before
-        executing them, which is required by the OpenAI API.
-
-        Args:
-            event_stream: Async iterator of agent events.
-            content_collector: Optional list to collect content for session.
-        """
-        # Check loop limits before processing (unless unlimited mode)
-        if not self.agent.unlimited_mode:
-            turn = self.agent.turn
-            adaptive_limit = turn.get_adaptive_limit(self.config.base_tool_iterations)
-
-            if turn.is_at_limit(self.config.base_tool_iterations):
-                self.renderer.error(
-                    f"Reached iteration limit ({adaptive_limit}). "
-                    "Stopping to prevent infinite loop. Use /unlimited to bypass."
-                )
-                return
-
-            if turn.tool_count >= self.config.max_tool_calls_per_turn:
-                self.renderer.error(
-                    f"Reached tool call limit ({self.config.max_tool_calls_per_turn}). "
-                    "Stopping to prevent runaway execution."
-                )
-                return
-
-            # Warn if spinning
-            if turn.is_spinning() and turn.iteration > 2:
-                self.renderer.warning(
-                    "⚠ Possible loop detected: same tool calls or results repeating. "
-                    f"Iteration {turn.iteration}/{adaptive_limit}"
-                )
-
-        pending_tool_calls: list[ToolCall] = []
-        handled_tool_call_ids: set[str] = set()
-        accumulated_content: list[str] = []
-        last_agent_id: str | None = None
-        # Track whether pending tool calls have been recorded to session
-        # (for tool calls handled inline by the orchestrator)
-        _session_tool_calls_flushed = False
-        is_thinking = False
-
-        async for event in event_stream:
-            # Handle transition out of thinking
-            if is_thinking and event.type != EventType.THOUGHT:
-                self.renderer.print_newline()
-                is_thinking = False
-
-            # Update status continuously
-            if status_obj:
-                status_obj.update(self._get_rich_status_message())
-
-            if event.source_agent:
-                last_agent_id = event.source_agent
-
-            if event.type == EventType.CONTENT:
-                # Stream content to console
-                self.renderer.print_agent_content(event.data)
-                if content_collector is not None and event.data:
-                    content_collector.append(event.data)
-                if event.data:
-                    accumulated_content.append(event.data)
-
-            elif event.type == EventType.THOUGHT:
-                if not is_thinking:
-                    self.renderer.thinking("\n[thinking] ")
-                    is_thinking = True
-                self.renderer.thinking(event.data)
-
-            elif event.type == EventType.CONTEXT_COMPACTED:
-                # Notify user that context was compacted
-                self.renderer.warning(
-                    "Context compacted: older messages summarized to fit model limits"
-                )
-
-            elif event.type == EventType.TOOL_CALL_REQUEST:
-                # Collect tool call - don't execute yet!
-                pending_tool_calls.append(event.data)
-                tool_call = event.data
-                self.renderer.muted(f"\n[tool] {tool_call.name}({tool_call.arguments})")
-
-            elif event.type == EventType.TOOL_CALL_RESULT:
-                # Orchestrator already executed this tool — mark as handled
-                result_data = event.data
-                if isinstance(result_data, dict):
-                    tc_id = result_data.get("tool_call_id", "")
-                    handled_tool_call_ids.add(tc_id)
-                    result_text = result_data.get("result", "")
-                    success = result_data.get("success", True)
-                    if success:
-                        self.renderer.muted(f"[result] {result_text[:200]}...")
-                    else:
-                        self.renderer.error(f"[error] {result_text[:200]}")
-
-                    # Record to session: flush assistant tool_calls msg once,
-                    # then each tool result as it arrives.
-                    if not _session_tool_calls_flushed and pending_tool_calls:
-                        tool_calls_dicts = [
-                            {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                            for tc in pending_tool_calls
-                        ]
-                        self.session_manager.record_agent_message(
-                            content="".join(accumulated_content) if accumulated_content else None,
-                            tool_calls=tool_calls_dicts,
-                            agent_id=last_agent_id,
-                        )
-                        accumulated_content.clear()
-                        _session_tool_calls_flushed = True
-
-                    self.session_manager.record_tool_result(tc_id, result_text)
-
-            elif event.type == EventType.AGENT_DELEGATED:
-                from_agent = event.data.get("from", "unknown")
-                to_agent = event.data.get("to", "unknown")
-                task = event.data.get("task", "")
-                self.renderer.muted(f"\n[{from_agent}] Delegating to [bold cyan]{to_agent}[/]: {task}")
-
-            elif event.type == EventType.AGENT_STARTED:
-                agent_name = event.data.get("agent", "agent")
-                if status_obj:
-                    status_obj.update(f"[{agent_name}] working...")
-
-            elif event.type == EventType.AGENT_COMPLETED:
-                agent_name = event.data.get("agent", "agent")
-                self.renderer.muted(f"[{agent_name}] completed work")
-
-            elif event.type == EventType.AGENT_MESSAGE:
-                to_agent = event.data.get("to", "unknown")
-                msg = event.data.get("message", "")
-                self.renderer.muted(f"\n[bold cyan]→ {to_agent}[/]: {msg}")
-
-            elif event.type == EventType.FINISHED:
-                if is_thinking:
-                    self.renderer.print_newline()
-                    is_thinking = False
-                self.renderer.print_newline()
-
-            elif event.type == EventType.ERROR:
-                self.renderer.error(str(event.data))
-
-        # After the stream ends, record assistant message to session
-        # Skip if tool calls were already flushed inline by the orchestrator
-        if not _session_tool_calls_flushed:
-            if pending_tool_calls:
-                # Convert ToolCall objects to dicts for session storage
-                tool_calls_dicts = [
-                    {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                    for tc in pending_tool_calls
-                ]
-                self.session_manager.record_agent_message(
-                    content="".join(accumulated_content) if accumulated_content else None,
-                    tool_calls=tool_calls_dicts,
-                    agent_id=last_agent_id,
-                )
-            elif accumulated_content:
-                # Content-only response (no tool calls)
-                self.session_manager.record_agent_message(
-                    content="".join(accumulated_content),
-                    agent_id=last_agent_id,
-                )
-        elif _session_tool_calls_flushed and accumulated_content:
-            # Record post-tool-execution content as a separate assistant message
-            self.session_manager.record_agent_message(
-                content="".join(accumulated_content),
-                agent_id=last_agent_id,
-            )
-
-        # Execute only tool calls that were NOT already handled by the orchestrator
-        unhandled_tool_calls = [
-            tc for tc in pending_tool_calls if tc.id not in handled_tool_call_ids
-        ]
-        if unhandled_tool_calls:
-            await self._execute_tool_calls(unhandled_tool_calls, content_collector)
-
-    async def _execute_tool_calls(
-        self, tool_calls: list[ToolCall], content_collector: list[str] | None = None
-    ) -> None:
-        """Execute a batch of tool calls and continue the agent loop.
-
-        Args:
-            tool_calls: List of tool calls to execute.
-            content_collector: Optional list to collect content for session.
-        """
-        # Increment iteration counter (one batch of tool calls = one iteration)
-        self.agent.turn.increment_iteration()
-
-        responded_ids = set()
-
-        # Split tool calls into those that need confirmation and those that don't
-        # to allow parallel execution of "safe" tools.
-        to_parallel: list[ToolCall] = []
-        to_sequential: list[ToolCall] = []
-
-        for tc in tool_calls:
-            tool = self.tool_registry.get(tc.name)
-            # Use same logic as ToolRegistry.execute for confirmation check
-            if tool and (
-                tc.name in self.tool_registry._auto_approve_policies
-                or tool.needs_confirmation(tc.arguments) is None
-            ):
-                to_parallel.append(tc)
-            else:
-                to_sequential.append(tc)
-
-        async def execute_and_record(tc: ToolCall) -> None:
-            """Execute a tool call and record the result in the session.
-
-            Args:
-                tc: The tool call to execute.
-            """
-            self.renderer.muted(f"\n[tool] {tc.name}({tc.arguments})")
-            result = await self.tool_registry.execute(tc.name, tc.arguments)
-
-            # Record results (thread-safe for agent/session lists)
-            responded_ids.add(tc.id)
-            self.agent.turn.record_tool_call(
-                tool_call_id=tc.id,
-                tool_name=tc.name,
-                arguments=tc.arguments,
-                result=result,
-            )
-            self.agent.submit_tool_result(tc.id, result.content)
-            self.session_manager.record_tool_result(tc.id, result.content)
-
-            # Show result
-            if result.success:
-                self.renderer.muted(f"[result] {result.content[:200]}...")
-            else:
-                self.renderer.error(f"[error] {result.error}")
-
-        try:
-            # 1. Execute parallel group (tools not needing confirmation)
-            if to_parallel:
-                await asyncio.gather(*(execute_and_record(tc) for tc in to_parallel))
-
-            # 2. Execute sequential group (tools needing confirmation)
-            if to_sequential:
-                # Suspend key monitor while we might be showing confirmation prompts
-                if hasattr(self, "current_monitor") and self.current_monitor:
-                    await self.current_monitor.suspend()  # type: ignore[attr-defined]
-
-                try:
-                    for tc in to_sequential:
-                        await execute_and_record(tc)
-                finally:
-                    if hasattr(self, "current_monitor") and self.current_monitor:
-                        self.current_monitor.resume()  # type: ignore[attr-defined]
-        finally:
-            # Ensure all tool calls have a response, even if interrupted
-            for tool_call in tool_calls:
-                if tool_call.id not in responded_ids:
-                    cancel_msg = "Tool execution was interrupted or cancelled."
-                    self.agent.submit_tool_result(tool_call.id, cancel_msg)
-                    self.session_manager.record_tool_result(tool_call.id, cancel_msg)
-
-        # Show turn status after tool execution
-        self._show_turn_status()
-
-        # Add spacing after tool execution
-        self.renderer.print_newline()
-
-        # Now that ALL results are submitted, continue the agent loop
-        await self._process_agent_stream(self.agent.continue_with_tool_results(), content_collector)
-
-    def _show_turn_status(self) -> None:
-        """Display current turn status."""
-        turn = self.agent.turn
-        status = turn.get_status_string(
-            base_limit=self.config.base_tool_iterations,
-            max_tokens=self.agent.max_tokens,
-        )
-
-        # Color based on status
-        if turn.is_spinning() or turn.is_approaching_limit(self.config.base_tool_iterations):
-            self.renderer.warning(status)
-        else:
-            self.renderer.muted(status)
 
     async def _handle_agent_event(
         self, event: AgentEvent, content_collector: list[str] | None = None
     ) -> None:
         """Handle an event from the agent.
 
-        DEPRECATED: Use _process_agent_stream instead for proper tool call handling.
+        DEPRECATED: Use ToolExecutor.process_agent_stream instead.
         This method is kept for backwards compatibility with tests.
-
-        Args:
-            event: The agent event to handle.
-            content_collector: Optional list to collect content for session recording.
         """
-        if event.type == EventType.CONTENT:
-            # Stream content to console
-            self.renderer.print_agent_content(event.data)
-            # Collect for session recording
-            if content_collector is not None and event.data:
-                content_collector.append(event.data)
-
-        elif event.type == EventType.THOUGHT:
-            # Show thinking in muted style
-            self.renderer.muted(f"[thinking] {event.data}")
-
-        elif event.type == EventType.TOOL_CALL_REQUEST:
-            # NOTE: In the new flow, tool calls are batched and handled by
-            # _process_agent_stream. This path is only for backwards compat.
-            pass
-
-        elif event.type == EventType.FINISHED:
-            # Print newline after streaming content
-            self.renderer.print_newline()
-
-        elif event.type == EventType.ERROR:
-            self.renderer.error(str(event.data))  # pragma: no branch
+        if event.type == EventType.ERROR:
+            self.renderer.error(str(event.data))
+        elif event.type == EventType.CONTENT and content_collector is not None and event.data:
+            content_collector.append(event.data)
 
     async def _handle_tool_call(self, tool_call: ToolCall) -> None:
         """Handle a single tool call from the agent.
 
-        DEPRECATED: Use _execute_tool_calls for proper batched handling.
+        DEPRECATED: Use ToolExecutor.execute_tool_calls for proper batched handling.
         This method is kept for backwards compatibility with tests.
 
         Args:
             tool_call: The tool call to execute.
         """
-        if not isinstance(tool_call, ToolCall):
-            return
-
-        self.renderer.muted(f"\n[tool] {tool_call.name}({tool_call.arguments})")
-
-        # Execute the tool
-        result = await self.tool_registry.execute(tool_call.name, tool_call.arguments)
-
-        # Submit result to agent
-        self.agent.submit_tool_result(tool_call.id, result.content)
-
-        # Show result
-        if result.success:
-            self.renderer.muted(f"[result] {result.content[:200]}...")
-        else:
-            self.renderer.error(f"[error] {result.error}")
-
-        # NOTE: In the new flow, continue_with_tool_results is called
-        # after ALL tool calls are processed. For backwards compat with
-        # tests that call this method directly, we don't call continue here.
+        # Convert single tool call to list for execute_tool_calls
+        await self.tool_executor.execute_tool_calls([tool_call], self.agent)

@@ -55,11 +55,12 @@ class TestRepl:
     """Tests for Repl class."""
 
     @pytest.fixture(autouse=True)
-    def mock_create_session(self):
-        with patch("henchman.cli.repl.create_session") as mock:
-            mock.return_value = AsyncMock()
-            mock.return_value.prompt_async.return_value = "mock input"
-            yield mock
+    def mock_prompt_session(self):
+        with patch("henchman.cli.input.PromptSession") as mock_session_class:
+            mock_session = AsyncMock()
+            mock_session.prompt_async.return_value = "mock input"
+            mock_session_class.return_value = mock_session
+            yield mock_session_class
 
     @pytest.fixture
     def mock_provider(self) -> MockProvider:
@@ -87,10 +88,18 @@ class TestRepl:
         """All built-in tools must be registered in the REPL tool registry."""
         repl = Repl(provider=mock_provider, console=console)
         expected = [
-            "ask_user", "read_file", "write_file", "edit_file",
-            "ls", "glob", "grep", "shell",
-            "web_fetch", "web_search",
-            "kg_query", "kg_update",
+            "ask_user",
+            "read_file",
+            "write_file",
+            "edit_file",
+            "ls",
+            "glob",
+            "grep",
+            "shell",
+            "web_fetch",
+            "web_search",
+            "kg_query",
+            "kg_update",
         ]
         for name in expected:
             assert repl.tool_registry.get(name) is not None, f"Missing tool: {name}"
@@ -174,7 +183,7 @@ class TestRepl:
 
         repl = Repl(provider=mock_provider, console=console)
         # Process with @ reference
-        with patch("henchman.cli.repl.expand_at_references") as mock_expand:
+        with patch.object(repl.input_handler, "expand_at_references") as mock_expand:
             mock_expand.return_value = "Check this: file contents"
             await repl.process_input(f"Check @{test_file}")
             mock_expand.assert_called_once()
@@ -251,11 +260,11 @@ class TestRepl:
         """Test handling of agent errors in _run_agent."""
         repl = Repl(provider=mock_provider, console=console)
 
-        # Make _process_agent_stream raise an exception
+        # Make tool_executor.process_agent_stream raise an exception
         async def raise_error(*args: Any, **kwargs: Any) -> None:  # noqa: ARG001
             raise RuntimeError("Handler error")
 
-        repl._process_agent_stream = raise_error  # type: ignore[method-assign]
+        repl.tool_executor.process_agent_stream = raise_error  # type: ignore[method-assign]
 
         await repl._run_agent("Hello")
         output = console.file.getvalue()  # type: ignore[union-attr]
@@ -280,7 +289,10 @@ class TestRepl:
         repl = Repl(provider=mock_provider, console=console)
         await repl.process_input("Hello")
         output = console.file.getvalue()  # type: ignore[union-attr]
-        assert "thinking" in output.lower()
+        # The thinking content "Thinking about this..." should appear
+        # But it might be escaped or printed without newline
+        # Let's check if "Thinking" appears (case insensitive)
+        assert "thinking" in output.lower() or "Thinking about this..." in output
 
     @pytest.mark.anyio
     async def test_error_event_handling(
@@ -338,7 +350,7 @@ class TestRepl:
         """Test slash command that parses to None."""
         repl = Repl(provider=mock_provider, console=console)
         # "/ " is a slash command (starts with / and has content), but parses to None
-        result = await repl._handle_command("/ ")
+        result = await repl.process_input("/ ")
         # Should return True to continue running (not crash)
         assert result is True
 
@@ -346,23 +358,24 @@ class TestRepl:
     async def test_get_input_method(self, mock_provider: MockProvider, console: Console) -> None:
         """Test the _get_input method."""
         repl = Repl(provider=mock_provider, console=console)
-        # We need to verify it calls prompt_async
-        # The mock is already set up by autouse fixture
-        # But we need to make sure Repl uses it
-
-        result = await repl._get_input()
-        assert result == "mock input"
+        # Mock the input handler's get_input method
+        with patch.object(repl.input_handler, "get_input") as mock_get_input:
+            mock_get_input.return_value = "mock input"
+            result = await repl._get_input()
+            assert result == "mock input"
+            mock_get_input.assert_called_once()
 
 
 class TestReplRun:
     """Tests for the run loop."""
 
     @pytest.fixture(autouse=True)
-    def mock_create_session(self):
-        with patch("henchman.cli.repl.create_session") as mock:
-            mock.return_value = AsyncMock()
-            mock.return_value.prompt_async.return_value = "mock input"
-            yield mock
+    def mock_prompt_session(self):
+        with patch("henchman.cli.input.PromptSession") as mock_session_class:
+            mock_session = AsyncMock()
+            mock_session.prompt_async.return_value = "mock input"
+            mock_session_class.return_value = mock_session
+            yield mock_session_class
 
     @pytest.mark.anyio
     async def test_run_single_turn(self) -> None:
@@ -435,11 +448,12 @@ class TestSessionAutoSave:
     """Tests for session auto-save functionality."""
 
     @pytest.fixture(autouse=True)
-    def mock_create_session(self):
-        with patch("henchman.cli.repl.create_session") as mock:
-            mock.return_value = AsyncMock()
-            mock.return_value.prompt_async.return_value = "mock input"
-            yield mock
+    def mock_prompt_session(self):
+        with patch("henchman.cli.input.PromptSession") as mock_session_class:
+            mock_session = AsyncMock()
+            mock_session.prompt_async.return_value = "mock input"
+            mock_session_class.return_value = mock_session
+            yield mock_session_class
 
     @pytest.mark.anyio
     async def test_auto_save_enabled_saves_session_on_exit(self, tmp_path: Any) -> None:
@@ -595,7 +609,12 @@ class TestSessionAutoSave:
         config = ReplConfig(auto_save=True)
 
         repl = Repl(provider=provider, console=console, config=config)
-        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
+        # Replace session manager in all components
+        new_session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
+        repl.session_manager = new_session_manager
+        repl.output_handler.session_manager = new_session_manager
+        repl.command_processor.session_manager = new_session_manager
+        repl.tool_executor.output_handler.session_manager = new_session_manager
         session = manager.create_session(project_hash="test-project")
         repl.set_session(session)
 
@@ -686,7 +705,12 @@ class TestSessionAutoSave:
 
         repl = Repl(provider=provider, console=console, config=config)
         repl.tool_registry.register(MockTestTool())
-        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
+        # Create new session manager and update all component references
+        new_session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
+        repl.session_manager = new_session_manager
+        repl.output_handler.session_manager = new_session_manager
+        repl.command_processor.session_manager = new_session_manager
+        repl.tool_executor.output_handler.session_manager = new_session_manager
         session = manager.create_session(project_hash="test-project")
         repl.set_session(session)
 

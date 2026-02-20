@@ -15,15 +15,34 @@ from henchman.tools.base import Tool, ToolKind, ToolResult
 
 # Allowed values ---------------------------------------------------------------
 
-VALID_ENTITY_TYPES = frozenset({
-    "file", "module", "package", "class", "function",
-    "decision", "convention", "pattern", "config", "service",
-})
+VALID_ENTITY_TYPES = frozenset(
+    {
+        "file",
+        "module",
+        "package",
+        "class",
+        "function",
+        "decision",
+        "convention",
+        "pattern",
+        "config",
+        "service",
+    }
+)
 
-VALID_RELATION_TYPES = frozenset({
-    "imports", "depends_on", "contains", "implements",
-    "tests", "related_to", "decided_by", "configures", "extends",
-})
+VALID_RELATION_TYPES = frozenset(
+    {
+        "imports",
+        "depends_on",
+        "contains",
+        "implements",
+        "tests",
+        "related_to",
+        "decided_by",
+        "configures",
+        "extends",
+    }
+)
 
 
 def _find_git_root() -> Path | None:
@@ -209,9 +228,7 @@ class KgUpdateTool(Tool):
             )
             store.add_entity(entity)
             store.save()
-            return ToolResult(
-                content=f"Added entity '{entity_id}' ({entity_type})."
-            )
+            return ToolResult(content=f"Added entity '{entity_id}' ({entity_type}).")
 
         elif action == "add_observation":
             observation_text = str(
@@ -229,9 +246,7 @@ class KgUpdateTool(Tool):
             obs = Observation(content=observation_text, source=source, author="agent")
             store.add_observation(entity_id, obs)
             store.save()
-            return ToolResult(
-                content=f"Added observation to '{entity_id}': {observation_text}"
-            )
+            return ToolResult(content=f"Added observation to '{entity_id}': {observation_text}")
 
         elif action == "add_relation":
             target_id = _validate_id(params.get("target_id"))
@@ -272,9 +287,7 @@ class KgUpdateTool(Tool):
             store.add_relation(rel)
             store.save()
             return ToolResult(
-                content=(
-                    f"Added relation: '{entity_id}' —[{relation_type}]→ '{target_id}'."
-                )
+                content=(f"Added relation: '{entity_id}' —[{relation_type}]→ '{target_id}'.")
             )
 
         elif action == "remove_entity":

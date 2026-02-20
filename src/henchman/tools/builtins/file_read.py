@@ -83,6 +83,8 @@ class ReadFileTool(Tool):
         Returns:
             ToolResult with file contents or error.
         """
+        import anyio
+
         try:
             file_path = Path(path)
             if not file_path.exists():
@@ -92,19 +94,34 @@ class ReadFileTool(Tool):
                     error=f"File not found: {path}",
                 )
 
-            content = file_path.read_text()
-            lines = content.splitlines()
+            lines = []
+            current_line = 0
+            chars_read = 0
 
-            # Apply line range
-            start_idx = max(0, start_line - 1)
-            selected_lines = lines[start_idx:] if end_line == -1 else lines[start_idx:end_line]
+            # Use anyio to read file asynchronously and line by line
+            async with await anyio.open_file(file_path, "r") as f:
+                async for line in f:
+                    current_line += 1
 
-            result_content = "\n".join(selected_lines)
+                    # Skip lines before start_line
+                    if current_line < start_line:
+                        continue
 
-            # Apply max_chars truncation
-            if max_chars > 0 and len(result_content) > max_chars:
-                result_content = result_content[:max_chars]
-                result_content += f"\n\n[... truncated after {max_chars} chars. Use start_line/end_line to read specific ranges.]"
+                    # Stop if past end_line
+                    if end_line != -1 and current_line > end_line:
+                        break
+
+                    # Check max_chars limit (approximate, before adding line)
+                    if max_chars > 0 and chars_read + len(line) > max_chars:
+                        truncated_line = line[: max_chars - chars_read]
+                        lines.append(truncated_line)
+                        lines.append(f"\n... (truncated after {max_chars} chars)")
+                        break
+
+                    lines.append(line)
+                    chars_read += len(line)
+
+            result_content = "".join(lines)
 
             return ToolResult(
                 content=result_content,
@@ -116,7 +133,7 @@ class ReadFileTool(Tool):
                 success=False,
                 error=f"Permission denied: {path}",
             )
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             return ToolResult(
                 content=f"Error reading file: {e}",
                 success=False,

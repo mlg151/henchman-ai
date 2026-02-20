@@ -1,4 +1,4 @@
-"""Entry point for python -m mlg."""
+"""Entry point for python -m henchman."""
 
 from henchman.cli.app import main
 

@@ -197,6 +197,7 @@ class TestTaskLedgerChecklist:
         """check_item raises IndexError for bad index."""
         ledger = TaskLedger(goal="Build feature")
         import pytest
+
         with pytest.raises(IndexError):
             ledger.check_item(0)
 

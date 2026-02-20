@@ -1,6 +1,6 @@
 import re
 
-with open("src/henchman/cli/repl.py", "r") as f:
+with open("src/henchman/cli/repl.py") as f:
     content = f.read()
 
 # Replace the entire _handle_tool_call method
@@ -69,7 +69,6 @@ new_method = """    async def _handle_tool_call(self, tool_call: ToolCall) -> No
             pass"""
 
 # Use regex to replace
-import re
 
 pattern = r"""    async def _handle_tool_call(self, tool_call: ToolCall) -> None:.*?        async for event in self.agent.continue_with_tool_results():
             await self._handle_agent_event(event)"""
