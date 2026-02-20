@@ -5,9 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.5] - 2026-02-20
+## [0.3.7] - 2026-02-20
+
+### Refactored
+- **Textual TUI modularization** — Split the monolithic `textual_app.py` (2302 lines) into six focused modules while preserving all public imports via re-exports:
+  - `textual_config.py` — `TextualConfig`, `ComponentConfig`, `ComponentInitializer`
+  - `textual_messages.py` — All Textual `Message` subclasses
+  - `textual_widgets.py` — `ChatPane`, `StatusBar`, `ThinkingPane`, `ToolPane`, etc.
+  - `textual_bridge.py` — `TuiConsoleAdapter`, `EventBridge`
+  - `textual_screens.py` — `ConfirmToolScreen`, `HelpScreen`, `ProviderScreen`
+- Applied refactoring rules: guard clauses, extracted helpers, constants, Google-style docstrings, full type hints, ≤88-char lines, ≤50-line functions, ≤3 nesting depth.
+- `ComponentInitializer` accepts `class_overrides` dict for dependency injection, preserving test patchability.
 
 ### Fixed
+- **Textual TUI improvements** — Added thinking messages in chat pane with stub implementations for ThinkingMessage and ToolMessage widgets
+- **Textual TUI issues** — Resolved 10 Textual TUI issues from code audit:
+  - Fixed RichConsole config in TuiConsoleAdapter (force_terminal, highlight)
+  - Updated deprecated asyncio.get_event_loop() to get_running_loop()
+  - Corrected version display "v—" → v{__version__} format
+  - Removed perf-killing asyncio.sleep(0) yields in event handler
+  - Fixed search scroll calc (line_height * index)
+  - Added warning for mock provider fallback
+  - Cached file read in context tree (avoid double read)
+  - Improved provider switch (preserve state, better UX)
+  - Robust RichLog search across Textual versions
+  - TextArea: .text= → load_text() for proper events
 - **Textual TUI test suite** — Fixed all failing tests for the TUI implementation: `test_screen_composition`, `test_command_palette_functionality`, `test_pane_widgets_initialization`, `test_slash_command_filter`, `test_search_navigation` (missing import), and the entire `test_textual_integration.py` suite (47 tests).
 - **Textual TUI integration tests** — Fixed `_fake_init` to set `_ui_renderer` (read-only property), added `_chatpane_has_content()` / `_get_chatpane_text()` helpers for `ChatPane` (VerticalScroll, not RichLog), fixed `_show/_hide_command_palette` method names, fixed `ChatPane._active` dict for streaming state, and added mock `command_processor` where required for palette display.
 - **Mypy type error** — Fixed `Select` widget construction in `ProviderScreen.compose()` by replacing `**dict` expansion with an explicit `value=` keyword argument, resolving mypy arg-type error.
@@ -19,14 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `agents/pool.py`: `extra_tools` registry deduplication, confirmation handler copying, `get_identity`, `list_active_agents`, `reset_all`, `shutdown`
   - `cli/session_manager.py`: `_sync_session_to_agent` with `tool_calls` dict-to-object conversion, `create_session`, `load`, `load_by_tag`, `save` (explicit and implicit), `list_sessions`, `delete`
   - `cli/ui_renderer.py`: All delegation methods (`warning`, `heading`, `markdown`, `code`, `rule`, `clear`, `tool_call`, `tool_result`, `tool_summary`, `agent_content`, `show_thinking`, `confirm_tool_execution`, progress task methods, `create_status`), exception path in token counting, RAG indexing status display
-
-## [0.3.4] - 2026-02-19
-
-### Removed
-- **Status spinner completely removed** — User requested removal of the spinner that was interfering with agent output visibility. All spinner functionality has been removed from REPL and tool executor.
-
-### Fixed
-- **Agent output visibility** — Agent responses now display immediately without being hidden by spinner animations.
+- **CI pipeline** — Fixed CI to pass all tests, mypy, ruff, and reach 89% coverage
 
 ## [0.3.3] - 2026-02-19
 
