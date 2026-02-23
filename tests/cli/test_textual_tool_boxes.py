@@ -1,31 +1,40 @@
 """Tests for Tool boxes in ChatPane."""
 
-import pytest
 from unittest.mock import MagicMock
 
-from henchman.cli.textual_app import ChatPane, ToolMessage
-from henchman.providers.base import ToolCall
+import pytest
+
+from henchman.cli.textual_app import ToolMessage
+
 
 def test_tool_message_collapsed():
-    \"\"\"Test ToolMessage is collapsed by default.\"\"\"
+    """Test ToolMessage is collapsed by default."""
     msg = ToolMessage(thought="test tool")
-    # Check CSS classes or render
-    assert \"display: none\" in msg.DEFAULT_CSS or \"collapsed\" in msg.classes
-    rendered = msg.render()
-    assert \"<div class=\"tool-content\">\" not in rendered  # No visible content initially
-    assert \"Click to expand\" in rendered
+    assert msg._is_expanded is False
+    rendered = str(msg.render())
+    assert "🛠️ test tool" in rendered
+
 
 def test_tool_message_expanded():
-    \"\"\"Test ToolMessage expands and shows content.\"\"\"
-    msg = ToolMessage(tool_call=MagicMock(name=\"test_tool\", arguments={ \"param\": \"value\" }))
+    """Test ToolMessage expands and shows content."""
+    tc = MagicMock()
+    tc.name = "test_tool"
+    tc.arguments = {"param": "value"}
+    msg = ToolMessage(tool_call=tc)
     msg.toggle_expansion()
-    rendered = msg.render()
-    assert \"tool-content\" in rendered
-    assert \"test_tool\" in rendered
+    assert msg._is_expanded is True
+    assert "expanded" in msg.classes
+    rendered = str(msg.render())
+    assert "test_tool" in rendered
+    assert '"param"' in rendered
+
 
 def test_tool_message_append():
-    \"\"\"Test appending to tool result.\"\"\"
+    """Test appending to tool result."""
     msg = ToolMessage(tool_call=MagicMock())
-    msg.append(\"result content\")
-    rendered = msg.render()
-    assert \"result content\" in rendered
+    msg.append("result content")
+    rendered = str(msg.render())
+    # Appended content visible in expanded view
+    msg.toggle_expansion()
+    rendered_expanded = str(msg.render())
+    assert "result content" in rendered_expanded

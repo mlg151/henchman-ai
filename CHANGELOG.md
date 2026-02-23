@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.9] - 2026-02-20
+
+### Added
+- **Collapsible ThinkingMessage** — Thinking messages now render as collapsible widgets with a `🤔 thinking: (click to expand)` header. Click or call `toggle_expansion()` to reveal/hide full thought content. CSS class `expanded` controls visibility.
+- **Collapsible ToolMessage** — Tool call messages render as collapsible widgets with `🔧 tool_name(args)` header. Expanded view shows full JSON arguments and accumulated result text.
+- **ProgressIndicator widget** — New `ProgressIndicator` widget with `show(message, kind)` / `hide()` API for displaying agent/tool work status. Uses CSS class toggling for visibility.
+- **SessionScreen modal** — New `SessionScreen` in `textual_screens.py` for listing, resuming, and deleting saved sessions with tag, timestamp, and message count display.
+- **ChatPane streaming API** — `begin_thinking_stream()`, `append_thinking_chunk()`, `_active_thinking` tracking for streaming thought content into collapsible widgets.
+- **ChatPane unmounted support** — All ChatPane methods (`add_user_message`, `add_tool_message`, etc.) gracefully handle the case where the pane is not yet mounted in an app.
+
+### Fixed
+- **ComponentInitializer test** — Fixed test that patched non-existent module-level `CommandProcessor`; now uses `class_overrides` dict as intended.
+- **Anthropic validation tests** — Fixed tests that assumed API calls would always raise; now handle both success and auth-error cases.
+- **ThinkingMessage render/header split** — Header sub-widget never shows content text (for CSS-based collapse), while `render()` includes summary for programmatic introspection.
+- **Various pre-existing test failures** — Fixed `test_status_bar_update`, `test_thinking_message_accumulates_content`, `test_chat_pane_displays_*`, and `test_no_separate_*_pane_in_layout` tests.
+
+## [0.3.8] - 2026-02-20
+
+### Added
+- **TCSS Theming** — Extracted inline CSS into `henchman.tcss` external stylesheet with dark/light theme variants. Press **F4** to toggle themes.
+- **Token/Cost Tracker** — StatusBar now displays cumulative session token count and estimated cost (`X,XXX tokens | $X.XXXX`).
+- **Async File Preview** — Context tree file preview shows a loading indicator, file size header, increased preview limit (5 000 chars), and graceful encoding-error handling.
+- **Search Highlighting** — Search now highlights matches with `[reverse]` markup across ChatMessage, ThinkingMessage, and ToolMessage widgets. Highlights clear on search exit.
+- **Markdown Chat Rendering** — Agent messages are rendered as Rich Markdown after streaming completes. A `_looks_like_markdown` heuristic detects headings, code blocks, bold, lists, and links; plain text stays unchanged.
+
 ## [0.3.7] - 2026-02-20
 
 ### Refactored

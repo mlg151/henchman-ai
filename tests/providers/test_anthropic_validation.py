@@ -28,9 +28,7 @@ class TestAnthropicValidation:
         provider = AnthropicProvider(api_key="test-key")
 
         # Create messages with empty user message
-        messages = [
-            Message(role="user", content="")  # Empty content
-        ]
+        messages = [Message(role="user", content="")]  # Empty content
 
         # Mock the actual API call since we're only testing validation
         # The validation happens in the chat_completion_stream method
@@ -67,15 +65,14 @@ class TestAnthropicValidation:
             Message(role="tool", content="", tool_call_id="1"),
         ]
 
-        # Mock the Anthropic client to avoid actual API calls
-        with pytest.raises(Exception) as exc_info:
-            # This will fail because we don't have a real API key,
-            # but it should pass validation
+        # Validation should pass (no ValueError about empty messages).
+        # The stream may succeed silently with a mock key or raise an auth error.
+        try:
             async for _ in provider.chat_completion_stream(messages):
                 pass
-
-        # The error should be about API authentication, not validation
-        assert "Messages list cannot be empty" not in str(exc_info.value)
+        except Exception as exc:
+            # Any error should be about API auth, not validation
+            assert "Messages list cannot be empty" not in str(exc)
 
     @pytest.mark.asyncio
     async def test_assistant_message_with_only_tool_calls(self):
@@ -98,14 +95,13 @@ class TestAnthropicValidation:
             ),
         ]
 
-        # Mock the Anthropic client
-        with pytest.raises(Exception) as exc_info:
+        # Validation should pass; may or may not raise on API call
+        try:
             async for _ in provider.chat_completion_stream(messages):
                 pass
-
-        # Should not be validation error
-        assert "Messages list cannot be empty" not in str(exc_info.value)
-        assert "content" not in str(exc_info.value).lower() or "API" in str(exc_info.value)
+        except Exception as exc:
+            assert "Messages list cannot be empty" not in str(exc)
+            assert "content" not in str(exc).lower() or "API" in str(exc)
 
     @pytest.mark.asyncio
     async def test_mixed_valid_messages(self):
@@ -119,13 +115,13 @@ class TestAnthropicValidation:
             Message(role="user", content="How are you?"),
         ]
 
-        with pytest.raises(Exception) as exc_info:
+        # Validation should pass; may or may not raise on API call
+        try:
             async for _ in provider.chat_completion_stream(messages):
                 pass
-
-        # Should not be validation error
-        assert "Messages list cannot be empty" not in str(exc_info.value)
-        assert "content" not in str(exc_info.value).lower() or "API" in str(exc_info.value)
+        except Exception as exc:
+            assert "Messages list cannot be empty" not in str(exc)
+            assert "content" not in str(exc).lower() or "API" in str(exc)
 
 
 if __name__ == "__main__":

@@ -45,6 +45,7 @@ from henchman.core.events import AgentEvent, EventType
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _richlog_has_content(widget: RichLog) -> bool:
     """Check whether a RichLog widget has received any content.
 
@@ -103,7 +104,9 @@ def _patch_core_init():
 
     def _fake_init(self_app):
         self_app.core_context = mock_core_context
-        self_app._ui_renderer = MagicMock()  # renderer is a property reading _ui_renderer
+        self_app._ui_renderer = (
+            MagicMock()
+        )  # renderer is a property reading _ui_renderer
         self_app.output_handler = MagicMock()
         self_app.command_processor = MagicMock()
         self_app.tool_executor = MagicMock()
@@ -127,6 +130,7 @@ def _patch_core_init():
 # ============================================================================
 # 1. App Lifecycle
 # ============================================================================
+
 
 class TestAppLifecycle:
     """Test that the app starts, mounts widgets, and renders correctly."""
@@ -192,6 +196,7 @@ class TestAppLifecycle:
 # 2. Widget Composition
 # ============================================================================
 
+
 class TestWidgetComposition:
     """Verify all expected widgets exist inside the correct containers."""
 
@@ -247,6 +252,7 @@ class TestWidgetComposition:
 # ============================================================================
 # 3. Text Input
 # ============================================================================
+
 
 class TestTextInput:
     """Test the HenchmanTextArea input widget behaviour."""
@@ -331,6 +337,7 @@ class TestTextInput:
 # 4. Message Display
 # ============================================================================
 
+
 class TestMessageDisplay:
     """Test that posting messages updates the correct panes."""
 
@@ -341,7 +348,9 @@ class TestMessageDisplay:
         with _patch_core_init():
             async with app.run_test() as _pilot:
                 await _pilot.pause()
-                app.post_message(AgentContentMessage("Hello from agent", source_agent="TestBot"))
+                app.post_message(
+                    AgentContentMessage("Hello from agent", source_agent="TestBot")
+                )
                 await _pilot.pause()
 
                 chat = app.query_one("#chat-pane", ChatPane)
@@ -354,21 +363,26 @@ class TestMessageDisplay:
         with _patch_core_init():
             async with app.run_test() as _pilot:
                 await _pilot.pause()
-                app.post_message(AgentThoughtMessage("Thinking hard...", source_agent="Bot"))
+                app.post_message(
+                    AgentThoughtMessage("Thinking hard...", source_agent="Bot")
+                )
                 await _pilot.pause()
 
                 # Check that thinking pane has legacy message
                 thinking_pane = app.query_one("#thinking-pane", ThinkingPane)
                 assert _richlog_has_content(thinking_pane)
-                
+
                 # Check that chat pane contains a ThinkingMessage widget
                 chat_pane = app.query_one("#chat-pane", ChatPane)
                 thinking_messages = [
-                    child for child in chat_pane.children 
+                    child
+                    for child in chat_pane.children
                     if isinstance(child, ThinkingMessage)
                 ]
-                assert len(thinking_messages) > 0, "No ThinkingMessage found in chat pane"
-                
+                assert (
+                    len(thinking_messages) > 0
+                ), "No ThinkingMessage found in chat pane"
+
                 # Check that the ThinkingMessage has the correct content
                 thinking_msg = thinking_messages[0]
                 assert "Thinking hard" in thinking_msg._thought
@@ -410,7 +424,9 @@ class TestMessageDisplay:
         with _patch_core_init():
             async with app.run_test() as _pilot:
                 await _pilot.pause()
-                app.post_message(AgentStatusMessage("Working on it...", source_agent="Bot"))
+                app.post_message(
+                    AgentStatusMessage("Working on it...", source_agent="Bot")
+                )
                 await _pilot.pause()
 
                 status_bar = app.query_one("#status-bar", StatusBar)
@@ -464,6 +480,7 @@ class TestMessageDisplay:
 # ============================================================================
 # 5. Command Palette
 # ============================================================================
+
 
 class TestCommandPalette:
     """Test slash-command autocomplete palette."""
@@ -544,6 +561,7 @@ class TestCommandPalette:
 # 6. Search Functionality
 # ============================================================================
 
+
 class TestSearchFunctionality:
     """Test search mode activation and state management."""
 
@@ -588,7 +606,10 @@ class TestSearchFunctionality:
                 await _pilot.pause()
 
                 status_bar = app.query_one("#status-bar", StatusBar)
-                assert "Search" in status_bar.status_text or "search" in status_bar.status_text.lower()
+                assert (
+                    "Search" in status_bar.status_text
+                    or "search" in status_bar.status_text.lower()
+                )
 
     @pytest.mark.asyncio
     async def test_search_next_previous_wrap(self):
@@ -609,6 +630,7 @@ class TestSearchFunctionality:
 # ============================================================================
 # 7. Tab Navigation
 # ============================================================================
+
 
 class TestTabNavigation:
     """Test tab switching and pane clearing via the action methods."""
@@ -692,6 +714,7 @@ class TestTabNavigation:
 # 8. History Navigation
 # ============================================================================
 
+
 class TestHistoryNavigation:
     """Test command history navigation."""
 
@@ -765,6 +788,7 @@ class TestHistoryNavigation:
 # 9. Modal Screens
 # ============================================================================
 
+
 class TestModalScreens:
     """Test HelpScreen and ProviderScreen modal interactions."""
 
@@ -808,6 +832,7 @@ class TestModalScreens:
 # 10. Error Handling
 # ============================================================================
 
+
 class TestErrorHandling:
     """Test that the app handles errors gracefully."""
 
@@ -827,7 +852,7 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_update_status_with_tokens_and_cost(self):
-        """update_status should format tokens and cost correctly."""
+        """update_status should set tokens and cost reactive properties."""
         app = _make_app()
         with _patch_core_init():
             async with app.run_test() as _pilot:
@@ -837,8 +862,12 @@ class TestErrorHandling:
 
                 status_bar = app.query_one("#status-bar", StatusBar)
                 assert "Done" in status_bar.status_text
-                assert "1500" in status_bar.status_text
-                assert "0.0023" in status_bar.status_text
+                assert status_bar.tokens == 1500
+                assert status_bar.cost == 0.0023
+                # Render should include all parts
+                rendered = status_bar.render()
+                assert "1,500 tokens" in rendered
+                assert "0.0023" in rendered
 
     @pytest.mark.asyncio
     async def test_is_processing_blocks_submit(self):
@@ -863,6 +892,7 @@ class TestErrorHandling:
 # ============================================================================
 # 11. EventBridge (async unit tests)
 # ============================================================================
+
 
 class TestEventBridge:
     """Test EventBridge forwards agent events to the correct messages."""
@@ -915,8 +945,12 @@ class TestEventBridge:
                 bridge = EventBridge(app)
 
                 async def event_stream():
-                    yield AgentEvent(type=EventType.CONTENT, data="hello", source_agent="Bot")
-                    yield AgentEvent(type=EventType.FINISHED, data=None, source_agent="Bot")
+                    yield AgentEvent(
+                        type=EventType.CONTENT, data="hello", source_agent="Bot"
+                    )
+                    yield AgentEvent(
+                        type=EventType.FINISHED, data=None, source_agent="Bot"
+                    )
 
                 await bridge.forward_events(event_stream())
                 await _pilot.pause()
@@ -1011,7 +1045,9 @@ def _get_chatpane_text(pane: ChatPane) -> str:
 
     ChatPane mounts ChatMessage children, each with _prefix and _content.
     """
-    from henchman.cli.textual_app import ChatMessage  # avoid circular import at top level
+    from henchman.cli.textual_app import (
+        ChatMessage,
+    )  # avoid circular import at top level
 
     parts = []
     for child in pane.children:
@@ -1027,7 +1063,10 @@ class _MockStreamingProvider(ModelProvider):
     that the user's message was actually sent to the provider.
     """
 
-    def __init__(self, response_text: str = "THINKING: Processed.\n\nHello from the mock provider!"):
+    def __init__(
+        self,
+        response_text: str = "THINKING: Processed.\n\nHello from the mock provider!",
+    ):
         self._response_text = response_text
         self.calls: list[list[ProviderMessage]] = []
 
@@ -1116,29 +1155,35 @@ class TestEndToEndMessageFlow:
             # --- Assert: the user's message appeared in the chat pane ---
             chat = app.query_one("#chat-pane", ChatPane)
             # Chat pane is a RichLog — check deferred renders + lines
-            assert _chatpane_has_content(chat), "Chat pane should have content after submission"
+            assert _chatpane_has_content(
+                chat
+            ), "Chat pane should have content after submission"
 
             # Extract plain text from chat pane for content assertions
             all_chat_text = _get_chatpane_text(chat)
 
             # The user's message should be visible (process_user_input writes "You: <msg>")
-            assert "Hello provider!" in all_chat_text, (
-                f"User message not found in chat pane. Chat content:\n{all_chat_text}"
-            )
+            assert (
+                "Hello provider!" in all_chat_text
+            ), f"User message not found in chat pane. Chat content:\n{all_chat_text}"
 
             # --- Assert: the provider received the user's message ---
-            assert len(provider.calls) >= 1, "Provider should have been called at least once"
+            assert (
+                len(provider.calls) >= 1
+            ), "Provider should have been called at least once"
             # Find the user message in the last provider call
             last_call_messages = provider.calls[-1]
-            user_messages = [m.content for m in last_call_messages if m.role == "user" and m.content]
-            assert any("Hello provider!" in msg for msg in user_messages), (
-                f"User message not found in provider call. Messages sent:\n{user_messages}"
-            )
+            user_messages = [
+                m.content for m in last_call_messages if m.role == "user" and m.content
+            ]
+            assert any(
+                "Hello provider!" in msg for msg in user_messages
+            ), f"User message not found in provider call. Messages sent:\n{user_messages}"
 
             # --- Assert: the provider's response appeared in the chat pane ---
-            assert "Hello human, I am the mock agent!" in all_chat_text, (
-                f"Provider response not found in chat pane. Chat content:\n{all_chat_text}"
-            )
+            assert (
+                "Hello human, I am the mock agent!" in all_chat_text
+            ), f"Provider response not found in chat pane. Chat content:\n{all_chat_text}"
 
     @pytest.mark.asyncio
     async def test_multiple_messages_accumulate_in_chat(self):
@@ -1198,13 +1243,17 @@ class TestEndToEndMessageFlow:
             all_chat_text = _get_chatpane_text(chat)
 
             # Both user messages should appear
-            assert "First message" in all_chat_text, f"Missing first message. Content:\n{all_chat_text}"
-            assert "Second message" in all_chat_text, f"Missing second message. Content:\n{all_chat_text}"
+            assert (
+                "First message" in all_chat_text
+            ), f"Missing first message. Content:\n{all_chat_text}"
+            assert (
+                "Second message" in all_chat_text
+            ), f"Missing second message. Content:\n{all_chat_text}"
 
             # Both responses should appear
-            assert "Response number 1" in all_chat_text, (
-                f"Missing response 1. Content:\n{all_chat_text}"
-            )
-            assert "Response number 2" in all_chat_text, (
-                f"Missing response 2. Content:\n{all_chat_text}"
-            )
+            assert (
+                "Response number 1" in all_chat_text
+            ), f"Missing response 1. Content:\n{all_chat_text}"
+            assert (
+                "Response number 2" in all_chat_text
+            ), f"Missing response 2. Content:\n{all_chat_text}"

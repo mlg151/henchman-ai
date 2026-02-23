@@ -1,35 +1,44 @@
 """Textual TUI for Henchman-AI.
 
-This module provides a Textual-based terminal user interface for Henchman-AI,
-with full feature parity with the Rich/prompt_toolkit REPL plus a multi-pane layout,
-real search, provider switching, and an interactive context tree.
+This module provides a Textual-based terminal user interface for
+Henchman-AI, with full feature parity with the Rich/prompt_toolkit
+REPL plus a multi-pane layout, real search, provider switching, and
+an interactive context tree.
+
+The implementation is split across several sibling modules for
+maintainability (each kept under 500 lines):
+
+- ``textual_config``   – configuration dataclasses & initializer
+- ``textual_messages``  – Textual Message subclasses
+- ``textual_widgets``   – chat pane, input area, status bar
+- ``textual_bridge``    – TuiConsoleAdapter & EventBridge
+- ``textual_screens``   – modal screens (confirm, help, provider)
+
+All public symbols are re-exported here so existing imports of the
+form ``from henchman.cli.textual_app import X`` continue to work.
+
+Note: This file exceeds the 500-line target due to CSS
+declarations, re-export boilerplate, and 88-char line wrapping.
+To reduce further, extract message handlers into a
+``TextualHandlerMixin``, search logic into ``SearchMixin``,
+and proxy/convenience properties into ``ProxyMixin``.
 """
 
 from __future__ import annotations
 
 import asyncio
-import io
-import json
-from dataclasses import dataclass
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from rich.console import Console as RichConsole
-from textual import events, on, work
+from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical, VerticalScroll
-from textual.message import Message
-from textual.reactive import reactive
-from textual.screen import ModalScreen
 from textual.widgets import (
-    Button,
     Footer,
     Header,
-    Label,
     OptionList,
     RichLog,
-    Select,
     Static,
     TabbedContent,
     TabPane,
@@ -38,1312 +47,157 @@ from textual.widgets import (
 )
 
 from henchman.cli.command_processor import CommandProcessor
-from henchman.cli.core_init import CoreContext, create_core_context, initialize_mcp
+from henchman.cli.core_init import (
+    create_core_context,
+    initialize_mcp,
+)
 from henchman.cli.input import expand_at_references
-from henchman.cli.input_handler import InputHandler
+from henchman.cli.input_handler import (
+    InputHandler,
+)
 from henchman.cli.output_handler import OutputHandler
+from henchman.cli.textual_bridge import EventBridge, TuiConsoleAdapter
+from henchman.cli.textual_config import (
+    ComponentConfig,
+    ComponentInitializer,
+    TextualConfig,
+)
+from henchman.cli.textual_messages import (
+    AgentContentMessage,
+    AgentFinishedMessage,
+    AgentStatusMessage,
+    AgentThoughtMessage,
+    CommandOutputMessage,
+    SwitchProviderMessage,
+    ToolCallRequestMessage,
+    ToolCallResultMessage,
+    ToolConfirmationMessage,
+)
+from henchman.cli.textual_screens import (
+    ConfirmToolScreen,
+    HelpScreen,
+    ProviderScreen,
+    SessionScreen,
+)
+from henchman.cli.textual_widgets import (
+    ChatMessage,
+    ChatPane,
+    HenchmanTextArea,
+    ProgressIndicator,
+    StatusBar,
+    ThinkingMessage,
+    ThinkingPane,
+    ToolMessage,
+    ToolPane,
+)
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.ui_renderer import UIRenderer
-from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import ModelProvider
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable
-
     from henchman.config.schema import Settings
     from henchman.core.session import Session
     from henchman.tools.base import ConfirmationRequest
 
-
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class TextualConfig:
-    """Configuration for the Textual TUI.
-
-    Attributes:
-        prompt: The prompt string to display.
-        system_prompt: System prompt for the agent.
-        auto_save: Whether to auto-save sessions on exit.
-        history_file: Path to history file.
-        base_tool_iterations: Base limit for tool iterations per turn.
-        max_tool_calls_per_turn: Maximum tool calls allowed per turn.
-        auto_approve_tools: Auto-approve all tool executions (non-interactive mode).
-    """
-
-    prompt: str = "❯ "
-    system_prompt: str = ""
-    auto_save: bool = True
-    history_file: Path | None = None
-    base_tool_iterations: int = 25
-    max_tool_calls_per_turn: int = 100
-    auto_approve_tools: bool = False
-
-
-# ---------------------------------------------------------------------------
-# Component Initializer
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class ComponentConfig:
-    """Configuration for component initialization.
-
-    Attributes:
-        provider: The model provider to use.
-        config: Textual TUI configuration.
-        settings: Application settings.
-        environment_context: Pre-formatted environment context.
-        app: Reference to the Textual app instance.
-    """
-
-    provider: ModelProvider
-    config: TextualConfig
-    settings: Any  # Settings type would cause circular import
-    environment_context: str | None
-    app: Any  # HenchmanTextualApp type would cause circular import
-
-
-class ComponentInitializer:
-    """Handles initialization of core Henchman components for the Textual TUI.
-
-    This class encapsulates the complex component setup logic, making it
-    more testable and maintainable.
-    """
-
-    def __init__(self, config: ComponentConfig) -> None:
-        """Initialize the component initializer.
-
-        Args:
-            config: Component configuration.
-        """
-        self.config = config
-        self.core_context: CoreContext | None = None
-        self.tool_executor: ToolExecutor | None = None
-        self.command_processor: CommandProcessor | None = None
-        self.input_handler: InputHandler | None = None
-        self.output_handler: OutputHandler | None = None
-        self._tui_adapter: TuiConsoleAdapter | None = None
-        self._ui_renderer: UIRenderer | None = None
-
-    def initialize_all(self) -> None:
-        """Initialize all core components."""
-        self._initialize_tui_adapter()
-        self._initialize_core_context()
-        self._initialize_renderer()
-        self._initialize_output_handler()
-        self._initialize_command_processor()
-        self._initialize_tool_executor()
-        self._initialize_input_handler()
-        self._initialize_mcp()
-
-    def _initialize_tui_adapter(self) -> None:
-        """Initialize the TUI console adapter."""
-        self._tui_adapter = TuiConsoleAdapter(self.config.app)
-
-    def _initialize_core_context(self) -> None:
-        """Initialize the core context."""
-        self.core_context = create_core_context(
-            provider=self.config.provider,
-            system_prompt=self.config.config.system_prompt,
-            environment_context=self.config.environment_context,
-            settings=self.config.settings,
-            auto_approve_tools=self.config.config.auto_approve_tools,
-        )
-        self.core_context.plugin_manager.ui_instance = self.config.app  # type: ignore[attr-defined]
-
-    def _initialize_renderer(self) -> None:
-        """Initialize the UI renderer."""
-        from henchman.cli.console import OutputRenderer, ThemeManager
-
-        if not self._tui_adapter:
-            raise RuntimeError("TUI adapter must be initialized first")
-
-        console = self._tui_adapter.console
-        theme_manager = ThemeManager()
-
-        # Determine theme name with safe defaults
-        theme_name = "dark"  # Default theme
-        if self.config.settings and self.config.settings.ui and self.config.settings.ui.theme:
-            theme_name = self.config.settings.ui.theme
-
-        # Validate theme exists
-        if theme_name not in theme_manager.list_themes():
-            theme_name = "dark"
-
-        theme = theme_manager.get_theme(theme_name)
-        output_renderer = OutputRenderer(console=console, theme=theme)
-        self._ui_renderer = UIRenderer(console=console, renderer=output_renderer)
-
-    def _initialize_output_handler(self) -> None:
-        """Initialize the output handler."""
-        if not self.core_context or not self._ui_renderer:
-            raise RuntimeError("Core context and renderer must be initialized first")
-
-        self.output_handler = OutputHandler(
-            renderer=self._ui_renderer,
-            tool_manager=self.core_context.tool_manager,
-            session_manager=self.core_context.session_manager,
-            provider=self.config.provider,
-            settings=self.config.settings,
-            rag_system=None,
-            mcp_manager=self.core_context.mcp_manager,
-        )
-
-    def _initialize_command_processor(self) -> None:
-        """Initialize the command processor."""
-        if not self.core_context or not self.output_handler:
-            raise RuntimeError("Core context and output handler must be initialized first")
-
-        self.command_processor = CommandProcessor(
-            output_handler=self.output_handler,
-            tool_manager=self.core_context.tool_manager,
-            session_manager=self.core_context.session_manager,
-            provider=self.config.provider,
-            mcp_manager=self.core_context.mcp_manager,
-        )
-
-    def _initialize_tool_executor(self) -> None:
-        """Initialize the tool executor."""
-        if not self.core_context or not self.output_handler:
-            raise RuntimeError("Core context and output handler must be initialized first")
-
-        self.tool_executor = ToolExecutor(
-            output_handler=self.output_handler,
-            tool_manager=self.core_context.tool_manager,
-            provider=self.config.provider,
-            base_tool_iterations=self.config.config.base_tool_iterations,
-            max_tool_calls_per_turn=self.config.config.max_tool_calls_per_turn,
-        )
-
-    def _initialize_input_handler(self) -> None:
-        """Initialize the input handler."""
-        if not self._ui_renderer:
-            raise RuntimeError("Renderer must be initialized first")
-
-        history_file = self.config.config.history_file or Path.home() / ".henchman_history"
-        keybindings = (
-            self.config.settings.ui.keybindings
-            if self.config.settings and self.config.settings.ui
-            else None
-        )
-
-        self.input_handler = InputHandler(
-            config=self.config.config,  # type: ignore[arg-type]
-            renderer=self._ui_renderer,
-            history_file=history_file,
-            keybindings=keybindings,
-        )
-
-    def _initialize_mcp(self) -> None:
-        """Initialize MCP if available."""
-        if self.core_context and self.core_context.mcp_manager:
-            initialize_mcp(self.core_context)
-
-
-# ---------------------------------------------------------------------------
-# Custom input widget
-# ---------------------------------------------------------------------------
-
-
-class HenchmanTextArea(TextArea):
-    """Custom TextArea with Enter/Shift-Enter and history navigation."""
-
-    BINDINGS = [
-        Binding("ctrl+f", "app.search", "Search", show=False),
-        Binding("enter", "app.action_submit_message", "Submit Message", show=False),
-        Binding("shift+enter", "newline", "Newline", show=False),
-        Binding("escape", "app.clear_search", "Clear Search", show=False),
-        Binding("up", "history_up", "History Up", show=False),
-        Binding("down", "history_down", "History Down", show=False),
-    ]
-
-    async def on_key(self, event: events.Key) -> None:
-        """Handle key events.
-
-        Args:
-            event: Incoming key event.
-        """
-        if event.key == "enter":
-            event.stop()
-            event.prevent_default()
-            self.app.action_submit_message()  # type: ignore[attr-defined]
-            return
-        if event.key == "shift+enter":
-            event.stop()
-            event.prevent_default()
-            self.insert("\n")
-            return
-
-    def action_newline(self) -> None:
-        """Insert a newline character."""
-        self.insert("\n")
-
-    def action_history_up(self) -> None:
-        """Move up or navigate history."""
-        if self.cursor_location[0] == 0:
-            self.app._navigate_history(-1)  # type: ignore[attr-defined]
-        else:
-            self.action_cursor_up()
-
-    def action_history_down(self) -> None:
-        """Move down or navigate history."""
-        lines = self.document.line_count - 1
-        if self.cursor_location[0] >= lines:
-            self.app._navigate_history(1)  # type: ignore[attr-defined]
-        else:
-            self.action_cursor_down()
-
-    def on_mount(self) -> None:
-        """Setup on mount."""
-        pass
-
-
-# ---------------------------------------------------------------------------
-# Textual Messages (one per AgentEvent type that needs UI dispatch)
-# ---------------------------------------------------------------------------
-
-
-class AgentContentMessage(Message):
-    """Streamed text content from an agent."""
-
-    def __init__(self, content: str, source_agent: str | None = None) -> None:
-        """Initialize.
-
-        Args:
-            content: Text chunk from the agent.
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.content = content
-        self.source_agent = source_agent
-
-
-class AgentThoughtMessage(Message):
-    """Thinking/reasoning text from an agent."""
-
-    def __init__(self, thought: str, source_agent: str | None = None) -> None:
-        """Initialize.
-
-        Args:
-            thought: Reasoning text.
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.thought = thought
-        self.source_agent = source_agent
-
-
-class ToolCallRequestMessage(Message):
-    """Agent is requesting a tool call."""
-
-    def __init__(self, tool_call: Any, source_agent: str | None = None) -> None:
-        """Initialize.
-
-        Args:
-            tool_call: ToolCall object (name, arguments).
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.tool_call = tool_call
-        self.source_agent = source_agent
-
-
-class ToolCallResultMessage(Message):
-    """Result from a tool execution."""
-
-    def __init__(self, result: Any, source_agent: str | None = None) -> None:
-        """Initialize.
-
-        Args:
-            result: Tool result data.
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.result = result
-        self.source_agent = source_agent
-
-
-class ToolConfirmationMessage(Message):
-    """Agent is awaiting user approval for a tool call."""
-
-    def __init__(self, request: ConfirmationRequest, source_agent: str | None = None) -> None:
-        """Initialize.
-
-        Args:
-            request: ConfirmationRequest with tool details.
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.request = request
-        self.source_agent = source_agent
-
-
-class AgentStatusMessage(Message):
-    """Status update from the agent loop."""
-
-    def __init__(self, status: str, source_agent: str | None = None) -> None:
-        """Initialize.
-
-        Args:
-            status: Status string.
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.status = status
-        self.source_agent = source_agent
-
-
-class AgentFinishedMessage(Message):
-    """Agent has finished processing the current turn."""
-
-    def __init__(self, source_agent: str | None = None) -> None:
-        """Initialize.
-
-        Args:
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.source_agent = source_agent
-
-
-class CommandOutputMessage(Message):
-    """Output produced by a slash command (to route to chat pane)."""
-
-    def __init__(self, text: str, style: str = "") -> None:
-        """Initialize.
-
-        Args:
-            text: Output text.
-            style: Optional Rich markup style.
-        """
-        super().__init__()
-        self.text = text
-        self.style = style
-
-
-# ---------------------------------------------------------------------------
-# Chat pane: streaming-aware with per-turn Static widgets
-# ---------------------------------------------------------------------------
-
-
-class ChatMessage(Static):
-    """A single rendered chat message (supports live-update during streaming).
-
-    The content is stored as raw markdown, and the widget re-renders on every
-    update so streaming text flows naturally.
-    """
-
-    DEFAULT_CSS = """
-    ChatMessage {
-        padding: 0 1;
-        margin: 0 0 1 0;
-    }
-    """
-
-    def __init__(self, prefix: str, content: str = "", **kwargs: Any) -> None:
-        """Initialize.
-
-        Args:
-            prefix: Rich-markup prefix (e.g. ``[bold cyan]Assistant:[/]``).
-            content: Initial content (may be empty at construction for streaming).
-            **kwargs: Extra kwargs forwarded to Static.
-        """
-        super().__init__("", **kwargs)
-        self._prefix = prefix
-        self._content = content
-        self._update_renderable()
-
-    def _update_renderable(self) -> None:
-        """Re-render the static widget with current content."""
-        self.update(f"{self._prefix} {self._content}")
-
-    def append(self, chunk: str) -> None:
-        """Append a streaming chunk and re-render.
-
-        Args:
-            chunk: Text to append.
-        """
-        self._content += chunk
-        self._update_renderable()
-
-    def set_content(self, content: str) -> None:
-        """Replace content entirely and re-render.
-
-        Args:
-            content: Full replacement content.
-        """
-        self._content = content
-        self._update_renderable()
-
-
-class ThinkingMessage(Static):
-    """Stub implementation for ThinkingMessage widget.
-    
-    TODO: Implement proper collapsible thinking message display.
-    """
-    
-    def __init__(self, thought: str = "", agent_name: str = "", **kwargs: Any) -> None:
-        """Initialize stub ThinkingMessage.
-        
-        Args:
-            thought: The thinking content.
-            agent_name: Name of the agent doing the thinking.
-            **kwargs: Forwarded to Static.
-        """
-        super().__init__(f"🤔 {agent_name}: {thought}", **kwargs)
-
-
-class ToolMessage(Static):
-    """Stub implementation for ToolMessage widget.
-    
-    TODO: Implement proper collapsible tool call/result display.
-    """
-    
-    def __init__(self, thought: str = "", tool_call: Any = None, **kwargs: Any) -> None:
-        """Initialize stub ToolMessage.
-        
-        Args:
-            thought: Tool thought/description.
-            tool_call: Tool call object.
-            **kwargs: Forwarded to Static.
-        """
-        content = f"🛠️ Tool: {thought}" if thought else "🛠️ Tool call"
-        super().__init__(content, **kwargs)
-    
-    def append(self, chunk: str) -> None:
-        """Stub append method."""
-        pass
-    
-    def toggle_expansion(self) -> None:
-        """Stub toggle expansion method."""
-        pass
-
-
-class ChatPane(VerticalScroll):
-    """Scrollable container for chat messages."""
-
-    DEFAULT_CSS = """
-    ChatPane {
-        height: 100%;
-        width: 100%;
-    }
-    """
-
-    # Map agent_name -> ChatMessage widget for the current streaming turn
-    _active: dict[str, ChatMessage]
-
-    def __init__(self, **kwargs: Any) -> None:
-        """Initialize the chat pane.
-
-        Args:
-            **kwargs: Forwarded to VerticalScroll.
-        """
-        super().__init__(**kwargs)
-        self.border_title = "Chat"
-        # Compat attributes — ChatPane renders its own markup/styled content
-        self.wrap: bool = True
-        self.highlight: bool = True
-        self.markup: bool = True
-
-    def on_mount(self) -> None:
-        """Initialize the active message map."""
-        self._active = {}
-
-    def _scroll_to_bottom(self) -> None:
-        """Scroll to the latest message."""
-        self.scroll_end(animate=False)
-        if self.children:
-            self.scroll_visible(self.children[-1])
-
-    def add_user_message(self, text: str) -> None:
-        """Append a user message block.
-
-        Args:
-            text: User input text.
-        """
-        msg = ChatMessage("[bold green]You:[/]", text)
-        self.mount(msg)
-        self._scroll_to_bottom()
-
-    def add_system_message(self, text: str) -> None:
-        """Append a dim system/info message.
-
-        Args:
-            text: Information text.
-        """
-        msg = ChatMessage("[dim]»[/]", text)
-        self.mount(msg)
-        self._scroll_to_bottom()
-
-    def add_error_message(self, text: str) -> None:
-        """Append a red error message.
-
-        Args:
-            text: Error text.
-        """
-        msg = ChatMessage("[bold red]Error:[/]", text)
-        self.mount(msg)
-        self._scroll_to_bottom()
-
-    def begin_agent_stream(self, agent_name: str) -> ChatMessage:
-        """Start a new streaming message for *agent_name*.
-
-        Args:
-            agent_name: Display name of the responding agent.
-
-        Returns:
-            The newly mounted ChatMessage widget.
-        """
-        widget = ChatMessage(f"[bold cyan]{agent_name}:[/]", "")
-        self._active[agent_name] = widget
-        self.mount(widget)
-        self._scroll_to_bottom()
-        return widget
-
-    def append_agent_chunk(self, agent_name: str, chunk: str) -> None:
-        """Append a streaming chunk to an active agent message.
-
-        Creates a new stream widget if none exists for that agent.
-
-        Args:
-            agent_name: Agent whose message to extend.
-            chunk: Text chunk to append.
-        """
-        if agent_name not in self._active:
-            self.begin_agent_stream(agent_name)
-        self._active[agent_name].append(chunk)
-        self._scroll_to_bottom()
-
-    def finish_agent_stream(self, agent_name: str) -> None:
-        """Mark an agent's streaming message as complete.
-
-        Args:
-            agent_name: Agent whose stream ended.
-        """
-        self._active.pop(agent_name, None)
-
-    def clear_thinking_messages(self) -> None:
-        """Remove all ThinkingMessage widgets from the pane.
-        
-        This is used when clearing the thinking pane to also remove
-        thinking messages that appear in the chat window.
-        """
-        # Find and remove all ThinkingMessage widgets
-        thinking_widgets = [
-            child for child in self.children
-            if hasattr(child, '__class__') and child.__class__.__name__ == 'ThinkingMessage'
-        ]
-        for widget in thinking_widgets:
-            widget.remove()
-
-    def clear_messages(self) -> None:
-        """Remove all messages from the pane."""
-        self._active = {}
-        self.remove_children()
-
-
-# ---------------------------------------------------------------------------
-# Other pane widgets
-# ---------------------------------------------------------------------------
-
-
-class ThinkingPane(RichLog):
-    """Pane for agent reasoning/thinking output."""
-
-    def __init__(self, **kwargs: Any) -> None:
-        """Initialize.
-
-        Args:
-            **kwargs: Forwarded to RichLog.
-        """
-        super().__init__(wrap=True, highlight=True, markup=True, **kwargs)
-        self.border_title = "Thinking (legacy)"
-
-
-class ToolPane(RichLog):
-    """Pane for tool call/result display."""
-
-    def __init__(self, **kwargs: Any) -> None:
-        """Initialize.
-
-        Args:
-            **kwargs: Forwarded to RichLog.
-        """
-        super().__init__(wrap=True, highlight=True, markup=True, **kwargs)
-        self.border_title = "Tools"
-
-
-class StatusBar(Static):
-    """One-line status bar at the bottom of the screen."""
-
-    status_text: reactive[str] = reactive("Ready")
-
-    def __init__(self, **kwargs: Any) -> None:
-        """Initialize.
-
-        Args:
-            **kwargs: Forwarded to Static.
-        """
-        super().__init__(**kwargs)
-        self.border_title = "Status"
-
-    def render(self) -> str:
-        """Render the status bar.
-
-        Returns:
-            Formatted Rich markup string.
-        """
-        return f"[bold cyan]{self.status_text}[/]"
-
-
-# ---------------------------------------------------------------------------
-# TUI Console adapter — routes Rich output to the chat pane
-# ---------------------------------------------------------------------------
-
-
-class TuiConsoleAdapter:
-    """Intercepts Rich Console output and forwards it to the Textual chat pane.
-
-    This replaces the invisible stdout-backed console that the OutputHandler
-    and UIRenderer write to, so that slash command output, errors, and status
-    messages appear inside the TUI rather than behind it.
-    """
-
-    def __init__(self, app: HenchmanTextualApp) -> None:
-        """Initialize.
-
-        Args:
-            app: The Textual application.
-        """
-        self._app = app
-        self._buf = io.StringIO()
-        # A Rich Console that writes to our StringIO buffer.
-        # force_terminal=True ensures ANSI/markup is rendered by Rich into plain
-        # text that we can then forward as Rich markup to RichLog.
-        self._rich_console = RichConsole(
-            file=self._buf,
-            force_terminal=True,
-            no_color=False,
-            markup=True,
-            highlight=True,
-        )
-
-    @property
-    def console(self) -> RichConsole:
-        """The underlying Rich Console wired to the string buffer.
-
-        Returns:
-            RichConsole instance.
-        """
-        return self._rich_console
-
-    def flush_to_chat(self) -> None:
-        """Read accumulated buffer and post it to the chat pane."""
-        text = self._buf.getvalue()
-        if text.strip():
-            self._app.post_message(CommandOutputMessage(text.strip()))
-        self._buf.seek(0)
-        self._buf.truncate(0)
-
-    def print(self, *args: Any, **kwargs: Any) -> None:
-        """Write to the buffer and immediately flush to chat.
-
-        Args:
-            *args: Positional args forwarded to Rich Console.print.
-            **kwargs: Keyword args forwarded to Rich Console.print.
-        """
-        self._rich_console.print(*args, **kwargs)
-        self.flush_to_chat()
-
-
-# ---------------------------------------------------------------------------
-# EventBridge
-# ---------------------------------------------------------------------------
-
-
-class EventBridge:
-    """Forwards agent events to the Textual UI via post_message.
-
-    All 20 EventType variants are handled here.
-    """
-
-    def __init__(self, app: HenchmanTextualApp) -> None:
-        """Initialize.
-
-        Args:
-            app: The Textual application to target.
-        """
-        self.app = app
-        self._handlers = self._create_handler_registry()
-
-    def _post(self, message: Message) -> None:
-        """Post a message to the Textual app.
-
-        Args:
-            message: The Textual message to post.
-        """
-        # @work coroutines run on the main event loop — direct post is safe.
-        self.app.post_message(message)
-
-    async def forward_events(self, event_stream: AsyncIterator[AgentEvent]) -> None:
-        """Forward all events from *event_stream* to the Textual UI.
-
-        Args:
-            event_stream: Async iterator of AgentEvent objects.
-        """
-        try:
-            async for event in event_stream:
-                await self._handle_event(event)
-        except Exception as exc:
-            import traceback
-
-            details = traceback.format_exc()
-            self._post(AgentStatusMessage(f"Stream error: {exc}"))
-            self._post(AgentContentMessage(f"❌ Stream error: {exc}\n```\n{details}\n```"))
-
-    async def _handle_event(self, event: AgentEvent) -> None:
-        """Dispatch a single AgentEvent to the appropriate Textual Message.
-
-        Args:
-            event: The event to dispatch.
-        """
-        handler = self._handlers.get(event.type)
-        if handler:
-            handler(event)  # Handlers are synchronous, don't await
-        else:
-            # Log unhandled event type for debugging
-            self._post(
-                AgentStatusMessage(f"Unhandled event type: {event.type}", event.source_agent)
-            )
-
-    def _create_handler_registry(self) -> dict[EventType, Callable[[AgentEvent], None]]:
-        """Create a registry of event type to handler function mappings.
-
-        Returns:
-            Dictionary mapping EventType to handler functions.
-        """
-        return {
-            EventType.CONTENT: self._handle_content,
-            EventType.THOUGHT: self._handle_thought,
-            EventType.TOOL_CALL_REQUEST: self._handle_tool_call_request,
-            EventType.TOOL_CALL_RESULT: self._handle_tool_call_result,
-            EventType.TOOL_CONFIRMATION: self._handle_tool_confirmation,
-            EventType.ERROR: self._handle_error,
-            EventType.FINISHED: self._handle_finished,
-            EventType.CONTEXT_COMPACTED: self._handle_context_compacted,
-            EventType.TURN_SUMMARIZED: self._handle_turn_summarized,
-            EventType.TURN_STATUS: self._handle_turn_status,
-            EventType.AGENT_STARTED: self._handle_agent_started,
-            EventType.AGENT_COMPLETED: self._handle_agent_completed,
-            EventType.AGENT_DELEGATED: self._handle_agent_delegated,
-            EventType.AGENT_MESSAGE: self._handle_agent_message,
-            EventType.THINKING_STARTED: self._handle_thinking_started,
-            EventType.THINKING_COMPLETED: self._handle_thinking_completed,
-            EventType.THINKING_REQUIRED: self._handle_thinking_required,
-            EventType.DELEGATION_DECISION: self._handle_delegation_decision,
-            EventType.REFLECTION: self._handle_reflection,
-        }
-
-    def _handle_content(self, event: AgentEvent) -> None:
-        """Handle CONTENT events."""
-        if event.data:
-            self._post(AgentContentMessage(str(event.data), event.source_agent))
-
-    def _handle_thought(self, event: AgentEvent) -> None:
-        """Handle THOUGHT events."""
-        if event.data:
-            self._post(AgentThoughtMessage(str(event.data), event.source_agent))
-
-    def _handle_tool_call_request(self, event: AgentEvent) -> None:
-        """Handle TOOL_CALL_REQUEST events."""
-        if event.data:
-            self._post(ToolCallRequestMessage(event.data, event.source_agent))
-
-    def _handle_tool_call_result(self, event: AgentEvent) -> None:
-        """Handle TOOL_CALL_RESULT events."""
-        if event.data:
-            self._post(ToolCallResultMessage(event.data, event.source_agent))
-
-    def _handle_tool_confirmation(self, event: AgentEvent) -> None:
-        """Handle TOOL_CONFIRMATION events."""
-        if event.data:
-            self._post(ToolConfirmationMessage(event.data, event.source_agent))
-
-    def _handle_error(self, event: AgentEvent) -> None:
-        """Handle ERROR events."""
-        if event.data:
-            error_message = self._format_error_message(str(event.data))
-            self._post(AgentStatusMessage(f"Error: {error_message}", event.source_agent))
-            self._post(AgentContentMessage(f"❌ {error_message}", event.source_agent))
-
-    def _handle_finished(self, event: AgentEvent) -> None:
-        """Handle FINISHED events."""
-        self._post(AgentFinishedMessage(event.source_agent))
-
-    def _handle_context_compacted(self, event: AgentEvent) -> None:
-        """Handle CONTEXT_COMPACTED events."""
-        self._post(AgentStatusMessage("Context compacted to fit model limits", event.source_agent))
-        self._post(CommandOutputMessage("[dim]ℹ Context window was compacted.[/dim]"))
-
-    def _handle_turn_summarized(self, event: AgentEvent) -> None:
-        """Handle TURN_SUMMARIZED events."""
-        self._post(AgentStatusMessage("Previous turn summarized", event.source_agent))
-
-    def _handle_turn_status(self, event: AgentEvent) -> None:
-        """Handle TURN_STATUS events."""
-        if event.data and isinstance(event.data, dict):
-            status = self._format_turn_status(event.data)
-            self._post(AgentStatusMessage(status, event.source_agent))
-
-    def _handle_agent_started(self, event: AgentEvent) -> None:
-        """Handle AGENT_STARTED events."""
-        if event.data and isinstance(event.data, dict):
-            name = event.data.get("agent", "unknown")
-            self._post(AgentStatusMessage(f"⚙ {name} working…", event.source_agent))
-
-    def _handle_agent_completed(self, event: AgentEvent) -> None:
-        """Handle AGENT_COMPLETED events."""
-        if event.data and isinstance(event.data, dict):
-            name = event.data.get("agent", "unknown")
-            summary = event.data.get("summary", "")
-            message = self._format_agent_completed_message(name, summary)
-            self._post(AgentStatusMessage(message, event.source_agent))
-
-    def _handle_agent_delegated(self, event: AgentEvent) -> None:
-        """Handle AGENT_DELEGATED events."""
-        if event.data and isinstance(event.data, dict):
-            from_agent = event.data.get("from", "?")
-            to_agent = event.data.get("to", "?")
-            reason = event.data.get("reason", "")
-            text = self._format_delegation_message(from_agent, to_agent, reason)
-            self._post(CommandOutputMessage(text))
-            self._post(AgentStatusMessage(f"{from_agent} → {to_agent}", event.source_agent))
-
-    def _handle_agent_message(self, event: AgentEvent) -> None:
-        """Handle AGENT_MESSAGE events."""
-        if event.data:
-            self._post(CommandOutputMessage(f"[dim]📨 {event.data}[/dim]"))
-
-    def _handle_thinking_started(self, event: AgentEvent) -> None:
-        """Handle THINKING_STARTED events."""
-        self._post(AgentStatusMessage("Thinking…", event.source_agent))
-
-    def _handle_thinking_completed(self, event: AgentEvent) -> None:
-        """Handle THINKING_COMPLETED events."""
-        self._post(AgentStatusMessage("Thinking complete", event.source_agent))
-
-    def _handle_thinking_required(self, event: AgentEvent) -> None:
-        """Handle THINKING_REQUIRED events."""
-        self._post(AgentStatusMessage("⚠ Thinking pattern missing in response", event.source_agent))
-
-    def _handle_delegation_decision(self, event: AgentEvent) -> None:
-        """Handle DELEGATION_DECISION events."""
-        if event.data:
-            self._post(
-                AgentThoughtMessage(f"Delegation decision: {event.data}", event.source_agent)
-            )
-
-    def _handle_reflection(self, event: AgentEvent) -> None:
-        """Handle REFLECTION events."""
-        if event.data:
-            self._post(AgentThoughtMessage(f"Reflection: {event.data}", event.source_agent))
-
-    # Helper methods for formatting
-    def _format_error_message(self, error_text: str) -> str:
-        """Format error message, handling special cases like API errors.
-
-        Args:
-            error_text: Raw error text.
-
-        Returns:
-            Formatted error message.
-        """
-        if "API key" in error_text or "authentication" in error_text.lower():
-            return "❌ API Error: Invalid or missing API key."
-        return error_text
-
-    def _format_turn_status(self, status_data: dict[str, Any]) -> str:
-        """Format turn status message.
-
-        Args:
-            status_data: Dictionary with turn status information.
-
-        Returns:
-            Formatted status string.
-        """
-        iteration = status_data.get("iteration", "?")
-        max_iter = status_data.get("max_iterations", "?")
-        tokens = status_data.get("tokens")
-        status = f"Turn {iteration}/{max_iter}"
-        if tokens:
-            status += f" | {tokens} tokens"
-        return status
-
-    def _format_agent_completed_message(self, agent_name: str, summary: str) -> str:
-        """Format agent completed message.
-
-        Args:
-            agent_name: Name of the agent.
-            summary: Summary of what was completed.
-
-        Returns:
-            Formatted completion message.
-        """
-        message = f"✓ {agent_name} completed"
-        if summary:
-            message += f": {summary}"
-        return message
-
-    def _format_delegation_message(self, from_agent: str, to_agent: str, reason: str) -> str:
-        """Format delegation message.
-
-        Args:
-            from_agent: Name of delegating agent.
-            to_agent: Name of receiving agent.
-            reason: Reason for delegation.
-
-        Returns:
-            Formatted delegation message.
-        """
-        text = f"[dim]↳ Delegating: {from_agent} → {to_agent}"
-        if reason:
-            text += f" ({reason})"
-        text += "[/dim]"
-        return text
-
-
-# ---------------------------------------------------------------------------
-# Modal screens
-# ---------------------------------------------------------------------------
-
-
-class ConfirmToolScreen(ModalScreen[bool]):
-    """Modal dialog for tool execution confirmation.
-
-    Returns True if the user approves, False otherwise.
-    """
-
-    DEFAULT_CSS = """
-    ConfirmToolScreen {
-        align: center middle;
-    }
-    #confirm-dialog {
-        padding: 2;
-        border: solid $warning;
-        background: $surface;
-        width: 70;
-        height: auto;
-        max-height: 20;
-    }
-    #confirm-title {
-        text-style: bold;
-        margin-bottom: 1;
-    }
-    #confirm-details {
-        margin-bottom: 1;
-        color: $text-muted;
-    }
-    #confirm-buttons {
-        align: right middle;
-        height: auto;
-        margin-top: 1;
-    }
-    """
-
-    BINDINGS = [
-        ("y", "approve", "Yes"),
-        ("n", "deny", "No"),
-        ("escape", "deny", "No"),
-    ]
-
-    def __init__(self, request: ConfirmationRequest) -> None:
-        """Initialize.
-
-        Args:
-            request: The tool confirmation request to show.
-        """
-        super().__init__()
-        self._request = request
-
-    def compose(self) -> ComposeResult:
-        """Build the confirmation dialog.
-
-        Returns:
-            ComposeResult with the dialog layout.
-        """
-        from rich.markup import escape
-
-        risk_color = {"low": "green", "medium": "yellow", "high": "red"}.get(
-            self._request.risk_level, "yellow"
-        )
-        tool_name = escape(self._request.tool_name)
-        description = escape(self._request.description)
-
-        params_text = ""
-        if self._request.params:
-            try:
-                params_text = json.dumps(self._request.params, indent=2)
-            except Exception:
-                params_text = str(self._request.params)
-
-        yield Vertical(
-            Label(
-                f"[bold {risk_color}]⚠ Tool Approval Required[/]",
-                id="confirm-title",
-            ),
-            Label(
-                f"Tool [bold cyan]{tool_name}[/] wants to: {description}",
-                id="confirm-details",
-            ),
-            *(
-                [Label(f"[dim]Parameters:[/]\n[yellow]{escape(params_text)}[/]")]
-                if params_text
-                else []
-            ),
-            Label(f"[dim]Risk level: [{risk_color}]{self._request.risk_level}[/][/dim]"),
-            Vertical(
-                Button("Yes  (y)", variant="success", id="btn-yes"),
-                Button("No   (n)", variant="error", id="btn-no"),
-                id="confirm-buttons",
-            ),
-            id="confirm-dialog",
-        )
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Dismiss the modal with the user's choice.
-
-        Args:
-            event: Button press event.
-        """
-        self.dismiss(event.button.id == "btn-yes")
-
-    def action_approve(self) -> None:
-        """Approve the tool call."""
-        self.dismiss(True)
-
-    def action_deny(self) -> None:
-        """Deny the tool call."""
-        self.dismiss(False)
-
-
-class HelpScreen(ModalScreen[None]):
-    """Keybinding / help modal."""
-
-    DEFAULT_CSS = """
-    HelpScreen {
-        align: center middle;
-    }
-    #help-dialog {
-        padding: 2;
-        border: solid $accent;
-        background: $surface;
-        width: 60;
-        height: auto;
-        align: center middle;
-    }
-    """
-    BINDINGS = [("escape", "app.pop_screen", "Close")]
-
-    def compose(self) -> ComposeResult:
-        """Compose the help dialog.
-
-        Returns:
-            ComposeResult with help content.
-        """
-        yield Vertical(
-            Label("[bold]Henchman-AI — Keybindings[/bold]"),
-            Label(""),
-            Label("[bold]Input[/bold]"),
-            Label("  Enter          Submit message"),
-            Label("  Shift+Enter    New line"),
-            Label("  ↑ / ↓         Navigate history"),
-            Label(""),
-            Label("[bold]Search[/bold]"),
-            Label("  Ctrl+F         Enter search mode"),
-            Label("  F3             Next match"),
-            Label("  Shift+F3       Previous match"),
-            Label("  Escape         Exit search / close modal"),
-            Label(""),
-            Label("[bold]App[/bold]"),
-            Label("  Ctrl+Q / Ctrl+C    Quit"),
-            Label("  Ctrl+Shift+T       Clear thinking pane"),
-            Label("  Ctrl+Shift+Y       Clear tool pane"),
-            Label("  /               Slash command palette"),
-            Label(""),
-            Button("Close", variant="primary", id="close-help"),
-            id="help-dialog",
-        )
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Close the help screen.
-
-        Args:
-            event: Button press event.
-        """
-        if event.button.id == "close-help":
-            self.app.pop_screen()
-
-
-class ProviderScreen(ModalScreen[None]):
-    """Provider selection modal."""
-
-    DEFAULT_CSS = """
-    ProviderScreen {
-        align: center middle;
-    }
-    #provider-dialog {
-        padding: 2;
-        border: solid $accent;
-        background: $surface;
-        width: 60;
-        height: auto;
-    }
-    #provider-select {
-        margin: 1 0;
-    }
-    """
-    BINDINGS = [("escape", "app.pop_screen", "Close")]
-
-    def compose(self) -> ComposeResult:
-        """Compose the provider dialog.
-
-        Returns:
-            ComposeResult with provider selection.
-        """
-        app: HenchmanTextualApp = self.app  # type: ignore[assignment]
-        settings = app.settings
-
-        options: list[tuple[str, str]] = []
-        if settings and settings.providers:
-            ps = settings.providers
-            for name in ("deepseek", "anthropic", "ollama", "openai"):
-                cfg = getattr(ps, name, None)
-                if cfg and isinstance(cfg, dict) and cfg:
-                    model = cfg.get("model", name)
-                    options.append((f"{name} ({model})", name))
-
-        if not options:
-            options = [("No providers configured", "none")]
-
-        current = settings.providers.default if settings and settings.providers else "unknown"
-        current_in_options = any(v == current for _, v in options)
-
-        select_widget = Select(
-            options,
-            id="provider-select",
-            allow_blank=True,
-            # Only pre-select if the current provider is actually in the options list.
-            # Passing value=Select.BLANK (False) to the constructor crashes Textual 8.
-            value=current if current_in_options else Select.NULL,
-        )
-
-        yield Vertical(
-            Label("[bold]Switch Provider[/bold]"),
-            Label(f"Current: [cyan]{current}[/cyan]"),
-            select_widget,
-            Vertical(
-                Button("Switch", variant="success", id="btn-switch"),
-                Button("Cancel", variant="default", id="btn-cancel"),
-            ),
-            id="provider-dialog",
-        )
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button press.
-
-        Args:
-            event: Button press event.
-        """
-        if event.button.id == "btn-cancel":
-            self.app.pop_screen()
-        elif event.button.id == "btn-switch":
-            sel = self.query_one("#provider-select", Select)
-            if sel.value and sel.value != Select.BLANK:
-                self.app.post_message(SwitchProviderMessage(str(sel.value)))
-            self.app.pop_screen()
-
-
-class SwitchProviderMessage(Message):
-    """Internal message to switch the provider."""
-
-    def __init__(self, provider_name: str) -> None:
-        """Initialize.
-
-        Args:
-            provider_name: Name of the provider to switch to.
-        """
-        super().__init__()
-        self.provider_name = provider_name
-
-
-# ---------------------------------------------------------------------------
-# Main application
-# ---------------------------------------------------------------------------
+# Re-export all public symbols for backward compatibility.
+# Includes Textual widget classes that test suites patch via this module.
+__all__ = [
+    "AgentContentMessage",
+    "AgentFinishedMessage",
+    "AgentStatusMessage",
+    "AgentThoughtMessage",
+    "ChatMessage",
+    "ChatPane",
+    "CommandOutputMessage",
+    "CommandProcessor",
+    "ComponentConfig",
+    "ComponentInitializer",
+    "ConfirmToolScreen",
+    "EventBridge",
+    "Footer",
+    "Header",
+    "HelpScreen",
+    "HenchmanTextArea",
+    "HenchmanTextualApp",
+    "InputHandler",
+    "OutputHandler",
+    "ProviderScreen",
+    "ProgressIndicator",
+    "SessionScreen",
+    "Static",
+    "StatusBar",
+    "SwitchProviderMessage",
+    "TabbedContent",
+    "TabPane",
+    "TextualConfig",
+    "ThinkingMessage",
+    "ToolCallRequestMessage",
+    "ToolCallResultMessage",
+    "ToolConfirmationMessage",
+    "ToolExecutor",
+    "ToolMessage",
+    "Tree",
+    "TuiConsoleAdapter",
+    "UIRenderer",
+    "create_core_context",
+    "expand_at_references",
+    "initialize_mcp",
+    "run_textual_app",
+]
+
+# Maximum characters shown when previewing a context file.
+_CONTEXT_FILE_PREVIEW_LIMIT = 5000
+
+
+# ------------------------------------------------------------------ #
+# Main application                                                     #
+# ------------------------------------------------------------------ #
 
 
 class HenchmanTextualApp(App):  # type: ignore[type-arg]
     """Main Textual TUI application for Henchman-AI."""
 
-    CSS = """
-    Screen {
-        layout: vertical;
-    }
-    TabbedContent, TabPane {
-        height: 1fr;
-    }
-    ChatPane, #chat-pane {
-        height: 1fr;
-        width: 100%;
-        overflow-y: auto;
-        scrollbar-gutter: stable;
-    }
-    #thinking-pane, #tool-pane {
-        height: 1fr;
-        width: 100%;
-        overflow-y: auto;
-    }
-    ChatMessage {
-        margin: 1 1 1 1;
-        padding: 1;
-    }
-    #command-palette {
-        width: 100%;
-        height: auto;
-        max-height: 12;
-        dock: bottom;
-        layer: overlay;
-        display: none;
-        border: solid $accent;
-        background: $surface;
-    }
-    #input {
-        width: 100%;
-        height: 3;
-        border: solid $panel;
-        margin: 0 1;
-    }
-    #status-bar {
-        height: 1;
-        dock: bottom;
-    }
-    """
+    CSS_PATH = "henchman.tcss"
+
+    # Active colour theme name ("dark" or "light").
+    _theme_name: str = "dark"
 
     BINDINGS = [
         Binding("ctrl+q", "quit", "Quit", show=True),
         Binding("ctrl+c", "quit", "Quit", show=True),
-        Binding("ctrl+shift+t", "clear_thinking_pane", "Clear Thinking", show=True),
-        Binding("ctrl+shift+y", "clear_tool_pane", "Clear Tools", show=True),
         Binding("ctrl+f", "search", "Search", show=True),
-        Binding("escape", "clear_search", "Clear Search", show=False),
+        Binding(
+            "escape",
+            "cancel_or_clear",
+            "Cancel/Clear",
+            show=True,
+        ),
         Binding("f3", "search_next", "Next Match", show=False),
-        Binding("shift+f3", "search_previous", "Prev Match", show=False),
-        Binding("ctrl+enter", "submit_message", "Submit", show=True),
+        Binding(
+            "shift+f3",
+            "search_previous",
+            "Prev Match",
+            show=False,
+        ),
+        Binding(
+            "ctrl+enter",
+            "submit_message",
+            "Submit",
+            show=True,
+        ),
         Binding("f1", "show_help", "Help", show=True),
-        Binding("f2", "switch_provider", "Provider", show=True),
+        Binding(
+            "f2",
+            "switch_provider",
+            "Provider",
+            show=True,
+        ),
+        Binding(
+            "f4",
+            "toggle_theme",
+            "Theme",
+            show=True,
+        ),
     ]
 
     def __init__(
@@ -1356,42 +210,152 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         """Initialize the Textual TUI.
 
         Args:
-            provider: Model provider.  Resolved from environment if omitted.
+            provider: Model provider (resolved from env if omitted).
             config: TUI configuration.
             settings: Application settings.
-            environment_context: Pre-formatted environment context block.
+            environment_context: Pre-formatted environment block.
         """
         super().__init__()
+        self._init_provider_and_settings(
+            provider, config, settings, environment_context
+        )
+        self._init_state()
 
-        if provider is None:
-            from henchman.cli.app import _get_provider
-            from henchman.config import load_settings
-            from henchman.config.environment import format_environment_block, gather_environment
+    # -- init helpers (keep __init__ short) --
 
-            try:
-                self.provider = _get_provider()
-            except Exception as exc:
-                from henchman.providers.deepseek import DeepSeekProvider
+    def _init_provider_and_settings(
+        self,
+        provider: ModelProvider | None,
+        config: TextualConfig | None,
+        settings: Settings | None,
+        env_ctx: str | None,
+    ) -> None:
+        """Resolve provider, config, and settings.
 
-                self.provider = DeepSeekProvider(api_key="mock-key-for-ui-testing")
-                import warnings
-
-                warnings.warn(
-                    f"Failed to initialize provider from environment: {exc}. "
-                    "Using mock provider for UI testing only.",
-                    RuntimeWarning,
-                    stacklevel=1,
-                )
-            self.settings = load_settings()
-            self.config = TextualConfig()
-            self.environment_context = format_environment_block(gather_environment())
-        else:
+        Args:
+            provider: Optional model provider.
+            config: Optional TUI configuration.
+            settings: Optional application settings.
+            env_ctx: Optional environment context.
+        """
+        if provider is not None:
             self.provider = provider
             self.config = config or TextualConfig()
-            self.settings = settings  # type: ignore[assignment]
-            self.environment_context = environment_context  # type: ignore[assignment]
+            self.settings = settings
+            self.environment_context = env_ctx
+            return
 
-        # Core context — populated in on_mount
+        self._resolve_provider_from_env()
+
+    def _resolve_provider_from_env(self) -> None:
+        """Auto-detect provider from environment."""
+        from henchman.cli.app import _get_provider
+        from henchman.config import load_settings
+        from henchman.config.environment import (
+            format_environment_block,
+            gather_environment,
+        )
+
+        try:
+            self.provider = _get_provider()
+        except Exception as exc:
+            # Create a null provider without hardcoded credentials
+            # This is a fallback for UI testing when no real provider is available
+            from henchman.providers.base import ModelProvider
+
+            class NullProvider(ModelProvider):
+                """A null provider that raises informative errors when used."""
+
+                def __init__(self) -> None:
+                    """Initialize the null provider with empty defaults."""
+                    self.name = "null"
+                    self.supports_tools = False
+                    self.supports_streaming = False
+                    self.max_tokens = 0
+
+                async def chat_completion(
+                    self,
+                    messages: list[Any],
+                    tools: list[Any] | None = None,
+                    **kwargs: Any,
+                ) -> Any:
+                    """Raise an error indicating no provider is configured."""
+                    raise RuntimeError(
+                        "No model provider available. "
+                        "Please configure a provider via environment variables or settings."
+                    )
+
+                async def chat_completion_stream(
+                    self,
+                    messages: list[Any],
+                    tools: list[Any] | None = None,
+                    **kwargs: Any,
+                ) -> AsyncIterator[Any]:
+                    """Raise an error indicating no provider is configured."""
+                    raise RuntimeError(
+                        "No model provider available. "
+                        "Please configure a provider via environment variables or settings."
+                    )
+
+                def count_tokens(self, text: str) -> int:
+                    """Return zero tokens for the null provider."""
+                    return 0
+
+            self.provider = NullProvider()
+            import warnings
+
+            warnings.warn(
+                f"Failed to initialize provider: {exc}. Using null provider for UI testing only.",
+                RuntimeWarning,
+                stacklevel=1,
+            )
+
+        # Handle potential failures in other initialization steps
+        try:
+            self.settings = load_settings()
+        except Exception as exc:
+            import warnings
+
+            warnings.warn(
+                f"Failed to load settings: {exc}. Using default settings.",
+                RuntimeWarning,
+                stacklevel=1,
+            )
+            # Create minimal default settings
+            from henchman.config.schema import Settings
+
+            self.settings = Settings()
+
+        try:
+            self.config = TextualConfig()
+        except Exception as exc:
+            import warnings
+
+            warnings.warn(
+                f"Failed to create Textual config: {exc}. Using default config.",
+                RuntimeWarning,
+                stacklevel=1,
+            )
+            # Create minimal default config
+            self.config = TextualConfig()
+
+        try:
+            env_data = gather_environment()
+            self.environment_context = format_environment_block(env_data)
+        except Exception as exc:
+            import warnings
+
+            warnings.warn(
+                f"Failed to gather environment: {exc}. Using empty environment context.",
+                RuntimeWarning,
+                stacklevel=1,
+            )
+            self.environment_context = "Environment context unavailable"
+
+    def _init_state(self) -> None:
+        """Initialize mutable UI state fields."""
+        from henchman.cli.core_init import CoreContext
+
         self.core_context: CoreContext | None = None
         self.tool_executor: ToolExecutor | None = None
         self.command_processor: CommandProcessor | None = None
@@ -1399,16 +363,12 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         self.output_handler: OutputHandler | None = None
         self._tui_adapter: TuiConsoleAdapter | None = None
 
-        # UI state
         self.is_processing: bool = False
-
-        # Streaming: agent_name -> ChatMessage widget
         self._streaming_messages: dict[str, ChatMessage] = {}
 
         # Search state
         self._search_mode: bool = False
         self._search_query: str = ""
-        # list of (pane_id, line_index, match_text) tuples
         self._search_matches: list[tuple[str, int, str]] = []
         self._current_match_index: int = -1
 
@@ -1416,91 +376,83 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         self.command_history: list[str] = []
         self.history_index: int = -1
 
-        # Pending confirmation futures  {request_id -> asyncio.Future[bool]}
+        # Pending confirmation futures
         self._confirm_futures: dict[int, asyncio.Future[bool]] = {}
         self._confirm_counter: int = 0
 
-        # Proxy attributes for CommandContext compatibility
+        # Proxy compatibility stubs
         self._orchestrator_proxy: Any = None
         self._tool_registry_proxy: Any = None
         self._session_manager_proxy: Any = None
 
-    # ---- proxy properties for CommandContext compatibility ----
+    # ---- proxy properties for CommandContext compat ----
 
     @property
     def orchestrator(self) -> Any:
-        """Proxy to core_context.orchestrator.
+        """Proxy to ``core_context.orchestrator``.
 
         Returns:
-            Orchestrator or None.
+            Orchestrator or ``None``.
         """
-        return self.core_context.orchestrator if self.core_context else None
+        if self.core_context:
+            return self.core_context.orchestrator
+        return None
 
     @orchestrator.setter
     def orchestrator(self, value: Any) -> None:
-        """No-op setter; managed by core_context.
-
-        Args:
-            value: Ignored.
-        """
+        """No-op setter; managed by core_context."""
 
     @property
     def tool_registry(self) -> Any:
-        """Proxy to core_context.tool_registry.
+        """Proxy to ``core_context.tool_registry``.
 
         Returns:
-            ToolRegistry or None.
+            ToolRegistry or ``None``.
         """
-        return self.core_context.tool_registry if self.core_context else None
+        if self.core_context:
+            return self.core_context.tool_registry
+        return None
 
     @tool_registry.setter
     def tool_registry(self, value: Any) -> None:
-        """No-op setter; managed by core_context.
-
-        Args:
-            value: Ignored.
-        """
+        """No-op setter; managed by core_context."""
 
     @property
     def session_manager(self) -> Any:
-        """Proxy to core_context.session_manager.
+        """Proxy to ``core_context.session_manager``.
 
         Returns:
-            ReplSessionManager or None.
+            ReplSessionManager or ``None``.
         """
-        return self.core_context.session_manager if self.core_context else None
+        if self.core_context:
+            return self.core_context.session_manager
+        return None
 
     @session_manager.setter
     def session_manager(self, value: Any) -> None:
-        """No-op setter; managed by core_context.
-
-        Args:
-            value: Ignored.
-        """
+        """No-op setter; managed by core_context."""
 
     @property
     def agent(self) -> Any:
-        """Proxy to core_context.agent.
+        """Proxy to ``core_context.agent``.
 
         Returns:
-            Agent or None.
+            Agent or ``None``.
         """
-        return self.core_context.agent if self.core_context else None
+        if self.core_context:
+            return self.core_context.agent
+        return None
 
     @agent.setter
     def agent(self, value: Any) -> None:
-        """No-op setter; managed by core_context.
-
-        Args:
-            value: Ignored.
-        """
+        """No-op setter; managed by core_context."""
 
     @property
     def rag_system(self) -> None:
         """RAG system (not yet implemented).
 
         Returns:
-            None always.
+            ``None`` always.
         """
         return None
 
@@ -1509,13 +461,13 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         """UIRenderer instance (backward compatibility).
 
         Returns:
-            UIRenderer or None.
+            UIRenderer or ``None``.
         """
         return getattr(self, "_ui_renderer", None)
 
     @property
     def current_input(self) -> str:
-        """Current text in the input widget (backward compatibility).
+        """Current text in the input widget.
 
         Returns:
             Current input text string.
@@ -1549,30 +501,41 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         yield Footer()
 
     def on_mount(self) -> None:
-        """Initialize core components after the DOM is available."""
+        """Initialize core components after DOM is ready."""
         self._initialize_core_components()
         from henchman import __version__
 
         self.sub_title = f"Henchman-AI v{__version__} — {self.provider.name}"
+        self._apply_theme()
         self._populate_context_tree()
         self._show_welcome()
         input_widget = self.query_one("#input", TextArea)
         input_widget.focus()
         self._load_history()
         self.call_after_refresh(lambda: input_widget.focus())
+        self._activate_chat_tab()
 
-        # Force Chat tab
+    def on_unmount(self) -> None:
+        """Clean up resources when the app is unmounted."""
+        self._cleanup_confirm_futures()
+
+    def _activate_chat_tab(self) -> None:
+        """Force the Chat tab to be active."""
         try:
             tabs = self.query_one(TabbedContent)
             tabs.active = "tab-chat"
         except Exception:
             pass
 
-    # ---- initialization helpers ----
+    # ---- initialization ----
 
     def _initialize_core_components(self) -> None:
-        """Initialize core Henchman components shared with the REPL."""
-        # Create component configuration
+        """Wire up core Henchman components.
+
+        Passes module-level references for ``create_core_context``
+        and ``initialize_mcp`` so tests can patch them via
+        ``henchman.cli.textual_app.<name>``.
+        """
         component_config = ComponentConfig(
             provider=self.provider,
             config=self.config,
@@ -1580,82 +543,150 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
             environment_context=self.environment_context,
             app=self,
         )
-
-        # Initialize all components using the ComponentInitializer
-        initializer = ComponentInitializer(component_config)
+        initializer = ComponentInitializer(
+            component_config,
+            class_overrides={
+                "create_core_context": create_core_context,
+                "UIRenderer": UIRenderer,
+                "OutputHandler": OutputHandler,
+                "ToolExecutor": ToolExecutor,
+                "CommandProcessor": CommandProcessor,
+                "InputHandler": InputHandler,
+            },
+        )
         initializer.initialize_all()
-
-        # Transfer initialized components to app instance
-        self.core_context = initializer.core_context
-        self.tool_executor = initializer.tool_executor
-        self.command_processor = initializer.command_processor
-        self.input_handler = initializer.input_handler
-        self.output_handler = initializer.output_handler
-        self._tui_adapter = initializer._tui_adapter
-        self._ui_renderer = initializer._ui_renderer
-
-        # Replace confirmation handler with Textual-native modal
-        if self.core_context:
-            self.core_context.tool_manager.set_confirmation_handler(self._textual_confirm)
-
+        self._transfer_components(initializer)
+        self._initialize_mcp()
+        self._install_confirmation_handler()
         self._update_status_bar()
 
+    def _initialize_mcp(self) -> None:
+        """Initialize MCP if a manager is available.
+
+        Uses the module-level ``initialize_mcp`` so tests
+        can patch ``henchman.cli.textual_app.initialize_mcp``.
+        """
+        ctx = self.core_context
+        if ctx and ctx.mcp_manager:
+            initialize_mcp(ctx)
+
+    def _transfer_components(self, init: ComponentInitializer) -> None:
+        """Copy initialized components from initializer.
+
+        Args:
+            init: Completed ComponentInitializer.
+        """
+        self.core_context = init.core_context
+        self.tool_executor = init.tool_executor
+        self.command_processor = init.command_processor
+        self.input_handler = init.input_handler
+        self.output_handler = init.output_handler
+        self._tui_adapter = init._tui_adapter
+        self._ui_renderer = init._ui_renderer
+
+    def _install_confirmation_handler(self) -> None:
+        """Replace the tool-confirmation handler with a TUI modal."""
+        if self.core_context:
+            self.core_context.tool_manager.set_confirmation_handler(
+                self._textual_confirm
+            )
+
     async def _textual_confirm(self, request: ConfirmationRequest) -> bool:
-        """Native Textual confirmation handler that shows a modal dialog.
+        """Show a modal confirmation dialog.
 
         Args:
             request: The tool confirmation request.
 
         Returns:
-            True if the user approves, False otherwise.
+            ``True`` if approved, ``False`` otherwise.
         """
-        future: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future[bool] = loop.create_future()
         req_id = self._confirm_counter
         self._confirm_counter += 1
         self._confirm_futures[req_id] = future
 
-        def callback(result: bool | None) -> None:
-            """Handle confirmation dialog result and resolve the future.
-
-            Args:
-                result: The user's confirmation choice, or None if dismissed.
-            """
+        def _callback(result: bool | None) -> None:
             if not future.done():
                 future.set_result(bool(result))
+            # Always clean up the future from the dictionary
             self._confirm_futures.pop(req_id, None)
 
-        await self.push_screen(ConfirmToolScreen(request), callback)
-        return await future
+        try:
+            await self.push_screen(ConfirmToolScreen(request), _callback)
+            return await future
+        except asyncio.CancelledError:
+            # If cancelled, clean up and re-raise
+            self._confirm_futures.pop(req_id, None)
+            if not future.done():
+                future.cancel()
+            raise
+        except Exception:
+            # If any other error occurs, clean up
+            self._confirm_futures.pop(req_id, None)
+            if not future.done():
+                future.set_exception(RuntimeError("Confirmation dialog failed"))
+            raise
+
+    def _cleanup_confirm_futures(self) -> None:
+        """Clean up all pending confirmation futures to prevent memory leaks."""
+        for req_id, future in list(self._confirm_futures.items()):
+            if not future.done():
+                future.cancel()
+            self._confirm_futures.pop(req_id, None)
+
+    # ---- status bar ----
 
     def _update_status_bar(self) -> None:
-        """Refresh the status bar with provider / tool / MCP info."""
+        """Refresh the status bar with current info."""
         try:
-            status_bar = self.query_one("#status-bar", StatusBar)
+            bar = self.query_one("#status-bar", StatusBar)
         except Exception:
             return
+        bar.status_text = self._build_status_text()
 
-        provider_name = self.provider.name if self.provider else "?"
-        model_name = getattr(self.provider, "model", "?")
-        tool_count = (
-            len(self.core_context.tool_registry.list_tools())
-            if self.core_context and self.core_context.tool_registry
-            else 0
+    def _build_status_text(self) -> str:
+        """Assemble the status bar text.
+
+        Returns:
+            Formatted status string.
+        """
+        provider = self.provider.name if self.provider else "?"
+        model = getattr(self.provider, "model", "?")
+        tools = self._count_tools()
+        mcp = self._mcp_status_fragment()
+        mode = (
+            "Plan"
+            if (self.settings and getattr(self.settings, "plan_mode", False))
+            else "Chat"
         )
-        mcp_status = ""
-        if self.core_context and self.core_context.mcp_manager:
-            connected = len(
-                [
-                    c
-                    for c in self.core_context.mcp_manager.clients.values()
-                    if getattr(c, "_connected", False)
-                ]
-            )
-            total = len(self.core_context.mcp_manager.clients)
-            mcp_status = f" | MCP {connected}/{total}"
-        mode = "Plan" if (self.settings and getattr(self.settings, "plan_mode", False)) else "Chat"
-        status_bar.status_text = (
-            f"{mode} | {provider_name}:{model_name} | Tools: {tool_count}{mcp_status}"
-        )
+        return f"{mode} | {provider}:{model} | Tools: {tools}{mcp}"
+
+    def _count_tools(self) -> int:
+        """Count registered tools.
+
+        Returns:
+            Number of tools.
+        """
+        if not self.core_context:
+            return 0
+        if not self.core_context.tool_registry:
+            return 0
+        return len(self.core_context.tool_registry.list_tools())
+
+    def _mcp_status_fragment(self) -> str:
+        """Build the MCP portion of the status bar.
+
+        Returns:
+            MCP status string (empty if no manager).
+        """
+        if not (self.core_context and self.core_context.mcp_manager):
+            return ""
+        clients = self.core_context.mcp_manager.clients
+        connected = sum(1 for c in clients.values() if getattr(c, "_connected", False))
+        return f" | MCP {connected}/{len(clients)}"
+
+    # ---- welcome / history / context tree ----
 
     def _show_welcome(self) -> None:
         """Display a welcome banner in the chat pane."""
@@ -1663,68 +694,93 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
             chat = self.query_one("#chat-pane", ChatPane)
         except Exception:
             return
-        provider_name = self.provider.name if self.provider else "unknown"
-        model_name = getattr(self.provider, "model", "unknown")
-        tool_count = (
-            len(self.core_context.tool_registry.list_tools())
-            if self.core_context and self.core_context.tool_registry
-            else 0
-        )
-        mcp_info = ""
-        if self.core_context and self.core_context.mcp_manager:
-            total = len(self.core_context.mcp_manager.clients)
-            if total:
-                mcp_info = f" | {total} MCP server(s)"
-        context_info = ""
-        if self.config.system_prompt:
-            context_info = " | Context loaded"
+        provider = self.provider.name if self.provider else "unknown"
+        model = getattr(self.provider, "model", "unknown")
+        tools = self._count_tools()
+        mcp = self._welcome_mcp_info()
+        ctx = " | Context loaded" if self.config.system_prompt else ""
         chat.add_system_message(
-            f"[bold]Henchman-AI[/bold] | {provider_name}:{model_name}"
-            f" | {tool_count} tools{mcp_info}{context_info}"
+            f"[bold]Henchman-AI[/bold] | {provider}:{model} | {tools} tools{mcp}{ctx}"
         )
         chat.add_system_message("Type /help for commands. Press F1 for keybindings.")
+
+    def _welcome_mcp_info(self) -> str:
+        """Build MCP info fragment for the welcome banner.
+
+        Returns:
+            MCP info string or empty.
+        """
+        if not (self.core_context and self.core_context.mcp_manager):
+            return ""
+        total = len(self.core_context.mcp_manager.clients)
+        if total:
+            return f" | {total} MCP server(s)"
+        return ""
 
     def _load_history(self) -> None:
         """Load command history from the history file."""
         if not self.input_handler:
             return
-        hf: Path = getattr(self.input_handler, "history_file", Path.home() / ".henchman_history")
-        if hf.exists():
-            try:
-                lines = hf.read_text().splitlines()
-                self.command_history = [line for line in lines if line.strip()]
-                self.history_index = len(self.command_history)
-            except Exception:
-                pass
+        hf: Path = getattr(
+            self.input_handler,
+            "history_file",
+            Path.home() / ".henchman_history",
+        )
+        if not hf.exists():
+            return
+        try:
+            lines = hf.read_text().splitlines()
+            self.command_history = [ln for ln in lines if ln.strip()]
+            self.history_index = len(self.command_history)
+        except Exception:
+            pass
 
     def _populate_context_tree(self) -> None:
-        """Populate the Context tab tree with discovered context files."""
+        """Populate the Context tab tree."""
         try:
             tree = self.query_one("#context-tree", Tree)
         except Exception:
             return
+        self._fill_context_tree(tree)
+
+    def _fill_context_tree(self, tree: Tree) -> None:  # type: ignore[type-arg]
+        """Discover and mount context files.
+
+        Args:
+            tree: The Tree widget to populate.
+        """
         try:
-            from henchman.config.context import ContextLoader
+            from henchman.config.context import (
+                ContextLoader,
+            )
 
             loader = ContextLoader()
             files = loader.discover_files()
-            if not files:
-                tree.root.add_leaf("No context files found")
-                return
-            # Group by directory
-            by_dir: dict[Path, list[Path]] = {}
-            for f in files:
-                by_dir.setdefault(f.parent, []).append(f)
-            for directory, dir_files in by_dir.items():
-                branch = tree.root.add(str(directory), expand=True)
-                for path in dir_files:
-                    branch.add_leaf(path.name, data=path)
-            tree.root.expand()
         except Exception as exc:
-            import contextlib
+            # Log the error for debugging
+            import logging
 
-            with contextlib.suppress(Exception):
+            logging.error(f"Failed to load context files: {exc}")
+
+            # Try to show error in UI, but don't crash if it fails
+            try:
                 tree.root.add_leaf(f"Error loading context: {exc}")
+            except Exception as ui_exc:
+                logging.error(f"Failed to show error in UI: {ui_exc}")
+            return
+
+        if not files:
+            tree.root.add_leaf("No context files found")
+            return
+
+        by_dir: dict[Path, list[Path]] = {}
+        for f in files:
+            by_dir.setdefault(f.parent, []).append(f)
+        for directory, dir_files in by_dir.items():
+            branch = tree.root.add(str(directory), expand=True)
+            for p in dir_files:
+                branch.add_leaf(p.name, data=p)
+        tree.root.expand()
 
     # ---- input handling ----
 
@@ -1736,107 +792,158 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         user_input = input_widget.text.strip()
         if not user_input:
             return
-
         self.command_history.append(user_input)
         self.history_index = len(self.command_history)
-
-        if self.input_handler:
-            hf: Path = getattr(
-                self.input_handler, "history_file", Path.home() / ".henchman_history"
-            )
-            try:
-                with open(hf, "a") as fh:
-                    fh.write(user_input + "\n")
-            except Exception:
-                pass
-
-        # Clear input using load_text (proper API for replacing all text)
+        self._persist_history_entry(user_input)
         input_widget.load_text("")
         self.process_user_input(user_input)
+
+    def _persist_history_entry(self, entry: str) -> None:
+        """Append an entry to the history file.
+
+        Args:
+            entry: History line to persist.
+        """
+        if not self.input_handler:
+            return
+        hf: Path = getattr(
+            self.input_handler,
+            "history_file",
+            Path.home() / ".henchman_history",
+        )
+        try:
+            with open(hf, "a") as fh:
+                fh.write(entry + "\n")
+        except Exception as exc:
+            # Log the error for debugging
+            import logging
+
+            logging.error(f"Failed to persist history entry: {exc}")
+
+            # Try to show error notification to user
+            try:
+                chat = self.query_one("#chat-pane", ChatPane)
+                chat.add_error_message(f"Failed to save command history: {exc}")
+            except Exception as ui_exc:
+                logging.error(f"Failed to show history error in UI: {ui_exc}")
 
     def _navigate_history(self, direction: int) -> None:
         """Navigate command history.
 
         Args:
-            direction: -1 for older, +1 for newer.
+            direction: ``-1`` for older, ``+1`` for newer.
         """
         if not self.command_history:
             return
-        new_index = self.history_index + direction
-        input_widget = self.query_one("#input", TextArea)
-        if 0 <= new_index < len(self.command_history):
-            self.history_index = new_index
-            new_text = self.command_history[self.history_index]
-            input_widget.load_text(new_text)
-            # Move cursor to end of line
-            input_widget.cursor_location = (0, len(new_text))
-        elif new_index >= len(self.command_history):
+        new_idx = self.history_index + direction
+        widget = self.query_one("#input", TextArea)
+        if 0 <= new_idx < len(self.command_history):
+            self.history_index = new_idx
+            text = self.command_history[new_idx]
+            widget.load_text(text)
+            widget.cursor_location = (0, len(text))
+        elif new_idx >= len(self.command_history):
             self.history_index = len(self.command_history)
-            input_widget.load_text("")
+            widget.load_text("")
 
     @work(exclusive=True)
     async def process_user_input(self, user_input: str) -> None:
-        """Process user input: commands routed to CommandProcessor; other text to Orchestrator.
+        """Process user input: commands or agent chat.
 
         Args:
             user_input: Raw text the user submitted.
         """
         self.is_processing = True
-        status_bar = self.query_one("#status-bar", StatusBar)
-        chat_pane = self.query_one("#chat-pane", ChatPane)
-        status_bar.status_text = "Processing…"
-        chat_pane.add_user_message(user_input)
+        self.current_agent_task = asyncio.current_task()
+        bar = self.query_one("#status-bar", StatusBar)
+        chat = self.query_one("#chat-pane", ChatPane)
+        bar.status_text = "Processing…"
+        chat.add_user_message(user_input)
 
         try:
-            if not self.input_handler:
-                chat_pane.add_error_message("Input handler not initialized.")
-                return
-
-            processed_input, is_command, should_continue = await self.input_handler.process_input(
-                user_input
-            )
-            if not should_continue or not processed_input:
-                return
-
-            expanded_input = await expand_at_references(processed_input)
-
-            if self.core_context and self.core_context.session_manager:
-                self.core_context.session_manager.record_user_message(expanded_input)
-
-            if is_command:
-                # TUI-native /clear: clear the chat pane instead of writing ANSI escapes
-                if expanded_input.strip().lower() == "/clear":
-                    chat_pane.clear_messages()
-                    return
-
-                if self.command_processor:
-                    should_continue = await self.command_processor.handle_command(
-                        expanded_input,
-                        self.core_context.agent if self.core_context else None,  # type: ignore[arg-type]
-                        self,  # type: ignore[arg-type]
-                    )
-                    # Flush any output the command wrote to the console adapter
-                    if self._tui_adapter:
-                        self._tui_adapter.flush_to_chat()
-                    if not should_continue:
-                        self.exit()
-            else:
-                if self.core_context and self.core_context.orchestrator:
-                    event_bridge = EventBridge(self)
-                    event_stream = self.core_context.orchestrator.run(expanded_input)
-                    await event_bridge.forward_events(event_stream)
-                else:
-                    chat_pane.add_error_message("Core components not initialized.")
-
+            await self._route_input(user_input, chat)
+        except asyncio.CancelledError:
+            chat.add_system_message("[yellow]⚠ Cancelled by user (Esc)[/]")
         except Exception as exc:
             import traceback
 
             details = traceback.format_exc()
-            chat_pane.add_error_message(f"{exc}\n```\n{details}\n```")
-            status_bar.status_text = f"Error: {exc}"
+            # Escape triple backticks in traceback to prevent code fence breakout
+            safe_details = details.replace("```", "` ` `")
+            chat.add_error_message(f"{exc}\n```\n{safe_details}\n```")
+            bar.status_text = f"Error: {exc}"
         finally:
             self.is_processing = False
+            if hasattr(self, "current_agent_task"):
+                del self.current_agent_task
             self._update_status_bar()
+
+    async def _route_input(self, user_input: str, chat: ChatPane) -> None:
+        """Route processed input to command or orchestrator.
+
+        Args:
+            user_input: Raw user text.
+            chat: The ChatPane widget.
+        """
+        if not self.input_handler:
+            chat.add_error_message("Input handler not initialized.")
+            return
+        processed, is_cmd, should_continue = await self.input_handler.process_input(
+            user_input
+        )
+        if not should_continue or not processed:
+            return
+        expanded = await expand_at_references(processed)
+        self._record_user_message(expanded)
+        if is_cmd:
+            await self._handle_command(expanded, chat)
+        else:
+            await self._run_orchestrator(expanded, chat)
+
+    def _record_user_message(self, text: str) -> None:
+        """Record a user message in the session.
+
+        Args:
+            text: Expanded user text.
+        """
+        if self.core_context and self.core_context.session_manager:
+            self.core_context.session_manager.record_user_message(text)
+
+    async def _handle_command(self, text: str, chat: ChatPane) -> None:
+        """Process a slash command.
+
+        Args:
+            text: Expanded command text.
+            chat: The ChatPane widget.
+        """
+        if text.strip().lower() == "/clear":
+            chat.clear_messages()
+            return
+        if not self.command_processor:
+            return
+        should_continue = await self.command_processor.handle_command(
+            text,
+            (self.core_context.agent if self.core_context else None),  # type: ignore[arg-type]
+            self,  # type: ignore[arg-type]
+        )
+        if self._tui_adapter:
+            self._tui_adapter.flush_to_chat()
+        if not should_continue:
+            self.exit()
+
+    async def _run_orchestrator(self, text: str, chat: ChatPane) -> None:
+        """Send text through the orchestrator.
+
+        Args:
+            text: Expanded user text.
+            chat: The ChatPane widget.
+        """
+        if not (self.core_context and self.core_context.orchestrator):
+            chat.add_error_message("Core components not initialized.")
+            return
+        bridge = EventBridge(self)
+        stream = self.core_context.orchestrator.run(text)
+        await bridge.forward_events(stream)
 
     # ---- message handlers ----
 
@@ -1846,106 +953,170 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         Args:
             message: Content chunk from an agent.
         """
-        chat_pane = self.query_one("#chat-pane", ChatPane)
-        agent_name = message.source_agent or "Assistant"
-        chat_pane.append_agent_chunk(agent_name, message.content)
+        chat = self.query_one("#chat-pane", ChatPane)
+        name = message.source_agent or "Assistant"
+        chat.append_agent_chunk(name, message.content)
 
     def on_agent_thought_message(self, message: AgentThoughtMessage) -> None:
-        """Write thinking content to the thinking pane.
+        """Add thinking content to chat pane and thinking pane.
 
         Args:
             message: Thought from an agent.
         """
-        thinking_pane = self.query_one("#thinking-pane", ThinkingPane)
-        thinking_pane.write(f"[dim]{message.thought}[/]")
-        thinking_pane.scroll_end(animate=False)
+        pane = self.query_one("#chat-pane", ChatPane)
+        pane.add_thinking_message(message.thought, message.source_agent or "")
+
+        # Also write to dedicated thinking pane
+        try:
+            thinking = self.query_one("#thinking-pane", ThinkingPane)
+            agent = message.source_agent or "Agent"
+            thinking.write(f"[dim]🤔 {agent}: {message.thought}[/]")
+            thinking.scroll_end(animate=False)
+        except Exception:
+            pass
 
     def on_tool_call_request_message(self, message: ToolCallRequestMessage) -> None:
-        """Write a tool call request to the tools pane.
+        """Add a tool call request to both chat and tool panes.
 
         Args:
             message: Tool call request data.
         """
-        tool_pane = self.query_one("#tool-pane", ToolPane)
         tc = message.tool_call
-        args_str = ""
-        if tc.arguments:
-            try:
-                args_str = json.dumps(
-                    json.loads(tc.arguments) if isinstance(tc.arguments, str) else tc.arguments,
-                    indent=2,
-                )
-            except Exception:
-                args_str = str(tc.arguments)
-        tool_pane.write(f"[yellow]▶ {tc.name}[/]\n[dim]{args_str}[/]")
-        tool_pane.scroll_end(animate=False)
+        args_str = self._format_tool_args(tc)
+        tool_description = f"{tc.name}: {args_str}" if args_str else tc.name
+
+        # Show in chat pane
+        pane = self.query_one("#chat-pane", ChatPane)
+        pane.add_tool_message(tool_description, tc)
+
+        # Also write to dedicated tool pane
+        try:
+            import json
+
+            tool_pane = self.query_one("#tool-pane", ToolPane)
+            full_args = ""
+            if tc.arguments:
+                try:
+                    raw = tc.arguments
+                    parsed = json.loads(raw) if isinstance(raw, str) else raw
+                    full_args = json.dumps(parsed, indent=2)
+                except Exception:
+                    full_args = str(tc.arguments)
+            tool_pane.write(f"[yellow]▶ {tc.name}[/]\n[dim]{full_args}[/]")
+            tool_pane.scroll_end(animate=False)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _format_tool_args(tool_call: Any) -> str:
+        """Format tool call arguments for display.
+
+        Args:
+            tool_call: Tool call with an arguments attr.
+
+        Returns:
+            Formatted arguments string.
+        """
+        if not tool_call.arguments:
+            return ""
+        try:
+            import json
+
+            raw = tool_call.arguments
+            parsed = json.loads(raw) if isinstance(raw, str) else raw
+            # Return compact JSON for chat display
+            return json.dumps(parsed, separators=(",", ":"))
+        except Exception:
+            return str(tool_call.arguments)
 
     def on_tool_call_result_message(self, message: ToolCallResultMessage) -> None:
-        """Write a tool result to the tools pane.
+        """Add a tool result to both chat and tool panes.
 
         Args:
             message: Tool execution result.
         """
-        tool_pane = self.query_one("#tool-pane", ToolPane)
-        result = message.result
+        result_str = self._format_tool_result(message.result)
+
+        # Show in chat pane
+        pane = self.query_one("#chat-pane", ChatPane)
+        pane.add_tool_message(f"Result: {result_str}")
+
+        # Also write to dedicated tool pane
+        try:
+            tool_pane = self.query_one("#tool-pane", ToolPane)
+            tool_pane.write(f"[green]← {result_str}[/]")
+            tool_pane.scroll_end(animate=False)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _format_tool_result(result: Any) -> str:
+        """Format tool result for display in chat.
+
+        Args:
+            result: Tool result data (dict or other).
+
+        Returns:
+            Formatted result string.
+        """
+        _TRUNCATE_LIMIT = 100
         if isinstance(result, dict):
             content = str(result.get("result", result))
             success = result.get("success", True)
-            display = content[:200] + ("…" if len(content) > 200 else "")
-            color = "green" if success else "red"
+            display = content[:_TRUNCATE_LIMIT]
+            if len(content) > _TRUNCATE_LIMIT:
+                display += "…"
             label = "✓" if success else "✗"
-            tool_pane.write(f"[{color}]{label} {display}[/]")
+            return f"{label} {display}"
         else:
-            display = str(result)[:200]
-            tool_pane.write(f"[green]✓ {display}[/]")
-        tool_pane.scroll_end(animate=False)
+            content = str(result)
+            display = content[:_TRUNCATE_LIMIT]
+            if len(content) > _TRUNCATE_LIMIT:
+                display += "…"
+            return display
 
     def on_tool_confirmation_message(self, message: ToolConfirmationMessage) -> None:
-        """Handle TOOL_CONFIRMATION events by showing the confirm modal.
+        """Fallback for TOOL_CONFIRMATION events.
 
-        In most cases the confirmation is handled via _textual_confirm (which the
-        ToolManager calls directly).  This handler exists as a fallback for events
-        that arrive through the EventBridge stream.
+        The ToolManager's handler already shows the modal.
 
         Args:
             message: Confirmation request message.
         """
-        # The ToolManager's confirmation handler already pushed the modal; nothing to do.
-        pass
 
     def on_agent_status_message(self, message: AgentStatusMessage) -> None:
-        """Update the status bar with an agent status string.
+        """Update the status bar.
 
         Args:
             message: Status update from an agent.
         """
         try:
-            status_bar = self.query_one("#status-bar", StatusBar)
-            status_bar.status_text = message.status
+            bar = self.query_one("#status-bar", StatusBar)
+            bar.status_text = message.status
         except Exception:
             pass
 
     def on_agent_finished_message(self, message: AgentFinishedMessage) -> None:
-        """Handle agent completion: finish streaming, update status.
+        """Handle agent completion.
 
         Args:
             message: Finished signal from an agent.
         """
-        chat_pane = self.query_one("#chat-pane", ChatPane)
-        agent_name = message.source_agent or "Assistant"
-        chat_pane.finish_agent_stream(agent_name)
-        self._streaming_messages.pop(agent_name, None)
+        chat = self.query_one("#chat-pane", ChatPane)
+        name = message.source_agent or "Assistant"
+        chat.finish_agent_stream(name)
+        self._streaming_messages.pop(name, None)
         self._update_status_bar()
 
     def on_command_output_message(self, message: CommandOutputMessage) -> None:
-        """Route command/system output to the chat pane.
+        """Route command output to the chat pane.
 
         Args:
-            message: Output text from a slash command or system event.
+            message: Output text from a command.
         """
         try:
-            chat_pane = self.query_one("#chat-pane", ChatPane)
-            chat_pane.add_system_message(message.text)
+            chat = self.query_one("#chat-pane", ChatPane)
+            chat.add_system_message(message.text)
         except Exception:
             pass
 
@@ -1962,43 +1133,59 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
     def _switch_provider(self, provider_name: str) -> None:
         """Reinitialize with a different provider.
 
-        Preserves session history and conversation context while switching the LLM provider.
-
         Args:
-            provider_name: Name key of the provider to activate.
+            provider_name: Provider name key.
         """
+        old_provider = self.provider
+        old_name = old_provider.name if old_provider else "unknown"
+
         try:
-            from henchman.providers import get_default_registry
+            from henchman.providers import (
+                get_default_registry,
+            )
 
             registry = get_default_registry()
-            new_provider = registry.create(provider_name)
-            old_provider_name = self.provider.name if self.provider else "unknown"
-            self.provider = new_provider
+            new = registry.create(provider_name)
 
-            # Reinitialize core components but preserve session state
-            self._initialize_core_components()
+            # Try to initialize components with new provider
+            # Temporarily set provider for initialization
+            self.provider = new
+            try:
+                self._initialize_core_components()
+            except Exception:
+                # Revert provider if component initialization fails
+                self.provider = old_provider
+                raise
 
-            # Update title with version
+            # All operations succeeded, update UI
             from henchman import __version__
 
             self.sub_title = f"Henchman-AI v{__version__} — {self.provider.name}"
-
-            chat_pane = self.query_one("#chat-pane", ChatPane)
-            chat_pane.add_system_message(
-                f"Provider switched: [cyan]{old_provider_name}[/] → [cyan]{provider_name}[/]"
+            chat = self.query_one("#chat-pane", ChatPane)
+            chat.add_system_message(
+                f"Provider switched: [cyan]{old_name}[/] → [cyan]{provider_name}[/]"
             )
-
-            # Update status bar
             self._update_status_bar()
         except Exception as exc:
-            chat_pane = self.query_one("#chat-pane", ChatPane)
-            chat_pane.add_error_message(f"Failed to switch provider: {exc}")
+            # Ensure provider is reverted if not already done
+            if self.provider != old_provider:
+                self.provider = old_provider
+
+            # Show error message, handling potential query_one failure
+            try:
+                chat = self.query_one("#chat-pane", ChatPane)
+                chat.add_error_message(f"Failed to switch provider: {exc}")
+            except Exception:
+                # If we can't show error in UI, at least log it
+                import logging
+
+                logging.error(f"Failed to switch provider and show error: {exc}")
 
     # ---- command palette ----
 
     @on(TextArea.Changed)
     def on_textarea_changed(self, event: TextArea.Changed) -> None:
-        """Show/hide the command palette on slash-prefix input.
+        """Show/hide command palette on slash input.
 
         Args:
             event: TextArea change event.
@@ -2010,27 +1197,24 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
             self._hide_command_palette()
 
     def _show_command_palette(self, current_text: str) -> None:
-        """Populate and display the command palette filtered by current input.
+        """Populate and display the command palette.
 
         Args:
-            current_text: Current text in the input widget (starts with /).
+            current_text: Text starting with ``/``.
         """
         palette = self.query_one("#command-palette", OptionList)
         palette.display = True
-
         palette.clear_options()
-
         query = current_text.lower()
-        if self.command_processor:
-            commands = self.command_processor.command_registry.get_commands()
-        else:
-            commands = []
-
+        commands = (
+            self.command_processor.command_registry.get_commands()
+            if self.command_processor
+            else []
+        )
         for cmd in commands:
-            display = f"/{cmd.name}  — {cmd.description}"
+            label = f"/{cmd.name}  — {cmd.description}"
             if f"/{cmd.name}".startswith(query) or query == "/":
-                palette.add_option(display)
-
+                palette.add_option(label)
         if palette.option_count == 0:
             palette.display = False
 
@@ -2046,51 +1230,60 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         Args:
             event: Option selection event.
         """
-        # The option prompt may be "/<cmd>  — description"; extract just /<cmd>
         raw = str(event.option.prompt)
         cmd_part = raw.split("  —")[0].strip()
-        input_widget = self.query_one("#input", TextArea)
-        # Use the proper API to set text and trigger change events
+        widget = self.query_one("#input", TextArea)
         new_text = cmd_part + " "
-        input_widget.load_text(new_text)
-        # Move cursor to end of input
-        input_widget.cursor_location = (0, len(new_text))
-        input_widget.focus()
+        widget.load_text(new_text)
+        widget.cursor_location = (0, len(new_text))
+        widget.focus()
         self._hide_command_palette()
 
     # ---- search ----
 
     def action_search(self) -> None:
-        """Enter search mode or find next match if already searching."""
+        """Enter search mode or find next match."""
         if self._search_mode:
             self.action_search_next()
             return
         self._search_mode = True
-        status_bar = self.query_one("#status-bar", StatusBar)
-        status_bar.status_text = "Search: type in input box then press F3"
+        bar = self.query_one("#status-bar", StatusBar)
+        bar.status_text = "Search: type in input box then press F3"
+
+    def action_cancel_or_clear(self) -> None:
+        """Cancel processing or clear search."""
+        if self.is_processing and hasattr(self, "current_agent_task"):
+            task = self.current_agent_task
+            if task is not None:
+                task.cancel()
+            bar = self.query_one("#status-bar", StatusBar)
+            bar.status_text = "Cancelling..."
+            return
+        self.action_clear_search()
 
     def action_clear_search(self) -> None:
-        """Exit search mode and restore normal status bar."""
-        if not self._search_mode:
-            return
+        """Exit search mode and reset state."""
+        self._clear_highlights()
         self._search_mode = False
         self._search_query = ""
         self._search_matches = []
         self._current_match_index = -1
-        self._update_status_bar()
+        try:
+            bar = self.query_one("#status-bar", StatusBar)
+            bar.status_text = "Ready"
+        except Exception:
+            pass
 
     def action_search_next(self) -> None:
         """Move to the next search match."""
         if not self._search_mode:
             return
-        # Trigger a search if query changed
-        input_widget = self.query_one("#input", TextArea)
-        query = input_widget.text.strip()
-        if query != self._search_query:
-            self._perform_search(query)
+        self._refresh_search_if_changed()
         if not self._search_matches:
             return
-        self._current_match_index = (self._current_match_index + 1) % len(self._search_matches)
+        self._current_match_index = (self._current_match_index + 1) % len(
+            self._search_matches
+        )
         self._scroll_to_match()
         self._update_search_status()
 
@@ -2098,171 +1291,243 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         """Move to the previous search match."""
         if not self._search_mode:
             return
-        input_widget = self.query_one("#input", TextArea)
-        query = input_widget.text.strip()
-        if query != self._search_query:
-            self._perform_search(query)
+        self._refresh_search_if_changed()
         if not self._search_matches:
             return
-        self._current_match_index = (self._current_match_index - 1) % len(self._search_matches)
+        self._current_match_index = (self._current_match_index - 1) % len(
+            self._search_matches
+        )
         self._scroll_to_match()
         self._update_search_status()
 
+    def _refresh_search_if_changed(self) -> None:
+        """Re-run search if the query text changed."""
+        widget = self.query_one("#input", TextArea)
+        query = widget.text.strip()
+        if query != self._search_query:
+            self._perform_search(query)
+
     def _perform_search(self, query: str) -> None:
-        """Index text matches in all visible pane content.
+        """Index text matches in chat, thinking, and tool panes.
 
         Args:
             query: Search string (case-insensitive).
         """
+        # Clear previous highlights
+        self._clear_highlights()
+
         self._search_query = query
         self._search_matches = []
         self._current_match_index = -1
-
         if not query:
             self._update_search_status()
             return
-
         ql = query.lower()
-
-        # Search the chat pane children (ChatMessage widgets)
-        try:
-            chat_pane = self.query_one("#chat-pane", ChatPane)
-            for idx, widget in enumerate(chat_pane.children):
-                if isinstance(widget, ChatMessage):
-                    full_text = widget._content.lower()
-                    if ql in full_text:
-                        self._search_matches.append(("chat", idx, widget._content))
-        except Exception:
-            pass
-
-        # Search the thinking pane (RichLog lines)
-        try:
-            thinking_pane = self.query_one("#thinking-pane", ThinkingPane)
-            self._search_richlog(thinking_pane, "thinking", ql)
-        except Exception:
-            pass
-
-        # Search the tool pane (RichLog lines)
-        try:
-            tool_pane = self.query_one("#tool-pane", ToolPane)
-            self._search_richlog(tool_pane, "tool", ql)
-        except Exception:
-            pass
-
+        self._search_chat_pane(ql)
+        self._search_richlog_panes(ql)
+        self._apply_highlights(query)
         self._update_search_status()
 
-    def _search_richlog(self, pane: RichLog, pane_id: str, query_lower: str) -> None:
-        """Collect matches from a RichLog widget.
+    def _search_chat_pane(self, query_lower: str) -> None:
+        """Collect matches from the chat pane.
 
-        Handles different Textual versions' RichLog.lines API.
+        Searches ChatMessage, ThinkingMessage, and ToolMessage widgets.
 
         Args:
-            pane: The RichLog widget to search.
-            pane_id: Identifier string for the pane ("thinking", "tool").
             query_lower: Lowercase search query.
         """
         try:
-            # Try to get line content - handle different Textual versions
+            chat = self.query_one("#chat-pane", ChatPane)
+            for idx, w in enumerate(chat.children):
+                content = ""
+                if isinstance(w, (ChatMessage, ThinkingMessage, ToolMessage)):
+                    content = w._content
+                if content and query_lower in content.lower():
+                    self._search_matches.append(("chat", idx, content))
+        except Exception:
+            pass
+
+    def _search_richlog_panes(self, query_lower: str) -> None:
+        """Search thinking and tool RichLog panes.
+
+        Args:
+            query_lower: Lowercase search query.
+        """
+        for css_id, pane_id, pane_cls in (
+            ("#thinking-pane", "thinking", ThinkingPane),
+            ("#tool-pane", "tool", ToolPane),
+        ):
+            try:
+                pane = self.query_one(css_id, pane_cls)
+                self._search_richlog(pane, pane_id, query_lower)
+            except Exception:
+                pass
+
+    def _search_richlog(
+        self,
+        pane: RichLog,
+        pane_id: str,
+        query_lower: str,
+    ) -> None:
+        """Collect matches from a RichLog widget.
+
+        Args:
+            pane: The RichLog widget to search.
+            pane_id: Identifier string for the pane.
+            query_lower: Lowercase search query.
+        """
+        try:
             lines = getattr(pane, "lines", [])
             if not lines:
                 return
-
             for idx, item in enumerate(lines):
-                # Handle different representations across Textual versions
-                # Option 1: Has .text attribute (Textual 8 Strip)
-                # Option 2: Has __iter__ (Segment iterable)
-                # Option 3: Is a string directly
-                text = ""
-                if hasattr(item, "text"):
-                    text = str(item.text)
-                elif isinstance(item, str):
-                    text = item
-                else:
-                    # Try to iterate as segments
-                    try:
-                        text = "".join(
-                            str(seg.text) if hasattr(seg, "text") else str(seg)
-                            for seg in item
-                        )
-                    except (TypeError, AttributeError):
-                        text = str(item)
-
+                text = _extract_line_text(item)
                 if query_lower in text.lower():
                     self._search_matches.append((pane_id, idx, text))
         except Exception:
             pass
 
     def _scroll_to_match(self) -> None:
-        """Scroll the relevant pane to the current match."""
+        """Scroll to the current search match."""
         if not self._search_matches or self._current_match_index < 0:
             return
         pane_id, line_idx, _ = self._search_matches[self._current_match_index]
+        if pane_id == "chat":
+            self._scroll_chat_match(line_idx)
+        elif pane_id in ("thinking", "tool"):
+            self._scroll_richlog_match(pane_id)
+
+    def _apply_highlights(self, term: str) -> None:
+        """Apply search highlight to all matching widgets in the chat pane.
+
+        Args:
+            term: Search term to highlight.
+        """
         try:
-            if pane_id == "chat":
-                chat_pane = self.query_one("#chat-pane", ChatPane)
-                children = list(chat_pane.children)
-                if 0 <= line_idx < len(children):
-                    children[line_idx].scroll_visible(animate=False)
-            elif pane_id == "thinking":
-                pane = self.query_one("#thinking-pane", ThinkingPane)
-                # Estimate line height as total height divided by line count
-                line_height = max(1, pane.size.height // max(1, len(pane.lines)))
-                pane.scroll_to(y=line_idx * line_height, animate=False)
-            elif pane_id == "tool":
-                tool_pane = self.query_one("#tool-pane", ToolPane)
-                # Estimate line height as total height divided by line count
-                line_height = max(1, tool_pane.size.height // max(1, len(tool_pane.lines)))
-                tool_pane.scroll_to(y=line_idx * line_height, animate=False)
+            chat = self.query_one("#chat-pane", ChatPane)
+            for w in chat.children:
+                if hasattr(w, "set_highlight"):
+                    w.set_highlight(term)
+        except Exception:
+            pass
+
+    def _clear_highlights(self) -> None:
+        """Remove search highlights from all widgets in the chat pane."""
+        try:
+            chat = self.query_one("#chat-pane", ChatPane)
+            for w in chat.children:
+                if hasattr(w, "set_highlight"):
+                    w.set_highlight("")
+        except Exception:
+            pass
+
+    def _scroll_chat_match(self, line_idx: int) -> None:
+        """Scroll a chat pane child into view.
+
+        Args:
+            line_idx: Index of the matching child widget.
+        """
+        try:
+            chat = self.query_one("#chat-pane", ChatPane)
+            children = list(chat.children)
+            if 0 <= line_idx < len(children):
+                children[line_idx].scroll_visible(animate=False)
+        except Exception:
+            pass
+
+    def _scroll_richlog_match(self, pane_id: str) -> None:
+        """Scroll a RichLog pane to end for visibility.
+
+        Args:
+            pane_id: 'thinking' or 'tool'.
+        """
+        _PANE_MAP: dict[str, tuple[str, type]] = {
+            "thinking": (
+                "#thinking-pane",
+                ThinkingPane,
+            ),
+            "tool": ("#tool-pane", ToolPane),
+        }
+        if pane_id not in _PANE_MAP:
+            return
+        css_id, cls = _PANE_MAP[pane_id]
+        try:
+            pane: ThinkingPane | ToolPane = self.query_one(css_id, cls)
+            pane.scroll_end(animate=False)
         except Exception:
             pass
 
     def _update_search_status(self) -> None:
-        """Refresh the status bar with search result information."""
+        """Refresh the status bar with search info."""
         try:
-            status_bar = self.query_one("#status-bar", StatusBar)
+            bar = self.query_one("#status-bar", StatusBar)
         except Exception:
             return
         if not self._search_mode:
             return
         if not self._search_query:
-            status_bar.status_text = "Search: type query in input box, F3=next"
+            bar.status_text = "Search: type query in input box, F3=next"
         elif not self._search_matches:
-            status_bar.status_text = f"No matches for '{self._search_query}'"
+            bar.status_text = f"No matches for '{self._search_query}'"
         else:
             cur = self._current_match_index + 1
             tot = len(self._search_matches)
-            status_bar.status_text = (
-                f"Match {cur}/{tot} for '{self._search_query}' — F3=next  Shift+F3=prev  Esc=clear"
-            )
+            bar.status_text = f"Match {cur}/{tot} for '{self._search_query}' — F3=next  Shift+F3=prev  Esc=clear"
 
     # ---- pane actions ----
 
     def action_clear_thinking_pane(self) -> None:
-        """Clear all content from the thinking pane and thinking messages in chat."""
+        """Clear the thinking pane and chat thinking messages."""
         self.query_one("#thinking-pane", ThinkingPane).clear()
         self.query_one("#chat-pane", ChatPane).clear_thinking_messages()
-        self.query_one("#status-bar", StatusBar).status_text = "Thinking cleared (legacy pane and chat messages)"
+        bar = self.query_one("#status-bar", StatusBar)
+        bar.status_text = "Thinking cleared (legacy pane and chat messages)"
 
     def action_clear_tool_pane(self) -> None:
         """Clear all content from the tool pane."""
         self.query_one("#tool-pane", ToolPane).clear()
-        self.query_one("#status-bar", StatusBar).status_text = "Tool pane cleared"
+        bar = self.query_one("#status-bar", StatusBar)
+        bar.status_text = "Tool pane cleared"
 
     def action_toggle_thinking_pane(self) -> None:
-        """Switch to (or away from) the thinking tab — backward compat."""
+        """Toggle the thinking tab."""
         try:
             tabs = self.query_one(TabbedContent)
-            tabs.active = "tab-chat" if tabs.active == "tab-thinking" else "tab-thinking"
+            tabs.active = (
+                "tab-chat" if tabs.active == "tab-thinking" else "tab-thinking"
+            )
         except Exception:
             pass
 
     def action_toggle_tool_pane(self) -> None:
-        """Switch to (or away from) the tools tab — backward compat."""
+        """Toggle the tools tab."""
         try:
             tabs = self.query_one(TabbedContent)
             tabs.active = "tab-chat" if tabs.active == "tab-tools" else "tab-tools"
         except Exception:
             pass
+
+    # ---- theme ----
+
+    def _apply_theme(self) -> None:
+        """Apply the current theme class to the screen."""
+        try:
+            for name in ("theme-dark", "theme-light"):
+                self.screen.remove_class(name)
+            self.screen.add_class(f"theme-{self._theme_name}")
+        except Exception:
+            pass
+
+    def action_toggle_theme(self) -> None:
+        """Toggle between dark and light themes."""
+        self._theme_name = "light" if self._theme_name == "dark" else "dark"
+        self._apply_theme()
+        try:
+            chat = self.query_one("#chat-pane", ChatPane)
+            chat.add_system_message(f"Theme switched to [cyan]{self._theme_name}[/]")
+        except Exception:
+            pass
+        self.app.dark = self._theme_name == "dark"
 
     # ---- modal actions ----
 
@@ -2276,25 +1541,44 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
 
     # ---- context tree interaction ----
 
-    def on_tree_node_selected(self, event: Tree.NodeSelected[object]) -> None:
-        """Show file content when a context file tree node is clicked.
+    @work
+    async def on_tree_node_selected(self, event: Tree.NodeSelected[object]) -> None:
+        """Show file content when a tree node is clicked.
 
         Args:
             event: Tree node selection event.
         """
         node = event.node
         path: Path | None = node.data  # type: ignore[assignment]
-        if path and isinstance(path, Path) and path.is_file():
+        if not (path and isinstance(path, Path) and path.is_file()):
+            return
+
+        chat = self.query_one("#chat-pane", ChatPane)
+        chat.add_system_message(f"[dim]Loading {path.name}…[/]")
+
+        try:
+            # Get file size first
+            stat = await asyncio.to_thread(path.stat)
+            size_kb = stat.st_size / 1024
+
+            # Read file asynchronously to prevent UI blocking
+            full = await asyncio.to_thread(path.read_text, "utf-8", "replace")
+            content = full[:_CONTEXT_FILE_PREVIEW_LIMIT]
+            truncated = len(full) > _CONTEXT_FILE_PREVIEW_LIMIT
+            if truncated:
+                content += "\n… (truncated)"
+
+            header = f"[bold]{path.name}[/bold] ({size_kb:.1f} KB)"
+            if truncated:
+                header += f" — showing first {_CONTEXT_FILE_PREVIEW_LIMIT:,} chars"
+            chat.add_system_message(f"{header}\n{content}")
+        except Exception as exc:
             try:
-                full_content = path.read_text()
-                content = full_content[:2000]
-                if len(full_content) > 2000:
-                    content += "\n… (truncated)"
-                chat_pane = self.query_one("#chat-pane", ChatPane)
-                chat_pane.add_system_message(f"[bold]{path.name}[/bold]\n{content}")
-            except Exception as exc:
-                chat_pane = self.query_one("#chat-pane", ChatPane)
-                chat_pane.add_error_message(f"Cannot read {path}: {exc}")
+                chat.add_error_message(f"Cannot read {path}: {exc}")
+            except Exception:
+                import logging
+
+                logging.error(f"Cannot read {path} and show error: {exc}")
 
     # ---- misc public helpers ----
 
@@ -2304,14 +1588,18 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         Args:
             session: Session to activate.
         """
-        if self.core_context and self.core_context.session_manager:
-            self.core_context.session_manager.set_session(
-                session,
-                self.core_context.orchestrator if self.core_context else None,
-            )
+        if not (self.core_context and self.core_context.session_manager):
+            return
+        self.core_context.session_manager.set_session(
+            session,
+            (self.core_context.orchestrator if self.core_context else None),
+        )
 
     def update_status(
-        self, message: str, tokens: int | None = None, cost: float | None = None
+        self,
+        message: str,
+        tokens: int | None = None,
+        cost: float | None = None,
     ) -> None:
         """Update the status bar.
 
@@ -2321,38 +1609,65 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
             cost: Optional cost in USD.
         """
         try:
-            status_bar = self.query_one("#status-bar", StatusBar)
-            text = message
+            bar = self.query_one("#status-bar", StatusBar)
+            bar.status_text = message
             if tokens is not None:
-                text += f" | {tokens} tokens"
+                bar.tokens = tokens
             if cost is not None:
-                text += f" | ${cost:.4f}"
-            status_bar.status_text = text
+                bar.cost = cost
         except Exception:
             pass
 
     def add_message(self, role: str, content: str) -> None:
-        """Add a message to the chat pane (used by plugins/commands).
+        """Add a message to the chat pane.
 
         Args:
             role: Sender role ('user', 'assistant', 'system').
             content: Message content.
         """
         try:
-            chat_pane = self.query_one("#chat-pane", ChatPane)
-            if role == "user":
-                chat_pane.add_user_message(content)
-            elif role in ("assistant", "system"):
-                chat_pane.add_system_message(content)
-            else:
-                chat_pane.add_system_message(f"[{role}] {content}")
+            chat = self.query_one("#chat-pane", ChatPane)
         except Exception:
-            pass
+            return
+        if role == "user":
+            chat.add_user_message(content)
+        elif role in ("assistant", "system"):
+            chat.add_system_message(content)
+        else:
+            chat.add_system_message(f"[{role}] {content}")
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------------------ #
+# Module-level helpers                                                 #
+# ------------------------------------------------------------------ #
+
+
+def _extract_line_text(item: Any) -> str:
+    """Extract plain text from a RichLog line item.
+
+    Handles different Textual version representations.
+
+    Args:
+        item: A line item from ``RichLog.lines``.
+
+    Returns:
+        Plain text content of the line.
+    """
+    if hasattr(item, "text"):
+        return str(item.text)
+    if isinstance(item, str):
+        return item
+    try:
+        return "".join(
+            str(seg.text) if hasattr(seg, "text") else str(seg) for seg in item
+        )
+    except (TypeError, AttributeError):
+        return str(item)
+
+
+# ------------------------------------------------------------------ #
+# Entry point                                                          #
+# ------------------------------------------------------------------ #
 
 
 def run_textual_app(
