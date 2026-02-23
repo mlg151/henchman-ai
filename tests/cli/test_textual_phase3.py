@@ -56,12 +56,12 @@ class TestTextualPhase3:
 
     def test_status_bar_update(self, textual_app):
         """Test status bar updates with token info."""
-        # Mock status bar
         textual_app.query_one = MagicMock()
         status_bar_mock = textual_app.query_one.return_value
 
-        # Trigger an update
         textual_app.update_status("Ready", tokens=100, cost=0.002)
 
-        # Verify status text assignment
-        assert status_bar_mock.status_text == "Ready | 100 tokens | $0.0020"
+        # status_text holds the message, tokens/cost are separate reactives
+        assert status_bar_mock.status_text == "Ready"
+        assert status_bar_mock.tokens == 100
+        assert status_bar_mock.cost == 0.002

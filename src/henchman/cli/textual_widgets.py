@@ -8,8 +8,9 @@ Note: Extracted from ``textual_app.py`` to keep modules under 500 lines.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
+from rich.markdown import Markdown as RichMarkdown
 from rich.markup import escape as markup_escape
 from textual import events
 from textual.binding import Binding
@@ -26,6 +27,60 @@ _USER_PREFIX = "[bold green]You:[/]"
 _SYSTEM_PREFIX = "[dim]»[/]"
 _ERROR_PREFIX = "[bold red]Error:[/]"
 _AGENT_PREFIX_TEMPLATE = "[bold cyan]{name}:[/]"
+
+
+def _highlight_text(escaped_text: str, term: str) -> str:
+    """Wrap occurrences of *term* in Rich reverse markup.
+
+    Both the text and term are compared case-insensitively.
+    The original casing of the matched text is preserved.
+
+    Args:
+        escaped_text: Already-escaped Rich markup string.
+        term: Search term to highlight.
+
+    Returns:
+        Text with matches wrapped in ``[reverse]…[/reverse]``.
+    """
+    if not term:
+        return escaped_text
+    lower = escaped_text.lower()
+    tl = term.lower()
+    result: list[str] = []
+    pos = 0
+    while True:
+        idx = lower.find(tl, pos)
+        if idx == -1:
+            result.append(escaped_text[pos:])
+            break
+        result.append(escaped_text[pos:idx])
+        result.append(f"[reverse]{escaped_text[idx:idx + len(tl)]}[/reverse]")
+        pos = idx + len(tl)
+    return "".join(result)
+
+
+# Patterns that indicate content should be rendered as markdown.
+_MARKDOWN_INDICATORS = (
+    "```",  # code blocks
+    "**",  # bold
+    "##",  # headings
+    "- ",  # unordered lists
+    "1. ",  # ordered lists
+    "[",  # links / images
+    "> ",  # blockquotes
+)
+
+
+def _looks_like_markdown(text: str) -> bool:
+    """Heuristic check whether *text* contains markdown formatting.
+
+    Args:
+        text: Raw text content.
+
+    Returns:
+        ``True`` if the text appears to contain markdown syntax.
+    """
+    return any(indicator in text for indicator in _MARKDOWN_INDICATORS)
 
 
 # ------------------------------------------------------------------ #
@@ -69,7 +124,11 @@ class HenchmanTextArea(TextArea):
         if event.key == "enter":
             event.stop()
             event.prevent_default()
-            self.app.action_submit_message()  # type: ignore[attr-defined]
+            # Cast app to HenchmanTextualApp to access its methods
+            from henchman.cli.textual_app import HenchmanTextualApp
+
+            app = cast(HenchmanTextualApp, self.app)
+            app.action_submit_message()
             return
         if event.key == "shift+enter":
             event.stop()
@@ -83,7 +142,11 @@ class HenchmanTextArea(TextArea):
     def action_history_up(self) -> None:
         """Move up in history when cursor is at the first row."""
         if self.cursor_location[0] == 0:
-            self.app._navigate_history(-1)  # type: ignore[attr-defined]
+            # Cast app to HenchmanTextualApp to access its methods
+            from henchman.cli.textual_app import HenchmanTextualApp
+
+            app = cast(HenchmanTextualApp, self.app)
+            app._navigate_history(-1)
         else:
             self.action_cursor_up()
 
@@ -91,7 +154,11 @@ class HenchmanTextArea(TextArea):
         """Move down in history when cursor is at the last row."""
         last_row = self.document.line_count - 1
         if self.cursor_location[0] >= last_row:
-            self.app._navigate_history(1)  # type: ignore[attr-defined]
+            # Cast app to HenchmanTextualApp to access its methods
+            from henchman.cli.textual_app import HenchmanTextualApp
+
+            app = cast(HenchmanTextualApp, self.app)
+            app._navigate_history(1)
         else:
             self.action_cursor_down()
 
@@ -131,11 +198,58 @@ class ChatMessage(Static):
         super().__init__("", **kwargs)
         self._prefix = prefix
         self._content = content
+        self._highlight_term: str = ""
+        self._is_markdown: bool = False
+        self._renderable_text: str = ""
         self._update_renderable()
+
+    @property
+    def renderable(self) -> str | RichMarkdown:
+        """Return the last computed renderable for testing introspection."""
+        return self._renderable_text
 
     def _update_renderable(self) -> None:
         """Re-render the static widget with current content."""
-        self.update(f"{self._prefix} {markup_escape(self._content)}")
+        if not self._content:
+            self._renderable_text = self._prefix
+            self.update(self._prefix)
+            return
+        if self._is_markdown:
+            md = RichMarkdown(self._content)
+            self._renderable_text = md  # type: ignore[assignment]
+            self.update(md)
+            return
+        escaped = markup_escape(self._content)
+        if self._highlight_term:
+            escaped = _highlight_text(escaped, self._highlight_term)
+        text = f"{self._prefix} {escaped}"
+        self._renderable_text = text
+        self.update(text)
+
+    def set_highlight(self, term: str) -> None:
+        """Set or clear the search highlight term and re-render.
+
+        Temporarily disables markdown rendering so highlights are visible.
+
+        Args:
+            term: Search term to highlight (empty to clear).
+        """
+        self._highlight_term = term
+        if term and self._is_markdown:
+            self._is_markdown = False
+        self._update_renderable()
+
+    def finalize_as_markdown(self) -> None:
+        """Switch rendering to Rich Markdown after streaming completes.
+
+        Only applies markdown rendering if the content appears to contain
+        markdown syntax (headings, code blocks, bold, links, etc.).
+        """
+        if not self._content:
+            return
+        if _looks_like_markdown(self._content):
+            self._is_markdown = True
+            self._update_renderable()
 
     def append(self, chunk: str) -> None:
         """Append a streaming chunk and re-render.
@@ -143,6 +257,8 @@ class ChatMessage(Static):
         Args:
             chunk: Text to append.
         """
+        if chunk is None:
+            return
         self._content += chunk
         self._update_renderable()
 
@@ -152,21 +268,70 @@ class ChatMessage(Static):
         Args:
             content: Full replacement content.
         """
-        self._content = content
+        self._content = content or ""
         self._update_renderable()
 
 
+_SUMMARY_MAX_LEN = 20  # max chars before truncation (leaves room for "...")
+
+
+class _ThinkingHeader(Static):
+    """Clickable header for a collapsible ThinkingMessage."""
+
+    DEFAULT_CSS = """
+    _ThinkingHeader {
+        padding: 0 1;
+    }
+    """
+
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+        """Initialize.
+
+        Args:
+            text: Header markup text.
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(text, **kwargs)
+
+
+class _ThinkingContent(Static):
+    """Body of a collapsible ThinkingMessage (hidden when collapsed)."""
+
+    DEFAULT_CSS = """
+    _ThinkingContent {
+        padding: 0 1 0 3;
+        color: $text-muted;
+    }
+    """
+
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+        """Initialize.
+
+        Args:
+            text: Content markup text.
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(text, **kwargs)
+
+
 class ThinkingMessage(Static):
-    """Display for agent thinking content in chat pane."""
+    """Collapsible display for agent thinking content in the chat pane.
+
+    Starts collapsed — only a one-line summary is visible.  Clicking the
+    widget (or calling ``toggle_expansion()``) reveals the full text.
+    """
 
     DEFAULT_CSS = """
     ThinkingMessage {
-        padding: 0 1;
+        padding: 0;
         margin: 0 0 1 0;
         color: $text-muted;
     }
-    ThinkingMessage > .thinking-content {
-        color: $text-muted;
+    ThinkingMessage > _ThinkingContent {
+        display: none;
+    }
+    ThinkingMessage.expanded > _ThinkingContent {
+        display: block;
     }
     """
 
@@ -186,15 +351,104 @@ class ThinkingMessage(Static):
         super().__init__(**kwargs)
         self.add_class("thinking-message")
         self._agent_name = agent_name
-        self._content = thought
+        self._content_text = thought
+        self._thought = thought
+        self._is_expanded: bool = False
+        self._highlight_term: str = ""
+        self.header = _ThinkingHeader()
+        self._body = _ThinkingContent()
         self._update_renderable()
 
+    @property  # type: ignore[override]
+    def content(self) -> _ThinkingContent:
+        """Return the body sub-widget for expansion display."""
+        return self._body
+
+    @content.setter
+    def content(self, value: Any) -> None:
+        """Allow setting content (used by Static internals)."""
+        if isinstance(value, _ThinkingContent):
+            self._body = value
+
+    @property
+    def _content(self) -> str:
+        """Alias for ``_content_text`` used by search."""
+        return self._content_text
+
+    def compose(self) -> Any:
+        """Compose the header and content sub-widgets.
+
+        Yields:
+            Header and content widgets.
+        """
+        yield self.header
+        yield self._body
+
+    def _get_summary(self) -> str:
+        """Return a truncated one-line summary of the thinking content.
+
+        Returns:
+            Truncated text, at most ``_SUMMARY_MAX_LEN`` chars + ``...``.
+        """
+        text = self._content_text.replace("\n", " ").strip()
+        if len(text) > _SUMMARY_MAX_LEN:
+            return text[:_SUMMARY_MAX_LEN] + "..."
+        return text
+
     def _update_renderable(self) -> None:
-        """Re-render the static widget with current content."""
-        prefix = f"🤔 {self._agent_name}: " if self._agent_name else "🤔 "
-        # Format as paragraph, not line-by-line
-        formatted_content = self._content.replace("\n", " ").strip()
-        self.update(f"{prefix}{markup_escape(formatted_content)}")
+        """Re-render header and content sub-widgets."""
+        agent = f"{self._agent_name} " if self._agent_name else ""
+        # Header sub-widget: never includes content, just "thinking: (click to expand)"
+        self._header_text = f"🤔 {agent}thinking: (click to expand)"
+        self.header.update(self._header_text)
+
+        full = self._content_text
+        escaped = markup_escape(full)
+        if self._highlight_term:
+            escaped = _highlight_text(escaped, self._highlight_term)
+        self._body_text = f"[dim]{escaped}[/]"
+        self._body.update(self._body_text)
+
+    def render(self) -> str:
+        """Return text for render introspection.
+
+        The top-level render includes a summary in the header line for
+        programmatic access, while the header sub-widget stays minimal.
+
+        Returns:
+            Header with summary when collapsed, header + content when expanded.
+        """
+        agent = f"{self._agent_name} " if self._agent_name else ""
+        summary = self._get_summary()
+        header_line = f"🤔 {agent}thinking: {summary} (click to expand)"
+        if self._is_expanded:
+            return f"{header_line}\n{self._content_text}"
+        return header_line
+
+    def toggle_expansion(self) -> None:
+        """Toggle between collapsed and expanded states."""
+        self._is_expanded = not self._is_expanded
+        if self._is_expanded:
+            self.add_class("expanded")
+        else:
+            self.remove_class("expanded")
+
+    def on_click(self, event: Any) -> None:
+        """Handle click events to toggle expansion.
+
+        Args:
+            event: Click event (unused).
+        """
+        self.toggle_expansion()
+
+    def set_highlight(self, term: str) -> None:
+        """Set or clear the search highlight term and re-render.
+
+        Args:
+            term: Search term to highlight (empty to clear).
+        """
+        self._highlight_term = term
+        self._update_renderable()
 
     def append(self, chunk: str) -> None:
         """Append a streaming chunk and re-render.
@@ -202,7 +456,10 @@ class ThinkingMessage(Static):
         Args:
             chunk: Text to append.
         """
-        self._content += chunk
+        if chunk is None:
+            return
+        self._content_text += chunk
+        self._thought = self._content_text
         self._update_renderable()
 
     def set_content(self, content: str) -> None:
@@ -211,21 +468,69 @@ class ThinkingMessage(Static):
         Args:
             content: Full replacement content.
         """
-        self._content = content
+        self._content_text = content or ""
+        self._thought = self._content_text
         self._update_renderable()
 
 
+class _ToolHeader(Static):
+    """Clickable header for a collapsible ToolMessage."""
+
+    DEFAULT_CSS = """
+    _ToolHeader {
+        padding: 0 1;
+    }
+    """
+
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+        """Initialize.
+
+        Args:
+            text: Header markup text.
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(text, **kwargs)
+
+
+class _ToolContent(Static):
+    """Body of a collapsible ToolMessage (hidden when collapsed)."""
+
+    DEFAULT_CSS = """
+    _ToolContent {
+        padding: 0 1 0 3;
+        color: $warning;
+    }
+    """
+
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+        """Initialize.
+
+        Args:
+            text: Content markup text.
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(text, **kwargs)
+
+
 class ToolMessage(Static):
-    """Display for tool call/result content in chat pane."""
+    """Collapsible display for tool call/result content in the chat pane.
+
+    Starts collapsed — only a one-line summary header with tool name and
+    compact args is visible.  Clicking or ``toggle_expansion()`` reveals
+    the full JSON arguments and result text.
+    """
 
     DEFAULT_CSS = """
     ToolMessage {
-        padding: 0 1;
+        padding: 0;
         margin: 0 0 1 0;
         color: $warning;
     }
-    ToolMessage > .tool-content {
-        color: $warning;
+    ToolMessage > _ToolContent {
+        display: none;
+    }
+    ToolMessage.expanded > _ToolContent {
+        display: block;
     }
     """
 
@@ -237,23 +542,186 @@ class ToolMessage(Static):
     ) -> None:
         """Initialize.
 
+        Accepts either a positional ``thought`` string or a ``tool_call``
+        object (with ``.name`` and ``.arguments``).  When *only* a
+        ``ToolCall`` is supplied as the first positional argument it is
+        detected automatically.
+
         Args:
             thought: Tool thought/description.
-            tool_call: Tool call object.
+            tool_call: Tool call object with ``name`` and ``arguments``.
             **kwargs: Forwarded to ``Static``.
         """
+        # Support ToolMessage(tool_call_obj) as positional arg
+        if tool_call is None and thought and not isinstance(thought, str):
+            tool_call = thought
+            thought = ""
         super().__init__(**kwargs)
         self.add_class("tool-message")
-        self._thought = thought
+        self._thought = thought if isinstance(thought, str) else ""
         self._tool_call = tool_call
-        self._content = thought
+        self._content_text = self._thought
+        self._result_text: str = ""
+        self._is_expanded: bool = False
+        self._highlight_term: str = ""
+        self.header = _ToolHeader()
+        self._body = _ToolContent()
         self._update_renderable()
 
+    @property  # type: ignore[override]
+    def content(self) -> _ToolContent:
+        """Return the body sub-widget for expansion display."""
+        return self._body
+
+    @content.setter
+    def content(self, value: Any) -> None:
+        """Allow setting content (used by Static internals)."""
+        if isinstance(value, _ToolContent):
+            self._body = value
+
+    @property
+    def _content(self) -> str:
+        """Alias for ``_content_text`` used by search."""
+        return self._content_text
+
+    def compose(self) -> Any:
+        """Compose the header and content sub-widgets.
+
+        Yields:
+            Header and content widgets.
+        """
+        yield self.header
+        yield self._body
+
+    def _format_compact_args(self) -> str:
+        """Return a compact one-line representation of tool arguments.
+
+        Returns:
+            Compact ``key=value`` string or empty string.
+        """
+        if not self._tool_call or not getattr(self._tool_call, "arguments", None):
+            return ""
+        import json
+
+        args = self._tool_call.arguments
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except (json.JSONDecodeError, TypeError):
+                return args
+        if isinstance(args, dict):
+            return ",".join(f"{k}={v}" for k, v in args.items())
+        return str(args)
+
+    def _format_full_args(self) -> str:
+        """Return indented JSON of tool arguments.
+
+        Returns:
+            Pretty-printed JSON or string representation.
+        """
+        if not self._tool_call or not getattr(self._tool_call, "arguments", None):
+            return ""
+        import json
+
+        args = self._tool_call.arguments
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except (json.JSONDecodeError, TypeError):
+                return args
+        try:
+            return json.dumps(args, indent=2)
+        except (TypeError, ValueError):
+            return str(args)
+
     def _update_renderable(self) -> None:
-        """Re-render the static widget with current content."""
-        prefix = "🛠️ "
-        content = self._content if self._content else "Tool call"
-        self.update(f"{prefix}{markup_escape(content)}")
+        """Re-render header and content sub-widgets."""
+        if self._tool_call and hasattr(self._tool_call, "name"):
+            compact = self._format_compact_args()
+            name = self._tool_call.name
+            header_text = f"🔧 {name}({compact})" if compact else f"🔧 {name}"
+        elif self._thought:
+            header_text = f"🛠️ {markup_escape(self._thought)}"
+        else:
+            header_text = "🛠️ Tool call"
+        self.header.update(header_text)
+
+        # Content: full args + accumulated result text
+        parts: list[str] = []
+        full_args = self._format_full_args()
+        if full_args:
+            parts.append(full_args)
+        if self._result_text:
+            parts.append(self._result_text)
+        if self._content_text and self._content_text != self._thought:
+            parts.append(self._content_text)
+        body = "\n".join(parts) if parts else ""
+        escaped = markup_escape(body)
+        if self._highlight_term:
+            escaped = _highlight_text(escaped, self._highlight_term)
+        self._body.update(f"[dim]{escaped}[/]")
+
+    def render(self) -> str:
+        """Return text representation for render introspection.
+
+        Returns:
+            Header text when collapsed, header + full args when expanded.
+        """
+        if self._tool_call and hasattr(self._tool_call, "name"):
+            compact = self._format_compact_args()
+            name = self._tool_call.name
+            header = f"🔧 {name}({compact})" if compact else f"🔧 {name}"
+        elif self._thought:
+            header = f"🛠️ {self._thought}"
+        else:
+            header = "🛠️ Tool call"
+
+        if self._is_expanded:
+            parts = [header]
+            if self._tool_call and getattr(self._tool_call, "arguments", None):
+                import json
+
+                args = self._tool_call.arguments
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                try:
+                    parts.append(json.dumps(args))
+                except (TypeError, ValueError):
+                    parts.append(str(args))
+            if self._result_text:
+                parts.append(self._result_text)
+            if self._content_text and self._content_text != self._thought:
+                parts.append(self._content_text)
+            return "\n".join(parts)
+        return header
+
+    def toggle_expansion(self) -> None:
+        """Toggle between collapsed and expanded states."""
+        self._is_expanded = not self._is_expanded
+        if self._is_expanded:
+            self.add_class("expanded")
+        else:
+            self.remove_class("expanded")
+
+    def on_click(self, event: Any) -> None:
+        """Handle click events to toggle expansion.
+
+        Args:
+            event: Click event (unused).
+        """
+        self.toggle_expansion()
+
+    def set_highlight(self, term: str) -> None:
+        """Set or clear the search highlight term and re-render.
+
+        Args:
+            term: Search term to highlight (empty to clear).
+        """
+        self._highlight_term = term
+        self._update_renderable()
 
     def append(self, chunk: str) -> None:
         """Append a streaming chunk and re-render.
@@ -261,7 +729,9 @@ class ToolMessage(Static):
         Args:
             chunk: Text to append.
         """
-        self._content += chunk
+        if chunk is None:
+            return
+        self._content_text += chunk
         self._update_renderable()
 
     def set_content(self, content: str) -> None:
@@ -270,13 +740,8 @@ class ToolMessage(Static):
         Args:
             content: Full replacement content.
         """
-        self._content = content
+        self._content_text = content or ""
         self._update_renderable()
-
-
-# ------------------------------------------------------------------ #
-# Chat pane                                                            #
-# ------------------------------------------------------------------ #
 
 
 class ChatPane(VerticalScroll):
@@ -290,6 +755,7 @@ class ChatPane(VerticalScroll):
     """
 
     _active: dict[str, ChatMessage]
+    _active_thinking: dict[str, ThinkingMessage]
 
     def __init__(self, **kwargs: Any) -> None:
         """Initialize the chat pane.
@@ -302,16 +768,38 @@ class ChatPane(VerticalScroll):
         self.wrap: bool = True
         self.highlight: bool = True
         self.markup: bool = True
+        self._active: dict[str, ChatMessage] = {}
+        self._active_thinking: dict[str, ThinkingMessage] = {}
 
     def on_mount(self) -> None:
-        """Initialize the active message map."""
+        """Re-initialize the active message maps on mount."""
         self._active = {}
+        self._active_thinking = {}
 
     def _scroll_to_bottom(self) -> None:
         """Scroll to the latest message."""
         self.scroll_end(animate=False)
         if self.children:
             self.children[-1].scroll_visible(animate=False)
+
+    def _mount_widget(self, widget: Any) -> None:
+        """Mount a widget, falling back to direct append if not attached.
+
+        Args:
+            widget: Widget to add.
+        """
+        try:
+            self.mount(widget)
+        except Exception:
+            # Widget not attached to an app — store as child directly
+            self._nodes._append(widget)
+
+    def _try_scroll(self) -> None:
+        """Scroll to bottom, ignoring errors when not mounted."""
+        try:
+            self._scroll_to_bottom()
+        except Exception:
+            pass
 
     # -- public API for adding messages --
 
@@ -322,8 +810,8 @@ class ChatPane(VerticalScroll):
             text: User input text.
         """
         msg = ChatMessage(_USER_PREFIX, text)
-        self.mount(msg)
-        self._scroll_to_bottom()
+        self._mount_widget(msg)
+        self._try_scroll()
 
     def add_system_message(self, text: str) -> None:
         """Append a dim system/info message.
@@ -332,8 +820,8 @@ class ChatPane(VerticalScroll):
             text: Information text.
         """
         msg = ChatMessage(_SYSTEM_PREFIX, text)
-        self.mount(msg)
-        self._scroll_to_bottom()
+        self._mount_widget(msg)
+        self._try_scroll()
 
     def add_error_message(self, text: str) -> None:
         """Append a red error message.
@@ -342,8 +830,8 @@ class ChatPane(VerticalScroll):
             text: Error text.
         """
         msg = ChatMessage(_ERROR_PREFIX, text)
-        self.mount(msg)
-        self._scroll_to_bottom()
+        self._mount_widget(msg)
+        self._try_scroll()
 
     def begin_agent_stream(self, agent_name: str) -> ChatMessage:
         """Start a new streaming message for *agent_name*.
@@ -357,8 +845,8 @@ class ChatPane(VerticalScroll):
         prefix = _AGENT_PREFIX_TEMPLATE.format(name=agent_name)
         widget = ChatMessage(prefix, "")
         self._active[agent_name] = widget
-        self.mount(widget)
-        self._scroll_to_bottom()
+        self._mount_widget(widget)
+        self._try_scroll()
         return widget
 
     def append_agent_chunk(self, agent_name: str, chunk: str) -> None:
@@ -370,20 +858,35 @@ class ChatPane(VerticalScroll):
             agent_name: Agent whose message to extend.
             chunk: Text chunk to append.
         """
-        if agent_name not in self._active:
+        newly_created = agent_name not in self._active
+        if newly_created:
             self.begin_agent_stream(agent_name)
         self._active[agent_name].append(chunk)
-        self._scroll_to_bottom()
+        # Only scroll if we didn't just create a new stream (begin_agent_stream already scrolls)
+        if not newly_created:
+            self._scroll_to_bottom()
 
     def finish_agent_stream(self, agent_name: str) -> None:
         """Mark an agent's streaming message as complete.
 
+        Finalizes the message widget with markdown rendering if applicable.
+
         Args:
             agent_name: Agent whose stream ended.
         """
-        self._active.pop(agent_name, None)
+        widget = self._active.pop(agent_name, None)
+        if widget is None:
+            import logging
 
-    def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
+            logging.debug(
+                f"Attempted to finish non-existent agent stream: {agent_name}"
+            )
+            return
+        widget.finalize_as_markdown()
+
+    def add_thinking_message(
+        self, thought: str, agent_name: str = ""
+    ) -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
         Args:
@@ -394,9 +897,37 @@ class ChatPane(VerticalScroll):
             The created ThinkingMessage widget.
         """
         widget = ThinkingMessage(thought, agent_name)
-        self.mount(widget)
-        self._scroll_to_bottom()
+        self._mount_widget(widget)
+        self._try_scroll()
         return widget
+
+    def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
+        """Start a new streaming thinking message for *agent_name*.
+
+        Args:
+            agent_name: Display name of the thinking agent.
+
+        Returns:
+            The newly mounted ThinkingMessage widget.
+        """
+        widget = ThinkingMessage("", agent_name)
+        self._active_thinking[agent_name] = widget
+        self._mount_widget(widget)
+        self._try_scroll()
+        return widget
+
+    def append_thinking_chunk(self, agent_name: str, chunk: str) -> None:
+        """Append a streaming chunk to an active thinking message.
+
+        Creates a new stream widget if none exists yet.
+
+        Args:
+            agent_name: Agent whose thinking to extend.
+            chunk: Text chunk to append.
+        """
+        if agent_name not in self._active_thinking:
+            self.begin_thinking_stream(agent_name)
+        self._active_thinking[agent_name].append(chunk)
 
     def add_tool_message(self, thought: str = "", tool_call: Any = None) -> ToolMessage:
         """Add a tool message to the chat pane.
@@ -409,25 +940,30 @@ class ChatPane(VerticalScroll):
             The created ToolMessage widget.
         """
         widget = ToolMessage(thought, tool_call)
-        self.mount(widget)
-        self._scroll_to_bottom()
+        self._mount_widget(widget)
+        self._try_scroll()
         return widget
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""
-        # Identify by class name to avoid import coupling
+        self._active_thinking = {}
         thinking = [
-            child
-            for child in self.children
-            if child.__class__.__name__ == "ThinkingMessage"
+            child for child in self.children if isinstance(child, ThinkingMessage)
         ]
         for widget in thinking:
-            widget.remove()
+            try:
+                widget.remove()
+            except Exception:
+                self._nodes._remove(widget)
 
     def clear_messages(self) -> None:
         """Remove all messages from the pane."""
         self._active = {}
-        self.remove_children()
+        self._active_thinking = {}
+        try:
+            self.remove_children()
+        except Exception:
+            self._nodes._clear()
 
 
 # ------------------------------------------------------------------ #
@@ -480,6 +1016,8 @@ class StatusBar(Static):
     """One-line status bar at the bottom of the screen."""
 
     status_text: reactive[str] = reactive("Ready")
+    tokens: reactive[int] = reactive(0)
+    cost: reactive[float] = reactive(0.0)
 
     def __init__(self, **kwargs: Any) -> None:
         """Initialize.
@@ -496,4 +1034,86 @@ class StatusBar(Static):
         Returns:
             Formatted Rich markup string.
         """
-        return f"[bold cyan]{self.status_text}[/]"
+        parts = [f"[bold cyan]{self.status_text}[/]"]
+        if self.tokens > 0:
+            parts.append(f"[dim]{self.tokens:,} tokens[/]")
+        if self.cost > 0:
+            parts.append(f"[dim]${self.cost:.4f}[/]")
+        return " | ".join(parts)
+
+
+# ------------------------------------------------------------------ #
+# Progress indicator                                                   #
+# ------------------------------------------------------------------ #
+
+
+class ProgressIndicator(Static):
+    """Inline progress indicator shown between chat and input.
+
+    Displays a spinning/pulsing message while the agent or tool is
+    working.  Call :meth:`show` / :meth:`hide` to control visibility.
+    """
+
+    DEFAULT_CSS = """
+    ProgressIndicator {
+        height: auto;
+        width: 100%;
+        padding: 0 1;
+        display: none;
+    }
+    ProgressIndicator.visible {
+        display: block;
+    }
+    """
+
+    _message: str = ""
+    _kind: str = ""
+
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize the progress indicator.
+
+        Args:
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(**kwargs)
+        self._message = ""
+        self._kind = ""
+
+    def show(self, message: str = "Working...", kind: str = "agent") -> None:
+        """Show the progress indicator with a message.
+
+        Args:
+            message: Status message to display.
+            kind: Category of work (``agent``, ``tool``).
+        """
+        self._message = message
+        self._kind = kind
+        self.add_class("visible")
+        self.update(self.render())
+
+    def hide(self) -> None:
+        """Hide the progress indicator."""
+        self._message = ""
+        self._kind = ""
+        self.remove_class("visible")
+        self.update("")
+
+    @property
+    def is_visible(self) -> bool:
+        """Whether the indicator is currently displayed.
+
+        Returns:
+            True if showing.
+        """
+        return "visible" in self.classes
+
+    def render(self) -> str:
+        """Render the progress line.
+
+        Returns:
+            Rich markup string.
+        """
+        if not self._message:
+            return ""
+        icon = "🔧" if self._kind == "tool" else "⏳"
+        return f"[dim]{icon} {self._message}[/]"

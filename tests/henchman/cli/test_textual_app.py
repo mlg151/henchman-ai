@@ -1,30 +1,25 @@
 """tests/henchman/cli/test_textual_app.py
 Unit and widget tests for textual_app.py TUI components."""
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from pathlib import Path
-from typing import Any
-from textual.renderables import RenderableType
-from rich.text import Text
-from rich.markup import render
 
 # Core imports for testing
 from textual.app import App
-from textual.widgets import Static
 from textual.containers import VerticalScroll
 
 # Henchman imports - patch imports if needed
 try:
     from henchman.cli.textual_app import (
-        ChatPane,
         ChatMessage,
+        ChatPane,
         ThinkingMessage,
+        ToolMessage,
     )
 except ImportError:
     pass  # For incremental TDD
 
-from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import ToolCall
 
 
@@ -135,7 +130,9 @@ class TestChatPane:
 
     def test_append_thinking_auto_begin(self, chat_pane):
         chat_pane.append_thinking_chunk("AgentX", "think")
-        assert len([c for c in chat_pane.children if isinstance(c, ThinkingMessage)]) == 1
+        assert (
+            len([c for c in chat_pane.children if isinstance(c, ThinkingMessage)]) == 1
+        )
 
     def test_clear_thinking_removes(self, chat_pane):
         chat_pane.begin_thinking_stream()
@@ -149,7 +146,6 @@ class TestToolMessage:
 
     @pytest.fixture
     def tool_message(self):
-        from henchman.providers.base import ToolCall
 
         tool_call = ToolCall(id="tc1", name="read_file", arguments={"path": "foo.py"})
         return ToolMessage(tool_call)  # Will fail until implemented
