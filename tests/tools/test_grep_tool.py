@@ -208,7 +208,7 @@ class TestGrepTool:
         assert "the cat sat" in result.content
         # "catalog" should not match since "cat" is not a whole word there
         lines = result.content.strip().split("\n")
-        assert not any("catalog" == line.strip() for line in lines)
+        assert not any(line.strip() == "catalog" for line in lines)
         Path(f.name).unlink()
 
     async def test_grep_count_only(self) -> None:

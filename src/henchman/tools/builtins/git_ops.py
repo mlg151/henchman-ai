@@ -176,7 +176,9 @@ class GitOpsTool(Tool):
                 error=f"Unknown action: {action}",
             )
 
-        handler = {
+        from typing import Callable
+        
+        handler_map: dict[str, Callable[..., tuple[bool, str]]] = {
             "status": self._status,
             "log": self._log,
             "blame": self._blame,
@@ -184,7 +186,8 @@ class GitOpsTool(Tool):
             "branch_list": self._branch_list,
             "stash_list": self._stash_list,
             "diff_branches": self._diff_branches,
-        }[action]
+        }
+        handler = handler_map[action]
 
         ok, output = await handler(
             path=path,

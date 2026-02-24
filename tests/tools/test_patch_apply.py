@@ -183,7 +183,7 @@ class TestPatchApplyTool:
         tool = PatchApplyTool()
         try:
             tool._parse_patch("@@ -1,1 +1,1 @@\n-old\n+new\n")
-            assert False, "Should have raised ValueError"
+            raise AssertionError("Should have raised ValueError")
         except ValueError:
             pass
 

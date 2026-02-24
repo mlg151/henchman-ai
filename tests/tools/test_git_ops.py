@@ -1,7 +1,6 @@
 """Tests for git_ops tool."""
 
 import tempfile
-from pathlib import Path
 
 from henchman.tools.base import ToolKind
 from henchman.tools.builtins.git_ops import GitOpsTool

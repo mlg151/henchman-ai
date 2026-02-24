@@ -62,9 +62,11 @@ class PythonAstTool(Tool):
         Returns:
             First line of docstring, or None.
         """
-        docstring = ast.get_docstring(node)
-        if docstring:
-            return docstring.split("\n")[0].strip()
+        # ast.get_docstring only works with specific node types
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)):
+            docstring = ast.get_docstring(node)
+            if docstring:
+                return docstring.split("\n")[0].strip()
         return None
 
     def _classify_method(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
