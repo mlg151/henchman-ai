@@ -207,13 +207,20 @@ class UIRenderer:
             thinking_msg += f" {message}"
 
         self._thinking_status = self.console.status(thinking_msg, spinner=spinner)
-        self._thinking_status.__enter__()
-        self._is_thinking = True
+        try:
+            self._thinking_status.__enter__()
+            self._is_thinking = True
+        except Exception:
+            self._thinking_status = None
+            self._is_thinking = False
 
     def stop_thinking(self) -> None:
         """Stop the current thinking indicator."""
         if self._thinking_status and self._is_thinking:
-            self._thinking_status.__exit__(None, None, None)
+            try:
+                self._thinking_status.__exit__(None, None, None)
+            except Exception:
+                pass  # Don't crash on cleanup
 
         self._thinking_status = None
         self._is_thinking = False

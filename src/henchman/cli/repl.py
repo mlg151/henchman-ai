@@ -401,8 +401,18 @@ class Repl:
         except Exception as e:
             self.renderer.error(f"Error: {e}")
         finally:
-            monitor._stop_event.set()
-            await monitor_task
+            # Signal monitor to stop
+            if hasattr(monitor, "_stop_event"):
+                monitor._stop_event.set()
+
+            # Wait for monitor task to complete with timeout
+            try:
+                await asyncio.wait_for(monitor_task, timeout=1.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                # If monitor task doesn't complete quickly, cancel it
+                monitor_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await monitor_task
 
     async def _handle_agent_event(
         self, event: AgentEvent, content_collector: list[str] | None = None

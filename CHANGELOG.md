@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.10] - 2026-02-20
+
+### Fixed
+- **MarkupError crash** — Tool output containing ANSI escape codes (e.g., colored CI pipeline output) no longer crashes the TUI. Added `_safe_markup()` helper that strips ANSI codes and escapes Rich markup tags before any content reaches widget `.update()` or `.write()` calls.
+- **Unescaped paths in textual_app.py** — `on_agent_thought_message`, `on_tool_call_request_message`, and `on_tool_call_result_message` now escape all user-controlled content before embedding in Rich markup strings.
+- **Unescaped paths in textual_widgets.py** — `ChatMessage._update_display()`, `ThinkingMessage._update_renderable()`, and `ToolMessage._update_renderable()` now use `_safe_markup()` instead of bare `markup_escape()`.
+
+### Added
+- **147 markup safety tests** — Comprehensive TDD test suite (`tests/cli/test_markup_safety.py`) covering ANSI payloads, Rich markup payloads, mixed payloads, and Textual `visualize()` integration. Includes reproduction of exact crash payload from bug report.
+
 ## [0.3.9] - 2026-02-20
 
 ### Added

@@ -200,17 +200,27 @@ class TestTextualSearch:
         assert textual_app._current_match_index == 0, "Should move to previous match"
 
     def test_search_also_in_thinking_pane(self):
-        """Test that search works in chat pane (including thinking messages)."""
-        # Since thinking now appears in chat pane as ThinkingMessage widgets,
-        # search functionality should search ChatPane (which includes both
-        # ChatMessage and ThinkingMessage widgets) and ToolPane
-        # The legacy ThinkingPane still exists but contains only informational text
-        pass
+        """Test that search works across all chat widget types."""
+        # _search_chat_pane now searches ChatMessage, ThinkingMessage and ToolMessage
+        from henchman.cli.textual_widgets import ThinkingMessage, ToolMessage
 
-    def test_case_insensitive_search(self):
+        assert hasattr(ThinkingMessage, "set_highlight")
+        assert hasattr(ToolMessage, "set_highlight")
+
+    def test_case_insensitive_search(self, textual_app):
         """Test that search is case-insensitive by default."""
-        # Implementation should handle "Test", "TEST", "test" as matches
-        pass
+        # _perform_search lowercases the query before matching
+        textual_app._search_mode = True
+        textual_app._search_query = ""
+        textual_app._search_matches = []
+
+        # The internal comparison uses .lower() on both sides
+        from henchman.cli.textual_widgets import _highlight_text
+
+        result = _highlight_text("Hello World", "hello")
+        assert "[reverse]Hello[/reverse]" in result
+        result2 = _highlight_text("TESTING", "test")
+        assert "[reverse]TEST[/reverse]" in result2
 
     @patch.object(HenchmanTextualApp, "query_one")
     def test_search_status_update(self, mock_query_one, textual_app):

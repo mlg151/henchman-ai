@@ -31,7 +31,10 @@ def is_slash_command(text: str) -> bool:
     if not text.startswith("/"):
         return False
     # Must have at least one character after the slash
-    return len(text) > 1 and not text[1:].isspace()
+    if len(text) <= 1 or text[1:].isspace():
+        return False
+    # Check if it's a comment (starts with //)
+    return not text.startswith("//")
 
 
 def is_shell_command(text: str) -> bool:
@@ -66,6 +69,9 @@ def parse_shell_command(text: str) -> str:
 # Pattern to match @filepath references
 AT_REFERENCE_PATTERN = re.compile(r"@([\w./\-_]+)")
 
+# Maximum file size to read (10 MB)
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+
 
 async def expand_at_references(text: str) -> str:
     """Expand @file references in text with file contents.
@@ -86,13 +92,33 @@ async def expand_at_references(text: str) -> str:
         filepath = match.group(1)
         path = Path(filepath)
 
+        # Security: Prevent path traversal attacks
+        try:
+            resolved = path.resolve()
+            # For relative paths, always verify they stay within cwd
+            # (catches both '..' traversal and symlink escapes)
+            if not path.is_absolute() and not resolved.is_relative_to(Path.cwd()):
+                continue
+        except (ValueError, RuntimeError):
+            # If path resolution fails, skip this reference
+            continue
+
         if path.exists() and path.is_file():
             try:
-                content = path.read_text()
+                # Security: Check file size before reading
+                file_size = path.stat().st_size
+                if file_size > MAX_FILE_SIZE_BYTES:
+                    # File too large, skip with warning
+                    replacement = f"\n--- File: {filepath} ---\n[File too large ({file_size} bytes > {MAX_FILE_SIZE_BYTES} limit)]\n---\n"
+                    result = result[: match.start()] + replacement + result[match.end() :]
+                    continue
+
+                # Read with explicit encoding and size limit
+                content = path.read_text(encoding="utf-8", errors="replace")
                 # Format the replacement with context
                 replacement = f"\n--- File: {filepath} ---\n{content}\n---\n"
                 result = result[: match.start()] + replacement + result[match.end() :]
-            except (OSError, PermissionError):
+            except (OSError, PermissionError, UnicodeDecodeError):
                 # Keep original reference if can't read
                 pass
         # If file doesn't exist, keep the original reference

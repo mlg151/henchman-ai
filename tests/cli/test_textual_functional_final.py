@@ -65,14 +65,9 @@ class TestTextualFunctionalFinal:
         """Test that the app composes the correct widget structure."""
         assert hasattr(textual_app, "compose")
 
-        # CSS should be defined
-        assert hasattr(textual_app, "CSS")
-        css = textual_app.CSS
-        assert isinstance(css, str)
-        assert "Screen" in css
-        assert "#chat-pane" in css
-        assert "#thinking-pane" in css
-        assert "#tool-pane" in css
+        # CSS should be loaded from external .tcss file
+        assert hasattr(textual_app, "CSS_PATH")
+        assert textual_app.CSS_PATH == "henchman.tcss"
 
     # === Widget Tests ===
 

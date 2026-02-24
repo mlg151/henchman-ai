@@ -246,7 +246,7 @@ class OutputHandler:
             self.muted(status)
 
             if self.rag_system and hasattr(self.rag_system, "index_async"):
-                asyncio.create_task(self.rag_system.index_async())
+                self._safe_create_task(self.rag_system.index_async())
 
 
     def start_task(self, task_id: str, description: str, total: int = 100) -> Any:
@@ -283,5 +283,21 @@ class OutputHandler:
     def start_background_indexing(self) -> None:
         """Start background indexing if RAG is available."""
         if self.rag_system and hasattr(self.rag_system, "index_async"):
-            import asyncio
-            asyncio.create_task(self.rag_system.index_async())
+            self._safe_create_task(self.rag_system.index_async())
+
+    @staticmethod
+    def _safe_create_task(coro: Any) -> None:
+        """Create an asyncio task with error logging on failure.
+
+        Args:
+            coro: Coroutine to schedule.
+        """
+        import logging
+
+        task = asyncio.create_task(coro)
+
+        def _on_done(t: asyncio.Task[Any]) -> None:
+            if not t.cancelled() and t.exception():
+                logging.error("Background task failed: %s", t.exception())
+
+        task.add_done_callback(_on_done)

@@ -16,6 +16,10 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
+# Safety limit: truncate content before Rich parses it to prevent
+# excessive memory / CPU usage on pathologically large payloads.
+_MAX_MARKDOWN_LEN = 200_000
+
 
 @dataclass
 class Theme:
@@ -322,6 +326,14 @@ class OutputRenderer:
         Args:
             content: Markdown text to render.
         """
+        if not content:
+            return
+        if len(content) > _MAX_MARKDOWN_LEN:
+            content = content[:_MAX_MARKDOWN_LEN]
+            # Close any orphaned code fences
+            if content.count("```") % 2 != 0:
+                content += "\n```"
+            content += "\n\n*(content truncated)*"
         md = Markdown(content)
         self.console.print(md)
 
@@ -332,6 +344,8 @@ class OutputRenderer:
             code: Code to display.
             language: Programming language for highlighting.
         """
+        if not code:
+            return
         syntax = Syntax(code, language, theme="monokai")
         self.console.print(syntax)
 
@@ -360,7 +374,9 @@ class OutputRenderer:
         import json
 
         args_str = json.dumps(arguments, indent=2)
-        content = f"### 🛠️ Tool Call: `{name}`\n\n```json\n{args_str}\n```"
+        # Escape backticks in tool name to prevent markdown code-fence breakout
+        safe_name = name.replace("`", "\\`")
+        content = f"### 🛠️ Tool Call: `{safe_name}`\n\n```json\n{args_str}\n```"
         self.markdown(content)
 
     def tool_result(self, content: str, success: bool = True, error: str | None = None) -> None:
@@ -374,7 +390,11 @@ class OutputRenderer:
         # Truncate content if too long
         max_len = 1000
         if len(content) > max_len:
-            content = content[:max_len] + "\n... (truncated)"
+            content = content[:max_len]
+            # Close unclosed code fences to prevent rendering corruption
+            if content.count("```") % 2 != 0:
+                content += "\n```"
+            content += "\n... (truncated)"
 
         status = "Result" if success else "Failed"
         if self.accessible_mode:
@@ -450,8 +470,6 @@ class OutputRenderer:
 
             # Add leaf with value
             current.add(f"{parts[-1]}: [bold]{value}[/]")
-
-        self.console.print(tree)
 
         self.console.print(tree)
 

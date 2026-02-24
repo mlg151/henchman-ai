@@ -89,6 +89,7 @@ from henchman.cli.textual_widgets import (
     ThinkingPane,
     ToolMessage,
     ToolPane,
+    _safe_markup,
 )
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.ui_renderer import UIRenderer
@@ -970,7 +971,9 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         try:
             thinking = self.query_one("#thinking-pane", ThinkingPane)
             agent = message.source_agent or "Agent"
-            thinking.write(f"[dim]🤔 {agent}: {message.thought}[/]")
+            thinking.write(
+                f"[dim]🤔 {_safe_markup(agent)}: {_safe_markup(message.thought)}[/]"
+            )
             thinking.scroll_end(animate=False)
         except Exception:
             pass
@@ -1002,7 +1005,9 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
                     full_args = json.dumps(parsed, indent=2)
                 except Exception:
                     full_args = str(tc.arguments)
-            tool_pane.write(f"[yellow]▶ {tc.name}[/]\n[dim]{full_args}[/]")
+            tool_pane.write(
+                f"[yellow]▶ {_safe_markup(tc.name)}[/]\n[dim]{_safe_markup(full_args)}[/]"
+            )
             tool_pane.scroll_end(animate=False)
         except Exception:
             pass
@@ -1044,7 +1049,7 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         # Also write to dedicated tool pane
         try:
             tool_pane = self.query_one("#tool-pane", ToolPane)
-            tool_pane.write(f"[green]← {result_str}[/]")
+            tool_pane.write(f"[green]← {_safe_markup(result_str)}[/]")
             tool_pane.scroll_end(animate=False)
         except Exception:
             pass
