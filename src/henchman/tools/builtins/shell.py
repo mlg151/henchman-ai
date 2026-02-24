@@ -3,6 +3,9 @@
 import asyncio
 import contextlib
 import os
+import sys
+import termios
+import tty
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
@@ -12,6 +15,8 @@ class ShellTool(Tool):
 
     This tool executes shell commands and captures their output.
     It sets the HENCHMAN_CLI=1 environment variable for script detection.
+
+    For sudo commands, it supports interactive password input when run in TUI mode.
     """
 
     # Safety limits
@@ -26,6 +31,17 @@ class ShellTool(Tool):
                 Defaults to 3600 (1 hour).
         """
         self._default_timeout = default_timeout
+
+    def _is_sudo_command(self, command: str) -> bool:
+        """Check if a command is a sudo command.
+
+        Args:
+            command: The command string to check.
+
+        Returns:
+            True if the command starts with 'sudo ', False otherwise.
+        """
+        return command.strip().startswith("sudo ")
 
     @property
     def name(self) -> str:
@@ -64,6 +80,14 @@ class ShellTool(Tool):
                     "description": "Working directory for the command",
                     "default": None,
                 },
+                "interactive": {
+                    "type": "boolean",
+                    "description": (
+                        "Enable interactive mode for sudo commands that require password input. "
+                        "Only works when running in TUI mode with a terminal."
+                    ),
+                    "default": False,
+                },
             },
             "required": ["command"],
         }
@@ -99,14 +123,39 @@ class ShellTool(Tool):
             # Set up environment with HENCHMAN_CLI marker
             env = {**os.environ, "HENCHMAN_CLI": "1"}
 
-            # Create subprocess
-            process = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=env,
-                cwd=cwd,
-            )
+            # Check if interactive mode is requested (either explicitly or for sudo commands)
+            interactive = kwargs.get('interactive', False)
+            is_sudo_command = self._is_sudo_command(command)
+
+            # Use interactive mode if explicitly requested or for sudo commands in TUI
+            if (interactive or is_sudo_command) and sys.stdin.isatty():
+                return await self._execute_interactive_sudo(
+                    command, env, cwd, effective_timeout
+                )
+
+            # For sudo commands without a TTY, we need to handle them specially
+            if is_sudo_command and not sys.stdin.isatty():
+                # Try to use sudo with preserved environment variables
+                # This might work if the user has passwordless sudo configured
+                env_with_sudo_preserve = {**env, "SUDO_ASKPASS": "/bin/false"}
+                command_with_preserve = f"sudo -A {command[5:]}"
+
+                process = await asyncio.create_subprocess_shell(
+                    command_with_preserve,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env=env_with_sudo_preserve,
+                    cwd=cwd,
+                )
+            else:
+                # Create subprocess normally
+                process = await asyncio.create_subprocess_shell(
+                    command,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env=env,
+                    cwd=cwd,
+                )
 
             # Create tasks to read stdout/stderr
 
@@ -276,6 +325,150 @@ class ShellTool(Tool):
         except Exception as e:  # pragma: no cover
             return ToolResult(
                 content=f"Error executing command: {e}",
+                success=False,
+                error=str(e),
+            )
+
+    async def _execute_interactive_sudo(
+        self,
+        command: str,
+        env: dict[str, str],
+        cwd: str | None,
+        timeout: float | None,
+    ) -> ToolResult:
+        """Execute a sudo command with interactive password input.
+
+        This method handles sudo commands that require password input by:
+        1. Allocating a pseudo-terminal (PTY) for the subprocess
+        2. Forwarding user input from stdin to the subprocess
+        3. Capturing output from the subprocess
+
+        Args:
+            command: The sudo command to execute.
+            env: Environment variables for the subprocess.
+            cwd: Working directory for the command.
+            timeout: Command timeout in seconds.
+
+        Returns:
+            ToolResult with command output or error.
+        """
+        import errno
+        import fcntl
+        import pty
+        import select
+
+        try:
+            # Create master/slave pty pair
+            master_fd, slave_fd = pty.openpty()
+
+            # Set the slave pty as the controlling terminal
+            os.setsid()
+
+            # Create subprocess with the slave pty as stdin/stdout/stderr
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdin=slave_fd,
+                stdout=slave_fd,
+                stderr=slave_fd,
+                env=env,
+                cwd=cwd,
+                start_new_session=True,
+            )
+
+            # Close the slave fd in the parent process
+            os.close(slave_fd)
+
+            # Set master fd to non-blocking
+            flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
+            fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+            # Save terminal settings
+            old_settings = termios.tcgetattr(sys.stdin.fileno())
+
+            try:
+                # Set terminal to raw mode for direct input
+                tty.setraw(sys.stdin.fileno())
+
+                output_data = []
+                start_time = asyncio.get_running_loop().time()
+
+                while True:
+                    # Check timeout
+                    if timeout and (asyncio.get_running_loop().time() - start_time > timeout):
+                        process.kill()
+                        return ToolResult(
+                            content="Command timed out",
+                            success=False,
+                            error=f"Timeout after {timeout} seconds",
+                        )
+
+                    # Check if process has exited
+                    if process.returncode is not None:
+                        # Read any remaining output
+                        try:
+                            while True:
+                                chunk = os.read(master_fd, 1024)
+                                if not chunk:
+                                    break
+                                output_data.append(chunk.decode('utf-8', errors='replace'))
+                        except OSError:
+                            pass
+                        break
+
+                    # Use select to check for readable/writable fds
+                    rlist, wlist, _ = select.select([master_fd, sys.stdin], [], [], 0.1)
+
+                    # Read from master fd (subprocess output)
+                    if master_fd in rlist:
+                        try:
+                            chunk = os.read(master_fd, 1024)
+                            if chunk:
+                                decoded = chunk.decode('utf-8', errors='replace')
+                                output_data.append(decoded)
+                                # Echo output to user
+                                sys.stdout.write(decoded)
+                                sys.stdout.flush()
+                        except OSError as e:
+                            if e.errno != errno.EIO:
+                                raise
+
+                    # Read from stdin (user input)
+                    if sys.stdin in rlist:
+                        try:
+                            chunk = os.read(sys.stdin.fileno(), 1024)
+                            if chunk:
+                                # Forward to subprocess
+                                os.write(master_fd, chunk)
+                        except OSError:
+                            pass
+
+                # Wait for process to complete
+                await process.wait()
+
+                output = ''.join(output_data)
+
+                # Truncate if too long
+                if len(output) > self.MAX_OUTPUT_CHARS:
+                    output = (
+                        output[:self.MAX_OUTPUT_CHARS]
+                        + f"\n... (output truncated after {self.MAX_OUTPUT_CHARS} chars)"
+                    )
+
+                return ToolResult(
+                    content=output if output else "(no output)",
+                    success=process.returncode == 0,
+                    error=f"Exit code: {process.returncode}" if process.returncode != 0 else None,
+                )
+
+            finally:
+                # Restore terminal settings
+                termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_settings)
+                # Close master fd
+                os.close(master_fd)
+
+        except Exception as e:
+            return ToolResult(
+                content=f"Error executing sudo command: {e}",
                 success=False,
                 error=str(e),
             )

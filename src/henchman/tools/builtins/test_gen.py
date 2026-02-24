@@ -201,9 +201,7 @@ class TestGenTool(Tool):
             args.append(arg.arg)
         return args
 
-    def _get_return_annotation(
-        self, node: ast.FunctionDef | ast.AsyncFunctionDef
-    ) -> str:
+    def _get_return_annotation(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
         """Get return type annotation as string.
 
         Args:
@@ -242,9 +240,10 @@ class TestGenTool(Tool):
                 imports.add(name)
                 if is_async:
                     has_async = True
-
                 prefix = "async " if is_async else ""
-                test_body = self._make_test_body(name, list(sym.get("args", [])))  # type: ignore[arg-type]
+                args_value = sym.get("args", [])
+                args_list = [str(arg) for arg in args_value] if isinstance(args_value, list) else []
+                test_body = self._make_test_body(name, args_list)
                 classes.append(
                     textwrap.dedent(
                         f"""\
@@ -264,24 +263,24 @@ class TestGenTool(Tool):
             elif kind == "class":
                 cls_name = str(sym["name"])
                 imports.add(cls_name)
-                methods = sym.get("methods", [])
+                methods_value = sym.get("methods", [])
                 method_tests: list[str] = []
 
-                for method in methods:  # type: ignore[union-attr]
-                    m = dict(method)  # type: ignore[arg-type]
-                    m_name = str(m["name"])
-                    m_async = bool(m.get("is_async", False))
-                    if m_async:
-                        has_async = True
+                if isinstance(methods_value, list):
+                    for method in methods_value:
+                        if isinstance(method, dict):
+                            m_name = str(method.get("name", ""))
+                            m_async = bool(method.get("is_async", False))
+                            if m_async:
+                                has_async = True
 
-                    test_name = "init" if m_name == "__init__" else m_name
-
-                    prefix = "async " if m_async else ""
-                    method_tests.append(
-                        f"    {prefix}def test_{test_name}(self) -> None:\n"
-                        f'        """Test {cls_name}.{m_name}."""\n'
-                        f'        pytest.skip("TODO: implement test")\n'
-                    )
+                            test_name = "init" if m_name == "__init__" else m_name
+                            prefix = "async " if m_async else ""
+                            method_tests.append(
+                                f"    {prefix}def test_{test_name}(self) -> None:\n"
+                                f'        """Test {cls_name}.{m_name}."""\n'
+                                f'        pytest.skip("TODO: implement test")\n'
+                            )
 
                 body = (
                     "\n".join(method_tests)
@@ -292,11 +291,7 @@ class TestGenTool(Tool):
                         f'        pytest.skip("TODO: implement test")\n'
                     )
                 )
-                classes.append(
-                    f"class Test{cls_name}:\n"
-                    f'    """Tests for {cls_name}."""\n\n'
-                    f"{body}"
-                )
+                classes.append(f'class Test{cls_name}:\n    """Tests for {cls_name}."""\n\n{body}')
 
         # Build header
         header_parts = [f'"""Tests for {module_name} module."""\n']
@@ -330,17 +325,18 @@ class TestGenTool(Tool):
         tests: list[str] = []
 
         for sym in symbols:
-            kind = sym["kind"]
+            kind = str(sym["kind"])
+            name = str(sym["name"])
+
             if kind == "function":
-                name = str(sym["name"])
                 is_async = bool(sym.get("is_async", False))
                 imports.add(name)
                 prefix = "async " if is_async else ""
-                test_body = self._make_test_body(name, list(sym.get("args", [])))  # type: ignore[arg-type]
+                args_value = sym.get("args", [])
+                args_list = [str(arg) for arg in args_value] if isinstance(args_value, list) else []
+                test_body = self._make_test_body(name, args_list)
                 tests.append(
-                    f"{prefix}def test_{name}() -> None:\n"
-                    f'    """Test {name}."""\n'
-                    f"    {test_body}\n"
+                    f'{prefix}def test_{name}() -> None:\n    """Test {name}."""\n    {test_body}\n'
                 )
             elif kind == "class":
                 cls_name = str(sym["name"])
@@ -371,8 +367,8 @@ class TestGenTool(Tool):
         """
         if args:
             arg_strs = ", ".join(f"{a}=..." for a in args)
-            return f"result = {func_name}({arg_strs})\n            assert result is not None"
-        return f"result = {func_name}()\n            assert result is not None"
+            return f"result = {func_name}({arg_strs})\nassert result is not None"
+        return f"result = {func_name}()\nassert result is not None"
 
     def _pascal(self, name: str) -> str:
         """Convert snake_case to PascalCase.

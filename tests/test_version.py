@@ -13,7 +13,8 @@ def test_version_string_format() -> None:
 
 def test_version_tuple() -> None:
     """Test that version tuple matches version string."""
-    assert VERSION_TUPLE == (0, 3, 7)
+    # Don't hardcode the version - just check consistency
+    assert ".".join(str(v) for v in VERSION_TUPLE) == VERSION
     assert ".".join(str(v) for v in VERSION_TUPLE) == __version__
 
 

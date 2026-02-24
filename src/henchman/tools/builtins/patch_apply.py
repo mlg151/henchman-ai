@@ -252,7 +252,11 @@ class PatchApplyTool(Tool):
         offset = 0
         for hunk_idx, hunk in enumerate(hunks):
             old_start = int(str(hunk["old_start"])) - 1 + offset
-            hunk_lines: list[str] = list(hunk["lines"])  # type: ignore[arg-type]
+            lines_value = hunk.get("lines", [])
+            if isinstance(lines_value, list):
+                hunk_lines = [str(line) for line in lines_value]
+            else:
+                hunk_lines = []
 
             # Extract old and new lines
             old_lines: list[str] = []
