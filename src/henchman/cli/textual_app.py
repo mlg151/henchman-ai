@@ -93,7 +93,7 @@ from henchman.cli.textual_widgets import (
 )
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.ui_renderer import UIRenderer
-from henchman.providers.base import ModelProvider
+from henchman.providers.base import ModelProvider, StreamChunk
 
 if TYPE_CHECKING:
     from henchman.config.schema import Settings
@@ -262,17 +262,27 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         except Exception as exc:
             # Create a null provider without hardcoded credentials
             # This is a fallback for UI testing when no real provider is available
-            from henchman.providers.base import ModelProvider
+            from henchman.providers.base import (
+                Message,
+                ModelProvider,
+                StreamChunk,
+                ToolDeclaration,
+            )
 
             class NullProvider(ModelProvider):
                 """A null provider that raises informative errors when used."""
 
                 def __init__(self) -> None:
                     """Initialize the null provider with empty defaults."""
-                    self.name = "null"
+                    self._name = "null"
                     self.supports_tools = False
                     self.supports_streaming = False
                     self.max_tokens = 0
+
+                @property
+                def name(self) -> str:
+                    """The unique name of this provider."""
+                    return self._name
 
                 async def chat_completion(
                     self,
@@ -288,15 +298,18 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
 
                 async def chat_completion_stream(
                     self,
-                    messages: list[Any],
-                    tools: list[Any] | None = None,
+                    messages: list[Message],
+                    tools: list[ToolDeclaration] | None = None,
                     **kwargs: Any,
-                ) -> AsyncIterator[Any]:
+                ) -> AsyncIterator[StreamChunk]:
                     """Raise an error indicating no provider is configured."""
                     raise RuntimeError(
                         "No model provider available. "
                         "Please configure a provider via environment variables or settings."
                     )
+                    # This yield is unreachable but makes mypy happy
+                    if False:  # pragma: no cover
+                        yield StreamChunk()
 
                 def count_tokens(self, text: str) -> int:
                     """Return zero tokens for the null provider."""
@@ -965,7 +978,8 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
             message: Thought from an agent.
         """
         pane = self.query_one("#chat-pane", ChatPane)
-        pane.add_thinking_message(message.thought, message.source_agent or "")
+        agent = message.source_agent or ""
+        pane.append_thinking_chunk(agent, message.thought)
 
         # Also write to dedicated thinking pane
         try:
@@ -1532,7 +1546,7 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
             chat.add_system_message(f"Theme switched to [cyan]{self._theme_name}[/]")
         except Exception:
             pass
-        self.app.dark = self._theme_name == "dark"
+        self.dark = self._theme_name == "dark"
 
     # ---- modal actions ----
 

@@ -164,7 +164,7 @@ class TestThinkingInChat:
         """Test that ChatPane can clear thinking messages."""
         pane = ChatPane()
 
-        from henchman.cli.textual_widgets import ThinkingMessage, ToolMessage
+        from henchman.cli.textual_widgets import ToolMessage
 
         # Add mixed messages via helper methods
         pane.add_thinking_message("Thought 1", "Agent")

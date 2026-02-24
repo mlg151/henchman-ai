@@ -48,10 +48,10 @@ class TestThinkingToolDisplay:
         return app
 
     def test_on_agent_thought_message_adds_thinking_widget(self, textual_app):
-        """Test that on_agent_thought_message adds ThinkingMessage to chat pane."""
+        """Test that on_agent_thought_message streams into chat pane."""
         # Mock the chat pane
         mock_pane = MagicMock(spec=ChatPane)
-        mock_pane.add_thinking_message = MagicMock()
+        mock_pane.append_thinking_chunk = MagicMock()
 
         with patch.object(textual_app, "query_one", return_value=mock_pane):
             # Create a thought message
@@ -60,9 +60,9 @@ class TestThinkingToolDisplay:
             # Handle the message
             textual_app.on_agent_thought_message(message)
 
-            # Verify thinking message was added
-            mock_pane.add_thinking_message.assert_called_once_with(
-                "I'm thinking about this", "Agent1"
+            # Verify thinking chunk was streamed (not a new widget per message)
+            mock_pane.append_thinking_chunk.assert_called_once_with(
+                "Agent1", "I'm thinking about this"
             )
 
     def test_on_tool_call_request_message_adds_tool_widget(self, textual_app):
@@ -184,7 +184,9 @@ class TestThinkingToolDisplay:
 
         # Create a thought event
         event = AgentEvent(
-            type=EventType.THOUGHT, data="I need to analyze this", source_agent="Analyst"
+            type=EventType.THOUGHT,
+            data="I need to analyze this",
+            source_agent="Analyst",
         )
 
         # Handle the event
@@ -215,7 +217,9 @@ class TestThinkingToolDisplay:
 
         # Create a tool request event
         event = AgentEvent(
-            type=EventType.TOOL_CALL_REQUEST, data=mock_tool_call, source_agent="Executor"
+            type=EventType.TOOL_CALL_REQUEST,
+            data=mock_tool_call,
+            source_agent="Executor",
         )
 
         # Handle the event

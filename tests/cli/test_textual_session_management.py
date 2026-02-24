@@ -1,12 +1,8 @@
 """Tests for session management screen in textual UI."""
 
-import pytest
 from unittest.mock import MagicMock
 
 from henchman.cli.textual_screens import (
-    ConfirmToolScreen,
-    HelpScreen,
-    ProviderScreen,
     SessionScreen,
 )
 

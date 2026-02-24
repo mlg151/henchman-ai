@@ -1,7 +1,6 @@
 """Tests for textual_config.py module."""
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

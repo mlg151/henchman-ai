@@ -5,8 +5,6 @@ widget (.update(), .write()) must strip ANSI codes and escape Rich tags.
 """
 
 import pytest
-from rich.markup import escape as markup_escape
-
 
 # ---------------------------------------------------------------------------
 # Payloads that previously caused MarkupError crashes

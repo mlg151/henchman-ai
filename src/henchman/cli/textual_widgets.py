@@ -636,7 +636,7 @@ class ToolMessage(Static):
             try:
                 args = json.loads(args)
             except (json.JSONDecodeError, TypeError):
-                return args
+                return str(args)
         if isinstance(args, dict):
             return ",".join(f"{k}={v}" for k, v in args.items())
         return str(args)
@@ -656,7 +656,7 @@ class ToolMessage(Static):
             try:
                 args = json.loads(args)
             except (json.JSONDecodeError, TypeError):
-                return args
+                return str(args)
         try:
             return json.dumps(args, indent=2)
         except (TypeError, ValueError):
@@ -669,9 +669,9 @@ class ToolMessage(Static):
             name = _safe_markup(self._tool_call.name)
             header_text = f"🔧 {name}({compact})" if compact else f"🔧 {name}"
         elif self._thought:
-            header_text = f"🛠️ {_safe_markup(self._thought)}"
+            header_text = f"🛠️  {_safe_markup(self._thought)}"
         else:
-            header_text = "🛠️ Tool call"
+            header_text = "🛠️  Tool call"
         self.header.update(header_text)
 
         # Content: full args + accumulated result text
@@ -700,9 +700,9 @@ class ToolMessage(Static):
             name = self._tool_call.name
             header = f"🔧 {name}({compact})" if compact else f"🔧 {name}"
         elif self._thought:
-            header = f"🛠️ {_safe_markup(self._thought)}"
+            header = f"🛠️  {_safe_markup(self._thought)}"
         else:
-            header = "🛠️ Tool call"
+            header = "🛠️  Tool call"
 
         if self._is_expanded:
             parts = [header]

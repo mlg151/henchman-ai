@@ -3,8 +3,6 @@ TDD tests for ThinkingMessage fix and ToolMessage."""
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from henchman.cli.textual_app import ChatPane, ThinkingMessage, ToolMessage
 
 
