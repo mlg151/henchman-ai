@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from henchman.cli.textual_app import ToolMessage
 
 
@@ -12,7 +10,7 @@ def test_tool_message_collapsed():
     msg = ToolMessage(thought="test tool")
     assert msg._is_expanded is False
     rendered = str(msg.render())
-    assert "🛠️ test tool" in rendered
+    assert "🛠️  test tool" in rendered
 
 
 def test_tool_message_expanded():

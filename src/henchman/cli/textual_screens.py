@@ -336,8 +336,8 @@ class ProviderScreen(ModalScreen[None]):
         Returns:
             Provider name string.
         """
-        if settings and settings.providers:
-            return settings.providers.default
+        if settings and hasattr(settings, 'providers') and settings.providers:
+            return str(settings.providers.default)
         return "unknown"
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

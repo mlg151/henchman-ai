@@ -9,12 +9,13 @@ import asyncio
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
+from rich.markup import escape as _escape
+
 from henchman.cli.input import KeyMonitor
 from henchman.core.agent import Agent
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import ToolCall
 from henchman.tools.base import ConfirmationRequest
-from rich.markup import escape as _escape
 
 if TYPE_CHECKING:
     from typing import Any

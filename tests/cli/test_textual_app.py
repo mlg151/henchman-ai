@@ -355,33 +355,33 @@ class TestHenchmanTextualApp:
         # Setup mocks
         mock_registry = MagicMock()
         mock_get_default_registry.return_value = mock_registry
-        
+
         # Create a new mock provider
         new_mock_provider = MagicMock()
         new_mock_provider.name = "new-provider"
         mock_registry.create.return_value = new_mock_provider
-        
+
         # Simulate failure: _initialize_core_components() raises exception
         mock_initialize_core_components.side_effect = RuntimeError("Component init failed")
-        
+
         # Mock chat pane for error message
         mock_chat_pane = MagicMock()
         mock_query_one.return_value = mock_chat_pane
-        
+
         # Store original provider
         original_provider = textual_app.provider
-        
+
         # Attempt to switch provider - should partially fail
         textual_app._switch_provider("new-provider")
-        
+
         # BUG: Provider IS changed even though initialization fails
         # This test will FAIL because the bug exists
         assert textual_app.provider == original_provider, \
             "Provider should be rolled back when component initialization fails"
-        
+
         # _initialize_core_components WAS called (and failed)
         mock_initialize_core_components.assert_called_once()
-        
+
         # Error message should be shown
         mock_chat_pane.add_error_message.assert_called_once_with(
             "Failed to switch provider: Component init failed"
@@ -398,22 +398,22 @@ class TestHenchmanTextualApp:
         # Check that the method is decorated with @work (has __wrapped__)
         method = textual_app.on_tree_node_selected
         assert hasattr(method, '__wrapped__'), "Method should be decorated with @work"
-        
+
         # Get the wrapped function
         wrapped = method.__wrapped__
-        
+
         # Check the source code contains asyncio.to_thread
         import inspect
         source = inspect.getsource(wrapped)
         assert 'asyncio.to_thread' in source, "Method should use asyncio.to_thread for async file reading"
         assert 'await' in source, "Method should be async"
-        
+
         # Check exception handler handles query_one failure
         assert 'except Exception:' in source, "Method should have exception handler"
         # Check for nested try-except in exception handler
         assert 'chat.add_error_message' in source, "Should show error message"
         assert 'logging.error' in source, "Should log error if UI fails"
-        
+
     @patch.object(HenchmanTextualApp, "query_one")
     @patch("asyncio.to_thread")
     @pytest.mark.asyncio
@@ -431,7 +431,7 @@ class TestHenchmanTextualApp:
         # Create a mock event with a file path
         mock_event = MagicMock()
         mock_node = MagicMock()
-        
+
         # Create a mock path
         mock_path = MagicMock(spec=Path)
         mock_path.is_file.return_value = True
@@ -440,25 +440,25 @@ class TestHenchmanTextualApp:
         mock_stat = MagicMock()
         mock_stat.st_size = 20000
         mock_path.stat = MagicMock()
-        
+
         mock_node.data = mock_path
         mock_event.node = mock_node
-        
+
         # Mock chat pane
         mock_chat_pane = MagicMock()
         mock_query_one.return_value = mock_chat_pane
-        
+
         # Test async file reading: first call is stat, second is read_text
         test_content = "Test file content" * 1000  # Larger than 5000 char limit
         mock_to_thread.side_effect = [mock_stat, test_content]
-        
+
         # Call the async method directly (bypassing @work decorator)
         method = textual_app.on_tree_node_selected.__wrapped__
         await method(textual_app, mock_event)
-        
+
         # Verify both stat and read are done asynchronously
         assert mock_to_thread.call_count == 2
-        
+
         # Check that content was truncated (5000 char limit)
         call_args = mock_chat_pane.add_system_message.call_args[0][0]
         assert "… (truncated)" in call_args, "Large file should be truncated"
@@ -487,49 +487,49 @@ class TestHenchmanTextualApp:
         mock_provider = MagicMock()
         mock_provider.name = "test-provider"
         mock_get_provider.return_value = mock_provider
-        
+
         # Test 1: load_settings() raises exception - should be handled
         mock_load_settings.side_effect = ValueError("Corrupted settings file")
-        
+
         # This should NOT crash - should handle exception gracefully
         textual_app._resolve_provider_from_env()
-        
+
         # Verify settings were set to defaults
         assert textual_app.settings is not None
         assert hasattr(textual_app.settings, 'ui')  # Default Settings object
-        
+
         # Test 2: TextualConfig() raises exception - should be handled
         mock_load_settings.reset_mock(side_effect=True)
         mock_load_settings.return_value = MagicMock()
         mock_textual_config.side_effect = TypeError("Invalid config")
-        
+
         # This should NOT crash
         textual_app._resolve_provider_from_env()
-        
+
         # Verify config was set to defaults
         assert textual_app.config is not None
         assert hasattr(textual_app.config, 'prompt')  # Default TextualConfig object
-        
+
         # Test 3: format_environment_block() raises exception - should be handled
         mock_textual_config.reset_mock(side_effect=True)
         mock_textual_config.return_value = MagicMock()
         mock_format_environment_block.side_effect = RuntimeError("Format error")
         mock_gather_environment.return_value = {}
-        
+
         # This should NOT crash
         textual_app._resolve_provider_from_env()
-        
+
         # Verify environment context was set to fallback
         assert textual_app.environment_context == "Environment context unavailable"
-        
+
         # Test 4: gather_environment() raises exception - should be handled
         mock_format_environment_block.reset_mock(side_effect=True)
         mock_format_environment_block.return_value = "Test environment"
         mock_gather_environment.side_effect = OSError("Cannot gather env")
-        
+
         # This should NOT crash
         textual_app._resolve_provider_from_env()
-        
+
         # Verify environment context was set to fallback
         assert textual_app.environment_context == "Environment context unavailable"
 
@@ -550,27 +550,27 @@ class TestHenchmanTextualApp:
         mock_tree = MagicMock()
         mock_root = MagicMock()
         mock_tree.root = mock_root
-        
+
         # Setup mock to raise exception
         mock_loader = MagicMock()
         mock_context_loader_class.return_value = mock_loader
         mock_loader.discover_files.side_effect = ValueError("Context discovery failed")
-        
+
         # Also make tree.root.add_leaf() fail
         mock_root.add_leaf.side_effect = AttributeError("Tree has no root")
-        
+
         # Call the method - should log errors instead of silently suppressing
         textual_app._fill_context_tree(mock_tree)
-        
+
         # Verify context loading was attempted
         mock_loader.discover_files.assert_called_once()
-        
+
         # Verify error was logged for context loading failure
         mock_logging_error.assert_any_call("Failed to load context files: Context discovery failed")
-        
+
         # Verify error was logged for UI failure
         mock_logging_error.assert_any_call("Failed to show error in UI: Tree has no root")
-        
+
         # Verify tree.root.add_leaf() was attempted (and failed)
         mock_root.add_leaf.assert_called_once_with("Error loading context: Context discovery failed")
 
@@ -593,35 +593,35 @@ class TestHenchmanTextualApp:
         mock_input_handler = MagicMock()
         mock_input_handler.history_file = Path("/tmp/test_history")
         textual_app.input_handler = mock_input_handler
-        
+
         # Mock chat pane for error message
         mock_chat_pane = MagicMock()
         mock_query_one.return_value = mock_chat_pane
-        
+
         # Test 1: File open fails
         mock_open.side_effect = PermissionError("Cannot write to file")
-        
+
         # Call the method - should log error and show notification
         textual_app._persist_history_entry("test command")
-        
+
         # Verify error was logged
         mock_logging_error.assert_any_call("Failed to persist history entry: Cannot write to file")
-        
+
         # Verify error notification was shown to user
         mock_chat_pane.add_error_message.assert_called_once_with(
             "Failed to save command history: Cannot write to file"
         )
-        
+
         # Test 2: UI notification also fails
         mock_open.reset_mock()
         mock_logging_error.reset_mock()
         mock_chat_pane.reset_mock()
         mock_open.side_effect = OSError("Disk full")
         mock_query_one.side_effect = Exception("Widget not found")
-        
+
         # Call the method - should log both errors
         textual_app._persist_history_entry("another command")
-        
+
         # Verify both errors were logged
         mock_logging_error.assert_any_call("Failed to persist history entry: Disk full")
         mock_logging_error.assert_any_call("Failed to show history error in UI: Widget not found")
