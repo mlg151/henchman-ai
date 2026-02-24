@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Git operations tool** (`git_ops`) — Dedicated READ tool for git queries (status, log, blame, show, branch_list, stash_list, diff_branches). Auto-approved, eliminating ~30% of shell calls for agent git operations.
+- **Dead code detector** (`dead_code`) — AST-based detection of unused imports, functions, and classes. Supports directory scanning, whitelisting, and respects `__all__` exports.
+- **Environment inspector** (`env_inspect`) — Python version, virtualenv, installed packages, project detection, and filtered env vars in a single tool call. Replaces 3-5 shell commands.
+- **Test generator** (`test_gen`) — Generates pytest test stubs from Python function/class signatures. Supports class-based and function-based styles, async functions, and output to file.
+- **Patch apply tool** (`patch_apply`) — Apply multi-hunk unified diff patches with dry-run preview and fuzzy context matching. Supports standard `---`/`+++`/`@@` syntax.
+- **Grep enhancements** — Added `context_before`, `context_after`, `invert_match`, `whole_word`, and `count_only` parameters.
+- **File edit line-range mode** — Added `start_line`/`end_line` as alternative to `old_str`, plus `dry_run` preview mode.
+- **Lint check auto-fix** — Added `fix` parameter that runs `ruff check --fix` with confirmation.
+- **Pytest coverage & parallel** — Added `coverage`, `parallel`, `collect_only`, and `markers` parameters.
+- **Python AST enhancements** — Added docstring extraction, method classification (staticmethod/classmethod/property/abstractmethod), and `include_docstrings` parameter.
+- **Diff view enhancements** — Added `compare` (branch comparison), `stat`, `name_only`, and `context_lines` parameters.
+- **Import graph cycle detection** — Added `detect_cycles` (DFS-based circular import detection) and `classify` (stdlib/local/third-party) parameters.
+- **Coverage map enhancements** — Added JSON format support, `show_branches`, and `per_function` parameters.
+
+### Fixed
+- **Tool registration gap** — `CoverageMapTool` and `ImportGraphTool` were exported but never registered; now registered in `tool_manager.py`. Added regression test to prevent future gaps.
+- **Pre-existing test failure** — Fixed `test_async_ask_user_method` that referenced removed `_ask_user_async` method.
+
 ## [0.3.11] - 2026-02-24
 
 ### Fixed

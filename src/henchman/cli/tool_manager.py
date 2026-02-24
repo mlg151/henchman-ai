@@ -29,28 +29,37 @@ class ToolManager:
         self.settings = settings
         self.registry = ToolRegistry()
         self.auto_approve = False
-        self._confirmation_handler: Callable[[ConfirmationRequest], Awaitable[bool]] | None = None
+        self._confirmation_handler: (
+            Callable[[ConfirmationRequest], Awaitable[bool]] | None
+        ) = None
 
     def register_builtin_tools(self) -> None:
         """Register all built-in tools with the registry."""
         from henchman.tools.builtins import (
             AskUserTool,
             CodeFormatTool,
+            CoverageMapTool,
+            DeadCodeTool,
             DiffViewTool,
             DuckDuckGoSearchTool,
             EditFileTool,
+            EnvInspectTool,
+            GitOpsTool,
             GlobTool,
             GrepTool,
+            ImportGraphTool,
             KgQueryTool,
             KgUpdateTool,
             LintCheckTool,
             LsTool,
+            PatchApplyTool,
             PipInspectTool,
             PytestRunTool,
             PythonAstTool,
             PythonExecTool,
             ReadFileTool,
             ShellTool,
+            TestGenTool,
             TracebackParseTool,
             WebFetchTool,
             WriteFileTool,
@@ -59,22 +68,31 @@ class ToolManager:
         tools = [
             AskUserTool(),
             CodeFormatTool(),
+            CoverageMapTool(),
+            DeadCodeTool(),
             DiffViewTool(),
             EditFileTool(),
+            EnvInspectTool(),
+            GitOpsTool(),
             GlobTool(),
             GrepTool(),
+            ImportGraphTool(),
             KgQueryTool(),
             KgUpdateTool(),
             LintCheckTool(),
             LsTool(),
+            PatchApplyTool(),
             PipInspectTool(),
             PythonAstTool(),
             PythonExecTool(),
             PytestRunTool(),
             ReadFileTool(),
             ShellTool(
-                default_timeout=(self.settings.tools.shell_timeout if self.settings else 3600)
+                default_timeout=(
+                    self.settings.tools.shell_timeout if self.settings else 3600
+                )
             ),
+            TestGenTool(),
             TracebackParseTool(),
             WebFetchTool(),
             DuckDuckGoSearchTool(),

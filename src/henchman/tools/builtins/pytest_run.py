@@ -13,6 +13,7 @@ class PytestRunTool(Tool):
 
     Provides structured test execution with clear pass/fail output,
     more targeted than using the generic ``shell`` tool.
+    Supports coverage collection, parallel execution, and test discovery.
     """
 
     @property
@@ -25,8 +26,9 @@ class PytestRunTool(Tool):
         """Tool description."""
         return (
             "Run pytest on a specific test path (file, directory, or "
-            "file::test_function). Returns pass/fail results with output. "
-            "Supports keyword filtering and verbose mode."
+            "file::test_function). Supports keyword/marker filtering, "
+            "verbose mode, coverage collection, parallel execution, "
+            "and collect-only (test discovery without running)."
         )
 
     @property
@@ -43,6 +45,10 @@ class PytestRunTool(Tool):
                     "type": "string",
                     "description": "Filter tests by keyword expression (-k)",
                 },
+                "markers": {
+                    "type": "string",
+                    "description": "Filter tests by marker expression (-m)",
+                },
                 "verbose": {
                     "type": "boolean",
                     "description": "Enable verbose output (-v)",
@@ -52,6 +58,24 @@ class PytestRunTool(Tool):
                     "type": "integer",
                     "description": "Timeout in seconds (default: 300)",
                     "default": 300,
+                },
+                "coverage": {
+                    "type": "boolean",
+                    "description": "Collect coverage with --cov",
+                    "default": False,
+                },
+                "coverage_source": {
+                    "type": "string",
+                    "description": "Source directory for --cov (e.g. 'src')",
+                },
+                "parallel": {
+                    "type": "integer",
+                    "description": "Number of parallel workers (-n, requires pytest-xdist)",
+                },
+                "collect_only": {
+                    "type": "boolean",
+                    "description": "List matching tests without running them",
+                    "default": False,
                 },
             },
             "required": ["path"],
@@ -66,8 +90,13 @@ class PytestRunTool(Tool):
         self,
         path: str = "",
         keyword: str | None = None,
+        markers: str | None = None,
         verbose: bool = False,
         timeout: int = 300,
+        coverage: bool = False,
+        coverage_source: str | None = None,
+        parallel: int | None = None,
+        collect_only: bool = False,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
         """Run pytest on the given path.
@@ -75,8 +104,13 @@ class PytestRunTool(Tool):
         Args:
             path: Test path (file, directory, or file::test_name).
             keyword: Optional keyword filter (-k).
+            markers: Optional marker filter (-m).
             verbose: Enable verbose output.
             timeout: Execution timeout in seconds.
+            coverage: Collect coverage data.
+            coverage_source: Source directory for coverage.
+            parallel: Number of parallel workers.
+            collect_only: List tests without running them.
             **kwargs: Additional arguments (ignored).
 
         Returns:
@@ -89,11 +123,23 @@ class PytestRunTool(Tool):
                 error="Empty path",
             )
 
-        cmd = [sys.executable, "-m", "pytest", path, "-x"]
+        cmd = [sys.executable, "-m", "pytest", path]
+        if not collect_only:
+            cmd.append("-x")
         if verbose:
             cmd.append("-v")
         if keyword:
             cmd.extend(["-k", keyword])
+        if markers:
+            cmd.extend(["-m", markers])
+        if coverage:
+            cov_arg = f"--cov={coverage_source}" if coverage_source else "--cov"
+            cmd.extend([cov_arg, "--cov-report=term-missing"])
+        if parallel is not None and parallel > 0:
+            cmd.extend(["-n", str(parallel)])
+        if collect_only:
+            cmd.append("--collect-only")
+            cmd.append("-q")
 
         try:
             process = await asyncio.create_subprocess_exec(

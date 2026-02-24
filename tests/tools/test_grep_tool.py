@@ -124,3 +124,124 @@ class TestGrepTool:
             assert result.success is True
             assert "hello txt" in result.content
             assert "hello py" not in result.content
+
+    async def test_grep_context_before(self) -> None:
+        """Show lines before a match."""
+        tool = GrepTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("line1\nline2\ntarget\nline4\n")
+            f.flush()
+            result = await tool.execute(
+                pattern="target", path=f.name, context_before=1, line_numbers=True
+            )
+        assert result.success is True
+        assert "line2" in result.content
+        assert "target" in result.content
+        Path(f.name).unlink()
+
+    async def test_grep_context_after(self) -> None:
+        """Show lines after a match."""
+        tool = GrepTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("line1\ntarget\nline3\nline4\n")
+            f.flush()
+            result = await tool.execute(
+                pattern="target", path=f.name, context_after=1, line_numbers=True
+            )
+        assert result.success is True
+        assert "target" in result.content
+        assert "line3" in result.content
+        Path(f.name).unlink()
+
+    async def test_grep_context_separator(self) -> None:
+        """Non-contiguous context blocks separated by '--'."""
+        tool = GrepTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("a\nmatch1\nb\nc\nd\ne\nmatch2\nf\n")
+            f.flush()
+            result = await tool.execute(
+                pattern="match", path=f.name, context_before=0, context_after=0, line_numbers=True
+            )
+        assert result.success is True
+        assert "match1" in result.content
+        assert "match2" in result.content
+        Path(f.name).unlink()
+
+    async def test_grep_context_line_separator_types(self) -> None:
+        """Context lines use '-' separator, match lines use ':'."""
+        tool = GrepTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("before\ntarget\nafter\n")
+            f.flush()
+            result = await tool.execute(
+                pattern="target", path=f.name, context_before=1, context_after=1, line_numbers=True
+            )
+        assert result.success is True
+        # Match line uses ':'
+        assert "2:target" in result.content
+        # Context lines use '-'
+        assert "1-before" in result.content
+        assert "3-after" in result.content
+        Path(f.name).unlink()
+
+    async def test_grep_invert_match(self) -> None:
+        """Select non-matching lines."""
+        tool = GrepTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("hello\nworld\nhello again\n")
+            f.flush()
+            result = await tool.execute(pattern="hello", path=f.name, invert_match=True)
+        assert result.success is True
+        assert "world" in result.content
+        assert "hello" not in result.content
+        Path(f.name).unlink()
+
+    async def test_grep_whole_word(self) -> None:
+        """Match whole words only."""
+        tool = GrepTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("cat\ncatalog\nthe cat sat\n")
+            f.flush()
+            result = await tool.execute(pattern="cat", path=f.name, whole_word=True)
+        assert result.success is True
+        assert "cat" in result.content
+        assert "the cat sat" in result.content
+        # "catalog" should not match since "cat" is not a whole word there
+        lines = result.content.strip().split("\n")
+        assert not any("catalog" == line.strip() for line in lines)
+        Path(f.name).unlink()
+
+    async def test_grep_count_only(self) -> None:
+        """Count matches per file."""
+        tool = GrepTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            (Path(tmpdir) / "a.txt").write_text("hello\nhello\nworld\n")
+            (Path(tmpdir) / "b.txt").write_text("hello\n")
+
+            result = await tool.execute(pattern="hello", path=tmpdir, count_only=True)
+            assert result.success is True
+            assert "2" in result.content  # a.txt has 2 matches
+            assert "1" in result.content  # b.txt has 1 match
+            assert "Total: 3" in result.content
+
+    async def test_grep_count_only_no_matches(self) -> None:
+        """Count mode with no matches."""
+        tool = GrepTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("hello\n")
+            f.flush()
+            result = await tool.execute(pattern="nonexistent", path=f.name, count_only=True)
+        assert result.success is True
+        assert "no matches" in result.content.lower()
+        Path(f.name).unlink()
+
+    async def test_grep_invalid_regex(self) -> None:
+        """Handle invalid regex pattern."""
+        tool = GrepTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("hello\n")
+            f.flush()
+            result = await tool.execute(pattern="[invalid", path=f.name)
+        assert result.success is False
+        assert "invalid regex" in result.content.lower() or "error" in result.content.lower()
+        Path(f.name).unlink()

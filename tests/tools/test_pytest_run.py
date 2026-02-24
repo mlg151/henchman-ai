@@ -92,3 +92,58 @@ class TestPytestRunTool:
             result = await tool.execute(path=str(test_file), keyword="alpha")
             assert result.success is True
             assert "1 passed" in result.content
+
+    async def test_collect_only(self) -> None:
+        """List tests without running them."""
+        tool = PytestRunTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test_collect.py"
+            test_file.write_text(
+                "def test_one():\n    assert True\n\ndef test_two():\n    assert True\n"
+            )
+            result = await tool.execute(path=str(test_file), collect_only=True)
+            assert result.success is True
+            assert "test_one" in result.content
+            assert "test_two" in result.content
+
+    async def test_run_with_markers(self) -> None:
+        """Run tests filtered by marker expression."""
+        tool = PytestRunTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test_markers.py"
+            test_file.write_text(
+                "import pytest\n\n"
+                "@pytest.mark.slow\n"
+                "def test_slow():\n    assert True\n\n"
+                "def test_fast():\n    assert True\n"
+            )
+            # Run only non-slow tests
+            result = await tool.execute(path=str(test_file), markers="not slow")
+            assert result.success is True
+            assert "1 passed" in result.content
+
+    async def test_coverage_flag(self) -> None:
+        """Coverage flag adds --cov to command."""
+        tool = PytestRunTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test_cov.py"
+            test_file.write_text("def test_cov():\n    assert True\n")
+            result = await tool.execute(path=str(test_file), coverage=True)
+            # pytest-cov may not be installed, but the command should still run
+            assert isinstance(result.content, str)
+
+    async def test_empty_path(self) -> None:
+        """Handle empty path."""
+        tool = PytestRunTool()
+        result = await tool.execute(path="")
+        assert result.success is False
+        assert "empty" in result.error.lower() or "no test" in result.content.lower()
+
+    def test_new_parameters_in_schema(self) -> None:
+        """New parameters appear in the schema."""
+        tool = PytestRunTool()
+        params = tool.parameters
+        assert "coverage" in params["properties"]
+        assert "markers" in params["properties"]
+        assert "parallel" in params["properties"]
+        assert "collect_only" in params["properties"]

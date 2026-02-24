@@ -4,7 +4,7 @@ import asyncio
 import sys
 from pathlib import Path
 
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 
 MAX_OUTPUT_CHARS = 100_000
 
@@ -14,6 +14,7 @@ class LintCheckTool(Tool):
 
     Provides structured lint/type-check output for specific files,
     more targeted and readable than raw ``shell`` commands.
+    Supports auto-fix mode via ``fix=True`` (runs ``ruff check --fix``).
     """
 
     @property
@@ -26,8 +27,8 @@ class LintCheckTool(Tool):
         """Tool description."""
         return (
             "Run ruff and/or mypy on a Python file or directory. "
-            "Returns structured lint diagnostics. Use 'linter' parameter "
-            "to run only 'ruff', only 'mypy', or 'both' (default)."
+            "Returns structured lint diagnostics. Use 'linter' to choose "
+            "'ruff', 'mypy', or 'both' (default). Set 'fix' to auto-fix ruff issues."
         )
 
     @property
@@ -46,14 +47,37 @@ class LintCheckTool(Tool):
                     "default": "both",
                     "enum": ["ruff", "mypy", "both"],
                 },
+                "fix": {
+                    "type": "boolean",
+                    "description": "Auto-fix safe ruff issues (runs ruff check --fix)",
+                    "default": False,
+                },
             },
             "required": ["path"],
         }
 
     @property
     def kind(self) -> ToolKind:
-        """Tool kind - READ, just reports diagnostics."""
+        """Tool kind - READ by default, but fix mode modifies files."""
         return ToolKind.READ
+
+    def needs_confirmation(self, params: dict[str, object]) -> ConfirmationRequest | None:
+        """Require confirmation when fix mode is enabled.
+
+        Args:
+            params: The parameters being passed to the tool.
+
+        Returns:
+            ConfirmationRequest when fix=True, None otherwise.
+        """
+        if params.get("fix"):
+            return ConfirmationRequest(
+                tool_name=self.name,
+                description=f"Auto-fix lint issues in {params.get('path', 'unknown')}",
+                params=params,
+                risk_level="medium",
+            )
+        return None
 
     async def _run_tool(self, cmd: list[str], label: str) -> tuple[bool, str]:
         """Run a linter command and return (success, output).
@@ -91,6 +115,7 @@ class LintCheckTool(Tool):
         self,
         path: str = "",
         linter: str = "both",
+        fix: bool = False,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
         """Run lint checks on the given path.
@@ -98,6 +123,7 @@ class LintCheckTool(Tool):
         Args:
             path: Path to Python file or directory.
             linter: Which linter: 'ruff', 'mypy', or 'both'.
+            fix: Auto-fix safe ruff issues.
             **kwargs: Additional arguments (ignored).
 
         Returns:
@@ -122,7 +148,12 @@ class LintCheckTool(Tool):
         all_ok = True
 
         if linter in ("ruff", "both"):
-            ok, output = await self._run_tool([sys.executable, "-m", "ruff", "check", path], "ruff")
+            ruff_cmd = [sys.executable, "-m", "ruff", "check"]
+            if fix:
+                ruff_cmd.append("--fix")
+            ruff_cmd.append(path)
+            label = "ruff --fix" if fix else "ruff"
+            ok, output = await self._run_tool(ruff_cmd, label)
             sections.append(output)
             if not ok:
                 all_ok = False
