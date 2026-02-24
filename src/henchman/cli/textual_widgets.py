@@ -8,6 +8,7 @@ Note: Extracted from ``textual_app.py`` to keep modules under 500 lines.
 
 from __future__ import annotations
 
+import contextlib
 import re
 from typing import Any, cast
 
@@ -711,10 +712,8 @@ class ToolMessage(Static):
 
                 args = self._tool_call.arguments
                 if isinstance(args, str):
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError, TypeError):
                         args = json.loads(args)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
                 try:
                     parts.append(json.dumps(args))
                 except (TypeError, ValueError):
@@ -824,10 +823,8 @@ class ChatPane(VerticalScroll):
 
     def _try_scroll(self) -> None:
         """Scroll to bottom, ignoring errors when not mounted."""
-        try:
+        with contextlib.suppress(Exception):
             self._scroll_to_bottom()
-        except Exception:
-            pass
 
     # -- public API for adding messages --
 

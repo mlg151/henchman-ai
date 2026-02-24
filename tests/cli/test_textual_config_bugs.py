@@ -11,7 +11,7 @@ from henchman.cli.textual_config import (
 
 def test_bug1_duplicate_config_classes():
     """Bug 1: TextualConfig and ReplConfig are duplicate classes.
-    
+
     Severity: Medium (code duplication, maintenance issue)
     Description: TextualConfig and ReplConfig have identical fields
     but are separate classes, causing type errors and duplication.
@@ -37,7 +37,7 @@ def test_bug1_duplicate_config_classes():
 
 def test_bug2_input_handler_wrong_config_type():
     """Bug 2: InputHandler receives TextualConfig instead of ReplConfig.
-    
+
     Severity: High (type error, potential runtime issues)
     Description: ComponentInitializer passes TextualConfig to InputHandler
     which expects ReplConfig, causing mypy errors.
@@ -86,7 +86,7 @@ def test_bug2_input_handler_wrong_config_type():
 
 def test_bug3_plugin_manager_missing_ui_instance():
     """Bug 3: plugin_manager.ui_instance assignment may fail.
-    
+
     Severity: Medium (potential AttributeError)
     Description: plugin_manager may not have ui_instance attribute,
     causing AttributeError at runtime.
@@ -108,7 +108,7 @@ def test_bug3_plugin_manager_missing_ui_instance():
     if hasattr(mock_core_context.plugin_manager, 'ui_instance'):
         delattr(mock_core_context.plugin_manager, 'ui_instance')
 
-    initializer._create_context_fn = lambda **kwargs: mock_core_context
+    initializer._create_context_fn = lambda **_: mock_core_context
 
     # This should work but the assignment may fail at runtime
     # if plugin_manager doesn't have ui_instance

@@ -5,7 +5,6 @@ Issue 1: Thinking tokens appear on separate lines instead of
 Issue 2: Tool result header missing space between emoji and "Result:".
 """
 
-import pytest
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,8 @@
 """tests/henchman/cli/test_textual_app.py
 Unit and widget tests for textual_app.py TUI components."""
 
+# Henchman imports - patch imports if needed
+import contextlib
 from unittest.mock import MagicMock
 
 import pytest
@@ -9,16 +11,13 @@ import pytest
 from textual.app import App
 from textual.containers import VerticalScroll
 
-# Henchman imports - patch imports if needed
-try:
+with contextlib.suppress(ImportError):
     from henchman.cli.textual_app import (
         ChatMessage,
         ChatPane,
         ThinkingMessage,
         ToolMessage,
     )
-except ImportError:
-    pass  # For incremental TDD
 
 from henchman.providers.base import ToolCall
 

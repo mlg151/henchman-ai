@@ -249,7 +249,7 @@ class TestThinkingToolDisplay:
         thinking_msg2.remove = MagicMock()
 
         # Create pane and mock children property
-        pane = ChatPane()
+        ChatPane()
 
         # We need to test the method logic, so let's check what it does
         # The method filters by class name "ThinkingMessage" and calls remove()

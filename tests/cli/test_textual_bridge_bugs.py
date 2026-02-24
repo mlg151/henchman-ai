@@ -6,7 +6,7 @@ from henchman.cli.textual_bridge import _format_error_text, _format_turn_status
 
 def test_bug9_format_error_text_case_sensitivity():
     """Bug 9: _format_error_text has potential case sensitivity issue.
-    
+
     Severity: Low (cosmetic)
     Description: The function calls kw.lower() on keywords that are already
     partially lowercase, and the logic might not handle all cases correctly.
@@ -31,7 +31,7 @@ def test_bug9_format_error_text_case_sensitivity():
 
 def test_bug10_format_turn_status_missing_keys():
     """Bug 10: _format_turn_status doesn't handle missing keys gracefully.
-    
+
     Severity: Medium (potential KeyError)
     Description: The function accesses data.get() for some keys but assumes
     data has certain keys, could crash with malformed data.
@@ -59,7 +59,7 @@ def test_bug10_format_turn_status_missing_keys():
 
 def test_bug11_event_bridge_forward_events_exception_handling():
     """Bug 11: forward_events catches all exceptions but doesn't re-raise.
-    
+
     Severity: Medium (error hiding)
     Description: Exceptions in event stream are caught and converted to
     error messages, but the original exception is lost. This could hide
@@ -72,7 +72,7 @@ def test_bug11_event_bridge_forward_events_exception_handling():
 
 def test_bug12_event_handlers_missing_null_checks():
     """Bug 12: Some event handlers don't check for None/null data.
-    
+
     Severity: Low (potential crashes)
     Description: Handlers like _on_content check if event.data exists,
     but others like _on_finished don't check event.source_agent.
@@ -97,7 +97,7 @@ def test_bug12_event_handlers_missing_null_checks():
 
 def test_bug13_tui_console_adapter_buffer_overflow():
     """Bug 13: TuiConsoleAdapter buffer could grow without bound.
-    
+
     Severity: Medium (memory issue)
     Description: StringIO buffer accumulates output until flush_to_chat
     is called. If print() is called many times without flush, memory
