@@ -222,6 +222,105 @@ class TestEditFileTool:
         assert result.success is False
         assert result.error is not None
 
+    async def test_edit_line_range(self) -> None:
+        """Replace a range of lines by line number."""
+        tool = EditFileTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("line1\nline2\nline3\nline4\n")
+            f.flush()
+            result = await tool.execute(
+                path=f.name,
+                new_str="replaced",
+                start_line=2,
+                end_line=3,
+            )
+            assert result.success is True
+            content = Path(f.name).read_text()
+            assert "line1\n" in content
+            assert "replaced\n" in content
+            assert "line4\n" in content
+            assert "line2" not in content
+            assert "line3" not in content
+        Path(f.name).unlink()
+
+    async def test_edit_line_range_invalid(self) -> None:
+        """Error on invalid line range."""
+        tool = EditFileTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("line1\nline2\n")
+            f.flush()
+            result = await tool.execute(
+                path=f.name, new_str="x", start_line=3, end_line=1
+            )
+            assert result.success is False
+        Path(f.name).unlink()
+
+    async def test_edit_line_range_exceeds_file(self) -> None:
+        """Error when start_line exceeds file length."""
+        tool = EditFileTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("line1\n")
+            f.flush()
+            result = await tool.execute(
+                path=f.name, new_str="x", start_line=5, end_line=10
+            )
+            assert result.success is False
+            assert "exceeds" in result.content.lower() or "start_line" in result.content.lower()
+        Path(f.name).unlink()
+
+    async def test_edit_both_modes_error(self) -> None:
+        """Error when both old_str and line range provided."""
+        tool = EditFileTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("hello world\n")
+            f.flush()
+            result = await tool.execute(
+                path=f.name, old_str="hello", new_str="hi", start_line=1, end_line=1
+            )
+            assert result.success is False
+            assert "both" in result.content.lower() or "ambiguous" in result.error.lower()
+        Path(f.name).unlink()
+
+    async def test_edit_no_target_error(self) -> None:
+        """Error when neither old_str nor line range provided."""
+        tool = EditFileTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("hello world\n")
+            f.flush()
+            result = await tool.execute(path=f.name, new_str="hi")
+            assert result.success is False
+        Path(f.name).unlink()
+
+    async def test_edit_dry_run_string(self) -> None:
+        """Dry run shows diff without modifying file."""
+        tool = EditFileTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("hello world")
+            f.flush()
+            result = await tool.execute(
+                path=f.name, old_str="world", new_str="universe", dry_run=True
+            )
+            assert result.success is True
+            assert "dry run" in result.content.lower()
+            assert "-hello world" in result.content or "- hello world" in result.content
+            # File should be unchanged
+            assert Path(f.name).read_text() == "hello world"
+        Path(f.name).unlink()
+
+    async def test_edit_dry_run_line_range(self) -> None:
+        """Dry run with line range shows diff without modifying file."""
+        tool = EditFileTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("line1\nline2\nline3\n")
+            f.flush()
+            result = await tool.execute(
+                path=f.name, new_str="replaced", start_line=2, end_line=2, dry_run=True
+            )
+            assert result.success is True
+            assert "dry run" in result.content.lower()
+            assert Path(f.name).read_text() == "line1\nline2\nline3\n"
+        Path(f.name).unlink()
+
 
 class TestFileToolPermissionErrors:
     """Tests for permission error handling in file tools."""

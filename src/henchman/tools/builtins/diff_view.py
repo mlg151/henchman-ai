@@ -8,10 +8,10 @@ MAX_OUTPUT_CHARS = 100_000
 
 
 class DiffViewTool(Tool):
-    """Show git diff of current changes.
+    """Show git diff of current changes or compare branches/refs.
 
-    Displays working-tree or staged changes in a git repository,
-    optionally filtered to a specific file.
+    Displays working-tree, staged, or branch-comparison diffs in a git
+    repository, optionally filtered to a specific file.
     """
 
     @property
@@ -23,9 +23,10 @@ class DiffViewTool(Tool):
     def description(self) -> str:
         """Tool description."""
         return (
-            "Show git diff of current changes. Shows unstaged changes by "
-            "default, or staged changes with staged=true. Optionally filter "
-            "to a specific file with 'path'."
+            "Show git diff of current changes or compare branches/refs. "
+            "Shows unstaged changes by default, staged with staged=true, "
+            "or branch comparison with compare='main..feature'. "
+            "Use stat=true for a summary of changed files."
         )
 
     @property
@@ -43,6 +44,26 @@ class DiffViewTool(Tool):
                     "description": "Show staged changes (--cached)",
                     "default": False,
                 },
+                "compare": {
+                    "type": "string",
+                    "description": (
+                        "Compare two refs, e.g. 'main..feature' or 'HEAD~3..HEAD'"
+                    ),
+                },
+                "stat": {
+                    "type": "boolean",
+                    "description": "Show --stat summary (files changed, insertions, deletions)",
+                    "default": False,
+                },
+                "name_only": {
+                    "type": "boolean",
+                    "description": "Show only names of changed files",
+                    "default": False,
+                },
+                "context_lines": {
+                    "type": "integer",
+                    "description": "Number of context lines around changes (default 3)",
+                },
                 "cwd": {
                     "type": "string",
                     "description": "Working directory (git repo root)",
@@ -59,6 +80,10 @@ class DiffViewTool(Tool):
         self,
         path: str | None = None,
         staged: bool = False,
+        compare: str | None = None,
+        stat: bool = False,
+        name_only: bool = False,
+        context_lines: int | None = None,
         cwd: str | None = None,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
@@ -67,18 +92,78 @@ class DiffViewTool(Tool):
         Args:
             path: Optional file path to filter diff.
             staged: Show staged changes instead of unstaged.
+            compare: Compare two refs (e.g. 'main..feature').
+            stat: Show --stat summary instead of full diff.
+            name_only: Show only changed file names.
+            context_lines: Number of context lines (git -U flag).
             cwd: Working directory (must be a git repo).
             **kwargs: Additional arguments (ignored).
 
         Returns:
             ToolResult with diff output.
         """
+        cmd = self._build_command(
+            path=path,
+            staged=staged,
+            compare=compare,
+            stat=stat,
+            name_only=name_only,
+            context_lines=context_lines,
+        )
+        return await self._run_git(cmd, cwd=cwd)
+
+    def _build_command(
+        self,
+        *,
+        path: str | None,
+        staged: bool,
+        compare: str | None,
+        stat: bool,
+        name_only: bool,
+        context_lines: int | None,
+    ) -> list[str]:
+        """Build the git diff command.
+
+        Args:
+            path: Optional file path filter.
+            staged: Use --cached for staged changes.
+            compare: Ref comparison spec (e.g. 'main..feature').
+            stat: Use --stat for summary.
+            name_only: Use --name-only for file list.
+            context_lines: Number of context lines.
+
+        Returns:
+            Command as list of strings.
+        """
         cmd = ["git", "--no-pager", "diff"]
-        if staged:
+        if staged and not compare:
             cmd.append("--cached")
+        if stat:
+            cmd.append("--stat")
+        if name_only:
+            cmd.append("--name-only")
+        if context_lines is not None:
+            cmd.append(f"-U{context_lines}")
+        if compare:
+            cmd.append(compare)
         if path:
             cmd.extend(["--", path])
+        return cmd
 
+    async def _run_git(
+        self,
+        cmd: list[str],
+        cwd: str | None = None,
+    ) -> ToolResult:
+        """Execute a git command and return the result.
+
+        Args:
+            cmd: Command to execute.
+            cwd: Working directory.
+
+        Returns:
+            ToolResult with command output.
+        """
         try:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -109,7 +194,8 @@ class DiffViewTool(Tool):
             output = stdout_text
             if len(output) > MAX_OUTPUT_CHARS:
                 output = (
-                    output[:MAX_OUTPUT_CHARS] + f"\n... (truncated after {MAX_OUTPUT_CHARS} chars)"
+                    output[:MAX_OUTPUT_CHARS]
+                    + f"\n... (truncated after {MAX_OUTPUT_CHARS} chars)"
                 )
 
             return ToolResult(content=output, success=True)

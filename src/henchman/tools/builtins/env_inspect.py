@@ -1,0 +1,213 @@
+"""Environment inspector tool implementation."""
+
+import os
+import sys
+from pathlib import Path
+
+from henchman.tools.base import Tool, ToolKind, ToolResult
+
+# Env vars that should never be exposed
+SECRET_PATTERNS: frozenset[str] = frozenset(
+    {
+        "KEY",
+        "SECRET",
+        "TOKEN",
+        "PASSWORD",
+        "PASSWD",
+        "CREDENTIAL",
+        "AUTH",
+        "PRIVATE",
+    }
+)
+
+
+class EnvInspectTool(Tool):
+    """Inspect the Python environment and project setup.
+
+    Reports Python version, virtualenv status, installed packages,
+    project configuration, and available system tools — all in one call.
+    """
+
+    @property
+    def name(self) -> str:
+        """Tool name."""
+        return "env_inspect"
+
+    @property
+    def description(self) -> str:
+        """Tool description."""
+        return (
+            "Inspect the Python environment: version, virtualenv, installed packages, "
+            "project type, available tools. Replaces multiple shell commands with one call."
+        )
+
+    @property
+    def parameters(self) -> dict[str, object]:
+        """JSON Schema for parameters."""
+        return {
+            "type": "object",
+            "properties": {
+                "cwd": {
+                    "type": "string",
+                    "description": "Working directory to inspect (default: current)",
+                },
+                "packages": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Specific packages to check versions for",
+                },
+                "show_env_vars": {
+                    "type": "boolean",
+                    "description": "Include safe environment variables",
+                    "default": False,
+                },
+                "show_path": {
+                    "type": "boolean",
+                    "description": "Include sys.path entries",
+                    "default": False,
+                },
+            },
+        }
+
+    @property
+    def kind(self) -> ToolKind:
+        """Tool kind - read-only inspection."""
+        return ToolKind.READ
+
+    async def execute(  # type: ignore[override]
+        self,
+        cwd: str | None = None,
+        packages: list[str] | None = None,
+        show_env_vars: bool = False,
+        show_path: bool = False,
+        **kwargs: object,  # noqa: ARG002
+    ) -> ToolResult:
+        """Inspect the environment.
+
+        Args:
+            cwd: Working directory to inspect.
+            packages: Specific packages to check.
+            show_env_vars: Include environment variables.
+            show_path: Include sys.path.
+            **kwargs: Additional arguments (ignored).
+
+        Returns:
+            ToolResult with environment information.
+        """
+        parts: list[str] = []
+        work_dir = Path(cwd) if cwd else Path.cwd()
+
+        # Python info
+        parts.append("Python Environment:")
+        parts.append(f"  Version: {sys.version.split()[0]}")
+        parts.append(f"  Executable: {sys.executable}")
+        parts.append(f"  Platform: {sys.platform}")
+
+        # Virtualenv
+        venv = os.environ.get("VIRTUAL_ENV", "")
+        conda = os.environ.get("CONDA_DEFAULT_ENV", "")
+        if venv:
+            parts.append(f"  Virtual env: {venv}")
+        elif conda:
+            parts.append(f"  Conda env: {conda}")
+        else:
+            parts.append("  Virtual env: (none)")
+
+        # Package versions
+        if packages:
+            parts.append("\nPackage Versions:")
+            for pkg_name in packages:
+                version = self._get_package_version(pkg_name)
+                parts.append(f"  {pkg_name}: {version}")
+
+        # Project detection
+        parts.append(f"\nProject ({work_dir.name}):")
+        project_files = self._detect_project(work_dir)
+        if project_files:
+            for pf in project_files:
+                parts.append(f"  {pf}")
+        else:
+            parts.append("  (no project files detected)")
+
+        # sys.path
+        if show_path:
+            parts.append("\nsys.path:")
+            for p in sys.path:
+                if p:
+                    parts.append(f"  {p}")
+
+        # Environment variables (filtered)
+        if show_env_vars:
+            parts.append("\nEnvironment Variables (safe):")
+            safe_vars = self._get_safe_env_vars()
+            for key, value in sorted(safe_vars.items()):
+                parts.append(f"  {key}={value}")
+            if not safe_vars:
+                parts.append("  (none)")
+
+        return ToolResult(content="\n".join(parts), success=True)
+
+    def _get_package_version(self, name: str) -> str:
+        """Get installed version of a package.
+
+        Args:
+            name: Package name.
+
+        Returns:
+            Version string or 'not installed'.
+        """
+        try:
+            from importlib.metadata import version
+
+            return version(name)
+        except Exception:  # noqa: BLE001
+            return "not installed"
+
+    def _detect_project(self, directory: Path) -> list[str]:
+        """Detect project type from config files.
+
+        Args:
+            directory: Directory to inspect.
+
+        Returns:
+            List of detected project indicators.
+        """
+        indicators: list[str] = []
+        checks = {
+            "pyproject.toml": "Python (pyproject.toml)",
+            "setup.py": "Python (setup.py)",
+            "setup.cfg": "Python (setup.cfg)",
+            "requirements.txt": "Python (requirements.txt)",
+            "package.json": "Node.js (package.json)",
+            "Cargo.toml": "Rust (Cargo.toml)",
+            "go.mod": "Go (go.mod)",
+            "Makefile": "Makefile present",
+            "Dockerfile": "Docker",
+            "docker-compose.yaml": "Docker Compose",
+            "docker-compose.yml": "Docker Compose",
+            ".git": "Git repository",
+        }
+
+        for filename, label in checks.items():
+            if (directory / filename).exists():
+                indicators.append(label)
+
+        return indicators
+
+    def _get_safe_env_vars(self) -> dict[str, str]:
+        """Get environment variables, filtering out secrets.
+
+        Returns:
+            Dict of safe environment variable name/value pairs.
+        """
+        safe: dict[str, str] = {}
+        for key, value in os.environ.items():
+            upper = key.upper()
+            if any(pattern in upper for pattern in SECRET_PATTERNS):
+                continue
+            # Also skip very long values
+            if len(value) > 200:
+                safe[key] = value[:200] + "..."
+            else:
+                safe[key] = value
+        return safe

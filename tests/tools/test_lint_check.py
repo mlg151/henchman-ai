@@ -76,3 +76,41 @@ class TestLintCheckTool:
             result = await tool.execute(path=str(f), linter="mypy")
             # mypy may or may not be available; tool should handle gracefully
             assert isinstance(result.content, str)
+
+    async def test_fix_mode(self) -> None:
+        """Fix mode runs ruff --fix and modifies files."""
+        tool = LintCheckTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = Path(tmpdir) / "fixable.py"
+            # Unused import is auto-fixable by ruff
+            f.write_text("import os\n\nx = 1\n")
+            result = await tool.execute(path=str(f), linter="ruff", fix=True)
+            assert isinstance(result.content, str)
+            assert "ruff --fix" in result.content
+
+    def test_fix_mode_needs_confirmation(self) -> None:
+        """Fix mode requires user confirmation."""
+        tool = LintCheckTool()
+        request = tool.needs_confirmation({"path": "test.py", "fix": True})
+        assert request is not None
+        assert request.risk_level == "medium"
+        assert "test.py" in request.description
+
+    def test_no_fix_no_confirmation(self) -> None:
+        """Non-fix mode does not require confirmation."""
+        tool = LintCheckTool()
+        request = tool.needs_confirmation({"path": "test.py", "fix": False})
+        assert request is None
+
+    def test_default_no_confirmation(self) -> None:
+        """Default parameters do not require confirmation."""
+        tool = LintCheckTool()
+        request = tool.needs_confirmation({"path": "test.py"})
+        assert request is None
+
+    async def test_empty_path(self) -> None:
+        """Handle empty path."""
+        tool = LintCheckTool()
+        result = await tool.execute(path="")
+        assert result.success is False
+        assert "no path" in result.content.lower() or "empty" in result.error.lower()

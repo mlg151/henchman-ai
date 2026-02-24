@@ -162,3 +162,179 @@ class TestDiffViewTool:
             result = await tool.execute(cwd=tmpdir, staged=True)
             assert result.success is True
             assert "x = 3" in result.content
+
+    async def test_compare_branches(self) -> None:
+        """Compare two branches."""
+        tool = DiffViewTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            import subprocess
+
+            subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@test.com"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            f = Path(tmpdir) / "hello.py"
+            f.write_text("x = 1\n")
+            subprocess.run(["git", "add", "."], cwd=tmpdir, capture_output=True)
+            subprocess.run(
+                ["git", "commit", "-m", "init"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "checkout", "-b", "feature"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            f.write_text("x = 99\n")
+            subprocess.run(["git", "add", "."], cwd=tmpdir, capture_output=True)
+            subprocess.run(
+                ["git", "commit", "-m", "feature"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            # Compare master..feature
+            result = await tool.execute(compare="master..feature", cwd=tmpdir)
+            assert result.success is True
+            assert "x = 99" in result.content
+
+    async def test_stat_mode(self) -> None:
+        """Show --stat summary."""
+        tool = DiffViewTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            import subprocess
+
+            subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@test.com"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            f = Path(tmpdir) / "hello.py"
+            f.write_text("x = 1\n")
+            subprocess.run(["git", "add", "."], cwd=tmpdir, capture_output=True)
+            subprocess.run(
+                ["git", "commit", "-m", "init"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            f.write_text("x = 2\n")
+            result = await tool.execute(cwd=tmpdir, stat=True)
+            assert result.success is True
+            assert "hello.py" in result.content
+
+    async def test_name_only_mode(self) -> None:
+        """Show --name-only output."""
+        tool = DiffViewTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            import subprocess
+
+            subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@test.com"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            f = Path(tmpdir) / "hello.py"
+            f.write_text("x = 1\n")
+            subprocess.run(["git", "add", "."], cwd=tmpdir, capture_output=True)
+            subprocess.run(
+                ["git", "commit", "-m", "init"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            f.write_text("x = 2\n")
+            result = await tool.execute(cwd=tmpdir, name_only=True)
+            assert result.success is True
+            assert "hello.py" in result.content
+
+    async def test_context_lines(self) -> None:
+        """Context lines parameter is passed to git."""
+        tool = DiffViewTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            import subprocess
+
+            subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@test.com"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            f = Path(tmpdir) / "hello.py"
+            f.write_text("line1\nline2\nline3\nline4\nline5\n")
+            subprocess.run(["git", "add", "."], cwd=tmpdir, capture_output=True)
+            subprocess.run(
+                ["git", "commit", "-m", "init"],
+                cwd=tmpdir,
+                capture_output=True,
+            )
+            f.write_text("line1\nline2\nCHANGED\nline4\nline5\n")
+            result = await tool.execute(cwd=tmpdir, context_lines=0)
+            assert result.success is True
+            assert "CHANGED" in result.content
+
+    def test_build_command_defaults(self) -> None:
+        """Build command with defaults produces basic diff."""
+        tool = DiffViewTool()
+        cmd = tool._build_command(
+            path=None,
+            staged=False,
+            compare=None,
+            stat=False,
+            name_only=False,
+            context_lines=None,
+        )
+        assert cmd == ["git", "--no-pager", "diff"]
+
+    def test_build_command_all_options(self) -> None:
+        """Build command with all options."""
+        tool = DiffViewTool()
+        cmd = tool._build_command(
+            path="file.py",
+            staged=False,
+            compare="a..b",
+            stat=True,
+            name_only=True,
+            context_lines=5,
+        )
+        assert "--stat" in cmd
+        assert "--name-only" in cmd
+        assert "-U5" in cmd
+        assert "a..b" in cmd
+        assert "file.py" in cmd
+
+    def test_build_command_staged_ignored_with_compare(self) -> None:
+        """Staged flag is ignored when compare is set."""
+        tool = DiffViewTool()
+        cmd = tool._build_command(
+            path=None,
+            staged=True,
+            compare="main..dev",
+            stat=False,
+            name_only=False,
+            context_lines=None,
+        )
+        assert "--cached" not in cmd
+        assert "main..dev" in cmd
