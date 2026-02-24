@@ -8,7 +8,7 @@ from henchman.tools.base import ConfirmationRequest
 
 def test_bug14_confirm_tool_screen_json_serialization():
     """Bug 14: ConfirmToolScreen._build_params_label has bare except clause.
-    
+
     Severity: Low (code quality)
     Description: Uses bare `except Exception:` instead of catching specific
     JSON serialization errors. Also doesn't handle non-string params well.
@@ -41,7 +41,7 @@ def test_bug14_confirm_tool_screen_json_serialization():
 
 def test_bug15_provider_screen_build_options():
     """Bug 15: ProviderScreen._build_options assumes specific structure.
-    
+
     Severity: Medium (potential crashes)
     Description: Assumes settings.providers has specific attributes and
     that cfg is a dict. Could crash with malformed settings.
@@ -74,7 +74,7 @@ def test_bug15_provider_screen_build_options():
 
 def test_bug16_help_screen_static_content():
     """Bug 16: HelpScreen has hardcoded keybindings.
-    
+
     Severity: Low (maintenance issue)
     Description: Keybindings are hardcoded in compose() method instead of
     being configurable or derived from app settings.

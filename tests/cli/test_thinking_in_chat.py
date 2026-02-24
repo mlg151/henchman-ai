@@ -80,7 +80,7 @@ class TestThinkingInChat:
         from henchman.cli.textual_widgets import ThinkingMessage
 
         msg = ThinkingMessage("Initial thought", "Agent")
-        initial_content = str(msg.render())
+        str(msg.render())
 
         # Append more content
         msg.append(" More thinking.")

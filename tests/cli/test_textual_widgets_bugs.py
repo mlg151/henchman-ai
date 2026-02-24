@@ -10,7 +10,7 @@ class TestChatPaneBugs:
 
     def test_bug4_double_scroll_on_new_agent_stream(self):
         """Bug 4: Double scrolling when appending to new agent stream.
-        
+
         Severity: Low (UI glitch, performance)
         Description: append_agent_chunk calls begin_agent_stream which scrolls,
         then scrolls again, causing double scroll animation.
@@ -40,7 +40,7 @@ class TestChatPaneBugs:
 
     def test_bug5_finish_agent_stream_silent_failure(self):
         """Bug 5: finish_agent_stream fails silently for non-existent agent.
-        
+
         Severity: Medium (silent failure, state inconsistency)
         Description: finish_agent_stream calls pop() on _active dict
         without checking if agent exists, potentially hiding bugs.
@@ -58,7 +58,7 @@ class TestChatPaneBugs:
 
     def test_bug6_clear_thinking_messages_import_coupling(self):
         """Bug 6: clear_thinking_messages uses class name string comparison.
-        
+
         Severity: Low (brittle code)
         Description: Uses __class__.__name__ == "ThinkingMessage" which
         breaks if class is renamed or subclassed.
@@ -75,7 +75,7 @@ class TestChatPaneBugs:
 
     def test_bug7_chatmessage_escape_handling(self):
         """Bug 7: ChatMessage escapes content but prefix may contain markup.
-        
+
         Severity: Medium (potential markup injection)
         Description: ChatMessage escapes content with markup_escape,
         but prefix contains Rich markup that isn't validated.
@@ -84,7 +84,7 @@ class TestChatPaneBugs:
 
         # Test with malicious prefix (should be safe since it's from trusted code)
         # But if prefix comes from user input, could be problematic
-        widget = ChatMessage(prefix="[bold red]Test:[/]", content="<script>alert('xss')</script>")
+        ChatMessage(prefix="[bold red]Test:[/]", content="<script>alert('xss')</script>")
 
         # Content should be escaped
         # The update method uses markup_escape on content but not on prefix
@@ -92,7 +92,7 @@ class TestChatPaneBugs:
 
     def test_bug8_toolmessage_unused_parameters(self):
         """Bug 8: ToolMessage stores unused parameters.
-        
+
         Severity: Low (dead code)
         Description: ToolMessage.__init__ stores thought and tool_call
         parameters but _update_renderable doesn't use them.

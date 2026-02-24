@@ -348,7 +348,7 @@ class TestHenchmanTextualApp:
         mock_provider,
     ):
         """Test Bug 5: Provider switch failure leaves app in inconsistent state.
-        
+
         When _initialize_core_components() fails AFTER provider assignment,
         the provider is changed but core components aren't reinitialized.
         """
@@ -392,7 +392,7 @@ class TestHenchmanTextualApp:
         textual_app,
     ):
         """Test Bug 4 fix: Verify implementation uses async file reading.
-        
+
         Check that the method is now async and uses asyncio.to_thread.
         """
         # Check that the method is decorated with @work (has __wrapped__)
@@ -424,7 +424,7 @@ class TestHenchmanTextualApp:
         textual_app,
     ):
         """Test Bug 4 fix: Async file reading behavior.
-        
+
         Simulate the async behavior by calling the method directly
         in an async context.
         """
@@ -478,7 +478,7 @@ class TestHenchmanTextualApp:
         textual_app,
     ):
         """Test Bug 1 fix: All initialization steps should handle exceptions.
-        
+
         Previously only _get_provider() was wrapped in try-except. Now
         load_settings(), TextualConfig(), format_environment_block(), and
         gather_environment() should all handle exceptions gracefully.
@@ -542,7 +542,7 @@ class TestHenchmanTextualApp:
         textual_app,
     ):
         """Test Bug 2 fix: Proper error logging instead of silent suppression.
-        
+
         When context loading fails, errors should be logged properly instead of
         being silently suppressed with contextlib.suppress(Exception).
         """
@@ -585,7 +585,7 @@ class TestHenchmanTextualApp:
         textual_app,
     ):
         """Test Bug 3 fix: History persistence failures should show error notification.
-        
+
         When history file cannot be written, users should be notified
         instead of silently ignoring the error with except Exception: pass.
         """

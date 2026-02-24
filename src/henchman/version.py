@@ -1,6 +1,6 @@
 """Version information for Henchman-AI."""
 
-VERSION_TUPLE = (0, 3, 7)
+VERSION_TUPLE = (0, 3, 11)
 VERSION = ".".join(str(v) for v in VERSION_TUPLE)
 
 __all__ = ["VERSION", "VERSION_TUPLE"]

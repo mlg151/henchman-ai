@@ -217,10 +217,9 @@ class UIRenderer:
     def stop_thinking(self) -> None:
         """Stop the current thinking indicator."""
         if self._thinking_status and self._is_thinking:
-            try:
+            import contextlib
+            with contextlib.suppress(Exception):
                 self._thinking_status.__exit__(None, None, None)
-            except Exception:
-                pass  # Don't crash on cleanup
 
         self._thinking_status = None
         self._is_thinking = False

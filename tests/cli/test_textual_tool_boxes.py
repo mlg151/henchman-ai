@@ -31,7 +31,7 @@ def test_tool_message_append():
     """Test appending to tool result."""
     msg = ToolMessage(tool_call=MagicMock())
     msg.append("result content")
-    rendered = str(msg.render())
+    str(msg.render())
     # Appended content visible in expanded view
     msg.toggle_expansion()
     rendered_expanded = str(msg.render())
