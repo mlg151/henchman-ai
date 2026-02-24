@@ -102,12 +102,21 @@ class CommandProcessor:
             repl=repl,
         )
         # Add session_manager and project_hash for /chat command
-        ctx.session_manager = getattr(self.session_manager, "session_manager", self.session_manager)
+        # Handle both ReplSessionManager and any wrapper that has a session_manager attribute
+        if hasattr(self.session_manager, 'session_manager'):
+            ctx.session_manager = self.session_manager.session_manager
+        else:
+            ctx.session_manager = self.session_manager
         # Add MCP manager for /mcp command
         ctx.mcp_manager = self.mcp_manager
         ctx.project_hash = self.session_manager.compute_project_hash(Path.cwd())
 
-        await cmd.execute(ctx)
+        try:
+            await cmd.execute(ctx)
+        except Exception as e:
+            self.output_handler.error(f"Error executing command /{cmd_name}: {e}")
+            import traceback
+            self.output_handler.muted(f"Details: {traceback.format_exc()}")
         return True
 
     def get_command_registry(self) -> CommandRegistry:

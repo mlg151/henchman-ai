@@ -14,6 +14,7 @@ from henchman.core.agent import Agent
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import ToolCall
 from henchman.tools.base import ConfirmationRequest
+from rich.markup import escape as _escape
 
 if TYPE_CHECKING:
     from typing import Any
@@ -74,8 +75,13 @@ class ToolExecutor:
         Returns:
             True if processing should stop, False otherwise.
         """
-        if getattr(agent, "unlimited_mode", False):
-            return False
+        # Check for unlimited mode - use try/except instead of getattr for clarity
+        try:
+            if agent.unlimited_mode:
+                return False
+        except AttributeError:
+            # If agent doesn't have unlimited_mode attribute, proceed with limits
+            pass
 
         turn = agent.turn
         adaptive_limit = turn.get_adaptive_limit(self.base_tool_iterations)
@@ -95,7 +101,8 @@ class ToolExecutor:
             return True
 
         # Warn if spinning
-        if turn.is_spinning() and turn.iteration > 2:
+        SPIN_DETECTION_THRESHOLD = 2  # Minimum iterations before warning about spinning
+        if turn.is_spinning() and turn.iteration > SPIN_DETECTION_THRESHOLD:
             self.output_handler.warning(
                 "⚠ Possible loop detected: same tool calls or results repeating. "
                 f"Iteration {turn.iteration}/{adaptive_limit}"
@@ -173,7 +180,7 @@ class ToolExecutor:
             pending_tool_calls: List to collect tool calls for execution.
         """
         tool_call = event.data
-        self.output_handler.muted(f"\n[tool] {tool_call.name}({tool_call.arguments})")
+        self.output_handler.muted(f"\n\\[tool] {_escape(tool_call.name)}({_escape(str(tool_call.arguments))})")
 
         # Only collect tool calls from the current agent
         if is_own_event:
@@ -213,9 +220,9 @@ class ToolExecutor:
         success = result_data.get("success", True)
 
         if success:
-            self.output_handler.muted(f"[result] {result_text[:MAX_RESULT_PREVIEW_LENGTH]}...")
+            self.output_handler.muted(f"\\[result] {_escape(result_text[:MAX_RESULT_PREVIEW_LENGTH])}...")
         else:
-            self.output_handler.error(f"[error] {result_text[:MAX_RESULT_PREVIEW_LENGTH]}")
+            self.output_handler.error(f"\\[error] {_escape(result_text[:MAX_RESULT_PREVIEW_LENGTH])}")
 
         # Only record results and flush assistant messages if it's our event
         if is_own_event:
@@ -253,7 +260,7 @@ class ToolExecutor:
             agent: The agent for turn tracking and result submission.
             responded_ids: Set to track which tool calls have been responded to.
         """
-        self.output_handler.muted(f"\n[tool] {tc.name}({tc.arguments})")
+        self.output_handler.muted(f"\n\\[tool] {_escape(tc.name)}({_escape(str(tc.arguments))})")
         result = await self.tool_manager.registry.execute(tc.name, tc.arguments)
 
         # Record results
@@ -269,9 +276,9 @@ class ToolExecutor:
 
         # Show result
         if result.success:
-            self.output_handler.muted(f"[result] {result.content[:MAX_RESULT_PREVIEW_LENGTH]}...")
+            self.output_handler.muted(f"\\[result] {_escape(result.content[:MAX_RESULT_PREVIEW_LENGTH])}...")
         else:
-            self.output_handler.error(f"[error] {result.error}")
+            self.output_handler.error(f"\\[error] {_escape(result.error or '')}")
 
     def _split_tools_by_confirmation_requirement(
         self, tool_calls: list[ToolCall]
@@ -326,11 +333,11 @@ class ToolExecutor:
         Args:
             event: The agent delegated event.
         """
-        from_agent = event.data.get("from", "unknown")
-        to_agent = event.data.get("to", "unknown")
-        task = event.data.get("task", "")
+        from_agent = _escape(event.data.get("from", "unknown"))
+        to_agent = _escape(event.data.get("to", "unknown"))
+        task = _escape(event.data.get("task", ""))
         self.output_handler.muted(
-            f"\n[{from_agent}] Delegating to [bold cyan]{to_agent}[/]: {task}"
+            f"\n\\[{from_agent}] Delegating to [bold cyan]{to_agent}[/]: {task}"
         )
 
     def _handle_agent_started_event(self, event: AgentEvent, status_obj: Status | None) -> None:
@@ -349,8 +356,8 @@ class ToolExecutor:
         Args:
             event: The agent completed event.
         """
-        agent_name = event.data.get("agent", "agent")
-        self.output_handler.muted(f"[{agent_name}] completed work")
+        agent_name = _escape(event.data.get("agent", "agent"))
+        self.output_handler.muted(f"\\[{agent_name}] completed work")
 
     def _handle_agent_message_event(self, event: AgentEvent) -> None:
         """Handle an AGENT_MESSAGE event from the agent stream.
@@ -358,8 +365,8 @@ class ToolExecutor:
         Args:
             event: The agent message event.
         """
-        to_agent = event.data.get("to", "unknown")
-        msg = event.data.get("message", "")
+        to_agent = _escape(event.data.get("to", "unknown"))
+        msg = _escape(event.data.get("message", ""))
         self.output_handler.muted(f"\n[bold cyan]→ {to_agent}[/]: {msg}")
 
     def _handle_finished_event(
@@ -492,10 +499,18 @@ class ToolExecutor:
             is_own_event: bool
             if event.source_agent is None:
                 is_own_event = True
-            elif agent.identity and agent.identity.id:
-                is_own_event = event.source_agent == agent.identity.id
             else:
-                is_own_event = False
+                # Safely check if event is from the current agent
+                try:
+                    agent_id = agent.identity.id if agent.identity else None
+                    if agent_id is not None:
+                        # Compare as strings to avoid type mismatches
+                        is_own_event = str(event.source_agent) == str(agent_id)
+                    else:
+                        is_own_event = False
+                except (AttributeError, TypeError):
+                    # If anything goes wrong (missing attributes, etc.), assume not own event
+                    is_own_event = False
 
             # Handle transition out of thinking
             if is_thinking and event.type != EventType.THOUGHT:
@@ -504,7 +519,8 @@ class ToolExecutor:
 
             # Update status continuously
             if status_obj:
-                # Need to get status message from output handler
+                # Status object parameter kept for backward compatibility
+                # Spinner functionality was removed, so no action needed
                 pass
 
             if event.source_agent:

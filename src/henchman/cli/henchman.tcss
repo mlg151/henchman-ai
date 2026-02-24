@@ -1,0 +1,95 @@
+/* Henchman-AI Textual TUI Stylesheet
+ *
+ * Dark theme (default). Swap via /theme command or F4.
+ */
+
+/* ── Layout ────────────────────────────────────────────── */
+
+Screen {
+    layout: vertical;
+}
+
+TabbedContent,
+TabPane {
+    height: 1fr;
+}
+
+/* ── Chat pane ─────────────────────────────────────────── */
+
+ChatPane,
+#chat-pane {
+    height: 1fr;
+    width: 100%;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+}
+
+#thinking-pane,
+#tool-pane {
+    height: 1fr;
+    width: 100%;
+}
+
+ChatMessage {
+    margin: 1 1 1 1;
+    padding: 1;
+}
+
+/* ── Command palette ───────────────────────────────────── */
+
+#command-palette {
+    width: 100%;
+    height: auto;
+    max-height: 12;
+    dock: bottom;
+    layer: overlay;
+    display: none;
+    border: solid $accent;
+    background: $surface;
+}
+
+/* ── Input ─────────────────────────────────────────────── */
+
+#input {
+    width: 100%;
+    height: 3;
+    border: solid $panel;
+    margin: 0 1;
+}
+
+/* ── Status bar ────────────────────────────────────────── */
+
+#status-bar {
+    height: 1;
+    dock: bottom;
+}
+
+/* ── Theme: dark (default) ─────────────────────────────── */
+
+.theme-dark ChatMessage {
+    background: $surface;
+}
+
+.theme-dark ThinkingMessage {
+    background: $surface;
+    color: $text-muted;
+}
+
+.theme-dark ToolMessage {
+    background: $surface;
+}
+
+/* ── Theme: light ──────────────────────────────────────── */
+
+.theme-light ChatMessage {
+    background: $panel;
+}
+
+.theme-light ThinkingMessage {
+    background: $panel;
+    color: $text;
+}
+
+.theme-light ToolMessage {
+    background: $panel;
+}

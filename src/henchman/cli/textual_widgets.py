@@ -8,6 +8,7 @@ Note: Extracted from ``textual_app.py`` to keep modules under 500 lines.
 
 from __future__ import annotations
 
+import re
 from typing import Any, cast
 
 from rich.markdown import Markdown as RichMarkdown
@@ -27,6 +28,33 @@ _USER_PREFIX = "[bold green]You:[/]"
 _SYSTEM_PREFIX = "[dim]»[/]"
 _ERROR_PREFIX = "[bold red]Error:[/]"
 _AGENT_PREFIX_TEMPLATE = "[bold cyan]{name}:[/]"
+
+# Regex matching ANSI escape sequences (CSI codes, OSC, etc.)
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[^[\]()]")
+
+
+def _safe_markup(text: object) -> str:
+    """Strip ANSI codes and escape Rich markup from arbitrary text.
+
+    This is the **single gateway** for all untrusted content entering
+    Rich-markup-enabled widgets.  It guarantees the returned string
+    will never cause a ``MarkupError``.
+
+    Args:
+        text: Raw text (may contain ANSI escapes, Rich-like tags, etc.).
+              ``None`` is treated as an empty string.
+
+    Returns:
+        Cleaned string safe for Rich markup rendering.
+    """
+    if text is None:
+        return ""
+    s = str(text)
+    # 1. Strip ANSI escape sequences
+    s = _ANSI_RE.sub("", s)
+    # 2. Escape Rich markup characters
+    s = markup_escape(s)
+    return s
 
 
 def _highlight_text(escaped_text: str, term: str) -> str:
@@ -219,7 +247,7 @@ class ChatMessage(Static):
             self._renderable_text = md  # type: ignore[assignment]
             self.update(md)
             return
-        escaped = markup_escape(self._content)
+        escaped = _safe_markup(self._content)
         if self._highlight_term:
             escaped = _highlight_text(escaped, self._highlight_term)
         text = f"{self._prefix} {escaped}"
@@ -403,7 +431,7 @@ class ThinkingMessage(Static):
         self.header.update(self._header_text)
 
         full = self._content_text
-        escaped = markup_escape(full)
+        escaped = _safe_markup(full)
         if self._highlight_term:
             escaped = _highlight_text(escaped, self._highlight_term)
         self._body_text = f"[dim]{escaped}[/]"
@@ -637,11 +665,11 @@ class ToolMessage(Static):
     def _update_renderable(self) -> None:
         """Re-render header and content sub-widgets."""
         if self._tool_call and hasattr(self._tool_call, "name"):
-            compact = self._format_compact_args()
-            name = self._tool_call.name
+            compact = _safe_markup(self._format_compact_args())
+            name = _safe_markup(self._tool_call.name)
             header_text = f"🔧 {name}({compact})" if compact else f"🔧 {name}"
         elif self._thought:
-            header_text = f"🛠️ {markup_escape(self._thought)}"
+            header_text = f"🛠️ {_safe_markup(self._thought)}"
         else:
             header_text = "🛠️ Tool call"
         self.header.update(header_text)
@@ -656,7 +684,7 @@ class ToolMessage(Static):
         if self._content_text and self._content_text != self._thought:
             parts.append(self._content_text)
         body = "\n".join(parts) if parts else ""
-        escaped = markup_escape(body)
+        escaped = _safe_markup(body)
         if self._highlight_term:
             escaped = _highlight_text(escaped, self._highlight_term)
         self._body.update(f"[dim]{escaped}[/]")
@@ -672,7 +700,7 @@ class ToolMessage(Static):
             name = self._tool_call.name
             header = f"🔧 {name}({compact})" if compact else f"🔧 {name}"
         elif self._thought:
-            header = f"🛠️ {self._thought}"
+            header = f"🛠️ {_safe_markup(self._thought)}"
         else:
             header = "🛠️ Tool call"
 

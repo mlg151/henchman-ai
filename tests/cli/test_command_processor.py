@@ -277,10 +277,15 @@ class TestCommandProcessor:
         agent = MagicMock(spec=Agent)
         repl = MagicMock()
 
-        # Exception should propagate
-        with pytest.raises(Exception, match="Command failed"):
-            await processor.handle_command("/test", agent, repl)
+        # Exception should be caught and handled, not propagated
+        result = await processor.handle_command("/test", agent, repl)
+        assert result is True
         assert mock_command.executed is True
+        # Verify error was logged
+        output_handler.error.assert_called_once()
+        call_args = output_handler.error.call_args[0][0]
+        assert "Error executing command /test" in call_args
+        assert "Command failed" in call_args
 
     def test_get_command_registry(self) -> None:
         """Test get_command_registry method."""
