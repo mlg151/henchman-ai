@@ -114,6 +114,9 @@ async def chat_completion(
     tool_calls: list[dict[str, Any]] = []
     finish_reason: str | None = None
 
+    # Valid finish reasons from FinishReason enum
+    valid_finish_reasons = {"stop", "tool_calls", "length", "content_filter"}
+
     try:
         async for event in agent.run(messages=messages):
             events.append(event)
@@ -121,8 +124,12 @@ async def chat_completion(
                 content_parts.append(event.data)
             elif event.type == EventType.TOOL_CALL_REQUEST:
                 tool_calls.append(event.data)
-            elif event.type == EventType.FINISHED and finish_reason is None:
-                # Extract finish reason from first FINISHED event
+            elif (
+                event.type == EventType.FINISHED
+                and finish_reason is None
+                and event.data in valid_finish_reasons
+            ):
+                # Extract finish reason from first valid FINISHED event
                 # (there may be multiple, e.g., one from _process_streaming_response
                 # with actual finish reason and one from run() with generic message)
                 finish_reason = event.data
