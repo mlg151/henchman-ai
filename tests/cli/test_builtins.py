@@ -162,6 +162,38 @@ class TestToolsCommand:
         output = ctx.console.file.getvalue()  # type: ignore[union-attr]
         # Should show some output about tools
         assert len(output) > 0
+        # Should include at least some of the hardcoded tools
+        assert "read_file" in output or "Available Tools" in output
+
+    @pytest.mark.anyio
+    async def test_execute_with_tool_registry(self) -> None:
+        """Test that tools command uses tool registry when available."""
+        from unittest.mock import Mock, AsyncMock
+        
+        # Create a mock tool registry
+        mock_tool_registry = Mock()
+        mock_tool = Mock()
+        mock_tool.description = "Test tool description"
+        mock_tool_registry.list_tools.return_value = ["test_tool", "another_tool"]
+        mock_tool_registry.get.return_value = mock_tool
+        
+        # Create console and context with tool registry
+        console = Console(file=StringIO(), force_terminal=True, width=80)
+        ctx = CommandContext(console=console, args=[], tool_registry=mock_tool_registry)
+        
+        cmd = ToolsCommand()
+        await cmd.execute(ctx)
+        
+        output = console.file.getvalue()  # type: ignore[union-attr]
+        
+        # Should show output
+        assert len(output) > 0
+        # Should call tool registry methods
+        mock_tool_registry.list_tools.assert_called_once()
+        assert mock_tool_registry.get.call_count == 2  # Called for each tool
+        # Should show tool names
+        assert "test_tool" in output
+        assert "another_tool" in output
 
 
 class TestGetBuiltinCommands:

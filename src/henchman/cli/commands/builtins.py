@@ -192,17 +192,29 @@ class ToolsCommand(Command):
             ctx: Command context.
         """
         ctx.console.print("\n[bold blue]Available Tools[/]\n")
-        # TODO: Get tools from agent/registry when available
-        tools = [
-            ("read_file", "Read file contents"),
-            ("write_file", "Write content to a file"),
-            ("edit_file", "Edit a file with search/replace"),
-            ("ls", "List directory contents"),
-            ("glob", "Find files by pattern"),
-            ("grep", "Search file contents"),
-            ("run_shell_command", "Execute shell commands"),
-            ("web_fetch", "Fetch URL contents"),
-        ]
+        # Get tools from registry if available
+        if ctx.tool_registry:
+            # Get all registered tools
+            tool_names = ctx.tool_registry.list_tools()
+            tools = []
+            for name in tool_names:
+                tool = ctx.tool_registry.get(name)
+                if tool:
+                    tools.append((name, tool.description))
+        else:
+            # Fallback to hardcoded list for backward compatibility
+            tools = [
+                ("read_file", "Read file contents"),
+                ("write_file", "Write content to a file"),
+                ("edit_file", "Edit a file with search/replace"),
+                ("ls", "List directory contents"),
+                ("glob", "Find files by pattern"),
+                ("grep", "Search file contents"),
+                ("run_shell_command", "Execute shell commands"),
+                ("web_fetch", "Fetch URL contents"),
+            ]
+        # Sort tools alphabetically by name
+        tools.sort(key=lambda x: x[0])
         for name, description in tools:
             ctx.console.print(f"  [cyan]{name}[/] - {description}")
         ctx.console.print("")
