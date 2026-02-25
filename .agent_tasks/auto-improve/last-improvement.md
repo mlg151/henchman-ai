@@ -1,32 +1,43 @@
 # Auto-Improvement Summary
 
 ## Date/Time
-2024-12-30
+2025-01-15
 
 ## Files Changed
-1. `src/henchman/cli/repl.py` - Added `agent_role` field to `ReplConfig` class
-2. `src/henchman/cli/app.py` - Updated `_run_textual_tui` to pass `agent_role` to `TextualConfig`
-3. `src/henchman/cli/textual_app.py` - Updated `_run_orchestrator` to use `agent_role` when specified
-4. `tests/cli/test_app.py` - Fixed tests to include `chat` subcommand in CLI invocations
-5. `tests/cli/test_app_extended.py` - Fixed test to include `chat` subcommand
+- `src/henchman/api/endpoints/chat.py`
+
+## Improvement Made
+Improved handling of multiple FINISHED events in the chat completion endpoint.
+
+## Problem
+The chat completion endpoint was collecting all AgentEvents and extracting the finish reason from the first FINISHED event. However, as noted in the code comments, there may be multiple FINISHED events (e.g., one from `_process_streaming_response` with the actual finish reason and one from `run()` with a generic message). The code was simply taking the first FINISHED event without validating if it contained a valid finish reason.
+
+## Solution
+Added validation to check if the event data from a FINISHED event is a valid finish reason before using it. Valid finish reasons are: "stop", "tool_calls", "length", "content_filter" (from the `FinishReason` enum in `src/henchman/providers/base.py`).
+
+## Changes
+1. Added a set `valid_finish_reasons` containing the valid finish reason strings
+2. Modified the condition to only set `finish_reason` if:
+   - The event type is `EventType.FINISHED`
+   - `finish_reason` hasn't been set yet (`finish_reason is None`)
+   - The event data is a valid finish reason (`event.data in valid_finish_reasons`)
+3. Fixed linting issue (SIM102) by combining nested if statements into a single condition
 
 ## Rationale
-The TODO comment in `app.py` said "Add agent_role support to Textual TUI" with a warning message when `agent_role` was provided. The Textual TUI didn't support the `agent_role` parameter that other modes (headless, interactive) supported.
-
-## Changes Made
-1. **Added agent_role field to ReplConfig**: This allows the configuration to store which agent role to target for all inputs in a session.
-
-2. **Updated Textual TUI configuration**: The `_run_textual_tui` function now passes the `agent_role` parameter to `TextualConfig`, removing the warning message.
-
-3. **Implemented agent_role usage in Textual TUI**: Modified `_run_orchestrator` in `textual_app.py` to check if `agent_role` is set in the config. If set, it uses `orchestrator.run_direct(agent_role, text)` instead of `orchestrator.run(text)`. This makes the Textual TUI target the specified agent for all user inputs, similar to how headless mode works.
-
-4. **Fixed broken tests**: Several tests were invoking the CLI incorrectly (e.g., `henchman --plan` instead of `henchman chat --plan`). Fixed them to include the `chat` subcommand. These tests were failing because they were testing the wrong CLI invocation pattern.
-
-## Impact
-- Textual TUI now supports the `--agent` parameter like other modes
-- When `--agent <role>` is specified, the Textual TUI will target that specific agent for all user inputs
-- This enables users to work with specialist agents directly through the Textual TUI interface
-- The implementation is consistent with how headless mode handles `agent_role`
+This improvement ensures that:
+- We only use valid finish reasons from FINISHED events
+- If the first FINISHED event contains a generic message instead of a valid finish reason, we continue looking for a valid one
+- The API response contains a proper finish reason when available
+- We avoid setting `finish_reason` to invalid values
 
 ## Testing
-All tests pass after the fixes. The implementation maintains backward compatibility - when `agent_role` is not specified, the Textual TUI behaves as before (using the default orchestrator).
+- Ran existing tests: `python -m pytest tests/ -xvs -k "chat"`
+- All tests passed
+- The change is backward compatible and doesn't break existing functionality
+- Fixed linting issue identified by ruff (SIM102: Use a single `if` statement instead of nested `if` statements)
+
+## Impact
+- Small, focused improvement
+- Fixes a potential bug where invalid finish reasons could be returned
+- Improves robustness of the chat completion endpoint
+- Minimal code change (4 lines added, 1 line modified)
