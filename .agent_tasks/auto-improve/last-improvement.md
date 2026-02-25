@@ -1,43 +1,52 @@
 # Auto-Improvement Summary
 
 ## Date/Time
-2025-01-15
+2025-02-25
 
 ## Files Changed
-- `src/henchman/api/endpoints/chat.py`
+1. `src/henchman/providers/base.py` - Added `usage` field to `StreamChunk` dataclass
+2. `src/henchman/providers/openai_compat.py` - Added usage extraction from OpenAI API responses
 
 ## Improvement Made
-Improved handling of multiple FINISHED events in the chat completion endpoint.
+Added token usage tracking to the OpenAI-compatible provider by:
+1. Extending the `StreamChunk` dataclass with an optional `usage` field to store token usage information (prompt_tokens, completion_tokens, total_tokens)
+2. Modifying the `OpenAICompatibleProvider` to extract usage information from OpenAI API responses and include it in `StreamChunk` objects
 
 ## Problem
-The chat completion endpoint was collecting all AgentEvents and extracting the finish reason from the first FINISHED event. However, as noted in the code comments, there may be multiple FINISHED events (e.g., one from `_process_streaming_response` with the actual finish reason and one from `run()` with a generic message). The code was simply taking the first FINISHED event without validating if it contained a valid finish reason.
+The chat completion API endpoint had a TODO comment: "Extract usage information from events". However, the underlying `StreamChunk` objects didn't have a field to store usage information, and providers weren't extracting it from API responses.
 
 ## Solution
-Added validation to check if the event data from a FINISHED event is a valid finish reason before using it. Valid finish reasons are: "stop", "tool_calls", "length", "content_filter" (from the `FinishReason` enum in `src/henchman/providers/base.py`).
+1. Added `usage: dict[str, int] | None = None` field to the `StreamChunk` dataclass in `base.py`
+2. Updated `OpenAICompatibleProvider.chat_completion_stream()` to extract usage information from OpenAI API chunks when available
+3. The usage is extracted as a dictionary with keys: `prompt_tokens`, `completion_tokens`, and `total_tokens`
 
 ## Changes
-1. Added a set `valid_finish_reasons` containing the valid finish reason strings
-2. Modified the condition to only set `finish_reason` if:
-   - The event type is `EventType.FINISHED`
-   - `finish_reason` hasn't been set yet (`finish_reason is None`)
-   - The event data is a valid finish reason (`event.data in valid_finish_reasons`)
-3. Fixed linting issue (SIM102) by combining nested if statements into a single condition
+1. **StreamChunk enhancement** (base.py):
+   - Added `usage` field with type `dict[str, int] | None = None`
+   - Added documentation comment explaining the field contains token usage information
+
+2. **OpenAICompatibleProvider update** (openai_compat.py):
+   - Added code to check if chunk has `usage` attribute and extract token counts
+   - Converts OpenAI's `CompletionUsage` object to a dictionary
+   - Includes usage in yielded `StreamChunk` objects
 
 ## Rationale
-This improvement ensures that:
-- We only use valid finish reasons from FINISHED events
-- If the first FINISHED event contains a generic message instead of a valid finish reason, we continue looking for a valid one
-- The API response contains a proper finish reason when available
-- We avoid setting `finish_reason` to invalid values
+This improvement:
+- Provides the foundation for token usage tracking across all providers
+- Enables future work to pass usage information through the agent system to API endpoints
+- Follows the OpenAI API standard for usage reporting
+- Is backward compatible (optional field with default `None`)
+- Sets up the infrastructure needed to address the TODO in the chat endpoint
 
 ## Testing
-- Ran existing tests: `python -m pytest tests/ -xvs -k "chat"`
-- All tests passed
-- The change is backward compatible and doesn't break existing functionality
-- Fixed linting issue identified by ruff (SIM102: Use a single `if` statement instead of nested `if` statements)
+- Ran existing provider tests: `python -m pytest tests/providers/test_base.py -xvs`
+- Ran OpenAI provider tests: `python -m pytest tests/providers/test_openai_compat.py -xvs -k "stream"`
+- All tests pass successfully
+- No breaking changes to existing functionality
 
 ## Impact
-- Small, focused improvement
-- Fixes a potential bug where invalid finish reasons could be returned
-- Improves robustness of the chat completion endpoint
-- Minimal code change (4 lines added, 1 line modified)
+- Small, focused improvement that adds valuable infrastructure
+- Enables token usage tracking for OpenAI-compatible providers
+- Prepares for completing the TODO in the chat endpoint
+- Minimal code change (6 lines added across 2 files)
+- Backward compatible - doesn't break existing code
