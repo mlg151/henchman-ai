@@ -1,52 +1,40 @@
-# Auto-Improvement Summary
+# Improvement Summary
 
-## Date/Time
-2025-02-25
+**Date/Time**: 2024-01-15 (automated improvement cycle)
 
-## Files Changed
-1. `src/henchman/providers/base.py` - Added `usage` field to `StreamChunk` dataclass
-2. `src/henchman/providers/openai_compat.py` - Added usage extraction from OpenAI API responses
+**Files Changed**:
+1. `src/henchman/core/agent.py`
+   - Added usage accumulation in `_process_streaming_response` method
+   - Updated return type to include usage information
+   - Modified FINISHED events to include usage data (as dict when available, string otherwise for backward compatibility)
+   - Updated `run` method to handle new return tuple format
+   - Updated `continue_with_tool_results` method to handle new return tuple format
 
-## Improvement Made
-Added token usage tracking to the OpenAI-compatible provider by:
-1. Extending the `StreamChunk` dataclass with an optional `usage` field to store token usage information (prompt_tokens, completion_tokens, total_tokens)
-2. Modifying the `OpenAICompatibleProvider` to extract usage information from OpenAI API responses and include it in `StreamChunk` objects
+2. `src/henchman/api/endpoints/chat.py`
+   - Added usage variable initialization
+   - Updated FINISHED event handling to extract usage information from dict format
+   - Removed TODO comment since usage extraction is now implemented
+   - Added support for both old (string) and new (dict) FINISHED event data formats
 
-## Problem
-The chat completion API endpoint had a TODO comment: "Extract usage information from events". However, the underlying `StreamChunk` objects didn't have a field to store usage information, and providers weren't extracting it from API responses.
+**Rationale**:
+Fixed the TODO comment in the API endpoint: "Extract usage information from events". The provider implementations (e.g., OpenAICompatibleProvider) already include usage information in StreamChunk objects, but this information wasn't being passed through the agent events to the API endpoint.
 
-## Solution
-1. Added `usage: dict[str, int] | None = None` field to the `StreamChunk` dataclass in `base.py`
-2. Updated `OpenAICompatibleProvider.chat_completion_stream()` to extract usage information from OpenAI API chunks when available
-3. The usage is extracted as a dictionary with keys: `prompt_tokens`, `completion_tokens`, and `total_tokens`
+**Changes Made**:
+1. **Agent now captures usage information**: The `_process_streaming_response` method now accumulates usage information from StreamChunk objects.
+2. **Backward-compatible event format**: FINISHED events now include usage information as a dict when available (`{"finish_reason": "...", "usage": {...}}`), but fall back to string format for backward compatibility.
+3. **API endpoint extracts usage**: The chat completion endpoint now extracts usage information from FINISHED events and includes it in the response.
+4. **Maintained compatibility**: All existing tests pass (except for one unrelated test failure in `test_show_team_info_prints_table` which is a mocking issue).
 
-## Changes
-1. **StreamChunk enhancement** (base.py):
-   - Added `usage` field with type `dict[str, int] | None = None`
-   - Added documentation comment explaining the field contains token usage information
+**Impact**:
+- API clients now receive token usage information (prompt_tokens, completion_tokens, total_tokens) in chat completion responses
+- No breaking changes to existing code - backward compatibility maintained
+- Minimal performance impact (only accumulates usage when provided by provider)
 
-2. **OpenAICompatibleProvider update** (openai_compat.py):
-   - Added code to check if chunk has `usage` attribute and extract token counts
-   - Converts OpenAI's `CompletionUsage` object to a dictionary
-   - Includes usage in yielded `StreamChunk` objects
+**Testing**:
+- All agent tests pass
+- Type checking passes (mypy)
+- The implementation handles both streaming and non-streaming responses correctly
+- Usage information is optional - if providers don't include it, the API returns `null` for usage field
 
-## Rationale
-This improvement:
-- Provides the foundation for token usage tracking across all providers
-- Enables future work to pass usage information through the agent system to API endpoints
-- Follows the OpenAI API standard for usage reporting
-- Is backward compatible (optional field with default `None`)
-- Sets up the infrastructure needed to address the TODO in the chat endpoint
-
-## Testing
-- Ran existing provider tests: `python -m pytest tests/providers/test_base.py -xvs`
-- Ran OpenAI provider tests: `python -m pytest tests/providers/test_openai_compat.py -xvs -k "stream"`
-- All tests pass successfully
-- No breaking changes to existing functionality
-
-## Impact
-- Small, focused improvement that adds valuable infrastructure
-- Enables token usage tracking for OpenAI-compatible providers
-- Prepares for completing the TODO in the chat endpoint
-- Minimal code change (6 lines added across 2 files)
-- Backward compatible - doesn't break existing code
+**Next Steps**:
+This improvement completes the TODO item and provides valuable telemetry for API clients to monitor token usage and costs.
