@@ -249,11 +249,21 @@ class OpenAICompatibleProvider(ModelProvider):
                             )
                         )
 
+                # Extract usage information if available
+                usage = None
+                if hasattr(chunk, 'usage') and chunk.usage:
+                    usage = {
+                        'prompt_tokens': chunk.usage.prompt_tokens,
+                        'completion_tokens': chunk.usage.completion_tokens,
+                        'total_tokens': chunk.usage.total_tokens,
+                    }
+
                 yield StreamChunk(
                     content=content,
                     tool_calls=tool_calls,
                     finish_reason=finish_reason,
                     thinking=thinking,
+                    usage=usage,
                 )
 
         except (ValueError, ContextTooLargeError, APIStatusError):
