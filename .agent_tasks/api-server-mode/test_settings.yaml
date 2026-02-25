@@ -1,0 +1,27 @@
+# Test settings for Henchman-AI API server
+# Place this in ~/.henchman/settings.yaml or .henchman/settings.yaml
+
+providers:
+  default: "deepseek"
+  deepseek:
+    model: "deepseek-chat"
+    # api_key: "your-api-key-here"  # Set via DEEPSEEK_API_KEY env var
+
+api:
+  require_auth: false  # Disable auth for testing
+  api_keys:
+    - "test-api-key-123"
+    - "another-test-key-456"
+  rate_limits:
+    default: "100/hour"
+    premium: "1000/hour"
+  cors:
+    enabled: true
+    origins: ["*"]
+
+agent:
+  system_prompt: "You are a helpful AI assistant."
+
+tools:
+  auto_approve_read: true
+  shell_timeout: 60

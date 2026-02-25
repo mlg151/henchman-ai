@@ -2,10 +2,11 @@
 """Verify message posting from worker."""
 
 import asyncio
-from textual.app import App, ComposeResult
-from textual.widgets import RichLog
-from textual.message import Message
+
 from textual import work
+from textual.app import App, ComposeResult
+from textual.message import Message
+from textual.widgets import RichLog
 
 
 class TestMsg(Message):
@@ -17,16 +18,16 @@ class TestMsg(Message):
 class TestApp(App):
     def compose(self) -> ComposeResult:
         yield RichLog(id="log")
-    
+
     def on_mount(self):
         log = self.query_one("#log", RichLog)
         log.write("1. Direct")
         self.worker_test()
-    
+
     @work
     async def worker_test(self):
         self.post_message(TestMsg("2. From worker"))
-    
+
     def on_test_msg(self, msg):
         log = self.query_one("#log", RichLog)
         log.write(f"Handler: {msg.text}")

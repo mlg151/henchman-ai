@@ -18,13 +18,43 @@ from henchman.tools.builtins.delegate import DelegateTaskTool
 from henchman.tools.registry import ToolRegistry
 
 
-class Metrics(TypedDict):
+class Metrics(TypedDict, total=False):
     """Metrics for tracking orchestrator performance."""
 
+    # Existing metrics (for backward compatibility)
     thinking_pattern_usage: int
     delegation_count: int
     delegation_by_type: dict[str, int]
     thinking_quality_score: int
+    # Performance metrics from Performance Improvement Plan
+    task_start_time: float  # Unix timestamp when task started
+    task_end_time: float  # Unix timestamp when task completed
+    task_duration_minutes: float  # Task duration in minutes
+    files_accessed: dict[str, int]  # file path -> access count
+    tool_usage_by_type: dict[str, int]  # tool name -> usage count
+    delegation_rate: float  # percentage of tasks delegated
+
+    # Quality metrics
+    test_results: dict[str, Any]  # passing, total, percentage
+    code_coverage: float  # percentage coverage
+    linting_status: dict[str, int]  # errors, warnings counts
+    documentation_coverage: float  # percentage documented
+
+    # Target performance metrics
+    file_re_reads: int  # count of file re-reads
+    error_rate: float  # percentage of errors
+    context_window_usage: float  # percentage of context window used
+
+    # Additional tracking
+    total_tool_calls: int
+    successful_tool_calls: int
+    failed_tool_calls: int
+    read_file_calls: int
+    write_file_calls: int
+    edit_file_calls: int
+    shell_calls: int
+    git_ops_calls: int
+    other_tool_calls: int
 
 
 # Interval (in tool calls) at which role anchoring reminders are injected
@@ -71,6 +101,35 @@ class Orchestrator:
             "delegation_count": 0,
             "delegation_by_type": {"planner": 0, "explorer": 0, "engineer": 0},
             "thinking_quality_score": 0,  # Simple heuristic based on structure
+
+            # Efficiency metrics
+            "task_start_time": 0.0,
+            "task_end_time": 0.0,
+            "files_accessed": {},
+            "tool_usage_by_type": {},
+            "delegation_rate": 0.0,
+
+            # Quality metrics
+            "test_results": {"passing": 0, "total": 0, "percentage": 0.0},
+            "code_coverage": 0.0,
+            "linting_status": {"errors": 0, "warnings": 0},
+            "documentation_coverage": 0.0,
+
+            # Target performance metrics
+            "file_re_reads": 0,
+            "error_rate": 0.0,
+            "context_window_usage": 0.0,
+
+            # Additional tracking
+            "total_tool_calls": 0,
+            "successful_tool_calls": 0,
+            "failed_tool_calls": 0,
+            "read_file_calls": 0,
+            "write_file_calls": 0,
+            "edit_file_calls": 0,
+            "shell_calls": 0,
+            "git_ops_calls": 0,
+            "other_tool_calls": 0,
         }
 
         # Load agent configs
@@ -87,6 +146,10 @@ class Orchestrator:
             parent_tool_registry=self.tool_registry,
             event_bus=self.event_bus,
             environment_context=environment_context,
+            intelligent_context=self.settings.context.intelligent_context,
+            importance_threshold=self.settings.context.importance_threshold,
+            cluster_similarity_threshold=self.settings.context.cluster_similarity_threshold,
+            adaptive_compression=self.settings.context.adaptive_compression,
         )
 
         # Shared context history
@@ -135,6 +198,10 @@ class Orchestrator:
             tool_registry=self.tool_registry,
             system_prompt=tl_prompt,
             identity=tl_identity,
+            intelligent_context=self.settings.context.intelligent_context,
+            importance_threshold=self.settings.context.importance_threshold,
+            cluster_similarity_threshold=self.settings.context.cluster_similarity_threshold,
+            adaptive_compression=self.settings.context.adaptive_compression,
         )
         # Tech Lead legitimately narrates plans before delegating —
         # disable stall detection so it isn't killed for planning.
@@ -152,6 +219,13 @@ class Orchestrator:
         # Initialize a fresh task ledger for this request
         self.ledger = TaskLedger(goal=user_input[:500])
 
+        # Reset metrics for this run
+        self._reset_metrics_for_run()
+
+        # Set task start time
+        import time
+        self.metrics["task_start_time"] = time.time()
+
         yield AgentEvent(
             type=EventType.AGENT_STARTED, data={"agent": "tech_lead"}, source_agent="orchestrator"
         )
@@ -161,9 +235,90 @@ class Orchestrator:
             event_count += 1
             yield event
 
+        # Set task end time and calculate duration
+        self.metrics["task_end_time"] = time.time()
+
+        # Calculate final metrics
+        self._calculate_final_metrics()
+
         yield AgentEvent(
             type=EventType.AGENT_COMPLETED, data={"agent": "tech_lead"}, source_agent="orchestrator"
         )
+
+    def _reset_metrics_for_run(self) -> None:
+        """Reset metrics for a new run while preserving structure."""
+
+        # Reset counters but keep structure
+        self.metrics["thinking_pattern_usage"] = 0
+        self.metrics["delegation_count"] = 0
+        self.metrics["delegation_by_type"] = {"planner": 0, "explorer": 0, "engineer": 0}
+        self.metrics["thinking_quality_score"] = 0
+
+        # Efficiency metrics
+        self.metrics["task_start_time"] = 0.0
+        self.metrics["task_end_time"] = 0.0
+        self.metrics["task_duration_minutes"] = 0.0
+        self.metrics["files_accessed"] = {}
+        self.metrics["tool_usage_by_type"] = {}
+        self.metrics["delegation_rate"] = 0.0
+
+        # Quality metrics
+        self.metrics["test_results"] = {"passing": 0, "total": 0, "percentage": 0.0}
+        self.metrics["code_coverage"] = 0.0
+        self.metrics["linting_status"] = {"errors": 0, "warnings": 0}
+        self.metrics["documentation_coverage"] = 0.0
+
+        # Target performance metrics
+        self.metrics["file_re_reads"] = 0
+        self.metrics["error_rate"] = 0.0
+        self.metrics["context_window_usage"] = 0.0
+
+        # Additional tracking
+        self.metrics["total_tool_calls"] = 0
+        self.metrics["successful_tool_calls"] = 0
+        self.metrics["failed_tool_calls"] = 0
+        self.metrics["read_file_calls"] = 0
+        self.metrics["write_file_calls"] = 0
+        self.metrics["edit_file_calls"] = 0
+        self.metrics["shell_calls"] = 0
+        self.metrics["git_ops_calls"] = 0
+        self.metrics["other_tool_calls"] = 0
+
+    def _calculate_final_metrics(self) -> None:
+        """Calculate derived metrics after task completion."""
+
+        # Calculate task duration
+        if self.metrics["task_start_time"] and self.metrics["task_end_time"]:
+            duration = self.metrics["task_end_time"] - self.metrics["task_start_time"]
+            # Store duration in minutes for readability
+            self.metrics["task_duration_minutes"] = duration / 60.0
+
+        # Calculate delegation rate
+        total_tasks = self.metrics["total_tool_calls"] + self.metrics["delegation_count"]
+        if total_tasks > 0:
+            self.metrics["delegation_rate"] = (
+                self.metrics["delegation_count"] / total_tasks * 100.0
+            )
+
+        # Calculate error rate
+        if self.metrics["total_tool_calls"] > 0:
+            self.metrics["error_rate"] = (
+                self.metrics["failed_tool_calls"] / self.metrics["total_tool_calls"] * 100.0
+            )
+
+        # Calculate test results percentage
+        if self.metrics["test_results"]["total"] > 0:
+            self.metrics["test_results"]["percentage"] = (
+                self.metrics["test_results"]["passing"] /
+                self.metrics["test_results"]["total"] * 100.0
+            )
+
+        # Calculate file re-reads
+        if self.metrics["files_accessed"]:
+            total_accesses = sum(self.metrics["files_accessed"].values())
+            unique_files = len(self.metrics["files_accessed"])
+            if unique_files > 0:
+                self.metrics["file_re_reads"] = total_accesses - unique_files
 
     async def run_direct(self, role: str, user_input: str) -> AsyncIterator[AgentEvent]:
         """Run a specific agent directly, bypassing the Tech Lead.
@@ -187,6 +342,62 @@ class Orchestrator:
         yield AgentEvent(
             type=EventType.AGENT_COMPLETED, data={"agent": role}, source_agent="orchestrator"
         )
+
+    def _update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
+        """Update metrics for a tool call.
+
+        Args:
+            tool_name: Name of the tool called.
+            arguments: Arguments passed to the tool.
+            success: Whether the tool call was successful.
+        """
+        # Update total tool calls
+        self.metrics["total_tool_calls"] += 1
+
+        # Update success/failure counts
+        if success:
+            self.metrics["successful_tool_calls"] += 1
+        else:
+            self.metrics["failed_tool_calls"] += 1
+
+        # Update tool usage by type
+        if tool_name in self.metrics["tool_usage_by_type"]:
+            self.metrics["tool_usage_by_type"][tool_name] += 1
+        else:
+            self.metrics["tool_usage_by_type"][tool_name] = 1
+
+        # Update specific tool type counters
+        if tool_name == "read_file":
+            self.metrics["read_file_calls"] += 1
+            # Track file access for re-read calculation
+            path = arguments.get("path")
+            if path:
+                if path in self.metrics["files_accessed"]:
+                    self.metrics["files_accessed"][path] += 1
+                else:
+                    self.metrics["files_accessed"][path] = 1
+        elif tool_name == "write_file":
+            self.metrics["write_file_calls"] += 1
+            path = arguments.get("path")
+            if path:
+                if path in self.metrics["files_accessed"]:
+                    self.metrics["files_accessed"][path] += 1
+                else:
+                    self.metrics["files_accessed"][path] = 1
+        elif tool_name == "edit_file":
+            self.metrics["edit_file_calls"] += 1
+            path = arguments.get("path")
+            if path:
+                if path in self.metrics["files_accessed"]:
+                    self.metrics["files_accessed"][path] += 1
+                else:
+                    self.metrics["files_accessed"][path] = 1
+        elif tool_name == "shell":
+            self.metrics["shell_calls"] += 1
+        elif tool_name == "git_ops":
+            self.metrics["git_ops_calls"] += 1
+        else:
+            self.metrics["other_tool_calls"] += 1
 
     async def _run_agent_loop(
         self,
@@ -319,6 +530,9 @@ class Orchestrator:
                     if target in self.metrics["delegation_by_type"]:
                         self.metrics["delegation_by_type"][target] += 1
 
+                    # Also track as a tool call
+                    self._update_tool_metrics("delegate_task", tool_call.arguments, True)
+
                     # Register delegation in ledger
                     ledger_record = None
                     if self.ledger:
@@ -384,6 +598,9 @@ class Orchestrator:
                         tool_errors.append(
                             f"{tool_call.name}: {(result.content or 'unknown error')[:200]}"
                         )
+
+                    # Update metrics for tool usage
+                    self._update_tool_metrics(tool_call.name, tool_call.arguments, result.success)
 
                     yield AgentEvent(
                         type=EventType.TOOL_CALL_RESULT,
@@ -466,7 +683,7 @@ class Orchestrator:
     ) -> AsyncIterator[AgentEvent]:
         """Execute a delegation to a specialist agent.
 
-        Each specialist starts with a **clean context** — its conversation
+        Each specialist starts with a **clean context** -- its conversation
         history is cleared before every delegation so it operates from a
         self-contained brief rather than accumulated (and often polluted)
         prior context.
@@ -764,6 +981,141 @@ class Orchestrator:
         if not tools_used and not narration_parts:
             lines.append("- No significant progress was made.")
         return "\n".join(lines)
+
+    def get_metrics_report(self) -> str:
+        """Generate a formatted performance metrics dashboard.
+
+        Returns:
+            A formatted markdown string with performance metrics.
+        """
+        import time
+
+        report_lines = [
+            "## Performance Metrics Dashboard",
+            "",
+            "### Efficiency Metrics",
+        ]
+
+        # Task completion time
+        if self.metrics.get("task_start_time") and self.metrics.get("task_end_time"):
+            duration = self.metrics["task_end_time"] - self.metrics["task_start_time"]
+            start_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.metrics["task_start_time"]))
+            end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.metrics["task_end_time"]))
+            report_lines.append(f"- **Task Completion Time**: {start_time} to {end_time} = {duration:.2f}s ({duration/60:.2f}min)")
+        else:
+            report_lines.append("- **Task Completion Time**: Not completed yet")
+
+        # Files accessed
+        total_files = len(self.metrics.get("files_accessed", {}))
+        total_accesses = sum(self.metrics.get("files_accessed", {}).values())
+        report_lines.append(f"- **Files Accessed**: {total_files} files, {total_accesses} total accesses")
+
+        # Tool usage
+        tool_usage = self.metrics.get("tool_usage_by_type", {})
+        if tool_usage:
+            tool_summary = ", ".join([f"{k}: {v}" for k, v in sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:5]])
+            report_lines.append(f"- **Tool Usage**: {tool_summary}")
+        else:
+            report_lines.append("- **Tool Usage**: No tools used yet")
+
+        # Delegation rate
+        delegation_rate = self.metrics.get("delegation_rate", 0.0)
+        # Files accessed
+        total_files = len(self.metrics["files_accessed"])
+        total_accesses = sum(self.metrics["files_accessed"].values())
+        report_lines.append(f"- **Files Accessed**: {total_files} files, {total_accesses} total accesses")
+
+        # Tool usage
+        tool_usage = self.metrics["tool_usage_by_type"]
+        if tool_usage:
+            tool_summary = ", ".join([f"{k}: {v}" for k, v in sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:5]])
+            report_lines.append(f"- **Tool Usage**: {tool_summary}")
+        else:
+            report_lines.append("- **Tool Usage**: No tools used yet")
+
+        # Delegation rate
+        delegation_rate = self.metrics.get("delegation_rate", 0.0)
+        delegation_count = self.metrics.get("delegation_count", 0)
+        total_tasks = self.metrics.get("total_tool_calls", 0) + delegation_count
+        report_lines.append(f"- **Delegation Rate**: {delegation_count}/{total_tasks} = {delegation_rate:.1f}%")
+
+        report_lines.append("")
+        report_lines.append("### Quality Metrics")
+
+        # Test results
+        test_results = self.metrics["test_results"]
+        if test_results["total"] > 0:
+            report_lines.append(f"- **Test Results**: {test_results['passing']}/{test_results['total']} = {test_results['percentage']:.1f}%")
+        else:
+            report_lines.append("- **Test Results**: No tests run")
+
+        # Code coverage
+        code_coverage = self.metrics["code_coverage"]
+        if code_coverage > 0:
+            report_lines.append(f"- **Code Coverage**: {code_coverage:.1f}%")
+        else:
+            report_lines.append("- **Code Coverage**: Not measured")
+
+        # Linting status
+        linting = self.metrics["linting_status"]
+        report_lines.append(f"- **Linting Status**: {linting['errors']} errors, {linting['warnings']} warnings")
+
+        # Documentation coverage
+        doc_coverage = self.metrics["documentation_coverage"]
+        if doc_coverage > 0:
+            report_lines.append(f"- **Documentation Coverage**: {doc_coverage:.1f}%")
+        else:
+            report_lines.append("- **Documentation Coverage**: Not measured")
+
+        report_lines.append("")
+        report_lines.append("### Target Performance Metrics")
+
+        # File re-reads
+        file_re_reads = self.metrics["file_re_reads"]
+        report_lines.append(f"- **File re-reads per task**: {file_re_reads} (Target < 1.3, 60% reduction from 3.2)")
+
+        # Delegation rate target
+        delegation_target = 40.0
+        delegation_status = "✅" if delegation_rate >= delegation_target else "⚠️"
+        report_lines.append(f"- **Delegation rate**: {delegation_rate:.1f}% {delegation_status} (Target > {delegation_target}%, from current 25%)")
+
+        # Error rate
+        error_rate = self.metrics["error_rate"]
+        error_target = 50.0  # 50% reduction target
+        error_status = "✅" if error_rate <= error_target else "⚠️"
+        report_lines.append(f"- **Error rate**: {error_rate:.1f}% {error_status} (Target reduction of {error_target}%)")
+
+        # Context window usage
+        context_usage = self.metrics["context_window_usage"]
+        context_target = 40.0
+        context_status = "✅" if context_usage <= context_target else "⚠️"
+        report_lines.append(f"- **Context window usage**: {context_usage:.1f}% {context_status} (Target < {context_target}%, from 65%)")
+
+        report_lines.append("")
+        report_lines.append("### Detailed Statistics")
+
+        # Tool call breakdown
+        report_lines.append(f"- **Total Tool Calls**: {self.metrics['total_tool_calls']}")
+        report_lines.append(f"- **Successful Tool Calls**: {self.metrics['successful_tool_calls']}")
+        report_lines.append(f"- **Failed Tool Calls**: {self.metrics['failed_tool_calls']}")
+        report_lines.append(f"- **Read File Calls**: {self.metrics['read_file_calls']}")
+        report_lines.append(f"- **Write File Calls**: {self.metrics['write_file_calls']}")
+        report_lines.append(f"- **Edit File Calls**: {self.metrics['edit_file_calls']}")
+        report_lines.append(f"- **Shell Calls**: {self.metrics['shell_calls']}")
+        report_lines.append(f"- **Git Ops Calls**: {self.metrics['git_ops_calls']}")
+        report_lines.append(f"- **Other Tool Calls**: {self.metrics['other_tool_calls']}")
+
+        # Thinking metrics
+        report_lines.append(f"- **Thinking Pattern Usage**: {self.metrics['thinking_pattern_usage']}")
+        report_lines.append(f"- **Thinking Quality Score**: {self.metrics['thinking_quality_score']}/100")
+
+        # Delegation breakdown
+        delegation_by_type = self.metrics["delegation_by_type"]
+        if any(count > 0 for count in delegation_by_type.values()):
+            delegation_summary = ", ".join([f"{k}: {v}" for k, v in delegation_by_type.items() if v > 0])
+            report_lines.append(f"- **Delegation by Type**: {delegation_summary}")
+
+        return "\n".join(report_lines)
 
     def get_pool(self) -> AgentPool:
         """Get the agent pool."""

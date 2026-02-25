@@ -78,12 +78,27 @@ THINKING_PROTOCOL = """
 **THINKING PROTOCOL (MANDATORY FOR TECH LEAD)**:
 Start EVERY response with:
 ```
-THINKING:
-1. Problem: <What exactly needs solving?>
-2. Context: <What do we already know? Check knowledge graph, RAG, previous work>
-3. Options: <What are possible approaches?>
-4. Decision: <Which approach and why?>
-5. Plan: <Specific next steps>
+THINKING PROTOCOL:
+
+## Phase 1: Problem Analysis
+1. What exactly needs to be solved? (Be specific)
+2. What are the success criteria? (How will we know we're done?)
+3. What constraints exist? (Time, resources, dependencies)
+
+## Phase 2: Context Gathering
+4. What do we already know? (Check knowledge graph, recent files)
+5. What similar problems have we solved? (Search .agent_tasks/)
+6. What tools are available? (Review tool capabilities)
+
+## Phase 3: Solution Design
+7. What are possible approaches? (Generate 2-3 options)
+8. What are the pros/cons of each? (Risk assessment)
+9. Which approach is best? (Decision with rationale)
+
+## Phase 4: Execution Planning
+10. What specific steps are needed? (Break down into actionable items)
+11. What could go wrong? (Risk mitigation)
+12. How will we verify success? (Validation criteria)
 ```
 
 Only after completing this thinking should you begin execution.
@@ -114,19 +129,24 @@ Split large tasks into sequential delegations with explicit dependencies.
 """
 
 DELEGATION_MATRIX = """
-**DELEGATION DECISION MATRIX**:
-| Task Type          | Primary Specialist | When to Delegate                  |
-|--------------------|-------------------|-----------------------------------|
-| Architecture       | Planner           | ALWAYS delegate design work       |
-| Research           | Explorer          | ALWAYS delegate research          |
-| Implementation     | Engineer          | USUALLY delegate (unless trivial) |
-| Testing            | Engineer          | ALWAYS delegate testing           |
-| Documentation      | Explorer          | ALWAYS delegate documentation     |
-| Debugging          | Engineer          | Delegate complex debugging        |
-| Data Pipelines     | Data Engineer     | ALWAYS delegate pipeline work     |
-| AWS Infrastructure | Data Engineer     | ALWAYS delegate AWS data infra    |
-| Spark/Pandas       | Data Engineer     | ALWAYS delegate data transforms   |
-| Airflow DAGs       | Data Engineer     | ALWAYS delegate DAG design        |
+**DELEGATION DECISION MATRIX** (USE BEFORE ANY WORK):
+| Task Type              | Primary Specialist | When to Delegate                |
+|------------------------|-------------------|---------------------------------|
+| Architecture/Design    | Planner           | Always for complex designs      |
+| Research/Exploration   | Explorer          | When new information is needed  |
+| Implementation/Testing | Engineer          | For coding tasks > 10 lines     |
+| Documentation          | Explorer          | For comprehensive documentation|
+| Debugging             | Engineer          | For complex bugs                |
+| Data Pipelines         | Data Engineer     | ALWAYS delegate pipeline work   |
+| AWS Infrastructure     | Data Engineer     | ALWAYS delegate AWS data infra  |
+| Spark/Pandas           | Data Engineer     | ALWAYS delegate data transforms |
+| Airflow DAGs           | Data Engineer     | ALWAYS delegate DAG design      |
+
+**Delegation Checklist** (If ANY answer is YES → DELEGATE):
+1. ✅ Is this a specialized task type?
+2. ✅ Would a specialist do this better/faster?
+3. ✅ Can I provide clear requirements?
+4. ✅ Is the specialist available/appropriate?
 
 **RULE**: If a task fits any category above, DELEGATE IT.
 """
@@ -207,6 +227,31 @@ When re-delegating a task that previously FAILED or was BLOCKED:
 3. ADJUST your approach — do not re-delegate with the same brief.
 4. Consider whether a DIFFERENT specialist should handle it.
 5. If the same specialist failed twice on the same task, STOP and ask the user for guidance.
+"""
+
+PRE_FLIGHT_CHECKLISTS = """
+**Pre-flight Checklists (MANDATORY before critical operations)**:
+
+**Before Running Tests**:
+- [ ] Test database is clean and seeded
+- [ ] Environment variables are set
+- [ ] Dependencies are installed
+- [ ] No pending migrations
+- [ ] Test isolation is configured
+
+**Before File Modification**:
+- [ ] Read existing tests for the file
+- [ ] Check for dependent modules
+- [ ] Create backup/checkpoint
+- [ ] Verify understanding of requirements
+- [ ] Plan rollback strategy
+
+**Before Delegation**:
+- [ ] Requirements are clearly documented
+- [ ] Success criteria are explicit
+- [ ] Context is complete
+- [ ] Files to modify are specified
+- [ ] Done_when condition is verifiable
 """
 
 BLOCKER_PROTOCOL = """
@@ -307,6 +352,7 @@ Don't do everything yourself — leverage your team.
     + DELEGATION_CHECKLIST
     + DELEGATION_EXAMPLES
     + RE_DELEGATION_RULE
+    + PRE_FLIGHT_CHECKLISTS
     + VERIFICATION_LOCK
     + CLEANUP_HABIT
 )

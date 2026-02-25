@@ -8,10 +8,12 @@ from __future__ import annotations
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.commands.agent import AgentCommand
 from henchman.cli.commands.chat import ChatCommand
+from henchman.cli.commands.context import ContextCommand
 from henchman.cli.commands.mcp import McpCommand
 from henchman.cli.commands.model import ModelCommand
 from henchman.cli.commands.plan import PlanCommand
 from henchman.cli.commands.rag import RagCommand
+from henchman.cli.commands.session import SessionCommand
 from henchman.cli.commands.team import TeamCommand
 from henchman.cli.commands.theme import ThemeCommand
 from henchman.cli.commands.unlimited import UnlimitedCommand
@@ -60,9 +62,11 @@ class HelpCommand(Command):
         ctx.console.print("  /plan     - Toggle Plan Mode (Read-Only)")
         ctx.console.print("  /rag      - Manage semantic search index")
         ctx.console.print("  /chat     - Manage chat sessions (save, list, resume)")
+        ctx.console.print("  /session  - Enhanced session management (branch, merge, templates)")
         ctx.console.print("  /mcp      - Manage MCP server connections")
         ctx.console.print("  /model    - Show or change model/provider")
         ctx.console.print("  /theme    - Manage UI themes (list, set, preview)")
+        ctx.console.print("  /context  - Manage intelligent context settings")
         ctx.console.print("  /quit     - Exit the CLI")
         ctx.console.print("  /clear    - Clear the screen")
         ctx.console.print("  /tools    - List available tools")
@@ -218,10 +222,12 @@ def get_builtin_commands() -> list[Command]:
         AgentCommand(),
         TeamCommand(),
         ChatCommand(),
+        SessionCommand(),
         McpCommand(),
         ModelCommand(),
         PlanCommand(),
         RagCommand(),
         ThemeCommand(),
         UnlimitedCommand(),
+        ContextCommand(),
     ]

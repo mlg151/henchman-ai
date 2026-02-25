@@ -5,10 +5,11 @@ import re
 import sys
 from pathlib import Path
 
+
 def fix_test_repl():
     file_path = Path("tests/cli/test_repl.py")
     content = file_path.read_text()
-    
+
     # Fix 1: Replace expand_at_references patch
     # Change: patch.object(repl, 'expand_at_references', ...)
     # To: patch.object(repl.input_handler, 'expand_at_references', ...)
@@ -17,13 +18,13 @@ def fix_test_repl():
         'patch.object(repl.input_handler, \'expand_at_references\',',
         content
     )
-    
+
     # Fix 2: Update test_agent_error_handling to mock tool_executor
     # Find the test_agent_error_handling method and update its mocks
     lines = content.splitlines()
     in_error_test = False
     updated_lines = []
-    
+
     for i, line in enumerate(lines):
         if 'def test_agent_error_handling' in line:
             in_error_test = True
@@ -46,9 +47,9 @@ def fix_test_repl():
             updated_lines.append(line)
         else:
             updated_lines.append(line)
-    
+
     content = '\n'.join(updated_lines)
-    
+
     # Fix 3: Update test_slash_only_command to use process_input instead of _handle_command
     # Find and replace
     content = re.sub(
@@ -56,11 +57,11 @@ def fix_test_repl():
         'repl.process_input(\"/ \")',
         content
     )
-    
+
     # Fix 4: Update test_get_input_method to handle InputHandler mocking
     # This test might need more complex fixes, but let's try a simple fix first
     # The test mocks create_session which should already be fixed by our earlier fix
-    
+
     # Write back
     file_path.write_text(content)
     print("Fixed test issues in test_repl.py")

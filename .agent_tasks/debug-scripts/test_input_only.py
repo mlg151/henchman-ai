@@ -2,11 +2,12 @@
 """Minimal test for Textual Input widget visibility."""
 
 from textual.app import App, ComposeResult
-from textual.widgets import Input, Header, Footer
+from textual.widgets import Footer, Header, Input
+
 
 class InputTestApp(App):
     """Minimal app to test Input widget."""
-    
+
     CSS = """
     Screen {
         layout: vertical;
@@ -18,12 +19,12 @@ class InputTestApp(App):
         margin: 1;
     }
     """
-    
+
     def compose(self) -> ComposeResult:
         yield Header()
         yield Input(id="input", placeholder="Type here and you should see text as you type...")
         yield Footer()
-    
+
     def on_mount(self) -> None:
         self.query_one("#input", Input).focus()
 

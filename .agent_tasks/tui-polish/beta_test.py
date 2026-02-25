@@ -10,7 +10,6 @@ Run with:
 from __future__ import annotations
 
 import asyncio
-import os
 import sys
 import time
 from pathlib import Path
@@ -20,8 +19,6 @@ sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 from henchman.cli.textual_app import (
     ChatMessage,
     ChatPane,
-    ConfirmToolScreen,
-    HelpScreen,
     HenchmanTextualApp,
     StatusBar,
     TextualConfig,
@@ -153,8 +150,9 @@ async def test_b3_read_file_tool() -> None:
             kw in text for kw in ("Henchman", "henchman", "CLI", "agent")
         ), repr(text[-200:]))
 
-        from henchman.cli.textual_app import ToolPane
         from textual.widgets import TabbedContent
+
+        from henchman.cli.textual_app import ToolPane
         # Switch to the Tools tab so RichLog gets a size and flushes its write queue
         tabs = app.query_one(TabbedContent)
         tabs.active = "tab-tools"

@@ -6,7 +6,7 @@ Settings are loaded from YAML/JSON files and environment variables.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -118,11 +118,19 @@ class ContextSettings(BaseModel):
         max_tokens: Maximum tokens to keep in context before compaction.
         compaction_threshold: Percentage of max_tokens at which to start compaction.
         auto_compact: Whether to automatically compact context.
+        intelligent_context: Whether to use intelligent context management.
+        importance_threshold: Minimum importance score to preserve a message.
+        cluster_similarity_threshold: Similarity threshold for clustering messages.
+        adaptive_compression: Whether to use adaptive compression techniques.
     """
 
     max_tokens: int = 128000
     compaction_threshold: float = 0.75  # 75% of max_tokens
     auto_compact: bool = True
+    intelligent_context: bool = False
+    importance_threshold: float = 0.5
+    cluster_similarity_threshold: float = 0.7
+    adaptive_compression: bool = True
 
 
 class McpServerConfig(BaseModel):
@@ -251,6 +259,28 @@ class RagSettings(BaseModel):
     )
 
 
+class ApiConfig(BaseModel):
+    """API server configuration.
+
+    Attributes:
+        require_auth: Whether API authentication is required.
+        api_keys: List of valid API keys.
+        rate_limits: Rate limit configuration.
+        cors: CORS configuration.
+    """
+
+    require_auth: bool = Field(default=False, description="Whether API authentication is required")
+    api_keys: list[str] = Field(default_factory=list, description="List of valid API keys")
+    rate_limits: dict[str, str] = Field(
+        default_factory=lambda: {"default": "100/hour"},
+        description="Rate limit configuration (e.g., '100/hour', '1000/day')"
+    )
+    cors: dict[str, Any] = Field(
+        default_factory=lambda: {"enabled": True, "origins": ["*"]},
+        description="CORS configuration"
+    )
+
+
 class Settings(BaseModel):
     """Main settings model for henchman-cli.
 
@@ -261,6 +291,7 @@ class Settings(BaseModel):
         context: Context management settings.
         mcp_servers: MCP server configurations.
         rag: RAG (Retrieval Augmented Generation) settings.
+        api: API server configuration.
     """
 
     providers: ProviderSettings = Field(default_factory=ProviderSettings)
@@ -270,3 +301,4 @@ class Settings(BaseModel):
     mcp_servers: dict[str, McpServerConfig] = Field(default_factory=dict)
     rag: RagSettings = Field(default_factory=RagSettings)
     agents: AgentSettings = Field(default_factory=AgentSettings)
+    api: ApiConfig = Field(default_factory=ApiConfig)

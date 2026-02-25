@@ -20,7 +20,7 @@ def test_thinking_protocol_in_leader_prompt() -> None:
     assert THINKING_PROTOCOL in LEADER_INSTRUCTIONS
     assert "THINKING PROTOCOL" in LEADER_INSTRUCTIONS
     assert "Start EVERY response with:" in LEADER_INSTRUCTIONS
-    assert "THINKING:" in LEADER_INSTRUCTIONS
+    assert "THINKING PROTOCOL:" in LEADER_INSTRUCTIONS
 
 
 def test_delegation_matrix_in_leader_prompt() -> None:
@@ -57,18 +57,17 @@ def test_specialist_thinking_in_engineer_prompt() -> None:
 
 def test_thinking_format_requirements() -> None:
     """Test that thinking format includes required sections."""
-    # Check leader thinking format
-    assert "1. Problem:" in THINKING_PROTOCOL
-    assert "2. Context:" in THINKING_PROTOCOL
-    assert "3. Options:" in THINKING_PROTOCOL
-    assert "4. Decision:" in THINKING_PROTOCOL
-    assert "5. Plan:" in THINKING_PROTOCOL
+    # Check leader thinking format - updated to match current THINKING_PROTOCOL
+    assert "## Phase 1: Problem Analysis" in THINKING_PROTOCOL
+    assert "## Phase 2: Context Gathering" in THINKING_PROTOCOL
+    assert "## Phase 3: Solution Design" in THINKING_PROTOCOL
+    assert "## Phase 4: Execution Planning" in THINKING_PROTOCOL
+    assert "1. What exactly needs to be solved?" in THINKING_PROTOCOL
+    assert "12. How will we verify success?" in THINKING_PROTOCOL
 
     # Check specialist thinking format
-    assert "1. Understanding:" in SPECIALIST_THINKING
-    assert "2. Approach:" in SPECIALIST_THINKING
-    assert "3. Risks:" in SPECIALIST_THINKING
-    assert "4. Verification:" in SPECIALIST_THINKING
+    assert "SPECIALIST THINKING" in SPECIALIST_THINKING
+    assert "THINKING (Specialist):" in SPECIALIST_THINKING
 
 
 def test_delegation_priority_rules() -> None:

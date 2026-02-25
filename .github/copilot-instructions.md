@@ -527,10 +527,10 @@ manager.discover_directory(Path.home() / ".henchman" / "extensions")
 To maximize agent effectiveness and efficiency, follow these structured approaches:
 
 #### 1. Working Memory System
-Maintain context efficiently to reduce file re-reading:
+Maintain context efficiently to reduce file re-reading (target: 60% reduction from 3.2 to 1.3 re-reads per task):
 
 ```yaml
-# Working Memory Template (UPDATE AFTER EACH ACTION)
+# Working Memory Template (UPDATE AFTER EACH ACTION - VERIFICATION REQUIRED)
 working_memory:
   current_task: "string describing active task"
   task_objectives: ["specific", "goals", "for", "task"]
@@ -538,6 +538,8 @@ working_memory:
     - path: "file/path.py"
       purpose: "why this file was read"
       timestamp: "ISO timestamp"
+      lines_read: "start_line-end_line or 'full'"
+      key_insights: ["important", "findings", "from", "file"]
   active_context:
     project_structure: "brief description"
     relevant_patterns: ["patterns", "from", "knowledge", "graph"]
@@ -560,55 +562,115 @@ working_memory:
 ```
 
 **Memory Update Protocol**:
-1. After reading a file → Add to `recent_files`
-2. After making a decision → Add to `decisions_made`
+1. After reading a file → Add to `recent_files` with purpose and lines_read
+2. After making a decision → Add to `decisions_made` with rationale and impact
 3. After completing a step → Add to `completed_steps`
 4. When planning next steps → Update `next_actions`
 5. When learning something new → Add to `insights_gained`
 6. When encountering a problem → Add to `problems_encountered`
 
-#### 2. Smart File Reading Patterns
-Optimize file reading to avoid context window waste:
+**Verification Requirements for Working Memory**:
+- ✅ **Before reading a file**: Check `recent_files` to avoid re-reading
+- ✅ **After each action**: Update working memory immediately
+- ✅ **Every 5 tool calls**: Review and prune `recent_files` (keep last 10)
+- ✅ **Task completion**: Archive working memory to `.agent_tasks/<task>/working_memory.yaml`
+- ✅ **Metrics tracking**: Count file reads and compare to baseline (target < 1.3 re-reads/task)
 
-**Pattern 1: Initial Exploration** (new file)
+**Common Anti-Patterns to Avoid**:
+❌ **Sequential Re-reading Without Context Retention**: Check `recent_files` before reading
+❌ **Full File Reads for Partial Information**: Use targeted line ranges
+❌ **Redundant Cross-Referencing**: Cache relationships in `active_context`
+❌ **Test-Driven Over-Reading**: Reference test patterns from `relevant_patterns`
+
+#### 2. Smart File Reading Strategies
+Optimize file reading to avoid context window waste (target: 68% reduction from 250 to 80 lines per file):
+
+**Based on Baseline Analysis of 6 Inefficient Patterns**:
+1. **Sequential Re-reading Without Context Retention** → Use working memory cache
+2. **Full File Reads for Partial Information** → Use targeted line ranges  
+3. **Lack of Strategic Reading Order** → Follow reading patterns below
+4. **Missing File Size Awareness** → Apply size-based guidelines
+5. **Redundant Cross-Referencing** → Cache relationships in working memory
+6. **Test-Driven Over-Reading** → Use test-specific patterns
+
+**Pattern 1: Initial Exploration** (new file - addresses pattern #3)
 ```python
-# Read first 50 lines for overview
-content = await read_file(path, start_line=1, end_line=50)
+# Read first 50 lines for overview, check working memory first
+if path in working_memory.recent_files:
+    # Use cached insights, read only new sections if needed
+    content = await read_file(path, start_line=1, end_line=50)
 ```
 
-**Pattern 2: Error Analysis** (debugging)
+**Pattern 2: Error Analysis** (debugging - addresses pattern #2)
 ```python
-# Read lines around error (error_line ± 10)
+# Read lines around error (error_line ± 10), not entire file
 context = await read_file(path, start_line=max(1, error_line-10), end_line=error_line+10)
 ```
 
-**Pattern 3: Function/Class Analysis**
+**Pattern 3: Function/Class Analysis** (addresses pattern #2)
 ```python
-# Find definition, then read it
+# Find definition, then read specific function only
 definition_line = await find_definition(path, "function_name")
 if definition_line:
+    # Read function + 10 lines after for context
     content = await read_file(path, start_line=definition_line, end_line=definition_line+50)
 ```
 
-**Pattern 4: Recent Changes**
+**Pattern 4: Recent Changes** (addresses pattern #5)
 ```python
-# Read last 100 lines for recent activity
+# Read last 100 lines for recent activity, not entire history
 recent = await read_file(path, start_line=-100, end_line=-1)
 ```
 
-**Pattern 5: Structure Analysis**
+**Pattern 5: Structure Analysis** (addresses pattern #2)
 ```python
-# Read only imports and definitions
+# Read only imports and definitions, not implementation details
 imports = await grep("^import |^from ", path)
 classes = await grep("^class ", path)
 functions = await grep("^def ", path)
 ```
 
-**File Size Guidelines**:
-- < 100 lines → Read entire file
-- 100-1000 lines → Read targeted sections
-- > 1000 lines → ALWAYS use line ranges
-- > 10000 lines → Consider alternative approaches
+**Pattern 6: Test-Specific Reading** (addresses pattern #6)
+```python
+# For test files: read test class/function + setup/teardown only
+test_context = await read_file(path, start_line=test_start_line, end_line=test_end_line+20)
+```
+
+**Pattern 7: Configuration Reading** (addresses pattern #2)
+```python
+# For config files: read specific sections using grep
+section = await grep("^\[database\]", path)
+if section:
+    # Read only the database section
+    content = await read_file(path, start_line=section_line, end_line=section_line+20)
+```
+
+**Pattern 8: Dependency Analysis** (addresses pattern #5)
+```python
+# Read imports and first-level dependencies only
+imports = await read_file(path, start_line=1, end_line=30)  # Usually at top
+```
+
+**File Size Guidelines** (addresses pattern #4):
+- **< 100 lines** → Read entire file (safe for context)
+- **100-500 lines** → Read targeted sections (use line ranges)
+- **500-1000 lines** → ALWAYS use line ranges, read max 100 lines at once
+- **> 1000 lines** → Use grep/pattern matching first, then targeted reads
+- **> 10000 lines** → Consider alternative approaches (Serena MCP, chunked reading)
+
+**Strategic Reading Order** (addresses pattern #3):
+1. **First**: Check working memory for existing context
+2. **Second**: Read project structure files (pyproject.toml, README)
+3. **Third**: Read imports and class definitions
+4. **Fourth**: Read specific functions/methods as needed
+5. **Fifth**: Read tests and documentation last
+
+**Verification Requirements**:
+- ✅ **Before each read**: Check if file is in `recent_files` (avoid re-reads)
+- ✅ **Size check**: Apply size-based guidelines before reading
+- ✅ **Line ranges**: Always specify `start_line`/`end_line` for files > 100 lines
+- ✅ **Purpose tracking**: Record why file was read in `recent_files.purpose`
+- ✅ **Efficiency metric**: Target < 80 lines read per file (from 250 baseline)
 
 #### 3. Structured Thinking Protocols
 **REQUIRED FOR ALL COMPLEX TASKS**:

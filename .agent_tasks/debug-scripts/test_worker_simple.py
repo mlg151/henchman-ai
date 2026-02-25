@@ -7,10 +7,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from textual.app import App, ComposeResult
-from textual.widgets import RichLog, Header, Footer
-from textual.message import Message
 from textual import work
+from textual.app import App, ComposeResult
+from textual.message import Message
+from textual.widgets import Footer, Header, RichLog
 
 
 class DebugMessage(Message):
@@ -23,17 +23,17 @@ class DebugTextualApp(App):
     CSS = """
     RichLog { height: 1fr; }
     """
-    
+
     def compose(self) -> ComposeResult:
         yield Header()
         yield RichLog(id="chat-pane")
         yield Footer()
-    
+
     def on_mount(self) -> None:
         log = self.query_one("#chat-pane", RichLog)
         log.write("[blue]Mounted[/]")
         self.run_test_worker()
-    
+
     @work
     async def run_test_worker(self) -> None:
         log = self.query_one("#chat-pane", RichLog)
@@ -42,7 +42,7 @@ class DebugTextualApp(App):
         self.post_message(DebugMessage("Hello!"))
         await asyncio.sleep(0.5)
         log.write("[yellow]Worker done[/]")
-    
+
     def on_debug_message(self, message: DebugMessage) -> None:
         log = self.query_one("#chat-pane", RichLog)
         log.write(f"[green]Handler: {message.text}[/]")

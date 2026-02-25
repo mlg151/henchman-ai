@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Update test file to fix session manager references."""
 
-import re
 
-with open('tests/cli/test_repl.py', 'r') as f:
+with open('tests/cli/test_repl.py') as f:
     content = f.read()
 
 # Pattern to match the specific lines in test_session_messages_recorded_during_conversation

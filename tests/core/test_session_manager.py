@@ -204,6 +204,270 @@ class TestSessionManager:
         assert manager.current is None
 
 
+class TestSessionManagerEnhancedFeatures:
+    """Tests for enhanced session management features."""
+
+    @pytest.fixture
+    def temp_data_dir(self, tmp_path: Path) -> Path:
+        """Create a temporary data directory."""
+        data_dir = tmp_path / "sessions"
+        data_dir.mkdir()
+        return data_dir
+
+    @pytest.fixture
+    def manager(self, temp_data_dir: Path) -> SessionManager:
+        """Create a SessionManager with temp directory."""
+        return SessionManager(data_dir=temp_data_dir)
+
+    @pytest.fixture
+    def sample_session(self, manager: SessionManager) -> tuple[str, list[SessionMessage]]:
+        """Create a sample session with messages."""
+        session = manager.create_session(project_hash="abc123", tag="test-session")
+        messages = [
+            SessionMessage(role="user", content="Hello"),
+            SessionMessage(role="assistant", content="Hi there!"),
+            SessionMessage(role="user", content="How are you?"),
+            SessionMessage(role="assistant", content="I'm good, thanks!"),
+        ]
+        session.messages = messages
+        manager.save(session)
+        return session.id, messages
+
+    def test_branch_session(self, manager: SessionManager, sample_session: tuple[str, list[SessionMessage]]) -> None:
+        """Test branching a session."""
+        session_id, messages = sample_session
+        branch_point = 2  # After first user-assistant exchange
+        
+        branch = manager.branch_session(session_id, branch_point, tag="branched")
+        manager.save(branch)
+        
+        assert branch.id != session_id
+        assert branch.parent_id == session_id
+        assert branch.branch_point == branch_point
+        assert branch.tag == "branched"
+        assert len(branch.messages) == branch_point
+        assert branch.messages == messages[:branch_point]
+
+    def test_branch_session_invalid_point(self, manager: SessionManager, sample_session: tuple[str, list[SessionMessage]]) -> None:
+        """Test branching with invalid branch point."""
+        session_id, _ = sample_session
+        
+        with pytest.raises(ValueError, match="out of range"):
+            manager.branch_session(session_id, -1)
+        
+        with pytest.raises(ValueError, match="out of range"):
+            manager.branch_session(session_id, 10)  # More than message count
+
+    def test_merge_sessions_union(self, manager: SessionManager) -> None:
+        """Test merging sessions with union strategy."""
+        # Create two sessions with some overlapping messages
+        s1 = manager.create_session(project_hash="abc123", tag="session1")
+        s1.messages = [
+            SessionMessage(role="user", content="Hello"),
+            SessionMessage(role="assistant", content="Hi"),
+        ]
+        manager.save(s1)
+        
+        s2 = manager.create_session(project_hash="abc123", tag="session2")
+        s2.messages = [
+            SessionMessage(role="user", content="How are you?"),
+            SessionMessage(role="assistant", content="Good"),
+        ]
+        manager.save(s2)
+        
+        merged = manager.merge_sessions([s1.id, s2.id], strategy="union", tag="merged")
+        
+        assert merged.id is not None
+        assert merged.tag == "merged"
+        assert len(merged.messages) == 4  # All messages from both sessions
+        assert "merged_from" in merged.export_metadata
+        assert merged.export_metadata["merge_strategy"] == "union"
+
+    def test_merge_sessions_smart(self, manager: SessionManager) -> None:
+        """Test merging sessions with smart strategy (removes duplicates)."""
+        # Create two sessions with duplicate messages
+        common_msg = SessionMessage(role="user", content="Hello")
+        
+        s1 = manager.create_session(project_hash="abc123")
+        s1.messages = [common_msg, SessionMessage(role="assistant", content="Hi")]
+        manager.save(s1)
+        
+        s2 = manager.create_session(project_hash="abc123")
+        s2.messages = [common_msg, SessionMessage(role="assistant", content="Hello!")]
+        manager.save(s2)
+        
+        merged = manager.merge_sessions([s1.id, s2.id], strategy="smart")
+        
+        # Should have 3 unique messages (common "Hello" appears once)
+        assert len(merged.messages) == 3
+
+    def test_merge_sessions_intersection(self, manager: SessionManager) -> None:
+        """Test merging sessions with intersection strategy."""
+        common_msg = SessionMessage(role="user", content="Common message")
+        
+        s1 = manager.create_session(project_hash="abc123")
+        s1.messages = [
+            common_msg,
+            SessionMessage(role="assistant", content="Response 1"),
+        ]
+        manager.save(s1)
+        
+        s2 = manager.create_session(project_hash="abc123")
+        s2.messages = [
+            common_msg,
+            SessionMessage(role="assistant", content="Response 2"),
+        ]
+        manager.save(s2)
+        
+        merged = manager.merge_sessions([s1.id, s2.id], strategy="intersection")
+        
+        # Should only have the common message
+        assert len(merged.messages) == 1
+        assert merged.messages[0].content == "Common message"
+
+    def test_merge_sessions_different_projects(self, manager: SessionManager) -> None:
+        """Test merging sessions from different projects raises error."""
+        s1 = manager.create_session(project_hash="abc123")
+        manager.save(s1)
+        
+        s2 = manager.create_session(project_hash="different")
+        manager.save(s2)
+        
+        with pytest.raises(ValueError, match="different projects"):
+            manager.merge_sessions([s1.id, s2.id])
+
+    def test_merge_sessions_insufficient_sessions(self, manager: SessionManager) -> None:
+        """Test merging with insufficient sessions raises error."""
+        s1 = manager.create_session(project_hash="abc123")
+        manager.save(s1)
+        
+        with pytest.raises(ValueError, match="At least 2 sessions"):
+            manager.merge_sessions([s1.id])
+        
+        with pytest.raises(ValueError, match="At least 2 sessions"):
+            manager.merge_sessions([])
+
+    def test_export_session_json(self, manager: SessionManager, sample_session: tuple[str, list[SessionMessage]]) -> None:
+        """Test exporting session to JSON."""
+        session_id, _ = sample_session
+        
+        exported = manager.export_session(session_id, format="json")
+        
+        # Should be valid JSON
+        import json
+        data = json.loads(exported)
+        assert data["id"] == session_id
+        assert "messages" in data
+
+    def test_export_session_markdown(self, manager: SessionManager, sample_session: tuple[str, list[SessionMessage]]) -> None:
+        """Test exporting session to Markdown."""
+        session_id, messages = sample_session
+        
+        exported = manager.export_session(session_id, format="markdown")
+        
+        # Should contain session info and messages
+        assert "# Session:" in exported
+        assert "Hello" in exported
+        assert "Hi there!" in exported
+
+    def test_export_session_invalid_format(self, manager: SessionManager, sample_session: tuple[str, list[SessionMessage]]) -> None:
+        """Test exporting with invalid format raises error."""
+        session_id, _ = sample_session
+        
+        with pytest.raises(ValueError, match="Unsupported export format"):
+            manager.export_session(session_id, format="invalid")
+
+    def test_import_session_json(self, manager: SessionManager, sample_session: tuple[str, list[SessionMessage]]) -> None:
+        """Test importing session from JSON."""
+        session_id, messages = sample_session
+        
+        # Export then import
+        exported = manager.export_session(session_id, format="json")
+        imported = manager.import_session(exported, format="json", tag="imported")
+        
+        assert imported.id != session_id  # Should have new ID
+        assert imported.tag == "imported"
+        assert len(imported.messages) == len(messages)
+        assert "imported_at" in imported.export_metadata
+
+    def test_save_template(self, manager: SessionManager, sample_session: tuple[str, list[SessionMessage]]) -> None:
+        """Test saving a session as template."""
+        session_id, _ = sample_session
+        
+        template = manager.save_template(
+            session_id,
+            name="Test Template",
+            description="A test template",
+            parameters={"project_name": "Project name"}
+        )
+        
+        assert "id" in template
+        assert template["name"] == "Test Template"
+        assert template["description"] == "A test template"
+        assert "project_name" in template["parameters"]
+        
+        # Check template file exists
+        templates_dir = manager.data_dir / "templates"
+        template_path = templates_dir / f"{template['id']}.json"
+        assert template_path.exists()
+
+    def test_create_from_template(self, manager: SessionManager) -> None:
+        """Test creating session from template."""
+        # First create a session and save as template
+        session = manager.create_session(project_hash="abc123", tag="source")
+        session.messages = [SessionMessage(role="user", content="Hello {{name}}")]
+        manager.save(session)
+        
+        template = manager.save_template(
+            session.id,
+            name="Greeting Template",
+            parameters={"name": "User name"}
+        )
+        
+        # Create from template with parameters
+        new_session = manager.create_from_template(
+            template["id"],
+            parameters={"name": "Alice"},
+            tag="greeting-alice"
+        )
+        
+        assert new_session.template_id == template["id"]
+        assert new_session.tag == "greeting-alice"
+        assert len(new_session.messages) == 1
+        assert new_session.messages[0].content == "Hello Alice"
+
+    def test_list_templates(self, manager: SessionManager) -> None:
+        """Test listing templates."""
+        # Create a template
+        session = manager.create_session(project_hash="abc123")
+        manager.save(session)
+        template = manager.save_template(session.id, name="Test Template")
+        
+        templates = manager.list_templates()
+        
+        assert len(templates) == 1
+        assert templates[0]["name"] == "Test Template"
+        assert templates[0]["id"] == template["id"]
+
+    def test_delete_template(self, manager: SessionManager) -> None:
+        """Test deleting a template."""
+        # Create a template
+        session = manager.create_session(project_hash="abc123")
+        manager.save(session)
+        template = manager.save_template(session.id, name="Test Template")
+        
+        # Delete it
+        manager.delete_template(template["id"])
+        
+        # Should not be in list
+        templates = manager.list_templates()
+        assert len(templates) == 0
+        
+        # Should raise error if trying to delete again
+        with pytest.raises(FileNotFoundError):
+            manager.delete_template(template["id"])
+
+
 class TestSessionManagerProjectHash:
     """Tests for project hash functionality."""
 

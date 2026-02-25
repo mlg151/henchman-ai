@@ -2,23 +2,24 @@
 """Test query_one from worker - fixed."""
 
 import asyncio
+
+from textual import work
 from textual.app import App, ComposeResult
 from textual.widgets import RichLog
-from textual import work
 
 
 class TestApp(App):
     def compose(self) -> ComposeResult:
         yield RichLog(id="mylog")
-    
+
     def on_mount(self):
         # Direct write
         log = self.query_one("#mylog", RichLog)
         log.write("1. Direct from on_mount")
-        
+
         # Start worker
         self.worker_test()
-    
+
     @work
     async def worker_test(self):
         # Try query_one in worker

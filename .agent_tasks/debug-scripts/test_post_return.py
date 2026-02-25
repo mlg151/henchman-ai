@@ -2,10 +2,11 @@
 """Check post_message return value."""
 
 import asyncio
-from textual.app import App, ComposeResult
-from textual.widgets import RichLog
-from textual.message import Message
+
 from textual import work
+from textual.app import App, ComposeResult
+from textual.message import Message
+from textual.widgets import RichLog
 
 
 class TestMsg(Message):
@@ -17,19 +18,19 @@ class TestMsg(Message):
 class TestApp(App):
     def compose(self) -> ComposeResult:
         yield RichLog(id="log")
-    
+
     def on_mount(self):
         log = self.query_one("#log", RichLog)
         log.write("Mounted")
         self.worker_test()
-    
+
     @work
     async def worker_test(self):
         # Check return value of post_message
         result = self.post_message(TestMsg("hello"))
         print(f"post_message returned: {result}")
         print(f"Message queued: {result is True}")
-    
+
     def on_test_msg(self, msg):
         print(f"Handler called with: {msg.text}")
         log = self.query_one("#log", RichLog)

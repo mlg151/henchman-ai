@@ -10,6 +10,7 @@ import anyio
 import click
 from rich.console import Console
 
+from henchman.cli.serve import serve_command
 from henchman.version import VERSION
 
 if TYPE_CHECKING:
@@ -513,8 +514,18 @@ def _run_headless(
         pass
 
 
-@click.command(name="henchman")
+@click.group(name="henchman")
 @click.version_option(version=VERSION, prog_name="henchman")
+def cli() -> None:
+    """Henchman-AI: A model-agnostic AI agent CLI.
+    
+    Start an interactive session, run with --prompt for headless mode,
+    or start an API server with the serve command.
+    """
+    pass
+
+
+@cli.command(name="chat")
 @click.option("-p", "--prompt", help="Run with a single prompt and exit")
 @click.option("-a", "--agent", help="Target a specific specialist agent")
 @click.option("--team", is_flag=True, help="Show team information and exit")
@@ -549,7 +560,7 @@ def _run_headless(
     default=False,
     help="Use Textual TUI interface (experimental)",
 )
-def cli(
+def chat_command(
     prompt: str | None,
     agent: str | None,
     team: bool,
@@ -559,10 +570,7 @@ def cli(
     tui: bool,
     debug: bool,
 ) -> None:
-    """Henchman-AI: A model-agnostic AI agent CLI.
-
-    Start an interactive session or run with --prompt for headless mode.
-    """
+    """Start an interactive chat session or run with --prompt for headless mode."""
     # Configure debug output filtering
     if not debug:
         import builtins
@@ -591,6 +599,10 @@ def cli(
         _run_interactive(output_format, plan, yes, agent_role=agent)
 
 
+# Add serve command to CLI group
+cli.add_command(serve_command)
+
+
 def main() -> None:  # pragma: no cover
     """Main entry point for the CLI."""
     import sys
@@ -603,6 +615,16 @@ def main() -> None:  # pragma: no cover
         HenchmanTextualApp().run()
         return
 
+    # For backward compatibility, if no subcommand is specified,
+    # assume the user wants to run chat with the old-style arguments
+    if len(sys.argv) == 1 or (
+        len(sys.argv) > 1 and 
+        not sys.argv[1].startswith("-") and 
+        sys.argv[1] not in ["chat", "serve"]
+    ):
+        # Insert "chat" as the subcommand
+        sys.argv.insert(1, "chat")
+    
     cli()
 
 
