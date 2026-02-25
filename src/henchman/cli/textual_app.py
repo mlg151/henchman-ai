@@ -958,7 +958,13 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
             chat.add_error_message("Core components not initialized.")
             return
         bridge = EventBridge(self)
-        stream = self.core_context.orchestrator.run(text)
+        
+        # Use agent_role if specified in config
+        if self.config.agent_role:
+            stream = self.core_context.orchestrator.run_direct(self.config.agent_role, text)
+        else:
+            stream = self.core_context.orchestrator.run(text)
+        
         await bridge.forward_events(stream)
 
     # ---- message handlers ----

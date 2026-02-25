@@ -1,34 +1,32 @@
-# Improvement Summary
+# Auto-Improvement Summary
 
-**Date/Time**: 2025-01-15 (automated run)
+## Date/Time
+2024-12-30
 
-**Files Changed**:
-1. `src/henchman/core/agent.py` - Modified to pass actual finish reason in FINISHED events
-2. `src/henchman/api/endpoints/chat.py` - Updated to use actual finish reason from events
+## Files Changed
+1. `src/henchman/cli/repl.py` - Added `agent_role` field to `ReplConfig` class
+2. `src/henchman/cli/app.py` - Updated `_run_textual_tui` to pass `agent_role` to `TextualConfig`
+3. `src/henchman/cli/textual_app.py` - Updated `_run_orchestrator` to use `agent_role` when specified
+4. `tests/cli/test_app.py` - Fixed tests to include `chat` subcommand in CLI invocations
+5. `tests/cli/test_app_extended.py` - Fixed test to include `chat` subcommand
 
-**Changes Made**:
+## Rationale
+The TODO comment in `app.py` said "Add agent_role support to Textual TUI" with a warning message when `agent_role` was provided. The Textual TUI didn't support the `agent_role` parameter that other modes (headless, interactive) supported.
 
-1. **Fixed TODO in API endpoints**: The API endpoints now correctly extract and return the actual finish reason from agent events instead of hardcoding "stop".
+## Changes Made
+1. **Added agent_role field to ReplConfig**: This allows the configuration to store which agent role to target for all inputs in a session.
 
-2. **Enhanced agent finish reason handling**:
-   - Modified `_process_streaming_response()` to capture the actual finish reason (stop, tool_calls, length, content_filter) from provider chunks
-   - Added handling for `FinishReason.LENGTH` and `FinishReason.CONTENT_FILTER` cases which were previously not handled
-   - Updated the method signature to return finish reason along with other accumulated data
-   - Modified `run()` method to use the actual finish reason instead of generic "Agent completed execution"
-   - Updated `continue_with_tool_results()` to match the new return signature
+2. **Updated Textual TUI configuration**: The `_run_textual_tui` function now passes the `agent_role` parameter to `TextualConfig`, removing the warning message.
 
-3. **API endpoint improvements**:
-   - Non-streaming endpoint (`/completions`): Now extracts finish reason from the first FINISHED event
-   - Streaming endpoint (`/completions/stream`): Now uses actual finish reason from event data
-   - Both endpoints handle multiple FINISHED events (takes the first one with actual finish reason)
+3. **Implemented agent_role usage in Textual TUI**: Modified `_run_orchestrator` in `textual_app.py` to check if `agent_role` is set in the config. If set, it uses `orchestrator.run_direct(agent_role, text)` instead of `orchestrator.run(text)`. This makes the Textual TUI target the specified agent for all user inputs, similar to how headless mode works.
 
-**Rationale**:
-- The TODO comments indicated missing implementation for finish reason extraction
-- Proper finish reason reporting is important for API clients to understand why generation stopped
-- Supports all standard finish reasons: stop, tool_calls, length, content_filter
-- Maintains backward compatibility while fixing the TODO
+4. **Fixed broken tests**: Several tests were invoking the CLI incorrectly (e.g., `henchman --plan` instead of `henchman chat --plan`). Fixed them to include the `chat` subcommand. These tests were failing because they were testing the wrong CLI invocation pattern.
 
-**Testing**:
-- Existing tests pass (except one unrelated CLI test failure)
-- Manual test confirms finish reason "stop" is correctly passed through events
-- Handles edge cases like multiple FINISHED events gracefully
+## Impact
+- Textual TUI now supports the `--agent` parameter like other modes
+- When `--agent <role>` is specified, the Textual TUI will target that specific agent for all user inputs
+- This enables users to work with specialist agents directly through the Textual TUI interface
+- The implementation is consistent with how headless mode handles `agent_role`
+
+## Testing
+All tests pass after the fixes. The implementation maintains backward compatibility - when `agent_role` is not specified, the Textual TUI behaves as before (using the default orchestrator).

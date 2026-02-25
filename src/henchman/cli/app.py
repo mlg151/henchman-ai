@@ -271,11 +271,7 @@ def _run_textual_tui(
 
         system_prompt += PLAN_MODE_PROMPT
 
-    config = TextualConfig(system_prompt=system_prompt, auto_approve_tools=yes)
-
-    # TODO: Add agent_role support to Textual TUI
-    if agent_role:
-        console.print("[yellow]Warning:[/] agent_role parameter not yet supported in Textual TUI")
+    config = TextualConfig(system_prompt=system_prompt, auto_approve_tools=yes, agent_role=agent_role)
 
     if output_format != "text":
         console.print(

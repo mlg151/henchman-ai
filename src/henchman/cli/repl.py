@@ -50,6 +50,7 @@ class ReplConfig:
         base_tool_iterations: Base limit for tool iterations per turn.
         max_tool_calls_per_turn: Maximum tool calls allowed per turn.
         auto_approve_tools: Auto-approve all tool executions (non-interactive mode).
+        agent_role: Target a specific agent role for all inputs.
     """
 
     prompt: str = "❯ "
@@ -59,6 +60,7 @@ class ReplConfig:
     base_tool_iterations: int = 25
     max_tool_calls_per_turn: int = 100
     auto_approve_tools: bool = False
+    agent_role: str | None = None
 
 
 class Repl:
