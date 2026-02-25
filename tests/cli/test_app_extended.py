@@ -158,6 +158,6 @@ def test_cli_plan_flag():
     """Test the --plan flag in CLI."""
     runner = CliRunner()
     with patch("henchman.cli.app._run_interactive") as mock_run:
-        result = runner.invoke(cli, ["--plan"])
+        result = runner.invoke(cli, ["chat", "--plan"])
         assert result.exit_code == 0
         mock_run.assert_called_once_with("text", True, False, agent_role=None)

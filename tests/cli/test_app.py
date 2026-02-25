@@ -33,7 +33,7 @@ def test_cli_default_invocation() -> None:
     runner = CliRunner()
     with patch("henchman.cli.app._run_interactive") as mock_run:
         mock_run.return_value = None
-        result = runner.invoke(cli, [])
+        result = runner.invoke(cli, ["chat"])
         assert result.exit_code == 0
         mock_run.assert_called_once()
 
@@ -43,7 +43,7 @@ def test_cli_with_prompt_option() -> None:
     runner = CliRunner()
     with patch("henchman.cli.app._run_headless") as mock_run:
         mock_run.return_value = None
-        result = runner.invoke(cli, ["--prompt", "Hello world"])
+        result = runner.invoke(cli, ["chat", "--prompt", "Hello world"])
         assert result.exit_code == 0
         mock_run.assert_called_once()
         # Check prompt is passed
@@ -56,7 +56,7 @@ def test_cli_with_short_prompt_option() -> None:
     runner = CliRunner()
     with patch("henchman.cli.app._run_headless") as mock_run:
         mock_run.return_value = None
-        result = runner.invoke(cli, ["-p", "Test prompt"])
+        result = runner.invoke(cli, ["chat", "-p", "Test prompt"])
         assert result.exit_code == 0
         mock_run.assert_called_once()
 
