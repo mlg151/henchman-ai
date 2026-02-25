@@ -1,0 +1,179 @@
+"""FastAPI server for Henchman-AI API."""
+
+from __future__ import annotations
+
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from typing import Any
+
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+from henchman.api.endpoints import chat, health
+from henchman.api.state import state
+from henchman.config import load_settings
+from henchman.core import Agent
+from henchman.providers import get_default_registry
+
+
+class HealthResponse(BaseModel):
+    """Health check response model."""
+
+    status: str = Field(default="ok")
+    version: str = Field(default="0.3.11")
+    provider: str | None = Field(default=None)
+
+
+class ErrorResponse(BaseModel):
+    """Error response model."""
+
+    error: str = Field(description="Error message")
+    code: str = Field(description="Error code")
+    details: dict[str, Any] | None = Field(default=None, description="Additional error details")
+
+
+# State will be initialized in lifespan function
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """Lifespan context manager for FastAPI app."""
+    # Startup
+    print("Starting Henchman-AI API server...")
+
+    # Initialize state
+    state.settings = load_settings()
+    state.provider_registry = get_default_registry()
+
+    # Load API keys from settings
+    if state.settings.api and hasattr(state.settings.api, "api_keys"):
+        state.api_keys = set(state.settings.api.api_keys)
+
+    # Create default agent
+    try:
+        provider_name = state.settings.providers.default
+        # Get provider settings based on provider name
+        provider_settings = {}
+        if provider_name == "deepseek" and state.settings.providers.deepseek:
+            provider_settings = state.settings.providers.deepseek
+        elif provider_name == "openai" and state.settings.providers.openai:
+            provider_settings = state.settings.providers.openai
+        elif provider_name == "anthropic" and state.settings.providers.anthropic:
+            provider_settings = state.settings.providers.anthropic
+        elif provider_name == "ollama" and state.settings.providers.ollama:
+            provider_settings = state.settings.providers.ollama
+        elif provider_name == "openrouter" and state.settings.providers.openrouter:
+            provider_settings = state.settings.providers.openrouter
+        elif provider_name == "openai_compat" and state.settings.providers.openai_compat:
+            provider_settings = state.settings.providers.openai_compat
+        elif provider_name == "together" and state.settings.providers.together:
+            provider_settings = state.settings.providers.together
+        elif provider_name == "groq" and state.settings.providers.groq:
+            provider_settings = state.settings.providers.groq
+        elif provider_name == "fireworks" and state.settings.providers.fireworks:
+            provider_settings = state.settings.providers.fireworks
+        
+        provider = state.provider_registry.create(
+            provider_name,
+            **provider_settings,
+        )
+        state.agent = Agent(
+            provider=provider,
+            system_prompt=state.settings.agents.system_prompt,
+        )
+        print(f"Created agent with provider: {provider_name}")
+    except Exception as e:
+        print(f"Warning: Failed to create agent: {e}")
+        state.agent = None
+
+    yield
+
+    # Shutdown
+    print("Shutting down Henchman-AI API server...")
+
+
+# Create FastAPI app
+app = FastAPI(
+    title="Henchman-AI API",
+    description="REST API for Henchman-AI - A model-agnostic AI agent CLI",
+    version="0.3.11",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure via settings in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(chat.router)
+app.include_router(health.router)
+
+
+@app.get("/", include_in_schema=False)
+async def root() -> dict[str, str]:
+    """Root endpoint."""
+    return {
+        "message": "Henchman-AI API",
+        "version": "0.3.11",
+        "docs": "/docs",
+    }
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """Handle HTTP exceptions."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=ErrorResponse(
+            error=exc.detail,
+            code=f"HTTP_{exc.status_code}",
+            details={"path": request.url.path},
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, _exc: Exception) -> JSONResponse:
+    """Handle generic exceptions."""
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content=ErrorResponse(
+            error="Internal server error",
+            code="INTERNAL_ERROR",
+            details={"path": request.url.path},
+        ).model_dump(),
+    )
+
+
+def run_server(
+    host: str = "127.0.0.1",
+    port: int = 8000,
+    reload: bool = False,
+    workers: int = 1,
+) -> None:
+    """Run the FastAPI server.
+
+    Args:
+        host: Host to bind to.
+        port: Port to bind to.
+        reload: Enable auto-reload for development.
+        workers: Number of worker processes.
+    """
+    import uvicorn
+
+    uvicorn.run(
+        "henchman.api.server:app",
+        host=host,
+        port=port,
+        reload=reload,
+        workers=workers,
+    )

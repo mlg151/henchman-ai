@@ -2,11 +2,12 @@
 """Fix for Textual Input visibility issue."""
 
 from textual.app import App, ComposeResult
-from textual.widgets import Input, Header, Footer, Static
+from textual.widgets import Footer, Header, Input, Static
+
 
 class FixedInputTest(App):
     """Test app with fixed Input styling."""
-    
+
     CSS = """
     Screen {
         background: $surface;
@@ -32,7 +33,7 @@ class FixedInputTest(App):
         color: $text-muted;
     }
     """
-    
+
     def compose(self) -> ComposeResult:
         yield Header()
         yield Static("Type in the box below - text should appear as you type:", id="main")
@@ -42,12 +43,12 @@ class FixedInputTest(App):
         )
         yield Static("Status: Ready", id="status")
         yield Footer()
-    
+
     def on_mount(self) -> None:
         input_widget = self.query_one("#input", Input)
         input_widget.focus()
         print("Input widget focused. Type something - you should see text appear.")
-    
+
     def on_input_changed(self, event: Input.Changed) -> None:
         """Called when input text changes."""
         status = self.query_one("#status", Static)

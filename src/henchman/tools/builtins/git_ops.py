@@ -176,9 +176,10 @@ class GitOpsTool(Tool):
                 error=f"Unknown action: {action}",
             )
 
-        from typing import Callable
-        
-        handler_map: dict[str, Callable[..., tuple[bool, str]]] = {
+        from collections.abc import Callable, Coroutine
+        from typing import Any
+
+        handler_map: dict[str, Callable[..., Coroutine[Any, Any, tuple[bool, str]]]] = {
             "status": self._status,
             "log": self._log,
             "blame": self._blame,

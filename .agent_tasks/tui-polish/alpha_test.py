@@ -13,7 +13,6 @@ import asyncio
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
 
 # Make sure the project src is importable
 sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
@@ -28,8 +27,7 @@ from henchman.cli.textual_app import (
     StatusBar,
     TextualConfig,
 )
-from henchman.core.events import AgentEvent, EventType
-from henchman.providers.base import ModelProvider, StreamChunk, Message, FinishReason
+from henchman.providers.base import FinishReason, Message, ModelProvider, StreamChunk
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Mock provider
@@ -323,7 +321,6 @@ async def test_tool_confirmation_modal() -> None:
             return
 
         # Click Yes
-        from textual.widgets import Button
         await pilot.click("#btn-yes")
         await pilot.pause(0.2)
         record("Yes returns True", result_holder[0] is True, str(result_holder[0]))
@@ -352,7 +349,6 @@ async def test_search_mode() -> None:
         record("ctrl+f enters search mode", app._search_mode)
 
         # Type a query
-        from textual.widgets import TextArea
         await pilot.click("#input")
         await pilot.press(*"Henchman")
         await pilot.pause(0.1)

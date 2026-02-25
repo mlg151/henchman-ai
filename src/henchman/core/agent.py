@@ -68,6 +68,10 @@ class Agent:
         base_tool_iterations: int = 25,
         max_protected_ratio: float = 0.3,
         identity: "AgentIdentity | None" = None,
+        intelligent_context: bool = False,
+        importance_threshold: float = 0.5,
+        cluster_similarity_threshold: float = 0.7,
+        adaptive_compression: bool = True,
     ) -> None:
         """Initialize the Agent.
 
@@ -81,6 +85,10 @@ class Agent:
             base_tool_iterations: Base limit for tool call iterations per turn.
             max_protected_ratio: Max ratio of context to protect from compaction.
             identity: Optional identity of the agent.
+            intelligent_context: Whether to use intelligent context management.
+            importance_threshold: Minimum importance score to preserve a message.
+            cluster_similarity_threshold: Similarity threshold for clustering messages.
+            adaptive_compression: Whether to use adaptive compression techniques.
         """
         self.provider = provider
         self.tool_registry = tool_registry if tool_registry is not None else ToolRegistry()
@@ -89,6 +97,10 @@ class Agent:
         self.base_tool_iterations = base_tool_iterations
         self.max_protected_ratio = max_protected_ratio
         self.identity = identity
+        self.intelligent_context = intelligent_context
+        self.importance_threshold = importance_threshold
+        self.cluster_similarity_threshold = cluster_similarity_threshold
+        self.adaptive_compression = adaptive_compression
 
         # Auto-detect model from provider if not explicitly given
         if not model and hasattr(provider, "default_model"):
@@ -147,13 +159,27 @@ class Agent:
         Returns:
             List of messages, potentially compacted to fit within max_tokens.
         """
+        # Import both types for type hints
         from henchman.utils.compaction import ContextCompactor
+        from henchman.utils.intelligent_context import IntelligentContextManager
 
-        compactor = ContextCompactor(
-            max_tokens=self.max_tokens,
-            max_protected_ratio=self.max_protected_ratio,
-        )
-        return compactor.compact(
+        compactor_instance: ContextCompactor | IntelligentContextManager
+
+        if self.intelligent_context:
+            compactor_instance = IntelligentContextManager(
+                max_tokens=self.max_tokens,
+                max_protected_ratio=self.max_protected_ratio,
+                importance_threshold=self.importance_threshold,
+                cluster_similarity_threshold=self.cluster_similarity_threshold,
+                adaptive_compression=self.adaptive_compression,
+            )
+        else:
+            compactor_instance = ContextCompactor(
+                max_tokens=self.max_tokens,
+                max_protected_ratio=self.max_protected_ratio,
+            )
+
+        return compactor_instance.compact(
             self.messages,
             protect_from_index=self.turn.start_index,
         )
@@ -210,13 +236,27 @@ class Agent:
 
     def _apply_simple_compaction(self, protected_count: int) -> None:
         """Apply simple compaction without summarization."""
+        # Import both types for type hints
         from henchman.utils.compaction import ContextCompactor
+        from henchman.utils.intelligent_context import IntelligentContextManager
 
-        compactor = ContextCompactor(
-            max_tokens=self.max_tokens,
-            max_protected_ratio=self.max_protected_ratio,
-        )
-        self.messages = compactor.compact(
+        compactor_instance: ContextCompactor | IntelligentContextManager
+
+        if self.intelligent_context:
+            compactor_instance = IntelligentContextManager(
+                max_tokens=self.max_tokens,
+                max_protected_ratio=self.max_protected_ratio,
+                importance_threshold=self.importance_threshold,
+                cluster_similarity_threshold=self.cluster_similarity_threshold,
+                adaptive_compression=self.adaptive_compression,
+            )
+        else:
+            compactor_instance = ContextCompactor(
+                max_tokens=self.max_tokens,
+                max_protected_ratio=self.max_protected_ratio,
+            )
+
+        self.messages = compactor_instance.compact(
             self.messages,
             protect_from_index=self.turn.start_index,
         )

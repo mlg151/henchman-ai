@@ -106,6 +106,33 @@ tools:
     - glob
 ```
 
+## Context Management Settings
+
+Configure intelligent context management to reduce token usage while preserving important information.
+
+```yaml
+context:
+  # Enable intelligent context management (default: false)
+  intelligent_context: false
+  
+  # Maximum tokens before compaction (default: 128000)
+  max_tokens: 128000
+  
+  # Start compaction at this percentage of max_tokens (default: 0.75)
+  compaction_threshold: 0.75
+  
+  # Minimum importance score to preserve a message (0.0-1.0, default: 0.5)
+  importance_threshold: 0.5
+  
+  # Similarity threshold for clustering related messages (0.0-1.0, default: 0.7)
+  cluster_similarity_threshold: 0.7
+  
+  # Use adaptive compression based on conversation type (default: true)
+  adaptive_compression: true
+```
+
+For detailed information on intelligent context management, see the [Intelligent Context Management](intelligent-context-management.md) documentation.
+
 ## Context Files (HENCHMAN.md)
 
 Place `HENCHMAN.md` files in your project to provide context:

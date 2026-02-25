@@ -207,6 +207,7 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
         config: TextualConfig | None = None,
         settings: Settings | None = None,
         environment_context: str | None = None,
+        driver_class: type[Any] | None = None,
     ) -> None:
         """Initialize the Textual TUI.
 
@@ -215,8 +216,9 @@ class HenchmanTextualApp(App):  # type: ignore[type-arg]
             config: TUI configuration.
             settings: Application settings.
             environment_context: Pre-formatted environment block.
+            driver_class: Custom driver class for terminal handling.
         """
-        super().__init__()
+        super().__init__(driver_class=driver_class)
         self._init_provider_and_settings(
             provider, config, settings, environment_context
         )
@@ -1703,10 +1705,50 @@ def run_textual_app(
         settings: Application settings.
         environment_context: Pre-formatted environment block.
     """
+    import sys
+    
+    # Check for UTF-8 locale on non-Windows platforms
+    # This prevents Textual from crashing with UnicodeDecodeError due to invalid locale
+    if sys.platform != "win32":
+        try:
+            # Check stdin encoding
+            encoding = getattr(sys.stdin, "encoding", "").lower()
+            if encoding and encoding != "utf-8":
+                print(
+                    f"[WARN] Terminal encoding is '{sys.stdin.encoding}', not 'utf-8'.\n"
+                    "       Textual TUI requires UTF-8. Please set:\n"
+                    "       export LANG=C.UTF-8\n"
+                    "       export LC_ALL=C.UTF-8",
+                    file=sys.stderr,
+                )
+        except Exception:
+            pass
+
+    # Use robust driver on Linux to handle potential encoding issues
+    from henchman.cli.textual_driver import RobustLinuxDriver
+    
+    driver_class = None
+    # Only use RobustLinuxDriver if available and on Linux
+    if sys.platform == "linux" and RobustLinuxDriver is not None:
+        driver_class = RobustLinuxDriver
+
     app = HenchmanTextualApp(
         provider=provider,
         config=config,
         settings=settings,
         environment_context=environment_context,
+        driver_class=driver_class,
     )
-    app.run()
+    try:
+        app.run()
+    except Exception as e:
+        # Check for common UnicodeDecodeError in input loop
+        if "UnicodeDecodeError" in str(e) or isinstance(e, UnicodeDecodeError):
+            print(
+                "\n[ERROR] Textual crashed due to UnicodeDecodeError.\n"
+                "        This usually happens when the terminal sends non-UTF-8 characters.\n"
+                "        Please ensure your terminal is set to UTF-8 encoding.\n"
+                "        Try running: export LC_ALL=C.UTF-8\n",
+                file=sys.stderr,
+             )
+        raise

@@ -289,3 +289,68 @@ class TestSession:
         assert meta.id == "session_123"
         assert meta.tag == "my-session"
         assert meta.message_count == 2
+
+    def test_session_with_enhanced_fields(self) -> None:
+        """Test session with enhanced fields (branching, templates, etc.)."""
+        session = Session(
+            id="session_123",
+            project_hash="abc123",
+            started="2026-01-23T12:00:00Z",
+            last_updated="2026-01-23T12:00:00Z",
+            parent_id="parent_123",
+            branch_point=5,
+            template_id="template_123",
+            template_parameters={"project": "test"},
+            export_metadata={"exported": True},
+        )
+        
+        assert session.parent_id == "parent_123"
+        assert session.branch_point == 5
+        assert session.template_id == "template_123"
+        assert session.template_parameters == {"project": "test"}
+        assert session.export_metadata == {"exported": True}
+
+    def test_session_enhanced_fields_serialization(self) -> None:
+        """Test serialization/deserialization with enhanced fields."""
+        session = Session(
+            id="session_123",
+            project_hash="abc123",
+            started="2026-01-23T12:00:00Z",
+            last_updated="2026-01-23T12:00:00Z",
+            parent_id="parent_123",
+            branch_point=3,
+            template_id="template_456",
+            template_parameters={"param1": "value1"},
+            export_metadata={"key": "value"},
+        )
+        
+        # Convert to dict and back
+        data = session.to_dict()
+        session2 = Session.from_dict(data)
+        
+        assert session2.parent_id == "parent_123"
+        assert session2.branch_point == 3
+        assert session2.template_id == "template_456"
+        assert session2.template_parameters == {"param1": "value1"}
+        assert session2.export_metadata == {"key": "value"}
+
+    def test_session_enhanced_fields_json_roundtrip(self) -> None:
+        """Test JSON serialization/deserialization with enhanced fields."""
+        session = Session(
+            id="session_123",
+            project_hash="abc123",
+            started="2026-01-23T12:00:00Z",
+            last_updated="2026-01-23T12:00:00Z",
+            parent_id="parent_123",
+            template_id="template_789",
+        )
+        
+        # Convert to JSON and back
+        json_str = session.to_json()
+        session2 = Session.from_json(json_str)
+        
+        assert session2.parent_id == "parent_123"
+        assert session2.template_id == "template_789"
+        assert session2.branch_point is None  # Should be None when not set
+        assert session2.template_parameters == {}  # Should be empty dict when not set
+        assert session2.export_metadata == {}  # Should be empty dict when not set

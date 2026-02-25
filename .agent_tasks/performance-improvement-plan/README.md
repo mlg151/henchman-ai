@@ -80,61 +80,33 @@ ALWAYS use start_line/end_line parameters for large files.
 """
 ```
 
-### Week 2: Enhanced Thinking & Delegation Framework
+### Week 2: Enhanced Thinking & Delegation Framework ✅ COMPLETED
 
-#### 2.1 Structured Thinking Protocols
+#### 2.1 Structured Thinking Protocols ✅ IMPLEMENTED
 **Problem**: Inconsistent reasoning quality
 **Solution**: Mandatory thinking frameworks
 
-```markdown
-**THINKING PROTOCOL (REQUIRED FOR ALL COMPLEX TASKS)**:
+**Status**: Implemented in `src/henchman/agents/prompts.py` with comprehensive 4-phase thinking protocol:
+1. **Phase 1: Problem Analysis** - What exactly needs solving, success criteria, constraints
+2. **Phase 2: Context Gathering** - What we already know, similar problems, available tools
+3. **Phase 3: Solution Design** - Possible approaches, pros/cons, best decision with rationale
+4. **Phase 4: Execution Planning** - Specific steps, risk mitigation, verification criteria
 
-## Phase 1: Problem Analysis
-1. **What exactly needs to be solved?** (Be specific)
-2. **What are the success criteria?** (How will we know we're done?)
-3. **What constraints exist?** (Time, resources, dependencies)
+**Files Modified**: `src/henchman/agents/prompts.py` - Updated `THINKING_PROTOCOL` constant
 
-## Phase 2: Context Gathering
-4. **What do we already know?** (Check knowledge graph, recent files)
-5. **What similar problems have we solved?** (Search .agent_tasks/)
-6. **What tools are available?** (Review tool capabilities)
-
-## Phase 3: Solution Design
-7. **What are possible approaches?** (Generate 2-3 options)
-8. **What are the pros/cons of each?** (Risk assessment)
-9. **Which approach is best?** (Decision with rationale)
-
-## Phase 4: Execution Planning
-10. **What specific steps are needed?** (Break down into actionable items)
-11. **What could go wrong?** (Risk mitigation)
-12. **How will we verify success?** (Validation criteria)
-```
-
-#### 2.2 Delegation Optimization
+#### 2.2 Delegation Optimization ✅ IMPLEMENTED
 **Problem**: Underutilization of specialist agents
 **Solution**: Delegation-first mindset with decision checklist
 
-```python
-DELEGATION_DECISION_MATRIX = """
-**Delegation Decision Matrix (USE BEFORE ANY WORK)**:
+**Status**: Implemented in `src/henchman/agents/prompts.py` with:
+1. **Updated Delegation Decision Matrix** - Clear mapping of task types to specialists
+2. **Delegation Checklist** - 4-question checklist (if ANY answer is YES → DELEGATE)
+3. **Pre-flight Checklists** - Added mandatory checklists for tests, file modification, and delegation
+4. **Enhanced delegation guidelines** - Integrated with existing delegation framework
 
-| Task Type              | Primary Specialist | When to Delegate                |
-|------------------------|-------------------|---------------------------------|
-| Architecture/Design    | Planner           | Always for complex designs      |
-| Research/Exploration   | Explorer          | When new information is needed  |
-| Implementation/Testing | Engineer          | For coding tasks > 10 lines     |
-| Documentation          | Explorer          | For comprehensive documentation|
-| Debugging             | Engineer          | For complex bugs                |
+**Files Modified**: `src/henchman/agents/prompts.py` - Updated `DELEGATION_MATRIX` and added `PRE_FLIGHT_CHECKLISTS`
 
-**Delegation Checklist**:
-1. ✅ Is this a specialized task type?
-2. ✅ Would a specialist do this better/faster?
-3. ✅ Can I provide clear requirements?
-4. ✅ Is the specialist available/appropriate?
-
-If ANY answer is YES → DELEGATE
-"""
-```
+**Verification**: All prompts compile successfully, imports work, and thinking protocols are properly integrated into specialist prompts.
 
 ### Week 3: Performance Metrics & Learning System
 

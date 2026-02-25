@@ -4,10 +4,11 @@
 from textual.app import App
 from textual.widgets import Input
 
+
 class AbsoluteMinimalInput(App):
     def compose(self):
         yield Input(placeholder="Type here...")
-    
+
     def on_mount(self):
         self.query_one(Input).focus()
 

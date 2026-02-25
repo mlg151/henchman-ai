@@ -2,10 +2,11 @@
 """Add more debug to understand."""
 
 import asyncio
-from textual.app import App, ComposeResult
-from textual.widgets import RichLog
-from textual.message import Message
+
 from textual import work
+from textual.app import App, ComposeResult
+from textual.message import Message
+from textual.widgets import RichLog
 
 
 class TestMsg(Message):
@@ -17,7 +18,7 @@ class TestMsg(Message):
 class TestApp(App):
     def compose(self) -> ComposeResult:
         yield RichLog(id="log")
-    
+
     def on_mount(self):
         print("=== on_mount start ===")
         log = self.query_one("#log", RichLog)
@@ -26,14 +27,14 @@ class TestApp(App):
         print("Wrote '1. Direct'")
         self.worker_test()
         print("=== on_mount end ===")
-    
+
     @work
     async def worker_test(self):
         print("=== worker start ===")
         result = self.post_message(TestMsg("2. From worker"))
         print(f"post_message result: {result}")
         print("=== worker end ===")
-    
+
     def on_test_msg(self, msg):
         print(f"=== handler start: {msg.text} ===")
         try:

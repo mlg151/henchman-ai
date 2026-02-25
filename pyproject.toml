@@ -51,6 +51,11 @@ dependencies = [
     "chromadb>=0.4",
     "networkx>=3.0",
     "textual>=0.75",
+    "appdirs>=1.4",
+    "fastapi>=0.104",
+    "uvicorn[standard]>=0.24",
+    "websockets>=12.0",
+    "python-multipart>=0.0",
 ]
 
 [project.optional-dependencies]

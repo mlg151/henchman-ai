@@ -53,6 +53,7 @@ henchman --prompt "Explain this code" < file.py
 
 - [Getting Started](getting-started.md) - Installation and first steps
 - [Configuration](configuration.md) - Settings and customization
+- [Intelligent Context Management](intelligent-context-management.md) - Advanced context compression
 - [Providers](providers.md) - LLM provider setup
 - [Tools](tools.md) - Built-in and custom tools
 - [MCP Integration](mcp.md) - External tool servers

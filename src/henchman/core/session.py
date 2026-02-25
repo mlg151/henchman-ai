@@ -145,6 +145,16 @@ class TurnSummaryRecord:
     tool_count: int
     timestamp: str
 
+    def __hash__(self) -> int:
+        """Make TurnSummaryRecord hashable for deduplication."""
+        return hash((
+            self.turn_number,
+            self.summary_text,
+            tuple(self.files_modified),
+            self.tool_count,
+            self.timestamp,
+        ))
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -180,6 +190,11 @@ class Session:
         tag: Optional human-readable tag.
         plan_mode: Whether the session is in Plan Mode (read-only).
         turn_summaries: Summaries of completed turns.
+        parent_id: ID of parent session if this is a branch.
+        branch_point: Message index where branch occurred (0-based).
+        template_id: ID of template this session was created from.
+        template_parameters: Parameters used to instantiate template.
+        export_metadata: Metadata for export/import operations.
     """
 
     id: str
@@ -192,6 +207,11 @@ class Session:
     turn_summaries: list[TurnSummaryRecord] = field(default_factory=list)
     active_agents: list[str] = field(default_factory=list)
     delegation_log: list[dict[str, Any]] = field(default_factory=list)
+    parent_id: str | None = None
+    branch_point: int | None = None
+    template_id: str | None = None
+    template_parameters: dict[str, Any] = field(default_factory=dict)
+    export_metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary.
@@ -210,6 +230,11 @@ class Session:
             "turn_summaries": [ts.to_dict() for ts in self.turn_summaries],
             "active_agents": self.active_agents,
             "delegation_log": self.delegation_log,
+            "parent_id": self.parent_id,
+            "branch_point": self.branch_point,
+            "template_id": self.template_id,
+            "template_parameters": self.template_parameters,
+            "export_metadata": self.export_metadata,
         }
 
     @classmethod
@@ -235,6 +260,11 @@ class Session:
             ],
             active_agents=data.get("active_agents", []),
             delegation_log=data.get("delegation_log", []),
+            parent_id=data.get("parent_id"),
+            branch_point=data.get("branch_point"),
+            template_id=data.get("template_id"),
+            template_parameters=data.get("template_parameters", {}),
+            export_metadata=data.get("export_metadata", {}),
         )
 
     def to_json(self) -> str:
@@ -467,3 +497,430 @@ class SessionManager:
         # Use absolute path for consistency
         abs_path = directory.resolve()
         return hashlib.sha256(str(abs_path).encode()).hexdigest()[:16]
+
+    # Enhanced session management methods
+
+    def branch_session(self, session_id: str, branch_point: int, tag: str | None = None) -> Session:
+        """Create a new session branched from an existing session.
+
+        Args:
+            session_id: ID of session to branch from.
+            branch_point: Message index (0-based) where branch occurs.
+            tag: Optional tag for the new session.
+
+        Returns:
+            New branched Session instance.
+
+        Raises:
+            ValueError: If branch_point is out of range.
+        """
+        parent = self.load(session_id)
+
+        if branch_point < 0 or branch_point > len(parent.messages):
+            raise ValueError(
+                f"Branch point {branch_point} out of range (0-{len(parent.messages)})"
+            )
+
+        now = self._now_iso()
+        branch = Session(
+            id=self._generate_id(),
+            project_hash=parent.project_hash,
+            started=now,
+            last_updated=now,
+            messages=parent.messages[:branch_point],  # Copy messages up to branch point
+            tag=tag,
+            plan_mode=parent.plan_mode,
+            turn_summaries=parent.turn_summaries[:],  # Copy turn summaries
+            active_agents=parent.active_agents[:],  # Copy active agents
+            delegation_log=parent.delegation_log[:],  # Copy delegation log
+            parent_id=parent.id,
+            branch_point=branch_point,
+            template_id=parent.template_id,
+            template_parameters=parent.template_parameters.copy(),
+            export_metadata=parent.export_metadata.copy(),
+        )
+
+        return branch
+
+    def merge_sessions(
+        self,
+        session_ids: list[str],
+        strategy: str = "union",
+        tag: str | None = None,
+    ) -> Session:
+        """Merge multiple sessions into a new session.
+
+        Args:
+            session_ids: List of session IDs to merge.
+            strategy: Merge strategy: "union", "intersection", or "smart".
+            tag: Optional tag for the merged session.
+
+        Returns:
+            New merged Session instance.
+
+        Raises:
+            ValueError: If less than 2 sessions provided or invalid strategy.
+        """
+        if len(session_ids) < 2:
+            raise ValueError("At least 2 sessions required for merging")
+
+        if strategy not in ("union", "intersection", "smart"):
+            raise ValueError(f"Invalid merge strategy: {strategy}")
+
+        # Load all sessions
+        sessions = [self.load(sid) for sid in session_ids]
+
+        # Check all sessions have same project hash
+        project_hash = sessions[0].project_hash
+        for session in sessions[1:]:
+            if session.project_hash != project_hash:
+                raise ValueError("Cannot merge sessions from different projects")
+
+        now = self._now_iso()
+        merged = Session(
+            id=self._generate_id(),
+            project_hash=project_hash,
+            started=now,
+            last_updated=now,
+            tag=tag,
+        )
+
+        if strategy == "union":
+            # Combine all messages from all sessions
+            all_messages: list[SessionMessage] = []
+            for session in sessions:
+                all_messages.extend(session.messages)
+            merged.messages = all_messages
+
+        elif strategy == "intersection":
+            # Find common messages (by content hash)
+            if not sessions:
+                merged.messages = []
+            else:
+                # Create content hashes for each message
+                message_hashes: list[set[str]] = []
+                for session in sessions:
+                    hashes = set()
+                    for msg in session.messages:
+                        # Simple hash of message content
+                        msg_str = f"{msg.role}:{msg.content}:{str(msg.tool_calls)}"
+                        msg_hash = hashlib.md5(msg_str.encode()).hexdigest()
+                        hashes.add(msg_hash)
+                    message_hashes.append(hashes)
+
+                # Find intersection of all hash sets
+                common_hashes = set.intersection(*message_hashes)
+
+                # Get messages from first session that are in common
+                merged.messages = [
+                    msg for msg in sessions[0].messages
+                    if hashlib.md5(
+                        f"{msg.role}:{msg.content}:{str(msg.tool_calls)}".encode()
+                    ).hexdigest() in common_hashes
+                ]
+
+        elif strategy == "smart":
+            # Smart merge: combine unique insights, avoid duplicates
+            seen_hashes: set[str] = set()
+            merged_messages: list[SessionMessage] = []
+
+            for session in sessions:
+                for msg in session.messages:
+                    msg_str = f"{msg.role}:{msg.content}:{str(msg.tool_calls)}"
+                    msg_hash = hashlib.md5(msg_str.encode()).hexdigest()
+
+                    if msg_hash not in seen_hashes:
+                        seen_hashes.add(msg_hash)
+                        merged_messages.append(msg)
+
+            merged.messages = merged_messages
+
+        # Merge other metadata
+        all_turn_summaries: list[TurnSummaryRecord] = []
+        all_active_agents: list[str] = []
+        all_delegation_logs: list[dict[str, Any]] = []
+
+        for session in sessions:
+            all_turn_summaries.extend(session.turn_summaries)
+            all_active_agents.extend(session.active_agents)
+            all_delegation_logs.extend(session.delegation_log)
+
+        # Remove duplicates while preserving order
+        merged.turn_summaries = list(dict.fromkeys(all_turn_summaries))
+        merged.active_agents = list(dict.fromkeys(all_active_agents))
+        merged.delegation_log = all_delegation_logs
+
+        # Add merge metadata
+        merged.export_metadata = {
+            "merged_from": session_ids,
+            "merge_strategy": strategy,
+            "merge_timestamp": now,
+        }
+
+        return merged
+
+    def export_session(
+        self,
+        session_id: str,
+        format: str = "json",
+        include_metadata: bool = True,
+    ) -> str:
+        """Export a session to a string representation.
+
+        Args:
+            session_id: ID of session to export.
+            format: Export format: "json" or "markdown".
+            include_metadata: Whether to include session metadata.
+
+        Returns:
+            Exported session as string.
+
+        Raises:
+            ValueError: If invalid format specified.
+        """
+        session = self.load(session_id)
+
+        if format == "json":
+            return session.to_json()
+
+        elif format == "markdown":
+            # Create human-readable markdown export
+            lines: list[str] = []
+
+            if include_metadata:
+                lines.append(f"# Session: {session.tag or session.id}")
+                lines.append("")
+                lines.append("## Metadata")
+                lines.append(f"- **ID**: `{session.id}`")
+                lines.append(f"- **Project Hash**: `{session.project_hash}`")
+                lines.append(f"- **Started**: {session.started}")
+                lines.append(f"- **Last Updated**: {session.last_updated}")
+                lines.append(f"- **Messages**: {len(session.messages)}")
+                if session.tag:
+                    lines.append(f"- **Tag**: {session.tag}")
+                if session.parent_id:
+                    lines.append(f"- **Parent Session**: `{session.parent_id}`")
+                if session.template_id:
+                    lines.append(f"- **Template**: `{session.template_id}`")
+                lines.append("")
+
+            lines.append("## Conversation")
+            lines.append("")
+
+            for i, msg in enumerate(session.messages):
+                lines.append(f"### Turn {i + 1}: {msg.role}")
+                lines.append("")
+
+                if msg.agent_id:
+                    lines.append(f"*Agent: {msg.agent_id}*  ")
+
+                if msg.content:
+                    # Escape markdown special characters in content
+                    content = msg.content.replace("<", "\\<").replace(">", "\\>")
+                    lines.append(content)
+                    lines.append("")
+
+                if msg.tool_calls:
+                    lines.append("**Tool Calls:**")
+                    for tc in msg.tool_calls:
+                        lines.append(f"- `{tc.get('name', 'unknown')}`: {tc.get('arguments', {})}")
+                    lines.append("")
+
+                lines.append("---")
+                lines.append("")
+
+            if session.turn_summaries:
+                lines.append("## Turn Summaries")
+                lines.append("")
+                for ts in session.turn_summaries:
+                    lines.append(f"### Turn {ts.turn_number}")
+                    lines.append(f"*{ts.timestamp}*  ")
+                    lines.append("")
+                    lines.append(ts.summary_text)
+                    lines.append("")
+
+            return "\n".join(lines)
+
+        else:
+            raise ValueError(f"Unsupported export format: {format}")
+
+    def import_session(
+        self,
+        data: str,
+        format: str = "json",
+        tag: str | None = None,
+    ) -> Session:
+        """Import a session from string representation.
+
+        Args:
+            data: Session data string.
+            format: Import format: "json" or "markdown".
+            tag: Optional tag for imported session.
+
+        Returns:
+            Imported Session instance.
+
+        Raises:
+            ValueError: If invalid format or data cannot be parsed.
+        """
+        if format == "json":
+            session = Session.from_json(data)
+
+            # Generate new ID for imported session
+            session.id = self._generate_id()
+            session.last_updated = self._now_iso()
+
+            if tag:
+                session.tag = tag
+
+            # Add import metadata
+            session.export_metadata["imported_at"] = session.last_updated
+            session.export_metadata["original_id"] = session.id
+
+            return session
+
+        elif format == "markdown":
+            # Parse markdown format (simplified - for full fidelity, use JSON)
+            raise ValueError(
+                "Markdown import not fully implemented. Use JSON for full fidelity import."
+            )
+
+        else:
+            raise ValueError(f"Unsupported import format: {format}")
+
+    def save_template(
+        self,
+        session_id: str,
+        name: str,
+        description: str = "",
+        parameters: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """Save a session as a template.
+
+        Args:
+            session_id: ID of session to save as template.
+            name: Template name.
+            description: Template description.
+            parameters: Template parameters with descriptions.
+
+        Returns:
+            Template metadata.
+        """
+        session = self.load(session_id)
+
+        template_id = f"template_{self._generate_id()}"
+        template_data = {
+            "id": template_id,
+            "name": name,
+            "description": description,
+            "parameters": parameters or {},
+            "session_data": session.to_dict(),
+            "created_at": self._now_iso(),
+        }
+
+        # Save template to templates directory
+        templates_dir = self.data_dir / "templates"
+        templates_dir.mkdir(parents=True, exist_ok=True)
+
+        template_path = templates_dir / f"{template_id}.json"
+        template_path.write_text(json.dumps(template_data, indent=2))
+
+        # Update session with template reference
+        session.template_id = template_id
+        self.save(session)
+
+        return template_data
+
+    def create_from_template(
+        self,
+        template_id: str,
+        parameters: dict[str, Any] | None = None,
+        tag: str | None = None,
+    ) -> Session:
+        """Create a new session from a template.
+
+        Args:
+            template_id: ID of template to use.
+            parameters: Values for template parameters.
+            tag: Optional tag for the new session.
+
+        Returns:
+            New Session instance created from template.
+
+        Raises:
+            FileNotFoundError: If template doesn't exist.
+        """
+        templates_dir = self.data_dir / "templates"
+        template_path = templates_dir / f"{template_id}.json"
+
+        if not template_path.exists():
+            raise FileNotFoundError(f"Template not found: {template_id}")
+
+        template_data = json.loads(template_path.read_text())
+        session_data = template_data["session_data"]
+
+        # Apply parameter substitution
+        if parameters:
+            session_json = json.dumps(session_data)
+            for param_name, param_value in parameters.items():
+                placeholder = f"{{{{{param_name}}}}}"
+                session_json = session_json.replace(placeholder, str(param_value))
+            session_data = json.loads(session_json)
+
+        # Create session from template data
+        session = Session.from_dict(session_data)
+
+        # Update session metadata
+        session.id = self._generate_id()
+        session.started = self._now_iso()
+        session.last_updated = session.started
+        session.tag = tag
+        session.template_id = template_id
+        session.template_parameters = parameters or {}
+
+        return session
+
+    def list_templates(self) -> list[dict[str, Any]]:
+        """List available templates.
+
+        Returns:
+            List of template metadata dictionaries.
+        """
+        templates_dir = self.data_dir / "templates"
+
+        if not templates_dir.exists():
+            return []
+
+        templates: list[dict[str, Any]] = []
+        for path in templates_dir.glob("*.json"):
+            try:
+                template_data = json.loads(path.read_text())
+                templates.append({
+                    "id": template_data.get("id"),
+                    "name": template_data.get("name"),
+                    "description": template_data.get("description", ""),
+                    "parameters": template_data.get("parameters", {}),
+                    "created_at": template_data.get("created_at"),
+                })
+            except (json.JSONDecodeError, KeyError):
+                # Skip invalid template files
+                continue
+
+        return templates
+
+    def delete_template(self, template_id: str) -> None:
+        """Delete a template.
+
+        Args:
+            template_id: ID of template to delete.
+
+        Raises:
+            FileNotFoundError: If template doesn't exist.
+        """
+        templates_dir = self.data_dir / "templates"
+        template_path = templates_dir / f"{template_id}.json"
+
+        if not template_path.exists():
+            raise FileNotFoundError(f"Template not found: {template_id}")
+
+        template_path.unlink()

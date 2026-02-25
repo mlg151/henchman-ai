@@ -70,6 +70,10 @@ class AgentPool:
         parent_tool_registry: ToolRegistry,
         event_bus: "EventBus",
         environment_context: str | None = None,
+        intelligent_context: bool = False,
+        importance_threshold: float = 0.5,
+        cluster_similarity_threshold: float = 0.7,
+        adaptive_compression: bool = True,
     ) -> None:
         """Initialize the AgentPool.
 
@@ -80,6 +84,10 @@ class AgentPool:
             parent_tool_registry: Registry containing all available tools.
             event_bus: The event bus for inter-agent communication.
             environment_context: Pre-formatted environment block for agents.
+            intelligent_context: Whether to use intelligent context management.
+            importance_threshold: Minimum importance score to preserve a message.
+            cluster_similarity_threshold: Similarity threshold for clustering messages.
+            adaptive_compression: Whether to use adaptive compression techniques.
         """
         self.configs = configs
         self.default_provider = default_provider
@@ -87,6 +95,10 @@ class AgentPool:
         self.parent_tool_registry = parent_tool_registry
         self.event_bus = event_bus
         self.environment_context = environment_context
+        self.intelligent_context = intelligent_context
+        self.importance_threshold = importance_threshold
+        self.cluster_similarity_threshold = cluster_similarity_threshold
+        self.adaptive_compression = adaptive_compression
         self._agents: dict[str, Agent] = {}
 
     def get_agent(self, role: str) -> Agent:
@@ -153,6 +165,10 @@ class AgentPool:
             system_prompt=system_prompt,
             model=config.model,
             identity=identity,
+            intelligent_context=self.intelligent_context,
+            importance_threshold=self.importance_threshold,
+            cluster_similarity_threshold=self.cluster_similarity_threshold,
+            adaptive_compression=self.adaptive_compression,
         )
 
         # Subscribe agent to messages (logic for this will be in Orchestrator)
