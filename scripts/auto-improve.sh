@@ -5,7 +5,7 @@ set -euo pipefail
 # Activate the base conda environment
 # Temporarily disable nounset — conda activation scripts use unbound vars
 set +u
-eval "$(conda shell.bash hook)"
+source "/home/matthew/anaconda3/etc/profile.d/conda.sh"
 conda activate base
 set -u
 

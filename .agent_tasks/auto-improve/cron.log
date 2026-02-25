@@ -1,0 +1,15 @@
+/home/matthew/mlg-cli/scripts/auto-improve.sh: line 8: conda: command not found
+/home/matthew/mlg-cli/scripts/auto-improve.sh: line 9: conda: command not found
+/home/matthew/mlg-cli/scripts/auto-improve.sh: line 8: conda: command not found
+/home/matthew/mlg-cli/scripts/auto-improve.sh: line 9: conda: command not found
+/home/matthew/mlg-cli/scripts/auto-improve.sh: line 8: conda: command not found
+/home/matthew/mlg-cli/scripts/auto-improve.sh: line 9: conda: command not found
+[2026-02-25T22:48:01Z] Starting auto-improve run...
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+✗ Provider error: Authentication Fails (governor)
+
+
+[tech_lead] completed work
+Committing changes...
