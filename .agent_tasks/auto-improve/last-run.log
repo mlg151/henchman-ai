@@ -1,2 +1,184 @@
-[2026-02-25T21:12:53Z] Starting auto-improve run...
-ERROR: Working tree has uncommitted changes. Commit or stash first.
+[2026-02-25T21:15:01Z] Starting auto-improve run...
+Running Henchman...
+/home/matthew/mlg-cli/scripts/auto-improve.sh: line 48: henchman: command not found
+Let me also check for any linting issues or type hints that could be improved:
+[tool] lint_check({'path': 'src', 'linter': 'ruff'})
+
+✗ \[error] === ruff ===
+W293 [*] Blank line contains whitespace
+  --> src/henchman/api/server.py:77:1
+   |
+75 |         elif provider_name == "fireworks" and state.settings.providers.fireworks:
+76 |             
+I can see there are several linting issues. Let me check the test coverage to see if there are any missing tests:
+[tool] coverage_map({'path': 'coverage.json', 'file_filter': 'extensions/plugin_manager'})
+
+[result] No coverage data found matching 'extensions/plugin_manager'...
+Let me check the coverage more broadly:
+[tool] shell({'command': 'find . -name "coverage.*" -type f'})
+
+[result] ./coverage.json
+...
+I need to focus on making ONE small, valuable improvement. Looking at the linting issues, I can see there are several `F541` errors (f-string without any placeholders) in `src/henchman/cli/serve.py`. This is a simple, focused improvement that will clean up the codebase. Let me examine this file:
+[tool] read_file({'path': 'src/henchman/cli/serve.py'})
+
+[result] """Serve command for Henchman-AI API server."""
+
+from __future__ import annotations
+
+import click
+from rich.console import Console
+
+from henchman.api.server import run_server
+from henchman.config impo...
+Perfect! I can see several `f-string without any placeholders` issues. These are simple f-strings that don't have any `{}` placeholders, so they should just be regular strings. This is a small, focused improvement that will fix linting errors. Let me fix them:
+[tool] edit_file({'path': 'src/henchman/cli/serve.py', 'old_str': '    # Show server info\n    
+console.print(f"[bold green]Starting Henchman-AI API server...[/]")', 'new_str': '    # Show 
+server info\n    console.print("[bold green]Starting Henchman-AI API server...[/]")'})
+
+[result] Successfully edited src/henchman/cli/serve.py...
+
+[tool] edit_file({'path': 'src/henchman/cli/serve.py', 'old_str': '        if 
+settings.api.require_auth:\n            console.print(f"  Authentication: 
+[yellow]required[/]")', 'new_str': '        if settings.api.require_auth:\n            
+console.print("  Authentication: [yellow]required[/]")'})
+
+[result] Successfully edited src/henchman/cli/serve.py...
+
+[tool] edit_file({'path': 'src/henchman/cli/serve.py', 'old_str': '            else:\n         
+console.print(f"  [yellow]Warning: No API keys configured[/]")\n        else:\n            
+console.print(f"  Authentication: [green]disabled[/]")', 'new_str': '            else:\n       
+console.print("  [yellow]Warning: No API keys configured[/]")\n        else:\n            
+console.print("  Authentication: [green]disabled[/]")'})
+
+[result] Successfully edited src/henchman/cli/serve.py...
+
+[tool] edit_file({'path': 'src/henchman/cli/serve.py', 'old_str': '    
+console.print(f"[dim]Press Ctrl+C to stop the server[/]\\n")', 'new_str': '    
+console.print("[dim]Press Ctrl+C to stop the server[/]\\n")'})
+
+[result] Successfully edited src/henchman/cli/serve.py...
+
+[tool] edit_file({'path': 'src/henchman/cli/serve.py', 'old_str': '    except 
+KeyboardInterrupt:\n        console.print(f"\\n[yellow]Server stopped by user[/]")', 'new_str':
+'    except KeyboardInterrupt:\n        console.print("\\n[yellow]Server stopped by 
+user[/]")'})
+
+[result] Successfully edited src/henchman/cli/serve.py...
+Now let me check if there are any trailing whitespace or blank line issues in this file that were also reported:
+[tool] read_file({'path': 'src/henchman/cli/serve.py', 'start_line': 45, 'end_line': 80})
+
+[result]     """Start the Henchman-AI API server.
+    
+    This command starts a FastAPI server that provides REST API access
+    to Henchman-AI functionality.
+    
+    Examples:
+        henchman serve
+       ...
+I can see there are blank lines with whitespace (lines 46, 48, 56, 59, 66, 76). Let me fix those too:
+[tool] edit_file({'path': 'src/henchman/cli/serve.py', 'start_line': 45, 'end_line': 50, 
+'new_str': '    """Start the Henchman-AI API server.\n\n    This command starts a FastAPI 
+server that provides REST API access\n    to Henchman-AI functionality.\n\n    Examples:\n     
+henchman serve\n        henchman serve --host 0.0.0.0 --port 8080\n        henchman serve 
+--reload  # Development mode\n    """\n    console = Console()'})
+
+[result] Successfully edited src/henchman/cli/serve.py (replaced lines 45-50)...
+
+[tool] edit_file({'path': 'src/henchman/cli/serve.py', 'start_line': 55, 'end_line': 60, 
+'new_str': '    # Load settings to check API configuration\n    settings = load_settings()\n\n 
+# Show server info\n    console.print("[bold green]Starting Henchman-AI API server...[/]")'})
+
+[result] Successfully edited src/henchman/cli/serve.py (replaced lines 55-60)...
+
+[tool] edit_file({'path': 'src/henchman/cli/serve.py', 'start_line': 64, 'end_line': 66, 
+'new_str': '    if settings.api and hasattr(settings.api, "require_auth"):\n        if 
+settings.api.require_auth:\n            console.print("  Authentication: 
+[yellow]required[/]")'})
+
+[result] Successfully edited src/henchman/cli/serve.py (replaced lines 64-66)...
+
+[tool] edit_file({'path': 'src/henchman/cli/serve.py', 'start_line': 74, 'end_line': 76, 
+'new_str': '    console.print(f"\\n[dim]API documentation will be available at: 
+http://{host}:{port}/docs[/]")\n    console.print("[dim]Press Ctrl+C to stop the 
+server[/]\\n")\n\n    # Run the server'})
+
+[result] Successfully edited src/henchman/cli/serve.py (replaced lines 74-76)...
+Now let me check the end of the file for the missing newline:
+[tool] read_file({'path': 'src/henchman/cli/serve.py', 'start_line': 85, 'end_line': 95})
+
+[result]     # Run the server
+    try:
+        run_server(
+            host=host,
+            port=port,
+            reload=reload,
+            workers=workers,
+        )
+    except KeyboardInterrupt:
+        ...
+
+[tool] read_file({'path': 'src/henchman/cli/serve.py', 'start_line': 90, 'end_line': 100})
+
+[result]             reload=reload,
+            workers=workers,
+        )
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Server stopped by user[/]")
+    except Exception as e:
+        console....
+The file ends without a newline. Let me add one:
+[tool] edit_file({'path': 'src/henchman/cli/serve.py', 'old_str': '        
+console.print(f"\\n[red]Error starting server: {e}[/]")\n        raise 
+click.ClickException(f"Failed to start server: {e}")', 'new_str': '        
+console.print(f"\\n[red]Error starting server: {e}[/]")\n        raise 
+click.ClickException(f"Failed to start server: {e}")'})
+
+[result] Successfully edited src/henchman/cli/serve.py...
+Actually, that didn't add a newline. Let me check the file ending more carefully:
+[tool] shell({'command': 'tail -c 5 src/henchman/cli/serve.py | od -c'})
+
+[result] 0000000   {   e   }   "   )
+0000005
+...
+The file ends with `})` and no newline. Let me add a newline:
+[tool] write_file({'path': 'src/henchman/cli/serve.py', 'content': '"""Serve command for 
+Henchman-AI API server."""\n\nfrom __future__ import annotations\n\nimport click\nfrom 
+rich.console import Console\n\nfrom henchman.api.server import run_server\nfrom henchman.config
+import load_settings\n\n\n@click.command(name="serve")\n@click.option(\n    "--host",\n    
+default="127.0.0.1",\n    help="Host to bind the server to",\n    
+show_default=True,\n)\n@click.option(\n    "--port",\n    default=8000,\n    type=int,\n    
+help="Port to bind the server to",\n    show_default=True,\n)\n@click.option(\n    
+"--reload",\n    is_flag=True,\n    default=False,\n    help="Enable auto-reload for 
+development",\n)\n@click.option(\n    "--workers",\n    default=1,\n    type=int,\n    
+help="Number of worker processes",\n    show_default=True,\n)\ndef serve_command(\n    host: 
+str,\n    port: int,\n    reload: bool,\n    workers: int,\n) -> None:\n    """Start the 
+Henchman-AI API server.\n\n    This command starts a FastAPI server that provides REST API 
+access\n    to Henchman-AI functionality.\n\n    Examples:\n        henchman serve\n        
+henchman serve --host 0.0.0.0 --port 8080\n        henchman serve --reload  # Development 
+mode\n    """\n    console = Console()\n\n    # Load settings to check API configuration\n    
+settings = load_settings()\n\n    # Show server info\n    console.print("[bold green]Starting 
+Henchman-AI API server...[/]")\n    console.print(f"  Host: [cyan]{host}[/]")\n    
+console.print(f"  Port: [cyan]{port}[/]")\n    console.print(f"  Reload: [cyan]{\'enabled\' if 
+reload else \'disabled\'}[/]")\n    console.print(f"  Workers: [cyan]{workers}[/]")\n\n    if 
+settings.api and hasattr(settings.api, "require_auth"):\n        if 
+settings.api.require_auth:\n            console.print("  Authentication: 
+[yellow]required[/]")\n            if hasattr(settings.api, "api_keys") and 
+settings.api.api_keys:\n                console.print(f"  API keys configured: 
+[cyan]{len(settings.api.api_keys)}[/]")\n            else:\n                console.print("  
+[yellow]Warning: No API keys configured[/]")\n        else:\n            console.print("  
+Authentication: [green]disabled[/]")\n\n    console.print(f"\\n[dim]API documentation will be 
+available at: http://{host}:{port}/docs[/]")\n    console.print("[dim]Press Ctrl+C to stop the 
+server[/]\\n")\n\n    # Run the server\n    try:\n        run_server(\n            host=host,\n
+port=port,\n            reload=reload,\n            workers=workers,\n        )\n    except 
+KeyboardInterrupt:\n        console.print("\\n[yellow]Server stopped by user[/]")\n    except 
+Exception as e:\n        console.print(f"\\n[red]Error starting server: {e}[/]")\n        raise
+click.ClickException(f"Failed to start server: {e}")\n'})
+
+[result] Successfully wrote 2634 bytes to src/henchman/cli/serve.py...
+Now let me run the CI script to make sure all tests pass:
+[tool] shell({'command': './scripts/ci.sh'})
+
+⚠ 
+[Exit requested by Ctrl+C]
+Committing changes...
