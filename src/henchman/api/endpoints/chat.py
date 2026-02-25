@@ -113,6 +113,7 @@ async def chat_completion(
     content_parts: list[str] = []
     tool_calls: list[dict[str, Any]] = []
     finish_reason: str | None = None
+    usage: dict[str, int] | None = None
 
     # Valid finish reasons from FinishReason enum
     valid_finish_reasons = {"stop", "tool_calls", "length", "content_filter"}
@@ -124,15 +125,21 @@ async def chat_completion(
                 content_parts.append(event.data)
             elif event.type == EventType.TOOL_CALL_REQUEST:
                 tool_calls.append(event.data)
-            elif (
-                event.type == EventType.FINISHED
-                and finish_reason is None
-                and event.data in valid_finish_reasons
-            ):
+            elif event.type == EventType.FINISHED and finish_reason is None:
                 # Extract finish reason from first valid FINISHED event
                 # (there may be multiple, e.g., one from _process_streaming_response
                 # with actual finish reason and one from run() with generic message)
-                finish_reason = event.data
+                # Event data can be a string (finish reason) or a dict with finish_reason and usage
+                if isinstance(event.data, dict):
+                    # New format with usage information
+                    if "finish_reason" in event.data and event.data["finish_reason"] in valid_finish_reasons:
+                        finish_reason = event.data["finish_reason"]
+                        # Extract usage from event data if available
+                        if "usage" in event.data:
+                            usage = event.data["usage"]
+                elif isinstance(event.data, str) and event.data in valid_finish_reasons:
+                    # Old format - just finish reason string
+                    finish_reason = event.data
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -146,8 +153,8 @@ async def chat_completion(
         tool_calls=tool_calls if tool_calls else None,
     )
 
-    # TODO: Extract usage information from events
-    usage = None
+    # Usage information is extracted from FINISHED event if available
+    # usage variable is already set from event processing above
 
     return ChatResponse(
         message=response_message,

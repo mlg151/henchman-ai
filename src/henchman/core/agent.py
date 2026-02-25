@@ -355,7 +355,7 @@ class Agent:
 
     async def _process_streaming_response(
         self,
-    ) -> tuple[list[str], list[str], list[ToolCall], list[FinishReason | None], AsyncIterator[AgentEvent]]:
+    ) -> tuple[list[str], list[str], list[ToolCall], list[dict[str, int] | None], list[FinishReason | None], AsyncIterator[AgentEvent]]:
         """Process streaming response from provider.
 
         This method handles the common streaming logic shared between
@@ -363,7 +363,8 @@ class Agent:
 
         Returns:
             Tuple of (accumulated_content list, accumulated_thinking list,
-                     accumulated_tool_calls list, finish_reason list, event_iterator)
+                     accumulated_tool_calls list, accumulated_usage list,
+                     finish_reason list, event_iterator)
             The lists are mutable and will be updated as the generator runs.
         """
         # Validate message sequence, repairing if broken
@@ -385,6 +386,7 @@ class Agent:
         accumulated_content: list[str] = [""]  # Single-element list for mutable string
         accumulated_thinking: list[str] = [""]
         accumulated_tool_calls: list[ToolCall] = []
+        accumulated_usage: list[dict[str, int] | None] = [None]  # Track token usage
         content_yielded: list[bool] = [False]  # Track if any content was yielded during streaming
         finish_reason: list[FinishReason | None] = [None]  # Track the finish reason
 
@@ -410,11 +412,14 @@ class Agent:
                             data=chunk.thinking,
                         )
 
-                    # Accumulate content and tool calls as they stream
+                    # Accumulate content, tool calls, and usage as they stream
                     if chunk.content:
                         accumulated_content[0] += chunk.content
                     if chunk.tool_calls:
                         accumulated_tool_calls.extend(chunk.tool_calls)
+                    if chunk.usage:
+                        # Update usage - last chunk with usage wins
+                        accumulated_usage[0] = chunk.usage
 
                     # Update messages based on finish reason FIRST, before yielding events
                     # This ensures the assistant message is in history before tool results are added
@@ -509,12 +514,21 @@ class Agent:
                 finish_data = "Stream completed"
                 if finish_reason[0]:
                     finish_data = finish_reason[0].value
+                
+                # Include usage information if available
+                event_data: str | dict[str, Any] = finish_data
+                if accumulated_usage[0]:
+                    event_data = {
+                        "finish_reason": finish_data,
+                        "usage": accumulated_usage[0]
+                    }
+                
                 yield self._emit(
                     type=EventType.FINISHED,
-                    data=finish_data
+                    data=event_data
                 )
 
-        return accumulated_content, accumulated_thinking, accumulated_tool_calls, finish_reason, event_generator()
+        return accumulated_content, accumulated_thinking, accumulated_tool_calls, accumulated_usage, finish_reason, event_generator()
 
     async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
         """Run the agent with user input."""
@@ -535,6 +549,7 @@ class Agent:
                     accumulated_content_list,
                     accumulated_thinking_list,
                     accumulated_tool_calls,
+                    accumulated_usage_list,
                     finish_reason_list,
                     event_iter,
                 ) = await self._process_streaming_response()
@@ -576,7 +591,16 @@ class Agent:
         finish_data = "Agent completed execution"
         if finish_reason_list and finish_reason_list[0]:
             finish_data = finish_reason_list[0].value
-        yield self._emit(type=EventType.FINISHED, data=finish_data)
+        
+        # Include usage information if available
+        event_data: str | dict[str, Any] = finish_data
+        if accumulated_usage_list and accumulated_usage_list[0]:
+            event_data = {
+                "finish_reason": finish_data,
+                "usage": accumulated_usage_list[0]
+            }
+        
+        yield self._emit(type=EventType.FINISHED, data=event_data)
 
     def submit_tool_result(self, tool_call_id: str, result: str) -> None:
         """Submit a tool result to continue the conversation."""
@@ -589,7 +613,7 @@ class Agent:
         the conversation with the updated message history.
         """
         # Process streaming response
-        _, _, _, _, event_iter = await self._process_streaming_response()
+        _, _, _, _, _, event_iter = await self._process_streaming_response()
 
         async for event in event_iter:
             yield event
