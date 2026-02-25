@@ -2,6 +2,13 @@
 # auto-improve.sh — Run Henchman to make one codebase improvement, then commit.
 set -euo pipefail
 
+# Activate the base conda environment
+# Temporarily disable nounset — conda activation scripts use unbound vars
+set +u
+eval "$(conda shell.bash hook)"
+conda activate base
+set -u
+
 WORKDIR="/home/matthew/mlg-cli"
 LOGFILE="$WORKDIR/.agent_tasks/auto-improve/last-run.log"
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
