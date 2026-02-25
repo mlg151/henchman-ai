@@ -13,11 +13,11 @@ mkdir -p "$(dirname "$LOGFILE")"
 
 echo "[$TIMESTAMP] Starting auto-improve run..." | tee "$LOGFILE"
 
-# Bail out if the working tree is dirty (avoid mixing unrelated changes)
-if ! git diff --quiet HEAD 2>/dev/null; then
-  echo "ERROR: Working tree has uncommitted changes. Commit or stash first." | tee -a "$LOGFILE"
-  exit 1
-fi
+# # Bail out if the working tree is dirty (avoid mixing unrelated changes)
+# if ! git diff --quiet HEAD 2>/dev/null; then
+#   echo "ERROR: Working tree has uncommitted changes. Commit or stash first." | tee -a "$LOGFILE"
+#   exit 1
+# fi
 
 PROMPT='You are running in an automated improvement cycle on the Henchman-AI codebase.
 
@@ -45,7 +45,7 @@ Important constraints:
 
 # Run Henchman in headless mode with auto-approve
 echo "Running Henchman..." | tee -a "$LOGFILE"
-henchman --yes -p "$PROMPT" 2>&1 | tee -a "$LOGFILE"
+henchman chat --yes -p "$PROMPT" 2>&1 | tee -a "$LOGFILE"
 
 HENCHMAN_EXIT=${PIPESTATUS[0]}
 
