@@ -355,7 +355,7 @@ class Agent:
 
     async def _process_streaming_response(
         self,
-    ) -> tuple[list[str], list[str], list[ToolCall], AsyncIterator[AgentEvent]]:
+    ) -> tuple[list[str], list[str], list[ToolCall], list[FinishReason | None], AsyncIterator[AgentEvent]]:
         """Process streaming response from provider.
 
         This method handles the common streaming logic shared between
@@ -363,7 +363,7 @@ class Agent:
 
         Returns:
             Tuple of (accumulated_content list, accumulated_thinking list,
-                     accumulated_tool_calls list, event_iterator)
+                     accumulated_tool_calls list, finish_reason list, event_iterator)
             The lists are mutable and will be updated as the generator runs.
         """
         # Validate message sequence, repairing if broken
@@ -386,6 +386,7 @@ class Agent:
         accumulated_thinking: list[str] = [""]
         accumulated_tool_calls: list[ToolCall] = []
         content_yielded: list[bool] = [False]  # Track if any content was yielded during streaming
+        finish_reason: list[FinishReason | None] = [None]  # Track the finish reason
 
         async def event_generator() -> AsyncIterator[AgentEvent]:
             """Inner generator for streaming events."""
@@ -436,6 +437,7 @@ class Agent:
                                 type=EventType.CONTENT,
                                 data=accumulated_content[0],
                             )
+                        finish_reason[0] = chunk.finish_reason
                         break
                     elif chunk.finish_reason == FinishReason.TOOL_CALLS:
                         # Add assistant message with tool_calls to history FIRST
@@ -463,6 +465,28 @@ class Agent:
                                 type=EventType.TOOL_CALL_REQUEST,
                                 data=tool_call,
                             )
+                        finish_reason[0] = chunk.finish_reason
+                        break
+                    elif chunk.finish_reason in (FinishReason.LENGTH, FinishReason.CONTENT_FILTER):
+                        # Handle length and content filter finish reasons
+                        # Add assistant message to history
+                        assistant_msg = Message(
+                            role="assistant",
+                            content=accumulated_content[0],
+                            tool_calls=accumulated_tool_calls if accumulated_tool_calls else None,
+                            reasoning_content=accumulated_thinking[0]
+                            if accumulated_thinking[0]
+                            else None,
+                        )
+                        self.messages.append(assistant_msg)
+
+                        # Yield any remaining content
+                        if accumulated_content[0] and not content_yielded[0]:
+                            yield self._emit(
+                                type=EventType.CONTENT,
+                                data=accumulated_content[0],
+                            )
+                        finish_reason[0] = chunk.finish_reason
                         break
                     else:
                         # No finish reason yet - stream content as it comes
@@ -481,13 +505,16 @@ class Agent:
                     data=f"Provider error: {e}"
                 )
             finally:
-                # Always yield finished event
+                # Always yield finished event with actual finish reason if available
+                finish_data = "Stream completed"
+                if finish_reason[0]:
+                    finish_data = finish_reason[0].value
                 yield self._emit(
                     type=EventType.FINISHED,
-                    data="Stream completed"
+                    data=finish_data
                 )
 
-        return accumulated_content, accumulated_thinking, accumulated_tool_calls, event_generator()
+        return accumulated_content, accumulated_thinking, accumulated_tool_calls, finish_reason, event_generator()
 
     async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
         """Run the agent with user input."""
@@ -508,6 +535,7 @@ class Agent:
                     accumulated_content_list,
                     accumulated_thinking_list,
                     accumulated_tool_calls,
+                    finish_reason_list,
                     event_iter,
                 ) = await self._process_streaming_response()
 
@@ -543,9 +571,12 @@ class Agent:
                 )
                 break
 
-        # Yield finished event
+        # Yield finished event with actual finish reason if available
         print("DEBUG Agent.run: Yielding FINISHED event")  # Debug
-        yield self._emit(type=EventType.FINISHED, data="Agent completed execution")
+        finish_data = "Agent completed execution"
+        if finish_reason_list and finish_reason_list[0]:
+            finish_data = finish_reason_list[0].value
+        yield self._emit(type=EventType.FINISHED, data=finish_data)
 
     def submit_tool_result(self, tool_call_id: str, result: str) -> None:
         """Submit a tool result to continue the conversation."""
@@ -558,7 +589,7 @@ class Agent:
         the conversation with the updated message history.
         """
         # Process streaming response
-        _, _, _, event_iter = await self._process_streaming_response()
+        _, _, _, _, event_iter = await self._process_streaming_response()
 
         async for event in event_iter:
             yield event

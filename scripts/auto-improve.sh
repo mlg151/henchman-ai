@@ -9,6 +9,8 @@ source "/home/matthew/anaconda3/etc/profile.d/conda.sh"
 conda activate base
 set -u
 
+export DEEPSEEK_API_KEY="sk-999d210dbd284fe8be163d625166ea64"
+
 WORKDIR="/home/matthew/mlg-cli"
 LOGFILE="$WORKDIR/.agent_tasks/auto-improve/last-run.log"
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

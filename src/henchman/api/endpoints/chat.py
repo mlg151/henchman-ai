@@ -112,6 +112,7 @@ async def chat_completion(
     events: list[AgentEvent] = []
     content_parts: list[str] = []
     tool_calls: list[dict[str, Any]] = []
+    finish_reason: str | None = None
 
     try:
         async for event in agent.run(messages=messages):
@@ -120,6 +121,11 @@ async def chat_completion(
                 content_parts.append(event.data)
             elif event.type == EventType.TOOL_CALL_REQUEST:
                 tool_calls.append(event.data)
+            elif event.type == EventType.FINISHED and finish_reason is None:
+                # Extract finish reason from first FINISHED event
+                # (there may be multiple, e.g., one from _process_streaming_response
+                # with actual finish reason and one from run() with generic message)
+                finish_reason = event.data
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -139,7 +145,7 @@ async def chat_completion(
     return ChatResponse(
         message=response_message,
         usage=usage,
-        finish_reason="stop",  # TODO: Determine from events
+        finish_reason=finish_reason,
     )
 
 
@@ -193,7 +199,9 @@ async def chat_completion_stream(
                     chunk_data = {"tool_call": event.data}
                 elif event.type == EventType.FINISHED:
                     chunk_type = "finished"
-                    chunk_data = {"reason": "stop"}  # TODO: Get actual reason
+                    # Use actual finish reason from event data
+                    reason = event.data if event.data else "stop"
+                    chunk_data = {"reason": reason}
 
                 chunk = ChatStreamChunk(
                     type=chunk_type,
