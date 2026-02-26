@@ -69,7 +69,7 @@ def test_run_headless_json():
         mock_run.assert_called_once()
         # Get the internal function passed to anyio.run
         run_func = mock_run.call_args[0][0]
-        assert "run_single_prompt_json" in run_func.__name__
+        assert "_run_headless_json" in run_func.__name__
 
 
 def test_run_headless_stream_json():
@@ -90,16 +90,15 @@ def test_run_headless_stream_json():
         _run_headless("prompt", "stream-json")
         mock_run.assert_called_once()
         run_func = mock_run.call_args[0][0]
-        assert "run_single_prompt_stream_json" in run_func.__name__
+        assert "_run_headless_stream_json" in run_func.__name__
 
 
 @pytest.mark.anyio
-async def test_run_single_prompt_json_inner():
-    """Test the run_single_prompt_json inner function."""
-    from henchman.cli.app import _run_headless
+async def test_run_headless_json():
+    """Test the _run_headless_json function."""
+    from henchman.cli.app import _run_headless_json
 
     mock_repl_instance = MagicMock()
-    mock_repl_instance.agent.run.return_value = AsyncMock()
 
     # Mock initialize_mcp method
     async def mock_initialize_mcp():
@@ -113,22 +112,21 @@ async def test_run_single_prompt_json_inner():
         yield AgentEvent(type=EventType.FINISHED)
 
     mock_repl_instance.agent.run = mock_run_gen
-    with (
-        patch("henchman.cli.app._get_provider"),
-        patch("henchman.config.ContextLoader"),
-        patch("henchman.cli.repl.Repl", return_value=mock_repl_instance),
-        patch("henchman.cli.app.anyio.run") as mock_run,
-        patch("henchman.cli.json_output.JsonOutputRenderer") as mock_renderer,
-    ):
-        _run_headless("prompt", "json")
-        run_func = mock_run.call_args[0][0]
-        await run_func()
-        assert mock_renderer.return_value.render.call_count == 2
+    
+    # Mock JsonOutputRenderer
+    mock_renderer = MagicMock()
+    mock_renderer.render = MagicMock()
+    
+    with patch("henchman.cli.app._initialize_json_processing", return_value=mock_renderer):
+        await _run_headless_json(mock_repl_instance, "prompt")
+        assert mock_renderer.render.call_count == 2
 
 
 @pytest.mark.anyio
-async def test_run_single_prompt_stream_json_inner():
-    """Test the run_single_prompt_stream_json inner function."""
+async def test_run_headless_stream_json():
+    """Test the _run_headless_stream_json function."""
+    from henchman.cli.app import _run_headless_stream_json
+
     mock_repl_instance = MagicMock()
 
     # Mock initialize_mcp method
@@ -141,17 +139,14 @@ async def test_run_single_prompt_stream_json_inner():
         yield AgentEvent(type=EventType.CONTENT, data="Result")
 
     mock_repl_instance.agent.run = mock_run_gen
-    with (
-        patch("henchman.cli.app._get_provider"),
-        patch("henchman.config.ContextLoader"),
-        patch("henchman.cli.repl.Repl", return_value=mock_repl_instance),
-        patch("henchman.cli.app.anyio.run") as mock_run,
-        patch("henchman.cli.json_output.JsonOutputRenderer") as mock_renderer,
-    ):
-        _run_headless("prompt", "stream-json")
-        run_func = mock_run.call_args[0][0]
-        await run_func()
-        assert mock_renderer.return_value.render_stream_json.called
+    
+    # Mock JsonOutputRenderer
+    mock_renderer = MagicMock()
+    mock_renderer.render_stream_json = MagicMock()
+    
+    with patch("henchman.cli.app._initialize_json_processing", return_value=mock_renderer):
+        await _run_headless_stream_json(mock_repl_instance, "prompt")
+        assert mock_renderer.render_stream_json.called
 
 
 def test_cli_plan_flag():

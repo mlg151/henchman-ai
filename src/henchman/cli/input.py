@@ -13,7 +13,7 @@ from typing import Any
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.key_binding import KeyBindings, KeyPress
 from prompt_toolkit.keys import Keys
 from rich.console import Console
 from rich.prompt import Confirm, IntPrompt, Prompt
@@ -313,33 +313,64 @@ class KeyMonitor:
 
     async def monitor(self) -> None:
         """Monitor input for keys. Run this in a background task."""
-        while not self._stop_event.is_set() and not self._exit_event.is_set():
+        while not self._should_stop_monitoring():
             if not self._suspended.is_set():
                 await asyncio.sleep(0.1)
                 continue
 
-            try:
-                with self.input.raw_mode():
-                    self._in_raw_mode = True
-                    with self.input.attach(lambda: None):
-                        while (
-                            not self._stop_event.is_set()
-                            and not self._exit_event.is_set()
-                            and self._suspended.is_set()
-                        ):
-                            # Check for keys every 10ms
-                            keys = self.input.read_keys()
-                            for key in keys:
-                                if key.key == Keys.Escape:
-                                    self._stop_event.set()
-                                elif key.key == Keys.ControlC:
-                                    self._exit_event.set()
-                            await asyncio.sleep(0.01)
-            finally:
-                self._in_raw_mode = False
-                # If we were suspended, wait a bit before potentially re-entering raw mode
-                if not self._suspended.is_set():
-                    await asyncio.sleep(0.1)
+            await self._monitor_in_raw_mode()
+
+    def _should_stop_monitoring(self) -> bool:
+        """Check if monitoring should stop.
+
+        Returns:
+            True if either stop or exit event is set.
+        """
+        return self._stop_event.is_set() or self._exit_event.is_set()
+
+    async def _monitor_in_raw_mode(self) -> None:
+        """Monitor keys while in raw mode."""
+        try:
+            with self.input.raw_mode():
+                self._in_raw_mode = True
+                with self.input.attach(lambda: None):
+                    await self._active_monitoring_loop()
+        finally:
+            self._in_raw_mode = False
+            # If we were suspended, wait a bit before potentially re-entering raw mode
+            if not self._suspended.is_set():
+                await asyncio.sleep(0.1)
+
+    async def _active_monitoring_loop(self) -> None:
+        """Active monitoring loop that reads and processes keys."""
+        while self._should_continue_monitoring():
+            keys = self.input.read_keys()
+            self._process_keys(keys)
+            await asyncio.sleep(0.01)
+
+    def _should_continue_monitoring(self) -> bool:
+        """Check if active monitoring should continue.
+
+        Returns:
+            True if not stopped, not exited, and not suspended.
+        """
+        return (
+            not self._stop_event.is_set()
+            and not self._exit_event.is_set()
+            and self._suspended.is_set()
+        )
+
+    def _process_keys(self, keys: list[KeyPress]) -> None:
+        """Process a list of keys.
+
+        Args:
+            keys: List of key events to process.
+        """
+        for key in keys:
+            if key.key == Keys.Escape:
+                self._stop_event.set()
+            elif key.key == Keys.ControlC:
+                self._exit_event.set()
 
     @property
     def stop_requested(self) -> bool:
