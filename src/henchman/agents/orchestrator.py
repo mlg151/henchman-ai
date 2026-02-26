@@ -1,7 +1,9 @@
 """Orchestrator for multi-agent development team."""
 
 import re
+import time
 from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, TypedDict
 
@@ -57,6 +59,243 @@ class Metrics(TypedDict, total=False):
     other_tool_calls: int
 
 
+@dataclass
+class OrchestratorMetrics:
+    """Encapsulates metrics collection and calculation for the orchestrator.
+    
+    This class addresses the Primitive Obsession code smell by providing
+    a proper object-oriented interface for metrics management instead of
+    using a complex nested dictionary directly.
+    """
+    
+    # Core metrics
+    thinking_pattern_usage: int = 0
+    delegation_count: int = 0
+    delegation_by_type: dict[str, int] = field(default_factory=lambda: {"planner": 0, "explorer": 0, "engineer": 0})
+    thinking_quality_score: int = 0
+    
+    # Performance metrics
+    task_start_time: float = 0.0
+    task_end_time: float = 0.0
+    task_duration_minutes: float = 0.0
+    files_accessed: dict[str, int] = field(default_factory=dict)
+    tool_usage_by_type: dict[str, int] = field(default_factory=dict)
+    delegation_rate: float = 0.0
+    
+    # Quality metrics
+    test_results: dict[str, Any] = field(default_factory=lambda: {"passing": 0, "total": 0, "percentage": 0.0})
+    code_coverage: float = 0.0
+    linting_status: dict[str, int] = field(default_factory=lambda: {"errors": 0, "warnings": 0})
+    documentation_coverage: float = 0.0
+    
+    # Target performance metrics
+    file_re_reads: int = 0
+    error_rate: float = 0.0
+    context_window_usage: float = 0.0
+    
+    # Tool call tracking
+    total_tool_calls: int = 0
+    successful_tool_calls: int = 0
+    failed_tool_calls: int = 0
+    read_file_calls: int = 0
+    write_file_calls: int = 0
+    edit_file_calls: int = 0
+    shell_calls: int = 0
+    git_ops_calls: int = 0
+    other_tool_calls: int = 0
+    
+    def reset_for_run(self) -> None:
+        """Reset all metrics for a new run while preserving structure."""
+        self.thinking_pattern_usage = 0
+        self.delegation_count = 0
+        self.delegation_by_type = {"planner": 0, "explorer": 0, "engineer": 0}
+        self.thinking_quality_score = 0
+        
+        self.task_start_time = 0.0
+        self.task_end_time = 0.0
+        self.task_duration_minutes = 0.0
+        self.files_accessed.clear()
+        self.tool_usage_by_type.clear()
+        self.delegation_rate = 0.0
+        
+        self.test_results = {"passing": 0, "total": 0, "percentage": 0.0}
+        self.code_coverage = 0.0
+        self.linting_status = {"errors": 0, "warnings": 0}
+        self.documentation_coverage = 0.0
+        
+        self.file_re_reads = 0
+        self.error_rate = 0.0
+        self.context_window_usage = 0.0
+        
+        self.total_tool_calls = 0
+        self.successful_tool_calls = 0
+        self.failed_tool_calls = 0
+        self.read_file_calls = 0
+        self.write_file_calls = 0
+        self.edit_file_calls = 0
+        self.shell_calls = 0
+        self.git_ops_calls = 0
+        self.other_tool_calls = 0
+    
+    def calculate_final_metrics(self) -> None:
+        """Calculate derived metrics after task completion."""
+        # Calculate task duration
+        if self.task_start_time and self.task_end_time:
+            duration = self.task_end_time - self.task_start_time
+            # Store duration in minutes for readability
+            self.task_duration_minutes = duration / 60.0
+        
+        # Calculate delegation rate
+        total_tasks = self.total_tool_calls + self.delegation_count
+        if total_tasks > 0:
+            self.delegation_rate = (self.delegation_count / total_tasks * 100.0)
+        
+        # Calculate error rate
+        if self.total_tool_calls > 0:
+            self.error_rate = (self.failed_tool_calls / self.total_tool_calls * 100.0)
+        
+        # Calculate test results percentage
+        if self.test_results["total"] > 0:
+            self.test_results["percentage"] = (
+                self.test_results["passing"] / self.test_results["total"] * 100.0
+            )
+        
+        # Calculate file re-reads
+        if self.files_accessed:
+            total_accesses = sum(self.files_accessed.values())
+            unique_files = len(self.files_accessed)
+            if unique_files > 0:
+                self.file_re_reads = total_accesses - unique_files
+    
+    def to_dict(self) -> Metrics:
+        """Convert to the legacy TypedDict format for backward compatibility."""
+        return {
+            "thinking_pattern_usage": self.thinking_pattern_usage,
+            "delegation_count": self.delegation_count,
+            "delegation_by_type": self.delegation_by_type,
+            "thinking_quality_score": self.thinking_quality_score,
+            "task_start_time": self.task_start_time,
+            "task_end_time": self.task_end_time,
+            "task_duration_minutes": self.task_duration_minutes,
+            "files_accessed": self.files_accessed,
+            "tool_usage_by_type": self.tool_usage_by_type,
+            "delegation_rate": self.delegation_rate,
+            "test_results": self.test_results,
+            "code_coverage": self.code_coverage,
+            "linting_status": self.linting_status,
+            "documentation_coverage": self.documentation_coverage,
+            "file_re_reads": self.file_re_reads,
+            "error_rate": self.error_rate,
+            "context_window_usage": self.context_window_usage,
+            "total_tool_calls": self.total_tool_calls,
+            "successful_tool_calls": self.successful_tool_calls,
+            "failed_tool_calls": self.failed_tool_calls,
+            "read_file_calls": self.read_file_calls,
+            "write_file_calls": self.write_file_calls,
+            "edit_file_calls": self.edit_file_calls,
+            "shell_calls": self.shell_calls,
+            "git_ops_calls": self.git_ops_calls,
+            "other_tool_calls": self.other_tool_calls,
+        }
+    
+    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
+        """Update metrics for a tool call.
+        
+        Args:
+            tool_name: Name of the tool called.
+            arguments: Arguments passed to the tool.
+            success: Whether the tool call succeeded.
+        """
+        self.total_tool_calls += 1
+        
+        if success:
+            self.successful_tool_calls += 1
+        else:
+            self.failed_tool_calls += 1
+        
+        # Track tool usage by type
+        self.tool_usage_by_type[tool_name] = self.tool_usage_by_type.get(tool_name, 0) + 1
+        
+        # Track specific tool categories for detailed analysis
+        if tool_name == "read_file":
+            self.read_file_calls += 1
+            # Track file access for re-read analysis
+            if "path" in arguments:
+                file_path = str(arguments["path"])
+                self.files_accessed[file_path] = self.files_accessed.get(file_path, 0) + 1
+        elif tool_name == "write_file":
+            self.write_file_calls += 1
+        elif tool_name == "edit_file":
+            self.edit_file_calls += 1
+        elif tool_name == "shell":
+            self.shell_calls += 1
+        elif tool_name == "git_ops":
+            self.git_ops_calls += 1
+        else:
+            self.other_tool_calls += 1
+    
+    def __getitem__(self, key: str) -> Any:
+        """Support dictionary-like access for backward compatibility.
+        
+        Args:
+            key: The metric name to retrieve.
+            
+        Returns:
+            The metric value.
+            
+        Raises:
+            KeyError: If the key is not a valid metric.
+        """
+        if hasattr(self, key):
+            return getattr(self, key)
+        raise KeyError(f"'{key}' is not a valid metric")
+    
+    def __contains__(self, key: str) -> bool:
+        """Support 'in' operator for backward compatibility.
+        
+        Args:
+            key: The metric name to check.
+            
+        Returns:
+            True if the metric exists, False otherwise.
+        """
+        return hasattr(self, key)
+    
+    def get(self, key: str, default: Any = None) -> Any:
+        """Support dictionary-like get method for backward compatibility.
+        
+        Args:
+            key: The metric name to retrieve.
+            default: Default value if key doesn't exist.
+            
+        Returns:
+            The metric value or default.
+        """
+        return getattr(self, key) if hasattr(self, key) else default
+    
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Support dictionary-like assignment for backward compatibility.
+        
+        Args:
+            key: The metric name to set.
+            value: The value to assign.
+            
+        Raises:
+            KeyError: If the key is not a valid metric.
+        """
+        if hasattr(self, key):
+            setattr(self, key, value)
+        else:
+            raise KeyError(f"'{key}' is not a valid metric")
+    failed_tool_calls: int
+    read_file_calls: int
+    write_file_calls: int
+    edit_file_calls: int
+    shell_calls: int
+    git_ops_calls: int
+    other_tool_calls: int
+
+
 # Interval (in tool calls) at which role anchoring reminders are injected
 _ROLE_ANCHOR_INTERVAL = 8
 
@@ -95,42 +334,8 @@ class Orchestrator:
         self.settings = settings or Settings()
         self.environment_context = environment_context
 
-        # Thinking and delegation metrics
-        self.metrics: Metrics = {
-            "thinking_pattern_usage": 0,
-            "delegation_count": 0,
-            "delegation_by_type": {"planner": 0, "explorer": 0, "engineer": 0},
-            "thinking_quality_score": 0,  # Simple heuristic based on structure
-
-            # Efficiency metrics
-            "task_start_time": 0.0,
-            "task_end_time": 0.0,
-            "files_accessed": {},
-            "tool_usage_by_type": {},
-            "delegation_rate": 0.0,
-
-            # Quality metrics
-            "test_results": {"passing": 0, "total": 0, "percentage": 0.0},
-            "code_coverage": 0.0,
-            "linting_status": {"errors": 0, "warnings": 0},
-            "documentation_coverage": 0.0,
-
-            # Target performance metrics
-            "file_re_reads": 0,
-            "error_rate": 0.0,
-            "context_window_usage": 0.0,
-
-            # Additional tracking
-            "total_tool_calls": 0,
-            "successful_tool_calls": 0,
-            "failed_tool_calls": 0,
-            "read_file_calls": 0,
-            "write_file_calls": 0,
-            "edit_file_calls": 0,
-            "shell_calls": 0,
-            "git_ops_calls": 0,
-            "other_tool_calls": 0,
-        }
+        # Thinking and delegation metrics - using encapsulated class instead of primitive dict
+        self.metrics = OrchestratorMetrics()
 
         # Load agent configs
         agent_configs = get_default_team()
@@ -220,11 +425,11 @@ class Orchestrator:
         self.ledger = TaskLedger(goal=user_input[:500])
 
         # Reset metrics for this run
-        self._reset_metrics_for_run()
+        self.metrics.reset_for_run()
 
         # Set task start time
         import time
-        self.metrics["task_start_time"] = time.time()
+        self.metrics.task_start_time = time.time()
 
         yield AgentEvent(
             type=EventType.AGENT_STARTED, data={"agent": "tech_lead"}, source_agent="orchestrator"
@@ -236,7 +441,7 @@ class Orchestrator:
             yield event
 
         # Set task end time and calculate duration
-        self.metrics["task_end_time"] = time.time()
+        self.metrics.task_end_time = time.time()
 
         # Calculate final metrics
         self._calculate_final_metrics()
@@ -245,80 +450,17 @@ class Orchestrator:
             type=EventType.AGENT_COMPLETED, data={"agent": "tech_lead"}, source_agent="orchestrator"
         )
 
-    def _reset_metrics_for_run(self) -> None:
-        """Reset metrics for a new run while preserving structure."""
-
-        # Reset counters but keep structure
-        self.metrics["thinking_pattern_usage"] = 0
-        self.metrics["delegation_count"] = 0
-        self.metrics["delegation_by_type"] = {"planner": 0, "explorer": 0, "engineer": 0}
-        self.metrics["thinking_quality_score"] = 0
-
-        # Efficiency metrics
-        self.metrics["task_start_time"] = 0.0
-        self.metrics["task_end_time"] = 0.0
-        self.metrics["task_duration_minutes"] = 0.0
-        self.metrics["files_accessed"] = {}
-        self.metrics["tool_usage_by_type"] = {}
-        self.metrics["delegation_rate"] = 0.0
-
-        # Quality metrics
-        self.metrics["test_results"] = {"passing": 0, "total": 0, "percentage": 0.0}
-        self.metrics["code_coverage"] = 0.0
-        self.metrics["linting_status"] = {"errors": 0, "warnings": 0}
-        self.metrics["documentation_coverage"] = 0.0
-
-        # Target performance metrics
-        self.metrics["file_re_reads"] = 0
-        self.metrics["error_rate"] = 0.0
-        self.metrics["context_window_usage"] = 0.0
-
-        # Additional tracking
-        self.metrics["total_tool_calls"] = 0
-        self.metrics["successful_tool_calls"] = 0
-        self.metrics["failed_tool_calls"] = 0
-        self.metrics["read_file_calls"] = 0
-        self.metrics["write_file_calls"] = 0
-        self.metrics["edit_file_calls"] = 0
-        self.metrics["shell_calls"] = 0
-        self.metrics["git_ops_calls"] = 0
-        self.metrics["other_tool_calls"] = 0
-
     def _calculate_final_metrics(self) -> None:
         """Calculate derived metrics after task completion."""
-
-        # Calculate task duration
-        if self.metrics["task_start_time"] and self.metrics["task_end_time"]:
-            duration = self.metrics["task_end_time"] - self.metrics["task_start_time"]
-            # Store duration in minutes for readability
-            self.metrics["task_duration_minutes"] = duration / 60.0
-
-        # Calculate delegation rate
-        total_tasks = self.metrics["total_tool_calls"] + self.metrics["delegation_count"]
-        if total_tasks > 0:
-            self.metrics["delegation_rate"] = (
-                self.metrics["delegation_count"] / total_tasks * 100.0
-            )
-
-        # Calculate error rate
-        if self.metrics["total_tool_calls"] > 0:
-            self.metrics["error_rate"] = (
-                self.metrics["failed_tool_calls"] / self.metrics["total_tool_calls"] * 100.0
-            )
-
-        # Calculate test results percentage
-        if self.metrics["test_results"]["total"] > 0:
-            self.metrics["test_results"]["percentage"] = (
-                self.metrics["test_results"]["passing"] /
-                self.metrics["test_results"]["total"] * 100.0
-            )
-
-        # Calculate file re-reads
-        if self.metrics["files_accessed"]:
-            total_accesses = sum(self.metrics["files_accessed"].values())
-            unique_files = len(self.metrics["files_accessed"])
-            if unique_files > 0:
-                self.metrics["file_re_reads"] = total_accesses - unique_files
+        self.metrics.calculate_final_metrics()
+    
+    def _reset_metrics_for_run(self) -> None:
+        """Reset metrics for a new run while preserving structure.
+        
+        This method is kept for backward compatibility with tests.
+        New code should use `self.metrics.reset_for_run()` directly.
+        """
+        self.metrics.reset_for_run()
 
     async def run_direct(self, role: str, user_input: str) -> AsyncIterator[AgentEvent]:
         """Run a specific agent directly, bypassing the Tech Lead.
@@ -351,53 +493,7 @@ class Orchestrator:
             arguments: Arguments passed to the tool.
             success: Whether the tool call was successful.
         """
-        # Update total tool calls
-        self.metrics["total_tool_calls"] += 1
-
-        # Update success/failure counts
-        if success:
-            self.metrics["successful_tool_calls"] += 1
-        else:
-            self.metrics["failed_tool_calls"] += 1
-
-        # Update tool usage by type
-        if tool_name in self.metrics["tool_usage_by_type"]:
-            self.metrics["tool_usage_by_type"][tool_name] += 1
-        else:
-            self.metrics["tool_usage_by_type"][tool_name] = 1
-
-        # Update specific tool type counters
-        if tool_name == "read_file":
-            self.metrics["read_file_calls"] += 1
-            # Track file access for re-read calculation
-            path = arguments.get("path")
-            if path:
-                if path in self.metrics["files_accessed"]:
-                    self.metrics["files_accessed"][path] += 1
-                else:
-                    self.metrics["files_accessed"][path] = 1
-        elif tool_name == "write_file":
-            self.metrics["write_file_calls"] += 1
-            path = arguments.get("path")
-            if path:
-                if path in self.metrics["files_accessed"]:
-                    self.metrics["files_accessed"][path] += 1
-                else:
-                    self.metrics["files_accessed"][path] = 1
-        elif tool_name == "edit_file":
-            self.metrics["edit_file_calls"] += 1
-            path = arguments.get("path")
-            if path:
-                if path in self.metrics["files_accessed"]:
-                    self.metrics["files_accessed"][path] += 1
-                else:
-                    self.metrics["files_accessed"][path] = 1
-        elif tool_name == "shell":
-            self.metrics["shell_calls"] += 1
-        elif tool_name == "git_ops":
-            self.metrics["git_ops_calls"] += 1
-        else:
-            self.metrics["other_tool_calls"] += 1
+        self.metrics.update_tool_metrics(tool_name, arguments, success)
 
     async def _run_agent_loop(
         self,
@@ -463,7 +559,7 @@ class Orchestrator:
                     if last_message.role == "assistant":
                         content = last_message.content or ""
                         if content.strip().startswith("THINKING:"):
-                            self.metrics["thinking_pattern_usage"] += 1
+                            self.metrics.thinking_pattern_usage += 1
                             lines = content.strip().split("\n")
                             thinking_lines = [
                                 line
@@ -471,8 +567,8 @@ class Orchestrator:
                                 if line.strip().startswith(("1.", "2.", "3.", "4.", "5."))
                             ]
                             if len(thinking_lines) >= 3:
-                                self.metrics["thinking_quality_score"] = min(
-                                    100, self.metrics["thinking_quality_score"] + 5
+                                self.metrics.thinking_quality_score = min(
+                                    100, self.metrics.thinking_quality_score + 5
                                 )
                         elif content.strip():
                             thinking_reminder = (
@@ -526,9 +622,9 @@ class Orchestrator:
                     }
 
                     # Update delegation metrics
-                    self.metrics["delegation_count"] += 1
-                    if target in self.metrics["delegation_by_type"]:
-                        self.metrics["delegation_by_type"][target] += 1
+                    self.metrics.delegation_count += 1
+                    if target in self.metrics.delegation_by_type:
+                        self.metrics.delegation_by_type[target] += 1
 
                     # Also track as a tool call
                     self._update_tool_metrics("delegate_task", tool_call.arguments, True)
