@@ -1,29 +1,29 @@
-# Code Smell Report — ❌ F (Score: 34.5/100)
+# Code Smell Report — ❌ F (Score: 34.8/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-26T21:00:22.019922+00:00_
+_Generated: 2026-02-26T21:30:15.770061+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 34.5/100 |
+| **Overall Score** | 34.8/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 27,901 |
-| **Total Smells** | 2714 |
+| **Total Lines (non-blank)** | 27,930 |
+| **Total Smells** | 2710 |
 | **Avg Maintainability Index** | 69.9 |
-| **Avg Cyclomatic Complexity** | 16.4 |
+| **Avg Cyclomatic Complexity** | 16.2 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
 | low | 1755 |
-| medium | 678 |
-| high | 255 |
-| critical | 26 |
+| medium | 680 |
+| high | 251 |
+| critical | 24 |
 
 ### Smells by Category
 
@@ -32,76 +32,76 @@ _Generated: 2026-02-26T21:00:22.019922+00:00_
 | Missing Type Hint | 1174 |
 | Feature Envy | 349 |
 | Duplicate Code | 322 |
-| Deep Nesting | 274 |
+| Deep Nesting | 271 |
 | Magic Number | 218 |
 | Long Method | 181 |
 | Primitive Obsession | 83 |
-| Complex Function | 78 |
+| Complex Function | 77 |
 | Large Class | 35 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **api/endpoints/chat.py:75** — 🔴 CRITICAL — Long Method  
-   Function 'chat_completion' has 149 lines (threshold: 30)  
-   → _Extract Method — break this function into smaller, intention-revealing helper functions._
-
-2. **api/endpoints/chat.py:191** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 8 in 'chat_completion' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-3. **api/endpoints/chat.py:242** — 🔴 CRITICAL — Long Method  
+1. **api/endpoints/chat.py:276** — 🔴 CRITICAL — Long Method  
    Function 'chat_completion_stream' has 154 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-4. **api/server.py:71** — 🔴 CRITICAL — Deep Nesting  
+2. **api/server.py:71** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'lifespan' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-5. **api/server.py:73** — 🔴 CRITICAL — Deep Nesting  
+3. **api/server.py:73** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 9 in 'lifespan' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-6. **api/server.py:75** — 🔴 CRITICAL — Deep Nesting  
+4. **api/server.py:75** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 10 in 'lifespan' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-7. **cli/app.py:290** — 🔴 CRITICAL — Long Method  
+5. **cli/app.py:290** — 🔴 CRITICAL — Long Method  
    Function '_run_headless' has 218 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-8. **cli/commands/context.py:253** — 🔴 CRITICAL — Deep Nesting  
+6. **cli/commands/context.py:253** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in '_set_strategy_parameter' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-9. **cli/input.py:335** — 🔴 CRITICAL — Deep Nesting  
+7. **cli/input.py:335** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'monitor' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-10. **cli/tool_executor.py:577** — 🔴 CRITICAL — Deep Nesting  
+8. **cli/tool_executor.py:577** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-11. **cli/tool_executor.py:580** — 🔴 CRITICAL — Deep Nesting  
+9. **cli/tool_executor.py:580** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 9 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-12. **cli/tool_executor.py:583** — 🔴 CRITICAL — Deep Nesting  
+10. **cli/tool_executor.py:583** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 10 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-13. **cli/tool_executor.py:586** — 🔴 CRITICAL — Deep Nesting  
+11. **cli/tool_executor.py:586** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 11 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-14. **cli/tool_executor.py:589** — 🔴 CRITICAL — Deep Nesting  
+12. **cli/tool_executor.py:589** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 12 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-15. **core/agent.py:360** — 🔴 CRITICAL — Long Method  
+13. **core/agent.py:360** — 🔴 CRITICAL — Long Method  
    Function '_process_streaming_response' has 160 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
+
+14. **core/agent.py:397** — 🔴 CRITICAL — Long Method  
+   Function 'event_generator' has 135 lines (threshold: 30)  
+   → _Extract Method — break this function into smaller, intention-revealing helper functions._
+
+15. **extensions/plugin_manager.py:790** — 🔴 CRITICAL — Deep Nesting  
+   Nesting depth 8 in '_install_from_url' (threshold: 4)  
+   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
 
 ## 📊 Files Ranked by Quality
@@ -411,27 +411,6 @@ LOC: 463 | Classes: 0 | Functions: 12 | MI: 46 | Avg CC: 13.0
 
 _... and 5 more smells._
 
-### api/endpoints/chat.py — ❌ F (14.2/100)
-
-LOC: 352 | Classes: 4 | Functions: 5 | MI: 47 | Avg CC: 20.5
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 75 | 🔴 CRITICAL | Long Method | Function 'chat_completion' has 149 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 191 | 🔴 CRITICAL | Deep Nesting | Nesting depth 8 in 'chat_completion' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 242 | 🔴 CRITICAL | Long Method | Function 'chat_completion_stream' has 154 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 75 | 🟠 HIGH | Complex Function | Function 'chat_completion' has cyclomatic complexity 28 (rank D) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 186 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'chat_completion' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 188 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in 'chat_completion' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 193 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in 'chat_completion' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 358 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'event_generator' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 181 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'chat_completion' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 242 | 🟡 MEDIUM | Complex Function | Function 'chat_completion_stream' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 335 | 🟡 MEDIUM | Long Method | Function 'event_generator' has 65 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 355 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'event_generator' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 179 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'chat_completion' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 348 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'event_generator' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-
 ### tools/builtins/coverage_map.py — ❌ F (14.3/100)
 
 LOC: 301 | Classes: 1 | Functions: 0 | MI: 48 | Avg CC: 12.3
@@ -599,6 +578,30 @@ LOC: 268 | Classes: 1 | Functions: 0 | MI: 51 | Avg CC: 22.0
 | 52 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: api_key: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), model: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), tokens_per_minute: Name(id='int', ctx=Load()), max_retries: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
 _... and 18 more smells._
+
+### tools/builtins/kg_query.py — ❌ F (15.4/100)
+
+LOC: 188 | Classes: 1 | Functions: 1 | MI: 51 | Avg CC: 30.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 18 | 🟠 HIGH | Duplicate Code | Function '_find_git_root' is an exact duplicate of '_find_git_root' at tools/builtins/kg_update.py:48 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 44 | 🟠 HIGH | Duplicate Code | Function '__init__' is an exact duplicate of '__init__' at tools/builtins/kg_update.py:79 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 134 | 🟠 HIGH | Long Method | Function 'execute' has 81 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 134 | 🟠 HIGH | Feature Envy | Method 'KgQueryTool.execute' accesses 'store' 12 times but 'self' only 1 times | Move Method — consider moving 'execute' to the class that owns 'store'. |
+| 134 | 🟠 HIGH | Complex Function | Function 'execute' has cyclomatic complexity 30 (rank D) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 204 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 207 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 211 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 93% similar to 'parameters' at tools/builtins/kg_update.py:105 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/lint_check.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/test_gen.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 134 | 🟡 MEDIUM | Feature Envy | Method 'KgQueryTool.execute' accesses 'params' 5 times but 'self' only 1 times | Move Method — consider moving 'execute' to the class that owns 'params'. |
+| 134 | 🟡 MEDIUM | Feature Envy | Method 'KgQueryTool.execute' accesses 'rel' 7 times but 'self' only 1 times | Move Method — consider moving 'execute' to the class that owns 'rel'. |
+| 189 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 192 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+
+_... and 15 more smells._
 
 ## ✨ Clean Files (25 files with no smells)
 
