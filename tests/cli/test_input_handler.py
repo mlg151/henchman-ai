@@ -47,16 +47,22 @@ class TestInputHandler:
         with patch("henchman.cli.input_handler.create_session") as mock_create:
             mock_session = MagicMock(spec=PromptSession)
             mock_create.return_value = mock_session
+            
+            # Mock WordCompleter to capture its creation
+            with patch("henchman.cli.input_handler.WordCompleter") as mock_word_completer:
+                mock_completer = MagicMock()
+                mock_word_completer.return_value = mock_completer
 
-            handler.initialize_prompt_session(bottom_toolbar)
+                handler.initialize_prompt_session(bottom_toolbar)
 
-            mock_create.assert_called_once_with(
-                handler.history_file,
-                bottom_toolbar=bottom_toolbar,
-                keybindings=None,
-            )
+                mock_create.assert_called_once_with(
+                    handler.history_file,
+                    bottom_toolbar=bottom_toolbar,
+                    keybindings=None,
+                    completer=mock_completer,
+                )
 
-            assert handler.prompt_session == mock_session
+                assert handler.prompt_session == mock_session
 
     @pytest.mark.asyncio
     async def test_get_input_success(self) -> None:
