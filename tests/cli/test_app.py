@@ -68,7 +68,10 @@ def test_main_function() -> None:
 
     # Test cli group shows help when invoked without subcommand
     result = runner.invoke(cli, [], standalone_mode=False)
-    assert result.exit_code != 0  # group requires a subcommand
+    assert result.exit_code == 0  # Click groups show help and exit with 0 by default
+    assert "Usage:" in result.output
+    assert "Options:" in result.output
+    assert "Commands:" in result.output
 
     # Test chat subcommand works through runner
     with patch("henchman.cli.app._run_interactive"):
