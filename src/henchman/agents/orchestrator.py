@@ -4,6 +4,7 @@ import re
 import time
 from collections.abc import AsyncIterator
 from datetime import datetime
+from enum import Enum
 from typing import Any, TypedDict
 
 from henchman.agents.ledger import TaskLedger
@@ -19,8 +20,32 @@ from henchman.tools.builtins.delegate import DelegateTaskTool
 from henchman.tools.registry import ToolRegistry
 
 
+class CompletionStatus(Enum):
+    """Status of an agent's work upon completion.
+
+    Used in ``AGENT_COMPLETED`` event data to distinguish genuine
+    completion from cases where the agent ended without doing work.
+    """
+
+    COMPLETED = "completed"
+    """Agent performed meaningful tool calls and finished normally."""
+
+    NO_WORK_DONE = "no_work_done"
+    """Agent stopped without making any tool calls."""
+
+    STALLED = "stalled"
+    """Agent announced intent repeatedly but never acted."""
+
+    TIMED_OUT = "timed_out"
+    """Agent hit the turn limit before finishing."""
+
+
 class Metrics(TypedDict, total=False):
-    """Metrics for tracking orchestrator performance."""
+    """Metrics for tracking orchestrator performance.
+
+    This TypedDict is maintained for backward compatibility.
+    New code should use the OrchestratorMetrics class hierarchy.
+    """
 
     # Existing metrics (for backward compatibility)
     thinking_pattern_usage: int
@@ -58,6 +83,138 @@ class Metrics(TypedDict, total=False):
     other_tool_calls: int
 
 
+class PerformanceMetrics:
+    """Encapsulates performance-related metrics."""
+
+    # Target constants
+    DELEGATION_RATE_TARGET = 40.0  # Target > 40% (from current 25%)
+    ERROR_RATE_TARGET = 50.0  # Target reduction of 50%
+    CONTEXT_WINDOW_TARGET = 40.0  # Target < 40% (from 65%)
+    FILE_RE_READS_TARGET = 1.3  # Target < 1.3 (60% reduction from 3.2)
+
+    def __init__(self) -> None:
+        """Initialize performance metrics with default values."""
+        self.task_start_time: float = 0.0
+        self.task_end_time: float = 0.0
+        self.task_duration_minutes: float = 0.0
+        self.files_accessed: dict[str, int] = {}
+        self.tool_usage_by_type: dict[str, int] = {}
+        self.delegation_rate: float = 0.0
+        self.file_re_reads: int = 0
+        self.error_rate: float = 0.0
+        self.context_window_usage: float = 0.0
+
+    def reset(self) -> None:
+        """Reset performance metrics for a new run."""
+        self.task_start_time = 0.0
+        self.task_end_time = 0.0
+        self.task_duration_minutes = 0.0
+        self.files_accessed.clear()
+        self.tool_usage_by_type.clear()
+        self.delegation_rate = 0.0
+        self.file_re_reads = 0
+        self.error_rate = 0.0
+        self.context_window_usage = 0.0
+
+    def calculate_file_re_reads(self) -> None:
+        """Calculate file re-reads from access patterns."""
+        if self.files_accessed:
+            total_accesses = sum(self.files_accessed.values())
+            unique_files = len(self.files_accessed)
+            if unique_files > 0:
+                self.file_re_reads = total_accesses - unique_files
+
+    def track_file_access(self, file_path: str) -> None:
+        """Track a file access for re-read analysis."""
+        self.files_accessed[file_path] = self.files_accessed.get(file_path, 0) + 1
+
+    def track_tool_usage(self, tool_name: str) -> None:
+        """Track tool usage by type."""
+        self.tool_usage_by_type[tool_name] = self.tool_usage_by_type.get(tool_name, 0) + 1
+
+
+class QualityMetrics:
+    """Encapsulates quality-related metrics."""
+
+    def __init__(self) -> None:
+        """Initialize quality metrics with default values."""
+        self.test_results: dict[str, Any] = {"passing": 0, "total": 0, "percentage": 0.0}
+        self.code_coverage: float = 0.0
+        self.linting_status: dict[str, int] = {"errors": 0, "warnings": 0}
+        self.documentation_coverage: float = 0.0
+
+    def reset(self) -> None:
+        """Reset quality metrics for a new run."""
+        self.test_results = {"passing": 0, "total": 0, "percentage": 0.0}
+        self.code_coverage = 0.0
+        self.linting_status = {"errors": 0, "warnings": 0}
+        self.documentation_coverage = 0.0
+
+    def calculate_test_percentage(self) -> None:
+        """Calculate test results percentage."""
+        if self.test_results["total"] > 0:
+            self.test_results["percentage"] = (
+                self.test_results["passing"] / self.test_results["total"] * 100.0
+            )
+
+
+class ToolMetrics:
+    """Encapsulates tool usage metrics."""
+
+    def __init__(self) -> None:
+        """Initialize tool metrics with default values."""
+        self.total_tool_calls: int = 0
+        self.successful_tool_calls: int = 0
+        self.failed_tool_calls: int = 0
+        self.read_file_calls: int = 0
+        self.write_file_calls: int = 0
+        self.edit_file_calls: int = 0
+        self.shell_calls: int = 0
+        self.git_ops_calls: int = 0
+        self.other_tool_calls: int = 0
+
+    def reset(self) -> None:
+        """Reset tool metrics for a new run."""
+        self.total_tool_calls = 0
+        self.successful_tool_calls = 0
+        self.failed_tool_calls = 0
+        self.read_file_calls = 0
+        self.write_file_calls = 0
+        self.edit_file_calls = 0
+        self.shell_calls = 0
+        self.git_ops_calls = 0
+        self.other_tool_calls = 0
+
+    def track_tool_call(self, tool_name: str, success: bool) -> None:
+        """Track a tool call with its category."""
+        self.total_tool_calls += 1
+
+        if success:
+            self.successful_tool_calls += 1
+        else:
+            self.failed_tool_calls += 1
+
+        # Categorize tool calls
+        if tool_name == "read_file":
+            self.read_file_calls += 1
+        elif tool_name == "write_file":
+            self.write_file_calls += 1
+        elif tool_name == "edit_file":
+            self.edit_file_calls += 1
+        elif tool_name == "shell":
+            self.shell_calls += 1
+        elif tool_name == "git_ops":
+            self.git_ops_calls += 1
+        else:
+            self.other_tool_calls += 1
+
+    def calculate_error_rate(self) -> float:
+        """Calculate error rate percentage."""
+        if self.total_tool_calls > 0:
+            return (self.failed_tool_calls / self.total_tool_calls) * 100.0
+        return 0.0
+
+
 class OrchestratorMetrics:
     """Encapsulates metrics collection and calculation for the orchestrator.
 
@@ -74,35 +231,10 @@ class OrchestratorMetrics:
         self.delegation_by_type: dict[str, int] = {"planner": 0, "explorer": 0, "engineer": 0}
         self.thinking_quality_score: int = 0
 
-        # Performance metrics
-        self.task_start_time: float = 0.0
-        self.task_end_time: float = 0.0
-        self.task_duration_minutes: float = 0.0
-        self.files_accessed: dict[str, int] = {}
-        self.tool_usage_by_type: dict[str, int] = {}
-        self.delegation_rate: float = 0.0
-
-        # Quality metrics
-        self.test_results: dict[str, Any] = {"passing": 0, "total": 0, "percentage": 0.0}
-        self.code_coverage: float = 0.0
-        self.linting_status: dict[str, int] = {"errors": 0, "warnings": 0}
-        self.documentation_coverage: float = 0.0
-
-        # Target performance metrics
-        self.file_re_reads: int = 0
-        self.error_rate: float = 0.0
-        self.context_window_usage: float = 0.0
-
-        # Tool call tracking
-        self.total_tool_calls: int = 0
-        self.successful_tool_calls: int = 0
-        self.failed_tool_calls: int = 0
-        self.read_file_calls: int = 0
-        self.write_file_calls: int = 0
-        self.edit_file_calls: int = 0
-        self.shell_calls: int = 0
-        self.git_ops_calls: int = 0
-        self.other_tool_calls: int = 0
+        # Component metrics
+        self.performance = PerformanceMetrics()
+        self.quality = QualityMetrics()
+        self.tools = ToolMetrics()
 
     def reset_for_run(self) -> None:
         """Reset all metrics for a new run while preserving structure."""
@@ -111,61 +243,31 @@ class OrchestratorMetrics:
         self.delegation_by_type = {"planner": 0, "explorer": 0, "engineer": 0}
         self.thinking_quality_score = 0
 
-        self.task_start_time = 0.0
-        self.task_end_time = 0.0
-        self.task_duration_minutes = 0.0
-        self.files_accessed.clear()
-        self.tool_usage_by_type.clear()
-        self.delegation_rate = 0.0
-
-        self.test_results = {"passing": 0, "total": 0, "percentage": 0.0}
-        self.code_coverage = 0.0
-        self.linting_status = {"errors": 0, "warnings": 0}
-        self.documentation_coverage = 0.0
-
-        self.file_re_reads = 0
-        self.error_rate = 0.0
-        self.context_window_usage = 0.0
-
-        self.total_tool_calls = 0
-        self.successful_tool_calls = 0
-        self.failed_tool_calls = 0
-        self.read_file_calls = 0
-        self.write_file_calls = 0
-        self.edit_file_calls = 0
-        self.shell_calls = 0
-        self.git_ops_calls = 0
-        self.other_tool_calls = 0
+        self.performance.reset()
+        self.quality.reset()
+        self.tools.reset()
 
     def calculate_final_metrics(self) -> None:
         """Calculate derived metrics after task completion."""
         # Calculate task duration
-        if self.task_start_time and self.task_end_time:
-            duration = self.task_end_time - self.task_start_time
+        if self.performance.task_start_time and self.performance.task_end_time:
+            duration = self.performance.task_end_time - self.performance.task_start_time
             # Store duration in minutes for readability
-            self.task_duration_minutes = duration / 60.0
+            self.performance.task_duration_minutes = duration / 60.0
 
         # Calculate delegation rate
-        total_tasks = self.total_tool_calls + self.delegation_count
+        total_tasks = self.tools.total_tool_calls + self.delegation_count
         if total_tasks > 0:
-            self.delegation_rate = self.delegation_count / total_tasks * 100.0
+            self.performance.delegation_rate = self.delegation_count / total_tasks * 100.0
 
         # Calculate error rate
-        if self.total_tool_calls > 0:
-            self.error_rate = self.failed_tool_calls / self.total_tool_calls * 100.0
+        self.performance.error_rate = self.tools.calculate_error_rate()
 
         # Calculate test results percentage
-        if self.test_results["total"] > 0:
-            self.test_results["percentage"] = (
-                self.test_results["passing"] / self.test_results["total"] * 100.0
-            )
+        self.quality.calculate_test_percentage()
 
         # Calculate file re-reads
-        if self.files_accessed:
-            total_accesses = sum(self.files_accessed.values())
-            unique_files = len(self.files_accessed)
-            if unique_files > 0:
-                self.file_re_reads = total_accesses - unique_files
+        self.performance.calculate_file_re_reads()
 
     def to_dict(self) -> Metrics:
         """Convert to the legacy TypedDict format for backward compatibility."""
@@ -174,28 +276,28 @@ class OrchestratorMetrics:
             "delegation_count": self.delegation_count,
             "delegation_by_type": self.delegation_by_type,
             "thinking_quality_score": self.thinking_quality_score,
-            "task_start_time": self.task_start_time,
-            "task_end_time": self.task_end_time,
-            "task_duration_minutes": self.task_duration_minutes,
-            "files_accessed": self.files_accessed,
-            "tool_usage_by_type": self.tool_usage_by_type,
-            "delegation_rate": self.delegation_rate,
-            "test_results": self.test_results,
-            "code_coverage": self.code_coverage,
-            "linting_status": self.linting_status,
-            "documentation_coverage": self.documentation_coverage,
-            "file_re_reads": self.file_re_reads,
-            "error_rate": self.error_rate,
-            "context_window_usage": self.context_window_usage,
-            "total_tool_calls": self.total_tool_calls,
-            "successful_tool_calls": self.successful_tool_calls,
-            "failed_tool_calls": self.failed_tool_calls,
-            "read_file_calls": self.read_file_calls,
-            "write_file_calls": self.write_file_calls,
-            "edit_file_calls": self.edit_file_calls,
-            "shell_calls": self.shell_calls,
-            "git_ops_calls": self.git_ops_calls,
-            "other_tool_calls": self.other_tool_calls,
+            "task_start_time": self.performance.task_start_time,
+            "task_end_time": self.performance.task_end_time,
+            "task_duration_minutes": self.performance.task_duration_minutes,
+            "files_accessed": self.performance.files_accessed,
+            "tool_usage_by_type": self.performance.tool_usage_by_type,
+            "delegation_rate": self.performance.delegation_rate,
+            "test_results": self.quality.test_results,
+            "code_coverage": self.quality.code_coverage,
+            "linting_status": self.quality.linting_status,
+            "documentation_coverage": self.quality.documentation_coverage,
+            "file_re_reads": self.performance.file_re_reads,
+            "error_rate": self.performance.error_rate,
+            "context_window_usage": self.performance.context_window_usage,
+            "total_tool_calls": self.tools.total_tool_calls,
+            "successful_tool_calls": self.tools.successful_tool_calls,
+            "failed_tool_calls": self.tools.failed_tool_calls,
+            "read_file_calls": self.tools.read_file_calls,
+            "write_file_calls": self.tools.write_file_calls,
+            "edit_file_calls": self.tools.edit_file_calls,
+            "shell_calls": self.tools.shell_calls,
+            "git_ops_calls": self.tools.git_ops_calls,
+            "other_tool_calls": self.tools.other_tool_calls,
         }
 
     def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
@@ -206,33 +308,16 @@ class OrchestratorMetrics:
             arguments: Arguments passed to the tool.
             success: Whether the tool call succeeded.
         """
-        self.total_tool_calls += 1
+        # Update tool metrics
+        self.tools.track_tool_call(tool_name, success)
 
-        if success:
-            self.successful_tool_calls += 1
-        else:
-            self.failed_tool_calls += 1
+        # Update performance metrics
+        self.performance.track_tool_usage(tool_name)
 
-        # Track tool usage by type
-        self.tool_usage_by_type[tool_name] = self.tool_usage_by_type.get(tool_name, 0) + 1
-
-        # Track specific tool categories for detailed analysis
-        if tool_name == "read_file":
-            self.read_file_calls += 1
-            # Track file access for re-read analysis
-            if "path" in arguments:
-                file_path = str(arguments["path"])
-                self.files_accessed[file_path] = self.files_accessed.get(file_path, 0) + 1
-        elif tool_name == "write_file":
-            self.write_file_calls += 1
-        elif tool_name == "edit_file":
-            self.edit_file_calls += 1
-        elif tool_name == "shell":
-            self.shell_calls += 1
-        elif tool_name == "git_ops":
-            self.git_ops_calls += 1
-        else:
-            self.other_tool_calls += 1
+        # Track file access for re-read analysis
+        if tool_name == "read_file" and "path" in arguments:
+            file_path = str(arguments["path"])
+            self.performance.track_file_access(file_path)
 
     def __getitem__(self, key: str) -> Any:
         """Support dictionary-like access for backward compatibility.
@@ -246,8 +331,44 @@ class OrchestratorMetrics:
         Raises:
             KeyError: If the key is not a valid metric.
         """
+        # Check main class attributes
         if hasattr(self, key):
             return getattr(self, key)
+
+        # Check component classes
+        component_mapping = {
+            # Performance metrics
+            "task_start_time": self.performance.task_start_time,
+            "task_end_time": self.performance.task_end_time,
+            "task_duration_minutes": self.performance.task_duration_minutes,
+            "files_accessed": self.performance.files_accessed,
+            "tool_usage_by_type": self.performance.tool_usage_by_type,
+            "delegation_rate": self.performance.delegation_rate,
+            "file_re_reads": self.performance.file_re_reads,
+            "error_rate": self.performance.error_rate,
+            "context_window_usage": self.performance.context_window_usage,
+
+            # Quality metrics
+            "test_results": self.quality.test_results,
+            "code_coverage": self.quality.code_coverage,
+            "linting_status": self.quality.linting_status,
+            "documentation_coverage": self.quality.documentation_coverage,
+
+            # Tool metrics
+            "total_tool_calls": self.tools.total_tool_calls,
+            "successful_tool_calls": self.tools.successful_tool_calls,
+            "failed_tool_calls": self.tools.failed_tool_calls,
+            "read_file_calls": self.tools.read_file_calls,
+            "write_file_calls": self.tools.write_file_calls,
+            "edit_file_calls": self.tools.edit_file_calls,
+            "shell_calls": self.tools.shell_calls,
+            "git_ops_calls": self.tools.git_ops_calls,
+            "other_tool_calls": self.tools.other_tool_calls,
+        }
+
+        if key in component_mapping:
+            return component_mapping[key]
+
         raise KeyError(f"'{key}' is not a valid metric")
 
     def __contains__(self, key: str) -> bool:
@@ -259,7 +380,22 @@ class OrchestratorMetrics:
         Returns:
             True if the metric exists, False otherwise.
         """
-        return hasattr(self, key)
+        # Check main class attributes
+        if hasattr(self, key):
+            return True
+
+        # Check component class mappings
+        component_keys = {
+            "task_start_time", "task_end_time", "task_duration_minutes",
+            "files_accessed", "tool_usage_by_type", "delegation_rate",
+            "file_re_reads", "error_rate", "context_window_usage",
+            "test_results", "code_coverage", "linting_status", "documentation_coverage",
+            "total_tool_calls", "successful_tool_calls", "failed_tool_calls",
+            "read_file_calls", "write_file_calls", "edit_file_calls",
+            "shell_calls", "git_ops_calls", "other_tool_calls",
+        }
+
+        return key in component_keys
 
     def get(self, key: str, default: Any = None) -> Any:
         """Support dictionary-like get method for backward compatibility.
@@ -271,7 +407,10 @@ class OrchestratorMetrics:
         Returns:
             The metric value or default.
         """
-        return getattr(self, key) if hasattr(self, key) else default
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
     def __setitem__(self, key: str, value: Any) -> None:
         """Support dictionary-like assignment for backward compatibility.
@@ -283,8 +422,39 @@ class OrchestratorMetrics:
         Raises:
             KeyError: If the key is not a valid metric.
         """
+        # Check main class attributes
         if hasattr(self, key):
             setattr(self, key, value)
+            return
+
+        # Check component class attributes that can be set
+        component_setters = {
+            "task_start_time": lambda v: setattr(self.performance, "task_start_time", v),
+            "task_end_time": lambda v: setattr(self.performance, "task_end_time", v),
+            "task_duration_minutes": lambda v: setattr(self.performance, "task_duration_minutes", v),
+            "files_accessed": lambda v: setattr(self.performance, "files_accessed", v),
+            "tool_usage_by_type": lambda v: setattr(self.performance, "tool_usage_by_type", v),
+            "delegation_rate": lambda v: setattr(self.performance, "delegation_rate", v),
+            "file_re_reads": lambda v: setattr(self.performance, "file_re_reads", v),
+            "error_rate": lambda v: setattr(self.performance, "error_rate", v),
+            "context_window_usage": lambda v: setattr(self.performance, "context_window_usage", v),
+            "test_results": lambda v: setattr(self.quality, "test_results", v),
+            "code_coverage": lambda v: setattr(self.quality, "code_coverage", v),
+            "linting_status": lambda v: setattr(self.quality, "linting_status", v),
+            "documentation_coverage": lambda v: setattr(self.quality, "documentation_coverage", v),
+            "total_tool_calls": lambda v: setattr(self.tools, "total_tool_calls", v),
+            "successful_tool_calls": lambda v: setattr(self.tools, "successful_tool_calls", v),
+            "failed_tool_calls": lambda v: setattr(self.tools, "failed_tool_calls", v),
+            "read_file_calls": lambda v: setattr(self.tools, "read_file_calls", v),
+            "write_file_calls": lambda v: setattr(self.tools, "write_file_calls", v),
+            "edit_file_calls": lambda v: setattr(self.tools, "edit_file_calls", v),
+            "shell_calls": lambda v: setattr(self.tools, "shell_calls", v),
+            "git_ops_calls": lambda v: setattr(self.tools, "git_ops_calls", v),
+            "other_tool_calls": lambda v: setattr(self.tools, "other_tool_calls", v),
+        }
+
+        if key in component_setters:
+            component_setters[key](value)  # type: ignore[no-untyped-call]
         else:
             raise KeyError(f"'{key}' is not a valid metric")
 
@@ -335,6 +505,12 @@ class Orchestrator:
 
         # Thinking and delegation metrics - using encapsulated class instead of primitive dict
         self.metrics = OrchestratorMetrics()
+
+        # Track the tool call count from the last agent loop run
+        self._last_loop_tool_call_count: int = 0
+
+        # The completion status of the most recent run()/run_direct() call
+        self.last_completion_status: CompletionStatus = CompletionStatus.COMPLETED
 
         # Load agent configs
         agent_configs = get_default_team()
@@ -425,7 +601,7 @@ class Orchestrator:
         self.metrics.reset_for_run()
 
         # Set task start time
-        self.metrics.task_start_time = time.time()
+        self.metrics.performance.task_start_time = time.time()
 
         yield AgentEvent(
             type=EventType.AGENT_STARTED, data={"agent": "tech_lead"}, source_agent="orchestrator"
@@ -437,13 +613,26 @@ class Orchestrator:
             yield event
 
         # Set task end time and calculate duration
-        self.metrics.task_end_time = time.time()
+        self.metrics.performance.task_end_time = time.time()
 
         # Calculate final metrics
         self._calculate_final_metrics()
 
+        # Assess whether the agent actually did meaningful work
+        status = self._assess_completion(self.tech_lead)
+        self.last_completion_status = status
+
+        if status == CompletionStatus.NO_WORK_DONE:
+            yield AgentEvent(
+                type=EventType.ERROR,
+                data="Agent completed without performing any actions.",
+                source_agent="orchestrator",
+            )
+
         yield AgentEvent(
-            type=EventType.AGENT_COMPLETED, data={"agent": "tech_lead"}, source_agent="orchestrator"
+            type=EventType.AGENT_COMPLETED,
+            data={"agent": "tech_lead", "status": status.value},
+            source_agent="orchestrator",
         )
 
     def _calculate_final_metrics(self) -> None:
@@ -477,8 +666,20 @@ class Orchestrator:
         async for event in self._run_agent_loop(agent, user_input):
             yield event
 
+        status = self._assess_completion(agent)
+        self.last_completion_status = status
+
+        if status == CompletionStatus.NO_WORK_DONE:
+            yield AgentEvent(
+                type=EventType.ERROR,
+                data="Agent completed without performing any actions.",
+                source_agent="orchestrator",
+            )
+
         yield AgentEvent(
-            type=EventType.AGENT_COMPLETED, data={"agent": role}, source_agent="orchestrator"
+            type=EventType.AGENT_COMPLETED,
+            data={"agent": role, "status": status.value},
+            source_agent="orchestrator",
         )
 
     def _check_thinking_pattern(self, agent: Agent) -> AgentEvent | None:
@@ -548,6 +749,30 @@ class Orchestrator:
             data=fail_msg,
             source_agent=role_label,
         )
+
+    def _assess_completion(self, agent: Agent) -> CompletionStatus:
+        """Assess whether an agent performed meaningful work.
+
+        Inspects the tool call count from the last loop run and
+        agent state to determine the appropriate completion status.
+
+        Args:
+            agent: The agent whose work to assess.
+
+        Returns:
+            A ``CompletionStatus`` describing the outcome.
+        """
+        tool_calls = getattr(self, "_last_loop_tool_call_count", 0)
+
+        # Check for stall failure first — agent announced intent but never acted
+        if getattr(agent, "_stall_failure", False):
+            return CompletionStatus.STALLED
+
+        # If no tool calls were made at all, the agent did nothing
+        if tool_calls == 0:
+            return CompletionStatus.NO_WORK_DONE
+
+        return CompletionStatus.COMPLETED
 
     def _prepare_delegation_brief(self, tool_call: ToolCall) -> dict[str, Any]:
         """Extract structured delegation fields from tool call.
@@ -853,6 +1078,9 @@ class Orchestrator:
             agent._delegation_tool_errors = []  # type: ignore[attr-defined]
         agent._delegation_tool_errors = tool_errors  # type: ignore[attr-defined]
 
+        # Store final tool call count so callers can assess completion
+        self._last_loop_tool_call_count = tool_call_count
+
     async def _process_pending_tool_calls(
         self,
         agent: Agent,
@@ -924,16 +1152,26 @@ class Orchestrator:
         # Run delegation and collect summary
         result_content = ""
         delegation_had_error = False
+        delegation_status = ""
         delegation_brief = self._prepare_delegation_brief(tool_call)
         async for sub_event in self._run_delegation(target, task, delegation_brief, depth + 1):
             if sub_event.type == EventType.AGENT_COMPLETED:
                 result_content = sub_event.data.get("summary", "Completed.")
+                delegation_status = sub_event.data.get("status", "completed")
             if sub_event.type == EventType.ERROR:
                 delegation_had_error = True
             yield sub_event
 
         if not result_content:
             result_content = "Delegation completed (no output)."
+
+        # Specialist doing no work is a soft failure — inform the Tech Lead
+        # but don't treat it as a hard error for ledger tracking.
+        if delegation_status == "no_work_done":
+            result_content = (
+                f"⚠️ Agent {target} ended without making any tool calls.\n\n"
+                f"{result_content}"
+            )
 
         # Process delegation result
         self._process_delegation_result(
@@ -1112,6 +1350,9 @@ class Orchestrator:
         # Parse structured completion report from specialist output
         parsed = self._parse_completion_report(summary)
 
+        # Assess whether the specialist actually did meaningful work
+        status = self._assess_completion(target_agent)
+
         # Update shared context (still tracked for Tech Lead's use, just not
         # injected into specialist prompts)
         self.shared_context.append(
@@ -1128,6 +1369,7 @@ class Orchestrator:
             data={
                 "agent": target_role,
                 "summary": summary,
+                "status": status.value,
                 **parsed,
             },
             source_agent="orchestrator",
@@ -1282,173 +1524,214 @@ class Orchestrator:
         Returns:
             A formatted markdown string with performance metrics.
         """
+        report_lines = ["## Performance Metrics Dashboard", ""]
 
-        report_lines = [
-            "## Performance Metrics Dashboard",
-            "",
-            "### Efficiency Metrics",
-        ]
+        # Add efficiency metrics section
+        report_lines.extend(self._generate_efficiency_metrics())
+        report_lines.append("")
+
+        # Add quality metrics section
+        report_lines.extend(self._generate_quality_metrics())
+        report_lines.append("")
+
+        # Add target performance metrics section
+        report_lines.extend(self._generate_target_metrics())
+        report_lines.append("")
+
+        # Add detailed statistics section
+        report_lines.extend(self._generate_detailed_statistics())
+
+        return "\n".join(report_lines)
+
+    def _generate_efficiency_metrics(self) -> list[str]:
+        """Generate the efficiency metrics section of the report."""
+        lines = ["### Efficiency Metrics"]
 
         # Task completion time
-        if self.metrics.get("task_start_time") and self.metrics.get("task_end_time"):
-            duration = self.metrics["task_end_time"] - self.metrics["task_start_time"]
-            start_time = time.strftime(
-                "%Y-%m-%d %H:%M:%S", time.localtime(self.metrics["task_start_time"])
-            )
-            end_time = time.strftime(
-                "%Y-%m-%d %H:%M:%S", time.localtime(self.metrics["task_end_time"])
-            )
-            report_lines.append(
-                f"- **Task Completion Time**: {start_time} to {end_time} = {duration:.2f}s ({duration / 60:.2f}min)"
-            )
-        else:
-            report_lines.append("- **Task Completion Time**: Not completed yet")
+        lines.append(self._format_task_completion_time())
 
         # Files accessed
-        total_files = len(self.metrics.get("files_accessed", {}))
-        total_accesses = sum(self.metrics.get("files_accessed", {}).values())
-        report_lines.append(
-            f"- **Files Accessed**: {total_files} files, {total_accesses} total accesses"
-        )
+        lines.append(self._format_files_accessed())
 
         # Tool usage
-        tool_usage = self.metrics.get("tool_usage_by_type", {})
-        if tool_usage:
-            tool_summary = ", ".join(
-                [
-                    f"{k}: {v}"
-                    for k, v in sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:5]
-                ]
-            )
-            report_lines.append(f"- **Tool Usage**: {tool_summary}")
-        else:
-            report_lines.append("- **Tool Usage**: No tools used yet")
+        lines.append(self._format_tool_usage())
 
         # Delegation rate
-        delegation_rate = self.metrics.get("delegation_rate", 0.0)
-        # Files accessed
-        total_files = len(self.metrics["files_accessed"])
-        total_accesses = sum(self.metrics["files_accessed"].values())
-        report_lines.append(
-            f"- **Files Accessed**: {total_files} files, {total_accesses} total accesses"
-        )
+        lines.append(self._format_delegation_rate())
 
-        # Tool usage
-        tool_usage = self.metrics["tool_usage_by_type"]
-        if tool_usage:
-            tool_summary = ", ".join(
-                [
-                    f"{k}: {v}"
-                    for k, v in sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:5]
-                ]
-            )
-            report_lines.append(f"- **Tool Usage**: {tool_summary}")
-        else:
-            report_lines.append("- **Tool Usage**: No tools used yet")
+        return lines
 
-        # Delegation rate
-        delegation_rate = self.metrics.get("delegation_rate", 0.0)
-        delegation_count = self.metrics.get("delegation_count", 0)
-        total_tasks = self.metrics.get("total_tool_calls", 0) + delegation_count
-        report_lines.append(
-            f"- **Delegation Rate**: {delegation_count}/{total_tasks} = {delegation_rate:.1f}%"
-        )
-
-        report_lines.append("")
-        report_lines.append("### Quality Metrics")
+    def _generate_quality_metrics(self) -> list[str]:
+        """Generate the quality metrics section of the report."""
+        lines = ["### Quality Metrics"]
 
         # Test results
-        test_results = self.metrics["test_results"]
-        if test_results["total"] > 0:
-            report_lines.append(
-                f"- **Test Results**: {test_results['passing']}/{test_results['total']} = {test_results['percentage']:.1f}%"
-            )
-        else:
-            report_lines.append("- **Test Results**: No tests run")
+        lines.append(self._format_test_results())
 
         # Code coverage
-        code_coverage = self.metrics["code_coverage"]
-        if code_coverage > 0:
-            report_lines.append(f"- **Code Coverage**: {code_coverage:.1f}%")
-        else:
-            report_lines.append("- **Code Coverage**: Not measured")
+        lines.append(self._format_code_coverage())
 
         # Linting status
-        linting = self.metrics["linting_status"]
-        report_lines.append(
-            f"- **Linting Status**: {linting['errors']} errors, {linting['warnings']} warnings"
-        )
+        lines.append(self._format_linting_status())
 
         # Documentation coverage
-        doc_coverage = self.metrics["documentation_coverage"]
-        if doc_coverage > 0:
-            report_lines.append(f"- **Documentation Coverage**: {doc_coverage:.1f}%")
-        else:
-            report_lines.append("- **Documentation Coverage**: Not measured")
+        lines.append(self._format_documentation_coverage())
 
-        report_lines.append("")
-        report_lines.append("### Target Performance Metrics")
+        return lines
+
+    def _generate_target_metrics(self) -> list[str]:
+        """Generate the target performance metrics section of the report."""
+        lines = ["### Target Performance Metrics"]
 
         # File re-reads
-        file_re_reads = self.metrics["file_re_reads"]
-        report_lines.append(
-            f"- **File re-reads per task**: {file_re_reads} (Target < 1.3, 60% reduction from 3.2)"
-        )
+        lines.append(self._format_file_re_reads())
 
         # Delegation rate target
-        delegation_target = 40.0
-        delegation_status = "✅" if delegation_rate >= delegation_target else "⚠️"
-        report_lines.append(
-            f"- **Delegation rate**: {delegation_rate:.1f}% {delegation_status} (Target > {delegation_target}%, from current 25%)"
-        )
+        lines.append(self._format_delegation_target())
 
-        # Error rate
-        error_rate = self.metrics["error_rate"]
-        error_target = 50.0  # 50% reduction target
-        error_status = "✅" if error_rate <= error_target else "⚠️"
-        report_lines.append(
-            f"- **Error rate**: {error_rate:.1f}% {error_status} (Target reduction of {error_target}%)"
-        )
+        # Error rate target
+        lines.append(self._format_error_rate_target())
 
-        # Context window usage
-        context_usage = self.metrics["context_window_usage"]
-        context_target = 40.0
-        context_status = "✅" if context_usage <= context_target else "⚠️"
-        report_lines.append(
-            f"- **Context window usage**: {context_usage:.1f}% {context_status} (Target < {context_target}%, from 65%)"
-        )
+        # Context window usage target
+        lines.append(self._format_context_window_target())
 
-        report_lines.append("")
-        report_lines.append("### Detailed Statistics")
+        return lines
+
+    def _generate_detailed_statistics(self) -> list[str]:
+        """Generate the detailed statistics section of the report."""
+        lines = ["### Detailed Statistics"]
 
         # Tool call breakdown
-        report_lines.append(f"- **Total Tool Calls**: {self.metrics['total_tool_calls']}")
-        report_lines.append(f"- **Successful Tool Calls**: {self.metrics['successful_tool_calls']}")
-        report_lines.append(f"- **Failed Tool Calls**: {self.metrics['failed_tool_calls']}")
-        report_lines.append(f"- **Read File Calls**: {self.metrics['read_file_calls']}")
-        report_lines.append(f"- **Write File Calls**: {self.metrics['write_file_calls']}")
-        report_lines.append(f"- **Edit File Calls**: {self.metrics['edit_file_calls']}")
-        report_lines.append(f"- **Shell Calls**: {self.metrics['shell_calls']}")
-        report_lines.append(f"- **Git Ops Calls**: {self.metrics['git_ops_calls']}")
-        report_lines.append(f"- **Other Tool Calls**: {self.metrics['other_tool_calls']}")
+        lines.append(f"- **Total Tool Calls**: {self.metrics.tools.total_tool_calls}")
+        lines.append(f"- **Successful Tool Calls**: {self.metrics.tools.successful_tool_calls}")
+        lines.append(f"- **Failed Tool Calls**: {self.metrics.tools.failed_tool_calls}")
+        lines.append(f"- **Read File Calls**: {self.metrics.tools.read_file_calls}")
+        lines.append(f"- **Write File Calls**: {self.metrics.tools.write_file_calls}")
+        lines.append(f"- **Edit File Calls**: {self.metrics.tools.edit_file_calls}")
+        lines.append(f"- **Shell Calls**: {self.metrics.tools.shell_calls}")
+        lines.append(f"- **Git Ops Calls**: {self.metrics.tools.git_ops_calls}")
+        lines.append(f"- **Other Tool Calls**: {self.metrics.tools.other_tool_calls}")
 
         # Thinking metrics
-        report_lines.append(
-            f"- **Thinking Pattern Usage**: {self.metrics['thinking_pattern_usage']}"
-        )
-        report_lines.append(
-            f"- **Thinking Quality Score**: {self.metrics['thinking_quality_score']}/100"
-        )
+        lines.append(f"- **Thinking Pattern Usage**: {self.metrics.thinking_pattern_usage}")
+        lines.append(f"- **Thinking Quality Score**: {self.metrics.thinking_quality_score}/100")
 
         # Delegation breakdown
-        delegation_by_type = self.metrics["delegation_by_type"]
+        delegation_by_type = self.metrics.delegation_by_type
         if any(count > 0 for count in delegation_by_type.values()):
             delegation_summary = ", ".join(
                 [f"{k}: {v}" for k, v in delegation_by_type.items() if v > 0]
             )
-            report_lines.append(f"- **Delegation by Type**: {delegation_summary}")
+            lines.append(f"- **Delegation by Type**: {delegation_summary}")
 
-        return "\n".join(report_lines)
+        return lines
+
+    def _format_task_completion_time(self) -> str:
+        """Format task completion time for the report."""
+        start_time = self.metrics.performance.task_start_time
+        end_time = self.metrics.performance.task_end_time
+
+        if start_time and end_time:
+            duration = end_time - start_time
+            start_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))
+            end_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
+            return (
+                f"- **Task Completion Time**: {start_str} to {end_str} = "
+                f"{duration:.2f}s ({duration / 60:.2f}min)"
+            )
+        return "- **Task Completion Time**: Not completed yet"
+
+    def _format_files_accessed(self) -> str:
+        """Format files accessed information for the report."""
+        files_accessed = self.metrics.performance.files_accessed
+        total_files = len(files_accessed)
+        total_accesses = sum(files_accessed.values())
+        return f"- **Files Accessed**: {total_files} files, {total_accesses} total accesses"
+
+    def _format_tool_usage(self) -> str:
+        """Format tool usage information for the report."""
+        tool_usage = self.metrics.performance.tool_usage_by_type
+        if tool_usage:
+            tool_summary = ", ".join(
+                [
+                    f"{k}: {v}"
+                    for k, v in sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:5]
+                ]
+            )
+            return f"- **Tool Usage**: {tool_summary}"
+        return "- **Tool Usage**: No tools used yet"
+
+    def _format_delegation_rate(self) -> str:
+        """Format delegation rate for the report."""
+        delegation_count = self.metrics.delegation_count
+        total_tasks = self.metrics.tools.total_tool_calls + delegation_count
+        delegation_rate = self.metrics.performance.delegation_rate
+        return f"- **Delegation Rate**: {delegation_count}/{total_tasks} = {delegation_rate:.1f}%"
+
+    def _format_test_results(self) -> str:
+        """Format test results for the report."""
+        test_results = self.metrics.quality.test_results
+        if test_results["total"] > 0:
+            return (
+                f"- **Test Results**: {test_results['passing']}/{test_results['total']} = "
+                f"{test_results['percentage']:.1f}%"
+            )
+        return "- **Test Results**: No tests run"
+
+    def _format_code_coverage(self) -> str:
+        """Format code coverage for the report."""
+        code_coverage = self.metrics.quality.code_coverage
+        if code_coverage > 0:
+            return f"- **Code Coverage**: {code_coverage:.1f}%"
+        return "- **Code Coverage**: Not measured"
+
+    def _format_linting_status(self) -> str:
+        """Format linting status for the report."""
+        linting = self.metrics.quality.linting_status
+        return f"- **Linting Status**: {linting['errors']} errors, {linting['warnings']} warnings"
+
+    def _format_documentation_coverage(self) -> str:
+        """Format documentation coverage for the report."""
+        doc_coverage = self.metrics.quality.documentation_coverage
+        if doc_coverage > 0:
+            return f"- **Documentation Coverage**: {doc_coverage:.1f}%"
+        return "- **Documentation Coverage**: Not measured"
+
+    def _format_file_re_reads(self) -> str:
+        """Format file re-reads with target comparison."""
+        file_re_reads = self.metrics.performance.file_re_reads
+        target = PerformanceMetrics.FILE_RE_READS_TARGET
+        return (
+            f"- **File re-reads per task**: {file_re_reads} "
+            f"(Target < {target}, 60% reduction from 3.2)"
+        )
+
+    def _format_delegation_target(self) -> str:
+        """Format delegation rate with target comparison."""
+        delegation_rate = self.metrics.performance.delegation_rate
+        target = PerformanceMetrics.DELEGATION_RATE_TARGET
+        status = "✅" if delegation_rate >= target else "⚠️"
+        return (
+            f"- **Delegation rate**: {delegation_rate:.1f}% {status} "
+            f"(Target > {target}%, from current 25%)"
+        )
+
+    def _format_error_rate_target(self) -> str:
+        """Format error rate with target comparison."""
+        error_rate = self.metrics.performance.error_rate
+        target = PerformanceMetrics.ERROR_RATE_TARGET
+        status = "✅" if error_rate <= target else "⚠️"
+        return f"- **Error rate**: {error_rate:.1f}% {status} (Target reduction of {target}%)"
+
+    def _format_context_window_target(self) -> str:
+        """Format context window usage with target comparison."""
+        context_usage = self.metrics.performance.context_window_usage
+        target = PerformanceMetrics.CONTEXT_WINDOW_TARGET
+        status = "✅" if context_usage <= target else "⚠️"
+        return (
+            f"- **Context window usage**: {context_usage:.1f}% {status} "
+            f"(Target < {target}%, from 65%)"
+        )
 
     def get_pool(self) -> AgentPool:
         """Get the agent pool."""

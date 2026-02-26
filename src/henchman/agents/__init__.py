@@ -8,7 +8,7 @@ from henchman.agents.ledger import (
     DelegationStatus,
     TaskLedger,
 )
-from henchman.agents.orchestrator import Orchestrator
+from henchman.agents.orchestrator import CompletionStatus, Orchestrator
 from henchman.agents.pool import AgentPool
 
 __all__ = [
@@ -16,6 +16,7 @@ __all__ = [
     "AgentIdentity",
     "AgentPool",
     "ChecklistItem",
+    "CompletionStatus",
     "DelegationRecord",
     "DelegationStatus",
     "Orchestrator",

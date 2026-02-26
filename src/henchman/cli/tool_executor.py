@@ -354,11 +354,30 @@ class ToolExecutor:
     def _handle_agent_completed_event(self, event: AgentEvent) -> None:
         """Handle an AGENT_COMPLETED event from the agent stream.
 
+        Renders different messages based on the ``CompletionStatus`` in the
+        event data so the user can distinguish genuine completion from cases
+        where the agent ended without doing any work.
+
         Args:
             event: The agent completed event.
         """
         agent_name = _escape(event.data.get("agent", "agent"))
-        self.output_handler.muted(f"\\[{agent_name}] completed work")
+        status = event.data.get("status", "completed")
+
+        if status == "no_work_done":
+            self.output_handler.warning(
+                f"\\[{agent_name}] ended without making changes"
+            )
+        elif status == "stalled":
+            self.output_handler.error(
+                f"\\[{agent_name}] stalled — no actions taken after nudges"
+            )
+        elif status == "timed_out":
+            self.output_handler.warning(
+                f"\\[{agent_name}] hit turn limit"
+            )
+        else:
+            self.output_handler.muted(f"\\[{agent_name}] completed work")
 
     def _handle_agent_message_event(self, event: AgentEvent) -> None:
         """Handle an AGENT_MESSAGE event from the agent stream.

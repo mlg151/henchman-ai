@@ -102,9 +102,22 @@ henchman chat --yes -p "$PROMPT" 2>&1 | tee -a "$LOGFILE"
 
 HENCHMAN_EXIT=${PIPESTATUS[0]}
 
+if [ "$HENCHMAN_EXIT" -eq 2 ]; then
+  echo "[$TIMESTAMP] Agent completed without performing any actions. Nothing to do." | tee -a "$LOGFILE"
+  exit 0
+fi
+
 if [ "$HENCHMAN_EXIT" -ne 0 ]; then
   echo "[$TIMESTAMP] Henchman exited with code $HENCHMAN_EXIT" | tee -a "$LOGFILE"
   exit "$HENCHMAN_EXIT"
+fi
+
+# ---------------------------------------------------------------------------
+# Early exit if no files were changed (avoids unnecessary test runs)
+# ---------------------------------------------------------------------------
+if git diff --quiet HEAD 2>/dev/null; then
+  echo "[$TIMESTAMP] No file changes detected after agent run. Nothing to commit." | tee -a "$LOGFILE"
+  exit 0
 fi
 
 # ---------------------------------------------------------------------------
