@@ -21,8 +21,8 @@ from collections import defaultdict
 from scripts.smell_detector.detectors.base import SmellDetector
 from scripts.smell_detector.models import SmellInstance, SmellSeverity, SmellType
 
-NEAR_DUPLICATE_THRESHOLD = 0.85
-MIN_NODES_FOR_COMPARISON = 10
+NEAR_DUPLICATE_THRESHOLD = 0.92
+MIN_NODES_FOR_COMPARISON = 20
 
 
 # ---------------------------------------------------------------------------

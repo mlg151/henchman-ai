@@ -88,11 +88,12 @@ class PrimitiveObsessionDetector(SmellDetector):
                 continue
 
             # Determine if this is a method.
-            is_method = any(
-                isinstance(parent, ast.ClassDef)
-                for parent in ast.walk(tree)
-                if node in getattr(parent, "body", [])
-            )
+            is_method = False
+            for parent in ast.walk(tree):
+                if isinstance(parent, ast.ClassDef):
+                    if node in parent.body:
+                        is_method = True
+                        break
 
             prim_params = _param_type_signature(node, is_method)
             if len(prim_params) >= PRIMITIVE_THRESHOLD:

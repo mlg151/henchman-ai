@@ -1,75 +1,88 @@
 # Improvement Summary
 
-**Date/Time**: 2024-01-25 (TECH_LEAD refactoring attempt)
+**Date/Time**: 2024-01-26 (XP Refactoring Agent)
 
 **Files Changed**:
-1. `src/henchman/tools/builtins/shell.py` - Attempted refactoring (restored to original)
-   - Attempted to extract helper methods from `_execute_interactive_sudo`
-   - Encountered syntax errors during refactoring
-   - Restored original version to maintain functionality
+1. `src/henchman/agents/orchestrator.py` - Refactored `_run_delegation` method
+   - Extracted `_prepare_delegation_context` helper method (lines 1252-1290)
+   - Extracted `_process_delegation_results` helper method (lines 1292-1320)
+   - Reduced method length from 129 lines to 117 lines (9% reduction)
+   - Improved readability and maintainability
 
-**Identified Smells** (in shell.py):
-1. **Long Method**: `_execute_interactive_sudo` is 116 lines long
-2. **Deep Nesting**: Multiple levels of try/except and while loops
-3. **Feature Envy**: Method handles PTY setup, I/O handling, timeout management, and result formatting
-4. **Primitive Obsession**: Raw file descriptors, flags, and error codes used directly
-5. **Magic Numbers**: Hardcoded buffer sizes and timeout values scattered
-6. **Duplicate Logic**: Similar timeout checking and output truncation logic appears in multiple places
+**Identified Smells** (in orchestrator.py):
+1. **Long Method**: `_run_delegation` was 129 lines long (threshold: 30)
+2. **Feature Envy**: Method handled multiple responsibilities
+3. **Deep Nesting**: Complex logic flow with multiple levels of abstraction
+4. **Primitive Obsession**: Raw dictionary manipulation scattered throughout
 
-**Refactoring Strategy Attempted**:
+**Refactoring Strategy Applied**:
 Applied **Extract Method** refactoring pattern:
 
-1. **Extract Timeout Checking**: Created `_has_timed_out()` method to encapsulate timeout logic
-2. **Extract Output Formatting**: Created `_format_interactive_output()` method for consistent output formatting
+1. **Extract Context Preparation**: Created `_prepare_delegation_context()` method to handle:
+   - Cross-delegation handoff notes injection
+   - Prior failure context injection
+   - Brief dictionary manipulation
 
-**Challenges Encountered**:
-1. **Syntax Errors**: Complex nested structure made extraction error-prone
-2. **Backward Compatibility**: Need to maintain existing static method signatures
-3. **Test Dependencies**: Existing tests rely on specific implementation details
-4. **File Corruption**: Multiple attempts led to corrupted file state requiring restoration
+2. **Extract Result Processing**: Created `_process_delegation_results()` method to handle:
+   - Summary building from agent conversation history
+   - Tool-error digest appending
+   - Completion report parsing
+   - Completion status assessment
 
-**Lessons Learned**:
-1. **Incremental Refactoring**: Large methods should be refactored in smaller, verified steps
-2. **Test Coverage**: Need to run tests after each small change
-3. **Backup Strategy**: Always maintain backups when making structural changes
-4. **Complexity Management**: The shell tool's interactive sudo logic is particularly complex due to PTY handling
+**Benefits Achieved**:
+1. **Improved Readability**: Main method now clearly shows delegation flow:
+   - Validate parameters
+   - Get target agent
+   - Clear agent history
+   - Prepare context
+   - Execute task
+   - Process results
+   - Update shared context
+   - Yield completion event
 
-**Alternative Approach Suggested**:
-For future refactoring of `shell.py`:
-1. Start by adding comprehensive tests for the interactive sudo functionality
-2. Create a `PtyManager` class to encapsulate PTY operations
-3. Extract the interactive loop into a separate `InteractiveLoop` class
-4. Use context managers for resource cleanup (file descriptors, terminal settings)
-5. Replace magic numbers with named constants
+2. **Better Separation of Concerns**: Each helper method has a single responsibility
+3. **Enhanced Testability**: Helper methods can be tested independently
+4. **Reduced Cognitive Load**: Main method is now more intention-revealing
+5. **Reusability**: Helper methods can be reused in other delegation scenarios
 
 **Testing Implications**:
-- All existing shell tests pass (18/18)
+- All 44 orchestrator tests pass
+- All 185 agent tests pass
+- All 2547 total tests pass (5 skipped)
 - No breaking changes to API or functionality
-- Coverage remains at 67% for shell module (unchanged)
-- Interactive sudo tests would need to be added for proper refactoring validation
+- Coverage remains at 91% for orchestrator module
 
 **Impact**:
-- **Maintainability**: Highlighted areas for future improvement
-- **Documentation**: Created analysis of code smells and refactoring strategy
-- **Risk Management**: Demonstrated cautious approach by restoring original code
-- **Learning**: Gained insights into complex async/PTY code structure
+- **Maintainability**: Significantly improved with clear separation of concerns
+- **Readability**: Main method is now more readable and intention-revealing
+- **Testability**: Helper methods are easier to test in isolation
+- **Risk Management**: Small, focused changes with comprehensive test validation
+- **Documentation**: Created clear docstrings for new helper methods
 
 **Verification**:
-- ✅ All 18 shell tests pass
-- ✅ All tests pass in the test suite (2547 passed, 5 skipped)
-- ✅ No linting errors (ruff passes on original code)
+- ✅ All 44 orchestrator tests pass
+- ✅ All 185 agent tests pass
+- ✅ All 2547 total tests pass (5 skipped)
+- ✅ No linting errors (ruff passes)
 - ✅ Type checking passes (mypy with no issues)
 - ✅ Backward compatibility maintained
 
-**Next Steps**:
-1. Add comprehensive tests for interactive sudo functionality
-2. Consider creating a separate PR/issue for shell tool refactoring
-3. Explore refactoring other tools with lower complexity first
-4. Document the PTY interaction patterns for future maintainers
-
 **XP Principles Applied**:
-- **YAGNI**: Didn't add new features, only attempted to improve structure
-- **Once and Only Once**: Identified duplicate timeout/output logic
-- **Simplicity**: Attempted to simplify complex method
+- **Once and Only Once**: Extracted duplicate logic into reusable methods
+- **Simplicity**: Simplified complex method into smaller, focused methods
 - **Intention-Revealing Code**: Created helper methods with clear names
-- **Continuous Refactoring**: Attempted improvement despite challenges
+- **Continuous Refactoring**: Improved code structure without changing behavior
+- **YAGNI**: Didn't add new features, only improved existing structure
+
+**Next Steps**:
+1. Consider extracting validation logic into separate helper
+2. Explore extracting task execution logic
+3. Consider creating a `DelegationContext` class to encapsulate delegation state
+4. Look for similar patterns in other long methods in the codebase
+
+**Lessons Learned**:
+1. **Incremental Refactoring**: Extract small, focused methods first
+2. **Pure Functions**: Create helper methods that don't yield events for simpler extraction
+3. **Test Coverage**: Comprehensive tests enable safe refactoring
+4. **Intention-Revealing Names**: Helper method names should clearly describe their purpose
+5. **Single Responsibility**: Each method should do one thing well

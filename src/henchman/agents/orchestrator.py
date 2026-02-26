@@ -1258,6 +1258,98 @@ class Orchestrator:
         # Yield tool result event using helper method
         yield self._yield_tool_result_event(agent, tool_call, result.content or "", result.success)
 
+    def _prepare_delegation_context(
+        self,
+        target_role: str,
+        brief: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Prepare context for delegation by adding handoff notes and failure context.
+
+        Args:
+            target_role: The role ID of the specialist.
+            brief: Original delegation brief.
+
+        Returns:
+            Updated brief with handoff notes and failure context added.
+        """
+        brief = dict(brief) if brief else {}
+        
+        # Cross-delegation handoff: auto-inject recent shared_context
+        # entries into the brief's background field so the specialist
+        # knows what prior agents accomplished.
+        if self.shared_context:
+            handoff_lines = []
+            for entry in self.shared_context[-5:]:
+                handoff_lines.append(f"- **{entry['agent']}**: {entry['summary'][:200]}")
+            handoff_notes = "### Prior agent work\n" + "\n".join(handoff_lines)
+            existing_bg = brief.get("background") or ""
+            brief["background"] = (
+                f"{existing_bg}\n\n{handoff_notes}" if existing_bg else handoff_notes
+            )
+
+        # Inject prior failure context if the same role failed before (#17)
+        if self.ledger:
+            prior_failures = [
+                d
+                for d in self.ledger.delegations
+                if d.agent == target_role and d.status == "FAILED"
+            ]
+            if prior_failures:
+                last_fail = prior_failures[-1]
+                fail_note = (
+                    f"### Prior Attempt Failed\n"
+                    f"A previous delegation to you for "
+                    f'"{last_fail.task}" ended with status FAILED. '
+                    f"Avoid repeating the same approach."
+                )
+                existing_bg = brief.get("background") if brief else None
+                if brief is None:
+                    brief = {}
+                brief["background"] = f"{existing_bg}\n\n{fail_note}" if existing_bg else fail_note
+        
+        return brief
+
+    def _process_delegation_results(
+        self,
+        target_role: str,
+        target_agent: Agent,
+        msg_start: int,
+    ) -> tuple[str, dict[str, str], CompletionStatus]:
+        """Process delegation results and prepare completion data.
+
+        Args:
+            target_role: The role ID of the specialist.
+            target_agent: The agent that executed the delegation.
+            msg_start: Index where the agent's messages started.
+
+        Returns:
+            Tuple of (summary, parsed_completion_report, completion_status)
+        """
+        # Build summary from the agent's conversation history, which stores
+        # accumulated content correctly without streaming duplication.
+        summary_parts = [
+            m.content
+            for m in target_agent.messages[msg_start:]
+            if m.role == "assistant" and m.content
+        ]
+        summary = "\n\n".join(summary_parts)
+
+        # Append tool-error digest so the Tech Lead sees what failed
+        tool_errors: list[str] = getattr(target_agent, "_delegation_tool_errors", [])
+        if tool_errors:
+            error_digest = "\n--- ⚠️ TOOL ERRORS ---\n" + "\n".join(
+                f"• {e}" for e in tool_errors[-10:]
+            )
+            summary = f"{summary}\n{error_digest}"
+
+        # Parse structured completion report from specialist output
+        parsed = self._parse_completion_report(summary)
+
+        # Assess whether the specialist actually did meaningful work
+        status = self._assess_completion(target_agent)
+
+        return summary, parsed, status
+
     async def _run_delegation(
         self,
         target_role: str,
@@ -1326,39 +1418,8 @@ class Orchestrator:
         # preserved by clear_history().
         target_agent.clear_history()
 
-        # Cross-delegation handoff: auto-inject recent shared_context
-        # entries into the brief's background field so the specialist
-        # knows what prior agents accomplished.
-        brief = dict(brief) if brief else {}
-        if self.shared_context:
-            handoff_lines = []
-            for entry in self.shared_context[-5:]:
-                handoff_lines.append(f"- **{entry['agent']}**: {entry['summary'][:200]}")
-            handoff_notes = "### Prior agent work\n" + "\n".join(handoff_lines)
-            existing_bg = brief.get("background") or ""
-            brief["background"] = (
-                f"{existing_bg}\n\n{handoff_notes}" if existing_bg else handoff_notes
-            )
-
-        # Inject prior failure context if the same role failed before (#17)
-        if self.ledger:
-            prior_failures = [
-                d
-                for d in self.ledger.delegations
-                if d.agent == target_role and d.status == "FAILED"
-            ]
-            if prior_failures:
-                last_fail = prior_failures[-1]
-                fail_note = (
-                    f"### Prior Attempt Failed\n"
-                    f"A previous delegation to you for "
-                    f'"{last_fail.task}" ended with status FAILED. '
-                    f"Avoid repeating the same approach."
-                )
-                existing_bg = brief.get("background") if brief else None
-                if brief is None:
-                    brief = {}
-                brief["background"] = f"{existing_bg}\n\n{fail_note}" if existing_bg else fail_note
+        # Prepare context for delegation
+        brief = self._prepare_delegation_context(target_role, brief)
 
         # Assemble the full task from the structured brief fields
         full_task = self._assemble_delegation_input(
@@ -1378,28 +1439,10 @@ class Orchestrator:
         ):
             yield event
 
-        # Build summary from the agent's conversation history, which stores
-        # accumulated content correctly without streaming duplication.
-        summary_parts = [
-            m.content
-            for m in target_agent.messages[msg_start:]
-            if m.role == "assistant" and m.content
-        ]
-        summary = "\n\n".join(summary_parts)
-
-        # Append tool-error digest so the Tech Lead sees what failed
-        tool_errors: list[str] = getattr(target_agent, "_delegation_tool_errors", [])
-        if tool_errors:
-            error_digest = "\n--- ⚠️ TOOL ERRORS ---\n" + "\n".join(
-                f"• {e}" for e in tool_errors[-10:]
-            )
-            summary = f"{summary}\n{error_digest}"
-
-        # Parse structured completion report from specialist output
-        parsed = self._parse_completion_report(summary)
-
-        # Assess whether the specialist actually did meaningful work
-        status = self._assess_completion(target_agent)
+        # Process delegation results
+        summary, parsed, status = self._process_delegation_results(
+            target_role, target_agent, msg_start
+        )
 
         # Update shared context (still tracked for Tech Lead's use, just not
         # injected into specialist prompts)
