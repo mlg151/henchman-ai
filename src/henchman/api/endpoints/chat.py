@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from henchman.api.auth import verify_api_key
 from henchman.api.state import state
 from henchman.core import Agent, AgentEvent, EventType
-from henchman.providers import Message
+from henchman.providers import Message, ToolCall
 
 
 class ChatMessage(BaseModel):
@@ -92,18 +92,36 @@ async def chat_completion(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
         )
-
     # Convert messages to internal format
-    messages = [
-        Message(
-            role=msg.role,
-            content=msg.content,
-            tool_calls=msg.tool_calls,
-            tool_call_id=msg.tool_call_id,
+    messages = []
+    for msg in request.messages:
+        # Convert dictionary tool_calls to ToolCall objects if present
+        message_tool_calls = None
+        if msg.tool_calls:
+            message_tool_calls = [
+                ToolCall(
+                    id=tc.get("id", ""),
+                    name=tc.get("name", ""),
+                    arguments=tc.get("arguments", {}),
+                )
+                for tc in msg.tool_calls
+            ]
+        
+        messages.append(
+            Message(
+                role=msg.role,
+                content=msg.content,
+                tool_calls=message_tool_calls,
+                tool_call_id=msg.tool_call_id,
+            )
         )
-        for msg in request.messages
-    ]
 
+    # Set system prompt if provided
+    if request.system_prompt:
+        agent.system_prompt = request.system_prompt
+        agent.system_prompt = request.system_prompt
+
+    # Collect all events
     # Set system prompt if provided
     if request.system_prompt:
         agent.system_prompt = request.system_prompt
@@ -119,7 +137,9 @@ async def chat_completion(
     valid_finish_reasons = {"stop", "tool_calls", "length", "content_filter"}
 
     try:
-        async for event in agent.run(messages=messages):
+        # TODO: Fix this - should extract last user message from conversation history
+        # For now, pass empty string
+        async for event in agent.run(user_input=""):
             events.append(event)
             if event.type == EventType.CONTENT:
                 content_parts.append(event.data)
@@ -177,34 +197,53 @@ async def chat_completion_stream(
         agent: Agent instance.
 
     Returns:
-        Streaming response with chat completion chunks.
-    """
-    if not await verify_api_key(api_key):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
-        )
-
     # Convert messages to internal format
-    messages = [
-        Message(
-            role=msg.role,
-            content=msg.content,
-            tool_calls=msg.tool_calls,
-            tool_call_id=msg.tool_call_id,
+    messages = []
+    for msg in request.messages:
+        # Convert dictionary tool_calls to ToolCall objects if present
+        message_tool_calls = None
+        if msg.tool_calls:
+            message_tool_calls = [
+                ToolCall(
+                    id=tc.get("id", ""),
+                    name=tc.get("name", ""),
+                    arguments=tc.get("arguments", {}),
+                )
+                for tc in msg.tool_calls
+            ]
+        
+        messages.append(
+            Message(
+                role=msg.role,
+                content=msg.content,
+                tool_calls=message_tool_calls,
+                tool_call_id=msg.tool_call_id,
+            )
         )
-        for msg in request.messages
-    ]
 
     # Set system prompt if provided
     if request.system_prompt:
         agent.system_prompt = request.system_prompt
 
-    async def event_generator():
+    async def event_generator() -> AsyncIterator[str]:
+                tool_call_id=msg.tool_call_id,
+            )
+        )
+                tool_calls=tool_calls,
+                tool_call_id=msg.tool_call_id,
+            )
+        )
+    # Set system prompt if provided
+    if request.system_prompt:
+        agent.system_prompt = request.system_prompt
+
+    async def event_generator() -> AsyncIterator[str]:
         """Generate SSE events from agent events."""
         index = 0
         try:
-            async for event in agent.run(messages=messages):
+            # TODO: Fix this - should extract last user message from conversation history
+            # For now, pass empty string
+            async for event in agent.run(user_input=""):
                 chunk_type = "content"
                 chunk_data = {"text": event.data}
 

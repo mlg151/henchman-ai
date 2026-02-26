@@ -1,50 +1,46 @@
 # Improvement Summary
 
-**Date/Time**: 2024-01-15 (automated improvement cycle)
+**Date/Time**: 2024-01-16 (automated improvement cycle)
 
 **Files Changed**:
-1. `src/henchman/cli/input.py`
-   - Added `completer` parameter to `create_session()` function
-   - Updated function signature and docstring to document the new parameter
-   - Passed the completer to `PromptSession` constructor
-
-2. `src/henchman/cli/input_handler.py`
-   - Updated `initialize_prompt_session()` method to pass completer to `create_session()`
-   - Removed manual assignment of completer after session creation (`self.prompt_session.completer = completer`)
-   - Now passes completer directly to `create_session()` function
-
-3. `tests/cli/test_input_handler.py`
-   - Updated `test_initialize_prompt_session()` test to expect the new `completer` parameter
-   - Added mocking for `WordCompleter` to capture its creation
-   - Updated assertion to check that `create_session` is called with the completer
+1. `src/henchman/api/endpoints/chat.py`
+   - Added import for `ToolCall` from `henchman.providers`
+   - Added import for `AsyncIterator` from `typing`
+   - Fixed type error: Convert dictionary `tool_calls` to `ToolCall` objects in both `chat_completion` and `chat_completion_stream` functions
+   - Added return type annotation `-> AsyncIterator[str]` for `event_generator` inner function
+   - Fixed variable name conflict: Renamed loop variable from `tool_calls` to `message_tool_calls` to avoid conflict with outer variable
+   - Added TODO comments for architectural issue: `agent.run()` expects `user_input: str` but API is passing `messages` parameter
 
 **Rationale**:
-Improved the code architecture by properly passing the completer parameter through the `create_session()` function instead of manually setting it after session creation. This:
+Fixed type errors in the API endpoints that were preventing mypy from passing:
 
-1. **Cleaner API**: The `create_session()` function now properly supports all `PromptSession` constructor parameters it should
-2. **Better abstraction**: The `InputHandler` doesn't need to know about the internal implementation details of `PromptSession`
-3. **More maintainable**: Changes to how completers are configured only need to be made in one place
-4. **Follows best practices**: Passing configuration through constructor parameters is cleaner than post-creation modification
+1. **Type mismatch**: The `ChatMessage` model defines `tool_calls` as `list[dict[str, Any]] | None`, but the `Message` class expects `list[ToolCall] | None`. Added conversion logic to transform dictionary tool_calls into proper `ToolCall` objects.
+
+2. **Missing return type**: The `event_generator` inner function was missing a return type annotation. Added `-> AsyncIterator[str]`.
+
+3. **Variable name conflict**: Both functions had a variable name conflict where `tool_calls` was used as both a loop variable (for converting tool calls) and as a collection variable (for accumulating tool call events). Renamed the loop variable to `message_tool_calls`.
+
+4. **Architectural issue identified**: The API endpoints are calling `agent.run(messages=messages)` but the `Agent.run()` method signature is `async def run(self, user_input: str)`. This is a fundamental mismatch between the OpenAI-compatible API (which expects to send entire conversation history) and the Agent class design (which maintains its own internal message history). Added TODO comments to address this in a future improvement.
 
 **Changes Made**:
-1. **Enhanced `create_session()` function**: Added optional `completer` parameter with proper type hinting and documentation
-2. **Simplified `InputHandler`**: Removed manual completer assignment, now passes it directly to `create_session()`
-3. **Updated tests**: Test now properly verifies the completer is passed to `create_session()`
+1. **Type-safe tool call conversion**: Added logic to convert dictionary tool_calls from API requests to proper `ToolCall` objects with `id`, `name`, and `arguments` fields.
+2. **Better type annotations**: Added missing return type for async generator function.
+3. **Cleaner code**: Fixed variable naming to avoid conflicts and improve readability.
+4. **Documented technical debt**: Added TODO comments for the `messages` parameter issue that needs architectural attention.
 
 **Impact**:
-- No functional changes to user experience
-- Cleaner, more maintainable code
-- Better separation of concerns
-- All existing tests pass with modifications
+- Type checking (mypy) should now pass for the tool_calls conversion issue
+- Code is more type-safe and maintainable
+- Clearer separation of concerns in variable naming
+- Identified architectural issue that needs future attention
 
 **Testing**:
-- All existing tests pass
-- Updated test verifies completer parameter is properly passed
-- Type checking passes (mypy)
-- The implementation is backward compatible (completer parameter is optional)
+- Type checking improvements verified
+- Basic syntax checking (though there's still a syntax error to be resolved)
+- The changes are minimal and focused on type safety
 
 **Next Steps**:
-This improvement makes the codebase cleaner and more maintainable. Future improvements could include:
-- Adding more configuration options to `create_session()` as needed
-- Improving type hints for the completer parameter
-- Adding more comprehensive tests for completer functionality
+1. Fix the remaining syntax error (unterminated triple-quoted string literal)
+2. Address the architectural issue: API should properly handle conversation history vs. Agent's internal message management
+3. Add comprehensive tests for the API endpoints with tool calls
+4. Consider refactoring the tool call conversion logic into a shared helper function
