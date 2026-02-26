@@ -56,6 +56,8 @@ class Metrics(TypedDict, total=False):
     shell_calls: int
     git_ops_calls: int
     other_tool_calls: int
+
+
 class OrchestratorMetrics:
     """Encapsulates metrics collection and calculation for the orchestrator.
 
@@ -823,74 +825,13 @@ class Orchestrator:
                 break
 
             # Process all pending tool calls
-            for tool_call in pending_tool_calls:
-                tool_call_count += 1
+            async for event in self._process_pending_tool_calls(
+                agent, pending_tool_calls, depth, tool_errors
+            ):
+                yield event
 
-                if tool_call.name == _DELEGATE_TASK_TOOL:
-                    # Handle delegation
-                    target = tool_call.arguments.get("agent", "")
-                    task = tool_call.arguments.get("task", "")
-
-                    # Update delegation metrics
-                    self._update_delegation_metrics(target)
-                    self._update_tool_metrics(_DELEGATE_TASK_TOOL, tool_call.arguments, True)
-
-                    # Register delegation in ledger
-                    ledger_record = None
-                    if self.ledger:
-                        ledger_record = self.ledger.add_delegation(agent=target, task=task)
-
-                    yield AgentEvent(
-                        type=EventType.AGENT_DELEGATED,
-                        data={
-                            "from": agent.identity.id if agent.identity else "unknown",
-                            "to": target,
-                            "task": task,
-                        },
-                        source_agent="orchestrator",
-                    )
-
-                    # Run delegation and collect summary
-                    result_content = ""
-                    delegation_had_error = False
-                    delegation_brief = self._prepare_delegation_brief(tool_call)
-                    async for sub_event in self._run_delegation(
-                        target, task, delegation_brief, depth + 1
-                    ):
-                        if sub_event.type == EventType.AGENT_COMPLETED:
-                            result_content = sub_event.data.get("summary", "Completed.")
-                        if sub_event.type == EventType.ERROR:
-                            delegation_had_error = True
-                        yield sub_event
-
-                    if not result_content:
-                        result_content = "Delegation completed (no output)."
-
-                    # Process delegation result
-                    self._process_delegation_result(
-                        agent, tool_call, result_content, delegation_had_error, ledger_record
-                    )
-
-                    # Yield tool result event using helper method
-                    yield self._yield_tool_result_event(
-                        agent, tool_call, result_content, success=True
-                    )
-                else:
-                    # Handle regular tool
-                    result = await agent.tool_registry.execute(tool_call.name, tool_call.arguments)
-                    agent.submit_tool_result(tool_call.id, result.content or "")
-
-                    # Track tool errors for delegation summaries using helper method
-                    if not result.success:
-                        self._track_tool_error(tool_errors, tool_call.name, result.content)
-
-                    # Update metrics for tool usage
-                    self._update_tool_metrics(tool_call.name, tool_call.arguments, result.success)
-
-                    # Yield tool result event using helper method
-                    yield self._yield_tool_result_event(
-                        agent, tool_call, result.content or "", result.success
-                    )
+            # Update tool call count
+            tool_call_count += len(pending_tool_calls)
 
             # Inject role anchor if needed
             self._inject_role_anchor(agent, tool_call_count)
@@ -911,6 +852,125 @@ class Orchestrator:
         if not hasattr(agent, "_delegation_tool_errors"):
             agent._delegation_tool_errors = []  # type: ignore[attr-defined]
         agent._delegation_tool_errors = tool_errors  # type: ignore[attr-defined]
+
+    async def _process_pending_tool_calls(
+        self,
+        agent: Agent,
+        pending_tool_calls: list[ToolCall],
+        depth: int,
+        tool_errors: list[str],
+    ) -> AsyncIterator[AgentEvent]:
+        """Process all pending tool calls from an agent.
+
+        Args:
+            agent: The agent that made the tool calls.
+            pending_tool_calls: List of tool calls to process.
+            depth: Current delegation depth.
+            tool_errors: List to collect tool errors.
+
+        Yields:
+            AgentEvents from tool execution.
+        """
+        for tool_call in pending_tool_calls:
+            if tool_call.name == _DELEGATE_TASK_TOOL:
+                async for event in self._execute_delegation_tool(
+                    agent, tool_call, depth, tool_errors
+                ):
+                    yield event
+            else:
+                async for event in self._execute_regular_tool(agent, tool_call, tool_errors):
+                    yield event
+
+    async def _execute_delegation_tool(
+        self,
+        agent: Agent,
+        tool_call: ToolCall,
+        depth: int,
+        tool_errors: list[str],
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute a delegation tool call.
+
+        Args:
+            agent: The agent that made the delegation.
+            tool_call: The delegation tool call to execute.
+            depth: Current delegation depth.
+            tool_errors: List to collect tool errors (unused for delegation).
+
+        Yields:
+            AgentEvents from delegation execution.
+        """
+        target = tool_call.arguments.get("agent", "")
+        task = tool_call.arguments.get("task", "")
+
+        # Update delegation metrics
+        self._update_delegation_metrics(target)
+        self._update_tool_metrics(_DELEGATE_TASK_TOOL, tool_call.arguments, True)
+
+        # Register delegation in ledger
+        ledger_record = None
+        if self.ledger:
+            ledger_record = self.ledger.add_delegation(agent=target, task=task)
+
+        yield AgentEvent(
+            type=EventType.AGENT_DELEGATED,
+            data={
+                "from": agent.identity.id if agent.identity else "unknown",
+                "to": target,
+                "task": task,
+            },
+            source_agent="orchestrator",
+        )
+
+        # Run delegation and collect summary
+        result_content = ""
+        delegation_had_error = False
+        delegation_brief = self._prepare_delegation_brief(tool_call)
+        async for sub_event in self._run_delegation(target, task, delegation_brief, depth + 1):
+            if sub_event.type == EventType.AGENT_COMPLETED:
+                result_content = sub_event.data.get("summary", "Completed.")
+            if sub_event.type == EventType.ERROR:
+                delegation_had_error = True
+            yield sub_event
+
+        if not result_content:
+            result_content = "Delegation completed (no output)."
+
+        # Process delegation result
+        self._process_delegation_result(
+            agent, tool_call, result_content, delegation_had_error, ledger_record
+        )
+
+        # Yield tool result event using helper method
+        yield self._yield_tool_result_event(agent, tool_call, result_content, success=True)
+
+    async def _execute_regular_tool(
+        self,
+        agent: Agent,
+        tool_call: ToolCall,
+        tool_errors: list[str],
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute a regular (non-delegation) tool call.
+
+        Args:
+            agent: The agent that made the tool call.
+            tool_call: The tool call to execute.
+            tool_errors: List to collect tool errors.
+
+        Yields:
+            AgentEvents from tool execution.
+        """
+        result = await agent.tool_registry.execute(tool_call.name, tool_call.arguments)
+        agent.submit_tool_result(tool_call.id, result.content or "")
+
+        # Track tool errors for delegation summaries using helper method
+        if not result.success:
+            self._track_tool_error(tool_errors, tool_call.name, result.content)
+
+        # Update metrics for tool usage
+        self._update_tool_metrics(tool_call.name, tool_call.arguments, result.success)
+
+        # Yield tool result event using helper method
+        yield self._yield_tool_result_event(agent, tool_call, result.content or "", result.success)
 
     async def _run_delegation(
         self,
