@@ -3,7 +3,6 @@
 import re
 import time
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, TypedDict
 
@@ -57,52 +56,51 @@ class Metrics(TypedDict, total=False):
     shell_calls: int
     git_ops_calls: int
     other_tool_calls: int
-
-
-@dataclass
 class OrchestratorMetrics:
     """Encapsulates metrics collection and calculation for the orchestrator.
-    
+
     This class addresses the Primitive Obsession code smell by providing
     a proper object-oriented interface for metrics management instead of
     using a complex nested dictionary directly.
     """
 
-    # Core metrics
-    thinking_pattern_usage: int = 0
-    delegation_count: int = 0
-    delegation_by_type: dict[str, int] = field(default_factory=lambda: {"planner": 0, "explorer": 0, "engineer": 0})
-    thinking_quality_score: int = 0
+    def __init__(self) -> None:
+        """Initialize all metrics with default values."""
+        # Core metrics
+        self.thinking_pattern_usage: int = 0
+        self.delegation_count: int = 0
+        self.delegation_by_type: dict[str, int] = {"planner": 0, "explorer": 0, "engineer": 0}
+        self.thinking_quality_score: int = 0
 
-    # Performance metrics
-    task_start_time: float = 0.0
-    task_end_time: float = 0.0
-    task_duration_minutes: float = 0.0
-    files_accessed: dict[str, int] = field(default_factory=dict)
-    tool_usage_by_type: dict[str, int] = field(default_factory=dict)
-    delegation_rate: float = 0.0
+        # Performance metrics
+        self.task_start_time: float = 0.0
+        self.task_end_time: float = 0.0
+        self.task_duration_minutes: float = 0.0
+        self.files_accessed: dict[str, int] = {}
+        self.tool_usage_by_type: dict[str, int] = {}
+        self.delegation_rate: float = 0.0
 
-    # Quality metrics
-    test_results: dict[str, Any] = field(default_factory=lambda: {"passing": 0, "total": 0, "percentage": 0.0})
-    code_coverage: float = 0.0
-    linting_status: dict[str, int] = field(default_factory=lambda: {"errors": 0, "warnings": 0})
-    documentation_coverage: float = 0.0
+        # Quality metrics
+        self.test_results: dict[str, Any] = {"passing": 0, "total": 0, "percentage": 0.0}
+        self.code_coverage: float = 0.0
+        self.linting_status: dict[str, int] = {"errors": 0, "warnings": 0}
+        self.documentation_coverage: float = 0.0
 
-    # Target performance metrics
-    file_re_reads: int = 0
-    error_rate: float = 0.0
-    context_window_usage: float = 0.0
+        # Target performance metrics
+        self.file_re_reads: int = 0
+        self.error_rate: float = 0.0
+        self.context_window_usage: float = 0.0
 
-    # Tool call tracking
-    total_tool_calls: int = 0
-    successful_tool_calls: int = 0
-    failed_tool_calls: int = 0
-    read_file_calls: int = 0
-    write_file_calls: int = 0
-    edit_file_calls: int = 0
-    shell_calls: int = 0
-    git_ops_calls: int = 0
-    other_tool_calls: int = 0
+        # Tool call tracking
+        self.total_tool_calls: int = 0
+        self.successful_tool_calls: int = 0
+        self.failed_tool_calls: int = 0
+        self.read_file_calls: int = 0
+        self.write_file_calls: int = 0
+        self.edit_file_calls: int = 0
+        self.shell_calls: int = 0
+        self.git_ops_calls: int = 0
+        self.other_tool_calls: int = 0
 
     def reset_for_run(self) -> None:
         """Reset all metrics for a new run while preserving structure."""
@@ -148,11 +146,11 @@ class OrchestratorMetrics:
         # Calculate delegation rate
         total_tasks = self.total_tool_calls + self.delegation_count
         if total_tasks > 0:
-            self.delegation_rate = (self.delegation_count / total_tasks * 100.0)
+            self.delegation_rate = self.delegation_count / total_tasks * 100.0
 
         # Calculate error rate
         if self.total_tool_calls > 0:
-            self.error_rate = (self.failed_tool_calls / self.total_tool_calls * 100.0)
+            self.error_rate = self.failed_tool_calls / self.total_tool_calls * 100.0
 
         # Calculate test results percentage
         if self.test_results["total"] > 0:
@@ -200,7 +198,7 @@ class OrchestratorMetrics:
 
     def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
         """Update metrics for a tool call.
-        
+
         Args:
             tool_name: Name of the tool called.
             arguments: Arguments passed to the tool.
@@ -236,13 +234,13 @@ class OrchestratorMetrics:
 
     def __getitem__(self, key: str) -> Any:
         """Support dictionary-like access for backward compatibility.
-        
+
         Args:
             key: The metric name to retrieve.
-            
+
         Returns:
             The metric value.
-            
+
         Raises:
             KeyError: If the key is not a valid metric.
         """
@@ -252,10 +250,10 @@ class OrchestratorMetrics:
 
     def __contains__(self, key: str) -> bool:
         """Support 'in' operator for backward compatibility.
-        
+
         Args:
             key: The metric name to check.
-            
+
         Returns:
             True if the metric exists, False otherwise.
         """
@@ -263,11 +261,11 @@ class OrchestratorMetrics:
 
     def get(self, key: str, default: Any = None) -> Any:
         """Support dictionary-like get method for backward compatibility.
-        
+
         Args:
             key: The metric name to retrieve.
             default: Default value if key doesn't exist.
-            
+
         Returns:
             The metric value or default.
         """
@@ -275,11 +273,11 @@ class OrchestratorMetrics:
 
     def __setitem__(self, key: str, value: Any) -> None:
         """Support dictionary-like assignment for backward compatibility.
-        
+
         Args:
             key: The metric name to set.
             value: The value to assign.
-            
+
         Raises:
             KeyError: If the key is not a valid metric.
         """
@@ -287,13 +285,6 @@ class OrchestratorMetrics:
             setattr(self, key, value)
         else:
             raise KeyError(f"'{key}' is not a valid metric")
-    failed_tool_calls: int
-    read_file_calls: int
-    write_file_calls: int
-    edit_file_calls: int
-    shell_calls: int
-    git_ops_calls: int
-    other_tool_calls: int
 
 
 # Configuration constants for orchestrator behavior
@@ -304,6 +295,9 @@ _THINKING_QUALITY_INCREMENT = 5  # Points added for quality thinking pattern
 _MAX_THINKING_SCORE = 100  # Maximum thinking quality score
 _TOOL_ERROR_MAX_LENGTH = 200  # Max length for tool error messages in summaries
 _RESULT_PREVIEW_LENGTH = 500  # Length of tool result preview in events
+
+# Tool name constants
+_DELEGATE_TASK_TOOL = "delegate_task"
 
 
 class Orchestrator:
@@ -380,9 +374,7 @@ class Orchestrator:
         team_members = [f"{c.name} ({c.role})" for c in agent_configs.values() if c.enabled]
 
         team_descriptions = {
-            c.role: c.description or ""
-            for c in agent_configs.values()
-            if c.enabled
+            c.role: c.description or "" for c in agent_configs.values() if c.enabled
         }
         tl_prompt = system_prompt or get_agent_prompt(
             role="tech_lead",
@@ -458,7 +450,7 @@ class Orchestrator:
 
     def _reset_metrics_for_run(self) -> None:
         """Reset metrics for a new run while preserving structure.
-        
+
         This method is kept for backward compatibility with tests.
         New code should use `self.metrics.reset_for_run()` directly.
         """
@@ -489,10 +481,10 @@ class Orchestrator:
 
     def _check_thinking_pattern(self, agent: Agent) -> AgentEvent | None:
         """Validate Tech Lead thinking patterns and update metrics.
-        
+
         Args:
             agent: The agent to check (should be Tech Lead).
-            
+
         Returns:
             AgentEvent if thinking reminder is needed, None otherwise.
         """
@@ -508,14 +500,12 @@ class Orchestrator:
             self.metrics.thinking_pattern_usage += 1
             lines = content.strip().split("\n")
             thinking_lines = [
-                line
-                for line in lines
-                if line.strip().startswith(("1.", "2.", "3.", "4.", "5."))
+                line for line in lines if line.strip().startswith(("1.", "2.", "3.", "4.", "5."))
             ]
             if len(thinking_lines) >= _MIN_THINKING_LINES:
                 self.metrics.thinking_quality_score = min(
                     _MAX_THINKING_SCORE,
-                    self.metrics.thinking_quality_score + _THINKING_QUALITY_INCREMENT
+                    self.metrics.thinking_quality_score + _THINKING_QUALITY_INCREMENT,
                 )
             return None
         elif content.strip():
@@ -523,9 +513,7 @@ class Orchestrator:
                 "\n[Thinking Required] Your response must start with THINKING: "
                 "followed by your reasoning process. Please revise."
             )
-            agent.messages.append(
-                Message(role="user", content=thinking_reminder)
-            )
+            agent.messages.append(Message(role="user", content=thinking_reminder))
             return AgentEvent(
                 type=EventType.THINKING_REQUIRED,
                 data="Thinking pattern missing in Tech Lead response",
@@ -535,10 +523,10 @@ class Orchestrator:
 
     def _check_stall_failure(self, agent: Agent) -> AgentEvent | None:
         """Check if agent has stalled and report failure.
-        
+
         Args:
             agent: The agent to check.
-            
+
         Returns:
             AgentEvent if stall failure occurred, None otherwise.
         """
@@ -561,10 +549,10 @@ class Orchestrator:
 
     def _prepare_delegation_brief(self, tool_call: ToolCall) -> dict[str, Any]:
         """Extract structured delegation fields from tool call.
-        
+
         Args:
             tool_call: The delegate_task tool call.
-            
+
         Returns:
             Structured delegation brief.
         """
@@ -579,7 +567,7 @@ class Orchestrator:
 
     def _update_delegation_metrics(self, target: str) -> None:
         """Update metrics for a delegation.
-        
+
         Args:
             target: Target agent role.
         """
@@ -593,17 +581,17 @@ class Orchestrator:
         tool_call: ToolCall,
         result_content: str,
         delegation_had_error: bool,
-        ledger_record: Any | None
+        ledger_record: Any | None,
     ) -> str:
         """Process the result of a delegation.
-        
+
         Args:
             agent: The calling agent.
             tool_call: The delegate_task tool call.
             result_content: Result content from delegation.
             delegation_had_error: Whether delegation had errors.
             ledger_record: Ledger record for this delegation.
-            
+
         Returns:
             Content to submit as tool result.
         """
@@ -623,13 +611,10 @@ class Orchestrator:
         return submitted_content
 
     async def _handle_regular_tool(
-        self,
-        agent: Agent,
-        tool_call: ToolCall,
-        tool_errors: list[str]
+        self, agent: Agent, tool_call: ToolCall, tool_errors: list[str]
     ) -> None:
         """Handle regular (non-delegation) tool execution.
-        
+
         Args:
             agent: The calling agent.
             tool_call: The tool call to execute.
@@ -640,25 +625,19 @@ class Orchestrator:
 
         # Track tool errors for delegation summaries
         if not result.success:
-            tool_errors.append(
-                f"{tool_call.name}: {(result.content or 'unknown error')[:200]}"
-            )
+            tool_errors.append(f"{tool_call.name}: {(result.content or 'unknown error')[:200]}")
 
         # Update metrics for tool usage
         self._update_tool_metrics(tool_call.name, tool_call.arguments, result.success)
 
     def _inject_role_anchor(self, agent: Agent, tool_call_count: int) -> None:
         """Inject periodic role anchoring reminder if needed.
-        
+
         Args:
             agent: The agent to anchor.
             tool_call_count: Current tool call count.
         """
-        if (
-            tool_call_count > 0
-            and tool_call_count % _ROLE_ANCHOR_INTERVAL == 0
-            and agent.identity
-        ):
+        if tool_call_count > 0 and tool_call_count % _ROLE_ANCHOR_INTERVAL == 0 and agent.identity:
             role_id = agent.identity.role or agent.identity.id
             mission_note = ""
             if self.ledger:
@@ -678,17 +657,17 @@ class Orchestrator:
         max_turns: int,
         tool_call_count: int,
         msg_start_index: int,
-        wrapup_warned: bool
+        wrapup_warned: bool,
     ) -> tuple[bool, bool, AgentEvent | None]:
         """Enforce turn limits with warnings and hard stops.
-        
+
         Args:
             agent: The agent to check.
             max_turns: Maximum allowed turns (0 = unlimited).
             tool_call_count: Current tool call count.
             msg_start_index: Message start index for timeout summary.
             wrapup_warned: Whether wrap-up warning has been issued.
-            
+
         Returns:
             Tuple of (should_break, new_wrapup_warned, error_event).
         """
@@ -728,7 +707,9 @@ class Orchestrator:
 
         return False, wrapup_warned, None
 
-    def _update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
+    def _update_tool_metrics(
+        self, tool_name: str, arguments: dict[str, Any], success: bool
+    ) -> None:
         """Update metrics for a tool call.
 
         Args:
@@ -737,6 +718,45 @@ class Orchestrator:
             success: Whether the tool call was successful.
         """
         self.metrics.update_tool_metrics(tool_name, arguments, success)
+
+    def _track_tool_error(
+        self, tool_errors: list[str], tool_name: str, result_content: str | None
+    ) -> None:
+        """Track tool errors for delegation summaries.
+
+        Args:
+            tool_errors: List to collect tool errors.
+            tool_name: Name of the tool that failed.
+            result_content: Error content from tool result.
+        """
+        error_message = result_content or "unknown error"
+        truncated_error = error_message[:_TOOL_ERROR_MAX_LENGTH]
+        tool_errors.append(f"{tool_name}: {truncated_error}")
+
+    def _yield_tool_result_event(
+        self, agent: Agent, tool_call: ToolCall, result_content: str, success: bool = True
+    ) -> AgentEvent:
+        """Create and yield a tool result event.
+
+        Args:
+            agent: The agent that executed the tool.
+            tool_call: The tool call that was executed.
+            result_content: Result content from tool execution.
+            success: Whether the tool execution was successful.
+
+        Returns:
+            AgentEvent for the tool result.
+        """
+        return AgentEvent(
+            type=EventType.TOOL_CALL_RESULT,
+            data={
+                "tool_call_id": tool_call.id,
+                "tool_name": tool_call.name,
+                "result": (result_content or "")[:_RESULT_PREVIEW_LENGTH],
+                "success": success,
+            },
+            source_agent=agent.identity.id if agent.identity else None,
+        )
 
     async def _run_agent_loop(
         self,
@@ -806,14 +826,14 @@ class Orchestrator:
             for tool_call in pending_tool_calls:
                 tool_call_count += 1
 
-                if tool_call.name == "delegate_task":
+                if tool_call.name == _DELEGATE_TASK_TOOL:
                     # Handle delegation
                     target = tool_call.arguments.get("agent", "")
                     task = tool_call.arguments.get("task", "")
 
                     # Update delegation metrics
                     self._update_delegation_metrics(target)
-                    self._update_tool_metrics("delegate_task", tool_call.arguments, True)
+                    self._update_tool_metrics(_DELEGATE_TASK_TOOL, tool_call.arguments, True)
 
                     # Register delegation in ledger
                     ledger_record = None
@@ -851,39 +871,25 @@ class Orchestrator:
                         agent, tool_call, result_content, delegation_had_error, ledger_record
                     )
 
-                    yield AgentEvent(
-                        type=EventType.TOOL_CALL_RESULT,
-                        data={
-                            "tool_call_id": tool_call.id,
-                            "tool_name": "delegate_task",
-                            "result": (result_content or "")[:_RESULT_PREVIEW_LENGTH],
-                            "success": True,
-                        },
-                        source_agent=agent.identity.id if agent.identity else None,
+                    # Yield tool result event using helper method
+                    yield self._yield_tool_result_event(
+                        agent, tool_call, result_content, success=True
                     )
                 else:
                     # Handle regular tool
                     result = await agent.tool_registry.execute(tool_call.name, tool_call.arguments)
                     agent.submit_tool_result(tool_call.id, result.content or "")
 
-                    # Track tool errors for delegation summaries
+                    # Track tool errors for delegation summaries using helper method
                     if not result.success:
-                        tool_errors.append(
-                            f"{tool_call.name}: {(result.content or 'unknown error')[:200]}"
-                        )
+                        self._track_tool_error(tool_errors, tool_call.name, result.content)
 
                     # Update metrics for tool usage
                     self._update_tool_metrics(tool_call.name, tool_call.arguments, result.success)
 
-                    yield AgentEvent(
-                        type=EventType.TOOL_CALL_RESULT,
-                        data={
-                            "tool_call_id": tool_call.id,
-                            "tool_name": tool_call.name,
-                            "result": (result.content or "")[:_RESULT_PREVIEW_LENGTH],
-                            "success": result.success,
-                        },
-                        source_agent=agent.identity.id if agent.identity else None,
+                    # Yield tool result event using helper method
+                    yield self._yield_tool_result_event(
+                        agent, tool_call, result.content or "", result.success
                     )
 
             # Inject role anchor if needed
@@ -991,26 +997,22 @@ class Orchestrator:
         # Inject prior failure context if the same role failed before (#17)
         if self.ledger:
             prior_failures = [
-                d for d in self.ledger.delegations
-                if d.agent == target_role
-                and d.status == "FAILED"
+                d
+                for d in self.ledger.delegations
+                if d.agent == target_role and d.status == "FAILED"
             ]
             if prior_failures:
                 last_fail = prior_failures[-1]
                 fail_note = (
                     f"### Prior Attempt Failed\n"
                     f"A previous delegation to you for "
-                    f"\"{last_fail.task}\" ended with status FAILED. "
+                    f'"{last_fail.task}" ended with status FAILED. '
                     f"Avoid repeating the same approach."
                 )
                 existing_bg = brief.get("background") if brief else None
                 if brief is None:
                     brief = {}
-                brief["background"] = (
-                    f"{existing_bg}\n\n{fail_note}"
-                    if existing_bg
-                    else fail_note
-                )
+                brief["background"] = f"{existing_bg}\n\n{fail_note}" if existing_bg else fail_note
 
         # Assemble the full task from the structured brief fields
         full_task = self._assemble_delegation_input(
@@ -1230,21 +1232,34 @@ class Orchestrator:
         # Task completion time
         if self.metrics.get("task_start_time") and self.metrics.get("task_end_time"):
             duration = self.metrics["task_end_time"] - self.metrics["task_start_time"]
-            start_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.metrics["task_start_time"]))
-            end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.metrics["task_end_time"]))
-            report_lines.append(f"- **Task Completion Time**: {start_time} to {end_time} = {duration:.2f}s ({duration/60:.2f}min)")
+            start_time = time.strftime(
+                "%Y-%m-%d %H:%M:%S", time.localtime(self.metrics["task_start_time"])
+            )
+            end_time = time.strftime(
+                "%Y-%m-%d %H:%M:%S", time.localtime(self.metrics["task_end_time"])
+            )
+            report_lines.append(
+                f"- **Task Completion Time**: {start_time} to {end_time} = {duration:.2f}s ({duration / 60:.2f}min)"
+            )
         else:
             report_lines.append("- **Task Completion Time**: Not completed yet")
 
         # Files accessed
         total_files = len(self.metrics.get("files_accessed", {}))
         total_accesses = sum(self.metrics.get("files_accessed", {}).values())
-        report_lines.append(f"- **Files Accessed**: {total_files} files, {total_accesses} total accesses")
+        report_lines.append(
+            f"- **Files Accessed**: {total_files} files, {total_accesses} total accesses"
+        )
 
         # Tool usage
         tool_usage = self.metrics.get("tool_usage_by_type", {})
         if tool_usage:
-            tool_summary = ", ".join([f"{k}: {v}" for k, v in sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:5]])
+            tool_summary = ", ".join(
+                [
+                    f"{k}: {v}"
+                    for k, v in sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:5]
+                ]
+            )
             report_lines.append(f"- **Tool Usage**: {tool_summary}")
         else:
             report_lines.append("- **Tool Usage**: No tools used yet")
@@ -1254,12 +1269,19 @@ class Orchestrator:
         # Files accessed
         total_files = len(self.metrics["files_accessed"])
         total_accesses = sum(self.metrics["files_accessed"].values())
-        report_lines.append(f"- **Files Accessed**: {total_files} files, {total_accesses} total accesses")
+        report_lines.append(
+            f"- **Files Accessed**: {total_files} files, {total_accesses} total accesses"
+        )
 
         # Tool usage
         tool_usage = self.metrics["tool_usage_by_type"]
         if tool_usage:
-            tool_summary = ", ".join([f"{k}: {v}" for k, v in sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:5]])
+            tool_summary = ", ".join(
+                [
+                    f"{k}: {v}"
+                    for k, v in sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:5]
+                ]
+            )
             report_lines.append(f"- **Tool Usage**: {tool_summary}")
         else:
             report_lines.append("- **Tool Usage**: No tools used yet")
@@ -1268,7 +1290,9 @@ class Orchestrator:
         delegation_rate = self.metrics.get("delegation_rate", 0.0)
         delegation_count = self.metrics.get("delegation_count", 0)
         total_tasks = self.metrics.get("total_tool_calls", 0) + delegation_count
-        report_lines.append(f"- **Delegation Rate**: {delegation_count}/{total_tasks} = {delegation_rate:.1f}%")
+        report_lines.append(
+            f"- **Delegation Rate**: {delegation_count}/{total_tasks} = {delegation_rate:.1f}%"
+        )
 
         report_lines.append("")
         report_lines.append("### Quality Metrics")
@@ -1276,7 +1300,9 @@ class Orchestrator:
         # Test results
         test_results = self.metrics["test_results"]
         if test_results["total"] > 0:
-            report_lines.append(f"- **Test Results**: {test_results['passing']}/{test_results['total']} = {test_results['percentage']:.1f}%")
+            report_lines.append(
+                f"- **Test Results**: {test_results['passing']}/{test_results['total']} = {test_results['percentage']:.1f}%"
+            )
         else:
             report_lines.append("- **Test Results**: No tests run")
 
@@ -1289,7 +1315,9 @@ class Orchestrator:
 
         # Linting status
         linting = self.metrics["linting_status"]
-        report_lines.append(f"- **Linting Status**: {linting['errors']} errors, {linting['warnings']} warnings")
+        report_lines.append(
+            f"- **Linting Status**: {linting['errors']} errors, {linting['warnings']} warnings"
+        )
 
         # Documentation coverage
         doc_coverage = self.metrics["documentation_coverage"]
@@ -1303,24 +1331,32 @@ class Orchestrator:
 
         # File re-reads
         file_re_reads = self.metrics["file_re_reads"]
-        report_lines.append(f"- **File re-reads per task**: {file_re_reads} (Target < 1.3, 60% reduction from 3.2)")
+        report_lines.append(
+            f"- **File re-reads per task**: {file_re_reads} (Target < 1.3, 60% reduction from 3.2)"
+        )
 
         # Delegation rate target
         delegation_target = 40.0
         delegation_status = "✅" if delegation_rate >= delegation_target else "⚠️"
-        report_lines.append(f"- **Delegation rate**: {delegation_rate:.1f}% {delegation_status} (Target > {delegation_target}%, from current 25%)")
+        report_lines.append(
+            f"- **Delegation rate**: {delegation_rate:.1f}% {delegation_status} (Target > {delegation_target}%, from current 25%)"
+        )
 
         # Error rate
         error_rate = self.metrics["error_rate"]
         error_target = 50.0  # 50% reduction target
         error_status = "✅" if error_rate <= error_target else "⚠️"
-        report_lines.append(f"- **Error rate**: {error_rate:.1f}% {error_status} (Target reduction of {error_target}%)")
+        report_lines.append(
+            f"- **Error rate**: {error_rate:.1f}% {error_status} (Target reduction of {error_target}%)"
+        )
 
         # Context window usage
         context_usage = self.metrics["context_window_usage"]
         context_target = 40.0
         context_status = "✅" if context_usage <= context_target else "⚠️"
-        report_lines.append(f"- **Context window usage**: {context_usage:.1f}% {context_status} (Target < {context_target}%, from 65%)")
+        report_lines.append(
+            f"- **Context window usage**: {context_usage:.1f}% {context_status} (Target < {context_target}%, from 65%)"
+        )
 
         report_lines.append("")
         report_lines.append("### Detailed Statistics")
@@ -1337,13 +1373,19 @@ class Orchestrator:
         report_lines.append(f"- **Other Tool Calls**: {self.metrics['other_tool_calls']}")
 
         # Thinking metrics
-        report_lines.append(f"- **Thinking Pattern Usage**: {self.metrics['thinking_pattern_usage']}")
-        report_lines.append(f"- **Thinking Quality Score**: {self.metrics['thinking_quality_score']}/100")
+        report_lines.append(
+            f"- **Thinking Pattern Usage**: {self.metrics['thinking_pattern_usage']}"
+        )
+        report_lines.append(
+            f"- **Thinking Quality Score**: {self.metrics['thinking_quality_score']}/100"
+        )
 
         # Delegation breakdown
         delegation_by_type = self.metrics["delegation_by_type"]
         if any(count > 0 for count in delegation_by_type.values()):
-            delegation_summary = ", ".join([f"{k}: {v}" for k, v in delegation_by_type.items() if v > 0])
+            delegation_summary = ", ".join(
+                [f"{k}: {v}" for k, v in delegation_by_type.items() if v > 0]
+            )
             report_lines.append(f"- **Delegation by Type**: {delegation_summary}")
 
         return "\n".join(report_lines)
