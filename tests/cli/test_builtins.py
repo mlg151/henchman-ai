@@ -195,6 +195,40 @@ class TestToolsCommand:
         assert "test_tool" in output
         assert "another_tool" in output
 
+    @pytest.mark.anyio
+    async def test_execute_with_agent_tool_registry(self) -> None:
+        """Test that tools command uses agent's tool registry when available."""
+        from unittest.mock import Mock, AsyncMock
+        
+        # Create a mock tool registry
+        mock_tool_registry = Mock()
+        mock_tool = Mock()
+        mock_tool.description = "Agent tool description"
+        mock_tool_registry.list_tools.return_value = ["agent_tool", "another_agent_tool"]
+        mock_tool_registry.get.return_value = mock_tool
+        
+        # Create a mock agent with tool registry
+        mock_agent = Mock()
+        mock_agent.tool_registry = mock_tool_registry
+        
+        # Create console and context with agent but no direct tool registry
+        console = Console(file=StringIO(), force_terminal=True, width=80)
+        ctx = CommandContext(console=console, args=[], agent=mock_agent)
+        
+        cmd = ToolsCommand()
+        await cmd.execute(ctx)
+        
+        output = console.file.getvalue()  # type: ignore[union-attr]
+        
+        # Should show output
+        assert len(output) > 0
+        # Should call agent's tool registry methods
+        mock_tool_registry.list_tools.assert_called_once()
+        assert mock_tool_registry.get.call_count == 2  # Called for each tool
+        # Should show tool names from agent's registry
+        assert "agent_tool" in output
+        assert "another_agent_tool" in output
+
 
 class TestGetBuiltinCommands:
     """Tests for get_builtin_commands function."""
