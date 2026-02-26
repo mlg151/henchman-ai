@@ -209,61 +209,141 @@ class ContextCommand(Command):
             ctx.console.print(f"[yellow]Missing value for parameter '{param}'[/]")
             return
 
-        settings = load_settings()
-        context_settings = settings.context
+        # Define parameter handlers
+        handlers = {
+            "max_tokens": self._handle_max_tokens_parameter,
+            "threshold": self._handle_threshold_parameter,
+            "importance": self._handle_importance_parameter,
+            "similarity": self._handle_similarity_parameter,
+            "adaptive": self._handle_adaptive_parameter,
+        }
+
+        handler = handlers.get(param)
+        if handler is None:
+            ctx.console.print(f"[red]Unknown parameter: {param}[/]")
+            ctx.console.print("\nValid parameters:")
+            ctx.console.print("  max_tokens, threshold, importance, similarity, adaptive")
+            return
 
         try:
-            if param == "max_tokens":
-                int_value = int(value)
-                if int_value < 1000:
-                    raise ValueError("Max tokens must be at least 1000")
-                context_settings.max_tokens = int_value
-                save_settings(settings)
-                ctx.console.print(f"[green]✓ Max tokens set to {int_value}[/]")
-
-            elif param == "threshold":
-                float_value = float(value)
-                if not 0.1 <= float_value <= 1.0:
-                    raise ValueError("Threshold must be between 0.1 and 1.0")
-                context_settings.compaction_threshold = float_value
-                save_settings(settings)
-                ctx.console.print(f"[green]✓ Compaction threshold set to {float_value}[/]")
-
-            elif param == "importance":
-                float_value = float(value)
-                if not 0.0 <= float_value <= 1.0:
-                    raise ValueError("Importance threshold must be between 0.0 and 1.0")
-                context_settings.importance_threshold = float_value
-                save_settings(settings)
-                ctx.console.print(f"[green]✓ Importance threshold set to {float_value}[/]")
-
-            elif param == "similarity":
-                float_value = float(value)
-                if not 0.0 <= float_value <= 1.0:
-                    raise ValueError("Similarity threshold must be between 0.0 and 1.0")
-                context_settings.cluster_similarity_threshold = float_value
-                save_settings(settings)
-                ctx.console.print(f"[green]✓ Cluster similarity threshold set to {float_value}[/]")
-
-            elif param == "adaptive":
-                if value.lower() in ["on", "true", "yes", "1"]:
-                    context_settings.adaptive_compression = True
-                    save_settings(settings)
-                    ctx.console.print("[green]✓ Adaptive compression enabled[/]")
-                elif value.lower() in ["off", "false", "no", "0"]:
-                    context_settings.adaptive_compression = False
-                    save_settings(settings)
-                    ctx.console.print("[green]✓ Adaptive compression disabled[/]")
-                else:
-                    raise ValueError("Value must be 'on' or 'off'")
-            else:
-                ctx.console.print(f"[red]Unknown parameter: {param}[/]")
-                ctx.console.print("\nValid parameters:")
-                ctx.console.print("  max_tokens, threshold, importance, similarity, adaptive")
-                return
-
+            await handler(ctx, value)
         except ValueError as e:
             ctx.console.print(f"[red]Invalid value: {e}[/]")
+
+    async def _handle_max_tokens_parameter(self, ctx: CommandContext, value: str) -> None:
+        """Handle max_tokens parameter setting.
+
+        Args:
+            ctx: Command context.
+            value: Parameter value as string.
+
+        Raises:
+            ValueError: If value is invalid.
+        """
+        from henchman.config import load_settings
+        from henchman.config.settings import save_settings
+
+        int_value = int(value)
+        if int_value < 1000:
+            raise ValueError("Max tokens must be at least 1000")
+
+        settings = load_settings()
+        settings.context.max_tokens = int_value
+        save_settings(settings)
+        ctx.console.print(f"[green]✓ Max tokens set to {int_value}[/]")
+
+    async def _handle_threshold_parameter(self, ctx: CommandContext, value: str) -> None:
+        """Handle threshold parameter setting.
+
+        Args:
+            ctx: Command context.
+            value: Parameter value as string.
+
+        Raises:
+            ValueError: If value is invalid.
+        """
+        from henchman.config import load_settings
+        from henchman.config.settings import save_settings
+
+        float_value = float(value)
+        if not 0.1 <= float_value <= 1.0:
+            raise ValueError("Threshold must be between 0.1 and 1.0")
+
+        settings = load_settings()
+        settings.context.compaction_threshold = float_value
+        save_settings(settings)
+        ctx.console.print(f"[green]✓ Compaction threshold set to {float_value}[/]")
+
+    async def _handle_importance_parameter(self, ctx: CommandContext, value: str) -> None:
+        """Handle importance parameter setting.
+
+        Args:
+            ctx: Command context.
+            value: Parameter value as string.
+
+        Raises:
+            ValueError: If value is invalid.
+        """
+        from henchman.config import load_settings
+        from henchman.config.settings import save_settings
+
+        float_value = float(value)
+        if not 0.0 <= float_value <= 1.0:
+            raise ValueError("Importance threshold must be between 0.0 and 1.0")
+
+        settings = load_settings()
+        settings.context.importance_threshold = float_value
+        save_settings(settings)
+        ctx.console.print(f"[green]✓ Importance threshold set to {float_value}[/]")
+
+    async def _handle_similarity_parameter(self, ctx: CommandContext, value: str) -> None:
+        """Handle similarity parameter setting.
+
+        Args:
+            ctx: Command context.
+            value: Parameter value as string.
+
+        Raises:
+            ValueError: If value is invalid.
+        """
+        from henchman.config import load_settings
+        from henchman.config.settings import save_settings
+
+        float_value = float(value)
+        if not 0.0 <= float_value <= 1.0:
+            raise ValueError("Similarity threshold must be between 0.0 and 1.0")
+
+        settings = load_settings()
+        settings.context.cluster_similarity_threshold = float_value
+        save_settings(settings)
+        ctx.console.print(f"[green]✓ Cluster similarity threshold set to {float_value}[/]")
+
+    async def _handle_adaptive_parameter(self, ctx: CommandContext, value: str) -> None:
+        """Handle adaptive parameter setting.
+
+        Args:
+            ctx: Command context.
+            value: Parameter value as string.
+
+        Raises:
+            ValueError: If value is invalid.
+        """
+        from henchman.config import load_settings
+        from henchman.config.settings import save_settings
+
+        lower_value = value.lower()
+        settings = load_settings()
+
+        if lower_value in ["on", "true", "yes", "1"]:
+            settings.context.adaptive_compression = True
+            save_settings(settings)
+            ctx.console.print("[green]✓ Adaptive compression enabled[/]")
+        elif lower_value in ["off", "false", "no", "0"]:
+            settings.context.adaptive_compression = False
+            save_settings(settings)
+            ctx.console.print("[green]✓ Adaptive compression disabled[/]")
+        else:
+            raise ValueError("Value must be 'on' or 'off'")
 
     async def _show_stats(self, ctx: CommandContext) -> None:
         """Show context usage statistics.
