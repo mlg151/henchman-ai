@@ -92,6 +92,8 @@ Whenever you are provided with a code snippet to refactor, you must respond stri
     
 Please pick one improvement to make to the codebase, implement it, and ensure all tests pass. DO check .agent_tasks/auto-improve/last-improvement.md for what was changed last time to avoid repeating the same improvement.
 
+Write your changes to .agent_tasks/auto-improve/last-improvement.md with a brief summary of what you changed and why, including the date/time, files changed, and rationale.
+
 ALL TESTS. EVEN IF YOU THINK THE FAILURE IS UNRELATED TO YOUR CHANGE, FIX IT. DO NOT LEAVE THE CODE IN A BROKEN STATE!'
 
 # Run Henchman in headless mode with auto-approve
