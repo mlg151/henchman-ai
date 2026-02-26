@@ -67,13 +67,13 @@ class OrchestratorMetrics:
     a proper object-oriented interface for metrics management instead of
     using a complex nested dictionary directly.
     """
-    
+
     # Core metrics
     thinking_pattern_usage: int = 0
     delegation_count: int = 0
     delegation_by_type: dict[str, int] = field(default_factory=lambda: {"planner": 0, "explorer": 0, "engineer": 0})
     thinking_quality_score: int = 0
-    
+
     # Performance metrics
     task_start_time: float = 0.0
     task_end_time: float = 0.0
@@ -81,18 +81,18 @@ class OrchestratorMetrics:
     files_accessed: dict[str, int] = field(default_factory=dict)
     tool_usage_by_type: dict[str, int] = field(default_factory=dict)
     delegation_rate: float = 0.0
-    
+
     # Quality metrics
     test_results: dict[str, Any] = field(default_factory=lambda: {"passing": 0, "total": 0, "percentage": 0.0})
     code_coverage: float = 0.0
     linting_status: dict[str, int] = field(default_factory=lambda: {"errors": 0, "warnings": 0})
     documentation_coverage: float = 0.0
-    
+
     # Target performance metrics
     file_re_reads: int = 0
     error_rate: float = 0.0
     context_window_usage: float = 0.0
-    
+
     # Tool call tracking
     total_tool_calls: int = 0
     successful_tool_calls: int = 0
@@ -103,30 +103,30 @@ class OrchestratorMetrics:
     shell_calls: int = 0
     git_ops_calls: int = 0
     other_tool_calls: int = 0
-    
+
     def reset_for_run(self) -> None:
         """Reset all metrics for a new run while preserving structure."""
         self.thinking_pattern_usage = 0
         self.delegation_count = 0
         self.delegation_by_type = {"planner": 0, "explorer": 0, "engineer": 0}
         self.thinking_quality_score = 0
-        
+
         self.task_start_time = 0.0
         self.task_end_time = 0.0
         self.task_duration_minutes = 0.0
         self.files_accessed.clear()
         self.tool_usage_by_type.clear()
         self.delegation_rate = 0.0
-        
+
         self.test_results = {"passing": 0, "total": 0, "percentage": 0.0}
         self.code_coverage = 0.0
         self.linting_status = {"errors": 0, "warnings": 0}
         self.documentation_coverage = 0.0
-        
+
         self.file_re_reads = 0
         self.error_rate = 0.0
         self.context_window_usage = 0.0
-        
+
         self.total_tool_calls = 0
         self.successful_tool_calls = 0
         self.failed_tool_calls = 0
@@ -136,7 +136,7 @@ class OrchestratorMetrics:
         self.shell_calls = 0
         self.git_ops_calls = 0
         self.other_tool_calls = 0
-    
+
     def calculate_final_metrics(self) -> None:
         """Calculate derived metrics after task completion."""
         # Calculate task duration
@@ -144,29 +144,29 @@ class OrchestratorMetrics:
             duration = self.task_end_time - self.task_start_time
             # Store duration in minutes for readability
             self.task_duration_minutes = duration / 60.0
-        
+
         # Calculate delegation rate
         total_tasks = self.total_tool_calls + self.delegation_count
         if total_tasks > 0:
             self.delegation_rate = (self.delegation_count / total_tasks * 100.0)
-        
+
         # Calculate error rate
         if self.total_tool_calls > 0:
             self.error_rate = (self.failed_tool_calls / self.total_tool_calls * 100.0)
-        
+
         # Calculate test results percentage
         if self.test_results["total"] > 0:
             self.test_results["percentage"] = (
                 self.test_results["passing"] / self.test_results["total"] * 100.0
             )
-        
+
         # Calculate file re-reads
         if self.files_accessed:
             total_accesses = sum(self.files_accessed.values())
             unique_files = len(self.files_accessed)
             if unique_files > 0:
                 self.file_re_reads = total_accesses - unique_files
-    
+
     def to_dict(self) -> Metrics:
         """Convert to the legacy TypedDict format for backward compatibility."""
         return {
@@ -197,7 +197,7 @@ class OrchestratorMetrics:
             "git_ops_calls": self.git_ops_calls,
             "other_tool_calls": self.other_tool_calls,
         }
-    
+
     def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
         """Update metrics for a tool call.
         
@@ -207,15 +207,15 @@ class OrchestratorMetrics:
             success: Whether the tool call succeeded.
         """
         self.total_tool_calls += 1
-        
+
         if success:
             self.successful_tool_calls += 1
         else:
             self.failed_tool_calls += 1
-        
+
         # Track tool usage by type
         self.tool_usage_by_type[tool_name] = self.tool_usage_by_type.get(tool_name, 0) + 1
-        
+
         # Track specific tool categories for detailed analysis
         if tool_name == "read_file":
             self.read_file_calls += 1
@@ -233,7 +233,7 @@ class OrchestratorMetrics:
             self.git_ops_calls += 1
         else:
             self.other_tool_calls += 1
-    
+
     def __getitem__(self, key: str) -> Any:
         """Support dictionary-like access for backward compatibility.
         
@@ -249,7 +249,7 @@ class OrchestratorMetrics:
         if hasattr(self, key):
             return getattr(self, key)
         raise KeyError(f"'{key}' is not a valid metric")
-    
+
     def __contains__(self, key: str) -> bool:
         """Support 'in' operator for backward compatibility.
         
@@ -260,7 +260,7 @@ class OrchestratorMetrics:
             True if the metric exists, False otherwise.
         """
         return hasattr(self, key)
-    
+
     def get(self, key: str, default: Any = None) -> Any:
         """Support dictionary-like get method for backward compatibility.
         
@@ -272,7 +272,7 @@ class OrchestratorMetrics:
             The metric value or default.
         """
         return getattr(self, key) if hasattr(self, key) else default
-    
+
     def __setitem__(self, key: str, value: Any) -> None:
         """Support dictionary-like assignment for backward compatibility.
         
@@ -296,11 +296,14 @@ class OrchestratorMetrics:
     other_tool_calls: int
 
 
-# Interval (in tool calls) at which role anchoring reminders are injected
-_ROLE_ANCHOR_INTERVAL = 8
-
-# How many turns before the limit to inject a wrap-up warning
-_WRAPUP_WARNING_OFFSET = 3
+# Configuration constants for orchestrator behavior
+_ROLE_ANCHOR_INTERVAL = 8  # Interval (in tool calls) for role anchoring reminders
+_WRAPUP_WARNING_OFFSET = 3  # Turns before limit to inject wrap-up warning
+_MIN_THINKING_LINES = 3  # Minimum numbered lines for quality thinking pattern
+_THINKING_QUALITY_INCREMENT = 5  # Points added for quality thinking pattern
+_MAX_THINKING_SCORE = 100  # Maximum thinking quality score
+_TOOL_ERROR_MAX_LENGTH = 200  # Max length for tool error messages in summaries
+_RESULT_PREVIEW_LENGTH = 500  # Length of tool result preview in events
 
 
 class Orchestrator:
@@ -428,7 +431,6 @@ class Orchestrator:
         self.metrics.reset_for_run()
 
         # Set task start time
-        import time
         self.metrics.task_start_time = time.time()
 
         yield AgentEvent(
@@ -453,7 +455,7 @@ class Orchestrator:
     def _calculate_final_metrics(self) -> None:
         """Calculate derived metrics after task completion."""
         self.metrics.calculate_final_metrics()
-    
+
     def _reset_metrics_for_run(self) -> None:
         """Reset metrics for a new run while preserving structure.
         
@@ -484,6 +486,247 @@ class Orchestrator:
         yield AgentEvent(
             type=EventType.AGENT_COMPLETED, data={"agent": role}, source_agent="orchestrator"
         )
+
+    def _check_thinking_pattern(self, agent: Agent) -> AgentEvent | None:
+        """Validate Tech Lead thinking patterns and update metrics.
+        
+        Args:
+            agent: The agent to check (should be Tech Lead).
+            
+        Returns:
+            AgentEvent if thinking reminder is needed, None otherwise.
+        """
+        if agent is not self.tech_lead or not agent.messages:
+            return None
+
+        last_message = agent.messages[-1]
+        if last_message.role != "assistant":
+            return None
+
+        content = last_message.content or ""
+        if content.strip().startswith("THINKING:"):
+            self.metrics.thinking_pattern_usage += 1
+            lines = content.strip().split("\n")
+            thinking_lines = [
+                line
+                for line in lines
+                if line.strip().startswith(("1.", "2.", "3.", "4.", "5."))
+            ]
+            if len(thinking_lines) >= _MIN_THINKING_LINES:
+                self.metrics.thinking_quality_score = min(
+                    _MAX_THINKING_SCORE,
+                    self.metrics.thinking_quality_score + _THINKING_QUALITY_INCREMENT
+                )
+            return None
+        elif content.strip():
+            thinking_reminder = (
+                "\n[Thinking Required] Your response must start with THINKING: "
+                "followed by your reasoning process. Please revise."
+            )
+            agent.messages.append(
+                Message(role="user", content=thinking_reminder)
+            )
+            return AgentEvent(
+                type=EventType.THINKING_REQUIRED,
+                data="Thinking pattern missing in Tech Lead response",
+                source_agent="orchestrator",
+            )
+        return None
+
+    def _check_stall_failure(self, agent: Agent) -> AgentEvent | None:
+        """Check if agent has stalled and report failure.
+        
+        Args:
+            agent: The agent to check.
+            
+        Returns:
+            AgentEvent if stall failure occurred, None otherwise.
+        """
+        if agent is self.tech_lead or not agent._stall_failure:
+            return None
+
+        role_label = agent.identity.role if agent.identity else "agent"
+        fail_msg = (
+            f"STALL FAILURE: {role_label} announced intent but "
+            f"never used tools after "
+            f"{agent._stall_nudge_count} nudges. "
+            f"The task was NOT completed."
+        )
+        agent.messages.append(Message(role="assistant", content=fail_msg))
+        return AgentEvent(
+            type=EventType.ERROR,
+            data=fail_msg,
+            source_agent=role_label,
+        )
+
+    def _prepare_delegation_brief(self, tool_call: ToolCall) -> dict[str, Any]:
+        """Extract structured delegation fields from tool call.
+        
+        Args:
+            tool_call: The delegate_task tool call.
+            
+        Returns:
+            Structured delegation brief.
+        """
+        return {
+            "done_when": tool_call.arguments.get("done_when"),
+            "context": tool_call.arguments.get("context"),
+            "files": tool_call.arguments.get("files"),
+            "background": tool_call.arguments.get("background"),
+            "requirements": tool_call.arguments.get("requirements"),
+            "depends_on": tool_call.arguments.get("depends_on"),
+        }
+
+    def _update_delegation_metrics(self, target: str) -> None:
+        """Update metrics for a delegation.
+        
+        Args:
+            target: Target agent role.
+        """
+        self.metrics.delegation_count += 1
+        if target in self.metrics.delegation_by_type:
+            self.metrics.delegation_by_type[target] += 1
+
+    def _process_delegation_result(
+        self,
+        agent: Agent,
+        tool_call: ToolCall,
+        result_content: str,
+        delegation_had_error: bool,
+        ledger_record: Any | None
+    ) -> str:
+        """Process the result of a delegation.
+        
+        Args:
+            agent: The calling agent.
+            tool_call: The delegate_task tool call.
+            result_content: Result content from delegation.
+            delegation_had_error: Whether delegation had errors.
+            ledger_record: Ledger record for this delegation.
+            
+        Returns:
+            Content to submit as tool result.
+        """
+        # Update ledger with outcome
+        if self.ledger and ledger_record:
+            if delegation_had_error:
+                self.ledger.fail_delegation(ledger_record, result_content)
+            else:
+                self.ledger.complete_delegation(ledger_record, result_content)
+
+        # Append ledger snapshot so Tech Lead can re-orient
+        submitted_content = result_content
+        if self.ledger:
+            submitted_content = f"{result_content}\n\n{self.ledger.render()}"
+
+        agent.submit_tool_result(tool_call.id, submitted_content)
+        return submitted_content
+
+    async def _handle_regular_tool(
+        self,
+        agent: Agent,
+        tool_call: ToolCall,
+        tool_errors: list[str]
+    ) -> None:
+        """Handle regular (non-delegation) tool execution.
+        
+        Args:
+            agent: The calling agent.
+            tool_call: The tool call to execute.
+            tool_errors: List to collect tool errors.
+        """
+        result = await agent.tool_registry.execute(tool_call.name, tool_call.arguments)
+        agent.submit_tool_result(tool_call.id, result.content or "")
+
+        # Track tool errors for delegation summaries
+        if not result.success:
+            tool_errors.append(
+                f"{tool_call.name}: {(result.content or 'unknown error')[:200]}"
+            )
+
+        # Update metrics for tool usage
+        self._update_tool_metrics(tool_call.name, tool_call.arguments, result.success)
+
+    def _inject_role_anchor(self, agent: Agent, tool_call_count: int) -> None:
+        """Inject periodic role anchoring reminder if needed.
+        
+        Args:
+            agent: The agent to anchor.
+            tool_call_count: Current tool call count.
+        """
+        if (
+            tool_call_count > 0
+            and tool_call_count % _ROLE_ANCHOR_INTERVAL == 0
+            and agent.identity
+        ):
+            role_id = agent.identity.role or agent.identity.id
+            mission_note = ""
+            if self.ledger:
+                recap = self.ledger.mission_recap()
+                if recap:
+                    mission_note = f" Mission: {recap}"
+            anchor_msg = (
+                f"[Role Anchor] You are the {role_id.upper()}. "
+                f"Stay focused on your assigned responsibilities. "
+                f"Do not overstep your role boundaries.{mission_note}"
+            )
+            agent.messages.append(Message(role="user", content=anchor_msg))
+
+    def _enforce_turn_limits(
+        self,
+        agent: Agent,
+        max_turns: int,
+        tool_call_count: int,
+        msg_start_index: int,
+        wrapup_warned: bool
+    ) -> tuple[bool, bool, AgentEvent | None]:
+        """Enforce turn limits with warnings and hard stops.
+        
+        Args:
+            agent: The agent to check.
+            max_turns: Maximum allowed turns (0 = unlimited).
+            tool_call_count: Current tool call count.
+            msg_start_index: Message start index for timeout summary.
+            wrapup_warned: Whether wrap-up warning has been issued.
+            
+        Returns:
+            Tuple of (should_break, new_wrapup_warned, error_event).
+        """
+        if max_turns <= 0:
+            return False, wrapup_warned, None
+
+        remaining = max_turns - tool_call_count
+        if remaining <= 0:
+            # Hard stop — build a progress summary
+            progress = self._build_timeout_summary(agent, msg_start_index)
+            timeout_msg = (
+                "[TURN LIMIT REACHED] You have used all available "
+                "turns. Here is a summary of your progress so far:\n\n"
+                f"{progress}\n\n"
+                "The Tech Lead will decide how to proceed."
+            )
+            agent.messages.append(Message(role="assistant", content=timeout_msg))
+            error_event = AgentEvent(
+                type=EventType.ERROR,
+                data=f"Turn limit ({max_turns}) reached for "
+                f"{agent.identity.role if agent.identity else 'agent'}",
+                source_agent="orchestrator",
+            )
+            return True, wrapup_warned, error_event
+
+        if not wrapup_warned and remaining <= _WRAPUP_WARNING_OFFSET:
+            warn_msg = (
+                f"[WRAP-UP WARNING] You have {remaining} tool-call "
+                f"turn(s) remaining. Prioritise:\n"
+                f"1. Run any final verification (tests, lint).\n"
+                f"2. Write a completion report using the "
+                f"DELEGATION_SUMMARY_SCHEMA format.\n"
+                f"3. List BLOCKERS if you cannot finish in time."
+            )
+            agent.messages.append(Message(role="user", content=warn_msg))
+            return False, True, None
+
+        return False, wrapup_warned, None
 
     def _update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
         """Update metrics for a tool call.
@@ -547,86 +790,29 @@ class Orchestrator:
                 pass
 
             if not pending_tool_calls:
-                # Thinking pattern validation for Tech Lead
-                # Only check when the agent is NOT making tool calls, because
-                # injecting a user message when tool_calls are pending would
-                # break the assistant→tool message sequence required by the
-                # OpenAI API (the injected message lands between the assistant
-                # with tool_calls and the tool response messages, causing
-                # repeated repair_message_sequence cycles).
-                if agent is self.tech_lead and agent.messages:
-                    last_message = agent.messages[-1]
-                    if last_message.role == "assistant":
-                        content = last_message.content or ""
-                        if content.strip().startswith("THINKING:"):
-                            self.metrics.thinking_pattern_usage += 1
-                            lines = content.strip().split("\n")
-                            thinking_lines = [
-                                line
-                                for line in lines
-                                if line.strip().startswith(("1.", "2.", "3.", "4.", "5."))
-                            ]
-                            if len(thinking_lines) >= 3:
-                                self.metrics.thinking_quality_score = min(
-                                    100, self.metrics.thinking_quality_score + 5
-                                )
-                        elif content.strip():
-                            thinking_reminder = (
-                                "\n[Thinking Required] Your response must start with THINKING: "
-                                "followed by your reasoning process. Please revise."
-                            )
-                            agent.messages.append(
-                                Message(role="user", content=thinking_reminder)
-                            )
-                            yield AgentEvent(
-                                type=EventType.THINKING_REQUIRED,
-                                data="Thinking pattern missing in Tech Lead response",
-                                source_agent="orchestrator",
-                            )
-                # Check if the agent's built-in stall detection exhausted
-                # its nudge budget.  Only report for specialists — the Tech
-                # Lead legitimately narrates plans.
-                if agent is not self.tech_lead and agent._stall_failure:
-                    role_label = agent.identity.role if agent.identity else "agent"
-                    fail_msg = (
-                        f"STALL FAILURE: {role_label} announced intent but "
-                        f"never used tools after "
-                        f"{agent._stall_nudge_count} nudges. "
-                        f"The task was NOT completed."
-                    )
-                    agent.messages.append(Message(role="assistant", content=fail_msg))
-                    yield AgentEvent(
-                        type=EventType.ERROR,
-                        data=fail_msg,
-                        source_agent=role_label,
-                    )
+                # Check thinking patterns and stall failures when no tools are pending
+                thinking_event = self._check_thinking_pattern(agent)
+                if thinking_event:
+                    yield thinking_event
+
+                stall_event = self._check_stall_failure(agent)
+                if stall_event:
+                    yield stall_event
+
                 # Agent finished — exit the loop
                 break
 
-            # Process all pending tool calls: execute regular tools,
-            # intercept delegate_task for sub-agent routing.
+            # Process all pending tool calls
             for tool_call in pending_tool_calls:
                 tool_call_count += 1
 
                 if tool_call.name == "delegate_task":
+                    # Handle delegation
                     target = tool_call.arguments.get("agent", "")
                     task = tool_call.arguments.get("task", "")
-                    # Extract structured delegation fields (incl. done_when)
-                    delegation_brief: dict[str, Any] = {
-                        "done_when": tool_call.arguments.get("done_when"),
-                        "context": tool_call.arguments.get("context"),
-                        "files": tool_call.arguments.get("files"),
-                        "background": tool_call.arguments.get("background"),
-                        "requirements": tool_call.arguments.get("requirements"),
-                        "depends_on": tool_call.arguments.get("depends_on"),
-                    }
 
                     # Update delegation metrics
-                    self.metrics.delegation_count += 1
-                    if target in self.metrics.delegation_by_type:
-                        self.metrics.delegation_by_type[target] += 1
-
-                    # Also track as a tool call
+                    self._update_delegation_metrics(target)
                     self._update_tool_metrics("delegate_task", tool_call.arguments, True)
 
                     # Register delegation in ledger
@@ -647,6 +833,7 @@ class Orchestrator:
                     # Run delegation and collect summary
                     result_content = ""
                     delegation_had_error = False
+                    delegation_brief = self._prepare_delegation_brief(tool_call)
                     async for sub_event in self._run_delegation(
                         target, task, delegation_brief, depth + 1
                     ):
@@ -659,33 +846,23 @@ class Orchestrator:
                     if not result_content:
                         result_content = "Delegation completed (no output)."
 
-                    # Update ledger with outcome
-                    if self.ledger and ledger_record:
-                        if delegation_had_error:
-                            self.ledger.fail_delegation(ledger_record, result_content)
-                        else:
-                            self.ledger.complete_delegation(ledger_record, result_content)
-
-                    # Append ledger snapshot so Tech Lead can re-orient
-                    # (Task 9: Mission Recapitulation included in render)
-                    submitted_content = result_content
-                    if self.ledger:
-                        submitted_content = f"{result_content}\n\n{self.ledger.render()}"
-
-                    agent.submit_tool_result(tool_call.id, submitted_content)
+                    # Process delegation result
+                    self._process_delegation_result(
+                        agent, tool_call, result_content, delegation_had_error, ledger_record
+                    )
 
                     yield AgentEvent(
                         type=EventType.TOOL_CALL_RESULT,
                         data={
                             "tool_call_id": tool_call.id,
                             "tool_name": "delegate_task",
-                            "result": (result_content or "")[:500],
+                            "result": (result_content or "")[:_RESULT_PREVIEW_LENGTH],
                             "success": True,
                         },
                         source_agent=agent.identity.id if agent.identity else None,
                     )
                 else:
-                    # Execute regular tool via the agent's own (scoped) registry
+                    # Handle regular tool
                     result = await agent.tool_registry.execute(tool_call.name, tool_call.arguments)
                     agent.submit_tool_result(tool_call.id, result.content or "")
 
@@ -703,64 +880,23 @@ class Orchestrator:
                         data={
                             "tool_call_id": tool_call.id,
                             "tool_name": tool_call.name,
-                            "result": (result.content or "")[:500],
+                            "result": (result.content or "")[:_RESULT_PREVIEW_LENGTH],
                             "success": result.success,
                         },
                         source_agent=agent.identity.id if agent.identity else None,
                     )
 
-            # Task 5: Periodic Role Anchoring — re-inject role reminder
-            if (
-                tool_call_count > 0
-                and tool_call_count % _ROLE_ANCHOR_INTERVAL == 0
-                and agent.identity
-            ):
-                role_id = agent.identity.role or agent.identity.id
-                mission_note = ""
-                if self.ledger:
-                    recap = self.ledger.mission_recap()
-                    if recap:
-                        mission_note = f" Mission: {recap}"
-                anchor_msg = (
-                    f"[Role Anchor] You are the {role_id.upper()}. "
-                    f"Stay focused on your assigned responsibilities. "
-                    f"Do not overstep your role boundaries.{mission_note}"
-                )
-                agent.messages.append(Message(role="user", content=anchor_msg))
+            # Inject role anchor if needed
+            self._inject_role_anchor(agent, tool_call_count)
 
-            # Turn limit enforcement — inject wrap-up warning, then hard stop
-            if max_turns > 0:
-                remaining = max_turns - tool_call_count
-                if remaining <= 0:
-                    # Hard stop — build a progress summary from what the
-                    # agent accomplished so the Tech Lead can continue
-                    # without starting from scratch.
-                    progress = self._build_timeout_summary(agent, msg_start_index)
-                    timeout_msg = (
-                        "[TURN LIMIT REACHED] You have used all available "
-                        "turns. Here is a summary of your progress so far:\n\n"
-                        f"{progress}\n\n"
-                        "The Tech Lead will decide how to proceed."
-                    )
-                    agent.messages.append(Message(role="assistant", content=timeout_msg))
-                    yield AgentEvent(
-                        type=EventType.ERROR,
-                        data=f"Turn limit ({max_turns}) reached for "
-                        f"{agent.identity.role if agent.identity else 'agent'}",
-                        source_agent="orchestrator",
-                    )
-                    break
-                if not wrapup_warned and remaining <= _WRAPUP_WARNING_OFFSET:
-                    wrapup_warned = True
-                    warn_msg = (
-                        f"[WRAP-UP WARNING] You have {remaining} tool-call "
-                        f"turn(s) remaining. Prioritise:\n"
-                        f"1. Run any final verification (tests, lint).\n"
-                        f"2. Write a completion report using the "
-                        f"DELEGATION_SUMMARY_SCHEMA format.\n"
-                        f"3. List BLOCKERS if you cannot finish in time."
-                    )
-                    agent.messages.append(Message(role="user", content=warn_msg))
+            # Enforce turn limits
+            should_break, wrapup_warned, error_event = self._enforce_turn_limits(
+                agent, max_turns, tool_call_count, msg_start_index, wrapup_warned
+            )
+            if error_event:
+                yield error_event
+            if should_break:
+                break
 
             # All tool results submitted — continue the agent
             generator = agent.continue_with_tool_results()
@@ -1084,7 +1220,6 @@ class Orchestrator:
         Returns:
             A formatted markdown string with performance metrics.
         """
-        import time
 
         report_lines = [
             "## Performance Metrics Dashboard",

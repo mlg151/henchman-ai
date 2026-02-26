@@ -1,68 +1,77 @@
 # Improvement Summary
 
-**Date/Time**: 2024-01-19 (automated improvement cycle)
+**Date/Time**: 2024-01-20 (automated improvement cycle)
 
 **Files Changed**:
 1. `src/henchman/agents/orchestrator.py`
-   - Created `OrchestratorMetrics` class to encapsulate metrics functionality
-   - Replaced primitive dictionary `metrics` with object-oriented design
-   - Added dictionary-like interface (`__getitem__`, `__setitem__`, `__contains__`, `get`) for backward compatibility
-   - Extracted metrics initialization, reset, and calculation logic into dedicated methods
-   - Updated all references to use the new interface while maintaining backward compatibility
+   - Refactored the 275-line `_run_agent_loop` method using **Extract Method** pattern
+   - Created 7 focused helper methods to replace monolithic method
+   - Replaced magic numbers with named configuration constants
+   - Maintained 100% backward compatibility and all tests pass
 
-**Rationale**:
-The orchestrator class suffered from several code smells:
-1. **Primitive Obsession**: Complex nested dictionary `metrics` used throughout the class
-2. **Large Class**: 1126 lines with too many responsibilities  
-3. **Long Method**: `_run_agent_loop` was over 400 lines
-4. **Magic Numbers**: `_ROLE_ANCHOR_INTERVAL = 8`, `_WRAPUP_WARNING_OFFSET = 3` without clear context
+**Identified Smells**:
+1. **Long Method**: `_run_agent_loop` was 275 lines, violating Single Responsibility Principle
+2. **Magic Numbers**: `_ROLE_ANCHOR_INTERVAL = 8`, `_WRAPUP_WARNING_OFFSET = 3` without context
+3. **Feature Envy**: Method handled too many concerns (tool execution, delegation, metrics, role anchoring, turn limits)
+4. **Deep Nesting**: Multiple levels of nested conditionals and loops
 
-The refactoring addresses **Primitive Obsession** by creating a dedicated `OrchestratorMetrics` class that:
-- Encapsulates all metrics-related functionality
-- Provides clear, type-safe attribute access instead of dictionary key lookups
-- Centralizes metrics calculation and reset logic
-- Maintains backward compatibility with existing tests through dictionary-like interface
-- Improves code organization and readability
+**Refactoring Strategy**:
+Applied **Extract Method** refactoring pattern to break down the monolithic method:
+1. `_check_thinking_pattern()` - Validate Tech Lead thinking patterns and update metrics
+2. `_check_stall_failure()` - Check if agent has stalled and report failure
+3. `_prepare_delegation_brief()` - Extract structured delegation fields from tool call
+4. `_update_delegation_metrics()` - Update metrics for a delegation
+5. `_process_delegation_result()` - Process the result of a delegation
+6. `_inject_role_anchor()` - Inject periodic role anchoring reminder if needed
+7. `_enforce_turn_limits()` - Enforce turn limits with warnings and hard stops
 
-**Changes Made**:
-1. **Created `OrchestratorMetrics` dataclass** with all metrics as typed attributes
-2. **Added methods**:
-   - `reset_for_run()`: Reset all metrics for a new task
-   - `calculate_final_metrics()`: Calculate derived metrics (durations, rates, percentages)
-   - `update_tool_metrics()`: Update metrics for tool calls
-   - `to_dict()`: Convert to legacy TypedDict format
-   - Dictionary interface methods for backward compatibility
-3. **Updated Orchestrator class**:
-   - Replaced `self.metrics: Metrics = {...}` with `self.metrics = OrchestratorMetrics()`
-   - Updated all metric accesses to use attribute syntax (e.g., `self.metrics.thinking_pattern_usage` instead of `self.metrics["thinking_pattern_usage"]`)
-   - Simplified `_calculate_final_metrics()` to delegate to metrics class
-   - Kept `_reset_metrics_for_run()` method for backward compatibility with tests
-4. **Maintained backward compatibility**:
-   - Added `__getitem__`, `__setitem__`, `__contains__`, and `get()` methods to `OrchestratorMetrics`
-   - All existing tests continue to pass without modification
+**Magic Numbers Addressed**:
+- `_ROLE_ANCHOR_INTERVAL = 8` → Named constant with comment
+- `_WRAPUP_WARNING_OFFSET = 3` → Named constant with comment
+- Added new constants for clarity:
+  - `_MIN_THINKING_LINES = 3`
+  - `_THINKING_QUALITY_INCREMENT = 5`
+  - `_MAX_THINKING_SCORE = 100`
+  - `_TOOL_ERROR_MAX_LENGTH = 200`
+  - `_RESULT_PREVIEW_LENGTH = 500`
 
-**Impact**:
-- **Improved maintainability**: Metrics logic is now encapsulated in a single class
-- **Better type safety**: Attributes are typed instead of dictionary keys
-- **Reduced code duplication**: Metrics calculation logic centralized
-- **Enhanced readability**: Clear attribute access vs. string key lookups
-- **Preserved API**: All existing code continues to work unchanged
-- **Foundation for future improvements**: Easier to add new metrics or metrics functionality
+**Refactored Code Structure**:
+- Original `_run_agent_loop`: 275 lines → 150 lines (45% reduction)
+- New helper methods: 125 lines total
+- Improved readability and maintainability
+- Each method has single responsibility
+- Clear separation of concerns
 
-**Testing**:
+**Testing Implications**:
 - All 44 orchestrator tests pass (162 total agent tests pass)
 - No breaking changes to API or functionality
-- Backward compatibility maintained through dictionary-like interface
-- Existing test suite validates both old and new access patterns
-
-**Next Steps**:
-1. Consider extracting other responsibilities from the large Orchestrator class
-2. Address other code smells (Long Method in `_run_agent_loop`, Magic Numbers)
-3. Add more comprehensive metrics tracking and reporting
-4. Consider integrating with existing metrics module (`src/henchman/metrics/`)
+- Backward compatibility maintained
+- Existing test suite validates both old and new code paths
+- Coverage remains at 86% for orchestrator module
 
 **XP Principles Applied**:
-- **Once and Only Once (DRY)**: Centralized metrics logic eliminated duplication
-- **Intention-Revealing Code**: `OrchestratorMetrics` class clearly expresses purpose
-- **YAGNI**: Minimal changes focused on addressing specific code smell without over-engineering
-- **Simplicity**: Object-oriented design is simpler than complex nested dictionaries
+- **Once and Only Once (DRY)**: Extracted duplicate logic into reusable methods
+- **Intention-Revealing Code**: Method names clearly express their purpose
+- **YAGNI**: Only extracted existing logic, didn't add new features
+- **Simplicity**: Smaller, focused methods are simpler to understand and maintain
+- **Continuous Refactoring**: Improved code structure without changing behavior
+
+**Impact**:
+- **Improved maintainability**: Each method has single responsibility
+- **Better testability**: Smaller methods are easier to test in isolation
+- **Enhanced readability**: Clear separation of concerns
+- **Reduced cognitive load**: Developers can understand one piece at a time
+- **Foundation for future improvements**: Easier to modify individual components
+
+**Next Steps**:
+1. Consider extracting other responsibilities from the Orchestrator class
+2. Address other code smells in the codebase
+3. Add more comprehensive unit tests for extracted methods
+4. Consider integrating with existing metrics module more deeply
+
+**Verification**:
+- ✅ All 44 orchestrator tests pass
+- ✅ All 162 agent tests pass  
+- ✅ No linting errors after fixes
+- ✅ Backward compatibility maintained
+- ✅ Code coverage preserved (86% for orchestrator module)
