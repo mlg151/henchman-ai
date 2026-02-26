@@ -73,15 +73,15 @@ def _count_classes_and_functions(tree: ast.Module) -> tuple[int, int]:
 
 
 def scan_repository(
-    target_dir: str,
+    target_dirs: str | list[str],
     excludes: list[str] | None = None,
     skip_external: bool = False,
     skip_ruff: bool = False,
 ) -> RepoReport:
-    """Scan all Python files in *target_dir* and produce a graded report.
+    """Scan all Python files in one or more directories and produce a graded report.
 
     Args:
-        target_dir: Root directory to scan.
+        target_dirs: Root directory (or list of directories) to scan.
         excludes: Glob patterns for files to skip.
         skip_external: If True, skip ruff/radon (faster, AST-only).
         skip_ruff: If True, skip ruff but still run radon.
@@ -92,16 +92,38 @@ def scan_repository(
     if excludes is None:
         excludes = DEFAULT_EXCLUDES
 
-    target = Path(target_dir).resolve()
-    py_files = _discover_python_files(target, excludes)
+    # Normalise to list.
+    if isinstance(target_dirs, str):
+        target_dirs = [target_dirs]
+
+    # Discover files across all target directories.
+    # Use common parent as the base for relative paths.
+    resolved_dirs = [Path(d).resolve() for d in target_dirs]
+    if len(resolved_dirs) == 1:
+        base_dir = resolved_dirs[0]
+    else:
+        # Find common parent of all target directories.
+        parts = [d.parts for d in resolved_dirs]
+        common = []
+        for level in zip(*parts):
+            if len(set(level)) == 1:
+                common.append(level[0])
+            else:
+                break
+        base_dir = Path(*common) if common else Path("/")
+
+    py_files: list[tuple[Path, Path]] = []  # (absolute, base_dir_for_rel)
+    for target in resolved_dirs:
+        for f in _discover_python_files(target, excludes):
+            py_files.append((f, base_dir))
 
     # Parse all files.
     file_trees: dict[str, ast.Module] = {}
     file_sources: dict[str, str] = {}
     parse_errors: dict[str, str] = {}
 
-    for pyfile in py_files:
-        rel = str(pyfile.relative_to(target))
+    for pyfile, base in py_files:
+        rel = str(pyfile.relative_to(base))
         try:
             source = pyfile.read_text(encoding="utf-8", errors="replace")
             tree = ast.parse(source, filename=rel)
@@ -130,16 +152,17 @@ def scan_repository(
     external_smells: list[SmellInstance] = []
     external_metrics: dict[str, FileMetrics] = {}
     if not skip_external:
-        external_smells, external_metrics = collect_external_metrics(
-            str(target)
-        )
+        for target in resolved_dirs:
+            dir_smells, dir_metrics = collect_external_metrics(str(target))
+            external_smells.extend(dir_smells)
+            external_metrics.update(dir_metrics)
 
     # Bucket external smells into the correct file.
     for smell in external_smells:
         # External tools use absolute paths — relativise if possible.
         rel = smell.file
         try:
-            rel = str(Path(smell.file).relative_to(target))
+            rel = str(Path(smell.file).relative_to(base_dir))
         except ValueError:
             pass
         if rel in file_smells:
@@ -156,7 +179,7 @@ def scan_repository(
         classes, functions = _count_classes_and_functions(tree)
 
         # Get or create metrics.
-        abs_path = str(target / rel)
+        abs_path = str(base_dir / rel)
         metrics = external_metrics.get(abs_path, FileMetrics())
         # Also try relative path key.
         if abs_path not in external_metrics and rel in external_metrics:
@@ -176,7 +199,7 @@ def scan_repository(
 
     # Assemble and grade the repo report.
     report = RepoReport(
-        target_dir=str(target),
+        target_dir=str(base_dir),
         files=file_reports,
     )
     grade_repo(report)

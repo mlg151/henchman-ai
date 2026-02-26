@@ -37,6 +37,40 @@ class ErrorResponse(BaseModel):
 # State will be initialized in lifespan function
 
 
+def _get_provider_settings(provider_name: str, settings: Any) -> dict[str, Any]:
+    """Get provider settings for the given provider name.
+
+    Args:
+        provider_name: Name of the provider (e.g., "deepseek", "openai")
+        settings: The loaded settings object
+
+    Returns:
+        Dictionary of provider settings, or empty dict if not found
+    """
+    # Map provider names to their settings attribute names
+    provider_settings_map = {
+        "deepseek": "deepseek",
+        "openai": "openai",
+        "anthropic": "anthropic",
+        "ollama": "ollama",
+        "openrouter": "openrouter",
+        "openai_compat": "openai_compat",
+        "together": "together",
+        "groq": "groq",
+        "fireworks": "fireworks",
+    }
+
+    if provider_name not in provider_settings_map:
+        return {}
+
+    settings_attr = provider_settings_map[provider_name]
+    provider_settings = getattr(settings.providers, settings_attr, None)
+
+    if provider_settings:
+        return provider_settings  # type: ignore[no-any-return]
+    return {}
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan context manager for FastAPI app."""
@@ -55,33 +89,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         provider_name = state.settings.providers.default
         # Get provider settings based on provider name
-        provider_settings = {}
-        if provider_name == "deepseek" and state.settings.providers.deepseek:
-            provider_settings = state.settings.providers.deepseek
-        elif provider_name == "openai" and state.settings.providers.openai:
-            provider_settings = state.settings.providers.openai
-        elif provider_name == "anthropic" and state.settings.providers.anthropic:
-            provider_settings = state.settings.providers.anthropic
-        elif provider_name == "ollama" and state.settings.providers.ollama:
-            provider_settings = state.settings.providers.ollama
-        elif provider_name == "openrouter" and state.settings.providers.openrouter:
-            provider_settings = state.settings.providers.openrouter
-        elif provider_name == "openai_compat" and state.settings.providers.openai_compat:
-            provider_settings = state.settings.providers.openai_compat
-        elif provider_name == "together" and state.settings.providers.together:
-            provider_settings = state.settings.providers.together
-        elif provider_name == "groq" and state.settings.providers.groq:
-            provider_settings = state.settings.providers.groq
-        elif provider_name == "fireworks" and state.settings.providers.fireworks:
-            provider_settings = state.settings.providers.fireworks
-        
+        provider_settings = _get_provider_settings(provider_name, state.settings)
+
         provider = state.provider_registry.create(
             provider_name,
             **provider_settings,
         )
         state.agent = Agent(
             provider=provider,
-            system_prompt=state.settings.agents.system_prompt,
+            system_prompt="",  # Empty system prompt for API server
         )
         print(f"Created agent with provider: {provider_name}")
     except Exception as e:
