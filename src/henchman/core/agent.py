@@ -56,8 +56,9 @@ class Agent:
         "next i ",
     ]
     STALL_NUDGE_MESSAGE = (
-        "You stopped without taking action. Do not narrate — use your tools "
-        "to do the work. Call the appropriate tool NOW."
+        "You stopped without taking action. Do not narrate or outline steps — "
+        "use your tools to do the work. If the task feels large, break it into "
+        "a smaller piece and call a tool for that piece NOW."
     )
 
     def __init__(
@@ -517,7 +518,7 @@ class Agent:
                 finish_data = "Stream completed"
                 if finish_reason[0]:
                     finish_data = finish_reason[0].value
-                
+
                 # Include usage information if available
                 event_data: str | dict[str, Any] = finish_data
                 if accumulated_usage[0]:
@@ -525,7 +526,7 @@ class Agent:
                         "finish_reason": finish_data,
                         "usage": accumulated_usage[0]
                     }
-                
+
                 yield self._emit(
                     type=EventType.FINISHED,
                     data=event_data
@@ -594,7 +595,7 @@ class Agent:
         finish_data = "Agent completed execution"
         if finish_reason_list and finish_reason_list[0]:
             finish_data = finish_reason_list[0].value
-        
+
         # Include usage information if available
         event_data: str | dict[str, Any] = finish_data
         if accumulated_usage_list and accumulated_usage_list[0]:
@@ -602,7 +603,7 @@ class Agent:
                 "finish_reason": finish_data,
                 "usage": accumulated_usage_list[0]
             }
-        
+
         yield self._emit(type=EventType.FINISHED, data=event_data)
 
     def submit_tool_result(self, tool_call_id: str, result: str) -> None:
@@ -614,9 +615,41 @@ class Agent:
 
         This method should be called after submit_tool_result() to continue
         the conversation with the updated message history.
-        """
-        # Process streaming response
-        _, _, _, _, _, event_iter = await self._process_streaming_response()
 
-        async for event in event_iter:
-            yield event
+        Includes the same stall-detection loop used by :meth:`run` so that
+        agents which narrate intent without acting (e.g. ending on ``:``) are
+        nudged to actually call tools.
+        """
+        while True:
+            try:
+                (
+                    accumulated_content_list,
+                    _,
+                    accumulated_tool_calls,
+                    _,
+                    _,
+                    event_iter,
+                ) = await self._process_streaming_response()
+
+                async for event in event_iter:
+                    yield event
+
+                accumulated_content = (
+                    accumulated_content_list[0] if accumulated_content_list else ""
+                )
+
+                nudge = await self._check_for_stalling(
+                    accumulated_content, bool(accumulated_tool_calls)
+                )
+                if nudge:
+                    self.messages.append(Message(role="user", content=nudge))
+                    continue
+
+                break
+
+            except Exception as e:
+                yield self._emit(
+                    type=EventType.ERROR,
+                    data=f"Agent continuation failed: {e}",
+                )
+                break

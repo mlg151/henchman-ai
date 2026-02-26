@@ -358,6 +358,114 @@ async def test_agent_continue_with_tool_results(mock_provider, sample_tool_call)
     assert any(event.type == EventType.CONTENT for event in events)
 
 
+@pytest.mark.asyncio
+async def test_continue_with_tool_results_stall_detection(mock_provider, sample_tool_call):
+    """continue_with_tool_results() should nudge when agent stalls on a colon."""
+    agent = Agent(provider=mock_provider)
+    agent.messages.append(
+        Message(role="assistant", content="", tool_calls=[sample_tool_call])
+    )
+    agent.submit_tool_result(sample_tool_call.id, "Tool executed successfully")
+
+    # First call: agent stalls (ends with colon, no tool calls)
+    stall_chunk = StreamChunk(
+        content="Let me refactor this using the Extract Method pattern:",
+        finish_reason=FinishReason.STOP,
+    )
+    # Second call (after nudge): agent responds normally
+    ok_chunk = StreamChunk(
+        content="Done with the refactoring.",
+        finish_reason=FinishReason.STOP,
+    )
+
+    call_count = 0
+
+    async def side_effect(*_args, **_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield stall_chunk
+        else:
+            yield ok_chunk
+
+    mock_provider.chat_completion_stream = side_effect
+
+    events = []
+    async for event in agent.continue_with_tool_results():
+        events.append(event)
+
+    # Provider should have been called twice (initial stall + retry after nudge)
+    assert call_count == 2
+    # A nudge message should be in the conversation history
+    nudge_messages = [m for m in agent.messages if m.role == "user" and "stopped without" in (m.content or "")]
+    assert len(nudge_messages) == 1
+    assert agent._stall_nudge_count == 1
+
+
+@pytest.mark.asyncio
+async def test_continue_with_tool_results_stall_failure(mock_provider, sample_tool_call):
+    """continue_with_tool_results() sets _stall_failure after max nudges."""
+    agent = Agent(provider=mock_provider)
+    agent.messages.append(
+        Message(role="assistant", content="", tool_calls=[sample_tool_call])
+    )
+    agent.submit_tool_result(sample_tool_call.id, "Tool executed successfully")
+
+    # Agent keeps stalling on every attempt
+    stall_chunk = StreamChunk(
+        content="Let me refactor this using the Extract Method pattern:",
+        finish_reason=FinishReason.STOP,
+    )
+
+    async def always_stall(*_args, **_kwargs):
+        yield stall_chunk
+
+    mock_provider.chat_completion_stream = always_stall
+
+    events = []
+    async for event in agent.continue_with_tool_results():
+        events.append(event)
+
+    # After MAX_STALL_NUDGES nudges the agent should give up
+    assert agent._stall_failure is True
+    assert agent._stall_nudge_count == agent.MAX_STALL_NUDGES + 1
+
+
+@pytest.mark.asyncio
+async def test_continue_with_tool_results_no_stall_on_normal_response(
+    mock_provider, sample_tool_call
+):
+    """continue_with_tool_results() does not nudge for normal responses."""
+    agent = Agent(provider=mock_provider)
+    agent.messages.append(
+        Message(role="assistant", content="", tool_calls=[sample_tool_call])
+    )
+    agent.submit_tool_result(sample_tool_call.id, "Tool executed successfully")
+
+    ok_chunk = StreamChunk(
+        content="I finished the refactoring. Here is the summary of changes.",
+        finish_reason=FinishReason.STOP,
+    )
+
+    call_count = 0
+
+    async def gen(*_args, **_kwargs):
+        nonlocal call_count
+        call_count += 1
+        yield ok_chunk
+
+    mock_provider.chat_completion_stream = gen
+
+    events = []
+    async for event in agent.continue_with_tool_results():
+        events.append(event)
+
+    # Provider called exactly once — no nudge needed
+    assert call_count == 1
+    assert agent._stall_nudge_count == 0
+    assert agent._stall_failure is False
+
+
 def test_agent_constants():
     """Test that constants are properly defined."""
     assert Agent.DEFAULT_MAX_TOKENS == 8000

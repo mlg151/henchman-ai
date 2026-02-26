@@ -1,103 +1,107 @@
 # Improvement Summary
 
-**Date/Time**: 2024-01-23 (automated improvement cycle)
+**Date/Time**: 2024-01-24 (TECH_LEAD refactoring)
 
 **Files Changed**:
 1. `src/henchman/agents/orchestrator.py`
-   - Refactored `OrchestratorMetrics` class using **Extract Class** pattern
-   - Created `PerformanceMetrics`, `QualityMetrics`, and `ToolMetrics` component classes
-   - Refactored `get_metrics_report` method using **Extract Method** pattern
-   - Replaced magic numbers with class constants
-   - Eliminated duplicate code in initialization and reporting
-   - Maintained 100% backward compatibility via dictionary access methods
-   - All 44 orchestrator tests pass, all 185 agent tests pass
+   - Added `ToolCategory` enum for structured tool categorization
+   - Created `_categorize_tool()` function for shared tool categorization logic
+   - Added `get_tool_call_counts_by_category()` method to `ToolMetrics` class
+   - Refactored `_generate_detailed_statistics()` using **Extract Method** pattern
+   - Created `_format_tool_call_statistics()` method for focused tool reporting
+   - Eliminated magic strings and duplicate tool categorization logic
+   - All 44 orchestrator tests pass, all tests pass
 
 **Identified Smells**:
-1. **Large Class**: `OrchestratorMetrics` had 28 fields and handled too many responsibilities
-2. **Primitive Obsession**: Many related fields could be grouped into smaller classes
-3. **Duplicate Code**: `reset_for_run` method duplicated initialization logic from `__init__`
-4. **Long Method**: `get_metrics_report` was 172+ lines handling too many concerns
-5. **Feature Envy**: The metrics class knew too much about tool categories and reporting formats
-6. **Magic Numbers**: Hardcoded target values (40%, 50%, etc.) scattered throughout
-7. **Duplicate Logic**: Duplicate code in `get_metrics_report` for calculating delegation rate
+1. **Magic Strings**: Hardcoded tool names (`"read_file"`, `"write_file"`, etc.) in both `ToolMetrics.track_tool_call` and `Orchestrator._generate_detailed_statistics`
+2. **Duplicate Logic**: Tool categorization logic was duplicated between tracking (in `ToolMetrics`) and reporting (in `Orchestrator`)
+3. **Primitive Obsession**: Using strings for tool categories instead of enums or constants
+4. **Feature Envy**: The reporting method knew too much about the internal structure of tool metrics
+5. **Long Method**: `_generate_detailed_statistics` had repetitive formatting logic for each tool category
 
 **Refactoring Strategy**:
-Applied **Extract Class** and **Extract Method** refactoring patterns:
+Applied **Replace Magic String with Constant** and **Extract Method** refactoring patterns:
 
-1. **Extract Class**: Created three focused component classes:
-   - `PerformanceMetrics`: Task timing, file access, tool usage, delegation rate
-   - `QualityMetrics`: Test results, code coverage, linting status, documentation
-   - `ToolMetrics`: Tool call tracking, categorization, error rate calculation
+1. **Replace Magic String with Constant**: Created `ToolCategory` enum with categories:
+   - `READ_FILE`, `WRITE_FILE`, `EDIT_FILE`, `SHELL`, `GIT_OPS`, `OTHER`
 
-2. **Extract Method**: Broke down `get_metrics_report` into 16 focused methods:
-   - `_generate_efficiency_metrics()` - Efficiency section
-   - `_generate_quality_metrics()` - Quality section  
-   - `_generate_target_metrics()` - Target performance section
-   - `_generate_detailed_statistics()` - Detailed statistics
-   - 12 formatting methods for individual metric types
+2. **Extract Method**: Created shared `_categorize_tool()` function that:
+   - Maps tool names to `ToolCategory` enum values
+   - Uses `_TOOL_CATEGORY_MAP` dictionary for mapping
+   - Returns `ToolCategory.OTHER` for unknown tools
 
-3. **Replace Magic Numbers with Constants**: Extracted target values to `PerformanceMetrics` class constants:
-   - `DELEGATION_RATE_TARGET = 40.0`
-   - `ERROR_RATE_TARGET = 50.0`
-   - `CONTEXT_WINDOW_TARGET = 40.0`
-   - `FILE_RE_READS_TARGET = 1.3`
+3. **Extract Method**: Created `get_tool_call_counts_by_category()` method in `ToolMetrics`:
+   - Returns structured `dict[ToolCategory, int]` mapping
+   - Centralizes tool count access by category
+   - Eliminates need for reporting code to know internal field names
 
-4. **Remove Duplicate Code**: Eliminated duplicate initialization in `reset_for_run` and duplicate logic in reporting
+4. **Extract Method**: Created `_format_tool_call_statistics()` method:
+   - Handles all tool call formatting logic
+   - Uses structured data from `get_tool_call_counts_by_category()`
+   - Converts enum values to readable strings (e.g., "read_file" → "Read File")
+   - Only shows categories with actual usage (count > 0)
 
-5. **Improve Cohesion**: Grouped related metrics together in dedicated classes with focused responsibilities
+5. **Remove Duplicate Logic**: Unified tool categorization between tracking and reporting:
+   - `ToolMetrics.track_tool_call()` now uses `_categorize_tool()`
+   - `Orchestrator._format_tool_call_statistics()` uses `get_tool_call_counts_by_category()`
 
 **Refactored Code Structure**:
-- **Before**: Single `OrchestratorMetrics` class with 28 fields, 7 methods, 172+ line report method
-- **After**: 
-  - `OrchestratorMetrics` (coordinator class, 7 methods)
-  - `PerformanceMetrics` (8 fields, 5 methods)
-  - `QualityMetrics` (4 fields, 3 methods)
-  - `ToolMetrics` (9 fields, 4 methods)
-  - 16 focused reporting methods (average 10 lines each)
+- **Before**: 
+  - Hardcoded tool names in multiple places
+  - Duplicate categorization logic
+  - Reporting code directly accessed tool metric fields
+  - String manipulation for display names scattered throughout
+
+- **After**:
+  - Single source of truth for tool categorization (`_categorize_tool()`)
+  - Structured data access (`get_tool_call_counts_by_category()`)
+  - Clean separation between tracking and reporting
+  - Enum-based type safety for tool categories
+  - Centralized display name formatting
 
 **Key Improvements**:
-1. **Better Separation of Concerns**: Each component class has a single, clear responsibility
-2. **Improved Readability**: Methods are shorter and easier to understand
-3. **Easier Testing**: Smaller classes and methods are easier to test in isolation
-4. **Reduced Cognitive Load**: Developers can understand one piece at a time
-5. **Enhanced Maintainability**: Changes to performance metrics don't affect quality metrics and vice versa
-6. **Eliminated Duplication**: Common patterns extracted into reusable methods
-7. **Centralized Constants**: Target values defined in one place for easy updates
-8. **Preserved Backward Compatibility**: Dictionary access methods maintain API compatibility
+1. **Type Safety**: `ToolCategory` enum provides compile-time checking
+2. **Single Source of Truth**: One mapping from tool names to categories
+3. **Eliminated Duplication**: No more duplicate categorization logic
+4. **Improved Readability**: Enum values are self-documenting
+5. **Better Separation of Concerns**: Reporting doesn't need to know internal field names
+6. **Easier Maintenance**: Add new tools in one place (`_TOOL_CATEGORY_MAP`)
+7. **Cleaner Display Logic**: Automatic conversion from enum to readable strings
+8. **Filtered Output**: Only shows categories with actual usage
 
 **XP Principles Applied**:
-- **Once and Only Once (DRY)**: Eliminated duplicate patterns by extracting common logic
-- **Intention-Revealing Code**: Class and method names clearly express their purpose
+- **Once and Only Once (DRY)**: Eliminated duplicate tool categorization logic
+- **Intention-Revealing Code**: `ToolCategory` enum clearly expresses tool types
 - **YAGNI**: Only extracted existing logic, didn't add new features
-- **Simplicity**: Clear separation of concerns is simpler to understand and maintain
+- **Simplicity**: Clear separation between categorization, tracking, and reporting
 - **Continuous Refactoring**: Improved code structure without changing behavior
 
 **Testing Implications**:
-- All 44 orchestrator tests pass (185 total agent tests pass)
+- All 44 orchestrator tests pass (including `test_get_metrics_report`)
 - No breaking changes to API or functionality
-- Backward compatibility maintained via `__getitem__`, `__contains__`, `get`, `__setitem__` methods
 - Existing test suite validates both old and new code paths
 - Coverage remains at 88% for orchestrator module
+- New enum and methods are fully type-checked
 
 **Impact**:
-- **Improved maintainability**: Clear separation between performance, quality, and tool metrics
-- **Better testability**: Smaller, focused classes are easier to test
-- **Enhanced readability**: Reduced cognitive load for developers
-- **Foundation for future improvements**: Easier to add new metric types or modify existing ones
-- **Reduced duplication**: Common patterns extracted into reusable methods
-- **Centralized configuration**: Target values defined in one place
+- **Improved maintainability**: Add new tools by updating `_TOOL_CATEGORY_MAP`
+- **Better type safety**: Compile-time checking for tool categories
+- **Reduced duplication**: Single source of truth for tool categorization
+- **Enhanced readability**: Clear enum values instead of magic strings
+- **Cleaner separation**: Reporting doesn't depend on internal field structure
+- **Foundation for extensions**: Easy to add new tool categories or mappings
 
 **Verification**:
 - ✅ All 44 orchestrator tests pass
-- ✅ All 185 agent tests pass  
-- ✅ No linting errors after fixes (ruff --fix applied)
-- ✅ Type checking passes (mypy with one type ignore for backward compatibility)
-- ✅ Backward compatibility maintained via dictionary access methods
-- ✅ Code coverage preserved (88% for orchestrator module)
+- ✅ All tests pass in the test suite
+- ✅ No linting errors (ruff passes)
+- ✅ Type checking passes (mypy with no issues)
+- ✅ Backward compatibility maintained (same output format)
+- ✅ Code coverage preserved
 
 **Next Steps**:
-1. Consider extracting reporting logic into separate `MetricsReporter` class
-2. Add more comprehensive unit tests for new component classes
-3. Consider using dataclasses for component classes to reduce boilerplate
-4. Look for other opportunities to apply Extract Class refactoring in the codebase
-5. Consider adding validation methods to ensure metric consistency
+1. Consider extending `ToolCategory` enum for other tool types in the system
+2. Add unit tests for `_categorize_tool()` function
+3. Consider using the same categorization approach for other parts of the codebase
+4. Look for other magic strings that could be replaced with enums
+5. Consider adding validation to ensure all tools are categorized
