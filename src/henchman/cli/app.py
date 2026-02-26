@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import anyio
 import click
@@ -287,31 +287,26 @@ def _run_textual_tui(
     )
 
 
-def _run_headless(
-    prompt: str,
-    output_format: str,
+def _create_headless_repl(
     plan_mode: bool = False,
     yes: bool = False,
-    agent_role: str | None = None,
-) -> None:
-    """Run headless mode with a single prompt.
+) -> tuple[Any, Any, Any]:
+    """Create and configure a REPL instance for headless mode.
 
     Args:
-        prompt: The prompt to process.
-        output_format: Output format (text, json, stream-json, json-complete).
         plan_mode: Whether to run in plan mode.
         yes: Auto-approve all tool executions.
-        agent_role: Target a specific specialist agent.
+
+    Returns:
+        Tuple of (repl instance, settings, system_prompt).
     """
     from pathlib import Path
 
     from henchman.cli.console import OutputRenderer, ThemeManager
-    from henchman.cli.json_output import JsonOutputRenderer
     from henchman.cli.repl import Repl, ReplConfig
     from henchman.cli.ui_renderer import UIRenderer
     from henchman.config import ContextLoader, load_settings
     from henchman.config.environment import format_environment_block, gather_environment
-    from henchman.core.events import EventType
     from henchman.rag import initialize_rag
 
     provider = _get_provider()
@@ -370,6 +365,32 @@ def _run_headless(
         repl.session_manager.current.plan_mode = True
         repl.tool_manager.set_plan_mode(True)
 
+    return repl, settings, system_prompt
+
+
+def _run_headless(
+    prompt: str,
+    output_format: str,
+    plan_mode: bool = False,
+    yes: bool = False,
+    agent_role: str | None = None,
+) -> None:
+    """Run headless mode with a single prompt.
+
+    Args:
+        prompt: The prompt to process.
+        output_format: Output format (text, json, stream-json, json-complete).
+        plan_mode: Whether to run in plan mode.
+        yes: Auto-approve all tool executions.
+        agent_role: Target a specific specialist agent.
+    """
+    from collections.abc import AsyncIterator, Callable
+
+    from henchman.cli.json_output import JsonOutputRenderer
+    from henchman.core.events import AgentEvent, EventType
+
+    repl, settings, system_prompt = _create_headless_repl(plan_mode, yes)
+
     async def run_single_prompt_text() -> None:  # pragma: no cover
         """Process a single prompt and exit with text output."""
         # Initialize MCP servers
@@ -383,22 +404,54 @@ def _run_headless(
         else:
             await repl.process_input(prompt)
 
-    async def run_single_prompt_json() -> None:
-        """Process a single prompt and exit with JSON output."""
-        from collections.abc import AsyncIterator
+    async def _initialize_json_processing(repl: Any) -> JsonOutputRenderer:
+        """Initialize MCP servers and RAG system for JSON processing.
 
-        from henchman.core.events import AgentEvent
+        Args:
+            repl: The REPL instance.
 
+        Returns:
+            JsonOutputRenderer instance.
+        """
         # Initialize MCP servers
         await repl.initialize_mcp()
 
         if repl.rag_system:
             asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]
 
-        json_renderer = JsonOutputRenderer(console)
+        return JsonOutputRenderer(console)
 
-        # We need to manually run the tool loop for JSON output
-        # to ensure all events are rendered as JSON
+    async def _process_tool_calls(
+        repl: Any,
+        pending_tool_calls: list[Any],
+        render_func: Callable[[AgentEvent], None],
+        collect_events: list[Any] | None = None,
+    ) -> None:
+        """Execute pending tool calls and handle results.
+
+        Args:
+            repl: The REPL instance.
+            pending_tool_calls: List of tool call requests.
+            render_func: Function to render events.
+            collect_events: Optional list to collect events (for json-complete mode).
+        """
+        for tool_call in pending_tool_calls:
+            result = await repl.tool_registry.execute(tool_call.name, tool_call.arguments)
+            repl.agent.submit_tool_result(tool_call.id, result.content)
+
+            if collect_events is not None:
+                collect_events.append(
+                    AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result)
+                )
+            else:
+                render_func(
+                    AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result)
+                )
+
+    async def run_single_prompt_json() -> None:
+        """Process a single prompt and exit with JSON output."""
+        json_renderer = await _initialize_json_processing(repl)
+
         async def run_and_render(stream: AsyncIterator[AgentEvent]) -> None:
             """Run the agent stream and render events to JSON.
 
@@ -412,13 +465,9 @@ def _run_headless(
                     pending_tool_calls.append(event.data)
 
             if pending_tool_calls:
-                # Execute tool calls
-                for tool_call in pending_tool_calls:
-                    result = await repl.tool_registry.execute(tool_call.name, tool_call.arguments)
-                    repl.agent.submit_tool_result(tool_call.id, result.content)
-                    # Emit tool result event
-                    json_renderer.render(AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result))
-
+                await _process_tool_calls(
+                    repl, pending_tool_calls, json_renderer.render
+                )
                 # Continue
                 await run_and_render(repl.agent.continue_with_tool_results())
 
@@ -426,17 +475,7 @@ def _run_headless(
 
     async def run_single_prompt_stream_json() -> None:
         """Process a single prompt and exit with streaming JSON output."""
-        from collections.abc import AsyncIterator
-
-        from henchman.core.events import AgentEvent
-
-        # Initialize MCP servers
-        await repl.initialize_mcp()
-
-        if repl.rag_system:
-            asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]
-
-        json_renderer = JsonOutputRenderer(console)
+        json_renderer = await _initialize_json_processing(repl)
 
         async def run_and_render_stream(stream: AsyncIterator[AgentEvent]) -> None:
             """Run the agent stream and render events.
@@ -451,30 +490,16 @@ def _run_headless(
                     pending_tool_calls.append(event.data)
 
             if pending_tool_calls:
-                for tool_call in pending_tool_calls:
-                    result = await repl.tool_registry.execute(tool_call.name, tool_call.arguments)
-                    repl.agent.submit_tool_result(tool_call.id, result.content)
-                    json_renderer.render_stream_json(
-                        AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result)
-                    )
-
+                await _process_tool_calls(
+                    repl, pending_tool_calls, json_renderer.render_stream_json
+                )
                 await run_and_render_stream(repl.agent.continue_with_tool_results())
 
         await run_and_render_stream(repl.agent.run(prompt))
 
     async def run_single_prompt_json_complete() -> None:
         """Process a single prompt and exit with complete JSON output."""
-        from collections.abc import AsyncIterator
-
-        from henchman.core.events import AgentEvent
-
-        # Initialize MCP servers
-        await repl.initialize_mcp()
-
-        if repl.rag_system:
-            asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]
-
-        json_renderer = JsonOutputRenderer(console)
+        json_renderer = await _initialize_json_processing(repl)
         all_events: list[AgentEvent] = []
 
         async def run_and_collect(stream: AsyncIterator[AgentEvent]) -> None:
@@ -490,11 +515,11 @@ def _run_headless(
                     pending_tool_calls.append(event.data)
 
             if pending_tool_calls:
-                for tool_call in pending_tool_calls:
-                    result = await repl.tool_registry.execute(tool_call.name, tool_call.arguments)
-                    repl.agent.submit_tool_result(tool_call.id, result.content)
-                    all_events.append(AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result))
-
+                await _process_tool_calls(
+                    repl, pending_tool_calls,
+                    lambda _: None,  # No rendering during collection
+                    collect_events=all_events
+                )
                 await run_and_collect(repl.agent.continue_with_tool_results())
 
         await run_and_collect(repl.agent.run(prompt))
