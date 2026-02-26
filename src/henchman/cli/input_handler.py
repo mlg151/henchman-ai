@@ -77,11 +77,8 @@ class InputHandler:
             self.history_file,
             bottom_toolbar=bottom_toolbar,
             keybindings=self.keybindings,
+            completer=completer,
         )
-        # Manually set completer since create_session helper might not expose it yet
-        # or we need to update create_session to support it.
-        # Let's check create_session in input.py... it doesn't support completer arg yet.
-        self.prompt_session.completer = completer
 
     async def get_input(self) -> str:
         """Get input from the user.

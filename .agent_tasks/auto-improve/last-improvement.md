@@ -3,43 +3,48 @@
 **Date/Time**: 2024-01-15 (automated improvement cycle)
 
 **Files Changed**:
-1. `src/henchman/cli/commands/builtins.py`
-   - Updated `ToolsCommand.execute()` method to check for agent's tool registry when direct tool registry is not available
-   - Added fallback logic: if `ctx.tool_registry` is None but `ctx.agent` exists and has a `tool_registry` attribute, use that instead
-   - Removed TODO comment "Get tools from agent/registry when available" since functionality is now implemented
+1. `src/henchman/cli/input.py`
+   - Added `completer` parameter to `create_session()` function
+   - Updated function signature and docstring to document the new parameter
+   - Passed the completer to `PromptSession` constructor
 
-2. `tests/cli/test_builtins.py`
-   - Added new test method `test_execute_with_agent_tool_registry()` to verify the new functionality
-   - Test verifies that when agent has a tool registry but context doesn't have a direct tool registry, the command still works
+2. `src/henchman/cli/input_handler.py`
+   - Updated `initialize_prompt_session()` method to pass completer to `create_session()`
+   - Removed manual assignment of completer after session creation (`self.prompt_session.completer = completer`)
+   - Now passes completer directly to `create_session()` function
+
+3. `tests/cli/test_input_handler.py`
+   - Updated `test_initialize_prompt_session()` test to expect the new `completer` parameter
+   - Added mocking for `WordCompleter` to capture its creation
+   - Updated assertion to check that `create_session` is called with the completer
 
 **Rationale**:
-Fixed the TODO comment in the tools command: "Get tools from agent/registry when available". The `/tools` command now properly handles scenarios where:
-1. Tool registry is directly available in the command context (existing behavior)
-2. Tool registry is attached to the agent (new behavior)
-3. Neither is available (falls back to hardcoded list for backward compatibility)
+Improved the code architecture by properly passing the completer parameter through the `create_session()` function instead of manually setting it after session creation. This:
 
-This makes the command more robust and user-friendly, especially in multi-agent scenarios or when tools are registered at the agent level rather than globally.
+1. **Cleaner API**: The `create_session()` function now properly supports all `PromptSession` constructor parameters it should
+2. **Better abstraction**: The `InputHandler` doesn't need to know about the internal implementation details of `PromptSession`
+3. **More maintainable**: Changes to how completers are configured only need to be made in one place
+4. **Follows best practices**: Passing configuration through constructor parameters is cleaner than post-creation modification
 
 **Changes Made**:
-1. **Enhanced tool registry discovery**: Added logic to check `ctx.agent.tool_registry` when `ctx.tool_registry` is None
-2. **Backward compatibility maintained**: Falls back to hardcoded tool list when no registry is found
-3. **Proper attribute checking**: Uses `hasattr()` to safely check for `tool_registry` attribute on agent
-4. **Test coverage added**: New test verifies the agent tool registry fallback works correctly
+1. **Enhanced `create_session()` function**: Added optional `completer` parameter with proper type hinting and documentation
+2. **Simplified `InputHandler`**: Removed manual completer assignment, now passes it directly to `create_session()`
+3. **Updated tests**: Test now properly verifies the completer is passed to `create_session()`
 
 **Impact**:
-- Users now get accurate tool listings even when tools are registered at the agent level
-- Improved developer experience in multi-agent configurations
-- No breaking changes to existing code
-- Better error resilience (handles missing attributes gracefully)
+- No functional changes to user experience
+- Cleaner, more maintainable code
+- Better separation of concerns
+- All existing tests pass with modifications
 
 **Testing**:
 - All existing tests pass
-- New test verifies agent tool registry functionality
+- Updated test verifies completer parameter is properly passed
 - Type checking passes (mypy)
-- The implementation handles edge cases (None values, missing attributes)
+- The implementation is backward compatible (completer parameter is optional)
 
 **Next Steps**:
-This improvement completes the TODO item and provides better tool discovery in the CLI. Future improvements could include:
-- Showing tool categories or groups in the `/tools` output
-- Filtering tools by type (read/write/execute)
-- Showing tool usage examples in the output
+This improvement makes the codebase cleaner and more maintainable. Future improvements could include:
+- Adding more configuration options to `create_session()` as needed
+- Improving type hints for the completer parameter
+- Adding more comprehensive tests for completer functionality

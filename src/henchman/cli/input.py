@@ -130,6 +130,7 @@ def create_session(
     history_file: Path | None = None,
     bottom_toolbar: Any = None,
     keybindings: dict[str, str] | None = None,
+    completer: Any = None,
 ) -> PromptSession[str]:
     """Create a PromptSession with custom key bindings.
 
@@ -137,6 +138,7 @@ def create_session(
         history_file: Path to history file.
         bottom_toolbar: Optional callback for bottom toolbar.
         keybindings: Dictionary of keybindings (key -> action).
+        completer: Optional completer for tab completion.
 
     Returns:
         Configured PromptSession.
@@ -184,6 +186,7 @@ def create_session(
         history=history,
         key_bindings=bindings,
         bottom_toolbar=bottom_toolbar,
+        completer=completer,
     )
 
 
