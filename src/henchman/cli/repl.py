@@ -193,6 +193,7 @@ class Repl:
             renderer=self.renderer,
             history_file=history_file,
             keybindings=keybindings,
+            tool_registry=self.tool_registry,
         )
         # Initialize prompt session in InputHandler
         self.input_handler.initialize_prompt_session(

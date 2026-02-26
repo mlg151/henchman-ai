@@ -39,6 +39,7 @@ Your task:
    - Improve an error message
    - Fix a minor bug
    Do NOT attempt large refactors or multi-file rewrites.
+   DO check .agent_tasks/auto-improve/last-improvement.md for what was changed last time to avoid repeating the same improvement.
 
 2. Implement the change. Make sure tests still pass by running: ./scripts/ci.sh
 

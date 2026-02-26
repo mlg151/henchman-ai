@@ -18,6 +18,7 @@ from henchman.cli.input import create_session, expand_at_references, is_slash_co
 
 if TYPE_CHECKING:
     from henchman.cli.repl import ReplConfig
+    from henchman.tools.registry import ToolRegistry
 
 
 class InputHandler:
@@ -36,6 +37,7 @@ class InputHandler:
         renderer: object,
         history_file: Path | None = None,
         keybindings: dict[str, str] | None = None,
+        tool_registry: ToolRegistry | None = None,
     ) -> None:
         """Initialize the input handler.
 
@@ -44,11 +46,13 @@ class InputHandler:
             renderer: UI renderer for output.
             history_file: Path to history file.
             keybindings: Custom keybindings configuration.
+            tool_registry: Optional tool registry for tool name completions.
         """
         self.config = config
         self.renderer = renderer
         self.history_file = history_file or Path.home() / ".henchman_history"
         self.keybindings = keybindings
+        self.tool_registry = tool_registry
         self.prompt_session: PromptSession[str] | None = None
 
     def initialize_prompt_session(
@@ -62,10 +66,12 @@ class InputHandler:
         # Create completer for commands and tools
         commands = [f"/{cmd.name}" for cmd in get_builtin_commands()]
 
-        # TODO: Add tools to completion list when available
-        # tools = [f"!{tool}" for tool in tool_registry.list_tools()]
+        # Add tools to completion list when available
+        tools = []
+        if self.tool_registry and hasattr(self.tool_registry, "list_tools"):
+            tools = [f"!{tool}" for tool in self.tool_registry.list_tools()]
 
-        completer = WordCompleter(commands, ignore_case=True)
+        completer = WordCompleter(commands + tools, ignore_case=True)
 
         self.prompt_session = create_session(
             self.history_file,
