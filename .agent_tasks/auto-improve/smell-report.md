@@ -1,19 +1,19 @@
-# Code Smell Report — ❌ F (Score: 34.6/100)
+# Code Smell Report — ❌ F (Score: 34.5/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-26T20:30:10.699848+00:00_
+_Generated: 2026-02-26T21:00:22.019922+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 34.6/100 |
+| **Overall Score** | 34.5/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 27,916 |
-| **Total Smells** | 2709 |
-| **Avg Maintainability Index** | 70.1 |
+| **Total Lines (non-blank)** | 27,901 |
+| **Total Smells** | 2714 |
+| **Avg Maintainability Index** | 69.9 |
 | **Avg Cyclomatic Complexity** | 16.4 |
 
 ### Smells by Severity
@@ -21,9 +21,9 @@ _Generated: 2026-02-26T20:30:10.699848+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 1755 |
-| medium | 674 |
-| high | 253 |
-| critical | 27 |
+| medium | 678 |
+| high | 255 |
+| critical | 26 |
 
 ### Smells by Category
 
@@ -31,10 +31,10 @@ _Generated: 2026-02-26T20:30:10.699848+00:00_
 |:---------|------:|
 | Missing Type Hint | 1174 |
 | Feature Envy | 349 |
-| Duplicate Code | 316 |
+| Duplicate Code | 322 |
 | Deep Nesting | 274 |
 | Magic Number | 218 |
-| Long Method | 182 |
+| Long Method | 181 |
 | Primitive Obsession | 83 |
 | Complex Function | 78 |
 | Large Class | 35 |
@@ -43,65 +43,65 @@ _Generated: 2026-02-26T20:30:10.699848+00:00_
 
 These are the highest-impact smells to address first:
 
-1. **agents/presets.py:6** — 🔴 CRITICAL — Long Method  
-   Function 'get_default_team' has 121 lines (threshold: 30)  
-   → _Extract Method — break this function into smaller, intention-revealing helper functions._
-
-2. **api/endpoints/chat.py:75** — 🔴 CRITICAL — Long Method  
+1. **api/endpoints/chat.py:75** — 🔴 CRITICAL — Long Method  
    Function 'chat_completion' has 149 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-3. **api/endpoints/chat.py:191** — 🔴 CRITICAL — Deep Nesting  
+2. **api/endpoints/chat.py:191** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'chat_completion' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-4. **api/endpoints/chat.py:242** — 🔴 CRITICAL — Long Method  
+3. **api/endpoints/chat.py:242** — 🔴 CRITICAL — Long Method  
    Function 'chat_completion_stream' has 154 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-5. **api/server.py:71** — 🔴 CRITICAL — Deep Nesting  
+4. **api/server.py:71** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'lifespan' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-6. **api/server.py:73** — 🔴 CRITICAL — Deep Nesting  
+5. **api/server.py:73** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 9 in 'lifespan' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-7. **api/server.py:75** — 🔴 CRITICAL — Deep Nesting  
+6. **api/server.py:75** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 10 in 'lifespan' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-8. **cli/app.py:290** — 🔴 CRITICAL — Long Method  
+7. **cli/app.py:290** — 🔴 CRITICAL — Long Method  
    Function '_run_headless' has 218 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-9. **cli/commands/context.py:253** — 🔴 CRITICAL — Deep Nesting  
+8. **cli/commands/context.py:253** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in '_set_strategy_parameter' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-10. **cli/input.py:335** — 🔴 CRITICAL — Deep Nesting  
+9. **cli/input.py:335** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'monitor' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-11. **cli/tool_executor.py:577** — 🔴 CRITICAL — Deep Nesting  
+10. **cli/tool_executor.py:577** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-12. **cli/tool_executor.py:580** — 🔴 CRITICAL — Deep Nesting  
+11. **cli/tool_executor.py:580** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 9 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-13. **cli/tool_executor.py:583** — 🔴 CRITICAL — Deep Nesting  
+12. **cli/tool_executor.py:583** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 10 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-14. **cli/tool_executor.py:586** — 🔴 CRITICAL — Deep Nesting  
+13. **cli/tool_executor.py:586** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 11 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-15. **cli/tool_executor.py:589** — 🔴 CRITICAL — Deep Nesting  
+14. **cli/tool_executor.py:589** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 12 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
+
+15. **core/agent.py:360** — 🔴 CRITICAL — Long Method  
+   Function '_process_streaming_response' has 160 lines (threshold: 30)  
+   → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
 
 ## 📊 Files Ranked by Quality
