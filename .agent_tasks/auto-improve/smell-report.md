@@ -1,106 +1,106 @@
-# Code Smell Report — ❌ F (Score: 35.6/100)
+# Code Smell Report — ❌ F (Score: 35.8/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-26T23:00:11.236462+00:00_
+_Generated: 2026-02-26T23:42:02.783595+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.6/100 |
+| **Overall Score** | 35.8/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 27,977 |
-| **Total Smells** | 2694 |
+| **Total Lines (non-blank)** | 28,073 |
+| **Total Smells** | 2689 |
 | **Avg Maintainability Index** | 70.0 |
-| **Avg Cyclomatic Complexity** | 16.3 |
+| **Avg Cyclomatic Complexity** | 16.2 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1753 |
-| medium | 674 |
-| high | 247 |
-| critical | 20 |
+| low | 1756 |
+| medium | 672 |
+| high | 243 |
+| critical | 18 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1174 |
-| Feature Envy | 349 |
-| Duplicate Code | 320 |
-| Deep Nesting | 262 |
+| Missing Type Hint | 1179 |
+| Feature Envy | 347 |
+| Duplicate Code | 323 |
+| Deep Nesting | 254 |
 | Magic Number | 218 |
-| Long Method | 179 |
+| Long Method | 177 |
 | Primitive Obsession | 83 |
-| Complex Function | 74 |
+| Complex Function | 73 |
 | Large Class | 35 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **cli/app.py:371** — 🔴 CRITICAL — Long Method  
-   Function '_run_headless' has 162 lines (threshold: 30)  
-   → _Extract Method — break this function into smaller, intention-revealing helper functions._
-
-2. **cli/commands/context.py:253** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 8 in '_set_strategy_parameter' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-3. **cli/input.py:335** — 🔴 CRITICAL — Deep Nesting  
+1. **cli/input.py:335** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'monitor' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-4. **cli/tool_executor.py:577** — 🔴 CRITICAL — Deep Nesting  
+2. **cli/tool_executor.py:577** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-5. **cli/tool_executor.py:580** — 🔴 CRITICAL — Deep Nesting  
+3. **cli/tool_executor.py:580** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 9 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-6. **cli/tool_executor.py:583** — 🔴 CRITICAL — Deep Nesting  
+4. **cli/tool_executor.py:583** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 10 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-7. **cli/tool_executor.py:586** — 🔴 CRITICAL — Deep Nesting  
+5. **cli/tool_executor.py:586** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 11 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-8. **cli/tool_executor.py:589** — 🔴 CRITICAL — Deep Nesting  
+6. **cli/tool_executor.py:589** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 12 in 'process_agent_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-9. **core/agent.py:360** — 🔴 CRITICAL — Long Method  
+7. **core/agent.py:360** — 🔴 CRITICAL — Long Method  
    Function '_process_streaming_response' has 160 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-10. **core/agent.py:397** — 🔴 CRITICAL — Long Method  
+8. **core/agent.py:397** — 🔴 CRITICAL — Long Method  
    Function 'event_generator' has 135 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-11. **extensions/plugin_manager.py:790** — 🔴 CRITICAL — Deep Nesting  
+9. **extensions/plugin_manager.py:790** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in '_install_from_url' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-12. **providers/anthropic.py:171** — 🔴 CRITICAL — Long Method  
+10. **providers/anthropic.py:171** — 🔴 CRITICAL — Long Method  
    Function 'chat_completion_stream' has 153 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-13. **providers/anthropic.py:265** — 🔴 CRITICAL — Deep Nesting  
+11. **providers/anthropic.py:265** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-14. **providers/anthropic.py:270** — 🔴 CRITICAL — Deep Nesting  
+12. **providers/anthropic.py:270** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 9 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-15. **providers/anthropic.py:283** — 🔴 CRITICAL — Deep Nesting  
+13. **providers/anthropic.py:283** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'chat_completion_stream' (threshold: 4)  
+   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
+
+14. **providers/anthropic.py:287** — 🔴 CRITICAL — Deep Nesting  
+   Nesting depth 9 in 'chat_completion_stream' (threshold: 4)  
+   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
+
+15. **providers/anthropic.py:289** — 🔴 CRITICAL — Deep Nesting  
+   Nesting depth 10 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
 
@@ -435,30 +435,6 @@ LOC: 283 | Classes: 1 | Functions: 0 | MI: 48 | Avg CC: 18.0
 
 _... and 22 more smells._
 
-### cli/commands/context.py — ❌ F (14.5/100)
-
-LOC: 272 | Classes: 1 | Functions: 0 | MI: 48 | Avg CC: 12.5
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 253 | 🔴 CRITICAL | Deep Nesting | Nesting depth 8 in '_set_strategy_parameter' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 71 | 🟠 HIGH | Feature Envy | Method 'ContextCommand._show_status' accesses 'ctx' 13 times but 'self' only 0 times | Move Method — consider moving '_show_status' to the class that owns 'ctx'. |
-| 195 | 🟠 HIGH | Feature Envy | Method 'ContextCommand._set_strategy_parameter' accesses 'ctx' 11 times but 'self' only 0 times | Move Method — consider moving '_set_strategy_parameter' to the class that owns 'ctx'. |
-| 242 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_set_strategy_parameter' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 248 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_set_strategy_parameter' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 249 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in '_set_strategy_parameter' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 268 | 🟠 HIGH | Feature Envy | Method 'ContextCommand._show_stats' accesses 'ctx' 21 times but 'self' only 0 times | Move Method — consider moving '_show_stats' to the class that owns 'ctx'. |
-| 45 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand.execute' accesses 'ctx' 8 times but 'self' only 6 times | Move Method — consider moving 'execute' to the class that owns 'ctx'. |
-| 60 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 71 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_status' accesses 'context_settings' 8 times but 'self' only 0 times | Move Method — consider moving '_show_status' to the class that owns 'context_settings'. |
-| 138 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._manage_strategy' accesses 'ctx' 8 times but 'self' only 2 times | Move Method — consider moving '_manage_strategy' to the class that owns 'ctx'. |
-| 165 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'ctx' 9 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'ctx'. |
-| 165 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'context_settings'. |
-| 195 | 🟡 MEDIUM | Long Method | Function '_set_strategy_parameter' has 59 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 195 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._set_strategy_parameter' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_set_strategy_parameter' to the class that owns 'context_settings'. |
-
-_... and 26 more smells._
-
 ### cli/console.py — ❌ F (14.6/100)
 
 LOC: 462 | Classes: 4 | Functions: 2 | MI: 49 | Avg CC: 0.0
@@ -530,6 +506,30 @@ LOC: 301 | Classes: 1 | Functions: 0 | MI: 50 | Avg CC: 15.5
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
 _... and 34 more smells._
+
+### cli/commands/context.py — ❌ F (15.2/100)
+
+LOC: 330 | Classes: 1 | Functions: 0 | MI: 51 | Avg CC: 11.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 71 | 🟠 HIGH | Feature Envy | Method 'ContextCommand._show_status' accesses 'ctx' 13 times but 'self' only 0 times | Move Method — consider moving '_show_status' to the class that owns 'ctx'. |
+| 348 | 🟠 HIGH | Feature Envy | Method 'ContextCommand._show_stats' accesses 'ctx' 21 times but 'self' only 0 times | Move Method — consider moving '_show_stats' to the class that owns 'ctx'. |
+| 45 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand.execute' accesses 'ctx' 8 times but 'self' only 6 times | Move Method — consider moving 'execute' to the class that owns 'ctx'. |
+| 60 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 71 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_status' accesses 'context_settings' 8 times but 'self' only 0 times | Move Method — consider moving '_show_status' to the class that owns 'context_settings'. |
+| 138 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._manage_strategy' accesses 'ctx' 8 times but 'self' only 2 times | Move Method — consider moving '_manage_strategy' to the class that owns 'ctx'. |
+| 165 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'ctx' 9 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'ctx'. |
+| 165 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'context_settings'. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function '_handle_threshold_parameter' is 100% similar to '_handle_importance_parameter' at cli/commands/context.py:277 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function '_handle_threshold_parameter' is 100% similar to '_handle_similarity_parameter' at cli/commands/context.py:299 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 277 | 🟡 MEDIUM | Duplicate Code | Function '_handle_importance_parameter' is 100% similar to '_handle_similarity_parameter' at cli/commands/context.py:299 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 348 | 🟡 MEDIUM | Complex Function | Function '_show_stats' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 15 | 🟢 LOW | Large Class | Class 'ContextCommand' spans 387 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 19 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 28 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 22 more smells._
 
 ### providers/anthropic.py — ❌ F (15.2/100)
 
