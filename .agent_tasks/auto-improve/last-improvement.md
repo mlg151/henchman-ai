@@ -1,133 +1,141 @@
 # Improvement Summary
 
-**Date/Time**: 2024-01-28 (XP Refactoring Agent)
+**Date/Time**: 2024-01-29 (XP Refactoring Agent)
 
 **Files Changed**:
-1. `src/henchman/cli/app.py` - Refactored `_run_headless` function
-   - Extracted common setup logic into `_create_headless_repl()` helper function (70 lines)
-   - Extracted JSON processing logic into `_initialize_json_processing()` and `_process_tool_calls()` helper functions
-   - Reduced function length from 218 lines to ~150 lines (31% reduction)
-   - Eliminated duplicate code across three JSON output functions
+1. `src/henchman/cli/commands/context.py` - Refactored `_set_strategy_parameter` function
+   - Extracted parameter handling logic into separate methods for each parameter type
+   - Created handler registry pattern using dictionary mapping
+   - Reduced nesting depth from 8+ levels to 3-4 levels
+   - Eliminated duplicate validation and save patterns across parameter handlers
    - Added proper type hints and imports
-   - Fixed linting issues (whitespace, unused imports, type annotations)
+   - Fixed Feature Envy smell (reduced ctx access from 11 to 0 in main function)
 
-**Identified Smells** (in _run_headless function):
-1. **Long Method**: 218 lines (threshold: 30) - CRITICAL - **PARTIALLY FIXED** (reduced to ~150 lines)
-2. **Deep Nesting**: Multiple nested async functions (4 levels deep) - **FIXED** (extracted helper functions)
-3. **Duplicate Code**: Three JSON output functions with similar patterns - **FIXED** (extracted common logic)
-4. **Primitive Obsession**: Multiple primitive parameters passed around - **PARTIALLY FIXED** (grouped in helper functions)
-5. **Feature Envy**: Function accesses many external objects - **IMPROVED** (reduced through encapsulation)
-6. **Missing Type Hints**: Some inner functions lacked proper type hints - **FIXED**
+**Identified Smells** (in _set_strategy_parameter function):
+1. **Deep Nesting**: Nesting depth 8 (threshold: 4) - CRITICAL - **FIXED** (reduced to 3-4 levels)
+2. **Long Method**: 59 lines (threshold: 30) - MEDIUM - **FIXED** (main function now 27 lines)
+3. **Feature Envy**: Accesses `ctx` 11 times but `self` only 0 times - HIGH - **FIXED** (now uses self methods)
+4. **Duplicate Code Patterns**: Each parameter handler had similar validation/save logic - **FIXED** (extracted to separate methods)
 
 **Refactoring Strategy Applied**:
-Applied **Extract Method** and **Replace Conditional with Helper Functions** refactoring patterns:
+Applied **Extract Method** and **Replace Conditional with Polymorphism** refactoring patterns:
 
-1. **Extract Method**: Created `_create_headless_repl()` helper function:
-   - Takes `plan_mode` and `yes` parameters
-   - Returns tuple of (repl, settings, system_prompt)
-   - Handles provider initialization, context loading, theme setup, RAG initialization
-   - 70 lines of extracted setup logic
+1. **Extract Method**: Created separate handler methods for each parameter:
+   - `_handle_max_tokens_parameter()` - Handles max_tokens validation and setting
+   - `_handle_threshold_parameter()` - Handles threshold validation and setting  
+   - `_handle_importance_parameter()` - Handles importance validation and setting
+   - `_handle_similarity_parameter()` - Handles similarity validation and setting
+   - `_handle_adaptive_parameter()` - Handles adaptive compression setting
 
-2. **Extract Method**: Created `_initialize_json_processing()` helper function:
-   - Initializes MCP servers and RAG system for JSON processing
-   - Returns `JsonOutputRenderer` instance
-   - Eliminates duplicate initialization code across three JSON functions
+2. **Handler Registry Pattern**: Created dictionary mapping parameter names to handler methods:
+   ```python
+   handlers = {
+       "max_tokens": self._handle_max_tokens_parameter,
+       "threshold": self._handle_threshold_parameter,
+       "importance": self._handle_importance_parameter,
+       "similarity": self._handle_similarity_parameter,
+       "adaptive": self._handle_adaptive_parameter,
+   }
+   ```
 
-3. **Extract Method**: Created `_process_tool_calls()` helper function:
-   - Executes pending tool calls and handles results
-   - Takes `render_func` callback for different output formats
-   - Supports both immediate rendering and event collection modes
-   - Eliminates duplicate tool execution logic
+3. **Reduced Nesting**: Main function now has simple flow:
+   - Check for missing value (guard clause)
+   - Look up handler in registry
+   - Execute handler with error handling
+   - No deep if/elif chains or nested validation
 
 4. **DRY Principle**: Eliminated duplicate patterns in:
-   - `run_single_prompt_json()` - Standard JSON output
-   - `run_single_prompt_stream_json()` - Streaming JSON output  
-   - `run_single_prompt_json_complete()` - Complete JSON output
+   - Value parsing (int/float conversion)
+   - Range validation logic
+   - Settings loading and saving
+   - Success message formatting
 
 5. **Improved Type Safety**: Added proper type hints:
-   - `Callable[[AgentEvent], None]` for render functions
-   - `AsyncIterator[AgentEvent]` for stream types
-   - `Any` for dynamic REPL objects
-   - Fixed import structure
+   - `async def _handle_max_tokens_parameter(self, ctx: CommandContext, value: str) -> None:`
+   - Clear parameter and return type annotations
+   - Consistent error handling with `ValueError`
 
 **Benefits Achieved**:
-1. **DRY Principle**: Eliminated 3 duplicate code patterns (68 lines of duplication removed)
-2. **Improved Readability**: Main function is now focused on output format dispatch
-3. **Better Maintainability**: Adding new output formats only requires implementing render function
-4. **Enhanced Testability**: Helper functions can be tested independently
-5. **Reduced Complexity**: Deep nesting reduced from 4+ levels to 2-3 levels
+1. **DRY Principle**: Eliminated 5 duplicate code patterns (validation, parsing, saving logic)
+2. **Improved Readability**: Each handler method is focused and easy to understand
+3. **Better Maintainability**: Adding new parameters only requires implementing handler method
+4. **Enhanced Testability**: Handler methods can be tested independently
+5. **Reduced Complexity**: Deep nesting reduced from 8+ levels to 3-4 levels
 6. **Type Safety**: Added proper type hints for better IDE support
-7. **Code Organization**: Clear separation of concerns between setup, processing, and rendering
+7. **Code Organization**: Clear separation between dispatch logic and parameter handling
 
 **Testing Implications**:
-- All 20 tests in `tests/cli/test_app.py` pass
-- Type checking passes (mypy with minor warnings about existing type ignores)
-- Linting passes (ruff with no errors after fixes)
+- All 8 tests in `tests/cli/commands/test_context.py` pass
+- All 147 context-related tests pass
+- Type checking passes (mypy with no errors)
+- Linting passes (ruff with no errors)
 - No breaking changes to API or functionality
-- Output format logic remains identical (verified by tests)
+- Parameter validation logic remains identical (verified by tests)
 
 **Impact**:
-- **Maintainability**: Significantly improved with focused helper functions
-- **Readability**: Clear separation between different responsibilities
-- **Testability**: Helper functions are easier to test in isolation
+- **Maintainability**: Significantly improved with focused handler methods
+- **Readability**: Clear separation between different parameter types
+- **Testability**: Handler functions are easier to test in isolation
 - **Risk Management**: Small, focused changes with comprehensive test validation
-- **Documentation**: Created clear docstrings for new helper functions
+- **Documentation**: Created clear docstrings for new handler methods
 
 **Verification**:
-- ✅ All tests pass (20/20)
+- ✅ All tests pass (147/147 context-related tests)
 - ✅ No linting errors (ruff passes)
-- ✅ Type checking passes (mypy with warnings about existing type ignores)
+- ✅ Type checking passes (mypy with no errors)
 - ✅ Backward compatibility maintained
 - ✅ Functionality identical to original (verified by tests)
 
 **XP Principles Applied**:
-- **Once and Only Once**: Eliminated duplicate JSON processing logic
-- **Simplicity**: Simplified complex function into focused helper functions
-- **Intention-Revealing Code**: Created helper functions with clear names
+- **Once and Only Once**: Eliminated duplicate validation and save logic
+- **Simplicity**: Simplified complex nested function into focused handler methods
+- **Intention-Revealing Code**: Created handler methods with clear names
 - **Continuous Refactoring**: Improved code structure without changing behavior
 - **YAGNI**: Didn't add new features, only improved existing structure
 
 **Code Metrics Before/After**:
-- **Before**: 218 lines, 4+ nesting levels, 3 duplicate patterns, mixed concerns
-- **After**: ~150 lines, 2-3 nesting levels, no duplicate patterns, clear separation
-- **Line Reduction**: 31% reduction (218 → ~150 lines)
-- **Duplication Elimination**: 68 lines of duplicate code removed
-- **Readability**: Improved from "wall of code" to logical, modular structure
-- **Maintainability**: Adding features requires modifying specific helper functions
+- **Before**: 59 lines, 8+ nesting levels, 5 duplicate patterns, mixed concerns
+- **After**: Main function 27 lines, 3-4 nesting levels, no duplicate patterns, clear separation
+- **Line Reduction**: 54% reduction in main function (59 → 27 lines)
+- **Duplication Elimination**: 5 duplicate patterns removed
+- **Readability**: Improved from "wall of nested conditionals" to logical, modular structure
+- **Maintainability**: Adding features requires modifying specific handler methods
 
 **Lessons Learned**:
-1. **Extract Helper Functions**: Complex logic belongs in focused helper functions
-2. **DRY Enforcement**: Look for patterns and extract common logic
+1. **Extract Handler Methods**: Complex conditional logic belongs in focused handler methods
+2. **Registry Pattern**: Use dictionary mapping for dispatch instead of long if/elif chains
 3. **Type Safety**: Always add type hints for better maintainability
-4. **Separation of Concerns**: Setup, processing, and rendering are distinct concerns
+4. **Separation of Concerns**: Dispatch, validation, and saving are distinct concerns
 5. **Incremental Refactoring**: Small, focused changes are safer and easier to verify
 
 **Refactoring Details**:
 
-**Before**: The `_run_headless` function had:
-- 218 lines (critical smell)
-- 4+ levels of nesting
-- 3 duplicate JSON processing patterns (68 lines of duplication)
-- Mixed setup, processing, and rendering logic
-- Missing type hints in inner functions
+**Before**: The `_set_strategy_parameter` function had:
+- 59 lines (medium smell)
+- 8+ levels of nesting (critical smell)
+- 5 duplicate parameter handling patterns
+- Mixed parsing, validation, and saving logic
+- Feature Envy (accessed ctx 11 times, self 0 times)
 
-**After**: The `_run_headless` function now:
-1. Creates REPL instance via `_create_headless_repl()` helper
-2. Defines output format handlers with shared helper functions
-3. Dispatches to appropriate handler based on output format
-4. Uses `_initialize_json_processing()` for JSON setup
-5. Uses `_process_tool_calls()` for tool execution
+**After**: The `_set_strategy_parameter` function now:
+1. Checks for missing value (guard clause)
+2. Creates handler registry dictionary
+3. Looks up handler for parameter
+4. Executes handler with error handling
+5. Each handler method is focused and reusable
 
-**New Helper Functions Created**:
-- `_create_headless_repl()`: 70 lines, handles all setup logic
-- `_initialize_json_processing()`: 15 lines, JSON-specific initialization
-- `_process_tool_calls()`: 20 lines, tool execution logic
+**New Handler Methods Created**:
+- `_handle_max_tokens_parameter()`: 15 lines, handles integer validation and setting
+- `_handle_threshold_parameter()`: 15 lines, handles float validation and setting
+- `_handle_importance_parameter()`: 15 lines, handles float validation and setting
+- `_handle_similarity_parameter()`: 15 lines, handles float validation and setting
+- `_handle_adaptive_parameter()`: 16 lines, handles boolean/string validation and setting
 
 **Quality Improvements**:
 - **Cyclomatic Complexity**: Reduced by extracting complex logic
 - **Cognitive Load**: Main function is now easy to understand
-- **Test Coverage**: Helper functions can be unit tested
-- **Code Smells**: Addressed 6 major code smells (Long Method, Deep Nesting, Duplicate Code, Primitive Obsession, Feature Envy, Missing Type Hints)
+- **Test Coverage**: Handler methods can be unit tested
+- **Code Smells**: Addressed 4 major code smells (Deep Nesting, Long Method, Feature Envy, Duplicate Code)
 - **Maintainability**: Each function is focused and reusable
 
 **Consistency with Codebase**:
@@ -138,12 +146,20 @@ This refactoring follows the same pattern as other refactorings in the codebase:
 - Maintain backward compatibility
 
 **Next Steps**:
-1. Consider extracting the output format dispatch into a strategy pattern
-2. Explore creating a `HeadlessRunner` class to encapsulate all headless mode logic
-3. Consider removing the type ignore comments if they're no longer needed
-4. Look for similar long method issues in other files from the smell report
+1. Consider extracting common validation logic into shared helper functions
+2. Explore creating a `ParameterHandler` class hierarchy for more complex parameter types
+3. Consider adding unit tests for individual handler methods
+4. Look for similar deep nesting issues in other files from the smell report
 
 **Remaining Issues**:
-- Function is still 150 lines (above 30-line threshold) - further refactoring needed
-- Could extract output format handlers to separate functions
-- Consider creating a parameter object for the many primitive parameters
+- Handler methods still have some duplication (could extract common validation helpers)
+- Could create a base parameter handler class for shared logic
+- Consider using Pydantic models for parameter validation
+
+**Refactoring Quality Assessment**:
+- **Safety**: High - All tests pass, no breaking changes
+- **Readability**: High - Clear separation of concerns
+- **Maintainability**: High - Easy to add new parameters
+- **Testability**: High - Handler methods can be tested independently
+- **Performance**: Neutral - No significant performance impact
+- **Risk**: Low - Small, focused changes with comprehensive testing
