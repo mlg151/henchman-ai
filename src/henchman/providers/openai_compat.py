@@ -5,6 +5,7 @@ including DeepSeek, Together, Groq, Fireworks, and others.
 """
 
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -21,6 +22,8 @@ from henchman.providers.base import (
 )
 
 __all__ = ["OpenAICompatibleProvider"]
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAICompatibleProvider(ModelProvider):
@@ -156,7 +159,7 @@ class OpenAICompatibleProvider(ModelProvider):
             if not (message.content or "").strip():
                 raise ValueError(f"Message with role '{message.role}' cannot have empty content")
 
-        print(f"DEBUG OpenAICompatibleProvider.chat_completion_stream: Starting with {len(messages)} messages")  # Debug
+        logger.debug("OpenAICompatibleProvider.chat_completion_stream: Starting with %d messages", len(messages))
 
         # Run the actual API call with error handling
         try:
@@ -270,7 +273,7 @@ class OpenAICompatibleProvider(ModelProvider):
             # Re-raise validation, context too large, and API status errors
             raise
         except Exception as e:
-            print(f"DEBUG OpenAICompatibleProvider: Caught exception: {e}")  # Debug
+            logger.debug("OpenAICompatibleProvider: Caught exception: %s", e)
             # Yield an error StreamChunk for API/network errors
             from henchman.providers.base import FinishReason
             yield StreamChunk(

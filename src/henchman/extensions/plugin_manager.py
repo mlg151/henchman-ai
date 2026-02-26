@@ -162,11 +162,12 @@ class PluginManager(ExtensionManager):
                 query=query,
             )
 
-    async def get_plugin_info(self, plugin_name: str) -> PluginMetadata | None:
+    async def get_plugin_info(self, plugin_name: str, version: str | None = None) -> PluginMetadata | None:
         """Get detailed information about a plugin.
 
         Args:
             plugin_name: Name of the plugin.
+            version: Specific version to fetch (default: latest).
 
         Returns:
             PluginMetadata or None if not found.
@@ -177,7 +178,12 @@ class PluginManager(ExtensionManager):
         if not self._session:
             raise RuntimeError("Plugin manager not initialized")
 
-        url = urljoin(self.registry_url, f"/api/v1/plugins/{plugin_name}")
+        # Build URL for plugin metadata
+        if version:
+            url = urljoin(self.registry_url, f"/api/v1/plugins/{plugin_name}/versions/{version}")
+        else:
+            url = urljoin(self.registry_url, f"/api/v1/plugins/{plugin_name}")
+        
         async with self._session.get(url) as response:
             if response.status == 404:
                 return None
@@ -213,16 +219,10 @@ class PluginManager(ExtensionManager):
         if plugin_name in self.installed_plugins:
             raise ValueError(f"Plugin '{plugin_name}' is already installed")
 
-        # Get plugin metadata
-        metadata = await self.get_plugin_info(plugin_name)
+        # Get plugin metadata for the specified version (or latest if None)
+        metadata = await self.get_plugin_info(plugin_name, version)
         if not metadata:
             raise ValueError(f"Plugin '{plugin_name}' not found in registry")
-
-        # Check version
-        if version and version != metadata.version:
-            # Get specific version metadata
-            # TODO: Implement version-specific metadata fetching
-            pass
 
         # Check compatibility
         if not await self._check_compatibility(metadata):

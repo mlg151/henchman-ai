@@ -1,5 +1,6 @@
 """Core Agent implementation for orchestrating LLM interactions."""
 
+import logging
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
@@ -20,6 +21,8 @@ from henchman.utils.validation import (
 
 if TYPE_CHECKING:
     from henchman.agents.identity import AgentIdentity
+
+logger = logging.getLogger(__name__)
 
 
 class Agent:
@@ -532,7 +535,7 @@ class Agent:
 
     async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
         """Run the agent with user input."""
-        print(f"DEBUG Agent.run: Starting with input: {user_input[:100]}")  # Debug
+        logger.debug("Agent.run: Starting with input: %s", user_input[:100])
         # Start new turn - record where it begins in message history
         self._turn_number += 1
         self.turn.reset(new_start_index=len(self.messages))
@@ -543,7 +546,7 @@ class Agent:
         # Loop to handle potential stalling (narrating without acting)
         while True:
             try:
-                print("DEBUG Agent.run: Calling _process_streaming_response")  # Debug
+                logger.debug("Agent.run: Calling _process_streaming_response")
                 # Process streaming response
                 (
                     accumulated_content_list,
@@ -557,10 +560,10 @@ class Agent:
                 event_count = 0
                 async for event in event_iter:
                     event_count += 1
-                    print(f"DEBUG Agent.run: Yielding event {event_count}: {event.type}")  # Debug
+                    logger.debug("Agent.run: Yielding event %d: %s", event_count, event.type)
                     yield event
 
-                print(f"DEBUG Agent.run: Finished yielding {event_count} events")  # Debug
+                logger.debug("Agent.run: Finished yielding %d events", event_count)
 
                 # Extract actual content from list (mutable container)
                 accumulated_content = accumulated_content_list[0] if accumulated_content_list else ""
@@ -579,7 +582,7 @@ class Agent:
 
             except Exception as e:
                 # Yield error event
-                print(f"DEBUG Agent.run: Exception: {e}")  # Debug
+                logger.debug("Agent.run: Exception: %s", e)
                 yield self._emit(
                     type=EventType.ERROR,
                     data=f"Agent execution failed: {e}"
@@ -587,7 +590,7 @@ class Agent:
                 break
 
         # Yield finished event with actual finish reason if available
-        print("DEBUG Agent.run: Yielding FINISHED event")  # Debug
+        logger.debug("Agent.run: Yielding FINISHED event")
         finish_data = "Agent completed execution"
         if finish_reason_list and finish_reason_list[0]:
             finish_data = finish_reason_list[0].value

@@ -89,8 +89,10 @@ async def test_mocked_execution():
         error=None
     )
 
-    # Patch the actual execution to return our mock result
-    with patch.object(tool, '_execute_interactive_sudo', return_value=mock_result):
+    # Patch the actual execution to return our mock result and simulate TTY
+    with patch.object(tool, '_execute_interactive_sudo', return_value=mock_result), \
+         patch('sys.stdin') as mock_stdin:
+        mock_stdin.isatty.return_value = True
         # This should use interactive mode since we're in a TTY and it's sudo
         result = await tool.execute(command="sudo echo test")
         assert result.success is True

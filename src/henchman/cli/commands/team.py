@@ -34,7 +34,7 @@ class TeamCommand(Command):
         Args:
             ctx: Command context.
         """
-        if not ctx.repl or not hasattr(ctx.repl, "orchestrator"):
+        if not ctx.repl or not hasattr(ctx.repl, "orchestrator") or not ctx.repl.orchestrator:
             ctx.console.print("[red]Multi-agent system not initialized.[/]")
             return
 

@@ -18,6 +18,17 @@ class State:
         self.provider_registry: ProviderRegistry | None = None
         self.agent: Agent | None = None
         self.api_keys: set[str] = set()
+        self.metrics: dict[str, int | float] = {
+            "requests_total": 0,
+            "requests_successful": 0,
+            "requests_failed": 0,
+            "tokens_prompt": 0,
+            "tokens_completion": 0,
+            "tokens_total": 0,
+            "tool_calls_total": 0,
+            "tool_calls_successful": 0,
+            "tool_calls_failed": 0,
+        }
 
 
 # Global state instance
