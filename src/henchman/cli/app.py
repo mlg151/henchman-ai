@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 from typing import TYPE_CHECKING
 
 import anyio
@@ -509,6 +510,17 @@ def _run_headless(
         anyio.run(run_single_prompt_json_complete)
     else:  # pragma: no cover
         pass
+
+    # Exit with code 2 if the agent completed without doing any work.
+    # This enables automation scripts to detect and handle the case
+    # where the LLM narrated intent but never executed any tool calls.
+    from henchman.agents.orchestrator import CompletionStatus
+
+    if (
+        hasattr(repl, "orchestrator")
+        and repl.orchestrator.last_completion_status == CompletionStatus.NO_WORK_DONE
+    ):
+        sys.exit(2)
 
 
 @click.group(name="henchman")

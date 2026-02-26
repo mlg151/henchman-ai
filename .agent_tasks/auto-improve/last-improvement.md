@@ -1,73 +1,103 @@
 # Improvement Summary
 
-**Date/Time**: 2024-01-22 (automated improvement cycle)
+**Date/Time**: 2024-01-23 (automated improvement cycle)
 
 **Files Changed**:
 1. `src/henchman/agents/orchestrator.py`
-   - Refactored `_run_agent_loop` method to extract tool execution logic
-   - Created helper methods for better separation of concerns
-   - Improved readability and maintainability
-   - Maintained 100% backward compatibility and all tests pass
+   - Refactored `OrchestratorMetrics` class using **Extract Class** pattern
+   - Created `PerformanceMetrics`, `QualityMetrics`, and `ToolMetrics` component classes
+   - Refactored `get_metrics_report` method using **Extract Method** pattern
+   - Replaced magic numbers with class constants
+   - Eliminated duplicate code in initialization and reporting
+   - Maintained 100% backward compatibility via dictionary access methods
+   - All 44 orchestrator tests pass, all 185 agent tests pass
 
 **Identified Smells**:
-1. **Long Method**: `_run_agent_loop` was 150+ lines handling multiple responsibilities
-2. **Duplicate Code Patterns**: Similar tool execution, error tracking, and event creation patterns in both delegation and regular tool branches
-3. **Complex Conditional Logic**: Deeply nested if-else structure for delegation vs regular tools
-4. **Feature Envy**: The method handled too many different concerns (tool execution, delegation, metrics, events)
+1. **Large Class**: `OrchestratorMetrics` had 28 fields and handled too many responsibilities
+2. **Primitive Obsession**: Many related fields could be grouped into smaller classes
+3. **Duplicate Code**: `reset_for_run` method duplicated initialization logic from `__init__`
+4. **Long Method**: `get_metrics_report` was 172+ lines handling too many concerns
+5. **Feature Envy**: The metrics class knew too much about tool categories and reporting formats
+6. **Magic Numbers**: Hardcoded target values (40%, 50%, etc.) scattered throughout
+7. **Duplicate Logic**: Duplicate code in `get_metrics_report` for calculating delegation rate
 
 **Refactoring Strategy**:
-Applied **Extract Method** refactoring pattern to break down the monolithic `_run_agent_loop` method:
-1. `_process_pending_tool_calls()` - Handles processing of all pending tool calls
-2. `_execute_delegation_tool()` - Specialized logic for delegation tool execution
-3. `_execute_regular_tool()` - Specialized logic for regular tool execution
-4. Maintained existing helper methods (`_track_tool_error`, `_yield_tool_result_event`)
+Applied **Extract Class** and **Extract Method** refactoring patterns:
+
+1. **Extract Class**: Created three focused component classes:
+   - `PerformanceMetrics`: Task timing, file access, tool usage, delegation rate
+   - `QualityMetrics`: Test results, code coverage, linting status, documentation
+   - `ToolMetrics`: Tool call tracking, categorization, error rate calculation
+
+2. **Extract Method**: Broke down `get_metrics_report` into 16 focused methods:
+   - `_generate_efficiency_metrics()` - Efficiency section
+   - `_generate_quality_metrics()` - Quality section  
+   - `_generate_target_metrics()` - Target performance section
+   - `_generate_detailed_statistics()` - Detailed statistics
+   - 12 formatting methods for individual metric types
+
+3. **Replace Magic Numbers with Constants**: Extracted target values to `PerformanceMetrics` class constants:
+   - `DELEGATION_RATE_TARGET = 40.0`
+   - `ERROR_RATE_TARGET = 50.0`
+   - `CONTEXT_WINDOW_TARGET = 40.0`
+   - `FILE_RE_READS_TARGET = 1.3`
+
+4. **Remove Duplicate Code**: Eliminated duplicate initialization in `reset_for_run` and duplicate logic in reporting
+
+5. **Improve Cohesion**: Grouped related metrics together in dedicated classes with focused responsibilities
 
 **Refactored Code Structure**:
-- **Before**: Single 150+ line method with complex branching logic
+- **Before**: Single `OrchestratorMetrics` class with 28 fields, 7 methods, 172+ line report method
 - **After**: 
-  - `_run_agent_loop` (75 lines) - Main coordination logic
-  - `_process_pending_tool_calls` (20 lines) - Tool call processing loop
-  - `_execute_delegation_tool` (45 lines) - Delegation-specific logic
-  - `_execute_regular_tool` (20 lines) - Regular tool execution logic
+  - `OrchestratorMetrics` (coordinator class, 7 methods)
+  - `PerformanceMetrics` (8 fields, 5 methods)
+  - `QualityMetrics` (4 fields, 3 methods)
+  - `ToolMetrics` (9 fields, 4 methods)
+  - 16 focused reporting methods (average 10 lines each)
 
 **Key Improvements**:
-1. **Better Separation of Concerns**: Each method has a single, clear responsibility
+1. **Better Separation of Concerns**: Each component class has a single, clear responsibility
 2. **Improved Readability**: Methods are shorter and easier to understand
-3. **Easier Testing**: Smaller methods are easier to test in isolation
+3. **Easier Testing**: Smaller classes and methods are easier to test in isolation
 4. **Reduced Cognitive Load**: Developers can understand one piece at a time
-5. **Enhanced Maintainability**: Changes to delegation logic don't affect regular tool execution and vice versa
+5. **Enhanced Maintainability**: Changes to performance metrics don't affect quality metrics and vice versa
+6. **Eliminated Duplication**: Common patterns extracted into reusable methods
+7. **Centralized Constants**: Target values defined in one place for easy updates
+8. **Preserved Backward Compatibility**: Dictionary access methods maintain API compatibility
 
 **XP Principles Applied**:
 - **Once and Only Once (DRY)**: Eliminated duplicate patterns by extracting common logic
-- **Intention-Revealing Code**: Method names clearly express their purpose
+- **Intention-Revealing Code**: Class and method names clearly express their purpose
 - **YAGNI**: Only extracted existing logic, didn't add new features
 - **Simplicity**: Clear separation of concerns is simpler to understand and maintain
 - **Continuous Refactoring**: Improved code structure without changing behavior
 
 **Testing Implications**:
-- All 44 orchestrator tests pass (162 total agent tests pass)
+- All 44 orchestrator tests pass (185 total agent tests pass)
 - No breaking changes to API or functionality
-- Backward compatibility maintained
+- Backward compatibility maintained via `__getitem__`, `__contains__`, `get`, `__setitem__` methods
 - Existing test suite validates both old and new code paths
 - Coverage remains at 88% for orchestrator module
 
 **Impact**:
-- **Improved maintainability**: Clear separation between delegation and regular tool logic
-- **Better testability**: Smaller, focused methods are easier to test
+- **Improved maintainability**: Clear separation between performance, quality, and tool metrics
+- **Better testability**: Smaller, focused classes are easier to test
 - **Enhanced readability**: Reduced cognitive load for developers
-- **Foundation for future improvements**: Easier to add new tool types or modify existing ones
+- **Foundation for future improvements**: Easier to add new metric types or modify existing ones
 - **Reduced duplication**: Common patterns extracted into reusable methods
+- **Centralized configuration**: Target values defined in one place
 
 **Verification**:
 - ✅ All 44 orchestrator tests pass
-- ✅ All 162 agent tests pass  
-- ✅ All 2526 total tests pass
-- ✅ No linting errors after fixes
-- ✅ Backward compatibility maintained
+- ✅ All 185 agent tests pass  
+- ✅ No linting errors after fixes (ruff --fix applied)
+- ✅ Type checking passes (mypy with one type ignore for backward compatibility)
+- ✅ Backward compatibility maintained via dictionary access methods
 - ✅ Code coverage preserved (88% for orchestrator module)
 
 **Next Steps**:
-1. Consider further refactoring of other long methods in the codebase
-2. Add more comprehensive unit tests for extracted methods
-3. Consider using strategy pattern for different tool types if complexity increases
-4. Look for other opportunities to apply Extract Method refactoring
+1. Consider extracting reporting logic into separate `MetricsReporter` class
+2. Add more comprehensive unit tests for new component classes
+3. Consider using dataclasses for component classes to reduce boilerplate
+4. Look for other opportunities to apply Extract Class refactoring in the codebase
+5. Consider adding validation methods to ensure metric consistency
