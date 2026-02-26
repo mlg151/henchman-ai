@@ -40,6 +40,38 @@ class CompletionStatus(Enum):
     """Agent hit the turn limit before finishing."""
 
 
+class ToolCategory(Enum):
+    """Categories for tool classification in metrics tracking."""
+    READ_FILE = "read_file"
+    WRITE_FILE = "write_file"
+    EDIT_FILE = "edit_file"
+    SHELL = "shell"
+    GIT_OPS = "git_ops"
+    OTHER = "other"
+
+
+# Mapping from tool names to their categories
+_TOOL_CATEGORY_MAP: dict[str, ToolCategory] = {
+    "read_file": ToolCategory.READ_FILE,
+    "write_file": ToolCategory.WRITE_FILE,
+    "edit_file": ToolCategory.EDIT_FILE,
+    "shell": ToolCategory.SHELL,
+    "git_ops": ToolCategory.GIT_OPS,
+}
+
+
+def _categorize_tool(tool_name: str) -> ToolCategory:
+    """Categorize a tool by its name.
+
+    Args:
+        tool_name: Name of the tool to categorize.
+
+    Returns:
+        The tool's category, or ToolCategory.OTHER if not found.
+    """
+    return _TOOL_CATEGORY_MAP.get(tool_name, ToolCategory.OTHER)
+
+
 class Metrics(TypedDict, total=False):
     """Metrics for tracking orchestrator performance.
 
@@ -194,16 +226,17 @@ class ToolMetrics:
         else:
             self.failed_tool_calls += 1
 
-        # Categorize tool calls
-        if tool_name == "read_file":
+        # Categorize tool calls using the shared categorization function
+        category = _categorize_tool(tool_name)
+        if category == ToolCategory.READ_FILE:
             self.read_file_calls += 1
-        elif tool_name == "write_file":
+        elif category == ToolCategory.WRITE_FILE:
             self.write_file_calls += 1
-        elif tool_name == "edit_file":
+        elif category == ToolCategory.EDIT_FILE:
             self.edit_file_calls += 1
-        elif tool_name == "shell":
+        elif category == ToolCategory.SHELL:
             self.shell_calls += 1
-        elif tool_name == "git_ops":
+        elif category == ToolCategory.GIT_OPS:
             self.git_ops_calls += 1
         else:
             self.other_tool_calls += 1
@@ -213,6 +246,21 @@ class ToolMetrics:
         if self.total_tool_calls > 0:
             return (self.failed_tool_calls / self.total_tool_calls) * 100.0
         return 0.0
+
+    def get_tool_call_counts_by_category(self) -> dict[ToolCategory, int]:
+        """Get tool call counts organized by category.
+
+        Returns:
+            A dictionary mapping tool categories to their call counts.
+        """
+        return {
+            ToolCategory.READ_FILE: self.read_file_calls,
+            ToolCategory.WRITE_FILE: self.write_file_calls,
+            ToolCategory.EDIT_FILE: self.edit_file_calls,
+            ToolCategory.SHELL: self.shell_calls,
+            ToolCategory.GIT_OPS: self.git_ops_calls,
+            ToolCategory.OTHER: self.other_tool_calls,
+        }
 
 
 class OrchestratorMetrics:
@@ -1601,16 +1649,8 @@ class Orchestrator:
         """Generate the detailed statistics section of the report."""
         lines = ["### Detailed Statistics"]
 
-        # Tool call breakdown
-        lines.append(f"- **Total Tool Calls**: {self.metrics.tools.total_tool_calls}")
-        lines.append(f"- **Successful Tool Calls**: {self.metrics.tools.successful_tool_calls}")
-        lines.append(f"- **Failed Tool Calls**: {self.metrics.tools.failed_tool_calls}")
-        lines.append(f"- **Read File Calls**: {self.metrics.tools.read_file_calls}")
-        lines.append(f"- **Write File Calls**: {self.metrics.tools.write_file_calls}")
-        lines.append(f"- **Edit File Calls**: {self.metrics.tools.edit_file_calls}")
-        lines.append(f"- **Shell Calls**: {self.metrics.tools.shell_calls}")
-        lines.append(f"- **Git Ops Calls**: {self.metrics.tools.git_ops_calls}")
-        lines.append(f"- **Other Tool Calls**: {self.metrics.tools.other_tool_calls}")
+        # Tool call breakdown using structured data
+        lines.extend(self._format_tool_call_statistics())
 
         # Thinking metrics
         lines.append(f"- **Thinking Pattern Usage**: {self.metrics.thinking_pattern_usage}")
@@ -1623,6 +1663,30 @@ class Orchestrator:
                 [f"{k}: {v}" for k, v in delegation_by_type.items() if v > 0]
             )
             lines.append(f"- **Delegation by Type**: {delegation_summary}")
+
+        return lines
+
+    def _format_tool_call_statistics(self) -> list[str]:
+        """Format tool call statistics for the report.
+
+        Returns:
+            List of formatted tool call statistic lines.
+        """
+        lines = []
+        tools = self.metrics.tools
+
+        # Basic tool call counts
+        lines.append(f"- **Total Tool Calls**: {tools.total_tool_calls}")
+        lines.append(f"- **Successful Tool Calls**: {tools.successful_tool_calls}")
+        lines.append(f"- **Failed Tool Calls**: {tools.failed_tool_calls}")
+
+        # Tool calls by category
+        tool_counts = tools.get_tool_call_counts_by_category()
+        for category, count in tool_counts.items():
+            if count > 0:  # Only show categories with actual usage
+                # Convert enum value to readable string (e.g., "read_file" -> "Read File")
+                readable_name = category.value.replace("_", " ").title()
+                lines.append(f"- **{readable_name} Calls**: {count}")
 
         return lines
 

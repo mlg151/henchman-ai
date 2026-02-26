@@ -523,15 +523,17 @@ def _run_headless(
         sys.exit(2)
 
 
-@click.group(name="henchman")
+@click.group(name="henchman", invoke_without_command=True)
 @click.version_option(version=VERSION, prog_name="henchman")
-def cli() -> None:
+@click.pass_context
+def cli(ctx: click.Context) -> None:
     """Henchman-AI: A model-agnostic AI agent CLI.
 
     Start an interactive session, run with --prompt for headless mode,
     or start an API server with the serve command.
     """
-    pass
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
 
 
 @cli.command(name="chat")
