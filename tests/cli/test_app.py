@@ -66,9 +66,13 @@ def test_main_function() -> None:
     runner = CliRunner()
     assert callable(main)
 
-    # Test cli works through runner
+    # Test cli group shows help when invoked without subcommand
+    result = runner.invoke(cli, [], standalone_mode=False)
+    assert result.exit_code != 0  # group requires a subcommand
+
+    # Test chat subcommand works through runner
     with patch("henchman.cli.app._run_interactive"):
-        result = runner.invoke(cli, [], standalone_mode=False)
+        result = runner.invoke(cli, ["chat"], standalone_mode=False)
         assert result.exit_code == 0
 
 

@@ -181,7 +181,7 @@ class MetricsStorage:
         Returns:
             Dictionary representation of metric.
         """
-        base_dict = {
+        base_dict: dict[str, Any] = {
             "id": metric.id,
             "timestamp": metric.timestamp.isoformat(),
             "metric_type": metric.metric_type.value,
@@ -260,7 +260,10 @@ class MetricsStorage:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM metrics")
-            count = cursor.fetchone()[0]
+            count_result = cursor.fetchone()
+            if count_result is None:
+                return True
+            count: int = count_result[0]
 
         return count < self.max_metrics
 

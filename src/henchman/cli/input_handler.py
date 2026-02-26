@@ -87,11 +87,15 @@ class InputHandler:
             User input string.
 
         Raises:
+            RuntimeError: If prompt session is not initialized.
             KeyboardInterrupt: If user presses Ctrl+C.
             EOFError: If user presses Ctrl+D.
         """
         if not self.prompt_session:
-            raise RuntimeError("Prompt session not initialized")
+            raise RuntimeError(
+                "Prompt session not initialized. "
+                "Call initialize_prompt_session() before get_input()."
+            )
 
         # Ensure a fresh line for the prompt
         if hasattr(self.renderer, "print_newline"):

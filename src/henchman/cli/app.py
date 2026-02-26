@@ -151,6 +151,7 @@ def _run_interactive(
         output_format: Output format (text, json, stream-json, json-complete).
         plan_mode: Whether to start in plan mode.
         yes: Auto-approve all tool executions.
+        agent_role: Target a specific specialist agent.
     """
     from pathlib import Path
 
@@ -248,7 +249,7 @@ def _run_textual_tui(
         output_format: Output format (ignored for TUI mode).
         plan_mode: Whether to start in plan mode.
         yes: Auto-approve all tool executions.
-        agent_role: Target a specific specialist agent (not yet supported).
+        agent_role: Target a specific specialist agent.
     """
     from henchman.cli.textual_app import TextualConfig, run_textual_app
     from henchman.config import ContextLoader, load_settings
@@ -300,6 +301,7 @@ def _run_headless(
         output_format: Output format (text, json, stream-json, json-complete).
         plan_mode: Whether to run in plan mode.
         yes: Auto-approve all tool executions.
+        agent_role: Target a specific specialist agent.
     """
     from pathlib import Path
 
@@ -572,6 +574,12 @@ def chat_command(
         import builtins
         _orig_print = builtins.print
         def _filtered_print(*args: object, **kwargs: object) -> None:
+            """Filter out DEBUG print statements when debug mode is disabled.
+
+            Args:
+                *args: Arguments passed to print function.
+                **kwargs: Keyword arguments passed to print function.
+            """
             if args and isinstance(args[0], str) and args[0].startswith("DEBUG"):
                 return
             _orig_print(*args, **kwargs)  # type: ignore[call-overload]

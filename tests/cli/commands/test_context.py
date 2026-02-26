@@ -160,10 +160,10 @@ async def test_context_command_stats(ctx):
     }
     ctx.agent.compactor = mock_compactor
 
-    # Mock the import from henchman.utils.intelligent_context
-    with patch("henchman.utils.intelligent_context.IntelligentContextManager", Mock) as mock_icm:
-        # Make isinstance check pass
-        mock_icm.return_value = mock_compactor
+    # Patch IntelligentContextManager so isinstance(mock_compactor, ...) returns True
+    fake_class = type("IntelligentContextManager", (), {})
+    mock_compactor.__class__ = fake_class
+    with patch("henchman.utils.intelligent_context.IntelligentContextManager", fake_class):
 
         await cmd.execute(ctx)
 

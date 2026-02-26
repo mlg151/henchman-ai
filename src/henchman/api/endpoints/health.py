@@ -67,9 +67,27 @@ async def get_metrics(
     Returns:
         Performance metrics.
     """
-    # TODO: Implement actual metrics collection
-    # For now, return placeholder data
-
+    # Use actual metrics from state if available
+    if state.metrics:
+        return MetricsResponse(
+            requests={
+                "total": state.metrics.get("requests_total", 0),
+                "successful": state.metrics.get("requests_successful", 0),
+                "failed": state.metrics.get("requests_failed", 0),
+            },
+            tokens={
+                "prompt": state.metrics.get("tokens_prompt", 0),
+                "completion": state.metrics.get("tokens_completion", 0),
+                "total": state.metrics.get("tokens_total", 0),
+            },
+            tools={
+                "total_calls": state.metrics.get("tool_calls_total", 0),
+                "successful": state.metrics.get("tool_calls_successful", 0),
+                "failed": state.metrics.get("tool_calls_failed", 0),
+            },
+        )
+    
+    # Fallback to placeholder data
     return MetricsResponse(
         requests={
             "total": 0,
@@ -101,9 +119,29 @@ async def get_usage(
     Returns:
         Usage and cost information.
     """
-    # TODO: Implement actual usage tracking
-    # For now, return placeholder data
-
+    # Use actual metrics from state if available
+    if state.metrics:
+        total_tokens = state.metrics.get("tokens_total", 0)
+        # Simple cost estimation: rough average of common model prices
+        # This is an approximation - actual cost depends on the model used
+        total_cost = total_tokens * 0.001 / 1000  # ~$0.001 per 1K tokens
+        
+        # Create a simple daily usage structure
+        # Note: This shows cumulative usage, not broken down by actual date
+        daily_usage = {
+            "current_session": {
+                "tokens": total_tokens,
+                "cost": total_cost,
+            }
+        }
+        
+        return UsageResponse(
+            total_tokens=total_tokens,
+            total_cost=total_cost,
+            daily_usage=daily_usage,
+        )
+    
+    # Fallback to placeholder data
     return UsageResponse(
         total_tokens=0,
         total_cost=0.0,

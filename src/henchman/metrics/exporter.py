@@ -3,6 +3,8 @@
 Exports metrics data to various formats and destinations.
 """
 
+import json
+from pathlib import Path
 from typing import Any
 
 
@@ -30,9 +32,48 @@ class MetricsExporter:
         Args:
             filepath: Path to output JSON file.
             **filters: Optional filters for metrics selection.
+
+        Raises:
+            FileNotFoundError: If the directory doesn't exist and can't be created.
+            PermissionError: If the file can't be written.
+            TypeError: If metrics data can't be serialized to JSON.
         """
-        # TODO: Implement JSON export
-        pass
+        # Get metrics based on filters
+        metrics = self.metrics_storage.get_metrics(
+            metric_type=filters.get("metric_type"),
+            session_id=filters.get("session_id"),
+            agent_id=filters.get("agent_id"),
+            start_date=filters.get("start_date"),
+            end_date=filters.get("end_date"),
+            limit=filters.get("limit"),
+        )
+
+        # Create output directory if it doesn't exist
+        output_path = Path(filepath)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write metrics to JSON file with pretty formatting
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "metrics": metrics,
+                    "count": len(metrics),
+                    "exported_at": self._get_current_timestamp(),
+                    "filters": filters,
+                },
+                f,
+                indent=2,
+                default=str,  # Handle datetime and other non-serializable objects
+            )
+
+    def _get_current_timestamp(self) -> str:
+        """Get current timestamp in ISO format.
+        
+        Returns:
+            ISO formatted timestamp string.
+        """
+        from datetime import datetime
+        return datetime.now().isoformat()
 
     def export_to_csv(self, filepath: str, **filters: Any) -> None:
         """Export metrics to CSV file.
@@ -40,9 +81,12 @@ class MetricsExporter:
         Args:
             filepath: Path to output CSV file.
             **filters: Optional filters for metrics selection.
+
+        Raises:
+            NotImplementedError: CSV export is not yet implemented.
         """
         # TODO: Implement CSV export
-        pass
+        raise NotImplementedError("CSV export is not yet implemented")
 
     def export_to_prometheus(self, endpoint: str, **filters: Any) -> None:
         """Export metrics to Prometheus endpoint.
@@ -50,9 +94,12 @@ class MetricsExporter:
         Args:
             endpoint: Prometheus push gateway endpoint.
             **filters: Optional filters for metrics selection.
+
+        Raises:
+            NotImplementedError: Prometheus export is not yet implemented.
         """
         # TODO: Implement Prometheus export
-        pass
+        raise NotImplementedError("Prometheus export is not yet implemented")
 
     def export_summary(self, **filters: Any) -> dict[str, Any]:
         """Export summary statistics.
@@ -62,9 +109,12 @@ class MetricsExporter:
 
         Returns:
             Dictionary of summary statistics.
+
+        Raises:
+            NotImplementedError: Summary export is not yet implemented.
         """
         # TODO: Implement summary export
-        return {}
+        raise NotImplementedError("Summary export is not yet implemented")
 
     def get_available_formats(self) -> list[str]:
         """Get list of available export formats.
@@ -72,4 +122,5 @@ class MetricsExporter:
         Returns:
             List of supported export formats.
         """
-        return ["json", "csv", "prometheus"]
+        # Return formats that are actually implemented
+        return ["json"]  # Only JSON is currently implemented

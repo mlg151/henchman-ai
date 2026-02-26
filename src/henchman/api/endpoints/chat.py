@@ -119,12 +119,47 @@ async def chat_completion(
     # Set system prompt if provided
     if request.system_prompt:
         agent.system_prompt = request.system_prompt
-        agent.system_prompt = request.system_prompt
 
-    # Collect all events
-    # Set system prompt if provided
-    if request.system_prompt:
-        agent.system_prompt = request.system_prompt
+    # Extract last user message from conversation history
+    user_input = ""
+    last_user_index = -1
+    # Find the last user message in the conversation
+    for i in range(len(request.messages) - 1, -1, -1):
+        msg = request.messages[i]
+        if msg.role == "user":
+            user_input = msg.content
+            last_user_index = i
+            break
+    
+    # Set agent messages to conversation history (excluding the last user message
+    # since agent.run() will add it)
+    agent.messages.clear()
+    # Add all messages except the last user message
+    for i, msg in enumerate(request.messages):
+        if i == last_user_index:
+            # Skip the last user message
+            continue
+        
+        # Convert to Message format (reusing the conversion logic from above)
+        message_tool_calls = None
+        if msg.tool_calls:
+            message_tool_calls = [
+                ToolCall(
+                    id=tc.get("id", ""),
+                    name=tc.get("name", ""),
+                    arguments=tc.get("arguments", {}),
+                )
+                for tc in msg.tool_calls
+            ]
+        
+        agent.messages.append(
+            Message(
+                role=msg.role,
+                content=msg.content,
+                tool_calls=message_tool_calls,
+                tool_call_id=msg.tool_call_id,
+            )
+        )
 
     # Collect all events
     events: list[AgentEvent] = []
@@ -137,9 +172,7 @@ async def chat_completion(
     valid_finish_reasons = {"stop", "tool_calls", "length", "content_filter"}
 
     try:
-        # TODO: Fix this - should extract last user message from conversation history
-        # For now, pass empty string
-        async for event in agent.run(user_input=""):
+        async for event in agent.run(user_input=user_input):
             events.append(event)
             if event.type == EventType.CONTENT:
                 content_parts.append(event.data)
@@ -175,6 +208,28 @@ async def chat_completion(
 
     # Usage information is extracted from FINISHED event if available
     # usage variable is already set from event processing above
+    
+    # Update metrics in state
+    if state.metrics:
+        # Increment request counts
+        state.metrics["requests_total"] = state.metrics.get("requests_total", 0) + 1
+        state.metrics["requests_successful"] = state.metrics.get("requests_successful", 0) + 1
+        
+        # Update token usage if available
+        if usage:
+            prompt_tokens = usage.get("prompt_tokens", 0)
+            completion_tokens = usage.get("completion_tokens", 0)
+            total_tokens = usage.get("total_tokens", 0)
+            
+            state.metrics["tokens_prompt"] = state.metrics.get("tokens_prompt", 0) + prompt_tokens
+            state.metrics["tokens_completion"] = state.metrics.get("tokens_completion", 0) + completion_tokens
+            state.metrics["tokens_total"] = state.metrics.get("tokens_total", 0) + total_tokens
+        
+        # Update tool call counts
+        if tool_calls:
+            state.metrics["tool_calls_total"] = state.metrics.get("tool_calls_total", 0) + len(tool_calls)
+            # Assume all tool calls are successful for now
+            state.metrics["tool_calls_successful"] = state.metrics.get("tool_calls_successful", 0) + len(tool_calls)
 
     return ChatResponse(
         message=response_message,
@@ -197,6 +252,13 @@ async def chat_completion_stream(
         agent: Agent instance.
 
     Returns:
+        Streaming response with SSE events.
+    """
+    if not await verify_api_key(api_key):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
     # Convert messages to internal format
     messages = []
     for msg in request.messages:
@@ -211,7 +273,7 @@ async def chat_completion_stream(
                 )
                 for tc in msg.tool_calls
             ]
-        
+
         messages.append(
             Message(
                 role=msg.role,
@@ -225,36 +287,82 @@ async def chat_completion_stream(
     if request.system_prompt:
         agent.system_prompt = request.system_prompt
 
-    async def event_generator() -> AsyncIterator[str]:
+    # Extract last user message from conversation history
+    user_input = ""
+    last_user_index = -1
+    # Find the last user message in the conversation
+    for i in range(len(request.messages) - 1, -1, -1):
+        msg = request.messages[i]
+        if msg.role == "user":
+            user_input = msg.content
+            last_user_index = i
+            break
+    
+    # Set agent messages to conversation history (excluding the last user message
+    # since agent.run() will add it)
+    agent.messages.clear()
+    # Add all messages except the last user message
+    for i, msg in enumerate(request.messages):
+        if i == last_user_index:
+            # Skip the last user message
+            continue
+        
+        # Convert to Message format (reusing the conversion logic from above)
+        message_tool_calls = None
+        if msg.tool_calls:
+            message_tool_calls = [
+                ToolCall(
+                    id=tc.get("id", ""),
+                    name=tc.get("name", ""),
+                    arguments=tc.get("arguments", {}),
+                )
+                for tc in msg.tool_calls
+            ]
+        
+        agent.messages.append(
+            Message(
+                role=msg.role,
+                content=msg.content,
+                tool_calls=message_tool_calls,
                 tool_call_id=msg.tool_call_id,
             )
         )
-                tool_calls=tool_calls,
-                tool_call_id=msg.tool_call_id,
-            )
-        )
-    # Set system prompt if provided
-    if request.system_prompt:
-        agent.system_prompt = request.system_prompt
 
+    # Track metrics for streaming requests
+    if state.metrics:
+        state.metrics["requests_total"] = state.metrics.get("requests_total", 0) + 1
+    
     async def event_generator() -> AsyncIterator[str]:
         """Generate SSE events from agent events."""
         index = 0
+        tool_calls_count = 0
         try:
-            # TODO: Fix this - should extract last user message from conversation history
-            # For now, pass empty string
-            async for event in agent.run(user_input=""):
+            async for event in agent.run(user_input=user_input):
                 chunk_type = "content"
                 chunk_data = {"text": event.data}
 
                 if event.type == EventType.TOOL_CALL_REQUEST:
                     chunk_type = "tool_call"
                     chunk_data = {"tool_call": event.data}
+                    tool_calls_count += 1
                 elif event.type == EventType.FINISHED:
                     chunk_type = "finished"
                     # Use actual finish reason from event data
                     reason = event.data if event.data else "stop"
                     chunk_data = {"reason": reason}
+                    
+                    # Extract usage information if available
+                    if isinstance(event.data, dict) and "usage" in event.data:
+                        usage = event.data["usage"]
+                        # Update token usage metrics
+                        if state.metrics and usage:
+                            prompt_tokens = usage.get("prompt_tokens", 0)
+                            completion_tokens = usage.get("completion_tokens", 0)
+                            total_tokens = usage.get("total_tokens", 0)
+                            
+                            state.metrics["tokens_prompt"] = state.metrics.get("tokens_prompt", 0) + prompt_tokens
+                            state.metrics["tokens_completion"] = state.metrics.get("tokens_completion", 0) + completion_tokens
+                            state.metrics["tokens_total"] = state.metrics.get("tokens_total", 0) + total_tokens
 
                 chunk = ChatStreamChunk(
                     type=chunk_type,
@@ -265,6 +373,13 @@ async def chat_completion_stream(
 
                 yield f"data: {chunk.model_dump_json()}\n\n"
 
+            # Update successful request and tool call metrics
+            if state.metrics:
+                state.metrics["requests_successful"] = state.metrics.get("requests_successful", 0) + 1
+                if tool_calls_count > 0:
+                    state.metrics["tool_calls_total"] = state.metrics.get("tool_calls_total", 0) + tool_calls_count
+                    state.metrics["tool_calls_successful"] = state.metrics.get("tool_calls_successful", 0) + tool_calls_count
+
             # Send final done event
             done_chunk = ChatStreamChunk(
                 type="done",
@@ -274,6 +389,10 @@ async def chat_completion_stream(
             yield f"data: {done_chunk.model_dump_json()}\n\n"
 
         except Exception as e:
+            # Update failed request metric
+            if state.metrics:
+                state.metrics["requests_failed"] = state.metrics.get("requests_failed", 0) + 1
+            
             error_chunk = ChatStreamChunk(
                 type="error",
                 data={"error": str(e)},
