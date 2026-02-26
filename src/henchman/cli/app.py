@@ -108,11 +108,10 @@ def _ensure_api_key_in_kwargs(provider_name: str, kwargs: dict[str, object]) -> 
     if kwargs.get("api_key"):
         return
 
-    if provider_name == "anthropic":
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-    else:
-        api_key = os.environ.get("HENCHMAN_API_KEY")
+    # Get the appropriate environment variable for this provider
+    from henchman.providers.utils import get_api_key_for_provider
 
+    api_key = get_api_key_for_provider(provider_name)
     if api_key:
         kwargs["api_key"] = api_key
 
@@ -516,7 +515,7 @@ def _run_headless(
 @click.version_option(version=VERSION, prog_name="henchman")
 def cli() -> None:
     """Henchman-AI: A model-agnostic AI agent CLI.
-    
+
     Start an interactive session, run with --prompt for headless mode,
     or start an API server with the serve command.
     """
@@ -622,13 +621,13 @@ def main() -> None:  # pragma: no cover
     # For backward compatibility, if no subcommand is specified,
     # assume the user wants to run chat with the old-style arguments
     if len(sys.argv) == 1 or (
-        len(sys.argv) > 1 and 
-        not sys.argv[1].startswith("-") and 
+        len(sys.argv) > 1 and
+        not sys.argv[1].startswith("-") and
         sys.argv[1] not in ["chat", "serve"]
     ):
         # Insert "chat" as the subcommand
         sys.argv.insert(1, "chat")
-    
+
     cli()
 
 

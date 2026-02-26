@@ -90,7 +90,9 @@ Whenever you are provided with a code snippet to refactor, you must respond stri
 
     Testing Implications: (A 1-2 sentence note on what existing unit tests might need updating, or what new edge cases should be tested based on the structural change)
     
-Please pick one improvement to make to the codebase, implement it, and ensure all tests pass. DO check .agent_tasks/auto-improve/last-improvement.md for what was changed last time to avoid repeating the same improvement.'
+Please pick one improvement to make to the codebase, implement it, and ensure all tests pass. DO check .agent_tasks/auto-improve/last-improvement.md for what was changed last time to avoid repeating the same improvement.
+
+ALL TESTS. EVEN IF YOU THINK THE FAILURE IS UNRELATED TO YOUR CHANGE, FIX IT. DO NOT LEAVE THE CODE IN A BROKEN STATE!'
 
 # Run Henchman in headless mode with auto-approve
 echo "Running Henchman..." | tee -a "$LOGFILE"

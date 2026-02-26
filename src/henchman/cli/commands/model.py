@@ -232,13 +232,28 @@ class ModelCommand(Command):
         Returns:
             Environment variable names.
         """
-        env_vars = {
-            "deepseek": "DEEPSEEK_API_KEY",
-            "openai": "OPENAI_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-            "ollama": "OLLAMA_HOST (optional, defaults to http://localhost:11434)",
-        }
-        return env_vars.get(provider_name, "Check provider documentation")
+        from henchman.providers.utils import get_env_var_for_provider
+
+        # Special case for ollama since it doesn't need an API key
+        if provider_name == "ollama":
+            return "OLLAMA_HOST (optional, defaults to http://localhost:11434)"
+
+        # Get the environment variable
+        env_var = get_env_var_for_provider(provider_name)
+
+        # If it's HENCHMAN_API_KEY and the provider is not one of the known
+        # providers that use it, return a more helpful message
+        if env_var == "HENCHMAN_API_KEY":
+            # Known providers that use HENCHMAN_API_KEY
+            known_henchman_providers = {
+                "openai_compat", "together", "groq", "fireworks", "openrouter"
+            }
+            if provider_name not in known_henchman_providers and provider_name not in {
+                "deepseek", "openai", "anthropic"  # These have their own env vars
+            }:
+                return "Check provider documentation"
+
+        return env_var
 
     def _get_env_var_name(self, provider_name: str) -> str:
         """Get the environment variable name for a provider's API key.
@@ -249,13 +264,8 @@ class ModelCommand(Command):
         Returns:
             Environment variable name.
         """
-        mapping = {
-            "deepseek": "DEEPSEEK_API_KEY",
-            "openai": "OPENAI_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-            "ollama": "OLLAMA_API_KEY",  # Ollama doesn't usually need API key
-        }
-        return mapping.get(provider_name, f"{provider_name.upper()}_API_KEY")
+        from henchman.providers.utils import get_env_var_for_provider
+        return get_env_var_for_provider(provider_name)
 
     def _get_api_key_for_provider(self, provider_name: str) -> str | None:
         """Get API key for a provider from environment or settings.
@@ -266,15 +276,10 @@ class ModelCommand(Command):
         Returns:
             API key if found, None otherwise.
         """
-        # Try environment variables first
-        env_var = self._get_env_var_name(provider_name)
-        api_key = os.environ.get(env_var)
+        # Try environment variables first using utility function
+        from henchman.providers.utils import get_api_key_for_provider
 
-        if api_key:
-            return api_key
-
-        # Try generic HENCHMAN_API_KEY
-        api_key = os.environ.get("HENCHMAN_API_KEY")
+        api_key = get_api_key_for_provider(provider_name)
         if api_key:
             return api_key
 

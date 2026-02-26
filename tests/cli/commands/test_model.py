@@ -283,7 +283,7 @@ async def test_get_env_var_name():
     assert cmd._get_env_var_name("deepseek") == "DEEPSEEK_API_KEY"
     assert cmd._get_env_var_name("openai") == "OPENAI_API_KEY"
     assert cmd._get_env_var_name("anthropic") == "ANTHROPIC_API_KEY"
-    assert cmd._get_env_var_name("unknown") == "UNKNOWN_API_KEY"
+    assert cmd._get_env_var_name("unknown") == "HENCHMAN_API_KEY"
 
 
 @pytest.mark.asyncio
