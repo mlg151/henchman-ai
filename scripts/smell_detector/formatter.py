@@ -162,14 +162,22 @@ def format_markdown(report: RepoReport) -> str:
         sections.append("")
 
     # --- Per-File Details ---
-    # Only include files with smells (or bad grades) to keep report focused.
+    # Only include the worst files to keep report concise for LLM consumption.
+    MAX_DETAIL_FILES = 20
+    MAX_SMELLS_PER_FILE = 15
     files_with_smells = [
         fr for fr in report.files if fr.smells or fr.grade in ("D", "F")
     ]
     files_with_smells.sort(key=lambda f: f.score)
+    files_with_smells = files_with_smells[:MAX_DETAIL_FILES]
 
     if files_with_smells:
         sections.append("## 📁 Per-File Details\n")
+        if len(report.files) > MAX_DETAIL_FILES:
+            sections.append(
+                f"_Showing {MAX_DETAIL_FILES} worst files. "
+                f"{len(report.files) - MAX_DETAIL_FILES} additional files omitted._\n"
+            )
         for fr in files_with_smells:
             sections.append(
                 f"### {fr.path} — {_grade_badge(fr.grade)} ({fr.score}/100)\n"
@@ -181,7 +189,15 @@ def format_markdown(report: RepoReport) -> str:
                 f"MI: {fr.metrics.maintainability_index:.0f} | "
                 f"Avg CC: {fr.metrics.cyclomatic_complexity_avg:.1f}\n"
             )
-            sections.append(_smell_table(fr.smells))
+            display_smells = sorted(
+                fr.smells,
+                key=lambda x: (-_severity_rank(x.severity), x.line),
+            )[:MAX_SMELLS_PER_FILE]
+            sections.append(_smell_table(display_smells))
+            if len(fr.smells) > MAX_SMELLS_PER_FILE:
+                sections.append(
+                    f"_... and {len(fr.smells) - MAX_SMELLS_PER_FILE} more smells._\n"
+                )
 
     # --- Clean Files ---
     clean_files = [

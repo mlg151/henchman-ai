@@ -96,6 +96,16 @@ Write your changes to .agent_tasks/auto-improve/last-improvement.md with a brief
 
 ALL TESTS. EVEN IF YOU THINK THE FAILURE IS UNRELATED TO YOUR CHANGE, FIX IT. DO NOT LEAVE THE CODE IN A BROKEN STATE!'
 
+# ---------------------------------------------------------------------------
+# Run code smell detector — output feeds into agent prompt via @file reference
+# ---------------------------------------------------------------------------
+SMELL_REPORT="$WORKDIR/.agent_tasks/auto-improve/smell-report.md"
+echo "Running code smell detector..." | tee -a "$LOGFILE"
+python -m scripts.smell_detector src/henchman --skip-ruff -o "$SMELL_REPORT" 2>&1 | tee -a "$LOGFILE"
+
+# Append the smell report reference to the prompt.
+PROMPT="$PROMPT"$'\n\nRefer to the code smell report for prioritised improvement targets: @'"$SMELL_REPORT"
+
 # Run Henchman in headless mode with auto-approve
 echo "Running Henchman..." | tee -a "$LOGFILE"
 henchman chat --yes -p "$PROMPT" 2>&1 | tee -a "$LOGFILE"
