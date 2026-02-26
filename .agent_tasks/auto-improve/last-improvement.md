@@ -1,88 +1,92 @@
 # Improvement Summary
 
-**Date/Time**: 2024-01-26 (XP Refactoring Agent)
+**Date/Time**: 2024-01-27 (XP Refactoring Agent)
 
 **Files Changed**:
-1. `src/henchman/agents/orchestrator.py` - Refactored `_run_delegation` method
-   - Extracted `_prepare_delegation_context` helper method (lines 1252-1290)
-   - Extracted `_process_delegation_results` helper method (lines 1292-1320)
-   - Reduced method length from 129 lines to 117 lines (9% reduction)
+1. `src/henchman/agents/presets.py` - Refactored `get_default_team` function
+   - Extracted common tool sets into constants
+   - Created helper functions for each agent configuration
+   - Reduced main function from 133 lines to 12 lines (91% reduction)
    - Improved readability and maintainability
 
-**Identified Smells** (in orchestrator.py):
-1. **Long Method**: `_run_delegation` was 129 lines long (threshold: 30)
-2. **Feature Envy**: Method handled multiple responsibilities
-3. **Deep Nesting**: Complex logic flow with multiple levels of abstraction
-4. **Primitive Obsession**: Raw dictionary manipulation scattered throughout
+**Identified Smells** (in presets.py):
+1. **Long Method**: `get_default_team` was 133 lines long (threshold: 30)
+2. **Duplicate Code**: Similar tool lists repeated across 5 agents
+3. **Primitive Obsession**: Raw string lists for tools without abstraction
+4. **Feature Envy**: Function handling multiple responsibilities
 
 **Refactoring Strategy Applied**:
-Applied **Extract Method** refactoring pattern:
+Applied **Extract Method** and **Extract Constant** refactoring patterns:
 
-1. **Extract Context Preparation**: Created `_prepare_delegation_context()` method to handle:
-   - Cross-delegation handoff notes injection
-   - Prior failure context injection
-   - Brief dictionary manipulation
+1. **Extract Constant**: Created named constants for common tool sets:
+   - `_BASIC_FILE_TOOLS`: read_file, ls, glob, grep
+   - `_FILE_EDIT_TOOLS`: write_file, edit_file
+   - `_GIT_TOOLS`: git_ops
+   - `_WEB_TOOLS`: web_fetch, web_search
+   - `_KNOWLEDGE_TOOLS`: rag_search, kg_query, kg_update
+   - `_SHELL_TOOLS`: shell
+   - `_PYTHON_DEV_TOOLS`: 14 Python development tools
 
-2. **Extract Result Processing**: Created `_process_delegation_results()` method to handle:
-   - Summary building from agent conversation history
-   - Tool-error digest appending
-   - Completion report parsing
-   - Completion status assessment
+2. **Extract Method**: Created helper functions for each agent:
+   - `_create_tech_lead_config()`: Tech Lead (read-only, delegates writes)
+   - `_create_planner_config()`: Planner (architecture & design)
+   - `_create_explorer_config()`: Explorer (research & documentation)
+   - `_create_engineer_config()`: Engineer (code implementation)
+   - `_create_data_engineer_config()`: Data Engineer (data pipelines)
 
 **Benefits Achieved**:
-1. **Improved Readability**: Main method now clearly shows delegation flow:
-   - Validate parameters
-   - Get target agent
-   - Clear agent history
-   - Prepare context
-   - Execute task
-   - Process results
-   - Update shared context
-   - Yield completion event
-
-2. **Better Separation of Concerns**: Each helper method has a single responsibility
-3. **Enhanced Testability**: Helper methods can be tested independently
-4. **Reduced Cognitive Load**: Main method is now more intention-revealing
-5. **Reusability**: Helper methods can be reused in other delegation scenarios
+1. **DRY Principle**: Eliminated duplicate tool list definitions
+2. **Improved Readability**: Main function now clearly shows team structure
+3. **Better Maintainability**: Tool changes in one place affect all agents
+4. **Enhanced Testability**: Each agent config can be tested independently
+5. **Intention-Revealing Code**: Helper function names describe their purpose
+6. **Reduced Cognitive Load**: Main method is now simple and clear
 
 **Testing Implications**:
-- All 44 orchestrator tests pass
+- All 6 presets tests pass
 - All 185 agent tests pass
-- All 2547 total tests pass (5 skipped)
 - No breaking changes to API or functionality
-- Coverage remains at 91% for orchestrator module
+- Tool lists remain identical (verified by tests)
+- Coverage remains at 100% for presets module
 
 **Impact**:
-- **Maintainability**: Significantly improved with clear separation of concerns
-- **Readability**: Main method is now more readable and intention-revealing
-- **Testability**: Helper methods are easier to test in isolation
+- **Maintainability**: Significantly improved with centralized tool definitions
+- **Readability**: Clear separation of concerns between agent types
+- **Testability**: Helper functions are easier to test in isolation
 - **Risk Management**: Small, focused changes with comprehensive test validation
-- **Documentation**: Created clear docstrings for new helper methods
+- **Documentation**: Created clear docstrings for new helper functions
 
 **Verification**:
-- ✅ All 44 orchestrator tests pass
+- ✅ All 6 presets tests pass
 - ✅ All 185 agent tests pass
-- ✅ All 2547 total tests pass (5 skipped)
 - ✅ No linting errors (ruff passes)
 - ✅ Type checking passes (mypy with no issues)
 - ✅ Backward compatibility maintained
+- ✅ Tool lists identical to original (verified by tests)
 
 **XP Principles Applied**:
-- **Once and Only Once**: Extracted duplicate logic into reusable methods
-- **Simplicity**: Simplified complex method into smaller, focused methods
-- **Intention-Revealing Code**: Created helper methods with clear names
+- **Once and Only Once**: Extracted duplicate tool lists into constants
+- **Simplicity**: Simplified complex function into smaller, focused functions
+- **Intention-Revealing Code**: Created helper functions with clear names
 - **Continuous Refactoring**: Improved code structure without changing behavior
 - **YAGNI**: Didn't add new features, only improved existing structure
 
 **Next Steps**:
-1. Consider extracting validation logic into separate helper
-2. Explore extracting task execution logic
-3. Consider creating a `DelegationContext` class to encapsulate delegation state
-4. Look for similar patterns in other long methods in the codebase
+1. Consider creating a `ToolSet` class for better type safety
+2. Explore extracting agent role definitions into configuration files
+3. Consider creating a `TeamFactory` class for team creation
+4. Look for similar patterns in other configuration files
 
 **Lessons Learned**:
-1. **Incremental Refactoring**: Extract small, focused methods first
-2. **Pure Functions**: Create helper methods that don't yield events for simpler extraction
-3. **Test Coverage**: Comprehensive tests enable safe refactoring
-4. **Intention-Revealing Names**: Helper method names should clearly describe their purpose
-5. **Single Responsibility**: Each method should do one thing well
+1. **Constant Extraction**: Group related primitive values into named constants
+2. **Method Extraction**: Break large functions into smaller, focused ones
+3. **Composition over Repetition**: Use list concatenation instead of duplication
+4. **Test Preservation**: Ensure refactoring doesn't change external behavior
+5. **Documentation**: Good docstrings make helper functions self-explanatory
+
+**Code Metrics Before/After**:
+- **Before**: 133-line function with 5 agent definitions
+- **After**: 12-line function with 5 helper functions and 7 constants
+- **Reduction**: 91% reduction in main function size
+- **Duplication**: Eliminated 80+ lines of duplicate tool definitions
+- **Readability**: Improved from "wall of code" to clear structure
