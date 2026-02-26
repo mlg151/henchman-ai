@@ -84,9 +84,7 @@ def _convert_chat_message_to_internal(msg: ChatMessage) -> Message:
 
 
 def _setup_agent_history(
-    agent: Agent,
-    request_messages: list[ChatMessage],
-    last_user_index: int
+    agent: Agent, request_messages: list[ChatMessage], last_user_index: int
 ) -> None:
     """Set up agent history from request messages.
 
@@ -133,7 +131,10 @@ def _process_agent_event(
         # Event data can be a string (finish reason) or a dict with finish_reason and usage
         if isinstance(event.data, dict):
             # New format with usage information
-            if "finish_reason" in event.data and event.data["finish_reason"] in valid_finish_reasons:
+            if (
+                "finish_reason" in event.data
+                and event.data["finish_reason"] in valid_finish_reasons
+            ):
                 finish_reason = event.data["finish_reason"]
                 usage = event.data.get("usage")
                 return finish_reason, usage
@@ -165,14 +166,109 @@ def _update_metrics(usage: dict[str, int] | None, tool_calls: list[dict[str, Any
         total_tokens = usage.get("total_tokens", 0)
 
         state.metrics["tokens_prompt"] = state.metrics.get("tokens_prompt", 0) + prompt_tokens
-        state.metrics["tokens_completion"] = state.metrics.get("tokens_completion", 0) + completion_tokens
+        state.metrics["tokens_completion"] = (
+            state.metrics.get("tokens_completion", 0) + completion_tokens
+        )
         state.metrics["tokens_total"] = state.metrics.get("tokens_total", 0) + total_tokens
 
     # Update tool call counts
     if tool_calls:
-        state.metrics["tool_calls_total"] = state.metrics.get("tool_calls_total", 0) + len(tool_calls)
+        state.metrics["tool_calls_total"] = state.metrics.get("tool_calls_total", 0) + len(
+            tool_calls
+        )
         # Assume all tool calls are successful for now
-        state.metrics["tool_calls_successful"] = state.metrics.get("tool_calls_successful", 0) + len(tool_calls)
+        state.metrics["tool_calls_successful"] = state.metrics.get(
+            "tool_calls_successful", 0
+        ) + len(tool_calls)
+
+
+def _process_stream_event(
+    event: AgentEvent,
+    index: int,
+    tool_calls_count: int,
+) -> tuple[str, dict[str, Any], int, int]:
+    """Process a single agent event for streaming.
+
+    Args:
+        event: Agent event to process.
+        index: Current event index.
+        tool_calls_count: Current count of tool calls.
+
+    Returns:
+        Tuple of (chunk_type, chunk_data, new_index, new_tool_calls_count)
+    """
+    chunk_type = "content"
+    chunk_data = {"text": event.data}
+
+    if event.type == EventType.TOOL_CALL_REQUEST:
+        chunk_type = "tool_call"
+        chunk_data = {"tool_call": event.data}
+        tool_calls_count += 1
+    elif event.type == EventType.FINISHED:
+        chunk_type = "finished"
+        # Use actual finish reason from event data
+        reason = event.data if event.data else "stop"
+        chunk_data = {"reason": reason}
+
+        # Extract usage information if available
+        if isinstance(event.data, dict) and "usage" in event.data:
+            usage = event.data["usage"]
+            # Update token usage metrics
+            if state.metrics and usage:
+                prompt_tokens = usage.get("prompt_tokens", 0)
+                completion_tokens = usage.get("completion_tokens", 0)
+                total_tokens = usage.get("total_tokens", 0)
+
+                state.metrics["tokens_prompt"] = (
+                    state.metrics.get("tokens_prompt", 0) + prompt_tokens
+                )
+                state.metrics["tokens_completion"] = (
+                    state.metrics.get("tokens_completion", 0) + completion_tokens
+                )
+                state.metrics["tokens_total"] = state.metrics.get("tokens_total", 0) + total_tokens
+
+    return chunk_type, chunk_data, index + 1, tool_calls_count
+
+
+def _update_stream_metrics(tool_calls_count: int) -> None:
+    """Update metrics for streaming requests.
+
+    Args:
+        tool_calls_count: Number of tool calls made during the stream.
+    """
+    if not state.metrics:
+        return
+
+    state.metrics["requests_successful"] = state.metrics.get("requests_successful", 0) + 1
+    if tool_calls_count > 0:
+        state.metrics["tool_calls_total"] = (
+            state.metrics.get("tool_calls_total", 0) + tool_calls_count
+        )
+        state.metrics["tool_calls_successful"] = (
+            state.metrics.get("tool_calls_successful", 0) + tool_calls_count
+        )
+
+
+def _handle_stream_error(e: Exception, index: int) -> str:
+    """Handle errors in streaming response.
+
+    Args:
+        e: Exception that occurred.
+        index: Current event index.
+
+    Returns:
+        Error chunk as SSE string.
+    """
+    # Update failed request metric
+    if state.metrics:
+        state.metrics["requests_failed"] = state.metrics.get("requests_failed", 0) + 1
+
+    error_chunk = ChatStreamChunk(
+        type="error",
+        data={"error": str(e)},
+        index=index,
+    )
+    return f"data: {error_chunk.model_dump_json()}\n\n"
 
 
 async def get_agent() -> Agent:
@@ -293,29 +389,6 @@ async def chat_completion_stream(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
         )
-    # Convert messages to internal format
-    messages = []
-    for msg in request.messages:
-        # Convert dictionary tool_calls to ToolCall objects if present
-        message_tool_calls = None
-        if msg.tool_calls:
-            message_tool_calls = [
-                ToolCall(
-                    id=tc.get("id", ""),
-                    name=tc.get("name", ""),
-                    arguments=tc.get("arguments", {}),
-                )
-                for tc in msg.tool_calls
-            ]
-
-        messages.append(
-            Message(
-                role=msg.role,
-                content=msg.content,
-                tool_calls=message_tool_calls,
-                tool_call_id=msg.tool_call_id,
-            )
-        )
 
     # Set system prompt if provided
     if request.system_prompt:
@@ -332,35 +405,8 @@ async def chat_completion_stream(
             last_user_index = i
             break
 
-    # Set agent messages to conversation history (excluding the last user message
-    # since agent.run() will add it)
-    agent.messages.clear()
-    # Add all messages except the last user message
-    for i, msg in enumerate(request.messages):
-        if i == last_user_index:
-            # Skip the last user message
-            continue
-
-        # Convert to Message format (reusing the conversion logic from above)
-        message_tool_calls = None
-        if msg.tool_calls:
-            message_tool_calls = [
-                ToolCall(
-                    id=tc.get("id", ""),
-                    name=tc.get("name", ""),
-                    arguments=tc.get("arguments", {}),
-                )
-                for tc in msg.tool_calls
-            ]
-
-        agent.messages.append(
-            Message(
-                role=msg.role,
-                content=msg.content,
-                tool_calls=message_tool_calls,
-                tool_call_id=msg.tool_call_id,
-            )
-        )
+    # Set up agent history from conversation
+    _setup_agent_history(agent, request.messages, last_user_index)
 
     # Track metrics for streaming requests
     if state.metrics:
@@ -372,47 +418,20 @@ async def chat_completion_stream(
         tool_calls_count = 0
         try:
             async for event in agent.run(user_input=user_input):
-                chunk_type = "content"
-                chunk_data = {"text": event.data}
-
-                if event.type == EventType.TOOL_CALL_REQUEST:
-                    chunk_type = "tool_call"
-                    chunk_data = {"tool_call": event.data}
-                    tool_calls_count += 1
-                elif event.type == EventType.FINISHED:
-                    chunk_type = "finished"
-                    # Use actual finish reason from event data
-                    reason = event.data if event.data else "stop"
-                    chunk_data = {"reason": reason}
-
-                    # Extract usage information if available
-                    if isinstance(event.data, dict) and "usage" in event.data:
-                        usage = event.data["usage"]
-                        # Update token usage metrics
-                        if state.metrics and usage:
-                            prompt_tokens = usage.get("prompt_tokens", 0)
-                            completion_tokens = usage.get("completion_tokens", 0)
-                            total_tokens = usage.get("total_tokens", 0)
-
-                            state.metrics["tokens_prompt"] = state.metrics.get("tokens_prompt", 0) + prompt_tokens
-                            state.metrics["tokens_completion"] = state.metrics.get("tokens_completion", 0) + completion_tokens
-                            state.metrics["tokens_total"] = state.metrics.get("tokens_total", 0) + total_tokens
+                chunk_type, chunk_data, index, tool_calls_count = _process_stream_event(
+                    event, index, tool_calls_count
+                )
 
                 chunk = ChatStreamChunk(
                     type=chunk_type,
                     data=chunk_data,
-                    index=index,
+                    index=index - 1,  # index was incremented in _process_stream_event
                 )
-                index += 1
 
                 yield f"data: {chunk.model_dump_json()}\n\n"
 
             # Update successful request and tool call metrics
-            if state.metrics:
-                state.metrics["requests_successful"] = state.metrics.get("requests_successful", 0) + 1
-                if tool_calls_count > 0:
-                    state.metrics["tool_calls_total"] = state.metrics.get("tool_calls_total", 0) + tool_calls_count
-                    state.metrics["tool_calls_successful"] = state.metrics.get("tool_calls_successful", 0) + tool_calls_count
+            _update_stream_metrics(tool_calls_count)
 
             # Send final done event
             done_chunk = ChatStreamChunk(
@@ -423,16 +442,7 @@ async def chat_completion_stream(
             yield f"data: {done_chunk.model_dump_json()}\n\n"
 
         except Exception as e:
-            # Update failed request metric
-            if state.metrics:
-                state.metrics["requests_failed"] = state.metrics.get("requests_failed", 0) + 1
-
-            error_chunk = ChatStreamChunk(
-                type="error",
-                data={"error": str(e)},
-                index=index,
-            )
-            yield f"data: {error_chunk.model_dump_json()}\n\n"
+            yield _handle_stream_error(e, index)
 
     return StreamingResponse(
         event_generator(),
@@ -448,7 +458,9 @@ async def chat_completion_stream(
 async def get_chat_history(
     api_key: str | None = Depends(verify_api_key),
     agent: Agent = Depends(get_agent),
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum number of messages to return"),
+    limit: int = Query(
+        default=100, ge=1, le=1000, description="Maximum number of messages to return"
+    ),
 ) -> list[ChatMessage]:
     """Get chat history.
 

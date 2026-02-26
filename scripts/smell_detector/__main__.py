@@ -19,8 +19,9 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "target_dir",
-        help="Root directory to scan for Python files.",
+        "target_dirs",
+        nargs="+",
+        help="One or more directories to scan for Python files.",
     )
     parser.add_argument(
         "-o", "--output",
@@ -69,14 +70,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    target = Path(args.target_dir)
-    if not target.is_dir():
-        print(f"Error: '{args.target_dir}' is not a directory.", file=sys.stderr)
-        return 1
+    for d in args.target_dirs:
+        if not Path(d).is_dir():
+            print(f"Error: '{d}' is not a directory.", file=sys.stderr)
+            return 1
 
     # Scan and grade.
     report = scan_repository(
-        target_dir=args.target_dir,
+        target_dirs=args.target_dirs,
         excludes=args.exclude,  # None → use defaults
         skip_external=args.skip_external,
         skip_ruff=args.skip_ruff,
