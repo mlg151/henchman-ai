@@ -31,7 +31,7 @@ Thank you for your interest in contributing to Henchman-AI! This document provid
 
 ### Installation
 ```bash
-# Clone your fork
+# Clone your fork (replace 'your-username' with your GitHub username)
 git clone https://github.com/your-username/henchman-ai.git
 cd henchman-ai
 
@@ -163,7 +163,7 @@ def test_process_prompt_with_empty_input():
 ## 🔌 Adding New Providers
 
 1. Create a new file in `src/henchman/providers/`
-2. Implement the `BaseProvider` interface
+2. Implement the `ModelProvider` interface
 3. Add tests in `tests/providers/`
 4. Update documentation
 5. Add to provider registry
@@ -171,7 +171,7 @@ def test_process_prompt_with_empty_input():
 ## 🛠️ Adding New Tools
 
 1. Create a new file in `src/henchman/tools/`
-2. Implement the `BaseTool` interface
+2. Implement the `Tool` interface
 3. Add safety checks and user confirmation
 4. Add tests
 5. Update documentation

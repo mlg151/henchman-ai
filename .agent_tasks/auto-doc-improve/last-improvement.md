@@ -1,31 +1,38 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-02-27T14:45:00Z
+2026-02-27T14:50:00Z
 
 ## Files Changed
-1. `mkdocs.yml` - Updated navigation structure
+1. `mkdocs.yml` - Updated GitHub repository URLs from 'matthew/henchman-ai' to 'mlg151/henchman-ai'
+2. `docs/getting-started.md` - Updated git clone URL from 'matthew/henchman-ai' to 'mlg151/henchman-ai'
+3. `docs/index.md` - Updated LICENSE link from 'matthew/henchman-ai' to 'mlg151/henchman-ai'
+4. `CONTRIBUTING.md` - Fixed placeholder GitHub URL and updated class references
 
 ## Smell Category Addressed
-- **Orphaned Page** (CRITICAL): `docs/architecture.md` was not referenced in mkdocs.yml nav
-- **Orphaned Page** (CRITICAL): `docs/intelligent-context-management.md` was not referenced in mkdocs.yml nav
+- **Consistency Error** (CRITICAL): Standardized GitHub repository URLs across all documentation files
+- **Consistency Error** (HIGH): Fixed placeholder GitHub URL in CONTRIBUTING.md
+- **Stale Content** (HIGH): Updated 'BaseProvider' to 'ModelProvider' and 'BaseTool' to 'Tool' in CONTRIBUTING.md
 
 ## Rationale for Change
-Both `architecture.md` and `intelligent-context-management.md` are important documentation files that were completely inaccessible to users because they weren't listed in the navigation. This violates the **DISCOVERABILITY** principle - all documentation pages should be reachable via navigation.
+The documentation had inconsistent GitHub repository URLs, with some files referencing 'matthew/henchman-ai' while most files (including pyproject.toml, README.md, CHANGELOG.md) referenced 'mlg151/henchman-ai'. This violates the **CONSISTENCY** principle - all references to external resources should be uniform.
 
-The architecture documentation provides crucial system overview and component details, while intelligent context management is an advanced feature that users need to know about. By adding them to the navigation, users can now find and read these important documents.
+Additionally, CONTRIBUTING.md had stale class references ('BaseProvider' and 'BaseTool') that don't exist in the codebase, violating the **ACCURACY** principle - documentation must match the actual code.
 
 ## Changes Made
-1. Added `Architecture: architecture.md` as a top-level item after "Getting Started"
-2. Restructured "Configuration" section to include:
-   - `Overview: configuration.md` (existing)
-   - `Intelligent Context Management: intelligent-context-management.md` (new sub-item)
+1. **mkdocs.yml**: Updated `site_url`, `repo_name`, `repo_url`, and social link to use 'mlg151/henchman-ai'
+2. **docs/getting-started.md**: Updated git clone command to use correct repository
+3. **docs/index.md**: Updated LICENSE link to point to correct repository
+4. **CONTRIBUTING.md**: 
+   - Added clarification to git clone command that contributors should replace 'your-username'
+   - Updated 'BaseProvider' to 'ModelProvider' (actual class name)
+   - Updated 'BaseTool' to 'Tool' (actual class name)
 
 ## What to Verify
-1. Run `mkdocs serve` locally to confirm both pages are accessible
-2. Check that all internal links in the added pages resolve correctly
-3. Verify the navigation structure makes logical sense to users
-4. Ensure no other orphaned pages exist in the docs/ directory
+1. Run `mkdocs serve` to ensure all GitHub links work correctly
+2. Check that the git clone command in getting-started.md works
+3. Verify that the LICENSE link resolves correctly
+4. Confirm that the class names in CONTRIBUTING.md match the actual source code
 
 ## Next Priority
-The next highest-priority issue is the **Consistency Error** with GitHub repository URLs. Multiple files reference `matthew/henchman-ai` while most reference `mlg151/henchman-ai`. This should be standardized across all documentation files.
+The next highest-priority issue is **Stale Content** in `docs/tools.md` - many tools exist in source but are not documented. The tools.md file has 29 smells and needs comprehensive updating to include all available tools.
