@@ -10,14 +10,30 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from henchman.cli.commands import Command, CommandContext
+from henchman.cli.commands import BaseCommand, CommandContext
 
 if TYPE_CHECKING:
     from henchman.core.session import SessionManager
 
 
-class SessionCommand(Command):
+class SessionCommand(BaseCommand):
     """/session command for enhanced session management."""
+
+    _help_command_name = "Enhanced Session"
+    _help_lines = [
+        "  /session branch <id> <point> [tag]  - Branch from session at message point",
+        "  /session merge <id1> <id2> [strategy] [tag] - Merge sessions",
+        "  /session template save <id> <name>  - Save session as template",
+        "  /session template create <name>     - Create from template",
+        "  /session template list              - List templates",
+        "  /session template delete <id>       - Delete template",
+        "  /session export <id> [format]       - Export session (json/markdown)",
+        "  /session import <file> [format]     - Import session",
+        "  /session list                       - List sessions with enhanced info",
+        "",
+        "[dim]Strategies: union, intersection, smart[/]",
+        "[dim]Formats: json (default), markdown[/]",
+    ]
 
     @property
     def name(self) -> str:
@@ -72,25 +88,7 @@ class SessionCommand(Command):
         else:
             await self._show_help(ctx)
 
-    async def _show_help(self, ctx: CommandContext) -> None:
-        """Show help for /session command."""
-        from henchman.cli.commands import show_command_help
 
-        help_lines = [
-            "  /session branch <id> <point> [tag]  - Branch from session at message point",
-            "  /session merge <id1> <id2> [strategy] [tag] - Merge sessions",
-            "  /session template save <id> <name>  - Save session as template",
-            "  /session template create <name>     - Create from template",
-            "  /session template list              - List templates",
-            "  /session template delete <id>       - Delete template",
-            "  /session export <id> [format]       - Export session (json/markdown)",
-            "  /session import <file> [format]     - Import session",
-            "  /session list                       - List sessions with enhanced info",
-            "",
-            "[dim]Strategies: union, intersection, smart[/]",
-            "[dim]Formats: json (default), markdown[/]",
-        ]
-        show_command_help(ctx, "Enhanced Session", help_lines)
 
     async def _branch(self, ctx: CommandContext) -> None:
         """Branch from an existing session."""

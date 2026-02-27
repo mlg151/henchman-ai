@@ -7,15 +7,22 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from henchman.cli.commands import Command, CommandContext
+from henchman.cli.commands import BaseCommand, CommandContext
 from henchman.config import load_settings
 
 if TYPE_CHECKING:
     from henchman.mcp.manager import McpManager
 
 
-class McpCommand(Command):
+class McpCommand(BaseCommand):
     """/mcp command for MCP server management."""
+
+    _help_command_name = "MCP Server"
+    _help_lines = [
+        "  /mcp list      - List configured MCP servers",
+        "  /mcp status    - Show connection status and tools",
+        "  /mcp logging   - Control MCP logging (on/off/status)",
+    ]
 
     @property
     def name(self) -> str:
@@ -64,16 +71,7 @@ class McpCommand(Command):
         else:
             await self._show_help(ctx)
 
-    async def _show_help(self, ctx: CommandContext) -> None:
-        """Show help for /mcp command."""
-        from henchman.cli.commands import show_command_help
 
-        help_lines = [
-            "  /mcp list      - List configured MCP servers",
-            "  /mcp status    - Show connection status and tools",
-            "  /mcp logging   - Control MCP logging (on/off/status)",
-        ]
-        show_command_help(ctx, "MCP Server", help_lines)
 
     async def _list(self, ctx: CommandContext) -> None:
         """List configured MCP servers."""

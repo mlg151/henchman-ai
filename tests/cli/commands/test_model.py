@@ -140,7 +140,7 @@ async def test_set_provider_success(ctx):
 
     with (
         patch("henchman.cli.commands.model.get_default_registry") as mock_registry,
-        patch("henchman.cli.commands.model.os.environ", {}),
+        patch.dict("os.environ", {}, clear=True),
         patch("henchman.cli.commands.model.load_settings") as mock_load,
     ):
         mock_reg = Mock()
@@ -197,7 +197,7 @@ async def test_set_provider_with_model(ctx):
 
     with (
         patch("henchman.cli.commands.model.get_default_registry") as mock_registry,
-        patch("henchman.cli.commands.model.os.environ", {}),
+        patch.dict("os.environ", {}, clear=True),
         patch("henchman.cli.commands.model.load_settings") as mock_load,
     ):
         mock_reg = Mock()
@@ -266,11 +266,11 @@ async def test_get_api_key_from_env():
     """Test getting API key from environment variables."""
     cmd = ModelCommand()
 
-    with patch("henchman.cli.commands.model.os.environ", {"OPENAI_API_KEY": "test-key"}):
+    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True):
         api_key = cmd._get_api_key_for_provider("openai")
         assert api_key == "test-key"
 
-    with patch("henchman.cli.commands.model.os.environ", {"HENCHMAN_API_KEY": "generic-key"}):
+    with patch.dict("os.environ", {"HENCHMAN_API_KEY": "generic-key"}, clear=True):
         api_key = cmd._get_api_key_for_provider("openai")
         assert api_key == "generic-key"
 

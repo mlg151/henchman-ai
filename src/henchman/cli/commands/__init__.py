@@ -105,6 +105,30 @@ class Command(ABC):
         """
 
 
+class BaseCommand(Command):
+    """Base class for commands with standardized help display.
+
+    This class eliminates duplicate _show_help methods by providing
+    a standard implementation that uses class attributes.
+    """
+
+    # Subclasses must override these
+    _help_command_name: str = ""
+    _help_lines: list[str] = []
+
+    async def _show_help(self, ctx: CommandContext) -> None:
+        """Show help for this command.
+
+        Args:
+            ctx: Command context.
+        """
+        if not self._help_command_name or not self._help_lines:
+            raise NotImplementedError(
+                f"{self.__class__.__name__} must define _help_command_name and _help_lines"
+            )
+        show_command_help(ctx, self._help_command_name, self._help_lines)
+
+
 class CommandRegistry:
     """Registry for slash commands."""
 
