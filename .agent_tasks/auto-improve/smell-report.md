@@ -1,105 +1,105 @@
-# Code Smell Report — ❌ F (Score: 35.6/100)
+# Code Smell Report — ❌ F (Score: 35.7/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T06:00:13.726052+00:00_
+_Generated: 2026-02-27T06:30:12.171867+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.6/100 |
+| **Overall Score** | 35.7/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 29,159 |
-| **Total Smells** | 2732 |
+| **Total Lines (non-blank)** | 29,248 |
+| **Total Smells** | 2736 |
 | **Avg Maintainability Index** | 69.7 |
-| **Avg Cyclomatic Complexity** | 13.9 |
+| **Avg Cyclomatic Complexity** | 13.7 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1862 |
+| low | 1868 |
 | medium | 657 |
-| high | 213 |
+| high | 211 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1284 |
-| Feature Envy | 367 |
+| Missing Type Hint | 1292 |
+| Feature Envy | 366 |
 | Duplicate Code | 327 |
 | Magic Number | 217 |
-| Deep Nesting | 174 |
-| Long Method | 171 |
+| Deep Nesting | 173 |
+| Long Method | 170 |
 | Primitive Obsession | 90 |
-| Complex Function | 63 |
+| Complex Function | 62 |
 | Large Class | 39 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/tools/builtins/traceback_parse.py:52** — 🟠 HIGH — Complex Function  
-   Function 'execute' has cyclomatic complexity 23 (rank D)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-2. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
+1. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
    Function 'compact' has cyclomatic complexity 22 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-3. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
+2. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
    Function '_calculate_importance_scores' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-4. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
+3. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
    Function '__getattr__' is an exact duplicate of '__getattr__' at cli/app.py:23  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-5. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
+4. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-6. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
+5. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-7. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
+6. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
    Magic number 60.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-8. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
+7. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-9. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
+8. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
    Class 'Orchestrator' spans 1363 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
-10. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
+9. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
    Function '__init__' has 88 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-11. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
+10. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
    Magic number 500 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-12. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
+11. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
    Magic number 200 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-13. **agents/orchestrator.py:1064** — 🟠 HIGH — Long Method  
+12. **agents/orchestrator.py:1064** — 🟠 HIGH — Long Method  
    Function '_run_agent_loop' has 82 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-14. **agents/orchestrator.py:1064** — 🟠 HIGH — Primitive Obsession  
+13. **agents/orchestrator.py:1064** — 🟠 HIGH — Primitive Obsession  
    Repeated primitive parameter group appears in: '_run_agent_loop' (line 1064), '_run_delegation' (line 1399)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-15. **agents/orchestrator.py:1328** — 🟠 HIGH — Magic Number  
+14. **agents/orchestrator.py:1328** — 🟠 HIGH — Magic Number  
    Magic number 5 — consider extracting to a named constant  
+   → _Extract Constant / Introduce Named Constant._
+
+15. **agents/orchestrator.py:1329** — 🟠 HIGH — Magic Number  
+   Magic number 200 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
 
@@ -399,7 +399,7 @@ LOC: 450 | Classes: 1 | Functions: 0 | MI: 43 | Avg CC: 13.0
 | 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 74 | 🟡 MEDIUM | Primitive Obsession | Function 'execute' has 4 primitive-typed parameters: path: Name(id='str', ctx=Load()), scan_dir: Name(id='str', ctx=Load()), detect_cycles: Name(id='bool', ctx=Load()), classify: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
@@ -420,7 +420,7 @@ LOC: 339 | Classes: 2 | Functions: 0 | MI: 47 | Avg CC: 13.0
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 67 | 🟡 MEDIUM | Long Method | Function 'execute' has 52 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
@@ -454,7 +454,7 @@ LOC: 301 | Classes: 1 | Functions: 0 | MI: 48 | Avg CC: 12.3
 | 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
 _... and 32 more smells._
 
@@ -524,7 +524,7 @@ LOC: 301 | Classes: 1 | Functions: 0 | MI: 50 | Avg CC: 15.5
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 

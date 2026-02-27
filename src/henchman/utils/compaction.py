@@ -238,7 +238,47 @@ class ContextCompactor:
         if current_tokens <= self.max_tokens:
             return messages
 
-        # Separate protected messages (current turn) if protection is enabled
+        # Separate protected and unprotected messages
+        protected_msgs, unprotected_msgs = self._separate_protected_messages(
+            messages, protect_from_index
+        )
+
+        # Handle protected zone truncation if needed
+        protected_msgs, protected_tokens = self._handle_protected_zone_truncation(protected_msgs)
+
+        # Extract system messages and group non-system messages into sequences
+        system_msgs, system_tokens = self._extract_system_messages(unprotected_msgs)
+        sequences = self._group_non_system_sequences(unprotected_msgs)
+
+        # Calculate budget and handle edge cases
+        budget_result = self._calculate_budget_and_handle_edge_cases(
+            system_msgs, system_tokens, protected_msgs, protected_tokens, sequences
+        )
+        if budget_result is not None:
+            return budget_result
+
+        # Select which sequences to keep based on budget
+        kept_sequences, last_sequence, last_sequence_is_user = self._select_sequences_to_keep(
+            sequences, protected_msgs, system_tokens, protected_tokens
+        )
+
+        # Reconstruct final message list
+        return self._reconstruct_result(
+            system_msgs, kept_sequences, last_sequence, last_sequence_is_user, protected_msgs
+        )
+
+    def _separate_protected_messages(
+        self, messages: list[Message], protect_from_index: int
+    ) -> tuple[list[Message], list[Message]]:
+        """Separate protected and unprotected messages based on protection index.
+
+        Args:
+            messages: All messages to separate.
+            protect_from_index: Index from which messages are protected.
+
+        Returns:
+            Tuple of (protected_messages, unprotected_messages).
+        """
         protected_msgs: list[Message] = []
         unprotected_msgs: list[Message] = []
 
@@ -248,24 +288,76 @@ class ContextCompactor:
         else:
             unprotected_msgs = messages
 
-        # Calculate protected zone tokens
+        return protected_msgs, unprotected_msgs
+
+    def _handle_protected_zone_truncation(
+        self, protected_msgs: list[Message]
+    ) -> tuple[list[Message], int]:
+        """Handle truncation of protected zone if it exceeds budget.
+
+        Args:
+            protected_msgs: Protected messages to potentially truncate.
+
+        Returns:
+            Tuple of (truncated_protected_messages, protected_token_count).
+        """
         protected_tokens = TokenCounter.count_messages(protected_msgs) if protected_msgs else 0
 
-        # If protected zone exceeds budget, truncate tool results within it
         if protected_tokens > self.max_protected_tokens and protected_msgs:
             protected_msgs = self._truncate_protected_zone(
                 protected_msgs, self.max_protected_tokens
             )
             protected_tokens = TokenCounter.count_messages(protected_msgs)
 
-        # Separate system messages (always kept)
+        return protected_msgs, protected_tokens
+
+    def _extract_system_messages(
+        self, unprotected_msgs: list[Message]
+    ) -> tuple[list[Message], int]:
+        """Extract system messages from unprotected messages.
+
+        Args:
+            unprotected_msgs: Unprotected messages to extract from.
+
+        Returns:
+            Tuple of (system_messages, system_token_count).
+        """
         system_msgs = [msg for msg in unprotected_msgs if msg.role == "system"]
         system_tokens = TokenCounter.count_messages(system_msgs)
+        return system_msgs, system_tokens
 
-        # Group non-system unprotected messages into atomic sequences
+    def _group_non_system_sequences(self, unprotected_msgs: list[Message]) -> list[MessageSequence]:
+        """Group non-system unprotected messages into atomic sequences.
+
+        Args:
+            unprotected_msgs: Unprotected messages to group.
+
+        Returns:
+            List of message sequences.
+        """
         non_system_unprotected = [msg for msg in unprotected_msgs if msg.role != "system"]
-        sequences = self._group_into_sequences(non_system_unprotected)
+        return self._group_into_sequences(non_system_unprotected)
 
+    def _calculate_budget_and_handle_edge_cases(
+        self,
+        system_msgs: list[Message],
+        system_tokens: int,
+        protected_msgs: list[Message],
+        protected_tokens: int,
+        sequences: list[MessageSequence],
+    ) -> list[Message] | None:
+        """Calculate budget for unprotected sequences and handle edge cases.
+
+        Args:
+            system_msgs: System messages.
+            system_tokens: Token count of system messages.
+            protected_msgs: Protected messages.
+            protected_tokens: Token count of protected messages.
+            sequences: Message sequences to consider.
+
+        Returns:
+            Compacted messages if edge case handled, None otherwise.
+        """
         # Calculate budget for unprotected sequences
         # Must fit: system + kept sequences + protected zone
         budget = self.max_tokens - system_tokens - protected_tokens
@@ -282,9 +374,32 @@ class ContextCompactor:
             compacted_msgs.extend(protected_msgs)
             return compacted_msgs
 
+        return None
+
+    def _select_sequences_to_keep(
+        self,
+        sequences: list[MessageSequence],
+        protected_msgs: list[Message],
+        system_tokens: int,
+        protected_tokens: int,
+    ) -> tuple[list[MessageSequence], MessageSequence, bool]:
+        """Select which sequences to keep based on budget.
+
+        Args:
+            sequences: All message sequences.
+            protected_msgs: Protected messages.
+            system_tokens: Token count of system messages.
+            protected_tokens: Token count of protected messages.
+
+        Returns:
+            Tuple of (kept_sequences, last_sequence, last_sequence_is_user).
+        """
         # Identify the last unprotected sequence
         last_sequence = sequences[-1]
-        last_sequence_is_user = last_sequence.messages and last_sequence.messages[-1].role == "user"
+        last_sequence_is_user = bool(last_sequence.messages) and last_sequence.messages[-1].role == "user"
+
+        # Calculate budget
+        budget = self.max_tokens - system_tokens - protected_tokens
 
         # If last unprotected sequence is user-initiated and we have no protected msgs,
         # treat it as fixed (original behavior)
@@ -307,7 +422,28 @@ class ContextCompactor:
                 # We don't split sequences
                 break
 
-        # Reconstruct messages in correct order
+        return kept_sequences, last_sequence, last_sequence_is_user
+
+    def _reconstruct_result(
+        self,
+        system_msgs: list[Message],
+        kept_sequences: list[MessageSequence],
+        last_sequence: MessageSequence,
+        last_sequence_is_user: bool,
+        protected_msgs: list[Message],
+    ) -> list[Message]:
+        """Reconstruct final message list from components.
+
+        Args:
+            system_msgs: System messages.
+            kept_sequences: Sequences to keep.
+            last_sequence: Last unprotected sequence.
+            last_sequence_is_user: Whether last sequence is user-initiated.
+            protected_msgs: Protected messages.
+
+        Returns:
+            Final compacted message list.
+        """
         result: list[Message] = []
 
         # Add system messages first
