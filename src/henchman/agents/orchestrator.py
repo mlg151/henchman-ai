@@ -1339,39 +1339,15 @@ class Orchestrator:
                 if stall_event:
                     yield stall_event
 
-                # Colon-stall guard: catch ANY agent (including tech_lead)
-                # that ends its response with ":" — a high-confidence signal
-                # the agent announced work but stopped without doing it.
-                if colon_stall_retries < _MAX_COLON_STALL_RETRIES:
-                    last_content = self._last_assistant_content(agent)
-                    if (
-                        last_content
-                        and last_content.strip().endswith(":")
-                        and len(last_content.strip()) > _COLON_STALL_MIN_LENGTH
-                    ):
-                        colon_stall_retries += 1
-                        agent.messages.append(
-                            Message(role="user", content=_COLON_STALL_NUDGE)
-                        )
-                        generator = agent.continue_with_tool_results()
-                        continue
+                # Check for colon stall
+                colon_stall_result = self._check_colon_stall(agent, colon_stall_retries)
+                if colon_stall_result is not None:
+                    # Colon stall occurred, update generator and retry count
+                    generator, colon_stall_retries = colon_stall_result
+                    continue
 
                 # Agent finished — exit the loop
                 break
-
-            # Process all pending tool calls
-            async for event in self._process_pending_tool_calls(
-                agent, pending_tool_calls, depth, tool_errors
-            ):
-                yield event
-
-            # Update tool call count
-            tool_call_count += len(pending_tool_calls)
-
-            # Inject role anchor if needed
-            self._inject_role_anchor(agent, tool_call_count)
-
-            # Enforce turn limits
             should_break, wrapup_warned, error_event = self._enforce_turn_limits(
                 agent, max_turns, tool_call_count, msg_start_index, wrapup_warned
             )
@@ -1389,6 +1365,43 @@ class Orchestrator:
         agent._delegation_tool_errors = tool_errors  # type: ignore[attr-defined]
 
         # Store final tool call count so callers can assess completion
+        self._last_loop_tool_call_count = tool_call_count
+
+    def _check_colon_stall(
+        self,
+        agent: Agent,
+        colon_stall_retries: int,
+    ) -> tuple[AsyncIterator[AgentEvent], int] | None:
+        """Check for colon stall pattern and handle if detected.
+        
+        Colon-stall guard: catch ANY agent (including tech_lead)
+        that ends its response with ":" - a high-confidence signal
+        the agent announced work but stopped without doing it.
+        
+        Args:
+            agent: The agent to check.
+            colon_stall_retries: Current colon stall retry count.
+            
+        Returns:
+            - None: No colon stall detected
+            - Tuple: Colon stall detected, return updated generator and retry count
+        """
+        if colon_stall_retries >= _MAX_COLON_STALL_RETRIES:
+            return None
+
+        last_content = self._last_assistant_content(agent)
+        if (
+            last_content
+            and last_content.strip().endswith(":")
+            and len(last_content.strip()) > _COLON_STALL_MIN_LENGTH
+        ):
+            colon_stall_retries += 1
+            agent.messages.append(
+                Message(role="user", content=_COLON_STALL_NUDGE)
+            )
+            return agent.continue_with_tool_results(), colon_stall_retries
+
+        return None
         self._last_loop_tool_call_count = tool_call_count
 
     async def _collect_events_and_tool_calls(

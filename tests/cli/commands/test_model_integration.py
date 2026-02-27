@@ -112,10 +112,9 @@ async def test_model_switch_integration():
 
     # Test switching to openai
     ctx.args = ["set", "openai"]
-
     with (
         patch("henchman.cli.commands.model.get_default_registry") as mock_registry,
-        patch("henchman.cli.commands.model.os.environ", {}),
+        patch.dict("os.environ", {}, clear=True),
         patch("henchman.cli.commands.model.load_settings") as mock_load,
     ):
         mock_reg = Mock()

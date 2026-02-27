@@ -8,15 +8,22 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING
 
-from henchman.cli.commands import Command, CommandContext
+from henchman.cli.commands import BaseCommand, CommandContext
 from henchman.providers.base import Message, ToolCall
 
 if TYPE_CHECKING:
     from henchman.core.session import SessionManager
 
 
-class ChatCommand(Command):
+class ChatCommand(BaseCommand):
     """/chat command for session management."""
+
+    _help_command_name = "Chat Session"
+    _help_lines = [
+        "  /chat save [tag]       - Save current session",
+        "  /chat list             - List saved sessions",
+        "  /chat resume <tag|id>  - Resume a saved session",
+    ]
 
     @property
     def name(self) -> str:
@@ -65,16 +72,7 @@ class ChatCommand(Command):
         else:
             await self._show_help(ctx)
 
-    async def _show_help(self, ctx: CommandContext) -> None:
-        """Show help for /chat command."""
-        from henchman.cli.commands import show_command_help
 
-        help_lines = [
-            "  /chat save [tag]       - Save current session",
-            "  /chat list             - List saved sessions",
-            "  /chat resume <tag|id>  - Resume a saved session",
-        ]
-        show_command_help(ctx, "Chat Session", help_lines)
 
     async def _save(self, ctx: CommandContext) -> None:
         """Save the current session."""

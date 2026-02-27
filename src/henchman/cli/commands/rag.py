@@ -8,14 +8,23 @@ from __future__ import annotations
 import shutil
 from typing import TYPE_CHECKING
 
-from henchman.cli.commands import Command, CommandContext
+from henchman.cli.commands import BaseCommand, CommandContext
 
 if TYPE_CHECKING:
     from henchman.rag.system import RagSystem
 
 
-class RagCommand(Command):
+class RagCommand(BaseCommand):
     """/rag command for RAG index management."""
+
+    _help_command_name = "RAG Index"
+    _help_lines = [
+        "  /rag status     - Show index statistics",
+        "  /rag reindex    - Force full reindex of all files",
+        "  /rag clear      - Clear current project's index",
+        "  /rag clear-all  - Clear ALL RAG indices",
+        "  /rag cleanup    - Clean up old project-based indices",
+    ]
 
     @property
     def name(self) -> str:
@@ -68,18 +77,7 @@ class RagCommand(Command):
         else:
             await self._show_help(ctx)
 
-    async def _show_help(self, ctx: CommandContext) -> None:
-        """Show help for /rag command."""
-        from henchman.cli.commands import show_command_help
 
-        help_lines = [
-            "  /rag status     - Show index statistics",
-            "  /rag reindex    - Force full reindex of all files",
-            "  /rag clear      - Clear current project's index",
-            "  /rag clear-all  - Clear ALL RAG indices",
-            "  /rag cleanup    - Clean up old project-based indices",
-        ]
-        show_command_help(ctx, "RAG Index", help_lines)
 
     def _get_rag_system(self, ctx: CommandContext) -> RagSystem | None:
         """Get the RAG system from context.
