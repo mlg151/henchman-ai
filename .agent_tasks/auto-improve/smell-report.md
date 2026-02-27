@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T04:30:12.781537+00:00_
+_Generated: 2026-02-27T05:00:27.374391+00:00_
 
 ## Executive Summary
 
@@ -11,96 +11,96 @@ _Generated: 2026-02-27T04:30:12.781537+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 35.7/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 28,993 |
-| **Total Smells** | 2713 |
+| **Total Lines (non-blank)** | 29,049 |
+| **Total Smells** | 2715 |
 | **Avg Maintainability Index** | 69.8 |
-| **Avg Cyclomatic Complexity** | 14.4 |
+| **Avg Cyclomatic Complexity** | 14.2 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1837 |
-| medium | 658 |
-| high | 218 |
+| low | 1843 |
+| medium | 655 |
+| high | 217 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1261 |
-| Feature Envy | 364 |
+| Missing Type Hint | 1270 |
+| Feature Envy | 363 |
 | Duplicate Code | 326 |
 | Magic Number | 216 |
-| Deep Nesting | 177 |
-| Long Method | 173 |
+| Deep Nesting | 174 |
+| Long Method | 172 |
 | Primitive Obsession | 90 |
-| Complex Function | 66 |
-| Large Class | 40 |
+| Complex Function | 65 |
+| Large Class | 39 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/tools/builtins/patch_apply.py:140** — 🟠 HIGH — Complex Function  
-   Function '_parse_patch' has cyclomatic complexity 23 (rank D)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-2. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pytest_run.py:89** — 🟠 HIGH — Complex Function  
+1. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pytest_run.py:89** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-3. **/home/matthew/mlg-cli/src/henchman/tools/builtins/python_ast.py:230** — 🟠 HIGH — Complex Function  
+2. **/home/matthew/mlg-cli/src/henchman/tools/builtins/python_ast.py:230** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-4. **/home/matthew/mlg-cli/src/henchman/tools/builtins/traceback_parse.py:52** — 🟠 HIGH — Complex Function  
+3. **/home/matthew/mlg-cli/src/henchman/tools/builtins/traceback_parse.py:52** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-5. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
+4. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
    Function 'compact' has cyclomatic complexity 22 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-6. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
+5. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
    Function '_calculate_importance_scores' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-7. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
+6. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
    Function '__getattr__' is an exact duplicate of '__getattr__' at cli/app.py:23  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-8. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
+7. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-9. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
+8. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-10. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
+9. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
    Magic number 60.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-11. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
+10. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-12. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
+11. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
    Class 'Orchestrator' spans 1363 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
-13. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
+12. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
    Function '__init__' has 88 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-14. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
+13. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
    Magic number 500 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-15. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
+14. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
    Magic number 200 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
+
+15. **agents/orchestrator.py:1064** — 🟠 HIGH — Long Method  
+   Function '_run_agent_loop' has 82 lines (threshold: 30)  
+   → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
 
 ## 📊 Files Ranked by Quality
@@ -410,6 +410,30 @@ LOC: 450 | Classes: 1 | Functions: 0 | MI: 43 | Avg CC: 13.0
 
 _... and 45 more smells._
 
+### tools/builtins/patch_apply.py — ❌ F (14.1/100)
+
+LOC: 339 | Classes: 2 | Functions: 0 | MI: 47 | Avg CC: 13.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 67 | 🟡 MEDIUM | Long Method | Function 'execute' has 52 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 67 | 🟡 MEDIUM | Primitive Obsession | Function 'execute' has 4 primitive-typed parameters: patch: Name(id='str', ctx=Load()), path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), dry_run: Name(id='bool', ctx=Load()), fuzz: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 67 | 🟡 MEDIUM | Feature Envy | Method 'PatchApplyTool.execute' accesses 'results' 5 times but 'self' only 2 times | Move Method — consider moving 'execute' to the class that owns 'results'. |
+| 160 | 🟡 MEDIUM | Complex Function | Function '_apply_hunks' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 202 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_apply_hunks' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 372 | 🟡 MEDIUM | Feature Envy | Method 'PatchParser._handle_hunk_header' accesses 'match' 6 times but 'self' only 4 times | Move Method — consider moving '_handle_hunk_header' to the class that owns 'match'. |
+| 18 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 23 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 24 more smells._
+
 ### tools/builtins/coverage_map.py — ❌ F (14.3/100)
 
 LOC: 301 | Classes: 1 | Functions: 0 | MI: 48 | Avg CC: 12.3
@@ -433,30 +457,6 @@ LOC: 301 | Classes: 1 | Functions: 0 | MI: 48 | Avg CC: 12.3
 | 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
 _... and 32 more smells._
-
-### tools/builtins/patch_apply.py — ❌ F (14.4/100)
-
-LOC: 283 | Classes: 1 | Functions: 0 | MI: 48 | Avg CC: 18.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 140 | 🟠 HIGH | Complex Function | Function '_parse_patch' has cyclomatic complexity 23 (rank D) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 67 | 🟡 MEDIUM | Long Method | Function 'execute' has 52 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 67 | 🟡 MEDIUM | Primitive Obsession | Function 'execute' has 4 primitive-typed parameters: patch: Name(id='str', ctx=Load()), path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), dry_run: Name(id='bool', ctx=Load()), fuzz: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 67 | 🟡 MEDIUM | Feature Envy | Method 'PatchApplyTool.execute' accesses 'results' 5 times but 'self' only 2 times | Move Method — consider moving 'execute' to the class that owns 'results'. |
-| 140 | 🟡 MEDIUM | Long Method | Function '_parse_patch' has 69 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 140 | 🟡 MEDIUM | Feature Envy | Method 'PatchApplyTool._parse_patch' accesses 'line' 5 times but 'self' only 0 times | Move Method — consider moving '_parse_patch' to the class that owns 'line'. |
-| 140 | 🟡 MEDIUM | Feature Envy | Method 'PatchApplyTool._parse_patch' accesses 'match' 6 times but 'self' only 0 times | Move Method — consider moving '_parse_patch' to the class that owns 'match'. |
-| 211 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_parse_patch' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-
-_... and 22 more smells._
 
 ### cli/console.py — ❌ F (14.6/100)
 

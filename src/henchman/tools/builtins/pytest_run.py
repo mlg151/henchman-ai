@@ -2,10 +2,25 @@
 
 import asyncio
 import sys
+from dataclasses import dataclass
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
 MAX_OUTPUT_CHARS = 100_000
+
+
+@dataclass
+class PytestConfig:
+    """Configuration for pytest execution."""
+    path: str
+    keyword: str | None = None
+    markers: str | None = None
+    verbose: bool = False
+    timeout: int = 300
+    coverage: bool = False
+    coverage_source: str | None = None
+    parallel: int | None = None
+    collect_only: bool = False
 
 
 class PytestRunTool(Tool):
@@ -116,89 +131,126 @@ class PytestRunTool(Tool):
         Returns:
             ToolResult with test results.
         """
-        if not path:
+        config = PytestConfig(
+            path=path,
+            keyword=keyword,
+            markers=markers,
+            verbose=verbose,
+            timeout=timeout,
+            coverage=coverage,
+            coverage_source=coverage_source,
+            parallel=parallel,
+            collect_only=collect_only,
+        )
+
+        return await self._run_pytest(config)
+
+    async def _run_pytest(self, config: PytestConfig) -> ToolResult:
+        """Run pytest with the given configuration."""
+        if not config.path:
             return ToolResult(
                 content="Error: No test path provided",
                 success=False,
                 error="Empty path",
             )
 
-        cmd = [sys.executable, "-m", "pytest", path]
-        if not collect_only:
-            cmd.append("-x")
-        if verbose:
-            cmd.append("-v")
-        if keyword:
-            cmd.extend(["-k", keyword])
-        if markers:
-            cmd.extend(["-m", markers])
-        if coverage:
-            cov_arg = f"--cov={coverage_source}" if coverage_source else "--cov"
-            cmd.extend([cov_arg, "--cov-report=term-missing"])
-        if parallel is not None and parallel > 0:
-            cmd.extend(["-n", str(parallel)])
-        if collect_only:
-            cmd.append("--collect-only")
-            cmd.append("-q")
+        cmd = self._build_pytest_command(config)
 
         try:
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-
-            effective_timeout: float | None = None if timeout == 0 else timeout
-            try:
-                if effective_timeout is not None:
-                    stdout, stderr = await asyncio.wait_for(
-                        process.communicate(),
-                        timeout=effective_timeout,
-                    )
-                else:
-                    stdout, stderr = await process.communicate()
-            except (TimeoutError, asyncio.TimeoutError):
-                process.kill()
-                await process.wait()
-                return ToolResult(
-                    content=f"Tests timed out after {timeout}s",
-                    success=False,
-                    error=f"Timeout after {timeout}s",
-                )
-            except asyncio.CancelledError:
-                process.kill()
-                await process.wait()
-                raise
-
-            stdout_text = stdout.decode("utf-8", errors="replace")
-            stderr_text = stderr.decode("utf-8", errors="replace")
-
-            parts = []
-            if stdout_text:
-                parts.append(stdout_text)
-            if stderr_text:
-                parts.append(stderr_text)
-
-            output = "\n".join(parts) if parts else "(no output)"
-
-            if len(output) > MAX_OUTPUT_CHARS:
-                output = (
-                    output[:MAX_OUTPUT_CHARS] + f"\n... (truncated after {MAX_OUTPUT_CHARS} chars)"
-                )
-
-            return ToolResult(
-                content=output,
-                success=process.returncode == 0,
-                error=(
-                    f"Tests failed (exit code {process.returncode})"
-                    if process.returncode != 0
-                    else None
-                ),
-            )
-
+            return await self._execute_pytest_command(cmd, config)
         except Exception as e:  # pragma: no cover
             return ToolResult(
                 content=f"Error running pytest: {e}",
                 success=False,
                 error=str(e),
             )
+
+    def _build_pytest_command(self, config: PytestConfig) -> list[str]:
+        """Build the pytest command line arguments."""
+        cmd = [sys.executable, "-m", "pytest", config.path]
+
+        if not config.collect_only:
+            cmd.append("-x")
+        if config.verbose:
+            cmd.append("-v")
+        if config.keyword:
+            cmd.extend(["-k", config.keyword])
+        if config.markers:
+            cmd.extend(["-m", config.markers])
+        if config.coverage:
+            cov_arg = f"--cov={config.coverage_source}" if config.coverage_source else "--cov"
+            cmd.extend([cov_arg, "--cov-report=term-missing"])
+        if config.parallel is not None and config.parallel > 0:
+            cmd.extend(["-n", str(config.parallel)])
+        if config.collect_only:
+            cmd.append("--collect-only")
+            cmd.append("-q")
+
+        return cmd
+
+    async def _execute_pytest_command(self, cmd: list[str], config: PytestConfig) -> ToolResult:
+        """Execute the pytest command and handle timeout."""
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        try:
+            stdout, stderr = await self._communicate_with_timeout(process, config.timeout)
+        except (TimeoutError, asyncio.TimeoutError):
+            process.kill()
+            await process.wait()
+            return ToolResult(
+                content=f"Tests timed out after {config.timeout}s",
+                success=False,
+                error=f"Timeout after {config.timeout}s",
+            )
+        except asyncio.CancelledError:
+            process.kill()
+            await process.wait()
+            raise
+
+        output = self._process_output(stdout, stderr)
+        return self._create_result(output, process.returncode)
+
+    async def _communicate_with_timeout(
+        self, process: asyncio.subprocess.Process, timeout: int
+    ) -> tuple[bytes, bytes]:
+        """Communicate with process with optional timeout."""
+        effective_timeout: float | None = None if timeout == 0 else timeout
+        if effective_timeout is not None:
+            return await asyncio.wait_for(process.communicate(), timeout=effective_timeout)
+        else:
+            return await process.communicate()
+
+    def _process_output(self, stdout: bytes, stderr: bytes) -> str:
+        """Process and combine stdout/stderr output."""
+        stdout_text = stdout.decode("utf-8", errors="replace")
+        stderr_text = stderr.decode("utf-8", errors="replace")
+
+        parts = []
+        if stdout_text:
+            parts.append(stdout_text)
+        if stderr_text:
+            parts.append(stderr_text)
+
+        output = "\n".join(parts) if parts else "(no output)"
+        return self._truncate_output(output)
+
+    def _truncate_output(self, output: str) -> str:
+        """Truncate output if it exceeds maximum length."""
+        if len(output) > MAX_OUTPUT_CHARS:
+            return output[:MAX_OUTPUT_CHARS] + f"\n... (truncated after {MAX_OUTPUT_CHARS} chars)"
+        return output
+
+    def _create_result(self, output: str, returncode: int | None) -> ToolResult:
+        """Create ToolResult from output and return code."""
+        success = returncode == 0 if returncode is not None else False
+        error = None if success else f"Tests failed (exit code {returncode})"
+
+        return ToolResult(
+            content=output,
+            success=success,
+            error=error,
+        )
