@@ -100,6 +100,7 @@ class CommandProcessor:
             tool_registry=self.tool_manager.registry,
             session=self.session_manager.current,
             repl=repl,
+            registry=self.command_registry,
         )
         # Add session_manager and project_hash for /chat command
         # Handle both ReplSessionManager and any wrapper that has a session_manager attribute

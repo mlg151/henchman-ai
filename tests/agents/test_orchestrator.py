@@ -536,6 +536,8 @@ def test_build_timeout_summary_with_tools():
     """_build_timeout_summary captures tool calls and files."""
     from henchman.core.agent import Agent
 
+    from henchman.agents.orchestrator import TimeoutSummaryBuilder
+
     agent = Agent(provider=MagicMock(spec=ModelProvider))
     msg_start = len(agent.messages)
     # Simulate some tool calls in message history
@@ -561,7 +563,7 @@ def test_build_timeout_summary_with_tools():
         )
     )
 
-    result = Orchestrator._build_timeout_summary(agent, msg_start)
+    result = TimeoutSummaryBuilder.build_summary(agent, msg_start)
     assert "Progress at timeout" in result
     assert "Tool calls made: 2" in result
     assert "src/foo.py" in result
@@ -570,10 +572,11 @@ def test_build_timeout_summary_with_tools():
 def test_build_timeout_summary_empty():
     """_build_timeout_summary handles no progress."""
     from henchman.core.agent import Agent
+    from henchman.agents.orchestrator import TimeoutSummaryBuilder
 
     agent = Agent(provider=MagicMock(spec=ModelProvider))
     msg_start = len(agent.messages)
-    result = Orchestrator._build_timeout_summary(agent, msg_start)
+    result = TimeoutSummaryBuilder.build_summary(agent, msg_start)
     assert "No significant progress" in result
 
 
@@ -861,14 +864,14 @@ def test_orchestrator_metrics_initialization(mock_provider):
 
 
 def test_update_tool_metrics():
-    """Test _update_tool_metrics method."""
+    """Test update_tool_metrics method."""
     from unittest.mock import MagicMock
 
     mock_provider = MagicMock(spec=ModelProvider)
     orchestrator = Orchestrator(default_provider=mock_provider)
 
     # Test tracking a read_file call
-    orchestrator._update_tool_metrics("read_file", {"path": "test.py"}, True)
+    orchestrator.tool_controller.update_tool_metrics("read_file", {"path": "test.py"}, True)
 
     assert orchestrator.metrics.tools.total_tool_calls == 1
     assert orchestrator.metrics.tools.successful_tool_calls == 1
@@ -880,7 +883,7 @@ def test_update_tool_metrics():
     assert orchestrator.metrics.performance.files_accessed["test.py"] == 1
 
     # Test tracking a failed tool call
-    orchestrator._update_tool_metrics("shell", {"command": "false"}, False)
+    orchestrator.tool_controller.update_tool_metrics("shell", {"command": "false"}, False)
 
     assert orchestrator.metrics.tools.total_tool_calls == 2
     assert orchestrator.metrics.tools.successful_tool_calls == 1
@@ -890,7 +893,7 @@ def test_update_tool_metrics():
     assert orchestrator.metrics.performance.tool_usage_by_type["shell"] == 1
 
     # Test file re-read tracking
-    orchestrator._update_tool_metrics("read_file", {"path": "test.py"}, True)
+    orchestrator.tool_controller.update_tool_metrics("read_file", {"path": "test.py"}, True)
 
     assert orchestrator.metrics.tools.total_tool_calls == 3
     assert orchestrator.metrics.tools.read_file_calls == 2

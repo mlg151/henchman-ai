@@ -85647,3 +85647,37 @@ TOTAL                                            13490   2249   4018    451    8
 =========== 2586 passed, 5 skipped, 34 warnings in 227.17s (0:03:47) ===========
 [2026-02-27T17:30:02Z] All tests passed.
 Committing changes...
+[main 9b27fbf] chore(auto-improve): automated codebase improvement
+ 5 files changed, 860 insertions(+), 231 deletions(-)
+[2026-02-27T17:30:02Z] Auto-improve complete.
+[2026-02-27T18:00:02Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+Running Henchman...
+YOLO mode is enabled. All tool calls will be automatically approved.
+Loaded cached credentials.
+YOLO mode is enabled. All tool calls will be automatically approved.
+Session cleanup disabled: Either maxAge or maxCount must be specified
+I will read the last improvement record to ensure I don't duplicate work and then examine the top-priority smells from the report to select a high-impact refactoring target.
+I'll verify if the previous refactoring in `src/henchman/cli/commands/context.py` was actually applied, as the smell report still flags it. This will help me determine if I should trust the report's current state or if I need to re-evaluate the priorities.
+The previous refactoring in `context.py` is present, so the smell report's flagging of duplicates is likely a false positive or based on slightly different versions. I'll now investigate the "Primitive Obsession" in `src/henchman/cli/app.py` around line 645, which involves the `chat_command` function, as it's a high-priority and distinct improvement.
+`chat_command` in `src/henchman/cli/app.py` uses individual parameters for its Click command, which the smell report flags as Primitive Obsession. Since Click usually binds decorators to parameters, I'll examine the decorators above `chat_command` to see if I can refactor it using `@click.pass_obj` or a custom type to group these primitives into a more cohesive object.
+I'll look at the `Orchestrator` class in `src/henchman/agents/orchestrator.py`, which is flagged as a "Large Class" at 1087 lines, to see if I can extract any cohesive responsibilities into smaller, more manageable classes.
+I'll examine the `Orchestrator` class in `src/henchman/agents/orchestrator.py` around line 175 to see if `AgentLoopParams` and `DelegationParams` were already implemented, as they suggest previous "Primitive Obsession" refactoring.
+The `Orchestrator` has been partially refactored with several classes extracted, yet it's still over 1000 lines. I'll check the file's total length and examine its remaining methods to identify further extraction opportunities.
+1261 lines. Checking the methods now.
+Grep missed `async def`. Redoing it now.
+`Orchestrator` is still bloated with Tech Lead setup, delegation, and loop execution logic. I'll check `src/henchman/agents/delegation.py` to see what's already been extracted and what remains in `Orchestrator`.
+`DelegationRunner` is solid, but `Orchestrator` still harbors delegation logic like `_run_delegation`. I need to see if `Orchestrator._run_delegation` simply delegates to `self.delegation_runner.run_delegation` or if it's still doing heavy lifting.
+Line 1037 shows `self._run_delegation(params)` being called. I need to check the definition of `_run_delegation`.
+1148. Checking.
+`Orchestrator` is bloated with wrappers and long, complex methods like `_run_agent_loop`. I'll examine `_run_agent_loop` and `_collect_events_and_tool_calls` to see if they can be refactored to reduce the class size and complexity.
+818. Reading `_run_agent_loop`.
+`_run_agent_loop` is clean but `Orchestrator` is still too big. I'll extract the loop execution logic into a new `AgentExecutor` class. This class will handle the recursive loop between `AgentExecutor` and `DelegationRunner`. I've identified 16 methods to move, but I need to check if `_assess_completion` is also used by `Orchestrator` before proceeding.
+`_assess_completion` is used in `run` and `run_direct`, so moving it to `AgentExecutor` would significantly shrink `Orchestrator`. I'll check its body now.
+`_assess_completion` relies on `_last_loop_tool_call_count`, so extracting `AgentExecutor` would require it to return that count. While extracting `AgentExecutor` or a `TechLeadManager` would significantly shrink `Orchestrator`, it's a major undertaking. I'll pivot to a smaller, high-impact fix first, like the "Feature Envy" in `AgentCommand.execute` in `src/henchman/cli/commands/agent.py`. I'll start by reading that file.
+`AgentCommand.execute`'s "Feature Envy" of `CommandContext` is expected, as `ctx` is designed for command interaction. Moving `execute` to `CommandContext` is nonsensical. I'll see if using local variables for `ctx` properties helps, or I'll examine `HelpCommand.execute` in `src/henchman/cli/commands/builtins.py` to see if its even more pronounced Feature Envy suggests a better refactoring.
+`HelpCommand` currently hardcodes its command list, leading to "Feature Envy" through repeated `ctx.console.print` calls. I'll check `CommandContext` in `src/henchman/cli/commands/__init__.py` to see if I can refactor `HelpCommand` to dynamically iterate over commands, making it cleaner and more flexible.
+`CommandContext` is missing the `CommandRegistry`, but `Repl` might have it. Checking `src/henchman/cli/repl.py` now.
+`CommandRegistry`.
+REPL commands? How?
