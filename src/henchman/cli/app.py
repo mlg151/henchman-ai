@@ -20,13 +20,9 @@ if TYPE_CHECKING:
     from henchman.providers.base import ModelProvider
 
 
-def __getattr__(name: str) -> object:
-    """Lazy import for Textual dev mode (``textual run henchman``)."""
-    if name == "app":
-        from henchman.cli.textual_app import HenchmanTextualApp
+from henchman.utils.lazy_import import getattr_for_textual_app
 
-        return HenchmanTextualApp
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+__getattr__ = getattr_for_textual_app(__name__)
 
 console = Console()
 
