@@ -1,7 +1,7 @@
 """Tests for MetricsReporter."""
 
+from henchman.agents.metrics import OrchestratorMetrics, PerformanceMetrics
 from henchman.agents.metrics_reporter import MAX_TOOL_USAGE_TO_DISPLAY, MetricsReporter
-from henchman.agents.orchestrator import OrchestratorMetrics, PerformanceMetrics
 
 
 def test_metrics_reporter_init():
