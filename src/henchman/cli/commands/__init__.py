@@ -161,3 +161,20 @@ class CommandRegistry:
         if cmd is None:
             raise KeyError(f"Unknown command: {name}")
         await cmd.execute(ctx)
+
+
+def show_command_help(ctx: CommandContext, command_name: str, help_lines: list[str]) -> None:
+    """Display formatted help for a command.
+
+    This helper function standardizes the display of command help
+    to eliminate duplicate code across command classes.
+
+    Args:
+        ctx: Command context with console.
+        command_name: Name of the command for the header.
+        help_lines: List of help lines to display.
+    """
+    ctx.console.print(f"\n[bold blue]{command_name} Commands[/]\n")
+    for line in help_lines:
+        ctx.console.print(line)
+    ctx.console.print("")
