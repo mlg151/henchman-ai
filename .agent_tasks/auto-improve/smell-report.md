@@ -1,19 +1,19 @@
-# Code Smell Report — ❌ F (Score: 35.4/100)
+# Code Smell Report — ❌ F (Score: 35.5/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T08:30:13.163521+00:00_
+_Generated: 2026-02-27T09:00:13.159049+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.4/100 |
+| **Overall Score** | 35.5/100 |
 | **Files Scanned** | 145 |
-| **Total Lines (non-blank)** | 29,529 |
-| **Total Smells** | 2725 |
-| **Avg Maintainability Index** | 70.0 |
+| **Total Lines (non-blank)** | 29,590 |
+| **Total Smells** | 2726 |
+| **Avg Maintainability Index** | 70.2 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
 ### Smells by Severity
@@ -21,8 +21,8 @@ _Generated: 2026-02-27T08:30:13.163521+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 1888 |
-| medium | 669 |
-| high | 168 |
+| medium | 671 |
+| high | 167 |
 
 ### Smells by Category
 
@@ -34,7 +34,7 @@ _Generated: 2026-02-27T08:30:13.163521+00:00_
 | Magic Number | 196 |
 | Long Method | 169 |
 | Deep Nesting | 168 |
-| Primitive Obsession | 91 |
+| Primitive Obsession | 92 |
 | Complex Function | 59 |
 | Large Class | 39 |
 
@@ -62,45 +62,45 @@ These are the highest-impact smells to address first:
    Function '_run_delegation' has 80 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-6. **agents/presets.py:49** — 🟠 HIGH — Duplicate Code  
-   Function '_create_planner_config' is an exact duplicate of '_create_engineer_config' at agents/presets.py:86  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+6. **agents/presets.py:30** — 🟠 HIGH — Primitive Obsession  
+   Function '_create_agent_config' has 10 primitive-typed parameters: name: Name(id='str', ctx=Load()), role: Name(id='str', ctx=Load()), description: Name(id='str', ctx=Load()), basic_file_tools: Name(id='bool', ctx=Load()), file_edit_tools: Name(id='bool', ctx=Load()), git_tools: Name(id='bool', ctx=Load()), web_tools: Name(id='bool', ctx=Load()), knowledge_tools: Name(id='bool', ctx=Load()), shell_tools: Name(id='bool', ctx=Load()), python_dev_tools: Name(id='bool', ctx=Load())  
+   → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
 
-7. **agents/presets.py:67** — 🟠 HIGH — Duplicate Code  
-   Function '_create_explorer_config' is an exact duplicate of '_create_data_engineer_config' at agents/presets.py:103  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
-
-8. **cli/app.py:143** — 🟠 HIGH — Long Method  
+7. **cli/app.py:143** — 🟠 HIGH — Long Method  
    Function '_run_interactive' has 85 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-9. **cli/app.py:143** — 🟠 HIGH — Primitive Obsession  
+8. **cli/app.py:143** — 🟠 HIGH — Primitive Obsession  
    Repeated primitive parameter group appears in: '_run_interactive' (line 143), '_run_textual_tui' (line 241), '_run_headless' (line 369), 'chat_command' (line 644)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-10. **cli/app.py:644** — 🟠 HIGH — Primitive Obsession  
+9. **cli/app.py:644** — 🟠 HIGH — Primitive Obsession  
    Function 'chat_command' has 8 primitive-typed parameters: prompt: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), agent: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), team: Name(id='bool', ctx=Load()), output_format: Name(id='str', ctx=Load()), plan: Name(id='bool', ctx=Load()), yes: Name(id='bool', ctx=Load()), tui: Name(id='bool', ctx=Load()), debug: Name(id='bool', ctx=Load())  
    → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
 
-11. **cli/commands/agent.py:33** — 🟠 HIGH — Feature Envy  
+10. **cli/commands/agent.py:33** — 🟠 HIGH — Feature Envy  
    Method 'AgentCommand.execute' accesses 'ctx' 10 times but 'self' only 2 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-12. **cli/commands/builtins.py:52** — 🟠 HIGH — Feature Envy  
+11. **cli/commands/builtins.py:52** — 🟠 HIGH — Feature Envy  
    Method 'HelpCommand.execute' accesses 'ctx' 16 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-13. **cli/commands/chat.py:68** — 🟠 HIGH — Duplicate Code  
+12. **cli/commands/chat.py:68** — 🟠 HIGH — Duplicate Code  
    Function '_show_help' is an exact duplicate of '_show_help' at cli/commands/mcp.py:67  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-14. **cli/commands/chat.py:119** — 🟠 HIGH — Feature Envy  
+13. **cli/commands/chat.py:119** — 🟠 HIGH — Feature Envy  
    Method 'ChatCommand._resume' accesses 'ctx' 12 times but 'self' only 0 times  
    → _Move Method — consider moving '_resume' to the class that owns 'ctx'._
 
-15. **cli/commands/context.py:71** — 🟠 HIGH — Feature Envy  
+14. **cli/commands/context.py:71** — 🟠 HIGH — Feature Envy  
    Method 'ContextCommand._show_status' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_status' to the class that owns 'ctx'._
+
+15. **cli/commands/context.py:348** — 🟠 HIGH — Feature Envy  
+   Method 'ContextCommand._show_stats' accesses 'ctx' 21 times but 'self' only 0 times  
+   → _Move Method — consider moving '_show_stats' to the class that owns 'ctx'._
 
 
 ## 📊 Files Ranked by Quality
