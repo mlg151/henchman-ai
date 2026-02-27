@@ -125,7 +125,7 @@ PROMPT="$PROMPT"$'\n\nRefer to the code smell report for the full list of smells
 
 # Run Henchman in headless mode with auto-approve
 echo "Running Henchman..." | tee -a "$LOGFILE"
-/home/matthew/anaconda3/bin/gemini --yolo -p "$PROMPT" 2>&1 | tee -a "$LOGFILE"
+henchman chat --yes -p "$PROMPT" 2>&1 | tee -a "$LOGFILE"
 
 HENCHMAN_EXIT=${PIPESTATUS[0]}
 
