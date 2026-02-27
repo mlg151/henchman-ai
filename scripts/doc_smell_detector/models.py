@@ -16,6 +16,7 @@ class DocSmellType(enum.Enum):
     ORPHANED_PAGE = "Orphaned Page"
     MISSING_NAV_TARGET = "Missing Nav Target"
     STALE_CONTENT = "Stale Content"
+    STALE_AGE = "Stale Age"
     BROKEN_LINK = "Broken Link"
     MISSING_DOCSTRING = "Missing Docstring"
     INCOMPLETE_DOCSTRING = "Incomplete Docstring"
@@ -81,6 +82,7 @@ class DocFileReport:
     smells: list[DocSmellInstance] = field(default_factory=list)
     doc_metrics: DocFileMetrics | None = None
     source_metrics: SourceFileMetrics | None = None
+    last_modified: datetime | None = None
     grade: str = "A"
     score: float = 100.0
 

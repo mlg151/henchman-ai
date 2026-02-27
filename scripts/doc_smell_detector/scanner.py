@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import ast
 import fnmatch
+import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -87,7 +89,75 @@ def _extract_nav_pages(nav: Any, pages: list[str] | None = None) -> list[str]:
     return pages
 
 
-def _discover_markdown_files(root: Path) -> list[MarkdownFile]:
+def _resolve_git_dates(root: Path) -> dict[str, datetime]:
+    """Resolve last-modified dates for all tracked files via a single ``git log``.
+
+    Falls back to filesystem mtime if git is unavailable or the repo is not a
+    git repository.
+
+    Returns:
+        Mapping of relative path → UTC datetime of last modification.
+    """
+    dates: dict[str, datetime] = {}
+    try:
+        # One bulk call: for each file, print the author-date of the most
+        # recent commit that touched it.  Format: <unix-ts>\\t<path>
+        result = subprocess.run(
+            [
+                "git", "log", "--format=%at", "--name-only",
+                "--diff-filter=ACMR", "-z",
+            ],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return dates
+
+        # Parse the NUL-separated output.  Records look like:
+        #   <timestamp>\n\n<file1>\n<file2>\0<timestamp>\n\n<file3>\0...
+        current_ts: int | None = None
+        for record in result.stdout.split("\0"):
+            record = record.strip()
+            if not record:
+                continue
+            lines = record.split("\n")
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                if line.isdigit():
+                    current_ts = int(line)
+                elif current_ts is not None and line not in dates:
+                    # First occurrence = most recent commit that touched the file.
+                    dates[line] = datetime.fromtimestamp(current_ts, tz=timezone.utc)
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        pass
+    return dates
+
+
+def _get_last_modified(
+    rel_path: str,
+    root: Path,
+    git_dates: dict[str, datetime],
+) -> datetime | None:
+    """Return the last-modified datetime for *rel_path*.
+
+    Prefers git author-date; falls back to filesystem mtime.
+    """
+    if rel_path in git_dates:
+        return git_dates[rel_path]
+    # Fallback: filesystem stat.
+    full = root / rel_path
+    try:
+        mtime = full.stat().st_mtime
+        return datetime.fromtimestamp(mtime, tz=timezone.utc)
+    except OSError:
+        return None
+
+
+def _discover_markdown_files(root: Path, git_dates: dict[str, datetime]) -> list[MarkdownFile]:
     """Find all Markdown files in the project, excluding hidden dirs and build outputs."""
     skip_dirs = {".git", ".venv", "node_modules", "__pycache__", "site",
                  "htmlcov", ".mypy_cache", ".pytest_cache", ".ruff_cache",
@@ -102,7 +172,11 @@ def _discover_markdown_files(root: Path) -> list[MarkdownFile]:
         rel = str(p.relative_to(root))
         try:
             content = p.read_text(encoding="utf-8", errors="replace")
-            files.append(MarkdownFile(path=rel, content=content))
+            files.append(MarkdownFile(
+                path=rel,
+                content=content,
+                last_modified=_get_last_modified(rel, root, git_dates),
+            ))
         except OSError:
             pass
     return files
@@ -112,6 +186,7 @@ def _discover_python_sources(
     root: Path,
     src_dirs: list[str],
     excludes: list[str],
+    git_dates: dict[str, datetime] | None = None,
 ) -> list[PythonSource]:
     """Find and parse Python source files."""
     sources: list[PythonSource] = []
@@ -126,7 +201,8 @@ def _discover_python_sources(
             try:
                 source = p.read_text(encoding="utf-8", errors="replace")
                 tree = ast.parse(source, filename=rel)
-                sources.append(PythonSource(path=rel, source=source, tree=tree))
+                lm = _get_last_modified(rel, root, git_dates or {}) if git_dates else None
+                sources.append(PythonSource(path=rel, source=source, tree=tree, last_modified=lm))
             except SyntaxError:
                 sources.append(PythonSource(path=rel, source="", tree=None))
             except OSError:
@@ -220,13 +296,26 @@ def scan_docs(
     docs_dir = mkdocs_cfg.get("docs_dir", "docs")
     nav_pages = _extract_nav_pages(mkdocs_cfg.get("nav", []))
 
+    # --- Resolve last-modified dates ---
+    git_dates = _resolve_git_dates(root)
+
     # --- Discover files ---
-    markdown_files = _discover_markdown_files(root)
+    markdown_files = _discover_markdown_files(root, git_dates=git_dates)
     python_sources: list[PythonSource] = []
     if not skip_docstrings:
-        python_sources = _discover_python_sources(root, src_dirs, _PY_EXCLUDES)
+        python_sources = _discover_python_sources(
+            root, src_dirs, _PY_EXCLUDES, git_dates=git_dates,
+        )
 
     # --- Build scan context ---
+    file_last_modified: dict[str, datetime] = {}
+    for md in markdown_files:
+        if md.last_modified:
+            file_last_modified[md.path] = md.last_modified
+    for src in python_sources:
+        if src.last_modified:
+            file_last_modified[src.path] = src.last_modified
+
     ctx = ScanContext(
         project_root=root,
         mkdocs_config=mkdocs_cfg,
@@ -234,6 +323,7 @@ def scan_docs(
         python_sources=python_sources,
         nav_pages=nav_pages,
         docs_dir=docs_dir,
+        file_last_modified=file_last_modified,
     )
 
     # --- Run all detectors ---
@@ -258,6 +348,7 @@ def scan_docs(
             path=md.path,
             smells=smells_by_file.get(md.path, []),
             doc_metrics=_compute_md_metrics(md),
+            last_modified=md.last_modified,
         )
         file_reports.append(report)
 
@@ -271,6 +362,7 @@ def scan_docs(
                     path=src.path,
                     smells=smells,
                     source_metrics=metrics,
+                    last_modified=src.last_modified,
                 )
                 file_reports.append(report)
 

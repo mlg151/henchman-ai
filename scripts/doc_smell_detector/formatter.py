@@ -145,15 +145,20 @@ def format_markdown(report: DocRepoReport) -> str:
     if worst:
         sections.append("## 📊 Files Ranked by Quality\n")
         sections.append(
-            "| Rank | File | Grade | Score | Smells |",
+            "| Rank | File | Grade | Score | Smells | Last Modified |",
         )
         sections.append(
-            "|-----:|:-----|:------|------:|-------:|",
+            "|-----:|:-----|:------|------:|-------:|:-------------|",
         )
         for i, fr in enumerate(worst, 1):
+            lm = (
+                fr.last_modified.strftime("%Y-%m-%d")
+                if fr.last_modified
+                else "—"
+            )
             sections.append(
                 f"| {i} | {fr.path} | {_grade_badge(fr.grade)} | "
-                f"{fr.score} | {len(fr.smells)} |",
+                f"{fr.score} | {len(fr.smells)} | {lm} |",
             )
         sections.append("")
 
@@ -174,8 +179,13 @@ def format_markdown(report: DocRepoReport) -> str:
                 f"{len(report.files) - MAX_DETAIL_FILES} additional files omitted._\n",
             )
         for fr in files_with_smells:
+            lm_str = (
+                f" (last modified {fr.last_modified.strftime('%Y-%m-%d')})"
+                if fr.last_modified
+                else ""
+            )
             sections.append(
-                f"### {fr.path} — {_grade_badge(fr.grade)} ({fr.score}/100)\n",
+                f"### {fr.path} — {_grade_badge(fr.grade)} ({fr.score}/100){lm_str}\n",
             )
             # Show metrics if available.
             if fr.doc_metrics:
@@ -243,6 +253,8 @@ def format_json(report: DocRepoReport) -> str:
     def _serialise(obj: object) -> object:
         if hasattr(obj, "value"):
             return obj.value
+        if hasattr(obj, "isoformat"):
+            return obj.isoformat()  # type: ignore[union-attr]
         raise TypeError(f"Cannot serialise {type(obj)}")
 
     return json.dumps(asdict(report), default=_serialise, indent=2)

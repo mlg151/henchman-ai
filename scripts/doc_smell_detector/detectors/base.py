@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,7 @@ class MarkdownFile:
     path: str  # Relative path from project root.
     content: str
     lines: list[str] = field(default_factory=list)
+    last_modified: datetime | None = None  # From git log or stat.
 
     def __post_init__(self) -> None:
         if not self.lines:
@@ -31,6 +33,7 @@ class PythonSource:
     path: str  # Relative path from project root.
     source: str
     tree: ast.Module | None = None
+    last_modified: datetime | None = None  # From git log or stat.
 
 
 @dataclass
@@ -47,6 +50,8 @@ class ScanContext:
     nav_pages: list[str]  # .md paths referenced in mkdocs nav (relative to docs/).
     docs_dir: str = "docs"  # mkdocs docs_dir setting.
     public_symbols: dict[str, list[str]] = field(default_factory=dict)
+    file_last_modified: dict[str, datetime] = field(default_factory=dict)
+    # file_last_modified: mapping of relative path -> last modified datetime.
     # public_symbols: mapping of module path -> list of public symbol names
     # extracted from __all__ or non-underscore top-level defs.
 
