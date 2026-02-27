@@ -67,11 +67,23 @@ class OutputHandler:
         Returns:
             List of (style, text) tuples for status bar.
         """
-        from henchman.utils.tokens import TokenCounter
+        status: list[tuple[str, str]] = []
 
-        status = []
+        self._add_plan_mode_status(status)
+        self._add_provider_status(status)
+        self._add_token_status(status, agent)
+        self._add_tool_status(status)
+        self._add_mcp_status(status)
+        self._add_rag_status(status)
 
-        # Plan Mode
+        return status
+
+    def _add_plan_mode_status(self, status: list[tuple[str, str]]) -> None:
+        """Add plan mode status to the status list.
+
+        Args:
+            status: The status list to append to.
+        """
         session = self.session_manager.current
         plan_mode = session.plan_mode if session else False
         if plan_mode:
@@ -79,7 +91,12 @@ class OutputHandler:
         else:
             status.append(("bg:blue fg:white bold", " CHAT "))
 
-        # Provider and Model
+    def _add_provider_status(self, status: list[tuple[str, str]]) -> None:
+        """Add provider and model status to the status list.
+
+        Args:
+            status: The status list to append to.
+        """
         try:
             provider_name = self.provider.__class__.__name__.replace("Provider", "")
             model_name = getattr(self.provider, "default_model", "unknown")
@@ -87,33 +104,75 @@ class OutputHandler:
         except Exception:
             pass
 
-        # Tokens with percentage
+    def _add_token_status(self, status: list[tuple[str, str]], agent: Agent | None) -> None:
+        """Add token usage status to the status list.
+
+        Args:
+            status: The status list to append to.
+            agent: The agent to get token information from.
+        """
+        from henchman.utils.tokens import TokenCounter
+
         try:
-            if agent and hasattr(agent, "get_messages_for_api"):
-                msgs = agent.get_messages_for_api()
-                tokens = TokenCounter.count_messages(msgs)
+            if not agent or not hasattr(agent, "get_messages_for_api"):
+                return
 
-                # Calculate percentage if max_tokens is available
-                max_tokens = 0
-                if self.settings and hasattr(self.settings, "context") and self.settings.context:
-                    max_tokens = getattr(self.settings.context, "max_tokens", 0)
+            msgs = agent.get_messages_for_api()
+            tokens = TokenCounter.count_messages(msgs)
 
-                if max_tokens > 0:
-                    percentage = (tokens / max_tokens) * 100
-                    # Color coding based on percentage
-                    if percentage < 50:
-                        color = "green"
-                    elif percentage < 75:
-                        color = "yellow"
-                    else:
-                        color = "red"
-                    status.append((f"fg:{color}", f" Tokens: {percentage:.0f}% "))
-                else:
-                    status.append(("", f" Tokens: ~{tokens} "))
+            max_tokens = self._get_max_tokens()
+            if max_tokens > 0:
+                self._add_token_percentage_status(status, tokens, max_tokens)
+            else:
+                status.append(("", f" Tokens: ~{tokens} "))
         except Exception:
             pass
 
-        # Tool count
+    def _get_max_tokens(self) -> int:
+        """Get the maximum token limit from settings.
+
+        Returns:
+            Maximum token limit, or 0 if not available.
+        """
+        if not self.settings:
+            return 0
+        if not hasattr(self.settings, "context"):
+            return 0
+        context = getattr(self.settings, "context", None)
+        if not context:
+            return 0
+        return getattr(context, "max_tokens", 0)
+
+    def _add_token_percentage_status(
+        self, status: list[tuple[str, str]], tokens: int, max_tokens: int
+    ) -> None:
+        """Add token percentage status with color coding.
+
+        Args:
+            status: The status list to append to.
+            tokens: Current token count.
+            max_tokens: Maximum token limit.
+        """
+        LOW_THRESHOLD = 50
+        MEDIUM_THRESHOLD = 75
+
+        percentage = (tokens / max_tokens) * 100
+
+        if percentage < LOW_THRESHOLD:
+            color = "green"
+        elif percentage < MEDIUM_THRESHOLD:
+            color = "yellow"
+        else:
+            color = "red"
+
+        status.append((f"fg:{color}", f" Tokens: {percentage:.0f}% "))
+
+    def _add_tool_status(self, status: list[tuple[str, str]]) -> None:
+        """Add tool count status to the status list.
+
+        Args:
+            status: The status list to append to.
+        """
         try:
             if hasattr(self.tool_manager.registry, "list_tools"):
                 tool_count = len(self.tool_manager.registry.list_tools())
@@ -121,25 +180,47 @@ class OutputHandler:
         except Exception:
             pass
 
-        # MCP connection status
+    def _add_mcp_status(self, status: list[tuple[str, str]]) -> None:
+        """Add MCP connection status to the status list.
+
+        Args:
+            status: The status list to append to.
+        """
         try:
-            if self.mcp_manager and hasattr(self.mcp_manager, "clients"):
-                total_clients = len(self.mcp_manager.clients)
-                if total_clients > 0:
-                    connected_clients = sum(
-                        1
-                        for client in self.mcp_manager.clients.values()
-                        if hasattr(client, "is_connected") and client.is_connected
-                    )
-                    status.append(("", f" MCP: {connected_clients}/{total_clients} "))
+            if not self.mcp_manager or not hasattr(self.mcp_manager, "clients"):
+                return
+
+            total_clients = len(self.mcp_manager.clients)
+            if total_clients == 0:
+                return
+
+            connected_clients = self._count_connected_mcp_clients()
+            status.append(("", f" MCP: {connected_clients}/{total_clients} "))
         except Exception:
             pass
 
-        # RAG Status
+    def _count_connected_mcp_clients(self) -> int:
+        """Count the number of connected MCP clients.
+
+        Returns:
+            Number of connected MCP clients.
+        """
+        if not self.mcp_manager or not hasattr(self.mcp_manager, "clients"):
+            return 0
+        return sum(
+            1
+            for client in self.mcp_manager.clients.values()
+            if hasattr(client, "is_connected") and client.is_connected
+        )
+
+    def _add_rag_status(self, status: list[tuple[str, str]]) -> None:
+        """Add RAG status to the status list.
+
+        Args:
+            status: The status list to append to.
+        """
         if self.rag_system and getattr(self.rag_system, "is_indexing", False):
             status.append(("bg:cyan fg:black", " RAG: Indexing... "))
-
-        return status
 
     def get_rich_status_message(self, agent: Agent) -> str:
         """Get rich status message for persistent display.
@@ -247,7 +328,6 @@ class OutputHandler:
 
             if self.rag_system and hasattr(self.rag_system, "index_async"):
                 self._safe_create_task(self.rag_system.index_async())
-
 
     def start_task(self, task_id: str, description: str, total: int = 100) -> Any:
         """Start a new progress task.
