@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 35.5/100)
+# Code Smell Report — ❌ F (Score: 35.4/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T09:30:13.870211+00:00_
+_Generated: 2026-02-27T10:00:13.816843+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.5/100 |
+| **Overall Score** | 35.4/100 |
 | **Files Scanned** | 145 |
-| **Total Lines (non-blank)** | 29,590 |
-| **Total Smells** | 2726 |
+| **Total Lines (non-blank)** | 29,703 |
+| **Total Smells** | 2737 |
 | **Avg Maintainability Index** | 70.2 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
@@ -20,45 +20,45 @@ _Generated: 2026-02-27T09:30:13.870211+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1888 |
-| medium | 671 |
+| low | 1900 |
+| medium | 670 |
 | high | 167 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1310 |
-| Feature Envy | 367 |
+| Missing Type Hint | 1321 |
+| Feature Envy | 369 |
 | Duplicate Code | 326 |
 | Magic Number | 196 |
-| Long Method | 169 |
+| Long Method | 168 |
 | Deep Nesting | 168 |
 | Primitive Obsession | 92 |
-| Complex Function | 59 |
+| Complex Function | 58 |
 | Large Class | 39 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **agents/orchestrator.py:578** — 🟠 HIGH — Large Class  
-   Class 'Orchestrator' spans 1363 lines (threshold: 300)  
+1. **agents/orchestrator.py:577** — 🟠 HIGH — Large Class  
+   Class 'Orchestrator' spans 1481 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
-2. **agents/orchestrator.py:581** — 🟠 HIGH — Long Method  
-   Function '__init__' has 88 lines (threshold: 30)  
-   → _Extract Method — break this function into smaller, intention-revealing helper functions._
+2. **agents/orchestrator.py:577** — 🟠 HIGH — Large Class  
+   Class 'Orchestrator' has 59 methods (threshold: 20)  
+   → _Split Class — group related methods into smaller collaborating classes._
 
-3. **agents/orchestrator.py:1109** — 🟠 HIGH — Long Method  
+3. **agents/orchestrator.py:1226** — 🟠 HIGH — Long Method  
    Function '_run_agent_loop' has 82 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-4. **agents/orchestrator.py:1109** — 🟠 HIGH — Primitive Obsession  
-   Repeated primitive parameter group appears in: '_run_agent_loop' (line 1109), '_run_delegation' (line 1444)  
+4. **agents/orchestrator.py:1226** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: '_run_agent_loop' (line 1226), '_run_delegation' (line 1561)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-5. **agents/orchestrator.py:1444** — 🟠 HIGH — Long Method  
+5. **agents/orchestrator.py:1561** — 🟠 HIGH — Long Method  
    Function '_run_delegation' has 80 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
@@ -108,7 +108,7 @@ These are the highest-impact smells to address first:
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
 | 1 | cli/textual_app.py | ❌ F | 0.4 | 121 | 1439 | 1 | 0.0 |
-| 2 | agents/orchestrator.py | ❌ F | 1.9 | 124 | 1476 | 6 | 14.6 |
+| 2 | agents/orchestrator.py | ❌ F | 1.5 | 135 | 1589 | 5 | 14.5 |
 | 3 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
 | 4 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 5 | cli/commands/session.py | ❌ F | 9.8 | 67 | 296 | 33 | 11.0 |
@@ -146,29 +146,29 @@ LOC: 1439 | Classes: 1 | Functions: 2 | MI: 1 | Avg CC: 0.0
 
 _... and 106 more smells._
 
-### agents/orchestrator.py — ❌ F (1.9/100)
+### agents/orchestrator.py — ❌ F (1.5/100)
 
-LOC: 1476 | Classes: 8 | Functions: 1 | MI: 6 | Avg CC: 14.6
+LOC: 1589 | Classes: 8 | Functions: 1 | MI: 5 | Avg CC: 14.5
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 578 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1363 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 581 | 🟠 HIGH | Long Method | Function '__init__' has 88 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1109 | 🟠 HIGH | Long Method | Function '_run_agent_loop' has 82 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1109 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_run_agent_loop' (line 1109), '_run_delegation' (line 1444) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 1444 | 🟠 HIGH | Long Method | Function '_run_delegation' has 80 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 172 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 92% similar to '__init__' at agents/orchestrator.py:216 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 204 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 100% similar to 'track_tool_usage' at agents/orchestrator.py:208 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 253 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 100% similar to '__init__' at cli/textual_app.py:277 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 284 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'track_tool_call' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 578 | 🟡 MEDIUM | Large Class | Class 'Orchestrator' has 48 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 581 | 🟡 MEDIUM | Complex Function | Function '__init__' has cyclomatic complexity 15 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 830 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._check_stall_failure' accesses 'agent' 5 times but 'self' only 1 times | Move Method — consider moving '_check_stall_failure' to the class that owns 'agent'. |
-| 898 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._prepare_delegation_brief' accesses 'tool_call' 6 times but 'self' only 0 times | Move Method — consider moving '_prepare_delegation_brief' to the class that owns 'tool_call'. |
-| 961 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._handle_regular_tool' accesses 'tool_call' 6 times but 'self' only 1 times | Move Method — consider moving '_handle_regular_tool' to the class that owns 'tool_call'. |
-| 1002 | 🟡 MEDIUM | Primitive Obsession | Function '_enforce_turn_limits' has 4 primitive-typed parameters: max_turns: Name(id='int', ctx=Load()), tool_call_count: Name(id='int', ctx=Load()), msg_start_index: Name(id='int', ctx=Load()), wrapup_warned: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 577 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1481 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 577 | 🟠 HIGH | Large Class | Class 'Orchestrator' has 59 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 1226 | 🟠 HIGH | Long Method | Function '_run_agent_loop' has 82 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 1226 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_run_agent_loop' (line 1226), '_run_delegation' (line 1561) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 1561 | 🟠 HIGH | Long Method | Function '_run_delegation' has 80 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 171 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 92% similar to '__init__' at agents/orchestrator.py:215 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 203 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 100% similar to 'track_tool_usage' at agents/orchestrator.py:207 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 252 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 100% similar to '__init__' at cli/textual_app.py:277 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 283 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'track_tool_call' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 729 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._create_tech_lead_prompt' accesses 'c' 8 times but 'self' only 0 times | Move Method — consider moving '_create_tech_lead_prompt' to the class that owns 'c'. |
+| 947 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._check_stall_failure' accesses 'agent' 5 times but 'self' only 1 times | Move Method — consider moving '_check_stall_failure' to the class that owns 'agent'. |
+| 1015 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._prepare_delegation_brief' accesses 'tool_call' 6 times but 'self' only 0 times | Move Method — consider moving '_prepare_delegation_brief' to the class that owns 'tool_call'. |
+| 1078 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._handle_regular_tool' accesses 'tool_call' 6 times but 'self' only 1 times | Move Method — consider moving '_handle_regular_tool' to the class that owns 'tool_call'. |
+| 1119 | 🟡 MEDIUM | Primitive Obsession | Function '_enforce_turn_limits' has 4 primitive-typed parameters: max_turns: Name(id='int', ctx=Load()), tool_call_count: Name(id='int', ctx=Load()), msg_start_index: Name(id='int', ctx=Load()), wrapup_warned: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 1226 | 🟡 MEDIUM | Primitive Obsession | Function '_run_agent_loop' has 4 primitive-typed parameters: user_input: Name(id='str', ctx=Load()), depth: Name(id='int', ctx=Load()), max_turns: Name(id='int', ctx=Load()), msg_start_index: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
-_... and 109 more smells._
+_... and 120 more smells._
 
 ### utils/intelligent_context.py — ❌ F (6.4/100)
 
