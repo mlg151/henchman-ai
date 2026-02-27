@@ -1,41 +1,35 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-02-27T15:15:00Z
+2026-02-27T15:30:00Z
 
 ## Files Changed
-1. `CONTRIBUTING.md` - Fixed placeholder GitHub URL consistency error
+1. `README.md` - Fixed broken link to docs directory
 
 ## Smell Category Addressed
-- **Consistency Error** (HIGH): Fixed placeholder GitHub URL 'your-username/henchman-ai.git' by adding explicit example
+- **Broken Link** (HIGH): Fixed link to 'docs/' that resolved to 'docs' which does not exist
 
 ## Rationale for Change
-The CONTRIBUTING.md file had a placeholder GitHub URL (`https://github.com/your-username/henchman-ai.git`) that was flagged as a consistency error. While this placeholder is technically correct for a CONTRIBUTING guide (it shows the pattern contributors should follow when cloning their fork), the documentation needed to be clearer to avoid confusion.
+The README.md file had a broken link `[docs directory](docs/)` that was flagged by the link checker. The issue was that the link checker was resolving `docs/` to `docs` (without trailing slash) and checking if a file named `docs` exists. Since `docs` is a directory (not a file), the link checker reported it as broken.
 
-The actual repository URL (`https://github.com/mlg151/henchman-ai`) was already correctly shown in the previous line. The issue was that the placeholder pattern might be misinterpreted as an actual URL that should work as-is.
+In Markdown, linking to a directory can work on platforms like GitHub if there's an index file, but link checkers often have trouble with directory links. The `docs` directory contains an `index.md` file which serves as the landing page for documentation.
 
 ## Changes Made
-1. **CONTRIBUTING.md** (lines 35-37): Enhanced the instructions to:
-   - Keep the placeholder pattern for educational purposes
-   - Add an explicit example showing how the URL should look with an actual username
-   - Make it clear that 'your-username' is a placeholder to be replaced
+1. **README.md** (line 274): Changed the link from `[docs directory](docs/)` to `[docs directory](docs/index.md)`
+   - This makes the link point to a specific file (`docs/index.md`) instead of a directory
+   - The `docs/index.md` file exists and contains a proper landing page for the documentation
+   - This ensures the link will work reliably across all platforms and link checkers
 
-The updated section now shows:
-```bash
-# 1. First, fork the repository on GitHub: https://github.com/mlg151/henchman-ai
-# 2. Then clone your fork:
-#    Replace 'your-username' with your actual GitHub username
-#    Example: git clone https://github.com/johndoe/henchman-ai.git
-git clone https://github.com/your-username/henchman-ai.git
+The updated line now reads:
+```markdown
+For detailed documentation, see the [docs directory](docs/index.md) in this repository:
 ```
 
 ## What to Verify
-1. The CONTRIBUTING.md file now clearly distinguishes between:
-   - The actual repository URL (for forking)
-   - The placeholder pattern (for educational purposes)
-   - An example of what the URL should look like after replacement
-2. New contributors will understand they need to replace 'your-username' with their actual GitHub username
-3. The documentation maintains both accuracy (showing the correct pattern) and clarity (providing an example)
+1. The link `[docs directory](docs/index.md)` now points to a valid file
+2. The `docs/index.md` file contains appropriate content as a documentation landing page
+3. The link should no longer be flagged as broken by link checkers
+4. The change maintains the intended meaning (still points users to the documentation directory)
 
 ## Next Priority
-The next highest-priority issue is **Broken Link** in `README.md:274` - link to 'docs/' resolves to 'docs' which does not exist. This needs to be fixed to ensure documentation navigation works correctly.
+The next highest-priority issue is **Broken Link** in `README.md:310` - link to 'LICENSE' resolves to 'LICENSE' which does not exist. This needs investigation as the LICENSE file does exist in the repository root.

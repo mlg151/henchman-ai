@@ -271,7 +271,7 @@ hatch publish
 ## 📚 Documentation
 
 ### Online Documentation
-For detailed documentation, see the [docs directory](docs/) in this repository:
+For detailed documentation, see the [docs directory](docs/index.md) in this repository:
 
 - [Getting Started](docs/getting-started.md)
 - [Configuration Guide](docs/configuration.md)
