@@ -3,10 +3,10 @@
 import re
 import time
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, TypedDict
-from dataclasses import dataclass
+from typing import Any
 
 from henchman.agents.ledger import TaskLedger
 from henchman.agents.pool import AgentPool
@@ -24,28 +24,28 @@ from henchman.tools.registry import ToolRegistry
 @dataclass
 class AgentLoopParams:
     """Parameters for running an agent loop.
-    
+
     Encapsulates the common parameters used across different agent execution methods
     to address Primitive Obsession code smell.
     """
     agent: Agent | None = None
     """The agent to run. Either agent or target_role must be provided."""
-    
+
     target_role: str | None = None
     """The role of the agent to run. Either agent or target_role must be provided."""
-    
+
     input_text: str = ""
     """The input text, task, or user input for the agent to process."""
-    
+
     depth: int = 0
     """Current delegation depth for tracking recursion."""
-    
+
     max_turns: int = 0
     """Maximum number of turns allowed (0 for unlimited)."""
-    
+
     msg_start_index: int = 0
     """Starting index in agent messages for tracking output."""
-    
+
     brief: dict[str, Any] | None = None
     """Optional briefing information for delegation tasks."""
 
@@ -53,18 +53,18 @@ class AgentLoopParams:
 @dataclass
 class DelegationParams:
     """Parameters for delegating a task to a specialist agent.
-    
+
     Encapsulates the parameters used for delegation to address Primitive Obsession code smell.
     """
     target_role: str
     """The role of the agent to delegate to."""
-    
+
     task: str
     """The task description to delegate."""
-    
+
     brief: dict[str, Any] | None = None
     """Optional briefing information for the delegation."""
-    
+
     depth: int = 0
     """Current delegation depth for tracking recursion."""
 
@@ -163,49 +163,6 @@ def _categorize_tool(tool_name: str) -> ToolCategory:
         The tool's category, or ToolCategory.OTHER if not found.
     """
     return _TOOL_CATEGORY_MAP.get(tool_name, ToolCategory.OTHER)
-
-
-class Metrics(TypedDict, total=False):
-    """Metrics for tracking orchestrator performance.
-
-    This TypedDict is maintained for backward compatibility.
-    New code should use the OrchestratorMetrics class hierarchy.
-    """
-
-    # Existing metrics (for backward compatibility)
-    thinking_pattern_usage: int
-    delegation_count: int
-    delegation_by_type: dict[str, int]
-    thinking_quality_score: int
-    # Performance metrics from Performance Improvement Plan
-    task_start_time: float  # Unix timestamp when task started
-    task_end_time: float  # Unix timestamp when task completed
-    task_duration_minutes: float  # Task duration in minutes
-    files_accessed: dict[str, int]  # file path -> access count
-    tool_usage_by_type: dict[str, int]  # tool name -> usage count
-    delegation_rate: float  # percentage of tasks delegated
-
-    # Quality metrics
-    test_results: dict[str, Any]  # passing, total, percentage
-    code_coverage: float  # percentage coverage
-    linting_status: dict[str, int]  # errors, warnings counts
-    documentation_coverage: float  # percentage documented
-
-    # Target performance metrics
-    file_re_reads: int  # count of file re-reads
-    error_rate: float  # percentage of errors
-    context_window_usage: float  # percentage of context window used
-
-    # Additional tracking
-    total_tool_calls: int
-    successful_tool_calls: int
-    failed_tool_calls: int
-    read_file_calls: int
-    write_file_calls: int
-    edit_file_calls: int
-    shell_calls: int
-    git_ops_calls: int
-    other_tool_calls: int
 
 
 class PerformanceMetrics:
@@ -410,37 +367,6 @@ class OrchestratorMetrics:
 
         # Calculate file re-reads
         self.performance.calculate_file_re_reads()
-
-    def to_dict(self) -> Metrics:
-        """Convert to the legacy TypedDict format for backward compatibility."""
-        return {
-            "thinking_pattern_usage": self.thinking_pattern_usage,
-            "delegation_count": self.delegation_count,
-            "delegation_by_type": self.delegation_by_type,
-            "thinking_quality_score": self.thinking_quality_score,
-            "task_start_time": self.performance.task_start_time,
-            "task_end_time": self.performance.task_end_time,
-            "task_duration_minutes": self.performance.task_duration_minutes,
-            "files_accessed": self.performance.files_accessed,
-            "tool_usage_by_type": self.performance.tool_usage_by_type,
-            "delegation_rate": self.performance.delegation_rate,
-            "test_results": self.quality.test_results,
-            "code_coverage": self.quality.code_coverage,
-            "linting_status": self.quality.linting_status,
-            "documentation_coverage": self.quality.documentation_coverage,
-            "file_re_reads": self.performance.file_re_reads,
-            "error_rate": self.performance.error_rate,
-            "context_window_usage": self.performance.context_window_usage,
-            "total_tool_calls": self.tools.total_tool_calls,
-            "successful_tool_calls": self.tools.successful_tool_calls,
-            "failed_tool_calls": self.tools.failed_tool_calls,
-            "read_file_calls": self.tools.read_file_calls,
-            "write_file_calls": self.tools.write_file_calls,
-            "edit_file_calls": self.tools.edit_file_calls,
-            "shell_calls": self.tools.shell_calls,
-            "git_ops_calls": self.tools.git_ops_calls,
-            "other_tool_calls": self.tools.other_tool_calls,
-        }
 
     def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
         """Update metrics for a tool call.
@@ -890,7 +816,7 @@ class Orchestrator:
         self.metrics.performance.task_end_time = time.time()
 
         # Calculate final metrics
-        self._calculate_final_metrics()
+        self.metrics.calculate_final_metrics()
 
         # Assess whether the agent actually did meaningful work
         status = self._assess_completion(self.tech_lead)
@@ -908,18 +834,6 @@ class Orchestrator:
             data={"agent": "tech_lead", "status": status.value},
             source_agent="orchestrator",
         )
-
-    def _calculate_final_metrics(self) -> None:
-        """Calculate derived metrics after task completion."""
-        self.metrics.calculate_final_metrics()
-
-    def _reset_metrics_for_run(self) -> None:
-        """Reset metrics for a new run while preserving structure.
-
-        This method is kept for backward compatibility with tests.
-        New code should use `self.metrics.reset_for_run()` directly.
-        """
-        self.metrics.reset_for_run()
 
     async def run_direct(self, role: str, user_input: str) -> AsyncIterator[AgentEvent]:
         """Run a specific agent directly, bypassing the Tech Lead.
@@ -1133,26 +1047,6 @@ class Orchestrator:
         agent.submit_tool_result(tool_call.id, submitted_content)
         return submitted_content
 
-    async def _handle_regular_tool(
-        self, agent: Agent, tool_call: ToolCall, tool_errors: list[str]
-    ) -> None:
-        """Handle regular (non-delegation) tool execution.
-
-        Args:
-            agent: The calling agent.
-            tool_call: The tool call to execute.
-            tool_errors: List to collect tool errors.
-        """
-        result = await agent.tool_registry.execute(tool_call.name, tool_call.arguments)
-        agent.submit_tool_result(tool_call.id, result.content or "")
-
-        # Track tool errors for delegation summaries
-        if not result.success:
-            tool_errors.append(f"{tool_call.name}: {(result.content or 'unknown error')[:MAX_ERROR_MESSAGE_LENGTH]}")
-
-        # Update metrics for tool usage
-        self._update_tool_metrics(tool_call.name, tool_call.arguments, result.success)
-
     def _inject_role_anchor(self, agent: Agent, tool_call_count: int) -> None:
         """Inject periodic role anchoring reminder if needed.
 
@@ -1309,12 +1203,12 @@ class Orchestrator:
         agent = params.agent
         if agent is None:
             raise ValueError("Agent must be provided in AgentLoopParams")
-        
+
         user_input = params.input_text
         depth = params.depth
         max_turns = params.max_turns
         msg_start_index = params.msg_start_index
-        
+
         generator: AsyncIterator[AgentEvent] = agent.run(user_input)
         tool_call_count = 0
         tool_errors: list[str] = []
@@ -1381,15 +1275,15 @@ class Orchestrator:
         colon_stall_retries: int,
     ) -> tuple[AsyncIterator[AgentEvent], int] | None:
         """Check for colon stall pattern and handle if detected.
-        
+
         Colon-stall guard: catch ANY agent (including tech_lead)
         that ends its response with ":" - a high-confidence signal
         the agent announced work but stopped without doing it.
-        
+
         Args:
             agent: The agent to check.
             colon_stall_retries: Current colon stall retry count.
-            
+
         Returns:
             - None: No colon stall detected
             - Tuple: Colon stall detected, return updated generator and retry count

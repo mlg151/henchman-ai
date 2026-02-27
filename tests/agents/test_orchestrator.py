@@ -676,9 +676,9 @@ async def test_thinking_pattern_metrics(mock_provider):
         events.append(event)
 
     # Check metrics were updated
-    assert orchestrator.metrics["thinking_pattern_usage"] == 1
+    assert orchestrator.metrics.thinking_pattern_usage == 1
     # Should have some quality score for having at least 3 thinking points
-    assert orchestrator.metrics["thinking_quality_score"] > 0
+    assert orchestrator.metrics.thinking_quality_score > 0
 
 
 @pytest.mark.asyncio
@@ -712,8 +712,8 @@ async def test_delegation_metrics(mock_provider):
         events.append(event)
 
     # Check delegation metrics
-    assert orchestrator.metrics["delegation_count"] == 1
-    assert orchestrator.metrics["delegation_by_type"]["explorer"] == 1
+    assert orchestrator.metrics.delegation_count == 1
+    assert orchestrator.metrics.delegation_by_type["explorer"] == 1
 
 
 # ------------------------------------------------------------------
@@ -813,49 +813,35 @@ def test_parse_completion_report_artifacts():
 # ------------------------------------------------------------------
 
 
-def test_metrics_typeddict_initialization():
-    """Test that Metrics TypedDict includes all required fields."""
-    from henchman.agents.orchestrator import Metrics
+def test_orchestrator_metrics_class_initialization():
+    """Test that OrchestratorMetrics initializes all fields correctly."""
+    from henchman.agents.orchestrator import OrchestratorMetrics
 
-    # Check that required fields exist in the TypedDict
-    # This is a structural test - we're checking the type definition
-    metrics_dict: Metrics = {
-        "thinking_pattern_usage": 0,
-        "delegation_count": 0,
-        "delegation_by_type": {"planner": 0, "explorer": 0, "engineer": 0},
-        "thinking_quality_score": 0,
-        "task_start_time": 0.0,
-        "task_end_time": 0.0,
-        "task_duration_minutes": 0.0,
-        "files_accessed": {},
-        "tool_usage_by_type": {},
-        "delegation_rate": 0.0,
-        "test_results": {"passing": 0, "total": 0, "percentage": 0.0},
-        "code_coverage": 0.0,
-        "linting_status": {"errors": 0, "warnings": 0},
-        "documentation_coverage": 0.0,
-        "file_re_reads": 0,
-        "error_rate": 0.0,
-        "context_window_usage": 0.0,
-        "total_tool_calls": 0,
-        "successful_tool_calls": 0,
-        "failed_tool_calls": 0,
-        "read_file_calls": 0,
-        "write_file_calls": 0,
-        "edit_file_calls": 0,
-        "shell_calls": 0,
-        "git_ops_calls": 0,
-        "other_tool_calls": 0,
-    }
+    metrics = OrchestratorMetrics()
 
-    # Verify all fields are present
-    assert isinstance(metrics_dict, dict)
-    assert "thinking_pattern_usage" in metrics_dict
-    assert "delegation_count" in metrics_dict
-    assert "task_start_time" in metrics_dict
-    assert "test_results" in metrics_dict
-    assert "file_re_reads" in metrics_dict
-    assert "total_tool_calls" in metrics_dict
+    # Direct attributes
+    assert metrics.thinking_pattern_usage == 0
+    assert metrics.delegation_count == 0
+    assert metrics.delegation_by_type == {"planner": 0, "explorer": 0, "engineer": 0}
+    assert metrics.thinking_quality_score == 0
+
+    # Performance sub-object
+    assert metrics.performance.task_start_time == 0.0
+    assert metrics.performance.task_end_time == 0.0
+    assert metrics.performance.files_accessed == {}
+    assert metrics.performance.tool_usage_by_type == {}
+    assert metrics.performance.file_re_reads == 0
+
+    # Quality sub-object
+    assert metrics.quality.test_results == {"passing": 0, "total": 0, "percentage": 0.0}
+    assert metrics.quality.linting_status == {"errors": 0, "warnings": 0}
+    assert metrics.quality.code_coverage == 0.0
+
+    # Tools sub-object
+    assert metrics.tools.total_tool_calls == 0
+    assert metrics.tools.successful_tool_calls == 0
+    assert metrics.tools.failed_tool_calls == 0
+    assert metrics.tools.read_file_calls == 0
 
 
 def test_orchestrator_metrics_initialization(mock_provider):
@@ -863,32 +849,15 @@ def test_orchestrator_metrics_initialization(mock_provider):
     orchestrator = Orchestrator(default_provider=mock_provider)
 
     # Check that all metrics fields are initialized
-    assert "thinking_pattern_usage" in orchestrator.metrics
-    assert orchestrator.metrics["thinking_pattern_usage"] == 0
-
-    assert "delegation_count" in orchestrator.metrics
-    assert orchestrator.metrics["delegation_count"] == 0
-
-    assert "delegation_by_type" in orchestrator.metrics
-    assert orchestrator.metrics["delegation_by_type"] == {"planner": 0, "explorer": 0, "engineer": 0}
-
-    assert "task_start_time" in orchestrator.metrics
-    assert orchestrator.metrics["task_start_time"] == 0.0
-
-    assert "files_accessed" in orchestrator.metrics
-    assert orchestrator.metrics["files_accessed"] == {}
-
-    assert "tool_usage_by_type" in orchestrator.metrics
-    assert orchestrator.metrics["tool_usage_by_type"] == {}
-
-    assert "test_results" in orchestrator.metrics
-    assert orchestrator.metrics["test_results"] == {"passing": 0, "total": 0, "percentage": 0.0}
-
-    assert "file_re_reads" in orchestrator.metrics
-    assert orchestrator.metrics["file_re_reads"] == 0
-
-    assert "total_tool_calls" in orchestrator.metrics
-    assert orchestrator.metrics["total_tool_calls"] == 0
+    assert orchestrator.metrics.thinking_pattern_usage == 0
+    assert orchestrator.metrics.delegation_count == 0
+    assert orchestrator.metrics.delegation_by_type == {"planner": 0, "explorer": 0, "engineer": 0}
+    assert orchestrator.metrics.performance.task_start_time == 0.0
+    assert orchestrator.metrics.performance.files_accessed == {}
+    assert orchestrator.metrics.performance.tool_usage_by_type == {}
+    assert orchestrator.metrics.quality.test_results == {"passing": 0, "total": 0, "percentage": 0.0}
+    assert orchestrator.metrics.performance.file_re_reads == 0
+    assert orchestrator.metrics.tools.total_tool_calls == 0
 
 
 def test_update_tool_metrics():
@@ -901,35 +870,35 @@ def test_update_tool_metrics():
     # Test tracking a read_file call
     orchestrator._update_tool_metrics("read_file", {"path": "test.py"}, True)
 
-    assert orchestrator.metrics["total_tool_calls"] == 1
-    assert orchestrator.metrics["successful_tool_calls"] == 1
-    assert orchestrator.metrics["failed_tool_calls"] == 0
-    assert orchestrator.metrics["read_file_calls"] == 1
-    assert "read_file" in orchestrator.metrics["tool_usage_by_type"]
-    assert orchestrator.metrics["tool_usage_by_type"]["read_file"] == 1
-    assert "test.py" in orchestrator.metrics["files_accessed"]
-    assert orchestrator.metrics["files_accessed"]["test.py"] == 1
+    assert orchestrator.metrics.tools.total_tool_calls == 1
+    assert orchestrator.metrics.tools.successful_tool_calls == 1
+    assert orchestrator.metrics.tools.failed_tool_calls == 0
+    assert orchestrator.metrics.tools.read_file_calls == 1
+    assert "read_file" in orchestrator.metrics.performance.tool_usage_by_type
+    assert orchestrator.metrics.performance.tool_usage_by_type["read_file"] == 1
+    assert "test.py" in orchestrator.metrics.performance.files_accessed
+    assert orchestrator.metrics.performance.files_accessed["test.py"] == 1
 
     # Test tracking a failed tool call
     orchestrator._update_tool_metrics("shell", {"command": "false"}, False)
 
-    assert orchestrator.metrics["total_tool_calls"] == 2
-    assert orchestrator.metrics["successful_tool_calls"] == 1
-    assert orchestrator.metrics["failed_tool_calls"] == 1
-    assert orchestrator.metrics["shell_calls"] == 1
-    assert "shell" in orchestrator.metrics["tool_usage_by_type"]
-    assert orchestrator.metrics["tool_usage_by_type"]["shell"] == 1
+    assert orchestrator.metrics.tools.total_tool_calls == 2
+    assert orchestrator.metrics.tools.successful_tool_calls == 1
+    assert orchestrator.metrics.tools.failed_tool_calls == 1
+    assert orchestrator.metrics.tools.shell_calls == 1
+    assert "shell" in orchestrator.metrics.performance.tool_usage_by_type
+    assert orchestrator.metrics.performance.tool_usage_by_type["shell"] == 1
 
     # Test file re-read tracking
     orchestrator._update_tool_metrics("read_file", {"path": "test.py"}, True)
 
-    assert orchestrator.metrics["total_tool_calls"] == 3
-    assert orchestrator.metrics["read_file_calls"] == 2
-    assert orchestrator.metrics["files_accessed"]["test.py"] == 2  # Re-read
+    assert orchestrator.metrics.tools.total_tool_calls == 3
+    assert orchestrator.metrics.tools.read_file_calls == 2
+    assert orchestrator.metrics.performance.files_accessed["test.py"] == 2  # Re-read
 
 
 def test_calculate_final_metrics():
-    """Test _calculate_final_metrics method."""
+    """Test calculate_final_metrics on OrchestratorMetrics."""
     import time
     from unittest.mock import MagicMock
 
@@ -937,32 +906,32 @@ def test_calculate_final_metrics():
     orchestrator = Orchestrator(default_provider=mock_provider)
 
     # Set up some metrics
-    orchestrator.metrics["task_start_time"] = time.time() - 60  # 60 seconds ago
-    orchestrator.metrics["task_end_time"] = time.time()
-    orchestrator.metrics["delegation_count"] = 2
-    orchestrator.metrics["total_tool_calls"] = 8
-    orchestrator.metrics["failed_tool_calls"] = 1
-    orchestrator.metrics["test_results"] = {"passing": 45, "total": 50, "percentage": 0.0}
-    orchestrator.metrics["files_accessed"] = {"file1.py": 2, "file2.py": 1, "file3.py": 3}
+    orchestrator.metrics.performance.task_start_time = time.time() - 60  # 60 seconds ago
+    orchestrator.metrics.performance.task_end_time = time.time()
+    orchestrator.metrics.delegation_count = 2
+    orchestrator.metrics.tools.total_tool_calls = 8
+    orchestrator.metrics.tools.failed_tool_calls = 1
+    orchestrator.metrics.quality.test_results = {"passing": 45, "total": 50, "percentage": 0.0}
+    orchestrator.metrics.performance.files_accessed = {"file1.py": 2, "file2.py": 1, "file3.py": 3}
 
     # Calculate final metrics
-    orchestrator._calculate_final_metrics()
+    orchestrator.metrics.calculate_final_metrics()
 
     # Check calculated values
-    assert orchestrator.metrics["task_duration_minutes"] > 0
-    assert 0.9 < orchestrator.metrics["task_duration_minutes"] < 1.1  # ~1 minute
+    assert orchestrator.metrics.performance.task_duration_minutes > 0
+    assert 0.9 < orchestrator.metrics.performance.task_duration_minutes < 1.1  # ~1 minute
 
     # Delegation rate: 2 delegations / (8 tool calls + 2 delegations) = 20%
-    assert abs(orchestrator.metrics["delegation_rate"] - 20.0) < 0.1
+    assert abs(orchestrator.metrics.performance.delegation_rate - 20.0) < 0.1
 
     # Error rate: 1 failed / 8 total = 12.5%
-    assert abs(orchestrator.metrics["error_rate"] - 12.5) < 0.1
+    assert abs(orchestrator.metrics.performance.error_rate - 12.5) < 0.1
 
     # Test percentage: 45/50 = 90%
-    assert abs(orchestrator.metrics["test_results"]["percentage"] - 90.0) < 0.1
+    assert abs(orchestrator.metrics.quality.test_results["percentage"] - 90.0) < 0.1
 
     # File re-reads: total accesses (6) - unique files (3) = 3
-    assert orchestrator.metrics["file_re_reads"] == 3
+    assert orchestrator.metrics.performance.file_re_reads == 3
 
 
 def test_get_metrics_report():
@@ -973,23 +942,23 @@ def test_get_metrics_report():
     orchestrator = Orchestrator(default_provider=mock_provider)
 
     # Set up some metrics
-    orchestrator.metrics["task_start_time"] = 1700000000.0
-    orchestrator.metrics["task_end_time"] = 1700000060.0  # 60 seconds later
-    orchestrator.metrics["delegation_count"] = 2
-    orchestrator.metrics["total_tool_calls"] = 10
-    orchestrator.metrics["successful_tool_calls"] = 9
-    orchestrator.metrics["failed_tool_calls"] = 1
-    orchestrator.metrics["read_file_calls"] = 3
-    orchestrator.metrics["write_file_calls"] = 2
-    orchestrator.metrics["tool_usage_by_type"] = {"read_file": 3, "write_file": 2, "shell": 1}
-    orchestrator.metrics["files_accessed"] = {"file1.py": 2, "file2.py": 1}
-    orchestrator.metrics["test_results"] = {"passing": 45, "total": 50, "percentage": 90.0}
-    orchestrator.metrics["linting_status"] = {"errors": 2, "warnings": 5}
-    orchestrator.metrics["thinking_pattern_usage"] = 1
-    orchestrator.metrics["thinking_quality_score"] = 5
+    orchestrator.metrics.performance.task_start_time = 1700000000.0
+    orchestrator.metrics.performance.task_end_time = 1700000060.0  # 60 seconds later
+    orchestrator.metrics.delegation_count = 2
+    orchestrator.metrics.tools.total_tool_calls = 10
+    orchestrator.metrics.tools.successful_tool_calls = 9
+    orchestrator.metrics.tools.failed_tool_calls = 1
+    orchestrator.metrics.tools.read_file_calls = 3
+    orchestrator.metrics.tools.write_file_calls = 2
+    orchestrator.metrics.performance.tool_usage_by_type = {"read_file": 3, "write_file": 2, "shell": 1}
+    orchestrator.metrics.performance.files_accessed = {"file1.py": 2, "file2.py": 1}
+    orchestrator.metrics.quality.test_results = {"passing": 45, "total": 50, "percentage": 90.0}
+    orchestrator.metrics.quality.linting_status = {"errors": 2, "warnings": 5}
+    orchestrator.metrics.thinking_pattern_usage = 1
+    orchestrator.metrics.thinking_quality_score = 5
 
     # Calculate final metrics first
-    orchestrator._calculate_final_metrics()
+    orchestrator.metrics.calculate_final_metrics()
 
     # Generate report
     report = orchestrator.get_metrics_report()
@@ -1026,23 +995,23 @@ def test_reset_metrics_for_run():
     orchestrator = Orchestrator(default_provider=mock_provider)
 
     # Modify some metrics
-    orchestrator.metrics["thinking_pattern_usage"] = 5
-    orchestrator.metrics["delegation_count"] = 3
-    orchestrator.metrics["delegation_by_type"] = {"planner": 2, "explorer": 1, "engineer": 0}
-    orchestrator.metrics["files_accessed"] = {"test.py": 2}
-    orchestrator.metrics["total_tool_calls"] = 10
+    orchestrator.metrics.thinking_pattern_usage = 5
+    orchestrator.metrics.delegation_count = 3
+    orchestrator.metrics.delegation_by_type = {"planner": 2, "explorer": 1, "engineer": 0}
+    orchestrator.metrics.performance.files_accessed = {"test.py": 2}
+    orchestrator.metrics.tools.total_tool_calls = 10
 
     # Reset metrics
-    orchestrator._reset_metrics_for_run()
+    orchestrator.metrics.reset_for_run()
 
     # Check metrics are reset
-    assert orchestrator.metrics["thinking_pattern_usage"] == 0
-    assert orchestrator.metrics["delegation_count"] == 0
-    assert orchestrator.metrics["delegation_by_type"] == {"planner": 0, "explorer": 0, "engineer": 0}
-    assert orchestrator.metrics["files_accessed"] == {}
-    assert orchestrator.metrics["total_tool_calls"] == 0
-    assert orchestrator.metrics["test_results"] == {"passing": 0, "total": 0, "percentage": 0.0}
-    assert orchestrator.metrics["linting_status"] == {"errors": 0, "warnings": 0}
+    assert orchestrator.metrics.thinking_pattern_usage == 0
+    assert orchestrator.metrics.delegation_count == 0
+    assert orchestrator.metrics.delegation_by_type == {"planner": 0, "explorer": 0, "engineer": 0}
+    assert orchestrator.metrics.performance.files_accessed == {}
+    assert orchestrator.metrics.tools.total_tool_calls == 0
+    assert orchestrator.metrics.quality.test_results == {"passing": 0, "total": 0, "percentage": 0.0}
+    assert orchestrator.metrics.quality.linting_status == {"errors": 0, "warnings": 0}
 
 
 # -- Colon-stall guard tests (orchestrator-level, works for ALL agents) --------
