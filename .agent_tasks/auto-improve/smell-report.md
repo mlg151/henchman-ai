@@ -1,106 +1,106 @@
-# Code Smell Report — ❌ F (Score: 35.8/100)
+# Code Smell Report — ❌ F (Score: 35.6/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T03:00:11.999231+00:00_
+_Generated: 2026-02-27T03:30:13.392214+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.8/100 |
+| **Overall Score** | 35.6/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 28,686 |
-| **Total Smells** | 2709 |
+| **Total Lines (non-blank)** | 28,835 |
+| **Total Smells** | 2711 |
 | **Avg Maintainability Index** | 69.8 |
-| **Avg Cyclomatic Complexity** | 14.9 |
+| **Avg Cyclomatic Complexity** | 14.7 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1822 |
-| medium | 663 |
+| low | 1825 |
+| medium | 662 |
 | high | 224 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1241 |
-| Feature Envy | 361 |
+| Missing Type Hint | 1247 |
+| Feature Envy | 362 |
 | Duplicate Code | 326 |
 | Magic Number | 216 |
-| Deep Nesting | 199 |
-| Long Method | 172 |
-| Primitive Obsession | 86 |
-| Complex Function | 69 |
+| Deep Nesting | 189 |
+| Long Method | 174 |
+| Primitive Obsession | 90 |
+| Complex Function | 68 |
 | Large Class | 39 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/tools/builtins/grep.py:160** — 🟠 HIGH — Complex Function  
-   Function 'execute' has cyclomatic complexity 23 (rank D)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-2. **/home/matthew/mlg-cli/src/henchman/tools/builtins/import_graph.py:74** — 🟠 HIGH — Complex Function  
+1. **/home/matthew/mlg-cli/src/henchman/tools/builtins/import_graph.py:74** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-3. **/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Complex Function  
+2. **/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 26 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-4. **/home/matthew/mlg-cli/src/henchman/tools/builtins/patch_apply.py:140** — 🟠 HIGH — Complex Function  
+3. **/home/matthew/mlg-cli/src/henchman/tools/builtins/patch_apply.py:140** — 🟠 HIGH — Complex Function  
    Function '_parse_patch' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-5. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pytest_run.py:89** — 🟠 HIGH — Complex Function  
+4. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pytest_run.py:89** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-6. **/home/matthew/mlg-cli/src/henchman/tools/builtins/python_ast.py:230** — 🟠 HIGH — Complex Function  
+5. **/home/matthew/mlg-cli/src/henchman/tools/builtins/python_ast.py:230** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-7. **/home/matthew/mlg-cli/src/henchman/tools/builtins/traceback_parse.py:52** — 🟠 HIGH — Complex Function  
+6. **/home/matthew/mlg-cli/src/henchman/tools/builtins/traceback_parse.py:52** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-8. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
+7. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
    Function 'compact' has cyclomatic complexity 22 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-9. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
+8. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
    Function '_calculate_importance_scores' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-10. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
+9. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
    Function '__getattr__' is an exact duplicate of '__getattr__' at cli/app.py:23  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-11. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
+10. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-12. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
+11. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-13. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
+12. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
    Magic number 60.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-14. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
+13. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-15. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
+14. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
    Class 'Orchestrator' spans 1363 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
+
+15. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
+   Function '__init__' has 88 lines (threshold: 30)  
+   → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
 
 ## 📊 Files Ranked by Quality
@@ -578,29 +578,29 @@ LOC: 317 | Classes: 2 | Functions: 2 | MI: 52 | Avg CC: 0.0
 
 _... and 39 more smells._
 
-### tools/builtins/test_gen.py — ❌ F (15.8/100)
+### tools/builtins/grep.py — ❌ F (15.7/100)
 
-LOC: 327 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 16.0
+LOC: 436 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 137 | 🟠 HIGH | Feature Envy | Method 'TestGenTool._extract_symbols' accesses 'ast' 10 times but 'self' only 4 times | Move Method — consider moving '_extract_symbols' to the class that owns 'ast'. |
-| 167 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_extract_symbols' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 217 | 🟠 HIGH | Long Method | Function '_generate_class_tests' has 81 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 272 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_generate_class_tests' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 275 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in '_generate_class_tests' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 60 | 🟡 MEDIUM | Long Method | Function 'execute' has 58 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 166 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_extract_symbols' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 217 | 🟡 MEDIUM | Complex Function | Function '_generate_class_tests' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 271 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_generate_class_tests' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 10 | 🟢 LOW | Large Class | Class 'TestGenTool' spans 376 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 19 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 24 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 32 | 🟢 LOW | Missing Type Hint | Function 'parameters' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 56 | 🟢 LOW | Missing Type Hint | Function 'kind' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 60 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 160 | 🟠 HIGH | Primitive Obsession | Function 'execute' has 10 primitive-typed parameters: pattern: Name(id='str', ctx=Load()), path: Name(id='str', ctx=Load()), ignore_case: Name(id='bool', ctx=Load()), line_numbers: Name(id='bool', ctx=Load()), glob: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), context_before: Name(id='int', ctx=Load()), context_after: Name(id='int', ctx=Load()), invert_match: Name(id='bool', ctx=Load()), whole_word: Name(id='bool', ctx=Load()), count_only: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 318 | 🟠 HIGH | Primitive Obsession | Function '_search_files_with_results' has 6 primitive-typed parameters: invert_match: Name(id='bool', ctx=Load()), has_context: Name(id='bool', ctx=Load()), context_before: Name(id='int', ctx=Load()), context_after: Name(id='int', ctx=Load()), line_numbers: Name(id='bool', ctx=Load()), multi_file: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 318 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_search_files_with_results' (line 318), '_search_single_file' (line 395) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 395 | 🟠 HIGH | Primitive Obsession | Function '_search_single_file' has 6 primitive-typed parameters: invert_match: Name(id='bool', ctx=Load()), has_context: Name(id='bool', ctx=Load()), context_before: Name(id='int', ctx=Load()), context_after: Name(id='int', ctx=Load()), line_numbers: Name(id='bool', ctx=Load()), multi_file: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 9 | 🟡 MEDIUM | Large Class | Class 'GrepTool' spans 509 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 31 | 🟡 MEDIUM | Long Method | Function 'parameters' has 54 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/import_graph.py:36 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/patch_apply.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 109 | 🟡 MEDIUM | Primitive Obsession | Function '_format_context_block' has 4 primitive-typed parameters: context_before: Name(id='int', ctx=Load()), context_after: Name(id='int', ctx=Load()), line_numbers: Name(id='bool', ctx=Load()), file_prefix: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 272 | 🟡 MEDIUM | Primitive Obsession | Function '_validate_and_setup' has 5 primitive-typed parameters: pattern: Name(id='str', ctx=Load()), path: Name(id='str', ctx=Load()), ignore_case: Name(id='bool', ctx=Load()), whole_word: Name(id='bool', ctx=Load()), glob: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 318 | 🟡 MEDIUM | Long Method | Function '_search_files_with_results' has 50 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 21 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 26 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 16 more smells._
+_... and 19 more smells._
 
 ## ✨ Clean Files (25 files with no smells)
 
