@@ -167,7 +167,7 @@ Important constraints:
 - Do NOT revert the improvement — fix forward.
 - If the improvement itself is fundamentally broken, revert ONLY that change.'
 
-  copilot --yolo -p "$FIX_PROMPT" 2>&1 | tee -a "$LOGFILE"
+  /home/matthew/.local/bin/copilot --yolo -p "$FIX_PROMPT" 2>&1 | tee -a "$LOGFILE"
   FIX_EXIT=${PIPESTATUS[0]}
 
   if [ "$FIX_EXIT" -ne 0 ]; then

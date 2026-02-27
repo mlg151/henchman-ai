@@ -2,6 +2,7 @@
 
 import logging
 from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
@@ -10,6 +11,7 @@ from henchman.providers.base import (
     FinishReason,
     Message,
     ModelProvider,
+    StreamChunk,
     ToolCall,
 )
 from henchman.tools.registry import ToolRegistry
@@ -23,6 +25,18 @@ if TYPE_CHECKING:
     from henchman.agents.identity import AgentIdentity
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class StreamingAccumulationState:
+    """State for accumulating streaming response data."""
+
+    content: str = ""
+    thinking: str = ""
+    tool_calls: list[ToolCall] = field(default_factory=list)
+    usage: dict[str, int] | None = None
+    content_yielded: bool = False
+    finish_reason: FinishReason | None = None
 
 
 class Agent:
@@ -359,7 +373,14 @@ class Agent:
 
     async def _process_streaming_response(
         self,
-    ) -> tuple[list[str], list[str], list[ToolCall], list[dict[str, int] | None], list[FinishReason | None], AsyncIterator[AgentEvent]]:
+    ) -> tuple[
+        list[str],
+        list[str],
+        list[ToolCall],
+        list[dict[str, int] | None],
+        list[FinishReason | None],
+        AsyncIterator[AgentEvent],
+    ]:
         """Process streaming response from provider.
 
         This method handles the common streaming logic shared between
@@ -371,6 +392,39 @@ class Agent:
                      finish_reason list, event_iterator)
             The lists are mutable and will be updated as the generator runs.
         """
+        # Prepare for streaming
+        compacted, api_messages = await self._prepare_for_streaming()
+
+        # Create accumulation state and mutable lists
+        state = StreamingAccumulationState()
+        accumulated_content_list: list[str] = [state.content]
+        accumulated_thinking_list: list[str] = [state.thinking]
+        accumulated_usage_list: list[dict[str, int] | None] = [state.usage]
+        finish_reason_list: list[FinishReason | None] = [state.finish_reason]
+
+        # Create event generator
+        event_iter = self._create_event_generator(
+            compacted,
+            api_messages,
+            state,
+            accumulated_content_list,
+            accumulated_thinking_list,
+            accumulated_usage_list,
+            finish_reason_list,
+        )
+
+        # Return mutable lists for backward compatibility
+        return (
+            accumulated_content_list,
+            accumulated_thinking_list,
+            state.tool_calls,
+            accumulated_usage_list,
+            finish_reason_list,
+            event_iter,
+        )
+
+    async def _prepare_for_streaming(self) -> tuple[bool, list[Message]]:
+        """Prepare messages for streaming API call."""
         # Validate message sequence, repairing if broken
         # (can happen after compaction or session restore)
         if not is_valid_message_sequence(self.messages):
@@ -386,13 +440,19 @@ class Agent:
         if not is_valid_message_sequence(api_messages):
             api_messages = repair_message_sequence(api_messages)
 
-        # Use mutable lists to accumulate values that can be updated in closure
-        accumulated_content: list[str] = [""]  # Single-element list for mutable string
-        accumulated_thinking: list[str] = [""]
-        accumulated_tool_calls: list[ToolCall] = []
-        accumulated_usage: list[dict[str, int] | None] = [None]  # Track token usage
-        content_yielded: list[bool] = [False]  # Track if any content was yielded during streaming
-        finish_reason: list[FinishReason | None] = [None]  # Track the finish reason
+        return compacted, api_messages
+
+    def _create_event_generator(
+        self,
+        compacted: bool,
+        api_messages: list[Message],
+        state: StreamingAccumulationState,
+        accumulated_content_list: list[str],
+        accumulated_thinking_list: list[str],
+        accumulated_usage_list: list[dict[str, int] | None],
+        finish_reason_list: list[FinishReason | None],
+    ) -> AsyncIterator[AgentEvent]:
+        """Create event generator for streaming response."""
 
         async def event_generator() -> AsyncIterator[AgentEvent]:
             """Inner generator for streaming events."""
@@ -408,131 +468,180 @@ class Agent:
                     messages=api_messages,
                     tools=self.tool_registry.get_declarations(),
                 ):
-                    if chunk.thinking:
-                        accumulated_thinking[0] += chunk.thinking
-                        # Handle thinking/reasoning content
-                        yield self._emit(
-                            type=EventType.THOUGHT,
-                            data=chunk.thinking,
-                        )
+                    # Process chunk and yield appropriate events
+                    async for event in self._process_chunk(
+                        chunk,
+                        state,
+                        accumulated_content_list,
+                        accumulated_thinking_list,
+                        accumulated_usage_list,
+                        finish_reason_list,
+                    ):
+                        yield event
 
-                    # Accumulate content, tool calls, and usage as they stream
-                    if chunk.content:
-                        accumulated_content[0] += chunk.content
-                    if chunk.tool_calls:
-                        accumulated_tool_calls.extend(chunk.tool_calls)
-                    if chunk.usage:
-                        # Update usage - last chunk with usage wins
-                        accumulated_usage[0] = chunk.usage
-
-                    # Update messages based on finish reason FIRST, before yielding events
-                    # This ensures the assistant message is in history before tool results are added
-                    if chunk.finish_reason == FinishReason.STOP:
-                        # Add assistant message to history
-                        assistant_msg = Message(
-                            role="assistant",
-                            content=accumulated_content[0],
-                            tool_calls=accumulated_tool_calls if accumulated_tool_calls else None,
-                            reasoning_content=accumulated_thinking[0]
-                            if accumulated_thinking[0]
-                            else None,
-                        )
-                        self.messages.append(assistant_msg)
-
-                        # Yield content event if we haven't yielded any content yet
-                        # (e.g., non-streaming response where all content comes with STOP)
-                        if accumulated_content[0] and not content_yielded[0]:
-                            yield self._emit(
-                                type=EventType.CONTENT,
-                                data=accumulated_content[0],
-                            )
-                        finish_reason[0] = chunk.finish_reason
-                        break
-                    elif chunk.finish_reason == FinishReason.TOOL_CALLS:
-                        # Add assistant message with tool_calls to history FIRST
-                        # This is needed so subsequent tool messages have a valid predecessor
-                        assistant_msg = Message(
-                            role="assistant",
-                            content=accumulated_content[0],
-                            tool_calls=accumulated_tool_calls
-                            if accumulated_tool_calls
-                            else chunk.tool_calls,
-                            reasoning_content=accumulated_thinking[0]
-                            if accumulated_thinking[0]
-                            else None,
-                        )
-                        self.messages.append(assistant_msg)
-
-                        # Now yield tool call events
-                        tool_calls_to_yield = (
-                            accumulated_tool_calls
-                            if accumulated_tool_calls
-                            else (chunk.tool_calls or [])
-                        )
-                        for tool_call in tool_calls_to_yield:
-                            yield self._emit(
-                                type=EventType.TOOL_CALL_REQUEST,
-                                data=tool_call,
-                            )
-                        finish_reason[0] = chunk.finish_reason
-                        break
-                    elif chunk.finish_reason in (FinishReason.LENGTH, FinishReason.CONTENT_FILTER):
-                        # Handle length and content filter finish reasons
-                        # Add assistant message to history
-                        assistant_msg = Message(
-                            role="assistant",
-                            content=accumulated_content[0],
-                            tool_calls=accumulated_tool_calls if accumulated_tool_calls else None,
-                            reasoning_content=accumulated_thinking[0]
-                            if accumulated_thinking[0]
-                            else None,
-                        )
-                        self.messages.append(assistant_msg)
-
-                        # Yield any remaining content
-                        if accumulated_content[0] and not content_yielded[0]:
-                            yield self._emit(
-                                type=EventType.CONTENT,
-                                data=accumulated_content[0],
-                            )
-                        finish_reason[0] = chunk.finish_reason
-                        break
-                    else:
-                        # No finish reason yet - stream content as it comes
-                        # Tool calls are accumulated but NOT yielded until finish_reason
-                        # to ensure proper batching
-                        if chunk.content:
-                            content_yielded[0] = True
-                            yield self._emit(
-                                type=EventType.CONTENT,
-                                data=chunk.content,
-                            )
             except Exception as e:
                 # Provider error - yield error event
-                yield self._emit(
-                    type=EventType.ERROR,
-                    data=f"Provider error: {e}"
-                )
+                yield self._emit(type=EventType.ERROR, data=f"Provider error: {e}")
             finally:
-                # Always yield finished event with actual finish reason if available
-                finish_data = "Stream completed"
-                if finish_reason[0]:
-                    finish_data = finish_reason[0].value
+                # Always yield finished event
+                yield self._create_finished_event(state)
 
-                # Include usage information if available
-                event_data: str | dict[str, Any] = finish_data
-                if accumulated_usage[0]:
-                    event_data = {
-                        "finish_reason": finish_data,
-                        "usage": accumulated_usage[0]
-                    }
+        return event_generator()
 
+    async def _process_chunk(
+        self,
+        chunk: StreamChunk,
+        state: StreamingAccumulationState,
+        accumulated_content_list: list[str],
+        accumulated_thinking_list: list[str],
+        accumulated_usage_list: list[dict[str, int] | None],
+        finish_reason_list: list[FinishReason | None],
+    ) -> AsyncIterator[AgentEvent]:
+        """Process a single chunk from the streaming response."""
+        # Handle thinking content
+        if chunk.thinking:
+            state.thinking += chunk.thinking
+            accumulated_thinking_list[0] = state.thinking
+            yield self._emit(
+                type=EventType.THOUGHT,
+                data=chunk.thinking,
+            )
+
+        # Accumulate content, tool calls, and usage as they stream
+        if chunk.content:
+            state.content += chunk.content
+            accumulated_content_list[0] = state.content
+        if chunk.tool_calls:
+            state.tool_calls.extend(chunk.tool_calls)
+        if chunk.usage:
+            # Update usage - last chunk with usage wins
+            state.usage = chunk.usage
+            accumulated_usage_list[0] = state.usage
+
+        # Handle finish reasons
+        if chunk.finish_reason:
+            async for event in self._handle_finish_reason(
+                chunk,
+                state,
+                accumulated_content_list,
+                accumulated_thinking_list,
+                accumulated_usage_list,
+                finish_reason_list,
+            ):
+                yield event
+        else:
+            # No finish reason yet - stream content as it comes
+            # Tool calls are accumulated but NOT yielded until finish_reason
+            # to ensure proper batching
+            if chunk.content:
+                state.content_yielded = True
                 yield self._emit(
-                    type=EventType.FINISHED,
-                    data=event_data
+                    type=EventType.CONTENT,
+                    data=chunk.content,
                 )
 
-        return accumulated_content, accumulated_thinking, accumulated_tool_calls, accumulated_usage, finish_reason, event_generator()
+    async def _handle_finish_reason(
+        self,
+        chunk: StreamChunk,
+        state: StreamingAccumulationState,
+        accumulated_content_list: list[str],
+        accumulated_thinking_list: list[str],
+        accumulated_usage_list: list[dict[str, int] | None],
+        finish_reason_list: list[FinishReason | None],
+    ) -> AsyncIterator[AgentEvent]:
+        """Handle different finish reasons from the streaming response."""
+        finish_reason = chunk.finish_reason
+        state.finish_reason = finish_reason
+        finish_reason_list[0] = finish_reason
+
+        # Create and add assistant message to history
+        assistant_msg = self._create_assistant_message(state, chunk.tool_calls)
+        self.messages.append(assistant_msg)
+
+        # Handle specific finish reasons
+        if finish_reason == FinishReason.STOP:
+            async for event in self._handle_stop_finish(state):
+                yield event
+        elif finish_reason == FinishReason.TOOL_CALLS:
+            async for event in self._handle_tool_calls_finish(state, chunk.tool_calls):
+                yield event
+        elif finish_reason in (FinishReason.LENGTH, FinishReason.CONTENT_FILTER):
+            async for event in self._handle_other_finish(state):
+                yield event
+        # Note: We break after handling finish reason, so no need to return anything
+
+    def _create_assistant_message(
+        self,
+        state: StreamingAccumulationState,
+        chunk_tool_calls: list[ToolCall] | None = None,
+    ) -> Message:
+        """Create assistant message from accumulated state."""
+        # Use accumulated tool_calls if available, otherwise use chunk's tool_calls
+        tool_calls_to_use = state.tool_calls if state.tool_calls else chunk_tool_calls
+
+        return Message(
+            role="assistant",
+            content=state.content,
+            tool_calls=tool_calls_to_use if tool_calls_to_use else None,
+            reasoning_content=state.thinking if state.thinking else None,
+        )
+
+    async def _handle_stop_finish(
+        self,
+        state: StreamingAccumulationState,
+    ) -> AsyncIterator[AgentEvent]:
+        """Handle STOP finish reason."""
+        # Yield content event if we haven't yielded any content yet
+        # (e.g., non-streaming response where all content comes with STOP)
+        if state.content and not state.content_yielded:
+            yield self._emit(
+                type=EventType.CONTENT,
+                data=state.content,
+            )
+
+    async def _handle_tool_calls_finish(
+        self,
+        state: StreamingAccumulationState,
+        chunk_tool_calls: list[ToolCall] | None,
+    ) -> AsyncIterator[AgentEvent]:
+        """Handle TOOL_CALLS finish reason."""
+        # Determine which tool calls to yield
+        tool_calls_to_yield = state.tool_calls if state.tool_calls else (chunk_tool_calls or [])
+
+        # Yield tool call events
+        for tool_call in tool_calls_to_yield:
+            yield self._emit(
+                type=EventType.TOOL_CALL_REQUEST,
+                data=tool_call,
+            )
+
+    async def _handle_other_finish(
+        self,
+        state: StreamingAccumulationState,
+    ) -> AsyncIterator[AgentEvent]:
+        """Handle LENGTH or CONTENT_FILTER finish reasons."""
+        # Yield any remaining content
+        if state.content and not state.content_yielded:
+            yield self._emit(
+                type=EventType.CONTENT,
+                data=state.content,
+            )
+
+    def _create_finished_event(
+        self,
+        state: StreamingAccumulationState,
+    ) -> AgentEvent:
+        """Create FINISHED event with appropriate data."""
+        finish_data = "Stream completed"
+        if state.finish_reason:
+            finish_data = state.finish_reason.value
+
+        # Include usage information if available
+        event_data: str | dict[str, Any] = finish_data
+        if state.usage:
+            event_data = {"finish_reason": finish_data, "usage": state.usage}
+
+        return self._emit(type=EventType.FINISHED, data=event_data)
 
     async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
         """Run the agent with user input."""
@@ -567,7 +676,9 @@ class Agent:
                 logger.debug("Agent.run: Finished yielding %d events", event_count)
 
                 # Extract actual content from list (mutable container)
-                accumulated_content = accumulated_content_list[0] if accumulated_content_list else ""
+                accumulated_content = (
+                    accumulated_content_list[0] if accumulated_content_list else ""
+                )
 
                 # Check for stalling
                 nudge = await self._check_for_stalling(
@@ -584,25 +695,20 @@ class Agent:
             except Exception as e:
                 # Yield error event
                 logger.debug("Agent.run: Exception: %s", e)
-                yield self._emit(
-                    type=EventType.ERROR,
-                    data=f"Agent execution failed: {e}"
-                )
+                yield self._emit(type=EventType.ERROR, data=f"Agent execution failed: {e}")
                 break
 
         # Yield finished event with actual finish reason if available
         logger.debug("Agent.run: Yielding FINISHED event")
         finish_data = "Agent completed execution"
         if finish_reason_list and finish_reason_list[0]:
-            finish_data = finish_reason_list[0].value
+            fr = finish_reason_list[0]
+            finish_data = fr if isinstance(fr, str) else fr.value
 
         # Include usage information if available
         event_data: str | dict[str, Any] = finish_data
         if accumulated_usage_list and accumulated_usage_list[0]:
-            event_data = {
-                "finish_reason": finish_data,
-                "usage": accumulated_usage_list[0]
-            }
+            event_data = {"finish_reason": finish_data, "usage": accumulated_usage_list[0]}
 
         yield self._emit(type=EventType.FINISHED, data=event_data)
 

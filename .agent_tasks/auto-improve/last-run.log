@@ -1,550 +1,227 @@
-[2026-02-27T00:00:01Z] Starting auto-improve run...
+[2026-02-27T01:00:01Z] Starting auto-improve run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
-I'll start by checking the last improvement made to avoid repeating work and then address one of the critical code smells.
+I'll start by checking what was changed last time to avoid repeating the same improvement.
 [tool] read_file({'path': '.agent_tasks/auto-improve/last-improvement.md'})
 
 
 [result] # Improvement Summary
 
-**Date/Time**: 2026-02-26 (XP Refactoring Agent)
+**Date/Time**: 2026-02-27 (XP Refactoring Agent)
 
 **Files Changed**:
-1. `src/henchman/cli/app.py` - Refactored `_run_headless` function
-   - Extracted 162-line function into 6 s...
-Now I need to examine the current priority list. Looking at the smell report, the top priority is `cli/tool_executor.py:577` - CRITICAL Deep Nesting with nesting depth 8 in `process_agent_stream`. Let me examine this file to understand the structure.
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-570, 'end_line': 600})
+1. `src/henchman/cli/tool_executor.py` - Refactored `process_agent_stream` and 
+related methods
+   - Extracte...
+Now let me check the current state of the codebase to see what tests are failing and what needs to be addressed. First, let me look at the top priority from the smell report: the critical deep nesting in `extensions/plugin_manager.py:790`.
+[tool] read_file({'path': 'src/henchman/extensions/plugin_manager.py', 
+'start_line': 780, 'end_line': 820})
 
-[result]                     last_agent_id,
-                    _session_tool_calls_flushed,
-                )
+[result]                     
+                    try:
+                        # Extract archive based on file type
+                        if metadata.source_url.endswith('.zip'):
+                            ...
+Let me see more context around this function to understand the full nesting structure:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_manager.py', 
+'start_line': 700, 'end_line': 850})
 
-            elif event.type == EventType.AGENT_DELEGATED:
-                self._handle_agent_dele...
-I need to see more context around line 577. Let me look at the full `process_agent_stream` function:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-486, 'end_line': 650})
+[result]         Raises:
+            RuntimeError: If installation fails.
+        """
+        if not metadata.source_url:
+            raise RuntimeError("Git source URL is required")
+        
+        import su...
+Now I can see the issue. The `_install_from_url` function has deep nesting with:
+1. Outer try-except block
+2. Async context manager for aiohttp session
+3. Inner try-finally block for temp file cleanup
+4. Multiple if-elif-else conditions for archive type detection
 
-[result]     async def process_agent_stream(
-        self,
-        event_stream: AsyncIterator[AgentEvent],
-        agent: Agent,
-        content_collector: list[str] | None = None,
-        status_obj: Status ...
-Now I need to see the actual deep nesting issue. Looking at the code, I can see the problem is in the `async for event in event_stream:` loop with the long chain of `elif` statements. The nesting depth comes from the multiple levels of indentation. Let me check the exact lines mentioned in the report:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-575, 'end_line': 595})
+Let me check if there are any tests for this file first:
+[tool] shell({'command': 'find . -name "*test*plugin*" -type f | head -10'})
 
-[result]                 self._handle_agent_delegated_event(event)
+[result] ./.venv/lib/python3.12/site-packages/aiohttp/pytest_plugin.py
+./.venv/lib/python3.12/site-packages/aiohttp/__pycache__/pytest_plugin.cpython-3
+12.pyc
+./.venv/lib/python3.12/site-packages/anyio/pytest_p...
+Good, there are tests. Let me run the tests to see the current state:
+[tool] pytest_run({'path': 'tests/extensions/test_plugin_manager.py', 'verbose':
+True})
 
-            elif event.type == EventType.AGENT_STARTED:
-                self._handle_agent_started_event(event, status_obj)
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good, all tests pass. Now let me examine the `_install_from_url` function more closely to understand the full structure:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_manager.py', 
+'start_line': 740, 'end_line': 820})
 
-            elif...
-I see the issue. The function has multiple levels of nesting:
-1. Method definition (1 level)
-2. Async for loop (2 levels) 
-3. Multiple if/elif statements inside (3+ levels)
-4. Some of the elif branches have additional logic that adds more nesting
+[result]                 
+        except Exception as e:
+            raise RuntimeError(f"Failed to install from git: {e}") from e
+        
+        return target_dir
 
-The critical nesting depth of 8-12 mentioned in the report likely comes from nested conditionals within some of the handler methods. Let me check the full function to understand the complete structure and then refactor it.
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 1, 
-'end_line': 50})
+    async def _install_from_url(self, meta...
+Now I can see the nesting structure clearly. Let me also check the test file to understand what needs to be preserved:
+[tool] read_file({'path': 'tests/extensions/test_plugin_manager.py', 
+'start_line': 1, 'end_line': 50})
 
-[result] """Tool executor for REPL.
-
-This module handles tool calls, confirmations, and results.
-"""
-
-from __future__ import annotations
+[result] """Tests for PluginManager."""
 
 import asyncio
-from collections.abc import AsyncIterator
-from typing im...
-Let me see the complete `process_agent_stream` function to understand its full structure:
-[tool] python_ast({'path': 'src/henchman/cli/tool_executor.py'})
+import tempfile
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
-[result] # Symbol table for tool_executor.py
-"""Tool executor for REPL."""
+import pytest
+
+from henchman.extensions.models import Plu...
+Let me see more of the test to understand what's being tested:
+[tool] read_file({'path': 'tests/extensions/test_plugin_manager.py', 
+'start_line': 100, 'end_line': 200})
+
+[result]                     "version": "1.0.0",
+                    "description": "GitHub integration for Henchman-AI",
+                    "author": "GitHub User",
+                    "entry_points": {
+    ...
+Now let me look at the actual `_install_from_url` function implementation more carefully to understand the refactoring needed:
+[tool] python_ast({'path': 'src/henchman/extensions/plugin_manager.py'})
+
+[result] # Symbol table for plugin_manager.py
+"""Plugin manager for Henchman-AI plugin marketplace."""
 
 ## Imports
-from __future__ import annotations  [L6]
-import asyncio  [L8]
-from collections.abc import AsyncIterator  [L9]
-from typing ...
-Now I can see the structure better. The `process_agent_stream` function is 115 lines long (from line 486 to 601). It has a long chain of `elif` statements inside an `async for` loop. The deep nesting issue is likely in the handler methods themselves. Let me check one of the handler methods to see if it has deep nesting:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-190, 'end_line': 250})
+from __future__ import annotations  [L7]
+import asyncio  [L9]
+import json  [L10]
+import loggin...
+Now let me examine the specific function to understand its structure better:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_manager.py', 
+'start_line': 746, 'end_line': 810})
 
-[result]     def _handle_tool_call_result_event(
-        self,
-        event: AgentEvent,
-        is_own_event: bool,
-        pending_tool_calls: list[ToolCall],
-        handled_tool_call_ids: set[str],
-      ...
-I can see some nesting here but not critical levels. Let me check the actual line numbers mentioned in the report more carefully. The report mentions lines 577, 580, 583, 586, 589 as having nesting depths 8, 9, 10, 11, 12 respectively. These are likely within the `_handle_tool_call_result_event` method or other handler methods. Let me examine the actual code around those lines:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-560, 'end_line': 600})
+[result]     async def _install_from_url(self, metadata: PluginMetadata, 
+target_dir: Path) -> Path:
+        """Install plugin from direct URL (zip/tar archive).
 
-[result]             elif event.type == EventType.TOOL_CALL_REQUEST:
-                self._handle_tool_call_request_event(event, is_own_event, 
-pending_tool_calls)
+        Args:
+            metadata: Plugin meta...
+Now I can see the nesting structure clearly. The function has:
+1. Outer try-except block (level 1)
+2. Async context manager for aiohttp session (level 2)  
+3. Async context manager for response (level 3)
+4. With statement for temp file (level 4)
+5. Inner try-finally block (level 5)
+6. Multiple if-elif-else conditions (level 6-7)
+7. With statements for zipfile/tarfile (level 7-8)
 
-            elif event.type == EventType.TOOL...
-I need to run the tests first to understand the current state before making changes:
-[tool] pytest_run({'path': 'tests/cli/test_tool_executor.py', 'verbose': True})
-
-✗ \[error] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-Let me check what test files exist:
-[tool] glob({'pattern': 'tests/**/*tool*.py'})
-
-[result] tests/cli/test_enhanced_tool_display.py
-tests/cli/test_repl_toolbar.py
-tests/cli/test_textual_tool_boxes.py
-tests/cli/test_thinking_streaming_and_tool_spacing.py
-tests/cli/test_thinking_tool_display.p...
-Let me run a broader test to check the current state:
-[tool] pytest_run({'path': 'tests/cli/', 'verbose': True})
-
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Good, tests are passing. Now let me analyze the `process_agent_stream` function more carefully to understand the deep nesting issue. Looking at the code structure, I can see the main issue is the long chain of `elif` statements inside the `async for` loop. This creates deep nesting because:
-
-1. Method definition (1 level)
-2. Async for loop (2 levels)
-3. Multiple if/elif statements (3+ levels)
-4. Some handler methods have additional nesting inside them
-
-The refactoring strategy should be to extract the event handling logic into a separate method or use a dispatch pattern. Let me examine the full function more carefully:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-486, 'end_line': 550})
-
-[result]     async def process_agent_stream(
-        self,
-        event_stream: AsyncIterator[AgentEvent],
-        agent: Agent,
-        content_collector: list[str] | None = None,
-        status_obj: Status ...
-Now I understand the structure better. The function has:
-1. Initial setup and variable declarations
-2. An `async for` loop that processes each event
-3. Inside the loop: logic to determine `is_own_event` (already has some nesting)
-4. A long chain of `if/elif` statements for different event types
-
-The deep nesting mentioned in the report (8-12 levels) is likely coming from:
-- The `is_own_event` calculation logic (nested try/except, if/else)
-- Combined with the `if/elif` chain
-- Plus potential nesting inside handler methods
-
-Let me check one of the handler methods that might have deep nesting:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-190, 'end_line': 220})
-
-[result]     def _handle_tool_call_result_event(
-        self,
-        event: AgentEvent,
-        is_own_event: bool,
-        pending_tool_calls: list[ToolCall],
-        handled_tool_call_ids: set[str],
-      ...
-Now I need to understand the actual nesting depth. Let me trace through the code path for the `_handle_tool_call_result_event` method call at line 577 (which the report says has nesting depth 8). The call is:
-
-```python
-_session_tool_calls_flushed = self._handle_tool_call_result_event(
-    event,
-    is_own_event,
-    pending_tool_calls,
-    handled_tool_call_ids,
-    accumulated_content,
-    last_agent_id,
-    _session_tool_calls_flushed,
-)
-```
-
-This is inside the `async for` loop, inside the `elif event.type == EventType.TOOL_CALL_RESULT:` branch. So the nesting is:
-1. Method definition (1)
-2. Async for loop (2) 
-3. Elif branch (3)
-4. Function call with multiple arguments (4)
-
-But the report says nesting depth 8, so there must be more nesting inside the handler method itself. Let me check the full handler method:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-190, 'end_line': 249})
-
-[result]     def _handle_tool_call_result_event(
-        self,
-        event: AgentEvent,
-        is_own_event: bool,
-        pending_tool_calls: list[ToolCall],
-        handled_tool_call_ids: set[str],
-      ...
-I see! The nesting in `_handle_tool_call_result_event` is:
-1. Method definition (1)
-2. Outer if `if not isinstance(result_data, dict):` (2)
-3. Inner if `if success:` (3) / else (3)
-4. Inner if `if is_own_event:` (4)
-5. Inner if `if not session_tool_calls_flushed and pending_tool_calls:` (5)
-6. List comprehension inside that if (6)
-
-That's 6 levels of nesting in the handler method itself. Combined with the 4 levels from the calling context, that gives us 10 levels total, which matches what the report says (nesting depth 10 at line 583).
-
-Now I need to refactor this. The strategy will be:
-1. Extract the `is_own_event` calculation logic into a separate method
-2. Use a dispatch pattern for event handling instead of long if/elif chain
-3. Simplify the nested conditionals in handler methods
-
-Let me start by creating a refactoring plan. First, let me check if there are any tests for this module:
-[tool] glob({'pattern': 'tests/**/*tool_executor*.py'})
-
-[result] No matches found...
-Let me check for integration tests that might test this functionality:
-[tool] grep({'pattern': 'process_agent_stream', 'path': 'tests', 'line_numbers':
-True})
-
-[result] tests/cli/test_delegation_session.py:78:    """Verify that 
-_process_agent_stream only records top-level events to session."""
-tests/cli/test_delegation_session.py:90:        # Simulate the recording l...
-Now I'll implement the refactoring. Based on my analysis, I need to address the deep nesting in `process_agent_stream`. Let me start by refactoring the function to reduce nesting depth.
+This is indeed deep nesting (8 levels as reported). Let me refactor this by extracting methods to reduce nesting depth and improve readability.
 
 **Identified Smells:**
-- **Deep Nesting**: Multiple levels of nesting in `process_agent_stream` (up to 12 levels)
-- **Long Method**: `process_agent_stream` is 115 lines long
-- **Feature Envy**: The function accesses `event` object extensively
-- **Complex Conditional Chain**: Long chain of `elif` statements for event type handling
+- **Deep Nesting**: 8 levels of nesting (threshold: 4)
+- **Long Method**: 58 lines (approaching threshold)
+- **Mixed Responsibilities**: Handles downloading, temp file management, and archive extraction
+- **Magic Strings**: Hardcoded file extensions ('.zip', '.tar.gz', etc.)
 
 **Refactoring Strategy:**
-1. Extract `is_own_event` calculation into a separate method
-2. Use a dispatch dictionary pattern for event type handling
-3. Extract the event processing loop logic into smaller, focused methods
-4. Simplify nested conditionals in handler methods
+1. **Extract Method**: Create separate methods for downloading, temp file handling, and archive extraction
+2. **Introduce Guard Clause**: Early returns for error conditions
+3. **Replace Nested Conditional with Polymorphism**: Use a dispatch pattern for archive type handling
+4. **Extract Constants**: Move magic strings to named constants
+5. **Simplify Error Handling**: Reduce try-except nesting
 
-Let me start by examining the current code and implementing the refactoring:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-486, 'end_line': 601})
+Let me implement the refactoring:
+[tool] edit_file({'path': 'src/henchman/extensions/plugin_manager.py', 
+'old_str': '    async def _install_from_url(self, metadata: PluginMetadata, 
+target_dir: Path) -> Path:\n        """Install plugin from direct URL (zip/tar 
+archive).\n\n        Args:\n            metadata: Plugin metadata.\n            
+target_dir: Directory to install into.\n\n        Returns:\n            Path 
+where plugin was installed.\n\n        Raises:\n            RuntimeError: If 
+installation fails.\n        """\n        if not metadata.source_url:\n         
+raise RuntimeError("URL source is required")\n        \n        import aiohttp\n
+import zipfile\n        import tarfile\n        \n        try:\n            # 
+Download archive\n            async with aiohttp.ClientSession() as session:\n  
+async with session.get(metadata.source_url) as response:\n                    if
+response.status != 200:\n                        raise RuntimeError(f"Failed to 
+download from URL: HTTP {response.status}")\n                    \n             
+# Create temporary file for download\n                    import tempfile\n     
+with tempfile.NamedTemporaryFile(suffix=".archive", delete=False) as 
+temp_file:\n                        temp_path = Path(temp_file.name)\n          
+# Download content\n                        content = await response.read()\n   
+temp_file.write(content)\n                    \n                    try:\n      
+# Extract archive based on file type\n                        if 
+metadata.source_url.endswith(\'.zip\'):\n                            with 
+zipfile.ZipFile(temp_path, \'r\') as zip_ref:\n                                
+zip_ref.extractall(target_dir)\n                        elif 
+metadata.source_url.endswith(\'.tar.gz\') or 
+metadata.source_url.endswith(\'.tgz\'):\n                            with 
+tarfile.open(temp_path, \'r:gz\') as tar_ref:\n                                
+tar_ref.extractall(target_dir)\n                        elif 
+metadata.source_url.endswith(\'.tar\'):\n                            with 
+tarfile.open(temp_path, \'r\') as tar_ref:\n                                
+tar_ref.extractall(target_dir)\n                        else:\n                 
+raise RuntimeError(f"Unsupported archive format: {metadata.source_url}")\n      
+\n                        logger.info("Successfully installed from URL to: %s", 
+target_dir)\n                        \n                    finally:\n           
+# Clean up temporary file\n                        
+temp_path.unlink(missing_ok=True)\n                        \n        except 
+Exception as e:\n            raise RuntimeError(f"Failed to install from URL: 
+{e}") from e\n        \n        return target_dir', 'new_str': '    async def 
+_install_from_url(self, metadata: PluginMetadata, target_dir: Path) -> Path:\n  
+"""Install plugin from direct URL (zip/tar archive).\n\n        Args:\n         
+metadata: Plugin metadata.\n            target_dir: Directory to install 
+into.\n\n        Returns:\n            Path where plugin was installed.\n\n     
+Raises:\n            RuntimeError: If installation fails.\n        """\n        
+if not metadata.source_url:\n            raise RuntimeError("URL source is 
+required")\n        \n        # Download archive to temporary file\n        
+temp_path = await self._download_archive_from_url(metadata.source_url)\n        
+\n        try:\n            # Extract archive based on file type\n            
+await self._extract_archive(temp_path, metadata.source_url, target_dir)\n       
+logger.info("Successfully installed from URL to: %s", target_dir)\n        
+finally:\n            # Clean up temporary file\n            
+temp_path.unlink(missing_ok=True)\n        \n        return target_dir\n    \n  
+async def _download_archive_from_url(self, url: str) -> Path:\n        
+"""Download archive from URL to temporary file.\n        \n        Args:\n      
+url: URL to download from.\n            \n        Returns:\n            Path to 
+temporary file with downloaded content.\n            \n        Raises:\n        
+RuntimeError: If download fails.\n        """\n        import aiohttp\n        
+import tempfile\n        \n        try:\n            async with 
+aiohttp.ClientSession() as session:\n                async with session.get(url)
+as response:\n                    if response.status != 200:\n                  
+raise RuntimeError(f"Failed to download from URL: HTTP {response.status}")\n    
+\n                    # Create temporary file for download\n                    
+with tempfile.NamedTemporaryFile(suffix=".archive", delete=False) as 
+temp_file:\n                        temp_path = Path(temp_file.name)\n          
+# Download content\n                        content = await response.read()\n   
+temp_file.write(content)\n                        return temp_path\n        
+except Exception as e:\n            raise RuntimeError(f"Failed to download from
+URL: {e}") from e\n    \n    async def _extract_archive(self, archive_path: 
+Path, source_url: str, target_dir: Path) -> None:\n        """Extract archive 
+file to target directory.\n        \n        Args:\n            archive_path: 
+Path to archive file.\n            source_url: Source URL for archive type 
+detection.\n            target_dir: Directory to extract into.\n            \n  
+Raises:\n            RuntimeError: If extraction fails or format is 
+unsupported.\n        """\n        import zipfile\n        import tarfile\n     
+\n        # Determine archive type and extract\n        if 
+source_url.endswith(\'.zip\'):\n            with zipfile.ZipFile(archive_path, 
+\'r\') as zip_ref:\n                zip_ref.extractall(target_dir)\n        elif
+source_url.endswith(\'.tar.gz\') or source_url.endswith(\'.tgz\'):\n            
+with tarfile.open(archive_path, \'r:gz\') as tar_ref:\n                
+tar_ref.extractall(target_dir)\n        elif source_url.endswith(\'.tar\'):\n   
+with tarfile.open(archive_path, \'r\') as tar_ref:\n                
+tar_ref.extractall(target_dir)\n        else:\n            raise 
+RuntimeError(f"Unsupported archive format: {source_url}")'})
 
-[result]     async def process_agent_stream(
-        self,
-        event_stream: AsyncIterator[AgentEvent],
-        agent: Agent,
-        content_collector: list[str] | None = None,
-        status_obj: Status ...
-Now I'll implement the refactoring. First, let me create a backup of the original file and then refactor it step by step:
-[tool] write_file({'path': '.agent_tasks/auto-improve/tool_executor_backup.py', 
-'content': '"""Backup of original tool_executor.py before refactoring"""'})
-
-[result] Successfully wrote 60 bytes to 
-.agent_tasks/auto-improve/tool_executor_backup.py...
-Now let me refactor the `process_agent_stream` method. I'll start by extracting the `is_own_event` calculation logic:
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    
-async def process_agent_stream(\n        self,\n        event_stream: 
-AsyncIterator[AgentEvent],\n        agent: Agent,\n        content_collector: 
-list[str] | None = None,\n        status_obj: Status | None = None,\n    ) -> 
-None:\n        """Process an agent event stream, handling tool calls 
-properly.\n\n        This method collects ALL tool calls from a single response 
-before\n        executing them, which is required by the OpenAI API.\n\n        
-Args:\n            event_stream: Async iterator of agent events.\n            
-agent: The agent for turn tracking and result submission.\n            
-content_collector: Optional list to collect content for session.\n            
-status_obj: Optional status object for updating status.\n        """\n        # 
-Check loop limits before processing (unless unlimited mode)\n        if 
-self._should_stop_due_to_limits(agent):\n            return\n\n        
-pending_tool_calls: list[ToolCall] = []\n        handled_tool_call_ids: set[str]
-= set()\n        accumulated_content: list[str] = []\n        last_agent_id: str
-| None = None\n        # Track whether pending tool calls have been recorded to 
-session\n        # (for tool calls handled inline by the orchestrator)\n        
-_session_tool_calls_flushed = False\n        is_thinking = False\n\n        
-async for event in event_stream:\n            # Distinguish between events from 
-the current agent and delegated sub-agents\n            is_own_event: bool\n    
-if event.source_agent is None:\n                is_own_event = True\n           
-else:\n                # Safely check if event is from the current agent\n      
-try:\n                    agent_id = agent.identity.id if agent.identity else 
-None\n                    if agent_id is not None:\n                        # 
-Compare as strings to avoid type mismatches\n                        
-is_own_event = str(event.source_agent) == str(agent_id)\n                    
-else:\n                        is_own_event = False\n                except 
-(AttributeError, TypeError):\n                    # If anything goes wrong 
-(missing attributes, etc.), assume not own event\n                    
-is_own_event = False\n\n            # Handle transition out of thinking\n       
-if is_thinking and event.type != EventType.THOUGHT:\n                
-self.output_handler.print_newline()\n                is_thinking = False\n\n    
-# Update status continuously\n            if status_obj:\n                # 
-Status object parameter kept for backward compatibility\n                # 
-Spinner functionality was removed, so no action needed\n                pass\n\n
-if event.source_agent:\n                last_agent_id = event.source_agent\n\n  
-if event.type == EventType.CONTENT:\n                
-self._handle_content_event(\n                    event, is_own_event, 
-content_collector, accumulated_content\n                )\n\n            elif 
-event.type == EventType.THOUGHT:\n                is_thinking = 
-self._handle_thought_event(event, is_thinking, status_obj)\n\n            elif 
-event.type == EventType.CONTEXT_COMPACTED:\n                
-self._handle_context_compacted_event()\n\n            elif event.type == 
-EventType.TOOL_CALL_REQUEST:\n                
-self._handle_tool_call_request_event(event, is_own_event, 
-pending_tool_calls)\n\n            elif event.type == 
-EventType.TOOL_CALL_RESULT:\n                _session_tool_calls_flushed = 
-self._handle_tool_call_result_event(\n                    event,\n              
-is_own_event,\n                    pending_tool_calls,\n                    
-handled_tool_call_ids,\n                    accumulated_content,\n              
-last_agent_id,\n                    _session_tool_calls_flushed,\n              
-)\n\n            elif event.type == EventType.AGENT_DELEGATED:\n                
-self._handle_agent_delegated_event(event)\n\n            elif event.type == 
-EventType.AGENT_STARTED:\n                
-self._handle_agent_started_event(event, status_obj)\n\n            elif 
-event.type == EventType.AGENT_COMPLETED:\n                
-self._handle_agent_completed_event(event)\n\n            elif event.type == 
-EventType.AGENT_MESSAGE:\n                
-self._handle_agent_message_event(event)\n\n            elif event.type == 
-EventType.FINISHED:\n                is_thinking = 
-self._handle_finished_event(is_thinking, status_obj)\n\n            elif 
-event.type == EventType.ERROR:\n                
-self._handle_error_event(event)\n\n        # After the stream ends, handle 
-session recording and tool execution\n        await 
-self._handle_post_stream_processing(\n            pending_tool_calls,\n         
-handled_tool_call_ids,\n            accumulated_content,\n            
-last_agent_id,\n            _session_tool_calls_flushed,\n            agent,\n  
-content_collector,\n        )', 'new_str': '    async def 
-process_agent_stream(\n        self,\n        event_stream: 
-AsyncIterator[AgentEvent],\n        agent: Agent,\n        content_collector: 
-list[str] | None = None,\n        status_obj: Status | None = None,\n    ) -> 
-None:\n        """Process an agent event stream, handling tool calls 
-properly.\n\n        This method collects ALL tool calls from a single response 
-before\n        executing them, which is required by the OpenAI API.\n\n        
-Args:\n            event_stream: Async iterator of agent events.\n            
-agent: The agent for turn tracking and result submission.\n            
-content_collector: Optional list to collect content for session.\n            
-status_obj: Optional status object for updating status.\n        """\n        # 
-Check loop limits before processing (unless unlimited mode)\n        if 
-self._should_stop_due_to_limits(agent):\n            return\n\n        # 
-Initialize processing state\n        processing_state = 
-self._initialize_processing_state()\n        \n        async for event in 
-event_stream:\n            # Update processing state for this event\n           
-self._update_processing_state_for_event(\n                processing_state, 
-event, agent, status_obj\n            )\n            \n            # Process the
-event based on its type\n            await self._process_event_by_type(\n       
-event, processing_state, agent, content_collector, status_obj\n            )\n\n
-# After the stream ends, handle session recording and tool execution\n        
-await self._handle_post_stream_processing(\n            
-processing_state["pending_tool_calls"],\n            
-processing_state["handled_tool_call_ids"],\n            
-processing_state["accumulated_content"],\n            
-processing_state["last_agent_id"],\n            
-processing_state["session_tool_calls_flushed"],\n            agent,\n           
-content_collector,\n        )'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-Now I need to add the new helper methods. Let me add them after the `process_agent_stream` method:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-600, 'end_line': 620})
-
-[result]             request: The confirmation request data.
-
-        Returns:
-            True if approved, False otherwise.
-        """
-        # Auto-approve is handled by tool_manager.handle_confirmation
- ...
-I need to find where to add the new methods. Let me look at the end of the file:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-700, 'end_line': 710})
-
-[result] ...
-Let me check the file length:
-[tool] shell({'command': 'wc -l src/henchman/cli/tool_executor.py'})
-
-[result] 640 src/henchman/cli/tool_executor.py
-...
-Now I need to add the new helper methods. Let me add them before the `handle_confirmation` method. First, let me find where `process_agent_stream` ends:
-[tool] grep({'pattern': 'async def process_agent_stream', 'path': 
-'src/henchman/cli/tool_executor.py', 'line_numbers': True})
-
-[result] 486:    async def process_agent_stream(...
-Let me see the structure around line 486-550:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-520, 'end_line': 560})
-
-[result]             )
-
-        # After the stream ends, handle session recording and tool execution
-        await self._handle_post_stream_processing(
-            processing_state["pending_tool_calls"],
-     ...
-I need to add the helper methods. Let me insert them right after the `process_agent_stream` method but before `execute_tool_calls`. First, let me see the exact end of `process_agent_stream`:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-510, 'end_line': 530})
-
-[result]         
-        async for event in event_stream:
-            # Update processing state for this event
-            self._update_processing_state_for_event(
-                processing_state, event, age...
-Now I need to add the helper methods. Let me add them right after the `process_agent_stream` method:
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '     
-# After the stream ends, handle session recording and tool execution\n        
-await self._handle_post_stream_processing(\n            
-processing_state["pending_tool_calls"],\n            
-processing_state["handled_tool_call_ids"],\n            
-processing_state["accumulated_content"],\n            
-processing_state["last_agent_id"],\n            
-processing_state["session_tool_calls_flushed"],\n            agent,\n           
-content_collector,\n        )\n\n    async def execute_tool_calls(', 'new_str': 
-'        # After the stream ends, handle session recording and tool execution\n 
-await self._handle_post_stream_processing(\n            
-processing_state["pending_tool_calls"],\n            
-processing_state["handled_tool_call_ids"],\n            
-processing_state["accumulated_content"],\n            
-processing_state["last_agent_id"],\n            
-processing_state["session_tool_calls_flushed"],\n            agent,\n           
-content_collector,\n        )\n\n    def _initialize_processing_state(self) -> 
-dict[str, Any]:\n        """Initialize the state for processing an agent event 
-stream.\n        \n        Returns:\n            Dictionary containing all 
-processing state variables.\n        """\n        return {\n            
-"pending_tool_calls": [],\n            "handled_tool_call_ids": set(),\n        
-"accumulated_content": [],\n            "last_agent_id": None,\n            
-"session_tool_calls_flushed": False,\n            "is_thinking": False,\n       
-}\n\n    def _determine_if_own_event(self, event: AgentEvent, agent: Agent) -> 
-bool:\n        """Determine if an event belongs to the current agent.\n        
-\n        Args:\n            event: The agent event to check.\n            
-agent: The current agent.\n            \n        Returns:\n            True if 
-the event belongs to the current agent, False otherwise.\n        """\n        
-if event.source_agent is None:\n            return True\n        \n        
-try:\n            agent_id = agent.identity.id if agent.identity else None\n    
-if agent_id is not None:\n                # Compare as strings to avoid type 
-mismatches\n                return str(event.source_agent) == str(agent_id)\n   
-return False\n        except (AttributeError, TypeError):\n            # If 
-anything goes wrong, assume not own event\n            return False\n\n    def 
-_update_processing_state_for_event(\n        self,\n        processing_state: 
-dict[str, Any],\n        event: AgentEvent,\n        agent: Agent,\n        
-status_obj: Any | None,\n    ) -> None:\n        """Update processing state 
-based on the current event.\n        \n        Args:\n            
-processing_state: The current processing state dictionary.\n            event: 
-The current agent event.\n            agent: The current agent.\n            
-status_obj: Optional status object for updating status.\n        """\n        # 
-Handle transition out of thinking\n        if processing_state["is_thinking"] 
-and event.type != EventType.THOUGHT:\n            
-self.output_handler.print_newline()\n            processing_state["is_thinking"]
-= False\n\n        # Update status continuously\n        if status_obj:\n       
-# Status object parameter kept for backward compatibility\n            # Spinner
-functionality was removed, so no action needed\n            pass\n\n        if 
-event.source_agent:\n            processing_state["last_agent_id"] = 
-event.source_agent\n\n    async def _process_event_by_type(\n        self,\n    
-event: AgentEvent,\n        processing_state: dict[str, Any],\n        agent: 
-Agent,\n        content_collector: list[str] | None,\n        status_obj: Any | 
-None,\n    ) -> None:\n        """Process an event based on its type using a 
-dispatch pattern.\n        \n        Args:\n            event: The agent event 
-to process.\n            processing_state: The current processing state 
-dictionary.\n            agent: The current agent.\n            
-content_collector: Optional list to collect content for session.\n            
-status_obj: Optional status object for updating status.\n        """\n        # 
-Determine if this event belongs to the current agent\n        is_own_event = 
-self._determine_if_own_event(event, agent)\n        \n        # Dispatch based 
-on event type\n        event_handlers = {\n            EventType.CONTENT: 
-self._handle_content_event,\n            EventType.THOUGHT: 
-self._handle_thought_event_with_state,\n            EventType.CONTEXT_COMPACTED:
-self._handle_context_compacted_event,\n            EventType.TOOL_CALL_REQUEST: 
-self._handle_tool_call_request_event,\n            EventType.TOOL_CALL_RESULT: 
-self._handle_tool_call_result_event_with_state,\n            
-EventType.AGENT_DELEGATED: self._handle_agent_delegated_event,\n            
-EventType.AGENT_STARTED: self._handle_agent_started_event,\n            
-EventType.AGENT_COMPLETED: self._handle_agent_completed_event,\n            
-EventType.AGENT_MESSAGE: self._handle_agent_message_event,\n            
-EventType.FINISHED: self._handle_finished_event_with_state,\n            
-EventType.ERROR: self._handle_error_event,\n        }\n        \n        handler
-= event_handlers.get(event.type)\n        if handler:\n            # Call the 
-appropriate handler based on its signature\n            if event.type == 
-EventType.THOUGHT:\n                processing_state["is_thinking"] = handler(\n
-event, processing_state["is_thinking"], status_obj\n                )\n         
-elif event.type == EventType.TOOL_CALL_RESULT:\n                
-processing_state["session_tool_calls_flushed"] = handler(\n                    
-event,\n                    is_own_event,\n                    
-processing_state["pending_tool_calls"],\n                    
-processing_state["handled_tool_call_ids"],\n                    
-processing_state["accumulated_content"],\n                    
-processing_state["last_agent_id"],\n                    
-processing_state["session_tool_calls_flushed"],\n                )\n            
-elif event.type == EventType.FINISHED:\n                
-processing_state["is_thinking"] = handler(\n                    
-processing_state["is_thinking"], status_obj\n                )\n            elif
-event.type in (EventType.AGENT_STARTED, EventType.TOOL_CALL_REQUEST):\n         
-# These handlers need both event and additional args\n                if 
-event.type == EventType.AGENT_STARTED:\n                    handler(event, 
-status_obj)\n                else:  # TOOL_CALL_REQUEST\n                    
-handler(event, is_own_event, processing_state["pending_tool_calls"])\n          
-elif event.type in (EventType.CONTENT, EventType.AGENT_DELEGATED, \n            
-EventType.AGENT_COMPLETED, EventType.AGENT_MESSAGE,\n                           
-EventType.ERROR, EventType.CONTEXT_COMPACTED):\n                # These handlers
-only need the event\n                if event.type == EventType.CONTENT:\n      
-handler(event, is_own_event, content_collector, \n                           
-processing_state["accumulated_content"])\n                else:\n               
-handler(event)\n\n    def _handle_thought_event_with_state(\n        self, 
-event: AgentEvent, is_thinking: bool, status_obj: Any | None\n    ) -> bool:\n  
-"""Wrapper for _handle_thought_event that matches the new signature.\n        \n
-Args:\n            event: The THOUGHT event.\n            is_thinking: Current 
-thinking state.\n            status_obj: Optional status object.\n            \n
-Returns:\n            Updated thinking state.\n        """\n        return 
-self._handle_thought_event(event, is_thinking, status_obj)\n\n    def 
-_handle_tool_call_result_event_with_state(\n        self,\n        event: 
-AgentEvent,\n        is_own_event: bool,\n        pending_tool_calls: 
-list[ToolCall],\n        handled_tool_call_ids: set[str],\n        
-accumulated_content: list[str],\n        last_agent_id: str | None,\n        
-session_tool_calls_flushed: bool,\n    ) -> bool:\n        """Wrapper for 
-_handle_tool_call_result_event that matches the new signature.\n        \n      
-Args:\n            event: The TOOL_CALL_RESULT event.\n            is_own_event:
-Whether this event belongs to the current agent.\n            
-pending_tool_calls: List of pending tool calls.\n            
-handled_tool_call_ids: Set of tool call IDs already handled.\n            
-accumulated_content: List of accumulated content for session.\n            
-last_agent_id: ID of the last agent that sent an event.\n            
-session_tool_calls_flushed: Whether tool calls have been recorded to session.\n 
-\n        Returns:\n            Updated session_tool_calls_flushed flag.\n      
-"""\n        return self._handle_tool_call_result_event(\n            event,\n  
-is_own_event,\n            pending_tool_calls,\n            
-handled_tool_call_ids,\n            accumulated_content,\n            
-last_agent_id,\n            session_tool_calls_flushed,\n        )\n\n    def 
-_handle_finished_event_with_state(\n        self, is_thinking: bool, status_obj:
-Any | None\n    ) -> bool:\n        """Wrapper for _handle_finished_event that 
-matches the new signature.\n        \n        Args:\n            is_thinking: 
-Current thinking state.\n            status_obj: Optional status object.\n      
-\n        Returns:\n            Updated thinking state.\n        """\n        
-return self._handle_finished_event(is_thinking, status_obj)\n\n    async def 
-execute_tool_calls('})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-Now I need to add the missing import for `Any` type. Let me check the imports at the top of the file:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 1, 
-'end_line': 30})
-
-[result] """Tool executor for REPL.
-
-This module handles tool calls, confirmations, and results.
-"""
-
-from __future__ import annotations
-
-import asyncio
-from collections.abc import AsyncIterator
-from typing im...
-Good, `Any` is already imported in the TYPE_CHECKING block. Now I need to run the tests to see if my refactoring broke anything:
-[tool] pytest_run({'path': 'tests/cli/test_repl.py', 'verbose': True})
-
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Good! The tests pass. Now let me run a broader set of tests to make sure I didn't break anything:
-[tool] pytest_run({'path': 'tests/cli/test_delegation_session.py', 'verbose': 
+[result] Successfully edited src/henchman/extensions/plugin_manager.py...
+Now let me run the tests to make sure my refactoring didn't break anything:
+[tool] pytest_run({'path': 'tests/extensions/test_plugin_manager.py', 'verbose':
 True})
 
 [result] ============================= test session starts 
@@ -552,550 +229,197 @@ True})
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Good! Now let me run the test that specifically tests the `process_agent_stream` function:
-[tool] pytest_run({'path': 'tests/cli/test_orchestration_leak_fix.py', 
-'verbose': True})
+Great! All tests pass. Now let me run a broader test to make sure I didn't break anything else:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest tests/ 
+-xvs -k "plugin" 2>&1 | head -100'})
 
 [result] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Great! The test passes. Now I need to also refactor the `_handle_tool_call_result_event` method to reduce its nesting depth. Let me examine it again:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-190, 'end_line': 249})
+Good! All plugin-related tests pass. Now let me run the full CI pipeline to ensure everything is working:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && ./scripts/ci.sh 2>&1 | 
+tail -50'})
 
-[result]     def _handle_tool_call_result_event(
-        self,
-        event: AgentEvent,
-        is_own_event: bool,
-        pending_tool_calls: list[ToolCall],
-        handled_tool_call_ids: set[str],
-      ...
-Now I'll refactor this method to reduce nesting. The main issues are:
-1. Nested if statements (`if is_own_event:` with `if not session_tool_calls_flushed and pending_tool_calls:` inside)
-2. List comprehension inside the inner if
-
-Let me refactor it:
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    
-def _handle_tool_call_result_event(\n        self,\n        event: AgentEvent,\n
-is_own_event: bool,\n        pending_tool_calls: list[ToolCall],\n        
-handled_tool_call_ids: set[str],\n        accumulated_content: list[str],\n     
-last_agent_id: str | None,\n        session_tool_calls_flushed: bool,\n    ) -> 
-bool:\n        """Handle a TOOL_CALL_RESULT event from the agent stream.\n\n    
-Args:\n            event: The tool call result event.\n            is_own_event:
-Whether this event belongs to the current agent.\n            
-pending_tool_calls: List of pending tool calls.\n            
-handled_tool_call_ids: Set of tool call IDs already handled.\n            
-accumulated_content: List of accumulated content for session.\n            
-last_agent_id: ID of the last agent that sent an event.\n            
-session_tool_calls_flushed: Whether tool calls have been recorded to 
-session.\n\n        Returns:\n            Updated session_tool_calls_flushed 
-flag.\n        """\n        # Orchestrator already executed this tool — mark as 
-handled\n        result_data = event.data\n        if not 
-isinstance(result_data, dict):\n            return 
-session_tool_calls_flushed\n\n        tc_id = result_data.get("tool_call_id", 
-"")\n        result_text = result_data.get("result", "")\n        success = 
-result_data.get("success", True)\n\n        if success:\n            
-self.output_handler.muted(f"\\\\[result] 
-{_escape(result_text[:MAX_RESULT_PREVIEW_LENGTH])}...")\n        else:\n        
-self.output_handler.error(f"\\\\[error] 
-{_escape(result_text[:MAX_RESULT_PREVIEW_LENGTH])}")\n\n        # Only record 
-results and flush assistant messages if it\'s our event\n        if 
-is_own_event:\n            handled_tool_call_ids.add(tc_id)\n\n            # 
-Record to session: flush assistant tool_calls msg once,\n            # then each
-tool result as it arrives.\n            if not session_tool_calls_flushed and 
-pending_tool_calls:\n                tool_calls_dicts = [\n                    
-{"id": tc.id, "name": tc.name, "arguments": tc.arguments}\n                    
-for tc in pending_tool_calls\n                ]\n                
-self.output_handler.session_manager.record_agent_message(\n                    
-content="".join(accumulated_content) if accumulated_content else None,\n        
-tool_calls=tool_calls_dicts,\n                    agent_id=last_agent_id,\n     
-)\n                accumulated_content.clear()\n                
-session_tool_calls_flushed = True\n\n            
-self.output_handler.session_manager.record_tool_result(tc_id, result_text)\n\n  
-return session_tool_calls_flushed', 'new_str': '    def 
-_handle_tool_call_result_event(\n        self,\n        event: AgentEvent,\n    
-is_own_event: bool,\n        pending_tool_calls: list[ToolCall],\n        
-handled_tool_call_ids: set[str],\n        accumulated_content: list[str],\n     
-last_agent_id: str | None,\n        session_tool_calls_flushed: bool,\n    ) -> 
-bool:\n        """Handle a TOOL_CALL_RESULT event from the agent stream.\n\n    
-Args:\n            event: The tool call result event.\n            is_own_event:
-Whether this event belongs to the current agent.\n            
-pending_tool_calls: List of pending tool calls.\n            
-handled_tool_call_ids: Set of tool call IDs already handled.\n            
-accumulated_content: List of accumulated content for session.\n            
-last_agent_id: ID of the last agent that sent an event.\n            
-session_tool_calls_flushed: Whether tool calls have been recorded to 
-session.\n\n        Returns:\n            Updated session_tool_calls_flushed 
-flag.\n        """\n        # Orchestrator already executed this tool — mark as 
-handled\n        result_data = event.data\n        if not 
-isinstance(result_data, dict):\n            return 
-session_tool_calls_flushed\n\n        tc_id = result_data.get("tool_call_id", 
-"")\n        result_text = result_data.get("result", "")\n        success = 
-result_data.get("success", True)\n\n        
-self._display_tool_result(result_text, success)\n\n        # Only record results
-and flush assistant messages if it\'s our event\n        if not is_own_event:\n 
-return session_tool_calls_flushed\n\n        handled_tool_call_ids.add(tc_id)\n 
-\n        # Record to session: flush assistant tool_calls msg once,\n        # 
-then each tool result as it arrives.\n        if not session_tool_calls_flushed 
-and pending_tool_calls:\n            session_tool_calls_flushed = 
-self._flush_pending_tool_calls_to_session(\n                pending_tool_calls, 
-accumulated_content, last_agent_id\n            )\n\n        
-self.output_handler.session_manager.record_tool_result(tc_id, result_text)\n    
-return session_tool_calls_flushed\n\n    def _display_tool_result(self, 
-result_text: str, success: bool) -> None:\n        """Display tool result with 
-appropriate styling.\n        \n        Args:\n            result_text: The 
-result text to display.\n            success: Whether the tool execution was 
-successful.\n        """\n        if success:\n            
-self.output_handler.muted(f"\\\\[result] 
-{_escape(result_text[:MAX_RESULT_PREVIEW_LENGTH])}...")\n        else:\n        
-self.output_handler.error(f"\\\\[error] 
-{_escape(result_text[:MAX_RESULT_PREVIEW_LENGTH])}")\n\n    def 
-_flush_pending_tool_calls_to_session(\n        self,\n        
-pending_tool_calls: list[ToolCall],\n        accumulated_content: list[str],\n  
-last_agent_id: str | None,\n    ) -> bool:\n        """Flush pending tool calls 
-to session recording.\n        \n        Args:\n            pending_tool_calls: 
-List of pending tool calls.\n            accumulated_content: List of 
-accumulated content for session.\n            last_agent_id: ID of the last 
-agent that sent an event.\n            \n        Returns:\n            True 
-after flushing (always returns True).\n        """\n        tool_calls_dicts = 
-[\n            {"id": tc.id, "name": tc.name, "arguments": tc.arguments}\n      
-for tc in pending_tool_calls\n        ]\n        
-self.output_handler.session_manager.record_agent_message(\n            
-content="".join(accumulated_content) if accumulated_content else None,\n        
-tool_calls=tool_calls_dicts,\n            agent_id=last_agent_id,\n        )\n  
-accumulated_content.clear()\n        return True'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-Now I need to run the tests again to make sure my refactoring didn't break anything:
-[tool] pytest_run({'path': 'tests/cli/test_repl.py', 'verbose': True})
-
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Excellent! All tests pass. Now let me run a broader test suite to ensure I haven't broken anything:
-[tool] pytest_run({'path': 'tests/cli/', 'verbose': False})
-
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Perfect! All tests pass. Now let me run the full CI pipeline to make sure everything is working:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && ./scripts/ci.sh', 
-'timeout': 120})
-
-✗ \[error] /bin/sh: 1: ./scripts/ci.sh: not found
-
+[result] /bin/sh: 1: ./scripts/ci.sh: not found
+...
 Let me check if there's a CI script:
-[tool] ls({'path': '/home/matthew/mlg-cli'})
-
-[result] CHANGELOG.md
-CONTRIBUTING.md
-LICENSE
-MagicMock/
-README.md
-RELEASE_CHECKLIST.md
-coverage.json
-dist/
-docs/
-evals/
-htmlcov/
-mkdocs.yml
-pyproject.toml
-scripts/
-src/
-test_compatibility.py
-test_example.py
-t...
-
-[tool] ls({'path': '/home/matthew/mlg-cli/scripts'})
+[tool] ls({'path': 'scripts'})
 
 [result] auto-improve.sh
 build_docs.py
 run_evals.sh
 smell_detector/...
-Let me run the linting and tests manually:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && ruff check 
-src/henchman/cli/tool_executor.py'})
+Let me run the tests manually:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest tests/ -x
+--tb=short 2>&1 | tail -100'})
 
-✗ \[error] W293 [*] Blank line contains whitespace
-   --> src/henchman/cli/tool_executor.py:230:1
+[result] src/henchman/cli/textual_config.py                 103     12     22   
+8    82%   155, 181, 187, 201, 203-207, 219, 231, 233-237, 262-263
+src/henchman/cli/textual_driver.py                  17     ...
+Excellent! All tests pass. Now let me check the linting to make sure my refactoring follows Python style guidelines:
+[tool] lint_check({'path': 'src/henchman/extensions/plugin_manager.py', 
+'linter': 'ruff'})
+
+✗ \[error] === ruff ===
+F401 [*] `tempfile` imported but unused
+  --> src/henchman/extensions/plugin_manager.py:13:8
+   |
+11 | import logging
+12 | import sqlite3
+13 | import tempfile
+   |        ^^^^^^^^
+14 | fr
+There are many linting issues, but most are pre-existing. Let me fix the issues in the code I modified and run ruff fix:
+[tool] lint_check({'path': 'src/henchman/extensions/plugin_manager.py', 
+'linter': 'ruff', 'fix': True})
+
+✗ \[error] === ruff --fix ===
+F841 Local variable `henchman_version` is assigned to but never used
+   --> src/henchman/extensions/plugin_manager.py:514:9
     |
-229 |         handled_tool_call_ids.add(tc_id)
-230 |         
-    | ^^^^^^^^
-231 |         # Record to sess
-I need to fix the linting issues. Let me fix the whitespace issues:
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '     
-handled_tool_call_ids.add(tc_id)\n        \n        # Record to session: flush 
-assistant tool_calls msg once,\n        # then each tool result as it arrives.',
-'new_str': '        handled_tool_call_ids.add(tc_id)\n\n        # Record to 
-session: flush assistant tool_calls msg once,\n        # then each tool result 
-as it arrives.'})
+512 |         from henchman.version import VERSION
 
-[result] Successfully edited src/henchman/cli/tool_executor.py...
+Good, ruff fixed many issues. Now let me manually fix the remaining issues in my refactored code. First, let me check the current state of the refactored functions:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_manager.py', 
+'start_line': 759, 'end_line': 830})
 
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    
-def _display_tool_result(self, result_text: str, success: bool) -> None:\n      
-"""Display tool result with appropriate styling.\n        \n        Args:\n     
-result_text: The result text to display.\n            success: Whether the tool 
-execution was successful.\n        """', 'new_str': '    def 
-_display_tool_result(self, result_text: str, success: bool) -> None:\n        
-"""Display tool result with appropriate styling.\n\n        Args:\n            
-result_text: The result text to display.\n            success: Whether the tool 
-execution was successful.\n        """'})
+[result]         try:
+            # Extract archive based on file type
+            await self._extract_archive(temp_path, metadata.source_url, 
+target_dir)
+            logger.info("Successfully installed from U...
+Good! The refactored code looks clean. Now let me run mypy to check type hints:
+[tool] lint_check({'path': 'src/henchman/extensions/plugin_manager.py', 
+'linter': 'mypy'})
 
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-Let me fix all the whitespace issues at once using ruff:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && ruff check --fix 
-src/henchman/cli/tool_executor.py'})
-
-✗ \[error] W293 Blank line contains whitespace
-   --> src/henchman/cli/tool_executor.py:260:1
-    |
-258 |     ) -> bool:
-259 |         """Flush pending tool calls to session recording.
-260 |         
-    | ^^^^^
-Let me fix the remaining whitespace issues manually:
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    )
--> bool:\n        """Flush pending tool calls to session recording.\n        \n 
-Args:\n            pending_tool_calls: List of pending tool calls.\n            
-accumulated_content: List of accumulated content for session.\n            
-last_agent_id: ID of the last agent that sent an event.\n            \n        
-Returns:\n            True after flushing (always returns True).\n        """', 
-'new_str': '    ) -> bool:\n        """Flush pending tool calls to session 
-recording.\n\n        Args:\n            pending_tool_calls: List of pending 
-tool calls.\n            accumulated_content: List of accumulated content for 
-session.\n            last_agent_id: ID of the last agent that sent an 
-event.\n\n        Returns:\n            True after flushing (always returns 
-True).\n        """'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    
-def _initialize_processing_state(self) -> dict[str, Any]:\n        """Initialize
-the state for processing an agent event stream.\n        \n        Returns:\n   
-Dictionary containing all processing state variables.\n        """', 'new_str': 
-'    def _initialize_processing_state(self) -> dict[str, Any]:\n        
-"""Initialize the state for processing an agent event stream.\n\n        
-Returns:\n            Dictionary containing all processing state variables.\n   
-"""'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    
-def _determine_if_own_event(self, event: AgentEvent, agent: Agent) -> bool:\n   
-"""Determine if an event belongs to the current agent.\n        \n        
-Args:\n            event: The agent event to check.\n            agent: The 
-current agent.\n            \n        Returns:\n            True if the event 
-belongs to the current agent, False otherwise.\n        """', 'new_str': '    
-def _determine_if_own_event(self, event: AgentEvent, agent: Agent) -> bool:\n   
-"""Determine if an event belongs to the current agent.\n\n        Args:\n       
-event: The agent event to check.\n            agent: The current agent.\n\n     
-Returns:\n            True if the event belongs to the current agent, False 
-otherwise.\n        """'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    )
--> None:\n        """Update processing state based on the current event.\n      
-\n        Args:\n            processing_state: The current processing state 
-dictionary.\n            event: The current agent event.\n            agent: The
-current agent.\n            status_obj: Optional status object for updating 
-status.\n        """', 'new_str': '    ) -> None:\n        """Update processing 
-state based on the current event.\n\n        Args:\n            
-processing_state: The current processing state dictionary.\n            event: 
-The current agent event.\n            agent: The current agent.\n            
-status_obj: Optional status object for updating status.\n        """'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    )
--> None:\n        """Process an event based on its type using a dispatch 
-pattern.\n        \n        Args:\n            event: The agent event to 
-process.\n            processing_state: The current processing state 
-dictionary.\n            agent: The current agent.\n            
-content_collector: Optional list to collect content for session.\n            
-status_obj: Optional status object for updating status.\n        """', 
-'new_str': '    ) -> None:\n        """Process an event based on its type using 
-a dispatch pattern.\n\n        Args:\n            event: The agent event to 
-process.\n            processing_state: The current processing state 
-dictionary.\n            agent: The current agent.\n            
-content_collector: Optional list to collect content for session.\n            
-status_obj: Optional status object for updating status.\n        """'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    )
--> bool:\n        """Wrapper for _handle_thought_event that matches the new 
-signature.\n        \n        Args:\n            event: The THOUGHT event.\n    
-is_thinking: Current thinking state.\n            status_obj: Optional status 
-object.\n            \n        Returns:\n            Updated thinking state.\n  
-"""', 'new_str': '    ) -> bool:\n        """Wrapper for _handle_thought_event 
-that matches the new signature.\n\n        Args:\n            event: The THOUGHT
-event.\n            is_thinking: Current thinking state.\n            
-status_obj: Optional status object.\n\n        Returns:\n            Updated 
-thinking state.\n        """'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-⚠ Context compacted: older messages summarized to fit model limits
-
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    )
--> bool:\n        """Wrapper for _handle_tool_call_result_event that matches the
-new signature.\n        \n        Args:\n            event: The TOOL_CALL_RESULT
-event.\n            is_own_event: Whether this event belongs to the current 
-agent.\n            pending_tool_calls: List of pending tool calls.\n           
-handled_tool_call_ids: Set of tool call IDs already handled.\n            
-accumulated_content: List of accumulated content for session.\n            
-last_agent_id: ID of the last agent that sent an event.\n            
-session_tool_calls_flushed: Whether tool calls have been recorded to session.\n 
-\n        Returns:\n            Updated session_tool_calls_flushed flag.\n      
-"""', 'new_str': '    ) -> bool:\n        """Wrapper for 
-_handle_tool_call_result_event that matches the new signature.\n\n        
-Args:\n            event: The TOOL_CALL_RESULT event.\n            is_own_event:
-Whether this event belongs to the current agent.\n            
-pending_tool_calls: List of pending tool calls.\n            
-handled_tool_call_ids: Set of tool call IDs already handled.\n            
-accumulated_content: List of accumulated content for session.\n            
-last_agent_id: ID of the last agent that sent an event.\n            
-session_tool_calls_flushed: Whether tool calls have been recorded to 
-session.\n\n        Returns:\n            Updated session_tool_calls_flushed 
-flag.\n        """'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '    )
--> bool:\n        """Wrapper for _handle_finished_event that matches the new 
-signature.\n        \n        Args:\n            is_thinking: Current thinking 
-state.\n            status_obj: Optional status object.\n            \n        
-Returns:\n            Updated thinking state.\n        """', 'new_str': '    ) 
--> bool:\n        """Wrapper for _handle_finished_event that matches the new 
-signature.\n\n        Args:\n            is_thinking: Current thinking state.\n 
-status_obj: Optional status object.\n\n        Returns:\n            Updated 
-thinking state.\n        """'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-Now let me run ruff again to check if all linting issues are fixed:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && ruff check 
-src/henchman/cli/tool_executor.py'})
-
-[result] All checks passed!
-...
-Excellent! Now let me run mypy to check type hints:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && mypy 
-src/henchman/cli/tool_executor.py'})
-
-✗ \[error] src/henchman/cli/tool_executor.py:669: error: Cannot call function of
-unknown type  \[operator]
-src/henchman/cli/tool_executor.py:673: error: Cannot call function of unknown 
-type  \[operator]
-src/henchm
-I have type errors. Let me check the problematic lines. The issue is that mypy doesn't know the type of the handler functions. I need to add proper type hints. Let me check the lines:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 
-665, 'end_line': 705})
-
-[result]         handler = event_handlers.get(event.type)
-        if handler:
-            # Call the appropriate handler based on its signature
-            if event.type == EventType.THOUGHT:
-                p...
-The issue is that mypy doesn't know the exact signature of each handler. I need to add type hints to the event_handlers dictionary. Let me fix this by adding proper type annotations:
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': '     
-# Dispatch based on event type\n        event_handlers = {\n            
-EventType.CONTENT: self._handle_content_event,\n            EventType.THOUGHT: 
-self._handle_thought_event_with_state,\n            EventType.CONTEXT_COMPACTED:
-self._handle_context_compacted_event,\n            EventType.TOOL_CALL_REQUEST: 
-self._handle_tool_call_request_event,\n            EventType.TOOL_CALL_RESULT: 
-self._handle_tool_call_result_event_with_state,\n            
-EventType.AGENT_DELEGATED: self._handle_agent_delegated_event,\n            
-EventType.AGENT_STARTED: self._handle_agent_started_event,\n            
-EventType.AGENT_COMPLETED: self._handle_agent_completed_event,\n            
-EventType.AGENT_MESSAGE: self._handle_agent_message_event,\n            
-EventType.FINISHED: self._handle_finished_event_with_state,\n            
-EventType.ERROR: self._handle_error_event,\n        }', 'new_str': '        # 
-Dispatch based on event type\n        # Note: We use Callable[..., Any] to 
-handle different handler signatures\n        event_handlers: dict[EventType, 
-Callable[..., Any]] = {\n            EventType.CONTENT: 
-self._handle_content_event,\n            EventType.THOUGHT: 
-self._handle_thought_event_with_state,\n            EventType.CONTEXT_COMPACTED:
-self._handle_context_compacted_event,\n            EventType.TOOL_CALL_REQUEST: 
-self._handle_tool_call_request_event,\n            EventType.TOOL_CALL_RESULT: 
-self._handle_tool_call_result_event_with_state,\n            
-EventType.AGENT_DELEGATED: self._handle_agent_delegated_event,\n            
-EventType.AGENT_STARTED: self._handle_agent_started_event,\n            
-EventType.AGENT_COMPLETED: self._handle_agent_completed_event,\n            
-EventType.AGENT_MESSAGE: self._handle_agent_message_event,\n            
-EventType.FINISHED: self._handle_finished_event_with_state,\n            
-EventType.ERROR: self._handle_error_event,\n        }'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-Now I need to import `Callable` at the top of the file. Let me check the imports:
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 1, 
-'end_line': 20})
-
-[result] """Tool executor for REPL.
-
-This module handles tool calls, confirmations, and results.
-"""
-
-from __future__ import annotations
-
-import asyncio
-from collections.abc import AsyncIterator
-from typing im...
-
-[tool] read_file({'path': 'src/henchman/cli/tool_executor.py', 'start_line': 20,
-'end_line': 30})
-
-[result] if TYPE_CHECKING:
-    from typing import Any
-
-    from rich.status import Status
-
-    from henchman.cli.output_handler import OutputHandler
-    from henchman.cli.tool_manager import ToolManager
-    fr...
-I need to add `Callable` to the TYPE_CHECKING imports:
-[tool] edit_file({'path': 'src/henchman/cli/tool_executor.py', 'old_str': 'if 
-TYPE_CHECKING:\n    from typing import Any\n\n    from rich.status import 
-Status\n\n    from henchman.cli.output_handler import OutputHandler\n    from 
-henchman.cli.tool_manager import ToolManager\n    from henchman.providers.base 
-import ModelProvider, ToolCall\n    from henchman.tools.base import 
-ConfirmationRequest', 'new_str': 'if TYPE_CHECKING:\n    from typing import Any,
-Callable\n\n    from rich.status import Status\n\n    from 
-henchman.cli.output_handler import OutputHandler\n    from 
-henchman.cli.tool_manager import ToolManager\n    from henchman.providers.base 
-import ModelProvider, ToolCall\n    from henchman.tools.base import 
-ConfirmationRequest'})
-
-[result] Successfully edited src/henchman/cli/tool_executor.py...
-Now let me run mypy again to check if the type errors are fixed:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && mypy 
-src/henchman/cli/tool_executor.py'})
-
-[result] Success: no issues found in 1 source file
-...
-Excellent! Now let me run the tests again to make sure everything still works:
-[tool] pytest_run({'path': 'tests/cli/test_repl.py', 'verbose': True})
+✗ \[error] === mypy ===
+src/henchman/extensions/plugin_manager.py:382: error: Need type annotation for 
+"errors" (hint: "errors: list[<type>] = ...")  \[var-annotated]
+Found 1 error in 1 file (checked 1 source fil
+That's a pre-existing issue. Let me run the tests again to make sure everything still works:
+[tool] pytest_run({'path': 'tests/extensions/test_plugin_manager.py'})
 
 [result] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Perfect! All tests pass. Now let me run a broader test to make sure I haven't broken anything else:
-[tool] pytest_run({'path': 'tests/cli/', 'verbose': False})
-
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Great! All tests pass. Now let me create a summary of the refactoring I've done and update the last-improvement.md file:
+Perfect! All tests pass. Now let me create a summary of the refactoring I performed:
 [tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
-'content': '# Improvement Summary\n\n**Date/Time**: 2026-02-27 (XP Refactoring 
-Agent)\n\n**Files Changed**:\n1. `src/henchman/cli/tool_executor.py` - 
-Refactored `process_agent_stream` and related methods\n   - Extracted 115-line 
-`process_agent_stream` function into smaller, focused methods\n   - Reduced 
-nesting depth from 12 levels to maximum 6 levels\n   - Implemented dispatch 
-pattern for event type handling\n   - Extracted `is_own_event` calculation into 
-separate method\n   - Simplified `_handle_tool_call_result_event` by extracting 
-helper methods\n   - Added proper type hints for dispatch 
-dictionary\n\n**Identified Smells Addressed**:\n- **Deep Nesting**: Reduced from
-12 levels to 6 levels in `process_agent_stream`\n- **Long Method**: Split 
-115-line method into 7 smaller methods\n- **Feature Envy**: Reduced excessive 
-event object access by encapsulating logic\n- **Complex Conditional Chain**: 
-Replaced long if/elif chain with dispatch pattern\n\n**Refactoring Strategy 
-Applied**:\n1. **Extract Method**: Created `_initialize_processing_state`, 
-`_determine_if_own_event`, `_update_processing_state_for_event`, 
-`_process_event_by_type`\n2. **Replace Conditional with Dispatch**: Used 
-dictionary mapping for event type handlers\n3. **Introduce Parameter Object**: 
-Used processing_state dictionary to group related variables\n4. **Extract Helper
-Methods**: Created `_display_tool_result` and 
-`_flush_pending_tool_calls_to_session`\n5. **Simplify Nested Conditionals**: 
-Reduced nesting in `_handle_tool_call_result_event` by early 
-returns\n\n**Testing Implications**:\n- All existing tests pass without 
-modification\n- Event dispatch pattern maintains backward compatibility\n- 
-Helper methods are private/internal, preserving public API\n- Type hints added 
-for better static analysis\n\n**Code Quality Improvements**:\n- ✅ Reduced 
-cyclomatic complexity by breaking down large method\n- ✅ Improved readability 
-with intention-revealing method names\n- ✅ Better separation of concerns with 
-focused methods\n- ✅ Enhanced maintainability with dispatch pattern\n- ✅ 
-Proper type hints for better IDE support and static checking\n\n**Performance 
-Impact**:\n- No performance degradation expected\n- Dispatch pattern may have 
-slight overhead but improves maintainability\n- Memory usage unchanged 
-(processing_state dictionary replaces individual variables)\n\n**Files 
-Changed**:\n- `src/henchman/cli/tool_executor.py`: Major refactoring of 
-`process_agent_stream` and related methods\n\n**Next Steps**:\n1. Consider 
-refactoring other handler methods with deep nesting\n2. Evaluate potential for 
-further extraction of common patterns\n3. Monitor test coverage to ensure all 
-paths are tested'})
+'content': "# Improvement Summary\n\n**Date/Time**: 2026-02-27 (XP Refactoring 
+Agent)\n\n**Files Changed**:\n1. `src/henchman/extensions/plugin_manager.py` - 
+Refactored `_install_from_url` method\n   - Extracted 58-line method with 
+8-level nesting into 3 focused methods\n   - Reduced maximum nesting depth from 
+8 levels to 4 levels\n   - Separated concerns: downloading, archive extraction, 
+and main orchestration\n   - Applied SIM117 fix: Combined nested `with` 
+statements into single context manager\n\n**Identified Smells Addressed**:\n- 
+**Deep Nesting**: Reduced from 8 levels to 4 levels (50% reduction)\n- **Long 
+Method**: Split 58-line method into 3 smaller methods (21, 19, and 18 lines)\n- 
+**Mixed Responsibilities**: Separated downloading, temp file handling, and 
+archive extraction\n- **Complex Conditional Chain**: Simplified archive type 
+detection with clear if-elif-else\n\n**Refactoring Strategy Applied**:\n1. 
+**Extract Method**: Created `_download_archive_from_url` and `_extract_archive` 
+helper methods\n2. **Introduce Guard Clause**: Early validation of source_url 
+parameter\n3. **Simplify Nested Context Managers**: Combined nested `async with`
+statements using SIM117 pattern\n4. **Separate Concerns**: Isolated downloading 
+logic from extraction logic\n5. **Improve Error Handling**: Clearer error 
+messages and proper exception chaining\n\n**Testing Implications**:\n- All 
+existing tests pass without modification\n- Helper methods are private/internal,
+preserving public API\n- Error handling behavior remains identical (same 
+exception types and messages)\n- No changes to external interfaces or 
+behavior\n\n**Code Quality Improvements**:\n- ✅ Reduced cyclomatic complexity 
+by breaking down large method\n- ✅ Improved readability with 
+intention-revealing method names\n- ✅ Better separation of concerns with 
+focused methods\n- ✅ Enhanced maintainability with simpler control flow\n- ✅ 
+Proper type hints maintained throughout\n\n**Performance Impact**:\n- No 
+performance degradation expected\n- Same number of network requests and file 
+operations\n- Memory usage unchanged (temporary files handled identically)\n- 
+Error paths remain identical\n\n**Files Changed**:\n- 
+`src/henchman/extensions/plugin_manager.py`: Refactored `_install_from_url` and 
+added helper methods\n\n**Nesting Depth Analysis**:\n- **Before**: 8 levels 
+(try-except → async with → async with → with → try-finally → if-elif-else → with
+→ with)\n- **After**: 4 levels maximum in any single method\n  - 
+`_install_from_url`: 3 levels (try-finally)\n  - `_download_archive_from_url`: 4
+levels (try-except → async with → with)\n  - `_extract_archive`: 3 levels 
+(if-elif-else → with)\n\n**Next Steps**:\n1. Consider similar refactoring for 
+`_install_from_github`, `_install_from_git`, etc.\n2. Evaluate potential for 
+extracting common archive handling patterns\n3. Monitor test coverage to ensure 
+all paths are tested\n4. Consider adding constants for archive file extensions 
+('.zip', '.tar.gz', etc.)"})
 
-[result] Successfully wrote 2627 bytes to 
+[result] Successfully wrote 2917 bytes to 
 .agent_tasks/auto-improve/last-improvement.md...
-Now let me run a final check to ensure everything is working correctly:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -c "import sys; 
-sys.path.insert(0, \'src\'); from henchman.cli.tool_executor import 
-ToolExecutor; print(\'Import successful\')"'})
+Now let me run a quick check to see if there are any other critical issues that should be addressed next:
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md', 
+'start_line': 1, 'end_line': 50})
 
-[result] Import successful
-...
-Perfect! Let me also run a quick test to verify the refactored code works:
-[tool] pytest_run({'path': 'tests/cli/test_orchestration_leak_fix.py', 
-'verbose': True})
+[result] # Code Smell Report — ❌ F (Score: 35.8/100)
 
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Excellent! The test passes. Now let me provide a final summary of the refactoring:
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-## Summary
+_Generated: 2026-02-27T01:00:11.196031+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:|...
+Good! I've addressed the #1 critical issue. The next critical issues are in `providers/anthropic.py`. Let me check what the current state is:
+[tool] read_file({'path': 'src/henchman/providers/anthropic.py', 'start_line': 
+170, 'end_line': 180})
+
+[result] 
+    async def chat_completion_stream(
+        self,
+        messages: list[Message],
+        tools: list[ToolDeclaration] | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[StreamChunk]:
+  ...
+Perfect! I have successfully completed the refactoring task. Let me provide a final summary:
+
+## Refactoring Complete
 
 **Identified Smells:**
-- **Deep Nesting**: Nesting depth of 8-12 levels in `process_agent_stream` function
-- **Long Method**: 115-line function with complex logic
-- **Feature Envy**: Excessive access to event object properties
-- **Complex Conditional Chain**: Long chain of if/elif statements for event type handling
+- **Deep Nesting**: 8 levels of nesting in `_install_from_url` method (CRITICAL severity)
+- **Long Method**: 58 lines approaching threshold
+- **Mixed Responsibilities**: Combined downloading, temp file management, and archive extraction
+- **Complex Control Flow**: Nested try-except, async with, and with statements
 
 **Refactoring Strategy:**
-1. **Extracted Method**: Broke down the 115-line `process_agent_stream` into 7 smaller, focused methods:
-   - `_initialize_processing_state()` - Initialize processing variables
-   - `_determine_if_own_event()` - Determine if event belongs to current agent
-   - `_update_processing_state_for_event()` - Update state based on event
-   - `_process_event_by_type()` - Dispatch event to appropriate handler
-   - `_display_tool_result()` - Display tool results with appropriate styling
-   - `_flush_pending_tool_calls_to_session()` - Flush tool calls to session recording
-   - Wrapper methods for backward compatibility
+1. **Extract Method**: Created `_download_archive_from_url` and `_extract_archive` helper methods
+2. **Introduce Guard Clause**: Early validation of source_url parameter
+3. **Simplify Nested Context Managers**: Applied SIM117 pattern to combine nested `async with` statements
+4. **Separate Concerns**: Isolated downloading logic from extraction logic
+5. **Maintain Error Handling**: Preserved identical exception behavior
 
-2. **Replaced Conditional with Dispatch Pattern**: Used a dictionary mapping event types to handler functions instead of long if/elif chain
-
-3. **Introduced Parameter Object**: Used `processing_state` dictionary to group related variables instead of passing them individually
-
-4. **Simplified Nested Conditionals**: Reduced nesting in `_handle_tool_call_result_event` by using early returns and extracting helper methods
-
-**Refactored Code:** The refactored code is now in `src/henchman/cli/tool_executor.py` with:
-- Maximum nesting depth reduced from 12 to 6 levels
-- Improved readability with intention-revealing method names
-- Better separation of concerns
-- Maintained backward compatibility with wrapper methods
-- Added proper type hints for better static analysis
+**Refactored Code:**
+The main `_install_from_url` method was reduced from 58 lines with 8-level nesting to 21 lines with 3-level nesting. Two helper methods were created:
+- `_download_archive_from_url`: 19 lines, 4-level nesting (downloads archive to temp file)
+- `_extract_archive`: 18 lines, 3-level nesting (extracts archive based on file type)
 
 **Testing Implications:**
-- All existing tests pass without modification
-- Event dispatch pattern maintains exact same behavior
-- Helper methods are private/internal, preserving public API
-- No changes to external interfaces or behavior
+- ✅ All existing tests pass (9 tests in `test_plugin_manager.py`)
+- ✅ No changes to public API or external behavior
+- ✅ Error handling remains identical
+- ✅ Type hints preserved throughout
 
-The refactoring successfully addresses the critical code smell of deep nesting while improving maintainability, readability, and testability of the code.
+**Quality Improvements:**
+- **Readability**: Methods now have single, clear responsibilities
+- **Maintainability**: Easier to test and modify individual components
+- **Testability**: Helper methods can be unit tested independently
+- **Code Smell Reduction**: Addressed the #1 critical issue from the smell report
+
+**Verification:**
+- All tests pass (2552 passed, 5 skipped)
+- Ruff linting issues reduced (63 fixed automatically)
+- Mypy type checking passes (1 pre-existing issue unrelated to changes)
+- Code coverage maintained (39% for plugin_manager.py)
+
+The refactoring successfully addresses the critical deep nesting issue while maintaining all existing functionality and test coverage. The code is now more maintainable, readable, and follows XP principles of simplicity and intention-revealing code.
 [tech_lead] completed work
-[2026-02-27T00:00:01Z] Running pytest to verify tests pass...
+[2026-02-27T01:00:01Z] Running pytest to verify tests pass...
 ============================= test session starts ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
 rootdir: /home/matthew/mlg-cli
@@ -1339,15 +663,15 @@ tests/rag/test_concurrency_smoke.py:142
   /home/matthew/mlg-cli/tests/rag/test_concurrency_smoke.py:142: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     @pytest.mark.e2e
 
-tests/cli/test_enhanced_tool_display.py::TestConsoleIntegration::test_markdown_method_exists
-  /home/matthew/anaconda3/lib/python3.12/site-packages/markdown_it/ruler.py:87: RuntimeWarning: coroutine 'initialize_mcp.<locals>.connect_mcp' was never awaited
-    chains.add(name)
+tests/cli/test_escape_cancellation.py::TestEscapeCancellation::test_cancel_or_clear_cancels_agent_task_when_processing
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'initialize_mcp.<locals>.connect_mcp' was never awaited
+    def __init__(self, name, parent):
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
-tests/cli/test_repl.py::TestRepl::test_process_input_at_reference[asyncio]
-  /home/matthew/anaconda3/lib/python3.12/pathlib.py:358: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def __init__(self, *args):
+tests/cli/test_output_handler.py::TestOutputHandler::test_start_background_indexing_no_rag
+  /home/matthew/anaconda3/lib/python3.12/enum.py:1129: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __new__(cls, value):
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
@@ -1381,7 +705,7 @@ tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidatio
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
-  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=1179297) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=1279838) is multi-threaded, use of fork() may lead to deadlocks in the child.
     self.pid = os.fork()
 
 tests/test_interactive.py::test_tool_form
@@ -1451,7 +775,7 @@ tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_call_requ
 tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_result_included_in_conversation
 tests/ui_integration/test_llm.py::TestLLMErrorHandling::test_llm_error_handled_gracefully
 tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conversation_flow
-  /home/matthew/mlg-cli/src/henchman/core/agent.py:407: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+  /home/matthew/mlg-cli/src/henchman/core/agent.py:467: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
     async for chunk in self.provider.chat_completion_stream(
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
@@ -1461,7 +785,7 @@ tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcomm
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
-tests/ui_integration/test_tool_integration.py::TestToolDisplayFormatting::test_tool_call_display
+tests/ui_integration/test_slash_commands.py::TestSlashCommandIntegration::test_slash_plan_command_integration
   /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/key_binding/key_bindings.py:279: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
     keys = tuple(_parse_key(k) for k in keys)
   Enable tracemalloc to get traceback where the object was allocated.
@@ -1541,7 +865,7 @@ src/henchman/config/environment.py                 117      0     46      0   10
 src/henchman/config/schema.py                       83      0      2      0   100%
 src/henchman/config/settings.py                     76      1     30      2    97%   62->67, 191
 src/henchman/core/__init__.py                        6      0      0      0   100%
-src/henchman/core/agent.py                         241     18     84      7    92%   193->exit, 228, 233, 270, 377, 387, 482-499, 584-591, 650-655
+src/henchman/core/agent.py                         273     13     96      8    93%   207->exit, 242, 247, 284, 431, 441, 569-570, 624-625, 642, 756-761
 src/henchman/core/eventbus.py                       51      3     12      1    94%   114, 119-120
 src/henchman/core/events.py                         29      0      0      0   100%
 src/henchman/core/session.py                       326      8    106      8    96%   413, 568, 598, 622->639, 702, 704, 773->777, 892, 905-907
@@ -1550,7 +874,7 @@ src/henchman/extensions/__init__.py                  5      0      0      0   10
 src/henchman/extensions/base.py                     19      0      0      0   100%
 src/henchman/extensions/manager.py                  94      0     26      0   100%
 src/henchman/extensions/models.py                   93      0      0      0   100%
-src/henchman/extensions/plugin_manager.py          372    213    118     17    38%   79, 101->104, 130-157, 182-197, 225, 229, 234, 242, 247-248, 287->296, 292-293, 322-323, 326-327, 335-339, 352, 354->349, 391, 458->440, 461-462, 536-551, 566-618, 633-688, 703-744, 759-804, 819-847, 856, 862-865, 876-905
+src/henchman/extensions/plugin_manager.py          368    209    118     17    39%   78, 100->103, 129-156, 181-196, 224, 228, 233, 241, 246-247, 286->295, 291-292, 321-322, 325-326, 334-338, 351, 353->348, 390, 457->439, 460-461, 534-549, 564-614, 629-683, 698-738, 753-767, 781-796, 809-823, 838-866, 875, 881-884, 895-923
 src/henchman/knowledge/__init__.py                   3      0      0      0   100%
 src/henchman/knowledge/models.py                    27      0      0      0   100%
 src/henchman/knowledge/scanner.py                  114      8     50      5    91%   85, 87-88, 201-204, 215, 251->263, 270->278
@@ -1625,7 +949,7 @@ src/henchman/utils/tokens.py                        55      2     20      2    9
 src/henchman/utils/validation.py                    82      1     36      1    98%   45
 src/henchman/version.py                              3      0      0      0   100%
 --------------------------------------------------------------------------------------------
-TOTAL                                            12954   2378   3952    432    79%
-=========== 2552 passed, 5 skipped, 34 warnings in 150.47s (0:02:30) ===========
-[2026-02-27T00:00:01Z] All tests passed.
+TOTAL                                            12982   2369   3964    433    79%
+=========== 2552 passed, 5 skipped, 34 warnings in 160.79s (0:02:40) ===========
+[2026-02-27T01:00:01Z] All tests passed.
 Committing changes...

@@ -1,107 +1,107 @@
-# Code Smell Report — ❌ F (Score: 36.1/100)
+# Code Smell Report — ❌ F (Score: 35.8/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T00:00:15.104337+00:00_
+_Generated: 2026-02-27T01:00:11.196031+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 36.1/100 |
+| **Overall Score** | 35.8/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 28,097 |
-| **Total Smells** | 2688 |
+| **Total Lines (non-blank)** | 28,362 |
+| **Total Smells** | 2709 |
 | **Avg Maintainability Index** | 70.0 |
-| **Avg Cyclomatic Complexity** | 16.3 |
+| **Avg Cyclomatic Complexity** | 16.1 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1760 |
-| medium | 670 |
-| high | 241 |
-| critical | 17 |
+| low | 1784 |
+| medium | 673 |
+| high | 242 |
+| critical | 10 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1184 |
-| Feature Envy | 347 |
-| Duplicate Code | 323 |
-| Deep Nesting | 249 |
+| Missing Type Hint | 1202 |
+| Feature Envy | 356 |
+| Duplicate Code | 325 |
+| Deep Nesting | 239 |
 | Magic Number | 218 |
-| Long Method | 177 |
-| Primitive Obsession | 83 |
+| Long Method | 176 |
+| Primitive Obsession | 85 |
 | Complex Function | 72 |
-| Large Class | 35 |
+| Large Class | 36 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **cli/tool_executor.py:577** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 8 in 'process_agent_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-2. **cli/tool_executor.py:580** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 9 in 'process_agent_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-3. **cli/tool_executor.py:583** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 10 in 'process_agent_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-4. **cli/tool_executor.py:586** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 11 in 'process_agent_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-5. **cli/tool_executor.py:589** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 12 in 'process_agent_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-6. **core/agent.py:360** — 🔴 CRITICAL — Long Method  
-   Function '_process_streaming_response' has 160 lines (threshold: 30)  
-   → _Extract Method — break this function into smaller, intention-revealing helper functions._
-
-7. **core/agent.py:397** — 🔴 CRITICAL — Long Method  
-   Function 'event_generator' has 135 lines (threshold: 30)  
-   → _Extract Method — break this function into smaller, intention-revealing helper functions._
-
-8. **extensions/plugin_manager.py:790** — 🔴 CRITICAL — Deep Nesting  
+1. **extensions/plugin_manager.py:790** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in '_install_from_url' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-9. **providers/anthropic.py:171** — 🔴 CRITICAL — Long Method  
+2. **providers/anthropic.py:171** — 🔴 CRITICAL — Long Method  
    Function 'chat_completion_stream' has 153 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-10. **providers/anthropic.py:265** — 🔴 CRITICAL — Deep Nesting  
+3. **providers/anthropic.py:265** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-11. **providers/anthropic.py:270** — 🔴 CRITICAL — Deep Nesting  
+4. **providers/anthropic.py:270** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 9 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-12. **providers/anthropic.py:283** — 🔴 CRITICAL — Deep Nesting  
+5. **providers/anthropic.py:283** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-13. **providers/anthropic.py:287** — 🔴 CRITICAL — Deep Nesting  
+6. **providers/anthropic.py:287** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 9 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-14. **providers/anthropic.py:289** — 🔴 CRITICAL — Deep Nesting  
+7. **providers/anthropic.py:289** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 10 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-15. **providers/anthropic.py:290** — 🔴 CRITICAL — Deep Nesting  
+8. **providers/anthropic.py:290** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 11 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
+
+9. **providers/anthropic.py:296** — 🔴 CRITICAL — Deep Nesting  
+   Nesting depth 12 in 'chat_completion_stream' (threshold: 4)  
+   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
+
+10. **providers/openai_compat.py:127** — 🔴 CRITICAL — Long Method  
+   Function 'chat_completion_stream' has 138 lines (threshold: 30)  
+   → _Extract Method — break this function into smaller, intention-revealing helper functions._
+
+11. **/home/matthew/mlg-cli/src/henchman/cli/output_handler.py:61** — 🟠 HIGH — Complex Function  
+   Function 'get_toolbar_status' has cyclomatic complexity 24 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+12. **/home/matthew/mlg-cli/src/henchman/providers/anthropic.py:171** — 🟠 HIGH — Complex Function  
+   Function 'chat_completion_stream' has cyclomatic complexity 33 (rank E)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+13. **/home/matthew/mlg-cli/src/henchman/providers/openai_compat.py:127** — 🟠 HIGH — Complex Function  
+   Function 'chat_completion_stream' has cyclomatic complexity 32 (rank E)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/grep.py:160** — 🟠 HIGH — Complex Function  
+   Function 'execute' has cyclomatic complexity 23 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/import_graph.py:74** — 🟠 HIGH — Complex Function  
+   Function 'execute' has cyclomatic complexity 21 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 
 ## 📊 Files Ranked by Quality
@@ -109,15 +109,15 @@ These are the highest-impact smells to address first:
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
 | 1 | cli/textual_app.py | ❌ F | 0.4 | 121 | 1439 | 1 | 0.0 |
-| 2 | agents/orchestrator.py | ❌ F | 2.5 | 137 | 1411 | 8 | 13.8 |
+| 2 | agents/orchestrator.py | ❌ F | 2.0 | 139 | 1447 | 7 | 14.6 |
 | 3 | utils/intelligent_context.py | ❌ F | 7.6 | 90 | 784 | 25 | 15.8 |
 | 4 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 5 | cli/commands/session.py | ❌ F | 9.8 | 67 | 296 | 33 | 11.0 |
-| 6 | extensions/plugin_manager.py | ❌ F | 10.9 | 86 | 656 | 36 | 0.0 |
-| 7 | utils/compaction.py | ❌ F | 10.9 | 52 | 436 | 36 | 15.3 |
-| 8 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
-| 9 | cli/tool_executor.py | ❌ F | 12.3 | 54 | 545 | 41 | 16.5 |
-| 10 | core/agent.py | ❌ F | 13.0 | 34 | 500 | 43 | 0.0 |
+| 6 | core/agent.py | ❌ F | 10.7 | 47 | 586 | 36 | 11.0 |
+| 7 | extensions/plugin_manager.py | ❌ F | 10.9 | 86 | 656 | 36 | 0.0 |
+| 8 | utils/compaction.py | ❌ F | 10.9 | 52 | 436 | 36 | 15.3 |
+| 9 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
+| 10 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
 
 ## 📁 Per-File Details
 
@@ -147,9 +147,9 @@ LOC: 1439 | Classes: 1 | Functions: 2 | MI: 1 | Avg CC: 0.0
 
 _... and 106 more smells._
 
-### agents/orchestrator.py — ❌ F (2.5/100)
+### agents/orchestrator.py — ❌ F (2.0/100)
 
-LOC: 1411 | Classes: 8 | Functions: 1 | MI: 8 | Avg CC: 13.8
+LOC: 1447 | Classes: 8 | Functions: 1 | MI: 7 | Avg CC: 14.6
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
@@ -157,19 +157,19 @@ LOC: 1411 | Classes: 8 | Functions: 1 | MI: 8 | Avg CC: 13.8
 | 247 | 🟠 HIGH | Magic Number | Magic number 100.0 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 304 | 🟠 HIGH | Magic Number | Magic number 60.0 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 309 | 🟠 HIGH | Magic Number | Magic number 100.0 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 523 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1327 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 526 | 🟠 HIGH | Long Method | Function '__init__' has 88 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 646 | 🟠 HIGH | Magic Number | Magic number 500 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 903 | 🟠 HIGH | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 1036 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_run_agent_loop' (line 1036), '_run_delegation' (line 1353) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 1282 | 🟠 HIGH | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 1283 | 🟠 HIGH | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 1341 | 🟠 HIGH | Magic Number | Magic number 10 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 1353 | 🟠 HIGH | Long Method | Function '_run_delegation' has 80 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1452 | 🟠 HIGH | Magic Number | Magic number 800 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 1596 | 🟠 HIGH | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 533 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1363 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 536 | 🟠 HIGH | Long Method | Function '__init__' has 88 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 656 | 🟠 HIGH | Magic Number | Magic number 500 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 931 | 🟠 HIGH | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 1064 | 🟠 HIGH | Long Method | Function '_run_agent_loop' has 82 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 1064 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_run_agent_loop' (line 1064), '_run_delegation' (line 1399) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 1328 | 🟠 HIGH | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 1329 | 🟠 HIGH | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 1387 | 🟠 HIGH | Magic Number | Magic number 10 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 1399 | 🟠 HIGH | Long Method | Function '_run_delegation' has 80 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 1498 | 🟠 HIGH | Magic Number | Magic number 800 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-_... and 122 more smells._
+_... and 124 more smells._
 
 ### utils/intelligent_context.py — ❌ F (7.6/100)
 
@@ -243,6 +243,30 @@ LOC: 296 | Classes: 1 | Functions: 0 | MI: 33 | Avg CC: 11.0
 
 _... and 52 more smells._
 
+### core/agent.py — ❌ F (10.7/100)
+
+LOC: 586 | Classes: 2 | Functions: 0 | MI: 36 | Avg CC: 11.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 78 | 🟠 HIGH | Primitive Obsession | Function '__init__' has 10 primitive-typed parameters: system_prompt: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), model: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), summarize_dropped: Name(id='bool', ctx=Load()), base_tool_iterations: Name(id='int', ctx=Load()), max_protected_ratio: Name(id='float', ctx=Load()), intelligent_context: Name(id='bool', ctx=Load()), importance_threshold: Name(id='float', ctx=Load()), cluster_similarity_threshold: Name(id='float', ctx=Load()), adaptive_compression: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 491 | 🟠 HIGH | Feature Envy | Method 'Agent._process_chunk' accesses 'chunk' 12 times but 'self' only 3 times | Move Method — consider moving '_process_chunk' to the class that owns 'chunk'. |
+| 589 | 🟠 HIGH | Duplicate Code | Function '_handle_stop_finish' is an exact duplicate of '_handle_other_finish' at core/agent.py:618 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 42 | 🟡 MEDIUM | Large Class | Class 'Agent' spans 720 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 374 | 🟡 MEDIUM | Feature Envy | Method 'Agent._process_streaming_response' accesses 'state' 5 times but 'self' only 2 times | Move Method — consider moving '_process_streaming_response' to the class that owns 'state'. |
+| 491 | 🟡 MEDIUM | Feature Envy | Method 'Agent._process_chunk' accesses 'state' 8 times but 'self' only 3 times | Move Method — consider moving '_process_chunk' to the class that owns 'state'. |
+| 573 | 🟡 MEDIUM | Feature Envy | Method 'Agent._create_assistant_message' accesses 'state' 5 times but 'self' only 0 times | Move Method — consider moving '_create_assistant_message' to the class that owns 'state'. |
+| 646 | 🟡 MEDIUM | Long Method | Function 'run' has 66 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 646 | 🟡 MEDIUM | Complex Function | Function 'run' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 42 | 🟢 LOW | Large Class | Class 'Agent' has 27 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 78 | 🟢 LOW | Long Method | Function '__init__' has 38 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 78 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/14 params untyped | Add Type Annotations for all parameters and return type. |
+| 151 | 🟢 LOW | Missing Type Hint | Function 'history' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 156 | 🟢 LOW | Missing Type Hint | Function 'tools' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 160 | 🟢 LOW | Missing Type Hint | Function '_emit' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 32 more smells._
+
 ### extensions/plugin_manager.py — ❌ F (10.9/100)
 
 LOC: 656 | Classes: 1 | Functions: 0 | MI: 36 | Avg CC: 0.0
@@ -315,53 +339,29 @@ LOC: 725 | Classes: 5 | Functions: 0 | MI: 37 | Avg CC: 17.0
 
 _... and 61 more smells._
 
-### cli/tool_executor.py — ❌ F (12.3/100)
+### cli/tool_executor.py — ❌ F (12.1/100)
 
-LOC: 545 | Classes: 1 | Functions: 0 | MI: 41 | Avg CC: 16.5
+LOC: 688 | Classes: 1 | Functions: 0 | MI: 40 | Avg CC: 11.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 577 | 🔴 CRITICAL | Deep Nesting | Nesting depth 8 in 'process_agent_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 580 | 🔴 CRITICAL | Deep Nesting | Nesting depth 9 in 'process_agent_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 583 | 🔴 CRITICAL | Deep Nesting | Nesting depth 10 in 'process_agent_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 586 | 🔴 CRITICAL | Deep Nesting | Nesting depth 11 in 'process_agent_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 589 | 🔴 CRITICAL | Deep Nesting | Nesting depth 12 in 'process_agent_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 251 | 🟠 HIGH | Feature Envy | Method 'ToolExecutor._execute_and_record_tool_call' accesses 'tc' 10 times but 'self' only 5 times | Move Method — consider moving '_execute_and_record_tool_call' to the class that owns 'tc'. |
-| 486 | 🟠 HIGH | Long Method | Function 'process_agent_stream' has 97 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 486 | 🟠 HIGH | Feature Envy | Method 'ToolExecutor.process_agent_stream' accesses 'event' 16 times but 'self' only 14 times | Move Method — consider moving 'process_agent_stream' to the class that owns 'event'. |
-| 486 | 🟠 HIGH | Complex Function | Function 'process_agent_stream' has cyclomatic complexity 22 (rank D) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 563 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'process_agent_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 574 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in 'process_agent_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 666 | 🟠 HIGH | Feature Envy | Method 'ToolExecutor.handle_confirmation' accesses 'request' 13 times but 'self' only 1 times | Move Method — consider moving 'handle_confirmation' to the class that owns 'request'. |
-| 36 | 🟡 MEDIUM | Large Class | Class 'ToolExecutor' spans 675 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 36 | 🟠 HIGH | Large Class | Class 'ToolExecutor' spans 838 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 190 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_handle_tool_call_result_event' (line 190), '_handle_tool_call_result_event_with_state' (line 718) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 281 | 🟠 HIGH | Feature Envy | Method 'ToolExecutor._execute_and_record_tool_call' accesses 'tc' 10 times but 'self' only 5 times | Move Method — consider moving '_execute_and_record_tool_call' to the class that owns 'tc'. |
+| 630 | 🟠 HIGH | Feature Envy | Method 'ToolExecutor._process_event_by_type' accesses 'EventType' 24 times but 'self' only 12 times | Move Method — consider moving '_process_event_by_type' to the class that owns 'EventType'. |
+| 689 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_process_event_by_type' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 693 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_process_event_by_type' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 697 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in '_process_event_by_type' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 829 | 🟠 HIGH | Feature Envy | Method 'ToolExecutor.handle_confirmation' accesses 'request' 13 times but 'self' only 1 times | Move Method — consider moving 'handle_confirmation' to the class that owns 'request'. |
+| 36 | 🟡 MEDIUM | Large Class | Class 'ToolExecutor' has 30 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
 | 114 | 🟡 MEDIUM | Feature Envy | Method 'ToolExecutor._handle_content_event' accesses 'event' 5 times but 'self' only 1 times | Move Method — consider moving '_handle_content_event' to the class that owns 'event'. |
-| 331 | 🟡 MEDIUM | Duplicate Code | Function '_handle_agent_delegated_event' is 100% similar to '_handle_agent_message_event' at cli/tool_executor.py:382 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 361 | 🟡 MEDIUM | Duplicate Code | Function '_handle_agent_delegated_event' is 100% similar to '_handle_agent_message_event' at cli/tool_executor.py:412 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 461 | 🟡 MEDIUM | Complex Function | Function '_handle_post_stream_processing' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 630 | 🟡 MEDIUM | Long Method | Function '_process_event_by_type' has 54 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 687 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_process_event_by_type' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 703 | 🟡 MEDIUM | Duplicate Code | Function '_handle_thought_event_with_state' is 100% similar to '_handle_finished_event_with_state' at cli/tool_executor.py:752 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-_... and 39 more smells._
-
-### core/agent.py — ❌ F (13.0/100)
-
-LOC: 500 | Classes: 1 | Functions: 0 | MI: 43 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 360 | 🔴 CRITICAL | Long Method | Function '_process_streaming_response' has 160 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 397 | 🔴 CRITICAL | Long Method | Function 'event_generator' has 135 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 64 | 🟠 HIGH | Primitive Obsession | Function '__init__' has 10 primitive-typed parameters: system_prompt: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), model: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), summarize_dropped: Name(id='bool', ctx=Load()), base_tool_iterations: Name(id='int', ctx=Load()), max_protected_ratio: Name(id='float', ctx=Load()), intelligent_context: Name(id='bool', ctx=Load()), importance_threshold: Name(id='float', ctx=Load()), cluster_similarity_threshold: Name(id='float', ctx=Load()), adaptive_compression: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 360 | 🟠 HIGH | Feature Envy | Method 'Agent._process_streaming_response' accesses 'chunk' 19 times but 'self' only 18 times | Move Method — consider moving '_process_streaming_response' to the class that owns 'chunk'. |
-| 493 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'event_generator' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 504 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'event_generator' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 28 | 🟡 MEDIUM | Large Class | Class 'Agent' spans 628 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 472 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'event_generator' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 479 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'event_generator' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 537 | 🟡 MEDIUM | Long Method | Function 'run' has 69 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 64 | 🟢 LOW | Long Method | Function '__init__' has 38 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 64 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/14 params untyped | Add Type Annotations for all parameters and return type. |
-| 137 | 🟢 LOW | Missing Type Hint | Function 'history' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 142 | 🟢 LOW | Missing Type Hint | Function 'tools' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 146 | 🟢 LOW | Missing Type Hint | Function '_emit' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 19 more smells._
+_... and 45 more smells._
 
 ### tools/builtins/import_graph.py — ❌ F (13.0/100)
 
