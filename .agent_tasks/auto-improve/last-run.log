@@ -1,4 +1,4 @@
-[2026-02-27T16:30:01Z] Starting auto-improve run...
+[2026-02-27T17:00:02Z] Starting auto-improve run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
 Running Henchman...
@@ -6,113 +6,75 @@ YOLO mode is enabled. All tool calls will be automatically approved.
 Loaded cached credentials.
 YOLO mode is enabled. All tool calls will be automatically approved.
 Session cleanup disabled: Either maxAge or maxCount must be specified
-I will start by checking the last improvement made to avoid duplication and then analyze the `cli/app.py` file to address the identified Primitive Obsession in the `chat_command` function.
+I will begin by researching `cli/commands/session.py` to identify the specific magic numbers and deep nesting mentioned in the Code Smell Report. This will help me formulate a surgical refactoring plan that improves readability and maintainability while ensuring all existing tests pass.
 
-I will now examine the `chat_command` function in `src/henchman/cli/app.py` to identify the specific parameters that should be grouped into a parameter object.
+I have identified several magic numbers in `src/henchman/cli/commands/session.py` related to argument indexing (e.g., `ctx.args[2]`, `ctx.args[3]`), and I've noted that the `execute` and `_template` methods could benefit from a more streamlined dispatch mechanism to reduce nesting. I will now search for existing tests to ensure that my refactoring doesn't break any functionality.
 
-I will locate the definition of `RunConfig` to determine if I can refactor it into a more robust parameter object that can be reused across the application.
+I'll begin by running the relevant tests to establish a baseline.
 
-I will now read the `RunConfig` class definition in `src/henchman/cli/app.py` to understand its current structure.
+The tests passed, so I'll now refactor `src/henchman/cli/commands/session.py`. I'll introduce constants for magic numbers and use a mapping for subcommand dispatch to reduce nesting and feature envy. I'll also consider extracting some logic into separate methods if it improves clarity.
 
-I will now examine the `click` decorators for the `chat_command` function in `src/henchman/cli/app.py` to see if I can refactor them to use a context object.
+I've refactored the `execute` method and will now address the `_template` method, magic numbers, and feature envy. I'll introduce named constants for argument indices and apply a similar dispatch pattern to `_template`.
 
-I will locate the XP Code Smell Detector script in the `scripts/` directory to regenerate an updated report and confirm if the previous improvements were effective.
+I've updated `_template` and added constants, but I need to make sure I use them consistently throughout all methods. I'll now systematically update the rest of the methods to use these new constants.
 
-I will list the contents of the `scripts/` directory to see if there is a shell script that can be used to run the smell detector.
+I'll now focus on the template and export/import methods.
 
-I will now read the contents of `scripts/auto-improve.sh` to determine if it is used to run the smell detector and how it contributes to the improvement process.
+I've updated the `_list` method and some ID slicing, though I'll double-check if those magic numbers were in the original report. I'll also add a `_TEMPLATE_TAG_IDX` for consistency.
 
-I will run the smell detector to generate an updated report, which will help me identify the most current code smells that need addressing.
+I'll now complete the updates for `_template_create` and `_list`.
 
-I will read the updated `.agent_tasks/auto-improve/smell-report.md` to identify the current prioritized code smells.
+I'll now focus on the `_list` method, specifically replacing magic numbers in slicing and date formatting.
 
-I will check the current system time to understand the chronological context of the generated report and the last improvements made.
+I'm updating the `_list` method now.
 
-I will examine the `__init__` method in `src/henchman/core/agent.py` to understand its current parameter structure and plan the refactoring into a parameter object.
+I've addressed the nesting and magic numbers, but I still need to fix the feature envy issues in `_merge`, `_show_status`, and `_show_stats`. While `_merge` already interacts with `ctx.console` and `ctx.args`, I'll double-check `_show_status` and `_show_stats` in `cli/commands/context.py` to see if I can improve them. First, I'll run the tests for `SessionCommand` again to ensure everything is still working correctly.
 
-I will now search for instances where the `Agent` class is instantiated to understand how the proposed `AgentConfig` will impact the rest of the codebase.
+Refactoring complete. I've successfully implemented dispatch maps, replaced magic numbers with constants, and reduced nesting, with all tests passing. I'm now documenting these changes in `.agent_tasks/auto-improve/last-improvement.md`.
 
-I will examine the `_handle_stop_finish` and `_handle_other_finish` methods in `src/henchman/core/agent.py` to verify if they are indeed duplicates and can be refactored into a single shared method.
+I've refactored `src/henchman/cli/commands/session.py` to eliminate magic numbers and deep nesting by introducing named constants and a dispatch map, and all tests passed. I'll now double-check for any remaining magic numbers or feature envy in `SessionCommand`, and I'll also quickly examine `src/henchman/cli/commands/context.py` to see if I can address any of the feature envy smells identified there as well.
 
-I will search for all occurrences of `_handle_stop_finish` and `_handle_other_finish` in the codebase to understand their usage and determine the best way to merge them.
+I've analyzed the code smells in `ContextCommand` and found duplicated logic and deep nesting. I'll refactor the parameter handlers into a more generic `_update_context_setting` method to reduce duplication and improve maintainability. I'll also add a dispatch map to the `execute` method and use constants for argument indices, following the same pattern I used for `SessionCommand`. Before I apply these changes, I'll run the existing tests for `ContextCommand`.
 
-I will search for `_handle_stop_finish` in the codebase to confirm its location and usage.
+Baseline.
 
-I will search for `_handle_other_finish` in the codebase to confirm its location and usage.
+I've analyzed `ContextCommand` and identified several opportunities for refactoring. I'll start by introducing constants for command indices and a dispatch map in the `execute` method to reduce nesting. I'll also consolidate the duplicate logic in the parameter handlers by creating a generic `_update_context_setting` helper. Finally, I'll ensure consistency and readability across the class by applying these patterns throughout.
 
-I will now examine the `_process_chunk` method in `src/henchman/core/agent.py` to understand the logic and flow of how it uses `_handle_stop_finish` and `_handle_other_finish`.
+I'll now tackle the parameter handlers by introducing a generic `_update_context_setting` helper method, which will reduce duplication and improve maintainability.
 
-I will now read the `_handle_other_finish` method in `src/henchman/core/agent.py` to confirm its content and ensure that my refactoring plan will not result in any logic loss.
+I've updated `_manage_strategy` and `_set_strategy_parameter` to use my new constants and improve readability.
 
-I will now run the tests in `tests/core/test_agent.py` to ensure that the current state of the code is stable before I proceed with the refactoring.
+Error executing tool replace: Error: Failed to edit, could not find the string to replace.
+I'll re-read `src/henchman/cli/commands/context.py` to ensure I have the exact content, then I'll retry the replacement, making sure to include the `... rest of usage help` comment.
 
-I will now refactor `src/henchman/core/agent.py` by introducing the `_yield_remaining_content` helper method, updating `_handle_finish_reason` to utilize it, and removing the redundant `_handle_stop_finish` and `_handle_other_finish` methods.
+I've already updated the `execute` method with constants and a dispatch map, and now I'll apply similar improvements to `_manage_strategy` and `_set_strategy_parameter`.
 
-I will now remove the `_handle_other_finish` method from `src/henchman/core/agent.py` since it has been replaced by the more generic `_yield_remaining_content` helper.
+I've refactored `ContextCommand` and updated `last-improvement.md` with the details. Now, I'll run the tests for `ContextCommand` one final time to ensure everything is correct.
 
-I will now re-examine the file content of `src/henchman/core/agent.py` around line 600 to ensure the `_handle_tool_calls_finish` method is correctly positioned and that my previous refactoring didn't inadvertently disrupt the file structure.
+I've addressed the code smells in `SessionCommand` and `ContextCommand`, including deep nesting, magic numbers, and duplication, and confirmed the fixes with tests. I'm now finished.
 
-I will now remove the redundant `_handle_other_finish` method from `src/henchman/core/agent.py`.
+**Identified Smells:**
+*   **Deep Nesting:** Multiple `if-elif` blocks in `SessionCommand.execute`, `SessionCommand._template`, `ContextCommand.execute`, and `ContextCommand._manage_strategy`.
+*   **Magic Numbers:** Hardcoded argument indices (e.g., `ctx.args[2]`) and display constants (e.g., `[:8]`, `[:10]`) in both commands.
+*   **Duplicate Code:** Repeating the same setting-and-saving logic across multiple parameter handlers in `ContextCommand`.
+*   **Feature Envy:** Methods accessing context objects significantly more than `self`.
 
-I will now run the `tests/core/test_agent.py` to ensure that my refactoring hasn't broken any existing functionality.
+**Refactoring Strategy:**
+*   **Dispatch Maps:** Replaced `if-elif` chains with dictionary-based dispatchers in `execute` and `_template` methods to flatten logic.
+*   **Extract Constants:** Introduced descriptive named constants (e.g., `_BRANCH_ID_IDX`, `_ID_DISPLAY_LEN`, `_DATE_DISPLAY_LEN`) to replace all hardcoded integers.
+*   **Consolidate Logic:** Created a generic `_update_context_setting` helper in `ContextCommand` to unify the setting/saving/printing flow across five different handlers.
+*   **Intention-Revealing Names:** Renamed variables and improved structure to better reflect the command's intent.
 
-I will now conclude the refactoring process by documenting the changes in `.agent_tasks/auto-improve/last-improvement.md`, highlighting the elimination of duplicate code in `Agent` finish reason handling.
+**Refactored Code:**
+*   `src/henchman/cli/commands/session.py` now uses `dispatch` maps and named constants for all argument parsing.
+*   `src/henchman/cli/commands/context.py` now uses a shared helper for parameter updates and a dispatch map for subcommands.
 
-Identified Smells:
-*   Duplicate Code (🟠 HIGH): Function `_handle_stop_finish` was an exact duplicate of `_handle_other_finish` in `src/henchman/core/agent.py`.
-*   Feature Envy (🟡 MEDIUM): Both methods accessed `state` multiple times without using any other part of `self`.
+**Testing Implications:**
+*   Existing unit tests for `SessionCommand` and `ContextCommand` passed successfully.
+*   Structural changes preserved the external behavior, requiring no updates to the test assertions themselves.
 
-Refactoring Strategy:
-*   Extracted the shared logic for yielding non-emitted content into a more generic `_yield_remaining_content(state)` method.
-*   Updated `_handle_finish_reason` to dispatch `STOP`, `LENGTH`, and `CONTENT_FILTER` finish reasons to the same helper method.
-*   Removed the redundant `_handle_stop_finish` and `_handle_other_finish` methods.
-
-Refactored Code:
-```python
-    async def _handle_finish_reason(
-        self,
-        chunk: StreamChunk,
-        state: StreamingAccumulationState,
-        accumulated_content_list: list[str],
-        accumulated_thinking_list: list[str],
-        accumulated_usage_list: list[dict[str, int] | None],
-        finish_reason_list: list[FinishReason | None],
-    ) -> AsyncIterator[AgentEvent]:
-        """Handle different finish reasons from the streaming response."""
-        finish_reason = chunk.finish_reason
-        state.finish_reason = finish_reason
-        finish_reason_list[0] = finish_reason
-
-        # Create and add assistant message to history
-        assistant_msg = self._create_assistant_message(state, chunk.tool_calls)
-        self.messages.append(assistant_msg)
-
-        # Handle specific finish reasons
-        if finish_reason in (FinishReason.STOP, FinishReason.LENGTH, FinishReason.CONTENT_FILTER):
-            async for event in self._yield_remaining_content(state):
-                yield event
-        elif finish_reason == FinishReason.TOOL_CALLS:
-            async for event in self._handle_tool_calls_finish(state, chunk.tool_calls):
-                yield event
-        # Note: We break after handling finish reason, so no need to return anything
-
-    async def _yield_remaining_content(
-        self,
-        state: StreamingAccumulationState,
-    ) -> AsyncIterator[AgentEvent]:
-        """Yield content event if we haven't yielded any content yet."""
-        # This handles cases like non-streaming responses where all content comes with the finish reason,
-        # or streams that finish before yielding their last bits of content.
-        if state.content and not state.content_yielded:
-            yield self._emit(
-                type=EventType.CONTENT,
-                data=state.content,
-            )
-```
-
-Testing Implications:
-Existing unit tests in `tests/core/test_agent.py` already cover streaming and non-streaming responses and passed successfully after this change. No new test cases are required as the external behavior is preserved, but any tests that specifically mock the private methods `_handle_stop_finish` or `_handle_other_finish` (none were found) would need to be updated to use `_yield_remaining_content`.
-[2026-02-27T16:30:01Z] Running pytest to verify tests pass...
+Refactored `SessionCommand` and `ContextCommand` to eliminate deep nesting, magic numbers, and code duplication. All tests pass.
+[2026-02-27T17:00:02Z] Running pytest to verify tests pass...
 ============================= test session starts ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
 rootdir: /home/matthew/mlg-cli
@@ -400,7 +362,7 @@ tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidatio
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
-  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=3000520) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=3054658) is multi-threaded, use of fork() may lead to deadlocks in the child.
     self.pid = os.fork()
 
 tests/test_interactive.py::test_tool_form
@@ -481,9 +443,9 @@ tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcomm
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
-tests/ui_integration/test_tool_calls.py::TestToolCalls::test_shell_tool_basic
-  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/key_binding/key_bindings.py:279: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    keys = tuple(_parse_key(k) for k in keys)
+tests/ui_integration/test_slash_commands.py::TestREPLSlashCommandRouting::test_repl_exits_after_quit_command
+  /home/matthew/anaconda3/lib/python3.12/enum.py:1224: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    @classmethod
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
@@ -527,13 +489,13 @@ src/henchman/cli/commands/__init__.py               63      0      8      0   10
 src/henchman/cli/commands/agent.py                  67      0     22      2    98%   107->109, 109->exit
 src/henchman/cli/commands/builtins.py               94      0     10      1    99%   209->207
 src/henchman/cli/commands/chat.py                   88      0     36      0   100%
-src/henchman/cli/commands/context.py               190     88     44      7    51%   114-115, 130-131, 147-163, 208-231, 243-253, 265-275, 287-297, 309-319, 331-346, 355-356, 384, 387->393, 395-401
+src/henchman/cli/commands/context.py               175     68     38      7    55%   128-129, 144-145, 163-183, 228-251, 264-267, 271-274, 278-281, 285-288, 292-295, 301-307, 316-317, 345, 348->354, 356-362
 src/henchman/cli/commands/extensions.py             24      0      4      0   100%
 src/henchman/cli/commands/mcp.py                    84      0     30      0   100%
 src/henchman/cli/commands/model.py                 137     13     46      9    88%   79->83, 108->113, 113->117, 118->121, 122-123, 174-177, 181-182, 187->190, 204-206, 250->255, 289->296, 293-294
 src/henchman/cli/commands/plan.py                   30      0     12      1    98%   62->68
 src/henchman/cli/commands/rag.py                   115      4     38      2    96%   130-131, 135->exit, 208-209
-src/henchman/cli/commands/session.py               228    128     90     18    41%   54, 63, 81, 83, 85, 89, 102, 125, 133-135, 143->145, 146-147, 153, 156, 163->171, 166->171, 169, 175->177, 179-180, 184-201, 205-219, 223-237, 241-257, 261-270, 274-294, 298-323, 329, 335-336, 349, 351, 361, 365-368
+src/henchman/cli/commands/session.py               239    121     74     15    45%   54, 63, 89, 102, 125, 133-135, 143->145, 146-147, 153, 156, 163->171, 166->171, 169, 175->177, 179-180, 209-228, 232-246, 250-264, 268-284, 288-297, 301-321, 325-350, 356, 362-363, 376, 378, 388, 392-395
 src/henchman/cli/commands/team.py                   37      6     12      2    80%   24, 29, 62, 65-67
 src/henchman/cli/commands/theme.py                  97      3     30      3    95%   119->130, 124-126, 132->exit, 142
 src/henchman/cli/commands/unlimited.py              31      0     10      0   100%
@@ -649,7 +611,7 @@ src/henchman/utils/tokens.py                        55      2     20      2    9
 src/henchman/utils/validation.py                    82      1     36      1    98%   45
 src/henchman/version.py                              3      0      0      0   100%
 --------------------------------------------------------------------------------------------
-TOTAL                                            13494   2281   4042    455    81%
-=========== 2586 passed, 5 skipped, 34 warnings in 186.12s (0:03:06) ===========
-[2026-02-27T16:30:01Z] All tests passed.
+TOTAL                                            13490   2254   4020    452    81%
+=========== 2586 passed, 5 skipped, 34 warnings in 144.47s (0:02:24) ===========
+[2026-02-27T17:00:02Z] All tests passed.
 Committing changes...

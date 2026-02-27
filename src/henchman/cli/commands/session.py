@@ -73,18 +73,18 @@ class SessionCommand(BaseCommand):
             return
 
         subcommand = ctx.args[0].lower()
-        if subcommand == "branch":
-            await self._branch(ctx)
-        elif subcommand == "merge":
-            await self._merge(ctx)
-        elif subcommand == "template":
-            await self._template(ctx)
-        elif subcommand == "export":
-            await self._export(ctx)
-        elif subcommand == "import":
-            await self._import(ctx)
-        elif subcommand == "list":
-            await self._list(ctx)
+        dispatch = {
+            "branch": self._branch,
+            "merge": self._merge,
+            "template": self._template,
+            "export": self._export,
+            "import": self._import,
+            "list": self._list,
+        }
+
+        handler = dispatch.get(subcommand)
+        if handler:
+            await handler(ctx)
         else:
             await self._show_help(ctx)
 
@@ -127,14 +127,14 @@ class SessionCommand(BaseCommand):
         if not self._ensure_args(ctx, 3, "/session branch <id> <point> [tag]"):
             return
 
-        session_id = ctx.args[1]
+        session_id = ctx.args[self._BRANCH_ID_IDX]
         try:
-            branch_point = int(ctx.args[2])
+            branch_point = int(ctx.args[self._BRANCH_POINT_IDX])
         except ValueError:
             ctx.console.print("[red]Branch point must be an integer[/]")
             return
 
-        tag = ctx.args[3] if len(ctx.args) > 3 else None
+        tag = ctx.args[self._BRANCH_TAG_IDX] if len(ctx.args) > self._BRANCH_TAG_IDX else None
 
         try:
             branch = manager.branch_session(session_id, branch_point, tag)
@@ -155,18 +155,18 @@ class SessionCommand(BaseCommand):
         if not self._ensure_args(ctx, 3, "/session merge <id1> <id2> [strategy] [tag]"):
             return
 
-        session_ids = [ctx.args[1], ctx.args[2]]
+        session_ids = [ctx.args[self._MERGE_ID1_IDX], ctx.args[self._MERGE_ID2_IDX]]
         strategy = "smart"
         tag = None
 
         # Parse optional arguments
-        if len(ctx.args) > 3:
-            if ctx.args[3] in ("union", "intersection", "smart"):
-                strategy = ctx.args[3]
-                if len(ctx.args) > 4:
-                    tag = ctx.args[4]
+        if len(ctx.args) > self._MERGE_STRATEGY_IDX:
+            if ctx.args[self._MERGE_STRATEGY_IDX] in ("union", "intersection", "smart"):
+                strategy = ctx.args[self._MERGE_STRATEGY_IDX]
+                if len(ctx.args) > self._MERGE_TAG_IDX:
+                    tag = ctx.args[self._MERGE_TAG_IDX]
             else:
-                tag = ctx.args[3]
+                tag = ctx.args[self._MERGE_STRATEGY_IDX]
 
         try:
             merged = manager.merge_sessions(session_ids, strategy, tag)
@@ -179,6 +179,31 @@ class SessionCommand(BaseCommand):
         except (FileNotFoundError, ValueError) as e:
             ctx.console.print(f"[red]Error: {e}[/]")
 
+    # Argument indexing constants
+    _SUBCOMMAND_IDX = 0
+    _ACTION_IDX = 1
+    _SESSION_ID_IDX = 1  # For simple subcommands like export/import
+    _BRANCH_ID_IDX = 1
+    _BRANCH_POINT_IDX = 2
+    _BRANCH_TAG_IDX = 3
+    _MERGE_ID1_IDX = 1
+    _MERGE_ID2_IDX = 2
+    _MERGE_STRATEGY_IDX = 3
+    _MERGE_TAG_IDX = 4
+    _TEMPLATE_ACTION_IDX = 1
+    _TEMPLATE_SESSION_ID_IDX = 2
+    _TEMPLATE_NAME_IDX = 3
+    _TEMPLATE_DESC_IDX = 4
+    _TEMPLATE_ID_IDX = 2
+    _EXPORT_ID_IDX = 1
+    _EXPORT_FORMAT_IDX = 2
+    _IMPORT_FILE_IDX = 1
+    _IMPORT_FORMAT_IDX = 2
+    _IMPORT_TAG_IDX = 3
+    _TEMPLATE_TAG_IDX = 3
+    _ID_DISPLAY_LEN = 8
+    _DATE_DISPLAY_LEN = 10
+
     async def _template(self, ctx: CommandContext) -> None:
         """Template operations."""
         manager = self._get_manager(ctx)
@@ -188,15 +213,17 @@ class SessionCommand(BaseCommand):
         if not self._ensure_args(ctx, 2, "/session template <save|create|list|delete> [args]"):
             return
 
-        subcmd = ctx.args[1].lower()
-        if subcmd == "save":
-            await self._template_save(ctx, manager)
-        elif subcmd == "create":
-            await self._template_create(ctx, manager)
-        elif subcmd == "list":
-            await self._template_list(ctx, manager)
-        elif subcmd == "delete":
-            await self._template_delete(ctx, manager)
+        action = ctx.args[self._TEMPLATE_ACTION_IDX].lower()
+        dispatch = {
+            "save": self._template_save,
+            "create": self._template_create,
+            "list": self._template_list,
+            "delete": self._template_delete,
+        }
+
+        handler = dispatch.get(action)
+        if handler:
+            await handler(ctx, manager)
         else:
             ctx.console.print("[yellow]Usage: /session template <save|create|list|delete>[/]")
 
@@ -205,9 +232,9 @@ class SessionCommand(BaseCommand):
         if not self._ensure_args(ctx, 4, "/session template save <id> <name>"):
             return
 
-        session_id = ctx.args[2]
-        name = ctx.args[3]
-        description = ctx.args[4] if len(ctx.args) > 4 else ""
+        session_id = ctx.args[self._TEMPLATE_SESSION_ID_IDX]
+        name = ctx.args[self._TEMPLATE_NAME_IDX]
+        description = ctx.args[self._TEMPLATE_DESC_IDX] if len(ctx.args) > self._TEMPLATE_DESC_IDX else ""
 
         try:
             template = manager.save_template(session_id, name, description)
@@ -223,8 +250,8 @@ class SessionCommand(BaseCommand):
         if not self._ensure_args(ctx, 3, "/session template create <template_id> [tag]"):
             return
 
-        template_id = ctx.args[2]
-        tag = ctx.args[3] if len(ctx.args) > 3 else None
+        template_id = ctx.args[self._TEMPLATE_ID_IDX]
+        tag = ctx.args[self._TEMPLATE_TAG_IDX] if len(ctx.args) > self._TEMPLATE_TAG_IDX else None
 
         try:
             session = manager.create_from_template(template_id, tag=tag)
@@ -261,7 +288,7 @@ class SessionCommand(BaseCommand):
         if not self._ensure_args(ctx, 3, "/session template delete <template_id>"):
             return
 
-        template_id = ctx.args[2]
+        template_id = ctx.args[self._TEMPLATE_ID_IDX]
 
         try:
             manager.delete_template(template_id)
@@ -278,8 +305,8 @@ class SessionCommand(BaseCommand):
         if not self._ensure_args(ctx, 2, "/session export <id> [format]"):
             return
 
-        session_id = ctx.args[1]
-        format = ctx.args[2] if len(ctx.args) > 2 else "json"
+        session_id = ctx.args[self._EXPORT_ID_IDX]
+        format = ctx.args[self._EXPORT_FORMAT_IDX] if len(ctx.args) > self._EXPORT_FORMAT_IDX else "json"
 
         try:
             exported = manager.export_session(session_id, format)
@@ -302,13 +329,13 @@ class SessionCommand(BaseCommand):
         if not self._ensure_args(ctx, 2, "/session import <file> [format]"):
             return
 
-        file_path = Path(ctx.args[1])
+        file_path = Path(ctx.args[self._IMPORT_FILE_IDX])
         if not file_path.exists():
             ctx.console.print(f"[red]File not found: {file_path}[/]")
             return
 
-        format = ctx.args[2] if len(ctx.args) > 2 else "json"
-        tag = ctx.args[3] if len(ctx.args) > 3 else None
+        format = ctx.args[self._IMPORT_FORMAT_IDX] if len(ctx.args) > self._IMPORT_FORMAT_IDX else "json"
+        tag = ctx.args[self._IMPORT_TAG_IDX] if len(ctx.args) > self._IMPORT_TAG_IDX else None
 
         try:
             data = file_path.read_text()
@@ -341,21 +368,21 @@ class SessionCommand(BaseCommand):
             try:
                 session = manager.load(meta.id)
 
-                tag_display = f"[cyan]{meta.tag}[/]" if meta.tag else f"[dim]{meta.id[:8]}[/]"
+                tag_display = f"[cyan]{meta.tag}[/]" if meta.tag else f"[dim]{meta.id[:self._ID_DISPLAY_LEN]}[/]"
                 branch_info = ""
                 template_info = ""
 
                 if session.parent_id:
-                    branch_info = f" [yellow]↳[/] branch from {session.parent_id[:8]}"
+                    branch_info = f" [yellow]↳[/] branch from {session.parent_id[:self._ID_DISPLAY_LEN]}"
                 if session.template_id:
-                    template_info = f" [magenta]ⓣ[/] template:{session.template_id[:8]}"
+                    template_info = f" [magenta]ⓣ[/] template:{session.template_id[:self._ID_DISPLAY_LEN]}"
 
                 ctx.console.print(
                     f"  {tag_display}{branch_info}{template_info}"
                 )
                 ctx.console.print(
                     f"    Messages: {meta.message_count}, "
-                    f"Updated: {meta.last_updated[:10]}"
+                    f"Updated: {meta.last_updated[:self._DATE_DISPLAY_LEN]}"
                 )
                 if session.export_metadata and "merged_from" in session.export_metadata:
                     ctx.console.print(
@@ -364,8 +391,8 @@ class SessionCommand(BaseCommand):
                 ctx.console.print("")
             except (FileNotFoundError, ValueError, json.JSONDecodeError):
                 # Fallback to basic info if session can't be loaded
-                tag_display = f"[cyan]{meta.tag}[/]" if meta.tag else f"[dim]{meta.id[:8]}[/]"
+                tag_display = f"[cyan]{meta.tag}[/]" if meta.tag else f"[dim]{meta.id[:self._ID_DISPLAY_LEN]}[/]"
                 ctx.console.print(
                     f"  {tag_display} - {meta.message_count} messages, "
-                    f"updated {meta.last_updated[:10]}"
+                    f"updated {meta.last_updated[:self._DATE_DISPLAY_LEN]}"
                 )
