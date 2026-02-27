@@ -1356,6 +1356,14 @@ class Orchestrator:
             if should_break:
                 break
 
+            # Execute all pending tool calls (regular + delegation)
+            async for event in self._process_pending_tool_calls(
+                agent, pending_tool_calls, depth, tool_errors
+            ):
+                yield event
+
+            tool_call_count += len(pending_tool_calls)
+
             # All tool results submitted — continue the agent
             generator = agent.continue_with_tool_results()
 

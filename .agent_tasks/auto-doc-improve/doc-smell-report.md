@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 92.6/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-02-27T14:32:30.605865+00:00_
+_Generated: 2026-02-27T14:44:27.765325+00:00_
 
 ## Executive Summary
 

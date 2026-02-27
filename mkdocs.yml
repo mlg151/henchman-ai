@@ -46,8 +46,11 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Architecture: architecture.md
   - Multi-Agent System: agents.md
-  - Configuration: configuration.md
+  - Configuration:
+    - Overview: configuration.md
+    - Intelligent Context Management: intelligent-context-management.md
   - Providers: providers.md
   - Tools: tools.md
   - MCP Integration: mcp.md
