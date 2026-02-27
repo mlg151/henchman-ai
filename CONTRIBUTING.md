@@ -32,7 +32,9 @@ Thank you for your interest in contributing to Henchman-AI! This document provid
 ### Installation
 ```bash
 # 1. First, fork the repository on GitHub: https://github.com/mlg151/henchman-ai
-# 2. Then clone your fork (replace 'your-username' with your GitHub username):
+# 2. Then clone your fork:
+#    Replace 'your-username' with your actual GitHub username
+#    Example: git clone https://github.com/johndoe/henchman-ai.git
 git clone https://github.com/your-username/henchman-ai.git
 cd henchman-ai
 

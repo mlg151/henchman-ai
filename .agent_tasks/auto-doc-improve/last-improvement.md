@@ -1,33 +1,41 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-02-27T15:10:00Z
+2026-02-27T15:15:00Z
 
 ## Files Changed
-1. `CONTRIBUTING.md` - Improved clarity around fork and clone process for contributors
+1. `CONTRIBUTING.md` - Fixed placeholder GitHub URL consistency error
 
 ## Smell Category Addressed
-- **Consistency Error** (HIGH): Fixed placeholder GitHub URL in CONTRIBUTING.md by adding explicit instructions
+- **Consistency Error** (HIGH): Fixed placeholder GitHub URL 'your-username/henchman-ai.git' by adding explicit example
 
 ## Rationale for Change
-The CONTRIBUTING.md file had a placeholder GitHub URL (`https://github.com/your-username/henchman-ai.git`) that was flagged as a consistency error. While this is technically correct for a CONTRIBUTING guide (contributors should clone their fork, not the main repository), the documentation needed to be clearer about the process.
+The CONTRIBUTING.md file had a placeholder GitHub URL (`https://github.com/your-username/henchman-ai.git`) that was flagged as a consistency error. While this placeholder is technically correct for a CONTRIBUTING guide (it shows the pattern contributors should follow when cloning their fork), the documentation needed to be clearer to avoid confusion.
 
-The fix improves clarity by:
-1. Explicitly stating that contributors should first fork the repository
-2. Providing the actual repository URL for forking
-3. Keeping the fork pattern for the clone command but making it clear it's a placeholder to be replaced
-
-This maintains the correct workflow for contributors while addressing the consistency concern.
+The actual repository URL (`https://github.com/mlg151/henchman-ai`) was already correctly shown in the previous line. The issue was that the placeholder pattern might be misinterpreted as an actual URL that should work as-is.
 
 ## Changes Made
-1. **CONTRIBUTING.md**: Added explicit step-by-step instructions:
-   - Step 1: Fork the repository at `https://github.com/mlg151/henchman-ai`
-   - Step 2: Clone your fork (replace 'your-username' with your GitHub username)
+1. **CONTRIBUTING.md** (lines 35-37): Enhanced the instructions to:
+   - Keep the placeholder pattern for educational purposes
+   - Add an explicit example showing how the URL should look with an actual username
+   - Make it clear that 'your-username' is a placeholder to be replaced
+
+The updated section now shows:
+```bash
+# 1. First, fork the repository on GitHub: https://github.com/mlg151/henchman-ai
+# 2. Then clone your fork:
+#    Replace 'your-username' with your actual GitHub username
+#    Example: git clone https://github.com/johndoe/henchman-ai.git
+git clone https://github.com/your-username/henchman-ai.git
+```
 
 ## What to Verify
-1. The CONTRIBUTING.md file now provides clear, actionable instructions for new contributors
-2. All GitHub URLs in the file are consistent (main repo links point to mlg151/henchman-ai)
-3. The fork/clone process is clearly explained
+1. The CONTRIBUTING.md file now clearly distinguishes between:
+   - The actual repository URL (for forking)
+   - The placeholder pattern (for educational purposes)
+   - An example of what the URL should look like after replacement
+2. New contributors will understand they need to replace 'your-username' with their actual GitHub username
+3. The documentation maintains both accuracy (showing the correct pattern) and clarity (providing an example)
 
 ## Next Priority
 The next highest-priority issue is **Broken Link** in `README.md:274` - link to 'docs/' resolves to 'docs' which does not exist. This needs to be fixed to ensure documentation navigation works correctly.
