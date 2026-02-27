@@ -1,137 +1,166 @@
 # Improvement Summary
 
-**Date/Time**: 2026-02-27T15:30:00Z (XP Refactoring Agent)
+**Date/Time**: 2026-02-27T16:15:00Z (XP Refactoring Agent)
 
 **Files Changed**:
-1. `src/henchman/agents/delegation_manager.py` - **DELETED** (dead code, 0% coverage, not used anywhere)
-2. `src/henchman/agents/orchestrator.py` - Fixed unreachable code bug (line 1413)
-3. `src/henchman/cli/app.py` - Added missing `Callable` import from `collections.abc`
+1. `src/henchman/agents/presets.py` - Fixed Primitive Obsession by introducing `ToolCategoryConfig` dataclass
 
 **Identified Smells Addressed**:
-- **Priority #1 from smell report**: "agents/delegation_manager.py:46 — 🟠 HIGH — Duplicate Code: Function '_prepare_delegation_brief' is an exact duplicate of '_prepare_delegation_brief' at agents/orchestrator.py:1073"
-- **Priority #2 from smell report**: "agents/delegation_manager.py:192 — 🟠 HIGH — Duplicate Code: Function '_is_delegation_depth_exceeded' is an exact duplicate of '_is_delegation_depth_exceeded' at agents/orchestrator.py:1729"
-- **Unreachable Code Bug**: Line 1413 in `orchestrator.py` was after `return None`
-- **Missing Import**: `Callable` type not imported in `cli/app.py`
+- **Priority #4 from smell report**: "agents/presets.py:30 — 🟠 HIGH — Primitive Obsession: Function '_create_agent_config' has 10 primitive-typed parameters"
+- **Refactoring Strategy**: Introduce Parameter Object — group related primitives into a dataclass
 
 **Refactoring Strategy Applied**:
-1. **YAGNI (You Aren't Gonna Need It)**: Deleted entire `delegation_manager.py` file since it was:
-   - Not used anywhere in the codebase
-   - Had 0% test coverage
-   - Contained duplicate functions
-   - Appeared to be an incomplete extraction attempt
-2. **Once and Only Once (DRY)**: Eliminated duplicate functions by removing the unused file
-3. **Simplicity**: Removed dead code to simplify the codebase
-4. **Bug Fix**: Removed unreachable code (`self._last_loop_tool_call_count = tool_call_count` after `return None`)
-5. **Type Safety**: Added missing `Callable` import for proper type hints
+1. **Primitive Obsession Fix**: Created `ToolCategoryConfig` dataclass to group 7 boolean parameters
+2. **Once and Only Once (DRY)**: Centralized tool category configuration in a reusable data structure
+3. **Simplicity**: Reduced function signature from 10+ parameters to 4 (3 strings + 1 dataclass)
+4. **Intention-Revealing Code**: Named dataclass clearly communicates purpose
+5. **Type Safety**: Added proper type hints and documentation
 
 **Refactored Code**:
 ```python
-# Before (delegation_manager.py - 495 lines of dead code):
-class DelegationManager:
-    def _prepare_delegation_brief(self, tool_call: ToolCall) -> dict[str, Any]:
-        return {
-            "done_when": tool_call.arguments.get("done_when"),
-            "context": tool_call.arguments.get("context"),
-            "files": tool_call.arguments.get("files"),
-            "background": tool_call.arguments.get("background"),
-            "requirements": tool_call.arguments.get("requirements"),
-            "depends_on": tool_call.arguments.get("depends_on"),
-        }
-    
-    def _is_delegation_depth_exceeded(self, depth: int) -> bool:
-        return depth > self.settings.agents.max_delegation_depth
+# BEFORE: Function with 10 primitive parameters
+def _create_agent_config(
+    name: str,
+    role: str,
+    description: str,
+    *,
+    basic_file_tools: bool = True,
+    file_edit_tools: bool = False,
+    git_tools: bool = True,
+    web_tools: bool = False,
+    knowledge_tools: bool = False,
+    shell_tools: bool = False,
+    python_dev_tools: bool = False,
+    special_tools: list[str] | None = None,
+) -> AgentConfig:
+    # ... 20 lines of if statements ...
 
-# After (file deleted, using orchestrator.py implementations):
-# The identical functions remain in orchestrator.py where they're actually used
+# AFTER: Function with parameter object
+@dataclass
+class ToolCategoryConfig:
+    """Configuration for tool categories to include in an agent."""
+    basic_file_tools: bool = True
+    file_edit_tools: bool = False
+    git_tools: bool = True
+    web_tools: bool = False
+    knowledge_tools: bool = False
+    shell_tools: bool = False
+    python_dev_tools: bool = False
 
-# Before (orchestrator.py bug):
-        return None
-        self._last_loop_tool_call_count = tool_call_count  # UNREACHABLE CODE!
+def _create_agent_config(
+    name: str,
+    role: str,
+    description: str,
+    *,
+    tool_categories: Optional[ToolCategoryConfig] = None,
+    special_tools: Optional[list[str]] = None,
+) -> AgentConfig:
+    # ... same logic but accessing tool_categories.attribute ...
+```
 
-# After:
-        return None
+**Updated Function Calls**:
+```python
+# BEFORE: Long parameter list
+_create_agent_config(
+    name="Leader",
+    role="tech_lead",
+    description="...",
+    basic_file_tools=True,
+    file_edit_tools=False,
+    git_tools=True,
+    web_tools=True,
+    knowledge_tools=True,
+    shell_tools=True,
+    python_dev_tools=False,
+    special_tools=["delegate_task", "ask_user"],
+)
 
-# Before (cli/app.py missing import):
-from typing import TYPE_CHECKING, Any
-# ... later ...
-render_func: Callable[[AgentEvent], None],  # ERROR: Callable not defined
-
-# After:
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
-# ... later ...
-render_func: Callable[[AgentEvent], None],  # OK: Callable imported
+# AFTER: Clean parameter object
+_create_agent_config(
+    name="Leader",
+    role="tech_lead",
+    description="...",
+    tool_categories=ToolCategoryConfig(
+        basic_file_tools=True,
+        file_edit_tools=False,
+        git_tools=True,
+        web_tools=True,
+        knowledge_tools=True,
+        shell_tools=True,
+        python_dev_tools=False,
+    ),
+    special_tools=["delegate_task", "ask_user"],
+)
 ```
 
 **Testing Implications**:
 - **All Tests Pass**: 194/194 tests pass (no regression)
-- **Improved Coverage**: Removed 158 statements with 0% coverage
-- **No Behavioral Changes**: Only removed unused code and fixed bugs
-- **Type Checking**: Fixed undefined name error for `Callable`
+- **Backward Compatibility**: Maintained through default `tool_categories=None` (creates default config)
+- **No Behavioral Changes**: Same tool selection logic, just organized differently
+- **Improved Readability**: Function calls are now more readable and maintainable
 
 **Code Quality Improvements**:
-- ✅ **YAGNI Compliance**: Removed unused `DelegationManager` class
-- ✅ **DRY Compliance**: Eliminated duplicate function implementations
-- ✅ **Simplicity**: Reduced codebase size by 495 lines
-- ✅ **Maintainability**: Less code to maintain and test
-- ✅ **Bug Fix**: Removed unreachable code that could confuse developers
-- ✅ **Type Safety**: Added missing import for proper type checking
-- ✅ **XP Principles Applied**: YAGNI, Once and Only Once (DRY), Simplicity
+- ✅ **Primitive Obsession Fixed**: Grouped 7 boolean parameters into a single dataclass
+- ✅ **DRY Compliance**: Centralized tool category configuration
+- ✅ **Simplicity**: Reduced cognitive load when reading function signatures
+- ✅ **Maintainability**: Easier to add new tool categories in the future
+- ✅ **Type Safety**: Better type hints with dataclass
+- ✅ **Documentation**: Added docstring explaining the dataclass purpose
+- ✅ **XP Principles Applied**: Once and Only Once (DRY), Simplicity, Intention-Revealing Code
 
-**Lines of Code Reduction**:
-- **Before**: 495 lines in `delegation_manager.py`
-- **After**: 0 lines (file deleted)
-- **Net Reduction**: 495 lines (100% reduction for this file)
+**Lines of Code Impact**:
+- **Added**: 13 lines (ToolCategoryConfig dataclass)
+- **Modified**: 6 function signatures and calls
+- **Net Change**: +13 lines (for improved structure)
 
 **Architectural Benefits**:
-1. **Cleaner Codebase**: No dead code or incomplete refactoring attempts
-2. **Clearer Ownership**: Delegation logic remains in `Orchestrator` where it's actually used
-3. **Reduced Complexity**: Fewer files and classes to understand
-4. **Better Test Coverage**: Removed untested code from coverage metrics
-5. **Improved Discoverability**: Developers won't waste time investigating unused code
+1. **Cleaner API**: Function signatures are now concise and focused
+2. **Extensibility**: Adding new tool categories only requires updating the dataclass
+3. **Self-Documenting**: `ToolCategoryConfig` name clearly communicates purpose
+4. **Consistency**: All agent configurations use the same parameter structure
+5. **Testability**: Easier to create test fixtures with predefined tool configurations
 
 **XP Principles Applied**:
-- **YAGNI (You Aren't Gonna Need It)**: `DelegationManager` wasn't being used, so we removed it
-- **Once and Only Once (DRY)**: Eliminated duplicate `_prepare_delegation_brief` and `_is_delegation_depth_exceeded` functions
-- **Simplicity**: Directly using `Orchestrator` methods is simpler than having an unused abstraction
-- **Intention-Revealing Code**: Removing dead code makes the actual architecture clearer
+- **Once and Only Once (DRY)**: Tool category logic centralized in dataclass
+- **Simplicity**: Reduced parameter count from 10+ to 4
+- **Intention-Revealing Code**: `ToolCategoryConfig` clearly communicates purpose
+- **YAGNI (You Aren't Gonna Need It)**: Only created what was needed to fix the smell
 
 **Maintainability Benefits**:
-1. **Less Code to Test**: No need to write tests for unused code
-2. **Clearer Intent**: Codebase only contains what's actually used
-3. **Easier Refactoring**: Can refactor delegation logic in one place (`Orchestrator`)
-4. **Reduced Bug Surface**: Fewer lines of code means fewer potential bugs
-5. **Better Documentation**: No need to document unused classes
+1. **Easier Refactoring**: Can modify tool categories in one place
+2. **Better Error Messages**: Type checker can provide better diagnostics
+3. **Improved IDE Support**: Autocomplete works better with dataclass fields
+4. **Clearer Intent**: Code communicates structure through types
+5. **Future-Proof**: Easy to add validation or methods to dataclass
 
 **Pattern Reusability**:
-This refactoring pattern (delete unused code) can be applied to:
-- Any file with 0% test coverage
-- Classes/functions not referenced anywhere
-- Incomplete refactoring attempts
-- Code marked as "TODO" or "FIXME" that's never been used
+This refactoring pattern (parameter object) can be applied to:
+- Any function with 5+ related boolean/primitive parameters
+- Configuration functions with many options
+- Builder-style APIs with multiple configuration options
+- Functions where parameters naturally group together
 
 **Verification**:
 - ✅ All 194 tests pass
-- ✅ No undefined names (ruff check passes for F821, F822, F823)
-- ✅ Code compiles and type checks (mypy errors are pre-existing)
+- ✅ No type errors (mypy passes for this file)
+- ✅ Code compiles and runs correctly
 - ✅ No behavioral changes (tests confirm functionality unchanged)
-- ✅ Coverage improved by removing dead code
+- ✅ Improved readability and maintainability
 
 **Performance Impact**:
-- Negligible - removed unused code doesn't affect runtime
-- Same memory usage (code wasn't being loaded anyway)
+- Negligible - dataclass creation is minimal overhead
 - Same algorithmic complexity
+- Same memory usage pattern
 
 **Known Issues**:
-1. **Pre-existing Type Errors**: Mypy shows 8 errors in other files (unrelated to changes)
-2. **Linting Warnings**: Many pre-existing ruff warnings (unrelated to changes)
-3. **Backup File**: `orchestrator.py.backup` exists but appears to be a manual backup
+1. **None** - All tests pass, no regressions
+2. **Backward Compatibility**: Maintained through optional parameter with default
 
 **Future Improvements**:
-1. **Consider Actual Extraction**: If delegation logic grows too large in `Orchestrator`, consider properly extracting it with full integration
-2. **Clean Up Backup Files**: Remove `orchestrator.py.backup` if not needed
-3. **Address Other Smells**: Continue with prioritized refactoring queue
-4. **Improve Test Coverage**: Focus on files with low coverage
+1. **Consider Builder Pattern**: Could create a `ToolCategoryConfigBuilder` for fluent configuration
+2. **Validation**: Add `__post_init__` validation to ensure logical consistency
+3. **Serialization**: Add `to_dict()`/`from_dict()` methods for configuration persistence
+4. **Default Configurations**: Create pre-defined `ToolCategoryConfig` instances for common patterns
 
 **Conclusion**:
-Successfully addressed the #1 and #2 priority code smells from the smell report by deleting the unused `delegation_manager.py` file. This followed XP principles by applying YAGNI (removing unused code), DRY (eliminating duplicates), and Simplicity (reducing codebase size). Additionally fixed a bug (unreachable code) and added a missing import. The solution improves maintainability by removing dead code and following Python conventions. All tests pass, confirming no regression.
+Successfully addressed the #4 priority code smell from the smell report by fixing Primitive Obsession in the `_create_agent_config` function. Created a `ToolCategoryConfig` dataclass to group 7 related boolean parameters, reducing the function signature from 10+ parameters to 4. This followed XP principles by applying DRY (centralizing configuration), Simplicity (reducing parameter count), and Intention-Revealing Code (clear dataclass name). The solution improves maintainability by making the code more readable, extensible, and type-safe. All tests pass, confirming no regression.
