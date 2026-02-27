@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 35.5/100)
+# Code Smell Report — ❌ F (Score: 35.4/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T08:00:13.643624+00:00_
+_Generated: 2026-02-27T08:30:13.163521+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.5/100 |
+| **Overall Score** | 35.4/100 |
 | **Files Scanned** | 145 |
-| **Total Lines (non-blank)** | 29,500 |
-| **Total Smells** | 2740 |
+| **Total Lines (non-blank)** | 29,529 |
+| **Total Smells** | 2725 |
 | **Avg Maintainability Index** | 70.0 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
@@ -20,9 +20,9 @@ _Generated: 2026-02-27T08:00:13.643624+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1887 |
+| low | 1888 |
 | medium | 669 |
-| high | 184 |
+| high | 168 |
 
 ### Smells by Category
 
@@ -31,7 +31,7 @@ _Generated: 2026-02-27T08:00:13.643624+00:00_
 | Missing Type Hint | 1310 |
 | Feature Envy | 367 |
 | Duplicate Code | 326 |
-| Magic Number | 211 |
+| Magic Number | 196 |
 | Long Method | 169 |
 | Deep Nesting | 168 |
 | Primitive Obsession | 91 |
@@ -42,65 +42,65 @@ _Generated: 2026-02-27T08:00:13.643624+00:00_
 
 These are the highest-impact smells to address first:
 
-1. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
-   Magic number 100.0 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
-
-2. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
-   Magic number 100.0 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
-
-3. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
-   Magic number 60.0 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
-
-4. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
-   Magic number 100.0 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
-
-5. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
+1. **agents/orchestrator.py:578** — 🟠 HIGH — Large Class  
    Class 'Orchestrator' spans 1363 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
-6. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
+2. **agents/orchestrator.py:581** — 🟠 HIGH — Long Method  
    Function '__init__' has 88 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-7. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
-   Magic number 500 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
-
-8. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
-   Magic number 200 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
-
-9. **agents/orchestrator.py:1064** — 🟠 HIGH — Long Method  
+3. **agents/orchestrator.py:1109** — 🟠 HIGH — Long Method  
    Function '_run_agent_loop' has 82 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-10. **agents/orchestrator.py:1064** — 🟠 HIGH — Primitive Obsession  
-   Repeated primitive parameter group appears in: '_run_agent_loop' (line 1064), '_run_delegation' (line 1399)  
+4. **agents/orchestrator.py:1109** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: '_run_agent_loop' (line 1109), '_run_delegation' (line 1444)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-11. **agents/orchestrator.py:1328** — 🟠 HIGH — Magic Number  
-   Magic number 5 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
-
-12. **agents/orchestrator.py:1329** — 🟠 HIGH — Magic Number  
-   Magic number 200 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
-
-13. **agents/orchestrator.py:1387** — 🟠 HIGH — Magic Number  
-   Magic number 10 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
-
-14. **agents/orchestrator.py:1399** — 🟠 HIGH — Long Method  
+5. **agents/orchestrator.py:1444** — 🟠 HIGH — Long Method  
    Function '_run_delegation' has 80 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-15. **agents/orchestrator.py:1498** — 🟠 HIGH — Magic Number  
-   Magic number 800 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
+6. **agents/presets.py:49** — 🟠 HIGH — Duplicate Code  
+   Function '_create_planner_config' is an exact duplicate of '_create_engineer_config' at agents/presets.py:86  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+7. **agents/presets.py:67** — 🟠 HIGH — Duplicate Code  
+   Function '_create_explorer_config' is an exact duplicate of '_create_data_engineer_config' at agents/presets.py:103  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+8. **cli/app.py:143** — 🟠 HIGH — Long Method  
+   Function '_run_interactive' has 85 lines (threshold: 30)  
+   → _Extract Method — break this function into smaller, intention-revealing helper functions._
+
+9. **cli/app.py:143** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: '_run_interactive' (line 143), '_run_textual_tui' (line 241), '_run_headless' (line 369), 'chat_command' (line 644)  
+   → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
+
+10. **cli/app.py:644** — 🟠 HIGH — Primitive Obsession  
+   Function 'chat_command' has 8 primitive-typed parameters: prompt: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), agent: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), team: Name(id='bool', ctx=Load()), output_format: Name(id='str', ctx=Load()), plan: Name(id='bool', ctx=Load()), yes: Name(id='bool', ctx=Load()), tui: Name(id='bool', ctx=Load()), debug: Name(id='bool', ctx=Load())  
+   → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
+
+11. **cli/commands/agent.py:33** — 🟠 HIGH — Feature Envy  
+   Method 'AgentCommand.execute' accesses 'ctx' 10 times but 'self' only 2 times  
+   → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
+
+12. **cli/commands/builtins.py:52** — 🟠 HIGH — Feature Envy  
+   Method 'HelpCommand.execute' accesses 'ctx' 16 times but 'self' only 0 times  
+   → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
+
+13. **cli/commands/chat.py:68** — 🟠 HIGH — Duplicate Code  
+   Function '_show_help' is an exact duplicate of '_show_help' at cli/commands/mcp.py:67  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+14. **cli/commands/chat.py:119** — 🟠 HIGH — Feature Envy  
+   Method 'ChatCommand._resume' accesses 'ctx' 12 times but 'self' only 0 times  
+   → _Move Method — consider moving '_resume' to the class that owns 'ctx'._
+
+15. **cli/commands/context.py:71** — 🟠 HIGH — Feature Envy  
+   Method 'ContextCommand._show_status' accesses 'ctx' 13 times but 'self' only 0 times  
+   → _Move Method — consider moving '_show_status' to the class that owns 'ctx'._
 
 
 ## 📊 Files Ranked by Quality
@@ -108,7 +108,7 @@ These are the highest-impact smells to address first:
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
 | 1 | cli/textual_app.py | ❌ F | 0.4 | 121 | 1439 | 1 | 0.0 |
-| 2 | agents/orchestrator.py | ❌ F | 2.0 | 139 | 1447 | 7 | 14.6 |
+| 2 | agents/orchestrator.py | ❌ F | 1.9 | 124 | 1476 | 6 | 14.6 |
 | 3 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
 | 4 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 5 | cli/commands/session.py | ❌ F | 9.8 | 67 | 296 | 33 | 11.0 |
@@ -146,29 +146,29 @@ LOC: 1439 | Classes: 1 | Functions: 2 | MI: 1 | Avg CC: 0.0
 
 _... and 106 more smells._
 
-### agents/orchestrator.py — ❌ F (2.0/100)
+### agents/orchestrator.py — ❌ F (1.9/100)
 
-LOC: 1447 | Classes: 8 | Functions: 1 | MI: 7 | Avg CC: 14.6
+LOC: 1476 | Classes: 8 | Functions: 1 | MI: 6 | Avg CC: 14.6
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 189 | 🟠 HIGH | Magic Number | Magic number 100.0 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 247 | 🟠 HIGH | Magic Number | Magic number 100.0 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 304 | 🟠 HIGH | Magic Number | Magic number 60.0 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 309 | 🟠 HIGH | Magic Number | Magic number 100.0 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 533 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1363 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 536 | 🟠 HIGH | Long Method | Function '__init__' has 88 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 656 | 🟠 HIGH | Magic Number | Magic number 500 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 931 | 🟠 HIGH | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 1064 | 🟠 HIGH | Long Method | Function '_run_agent_loop' has 82 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1064 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_run_agent_loop' (line 1064), '_run_delegation' (line 1399) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 1328 | 🟠 HIGH | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 1329 | 🟠 HIGH | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 1387 | 🟠 HIGH | Magic Number | Magic number 10 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 1399 | 🟠 HIGH | Long Method | Function '_run_delegation' has 80 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1498 | 🟠 HIGH | Magic Number | Magic number 800 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 578 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1363 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 581 | 🟠 HIGH | Long Method | Function '__init__' has 88 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 1109 | 🟠 HIGH | Long Method | Function '_run_agent_loop' has 82 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 1109 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_run_agent_loop' (line 1109), '_run_delegation' (line 1444) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 1444 | 🟠 HIGH | Long Method | Function '_run_delegation' has 80 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 172 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 92% similar to '__init__' at agents/orchestrator.py:216 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 204 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 100% similar to 'track_tool_usage' at agents/orchestrator.py:208 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 253 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 100% similar to '__init__' at cli/textual_app.py:277 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 284 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'track_tool_call' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 578 | 🟡 MEDIUM | Large Class | Class 'Orchestrator' has 48 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 581 | 🟡 MEDIUM | Complex Function | Function '__init__' has cyclomatic complexity 15 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 830 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._check_stall_failure' accesses 'agent' 5 times but 'self' only 1 times | Move Method — consider moving '_check_stall_failure' to the class that owns 'agent'. |
+| 898 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._prepare_delegation_brief' accesses 'tool_call' 6 times but 'self' only 0 times | Move Method — consider moving '_prepare_delegation_brief' to the class that owns 'tool_call'. |
+| 961 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._handle_regular_tool' accesses 'tool_call' 6 times but 'self' only 1 times | Move Method — consider moving '_handle_regular_tool' to the class that owns 'tool_call'. |
+| 1002 | 🟡 MEDIUM | Primitive Obsession | Function '_enforce_turn_limits' has 4 primitive-typed parameters: max_turns: Name(id='int', ctx=Load()), tool_call_count: Name(id='int', ctx=Load()), msg_start_index: Name(id='int', ctx=Load()), wrapup_warned: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
-_... and 124 more smells._
+_... and 109 more smells._
 
 ### utils/intelligent_context.py — ❌ F (6.4/100)
 

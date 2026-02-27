@@ -27,22 +27,83 @@ _PYTHON_DEV_TOOLS = [
 ]
 
 
+def _create_agent_config(
+    name: str,
+    role: str,
+    description: str,
+    *,
+    basic_file_tools: bool = True,
+    file_edit_tools: bool = False,
+    git_tools: bool = True,
+    web_tools: bool = False,
+    knowledge_tools: bool = False,
+    shell_tools: bool = False,
+    python_dev_tools: bool = False,
+    special_tools: list[str] | None = None,
+) -> AgentConfig:
+    """Create an agent configuration with specified tool categories.
+
+    Args:
+        name: Agent display name
+        role: Agent role identifier
+        description: Agent description
+        basic_file_tools: Include read_file, ls, glob, grep
+        file_edit_tools: Include write_file, edit_file
+        git_tools: Include git_ops
+        web_tools: Include web_fetch, web_search
+        knowledge_tools: Include rag_search, kg_query, kg_update
+        shell_tools: Include shell
+        python_dev_tools: Include python development tools
+        special_tools: Additional special tools like delegate_task, ask_user
+
+    Returns:
+        AgentConfig with appropriate tools
+    """
+    tools: list[str] = []
+
+    if basic_file_tools:
+        tools.extend(_BASIC_FILE_TOOLS)
+    if file_edit_tools:
+        tools.extend(_FILE_EDIT_TOOLS)
+    if git_tools:
+        tools.extend(_GIT_TOOLS)
+    if web_tools:
+        tools.extend(_WEB_TOOLS)
+    if knowledge_tools:
+        tools.extend(_KNOWLEDGE_TOOLS)
+    if shell_tools:
+        tools.extend(_SHELL_TOOLS)
+    if python_dev_tools:
+        tools.extend(_PYTHON_DEV_TOOLS)
+    if special_tools:
+        tools.extend(special_tools)
+
+    return AgentConfig(
+        name=name,
+        role=role,
+        description=description,
+        tools=tools,
+    )
+
+
 def _create_tech_lead_config() -> AgentConfig:
     """Create configuration for the Tech Lead agent.
 
     The Tech Lead handles orchestration, delegation, and quality gating.
     Read-only, delegates all writes.
     """
-    return AgentConfig(
+    return _create_agent_config(
         name="Leader",
         role="tech_lead",
         description="Orchestrator, delegator, and quality gate — read-only, delegates all writes",
-        tools=_BASIC_FILE_TOOLS
-        + _SHELL_TOOLS
-        + _GIT_TOOLS
-        + _WEB_TOOLS
-        + _KNOWLEDGE_TOOLS
-        + ["delegate_task", "ask_user"],
+        basic_file_tools=True,
+        file_edit_tools=False,  # Read-only, delegates writes
+        git_tools=True,
+        web_tools=True,
+        knowledge_tools=True,
+        shell_tools=True,
+        python_dev_tools=False,
+        special_tools=["delegate_task", "ask_user"],
     )
 
 
@@ -52,15 +113,17 @@ def _create_planner_config() -> AgentConfig:
     The Planner designs architectures and breaks down tasks.
     Creates design docs in .agent_tasks/.
     """
-    return AgentConfig(
+    return _create_agent_config(
         name="Planner",
         role="planner",
         description="Architecture, task decomposition, and design docs in .agent_tasks/",
-        tools=_BASIC_FILE_TOOLS
-        + _FILE_EDIT_TOOLS
-        + _GIT_TOOLS
-        + _WEB_TOOLS
-        + _KNOWLEDGE_TOOLS,
+        basic_file_tools=True,
+        file_edit_tools=True,  # Can write design docs
+        git_tools=True,
+        web_tools=True,
+        knowledge_tools=True,
+        shell_tools=False,
+        python_dev_tools=False,
     )
 
 
@@ -70,16 +133,17 @@ def _create_explorer_config() -> AgentConfig:
     The Explorer researches, analyzes, and documents findings.
     Creates documentation in .agent_tasks/.
     """
-    return AgentConfig(
+    return _create_agent_config(
         name="Explorer",
         role="explorer",
         description="Research, analysis, and documentation in .agent_tasks/",
-        tools=_BASIC_FILE_TOOLS
-        + _FILE_EDIT_TOOLS
-        + _SHELL_TOOLS
-        + _GIT_TOOLS
-        + _WEB_TOOLS
-        + _KNOWLEDGE_TOOLS,
+        basic_file_tools=True,
+        file_edit_tools=True,  # Can write documentation
+        git_tools=True,
+        web_tools=True,
+        knowledge_tools=True,
+        shell_tools=True,  # For research tasks
+        python_dev_tools=False,
     )
 
 
@@ -88,15 +152,17 @@ def _create_engineer_config() -> AgentConfig:
 
     The Engineer implements code, runs tests, and debugs.
     """
-    return AgentConfig(
+    return _create_agent_config(
         name="Engineer",
         role="engineer",
         description="Code implementation, testing, and debugging",
-        tools=_BASIC_FILE_TOOLS
-        + _FILE_EDIT_TOOLS
-        + _SHELL_TOOLS
-        + _GIT_TOOLS
-        + _PYTHON_DEV_TOOLS,
+        basic_file_tools=True,
+        file_edit_tools=True,  # Can write code
+        git_tools=True,
+        web_tools=False,
+        knowledge_tools=False,
+        shell_tools=True,  # For running tests and commands
+        python_dev_tools=True,  # Full Python development toolset
     )
 
 
@@ -106,16 +172,17 @@ def _create_data_engineer_config() -> AgentConfig:
     The Data Engineer builds data pipelines, Spark/Pandas transformations,
     AWS infrastructure, and Airflow orchestration.
     """
-    return AgentConfig(
+    return _create_agent_config(
         name="Data Engineer",
         role="data_engineer",
         description="Data pipeline development, PySpark/Pandas transformations, AWS infrastructure, and Airflow orchestration",
-        tools=_BASIC_FILE_TOOLS
-        + _FILE_EDIT_TOOLS
-        + _SHELL_TOOLS
-        + _GIT_TOOLS
-        + _WEB_TOOLS
-        + _PYTHON_DEV_TOOLS,
+        basic_file_tools=True,
+        file_edit_tools=True,  # Can write code and configs
+        git_tools=True,
+        web_tools=True,  # For AWS/cloud research
+        knowledge_tools=False,
+        shell_tools=True,  # For data pipeline operations
+        python_dev_tools=True,  # Full Python development toolset
     )
 
 
