@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T01:00:11.196031+00:00_
+_Generated: 2026-02-27T01:30:12.551892+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-02-27T01:00:11.196031+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 35.8/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 28,362 |
-| **Total Smells** | 2709 |
+| **Total Lines (non-blank)** | 28,374 |
+| **Total Smells** | 2702 |
 | **Avg Maintainability Index** | 70.0 |
 | **Avg Cyclomatic Complexity** | 16.1 |
 
@@ -21,20 +21,20 @@ _Generated: 2026-02-27T01:00:11.196031+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 1784 |
-| medium | 673 |
-| high | 242 |
-| critical | 10 |
+| medium | 671 |
+| high | 238 |
+| critical | 9 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1202 |
-| Feature Envy | 356 |
+| Missing Type Hint | 1204 |
+| Feature Envy | 357 |
 | Duplicate Code | 325 |
-| Deep Nesting | 239 |
+| Deep Nesting | 231 |
 | Magic Number | 218 |
-| Long Method | 176 |
+| Long Method | 174 |
 | Primitive Obsession | 85 |
 | Complex Function | 72 |
 | Large Class | 36 |
@@ -43,64 +43,64 @@ _Generated: 2026-02-27T01:00:11.196031+00:00_
 
 These are the highest-impact smells to address first:
 
-1. **extensions/plugin_manager.py:790** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 8 in '_install_from_url' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-2. **providers/anthropic.py:171** — 🔴 CRITICAL — Long Method  
+1. **providers/anthropic.py:171** — 🔴 CRITICAL — Long Method  
    Function 'chat_completion_stream' has 153 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-3. **providers/anthropic.py:265** — 🔴 CRITICAL — Deep Nesting  
+2. **providers/anthropic.py:265** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-4. **providers/anthropic.py:270** — 🔴 CRITICAL — Deep Nesting  
+3. **providers/anthropic.py:270** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 9 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-5. **providers/anthropic.py:283** — 🔴 CRITICAL — Deep Nesting  
+4. **providers/anthropic.py:283** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 8 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-6. **providers/anthropic.py:287** — 🔴 CRITICAL — Deep Nesting  
+5. **providers/anthropic.py:287** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 9 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-7. **providers/anthropic.py:289** — 🔴 CRITICAL — Deep Nesting  
+6. **providers/anthropic.py:289** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 10 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-8. **providers/anthropic.py:290** — 🔴 CRITICAL — Deep Nesting  
+7. **providers/anthropic.py:290** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 11 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-9. **providers/anthropic.py:296** — 🔴 CRITICAL — Deep Nesting  
+8. **providers/anthropic.py:296** — 🔴 CRITICAL — Deep Nesting  
    Nesting depth 12 in 'chat_completion_stream' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-10. **providers/openai_compat.py:127** — 🔴 CRITICAL — Long Method  
+9. **providers/openai_compat.py:127** — 🔴 CRITICAL — Long Method  
    Function 'chat_completion_stream' has 138 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-11. **/home/matthew/mlg-cli/src/henchman/cli/output_handler.py:61** — 🟠 HIGH — Complex Function  
+10. **/home/matthew/mlg-cli/src/henchman/cli/output_handler.py:61** — 🟠 HIGH — Complex Function  
    Function 'get_toolbar_status' has cyclomatic complexity 24 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-12. **/home/matthew/mlg-cli/src/henchman/providers/anthropic.py:171** — 🟠 HIGH — Complex Function  
+11. **/home/matthew/mlg-cli/src/henchman/providers/anthropic.py:171** — 🟠 HIGH — Complex Function  
    Function 'chat_completion_stream' has cyclomatic complexity 33 (rank E)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-13. **/home/matthew/mlg-cli/src/henchman/providers/openai_compat.py:127** — 🟠 HIGH — Complex Function  
+12. **/home/matthew/mlg-cli/src/henchman/providers/openai_compat.py:127** — 🟠 HIGH — Complex Function  
    Function 'chat_completion_stream' has cyclomatic complexity 32 (rank E)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/grep.py:160** — 🟠 HIGH — Complex Function  
+13. **/home/matthew/mlg-cli/src/henchman/tools/builtins/grep.py:160** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/import_graph.py:74** — 🟠 HIGH — Complex Function  
+14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/import_graph.py:74** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 21 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_query.py:134** — 🟠 HIGH — Complex Function  
+   Function 'execute' has cyclomatic complexity 30 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 
@@ -114,7 +114,7 @@ These are the highest-impact smells to address first:
 | 4 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 5 | cli/commands/session.py | ❌ F | 9.8 | 67 | 296 | 33 | 11.0 |
 | 6 | core/agent.py | ❌ F | 10.7 | 47 | 586 | 36 | 11.0 |
-| 7 | extensions/plugin_manager.py | ❌ F | 10.9 | 86 | 656 | 36 | 0.0 |
+| 7 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
 | 8 | utils/compaction.py | ❌ F | 10.9 | 52 | 436 | 36 | 15.3 |
 | 9 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
 | 10 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
@@ -269,27 +269,27 @@ _... and 32 more smells._
 
 ### extensions/plugin_manager.py — ❌ F (10.9/100)
 
-LOC: 656 | Classes: 1 | Functions: 0 | MI: 36 | Avg CC: 0.0
+LOC: 668 | Classes: 1 | Functions: 0 | MI: 36 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 790 | 🔴 CRITICAL | Deep Nesting | Nesting depth 8 in '_install_from_url' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 36 | 🟠 HIGH | Large Class | Class 'PluginManager' spans 870 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 784 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_install_from_url' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 786 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_install_from_url' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 787 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in '_install_from_url' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 789 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in '_install_from_url' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 92 | 🟡 MEDIUM | Magic Number | Magic number 30 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 106 | 🟡 MEDIUM | Primitive Obsession | Function 'search_plugins' has 4 primitive-typed parameters: query: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), page: Name(id='int', ctx=Load()), page_size: Name(id='int', ctx=Load()), category: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 151 | 🟡 MEDIUM | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 188 | 🟡 MEDIUM | Magic Number | Magic number 404 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 449 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 450 | 🟡 MEDIUM | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 451 | 🟡 MEDIUM | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 452 | 🟡 MEDIUM | Magic Number | Magic number 6 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 452 | 🟡 MEDIUM | Magic Number | Magic number 6 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 35 | 🟠 HIGH | Large Class | Class 'PluginManager' spans 889 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 91 | 🟡 MEDIUM | Magic Number | Magic number 30 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 105 | 🟡 MEDIUM | Primitive Obsession | Function 'search_plugins' has 4 primitive-typed parameters: query: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), page: Name(id='int', ctx=Load()), page_size: Name(id='int', ctx=Load()), category: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 150 | 🟡 MEDIUM | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 187 | 🟡 MEDIUM | Magic Number | Magic number 404 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 448 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 449 | 🟡 MEDIUM | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 450 | 🟡 MEDIUM | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 451 | 🟡 MEDIUM | Magic Number | Magic number 6 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 451 | 🟡 MEDIUM | Magic Number | Magic number 6 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 465 | 🟡 MEDIUM | Feature Envy | Method 'PluginManager._save_installation' accesses 'installation' 8 times but 'self' only 1 times | Move Method — consider moving '_save_installation' to the class that owns 'installation'. |
+| 521 | 🟡 MEDIUM | Feature Envy | Method 'PluginManager._install_plugin_package' accesses 'metadata' 7 times but 'self' only 6 times | Move Method — consider moving '_install_plugin_package' to the class that owns 'metadata'. |
+| 546 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_install_plugin_package' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 551 | 🟡 MEDIUM | Long Method | Function '_install_from_pypi' has 51 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 604 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_install_from_pypi' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 
-_... and 71 more smells._
+_... and 64 more smells._
 
 ### utils/compaction.py — ❌ F (10.9/100)
 
