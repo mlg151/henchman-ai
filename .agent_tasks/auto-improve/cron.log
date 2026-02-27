@@ -48995,3 +48995,520 @@ TOTAL                                            13032   2369   3976    435    8
 =========== 2552 passed, 5 skipped, 34 warnings in 151.21s (0:02:31) ===========
 [2026-02-27T01:30:02Z] All tests passed.
 Committing changes...
+[main be5d491] chore(auto-improve): automated codebase improvement
+ 5 files changed, 2455 insertions(+), 538 deletions(-)
+[2026-02-27T01:30:02Z] Auto-improve complete.
+[2026-02-27T02:00:02Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by checking the last improvement made to avoid repeating work.
+[tool] read_file({'path': '.agent_tasks/auto-improve/last-improvement.md'})
+
+
+[result] # Improvement Summary
+
+**Date/Time**: 2026-02-27 (XP Refactoring Agent)
+
+**Files Changed**:
+1. `src/henchman/providers/anthropic.py` - Refactored `chat_completion_stream` 
+method
+   - Extracted 153-lin...
+Now I'll check the current code smell report to see what the top priority is. According to the report, the #1 priority is:
+
+**providers/openai_compat.py:127** — 🔴 CRITICAL — Long Method  
+Function 'chat_completion_stream' has 138 lines (threshold: 30)  
+→ _Extract Method — break this function into smaller, intention-revealing helper functions._
+
+Let me examine this file to understand the current structure:
+[tool] read_file({'path': 'src/henchman/providers/openai_compat.py', 
+'start_line': 120, 'end_line': 180})
+
+[result]                     id=tc.id,
+                    name=tc.function.name,
+                    arguments=arguments,
+                )
+            )
+        return result if result else None
+
+    async d...
+Let me see more of this method to understand its full structure:
+[tool] read_file({'path': 'src/henchman/providers/openai_compat.py', 
+'start_line': 180, 'end_line': 280})
+
+[result]                 "model": kwargs.pop("model", self.default_model),
+                "messages": [self._format_message(m) for m in messages],
+                "stream": True,
+                **kwargs,
+   ...
+Let me see the rest of the method:
+[tool] read_file({'path': 'src/henchman/providers/openai_compat.py', 
+'start_line': 280, 'end_line': 320})
+
+[result]                 content=f"❌ Provider Error: {e}",
+                finish_reason=FinishReason.STOP,
+            )
+...
+Now let me check the full method to see its exact line count:
+[tool] python_ast({'path': 'src/henchman/providers/openai_compat.py'})
+
+[result] # Symbol table for openai_compat.py
+"""OpenAI-compatible provider base class."""
+
+## Imports
+import json  [L7]
+import logging  [L8]
+from collections.abc import AsyncIterator  [L9]
+from typing import A...
+Now let me run the tests to see if they pass before I start refactoring:
+[tool] pytest_run({'path': 'src/henchman/providers', 'verbose': True})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Let me run tests for the specific test file:
+[tool] pytest_run({'path': 'tests/providers', 'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Great! All tests pass. Now let me analyze the `chat_completion_stream` method in detail to understand its structure and identify the smells:
+[tool] read_file({'path': 'src/henchman/providers/openai_compat.py', 
+'start_line': 127, 'end_line': 282})
+
+[result]     async def chat_completion_stream(
+        self,
+        messages: list[Message],
+        tools: list[ToolDeclaration] | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[StreamChunk]:
+   ...
+Now I'll analyze the code smells and plan the refactoring:
+
+**Identified Smells:**
+1. **Long Method** - 138 lines (well above 30-line threshold)
+2. **Complex Function** - Cyclomatic complexity 32 (rank E)
+3. **Deep Nesting** - Multiple nested try-except blocks and loops
+4. **Mixed Responsibilities** - Validation, parameter building, API calls, error handling, streaming, tool call processing all in one method
+5. **Primitive Obsession** - Tool call tracking uses raw dicts with magic keys
+
+**Refactoring Strategy:**
+1. **Extract Method** - Create focused helper methods for each responsibility
+2. **Introduce Parameter Object** - Create a class to manage tool call accumulation
+3. **Separate Concerns** - Isolate validation, parameter preparation, streaming, error handling
+4. **Flatten Nested Conditionals** - Reduce nesting through early returns and method extraction
+5. **Improve Readability** - Use intention-revealing method names
+
+Let me implement the refactoring:
+[tool] edit_file({'path': 'src/henchman/providers/openai_compat.py', 'old_str': 
+'    async def chat_completion_stream(\n        self,\n        messages: 
+list[Message],\n        tools: list[ToolDeclaration] | None = None,\n        
+**kwargs: Any,\n    ) -> AsyncIterator[StreamChunk]:\n        """Stream a chat 
+completion from the model.\n\n        Args:\n            messages: The 
+conversation history.\n            tools: Optional list of tools available to 
+the model.\n            **kwargs: Additional parameters passed to the API.\n\n  
+Yields:\n            StreamChunk objects as the response is generated.\n        
+"""\n        # Validation errors should be raised, not caught\n        # 
+Validate messages are not empty\n        if not messages:\n            raise 
+ValueError("Messages list cannot be empty")\n\n        # Validate each message 
+has content (unless it\'s a tool call response)\n        for message in 
+messages:\n            # Tool/function messages can have empty content\n        
+if message.role in ["tool", "function"]:\n                continue\n\n          
+# Assistant messages can have empty content (e.g., when only tool calls are 
+made)\n            if message.role == "assistant":\n                continue\n\n
+# All other messages must have non-empty content\n            if not 
+(message.content or "").strip():\n                raise ValueError(f"Message 
+with role \'{message.role}\' cannot have empty content")\n\n        
+logger.debug("OpenAICompatibleProvider.chat_completion_stream: Starting with %d 
+messages", len(messages))\n\n        # Run the actual API call with error 
+handling\n        try:\n            # Original implementation continues...\n\n  
+# Build request parameters\n            # Last-resort defense: validate and 
+repair message sequence to\n            # prevent 400 errors from the API about 
+broken tool sequences.\n            from henchman.utils.validation import (\n   
+is_valid_message_sequence,\n                repair_message_sequence,\n          
+)\n\n            if not is_valid_message_sequence(messages):\n                
+messages = repair_message_sequence(messages)\n\n            params: dict[str, 
+Any] = {\n                "model": kwargs.pop("model", self.default_model),\n   
+"messages": [self._format_message(m) for m in messages],\n                
+"stream": True,\n                **kwargs,\n            }\n\n            if 
+tools:\n                params["tools"] = [self._format_tool(t) for t in 
+tools]\n\n            # Stream the response with error handling\n            
+try:\n                response = await 
+self._client.chat.completions.create(**params)\n            except 
+APIStatusError as e:\n                if e.status_code == 413:\n                
+raise ContextTooLargeError(\n                        "Request too large. Try 
+using start_line/end_line when reading "\n                        "files to 
+limit context size, or start a new conversation."\n                    ) from 
+e\n                raise\n\n            # Track tool calls across chunks (they 
+come in pieces)\n            pending_tool_calls: dict[int, dict[str, Any]] = 
+{}\n\n            async for chunk in response:\n                if not 
+chunk.choices:\n                    continue\n\n                choice = 
+chunk.choices[0]\n                delta = choice.delta\n\n                # 
+Handle content\n                content = getattr(delta, "content", None)\n\n   
+# Handle thinking (for reasoning models)\n                thinking = 
+getattr(delta, "reasoning_content", None)\n\n                # Handle tool calls
+(they come incrementally)\n                tool_calls = None\n                if
+hasattr(delta, "tool_calls") and delta.tool_calls:\n                    for 
+tc_delta in delta.tool_calls:\n                        idx = tc_delta.index\n   
+if idx not in pending_tool_calls:\n                            
+pending_tool_calls[idx] = {\n                                "id": tc_delta.id 
+or "",\n                                "name": "",\n                           
+"arguments": "",\n                            }\n\n                        if 
+tc_delta.id:\n                            pending_tool_calls[idx]["id"] = 
+tc_delta.id\n                        if tc_delta.function:\n                    
+if tc_delta.function.name:\n                                
+pending_tool_calls[idx]["name"] = tc_delta.function.name\n                      
+if tc_delta.function.arguments:\n                                
+pending_tool_calls[idx]["arguments"] += tc_delta.function.arguments\n\n         
+# Handle finish reason\n                finish_reason = 
+self._parse_finish_reason(choice.finish_reason)\n\n                # If we\'re 
+done and have pending tool calls, emit them\n                if finish_reason 
+and pending_tool_calls:\n                    tool_calls = []\n                  
+for tc_data in pending_tool_calls.values():\n                        try:\n     
+arguments = json.loads(tc_data["arguments"])\n                        except 
+json.JSONDecodeError:\n                            arguments = {}\n             
+tool_calls.append(\n                            ToolCall(\n                     
+id=tc_data["id"],\n                                name=tc_data["name"],\n      
+arguments=arguments,\n                            )\n                        
+)\n\n                # Extract usage information if available\n                
+usage = None\n                if hasattr(chunk, \'usage\') and chunk.usage:\n   
+usage = {\n                        \'prompt_tokens\': 
+chunk.usage.prompt_tokens,\n                        \'completion_tokens\': 
+chunk.usage.completion_tokens,\n                        \'total_tokens\': 
+chunk.usage.total_tokens,\n                    }\n\n                yield 
+StreamChunk(\n                    content=content,\n                    
+tool_calls=tool_calls,\n                    finish_reason=finish_reason,\n      
+thinking=thinking,\n                    usage=usage,\n                )\n\n     
+except (ValueError, ContextTooLargeError, APIStatusError):\n            # 
+Re-raise validation, context too large, and API status errors\n            
+raise\n        except Exception as e:\n            
+logger.debug("OpenAICompatibleProvider: Caught exception: %s", e)\n            #
+Yield an error StreamChunk for API/network errors\n            from 
+henchman.providers.base import FinishReason\n            yield StreamChunk(\n   
+content=f"❌ Provider Error: {e}",\n                
+finish_reason=FinishReason.STOP,\n            )', 'new_str': '    async def 
+chat_completion_stream(\n        self,\n        messages: list[Message],\n      
+tools: list[ToolDeclaration] | None = None,\n        **kwargs: Any,\n    ) -> 
+AsyncIterator[StreamChunk]:\n        """Stream a chat completion from the 
+model.\n\n        Args:\n            messages: The conversation history.\n      
+tools: Optional list of tools available to the model.\n            **kwargs: 
+Additional parameters passed to the API.\n\n        Yields:\n            
+StreamChunk objects as the response is generated.\n        """\n        
+self._validate_messages(messages)\n        
+logger.debug("OpenAICompatibleProvider.chat_completion_stream: Starting with %d 
+messages", len(messages))\n\n        try:\n            messages = 
+self._repair_message_sequence_if_needed(messages)\n            params = 
+self._build_request_params(messages, tools, kwargs)\n            response = 
+await self._make_api_request(params)\n            \n            async for chunk 
+in self._process_stream_response(response):\n                yield chunk\n      
+\n        except (ValueError, ContextTooLargeError, APIStatusError):\n          
+# Re-raise validation, context too large, and API status errors\n            
+raise\n        except Exception as e:\n            yield 
+self._create_error_chunk(e)'})
+
+[result] Successfully edited src/henchman/providers/openai_compat.py...
+Now I need to add the helper methods. Let me add them after the `chat_completion_stream` method:
+[tool] edit_file({'path': 'src/henchman/providers/openai_compat.py', 'old_str': 
+'                finish_reason=FinishReason.STOP,\n            )', 'new_str': ' 
+finish_reason=FinishReason.STOP,\n            )\n\n    def 
+_validate_messages(self, messages: list[Message]) -> None:\n        """Validate 
+that messages are not empty and have content where required.\n        \n        
+Args:\n            messages: The conversation history to validate.\n            
+\n        Raises:\n            ValueError: If messages are empty or have invalid
+content.\n        """\n        if not messages:\n            raise 
+ValueError("Messages list cannot be empty")\n\n        for message in 
+messages:\n            # Tool/function messages can have empty content\n        
+if message.role in ["tool", "function"]:\n                continue\n\n          
+# Assistant messages can have empty content (e.g., when only tool calls are 
+made)\n            if message.role == "assistant":\n                continue\n\n
+# All other messages must have non-empty content\n            if not 
+(message.content or "").strip():\n                raise ValueError(f"Message 
+with role \'{message.role}\' cannot have empty content")\n\n    def 
+_repair_message_sequence_if_needed(self, messages: list[Message]) -> 
+list[Message]:\n        """Repair message sequence if it\'s invalid to prevent 
+API errors.\n        \n        Args:\n            messages: The conversation 
+history.\n            \n        Returns:\n            The repaired message 
+sequence.\n        """\n        from henchman.utils.validation import (\n       
+is_valid_message_sequence,\n            repair_message_sequence,\n        )\n\n 
+if not is_valid_message_sequence(messages):\n            return 
+repair_message_sequence(messages)\n        return messages\n\n    def 
+_build_request_params(\n        self,\n        messages: list[Message],\n       
+tools: list[ToolDeclaration] | None,\n        kwargs: dict[str, Any]\n    ) -> 
+dict[str, Any]:\n        """Build the request parameters for the API call.\n    
+\n        Args:\n            messages: The conversation history.\n            
+tools: Optional list of tools available to the model.\n            kwargs: 
+Additional parameters passed to the API.\n            \n        Returns:\n      
+The request parameters dictionary.\n        """\n        params: dict[str, Any] 
+= {\n            "model": kwargs.pop("model", self.default_model),\n            
+"messages": [self._format_message(m) for m in messages],\n            "stream": 
+True,\n            **kwargs,\n        }\n\n        if tools:\n            
+params["tools"] = [self._format_tool(t) for t in tools]\n            \n        
+return params\n\n    async def _make_api_request(self, params: dict[str, Any]) 
+-> Any:\n        """Make the API request with error handling for context too 
+large errors.\n        \n        Args:\n            params: The request 
+parameters.\n            \n        Returns:\n            The API response.\n    
+\n        Raises:\n            ContextTooLargeError: If the request is too large
+(413 error).\n            APIStatusError: For other API errors.\n        """\n  
+try:\n            return await self._client.chat.completions.create(**params)\n 
+except APIStatusError as e:\n            if e.status_code == 413:\n             
+raise ContextTooLargeError(\n                    "Request too large. Try using 
+start_line/end_line when reading "\n                    "files to limit context 
+size, or start a new conversation."\n                ) from e\n            
+raise\n\n    async def _process_stream_response(self, response: Any) -> 
+AsyncIterator[StreamChunk]:\n        """Process the streaming response and yield
+StreamChunk objects.\n        \n        Args:\n            response: The API 
+response stream.\n            \n        Yields:\n            StreamChunk objects
+as the response is generated.\n        """\n        pending_tool_calls: 
+dict[int, dict[str, Any]] = {}\n\n        async for chunk in response:\n        
+if not chunk.choices:\n                continue\n\n            choice = 
+chunk.choices[0]\n            delta = choice.delta\n\n            # Handle 
+content and thinking\n            content = getattr(delta, "content", None)\n   
+thinking = getattr(delta, "reasoning_content", None)\n\n            # Handle 
+tool calls\n            tool_calls = None\n            if hasattr(delta, 
+"tool_calls") and delta.tool_calls:\n                
+self._update_pending_tool_calls(pending_tool_calls, delta.tool_calls)\n\n       
+# Handle finish reason\n            finish_reason = 
+self._parse_finish_reason(choice.finish_reason)\n\n            # If we\'re done 
+and have pending tool calls, emit them\n            if finish_reason and 
+pending_tool_calls:\n                tool_calls = 
+self._build_tool_calls_from_pending(pending_tool_calls)\n\n            # Extract
+usage information if available\n            usage = 
+self._extract_usage_info(chunk)\n\n            yield StreamChunk(\n             
+content=content,\n                tool_calls=tool_calls,\n                
+finish_reason=finish_reason,\n                thinking=thinking,\n              
+usage=usage,\n            )\n\n    def _update_pending_tool_calls(\n        
+self,\n        pending_tool_calls: dict[int, dict[str, Any]],\n        
+tool_call_deltas: list[Any]\n    ) -> None:\n        """Update pending tool 
+calls with new delta information.\n        \n        Args:\n            
+pending_tool_calls: Dictionary tracking tool calls across chunks.\n            
+tool_call_deltas: List of tool call delta objects from the API.\n        """\n  
+for tc_delta in tool_call_deltas:\n            idx = tc_delta.index\n           
+if idx not in pending_tool_calls:\n                pending_tool_calls[idx] = {\n
+"id": tc_delta.id or "",\n                    "name": "",\n                    
+"arguments": "",\n                }\n\n            if tc_delta.id:\n            
+pending_tool_calls[idx]["id"] = tc_delta.id\n            if tc_delta.function:\n
+if tc_delta.function.name:\n                    pending_tool_calls[idx]["name"] 
+= tc_delta.function.name\n                if tc_delta.function.arguments:\n     
+pending_tool_calls[idx]["arguments"] += tc_delta.function.arguments\n\n    def 
+_build_tool_calls_from_pending(\n        self,\n        pending_tool_calls: 
+dict[int, dict[str, Any]]\n    ) -> list[ToolCall]:\n        """Build ToolCall 
+objects from pending tool call data.\n        \n        Args:\n            
+pending_tool_calls: Dictionary tracking tool calls across chunks.\n            
+\n        Returns:\n            List of ToolCall objects.\n        """\n        
+tool_calls = []\n        for tc_data in pending_tool_calls.values():\n          
+try:\n                arguments = json.loads(tc_data["arguments"])\n            
+except json.JSONDecodeError:\n                arguments = {}\n            
+tool_calls.append(\n                ToolCall(\n                    
+id=tc_data["id"],\n                    name=tc_data["name"],\n                  
+arguments=arguments,\n                )\n            )\n        return 
+tool_calls\n\n    def _extract_usage_info(self, chunk: Any) -> dict[str, int] | 
+None:\n        """Extract usage information from the chunk if available.\n      
+\n        Args:\n            chunk: The API response chunk.\n            \n     
+Returns:\n            Usage dictionary or None if not available.\n        """\n 
+if hasattr(chunk, \'usage\') and chunk.usage:\n            return {\n           
+\'prompt_tokens\': chunk.usage.prompt_tokens,\n                
+\'completion_tokens\': chunk.usage.completion_tokens,\n                
+\'total_tokens\': chunk.usage.total_tokens,\n            }\n        return 
+None\n\n    def _create_error_chunk(self, error: Exception) -> StreamChunk:\n   
+"""Create an error StreamChunk for API/network errors.\n        \n        
+Args:\n            error: The exception that occurred.\n            \n        
+Returns:\n            An error StreamChunk.\n        """\n        
+logger.debug("OpenAICompatibleProvider: Caught exception: %s", error)\n        
+from henchman.providers.base import FinishReason\n        return StreamChunk(\n 
+content=f"❌ Provider Error: {error}",\n            
+finish_reason=FinishReason.STOP,\n        )'})
+
+✗ \[error] Error: String not found in file:                 
+finish_reason=FinishReason.STOP,
+ ...
+Let me check the end of the file:
+[tool] read_file({'path': 'src/henchman/providers/openai_compat.py', 
+'start_line': 270, 'end_line': 290})
+
+[result] ...
+Let me check the full file to see where it ends:
+[tool] read_file({'path': 'src/henchman/providers/openai_compat.py', 
+'start_line': 250, 'end_line': 282})
+
+[result] ...
+Let me check the file length:
+[tool] shell({'command': 'wc -l src/henchman/providers/openai_compat.py'})
+
+[result] 158 src/henchman/providers/openai_compat.py
+...
+
+[tool] read_file({'path': 'src/henchman/providers/openai_compat.py', 
+'start_line': 150, 'end_line': 158})
+
+[result]             
+            async for chunk in self._process_stream_response(response):
+                yield chunk
+                
+        except (ValueError, ContextTooLargeError, APIStatusError):
+   ...
+Now I need to add the helper methods at the end of the class. Let me see the full class structure:
+[tool] python_ast({'path': 'src/henchman/providers/openai_compat.py'})
+
+[result] # Symbol table for openai_compat.py
+"""OpenAI-compatible provider base class."""
+
+## Imports
+import json  [L7]
+import logging  [L8]
+from collections.abc import AsyncIterator  [L9]
+from typing import A...
+I see the class ends at line 158. I need to add the helper methods before the class ends. Let me add them:
+[tool] edit_file({'path': 'src/henchman/providers/openai_compat.py', 'old_str': 
+'        except (ValueError, ContextTooLargeError, APIStatusError):\n           
+# Re-raise validation, context too large, and API status errors\n            
+raise\n        except Exception as e:\n            yield 
+self._create_error_chunk(e)', 'new_str': '        except (ValueError, 
+ContextTooLargeError, APIStatusError):\n            # Re-raise validation, 
+context too large, and API status errors\n            raise\n        except 
+Exception as e:\n            yield self._create_error_chunk(e)\n\n    def 
+_validate_messages(self, messages: list[Message]) -> None:\n        """Validate 
+that messages are not empty and have content where required.\n        \n        
+Args:\n            messages: The conversation history to validate.\n            
+\n        Raises:\n            ValueError: If messages are empty or have invalid
+content.\n        """\n        if not messages:\n            raise 
+ValueError("Messages list cannot be empty")\n\n        for message in 
+messages:\n            # Tool/function messages can have empty content\n        
+if message.role in ["tool", "function"]:\n                continue\n\n          
+# Assistant messages can have empty content (e.g., when only tool calls are 
+made)\n            if message.role == "assistant":\n                continue\n\n
+# All other messages must have non-empty content\n            if not 
+(message.content or "").strip():\n                raise ValueError(f"Message 
+with role \'{message.role}\' cannot have empty content")\n\n    def 
+_repair_message_sequence_if_needed(self, messages: list[Message]) -> 
+list[Message]:\n        """Repair message sequence if it\'s invalid to prevent 
+API errors.\n        \n        Args:\n            messages: The conversation 
+history.\n            \n        Returns:\n            The repaired message 
+sequence.\n        """\n        from henchman.utils.validation import (\n       
+is_valid_message_sequence,\n            repair_message_sequence,\n        )\n\n 
+if not is_valid_message_sequence(messages):\n            return 
+repair_message_sequence(messages)\n        return messages\n\n    def 
+_build_request_params(\n        self,\n        messages: list[Message],\n       
+tools: list[ToolDeclaration] | None,\n        kwargs: dict[str, Any]\n    ) -> 
+dict[str, Any]:\n        """Build the request parameters for the API call.\n    
+\n        Args:\n            messages: The conversation history.\n            
+tools: Optional list of tools available to the model.\n            kwargs: 
+Additional parameters passed to the API.\n            \n        Returns:\n      
+The request parameters dictionary.\n        """\n        params: dict[str, Any] 
+= {\n            "model": kwargs.pop("model", self.default_model),\n            
+"messages": [self._format_message(m) for m in messages],\n            "stream": 
+True,\n            **kwargs,\n        }\n\n        if tools:\n            
+params["tools"] = [self._format_tool(t) for t in tools]\n            \n        
+return params\n\n    async def _make_api_request(self, params: dict[str, Any]) 
+-> Any:\n        """Make the API request with error handling for context too 
+large errors.\n        \n        Args:\n            params: The request 
+parameters.\n            \n        Returns:\n            The API response.\n    
+\n        Raises:\n            ContextTooLargeError: If the request is too large
+(413 error).\n            APIStatusError: For other API errors.\n        """\n  
+try:\n            return await self._client.chat.completions.create(**params)\n 
+except APIStatusError as e:\n            if e.status_code == 413:\n             
+raise ContextTooLargeError(\n                    "Request too large. Try using 
+start_line/end_line when reading "\n                    "files to limit context 
+size, or start a new conversation."\n                ) from e\n            
+raise\n\n    async def _process_stream_response(self, response: Any) -> 
+AsyncIterator[StreamChunk]:\n        """Process the streaming response and yield
+StreamChunk objects.\n        \n        Args:\n            response: The API 
+response stream.\n            \n        Yields:\n            StreamChunk objects
+as the response is generated.\n        """\n        pending_tool_calls: 
+dict[int, dict[str, Any]] = {}\n\n        async for chunk in response:\n        
+if not chunk.choices:\n                continue\n\n            choice = 
+chunk.choices[0]\n            delta = choice.delta\n\n            # Handle 
+content and thinking\n            content = getattr(delta, "content", None)\n   
+thinking = getattr(delta, "reasoning_content", None)\n\n            # Handle 
+tool calls\n            tool_calls = None\n            if hasattr(delta, 
+"tool_calls") and delta.tool_calls:\n                
+self._update_pending_tool_calls(pending_tool_calls, delta.tool_calls)\n\n       
+# Handle finish reason\n            finish_reason = 
+self._parse_finish_reason(choice.finish_reason)\n\n            # If we\'re done 
+and have pending tool calls, emit them\n            if finish_reason and 
+pending_tool_calls:\n                tool_calls = 
+self._build_tool_calls_from_pending(pending_tool_calls)\n\n            # Extract
+usage information if available\n            usage = 
+self._extract_usage_info(chunk)\n\n            yield StreamChunk(\n             
+content=content,\n                tool_calls=tool_calls,\n                
+finish_reason=finish_reason,\n                thinking=thinking,\n              
+usage=usage,\n            )\n\n    def _update_pending_tool_calls(\n        
+self,\n        pending_tool_calls: dict[int, dict[str, Any]],\n        
+tool_call_deltas: list[Any]\n    ) -> None:\n        """Update pending tool 
+calls with new delta information.\n        \n        Args:\n            
+pending_tool_calls: Dictionary tracking tool calls across chunks.\n            
+tool_call_deltas: List of tool call delta objects from the API.\n        """\n  
+for tc_delta in tool_call_deltas:\n            idx = tc_delta.index\n           
+if idx not in pending_tool_calls:\n                pending_tool_calls[idx] = {\n
+"id": tc_delta.id or "",\n                    "name": "",\n                    
+"arguments": "",\n                }\n\n            if tc_delta.id:\n            
+pending_tool_calls[idx]["id"] = tc_delta.id\n            if tc_delta.function:\n
+if tc_delta.function.name:\n                    pending_tool_calls[idx]["name"] 
+= tc_delta.function.name\n                if tc_delta.function.arguments:\n     
+pending_tool_calls[idx]["arguments"] += tc_delta.function.arguments\n\n    def 
+_build_tool_calls_from_pending(\n        self,\n        pending_tool_calls: 
+dict[int, dict[str, Any]]\n    ) -> list[ToolCall]:\n        """Build ToolCall 
+objects from pending tool call data.\n        \n        Args:\n            
+pending_tool_calls: Dictionary tracking tool calls across chunks.\n            
+\n        Returns:\n            List of ToolCall objects.\n        """\n        
+tool_calls = []\n        for tc_data in pending_tool_calls.values():\n          
+try:\n                arguments = json.loads(tc_data["arguments"])\n            
+except json.JSONDecodeError:\n                arguments = {}\n            
+tool_calls.append(\n                ToolCall(\n                    
+id=tc_data["id"],\n                    name=tc_data["name"],\n                  
+arguments=arguments,\n                )\n            )\n        return 
+tool_calls\n\n    def _extract_usage_info(self, chunk: Any) -> dict[str, int] | 
+None:\n        """Extract usage information from the chunk if available.\n      
+\n        Args:\n            chunk: The API response chunk.\n            \n     
+Returns:\n            Usage dictionary or None if not available.\n        """\n 
+if hasattr(chunk, \'usage\') and chunk.usage:\n            return {\n           
+\'prompt_tokens\': chunk.usage.prompt_tokens,\n                
+\'completion_tokens\': chunk.usage.completion_tokens,\n                
+\'total_tokens\': chunk.usage.total_tokens,\n            }\n        return 
+None\n\n    def _create_error_chunk(self, error: Exception) -> StreamChunk:\n   
+"""Create an error StreamChunk for API/network errors.\n        \n        
+Args:\n            error: The exception that occurred.\n            \n        
+Returns:\n            An error StreamChunk.\n        """\n        
+logger.debug("OpenAICompatibleProvider: Caught exception: %s", error)\n        
+from henchman.providers.base import FinishReason\n        return StreamChunk(\n 
+content=f"❌ Provider Error: {error}",\n            
+finish_reason=FinishReason.STOP,\n        )'})
+
+[result] Successfully edited src/henchman/providers/openai_compat.py...
+Now let me run the tests to make sure my refactoring didn't break anything:
+[tool] pytest_run({'path': 'tests/providers/test_openai_compat.py', 'verbose': 
+True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Great! All tests pass. Now let me run the full test suite to make sure I didn't break anything else:
+[tool] pytest_run({'path': 'tests/providers'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Excellent! All tests pass. Now let me run the CI script to ensure everything is working correctly:
+[tool] shell({'command': './scripts/ci.sh'})
+
+✗ \[error] /bin/sh: 1: ./scripts/ci.sh: not found
+
+Let me check if there's a CI script:
+[tool] ls({'path': 'scripts'})
+
+[result] auto-improve.sh
+build_docs.py
+run_evals.sh
+smell_detector/...
+Let me run the auto-improve script to check code quality:
+[tool] shell({'command': './scripts/auto-improve.sh'})
+
