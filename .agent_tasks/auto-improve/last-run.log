@@ -1,10 +1,11 @@
-[2026-02-27T20:07:55Z] Starting auto-improve run...
+[2026-02-27T20:30:02Z] Starting auto-improve run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-02-27T20:07:55Z] Targeting lowest-graded file: agents/orchestrator.py
+[2026-02-27T20:30:02Z] Targeting lowest-graded file: agents/orchestrator.py
 Running Henchman...
+Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
-I'll analyze the target file `src/henchman/agents/orchestrator.py` and address all the code smells listed in the report. Let me first read the file to understand its structure.
+I'll start by analyzing the target file `src/henchman/agents/orchestrator.py` to understand its structure and identify the specific smells mentioned in the report.
 [tool] read_file({'path': 'src/henchman/agents/orchestrator.py'})
 
 
@@ -16,73 +17,71 @@ import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from enum impor...
-The file is quite large (1109 lines). Let me examine the specific code smells mentioned in the report for this file:
+The file is quite large (1089 lines). Let me check the specific smells mentioned in the report for this file:
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md', 
+'start_line': 100, 'end_line': 200})
 
-1. **Line 194**: `__init__` is an exact duplicate of `__init__` at line 255
-2. **Line 370**: `update_delegation_metrics` is an exact duplicate of `_update_delegation_metrics` at line 1067
-3. **Line 466**: `ExecutionController.run_agent_loop` has Feature Envy (accesses `state` 10 times but `self` only 8 times)
-4. **Line 581**: `collect_events_and_tool_calls` is an exact duplicate of `_collect_events_and_tool_calls` at line 1262
-
-Let me examine these specific lines more closely:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 190, 'end_line': 200})
+[result] 
+15. **cli/commands/session.py:323** — 🟠 HIGH — Feature Envy  
+   Method 'SessionCommand._import' accesses 'ctx' 10 times but 'self' only 7 
+times  
+   → _Move Method — consider moving '_import' to the...
+Now let me look at the specific lines mentioned in the smell report for the orchestrator.py file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+95, 'end_line': 110})
 
 [result] 
 
-class AgentValidator:
-    """Validates agent behavior and patterns."""
-    def __init__(self, orchestrator: "Orchestrator"):
-        self.orchestrator = orchestrator
-        self.metrics = orchestra...
+class PromptFactory:
+    """Factory for creating agent system prompts."""
+    @staticmethod
+    def create_tech_lead_prompt(
+        agent_configs: dict[str, Any],
+        system_prompt: str | None,...
 
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 250, 'end_line': 260})
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+170, 'end_line': 185})
 
-[result]         )
+[result]         
+        path = tc.arguments.get("path") or tc.arguments.get("file_path")
+        if path and isinstance(path, str):
+            files_touched.add(path)
 
+    @staticmethod
+    def _format_summ...
 
-class ToolController:
-    """Manages tool execution and result processing."""
-    def __init__(self, orchestrator: "Orchestrator"):
-        self.orchestrator = orchestrator
-        self.me...
-I see - both `AgentValidator.__init__` and `ToolController.__init__` have the same pattern. Let me check the other duplicate functions:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 365, 'end_line': 375})
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+230, 'end_line': 245})
 
-[result]         """Process delegation results and prepare completion data."""
-        return self.orchestrator._delegation_runner._process_delegation_results(
-            target_role, target_agent, msg_start
+[result]             return AgentEvent(
+                type=EventType.THINKING_REQUIRED,
+                data="Thinking pattern missing in Tech Lead response",
+                source_agent="orchestrator",
+   ...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+410, 'end_line': 425})
+
+[result]             submitted_content = 
+f"{result_content}\n\n{self.orchestrator.ledger.render()}"
+
+        agent.submit_tool_result(tool_call.id, submitted_content)
+        return submitted_content
+
+    asyn...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+430, 'end_line': 445})
+
+[result]         self.update_tool_metrics(tool_call.name, tool_call.arguments, 
+result.success)
+
+        # Yield tool result event
+        yield self.yield_tool_result_event(agent, tool_call, result.content or 
 ...
 
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 1060, 'end_line': 1075})
-
-[result] 
-        yield AgentEvent(
-            type=EventType.AGENT_COMPLETED,
-            data={"agent": role, "status": status.value},
-            source_agent="orchestrator",
-        )
-
-    def _update_del...
-
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 575, 'end_line': 585})
-
-[result]                 Message(role="user", content=_COLON_STALL_NUDGE)
-            )
-            return agent.continue_with_tool_results(), colon_stall_retries
-
-        return None
-
-    async def collect_ev...
-
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 1255, 'end_line': 1265})
-
-[result]             agent.messages.append(
-                Message(role="user", content=_COLON_STALL_NUDGE)
-            )
-            return agent.continue_with_tool_results(), colon_stall_retries
-
-        re...
-Now let me check the `run_agent_loop` method to understand the Feature Envy issue:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 460, 'end_line': 480})
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+475, 'end_line': 490})
 
 [result] 
 class ExecutionController:
@@ -91,870 +90,954 @@ class ExecutionController:
         self.orchestrator = orchestrator
 
     async def run_agent_l...
-I need to analyze the code smells systematically and apply XP refactoring principles. Let me first run the tests to ensure I understand the current state:
-[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': True})
+I'll analyze the orchestrator.py file systematically and address all the code smells mentioned in the report. Let me first run the tests to ensure I understand the current state:
+[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': 
+True})
 
-[result] ============================= test session starts ==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- /home/matthew/anaconda3/bin/python
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Good, tests pass. Now let me analyze the code smells and create a refactoring plan:
+Good, tests pass. Now let me analyze the specific smells in the orchestrator.py file and create a refactoring plan. Based on the smell report, I need to address:
 
-**Identified Smells:**
-1. **Duplicate Code**: `AgentValidator.__init__` and `ToolController.__init__` have identical implementations
-2. **Duplicate Code**: `update_delegation_metrics` and `_update_delegation_metrics` are identical
-3. **Feature Envy**: `ExecutionController.run_agent_loop` accesses `state` 10 times but `self` only 8 times
-4. **Duplicate Code**: `collect_events_and_tool_calls` and `_collect_events_and_tool_calls` are identical
-5. **Long Method**: Several methods exceed 30 lines threshold
-6. **Complex Function**: Several methods have high cyclomatic complexity
+1. **Feature Envy** issues (multiple instances)
+2. **Long Method** issues (run_agent_loop, _run_agent_loop)
+3. **Duplicate Code** issues (check_colon_stall vs _check_colon_stall, enforce_turn_limits vs _enforce_turn_limits)
+4. **Large Class** issue (Orchestrator class is 629 lines)
+5. **Complex Function** issues (run_agent_loop has cyclomatic complexity 11)
 
-**Refactoring Strategy:**
-1. **Extract Common Initialization**: Create a shared base class or utility function for the duplicate `__init__` methods
-2. **Extract Shared Function**: Create a single `update_delegation_metrics` function and call it from both places
-3. **Move Method**: Move `run_agent_loop` logic that heavily uses `state` into the `LoopState` class or extract helper methods
-4. **Extract Shared Function**: Create a single `collect_events_and_tool_calls` function
-5. **Extract Method**: Break down long methods into smaller, intention-revealing helper functions
-6. **Replace Conditional with Polymorphism**: Reduce branching complexity
+Let me start by examining the structure more carefully:
+[tool] python_ast({'path': 'src/henchman/agents/orchestrator.py'})
 
-Let me start refactoring. First, I'll create a base class for the duplicate `__init__` methods:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': 'class AgentValidator:\n    
-"""Validates agent behavior and patterns."""\n    def __init__(self, orchestrator: "Orchestrator"):\n        
-self.orchestrator = orchestrator\n        self.metrics = orchestrator.metrics', 'new_str': 'class 
-OrchestratorComponent:\n    """Base class for orchestrator components with shared initialization."""\n    def 
-__init__(self, orchestrator: "Orchestrator"):\n        self.orchestrator = orchestrator\n        self.metrics = 
-orchestrator.metrics\n\n\nclass AgentValidator(OrchestratorComponent):\n    """Validates agent behavior and 
-patterns."""'})
+[result] # Symbol table for orchestrator.py
+"""Orchestrator for multi-agent development team."""
+
+## Imports
+from __future__ import annotations  [L3]
+import time  [L5]
+from collections.abc import AsyncIterator...
+Now I'll create a comprehensive refactoring plan. Based on the XP principles and the specific smells identified, I need to:
+
+1. **Address Feature Envy**: Move methods that access other objects more than themselves
+2. **Extract Long Methods**: Break down `run_agent_loop` and `_run_agent_loop` 
+3. **Eliminate Duplicate Code**: Merge `check_colon_stall` and `_check_colon_stall`, `enforce_turn_limits` and `_enforce_turn_limits`
+4. **Reduce Class Size**: Extract responsibilities from the large `Orchestrator` class
+5. **Improve Readability**: Use intention-revealing names and extract helper methods
+
+Let me start by creating a working memory document and then refactoring step by step:
+[tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
+'content': '# Refactoring: src/henchman/agents/orchestrator.py\n**Date/Time**: 
+2026-02-27T20:45:00Z\n**Files Changed**: 
+src/henchman/agents/orchestrator.py\n\n## Working Memory\n\n### Current Task: 
+Refactor orchestrator.py to address all code smells\n**Task Objectives**:\n1. 
+Fix Feature Envy issues (7 instances)\n2. Fix Long Method issues (2 
+instances)\n3. Fix Duplicate Code issues (2 instances)\n4. Fix Large Class issue
+(Orchestrator class too large)\n5. Fix Complex Function issues (cyclomatic 
+complexity)\n\n**Recent Files**:\n- `src/henchman/agents/orchestrator.py`: Full 
+file analysis, 1089 lines, 12 classes\n- 
+`.agent_tasks/auto-improve/smell-report.md`: Smell analysis showing 77 
+smells\n\n**Active Context**:\n- Project: Henchman-AI multi-agent CLI\n- 
+Architecture: Orchestrator coordinates Tech Lead and specialist agents\n- Key 
+patterns: Event-driven async execution, delegation system, metrics tracking\n- 
+Constraints: Must maintain backward compatibility, all tests must 
+pass\n\n**Decisions Made**:\n1. Will extract helper methods from long 
+functions\n2. Will move Feature Envy methods to appropriate classes\n3. Will 
+eliminate duplicate code by extracting shared logic\n4. Will consider extracting
+subclasses from Orchestrator\n\n**Completed Steps**:\n1. ✅ Analyzed file 
+structure and smell report\n2. ✅ Ran tests to establish baseline (53 tests 
+pass)\n\n**Next Actions**:\n1. Extract helper methods from `run_agent_loop` (63 
+lines)\n2. Extract helper methods from `_run_agent_loop` (71 lines)\n3. Merge 
+duplicate colon stall checking logic\n4. Merge duplicate turn limit enforcement 
+logic\n5. Address Feature Envy in static methods\n6. Consider extracting 
+subclasses from Orchestrator\n\n**Insights Gained**:\n- Many static methods 
+exhibit Feature Envy because they operate on parameters rather than self\n- 
+Duplicate code exists between ExecutionController and Orchestrator methods\n- 
+The class is already well-structured with separate components (Validator, 
+ToolController, ExecutionController)\n\n**Problems Encountered**: None yet\n\n##
+Refactoring Strategy\n\n### Phase 1: Extract Helper Methods from Long 
+Functions\n- Extract `_process_agent_events_and_tools` from `run_agent_loop`\n- 
+Extract `_handle_no_pending_tools` from `run_agent_loop`\n- Extract 
+`_execute_pending_tools` from `run_agent_loop`\n\n### Phase 2: Address Feature 
+Envy\n- Move `PromptFactory.create_tech_lead_prompt` logic to where `c` is 
+owned\n- Move `TimeoutSummaryBuilder._format_summary` to work with `self`\n- 
+Move `AgentValidator.check_stall_failure` to Agent class\n- Move 
+`ToolController.execute_regular_tool` helper logic\n- Move 
+`ToolController.prepare_delegation_brief` to ToolCall class\n- Move 
+`ExecutionController.enforce_turn_limits` to TurnEnforcementParams\n- Move 
+`Orchestrator._enforce_turn_limits` to TurnEnforcementParams\n- Move 
+`Orchestrator._run_agent_loop` state handling to LoopState\n\n### Phase 3: 
+Eliminate Duplicate Code\n- Extract shared colon stall logic to 
+`_check_colon_stall_common`\n- Extract shared turn limit logic to 
+`_enforce_turn_limits_common`\n\n### Phase 4: Reduce Class Size\n- Extract 
+`OrchestratorInitializer` class for initialization logic\n- Extract 
+`OrchestratorRunner` class for execution logic\n\n### Phase 5: Improve 
+Readability\n- Rename variables for clarity\n- Add type hints where missing\n- 
+Extract magic numbers to constants\n\n## Testing Implications\n- Need to ensure 
+all 53 existing tests still pass\n- May need to update tests that directly call 
+refactored methods\n- Should add tests for new extracted helper methods\n- Edge 
+cases: colon stall detection, turn limits, delegation handling'})
+
+[result] Successfully wrote 3550 bytes to 
+.agent_tasks/auto-improve/last-improvement.md...
+Now let me start refactoring. First, let me look at the `run_agent_loop` method (line 481) which is 63 lines and has cyclomatic complexity 11:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+481, 'end_line': 548})
+
+[result]     async def run_agent_loop(
+        self,
+        params: AgentLoopParams,
+    ) -> AsyncIterator[AgentEvent]:
+        """Handle the run loop for an agent, executing tools and intercepting 
+delegatio...
+I'll extract helper methods from this long function. Let me create a refactored version:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+async def run_agent_loop(\n        self,\n        params: AgentLoopParams,\n    
+) -> AsyncIterator[AgentEvent]:\n        """Handle the run loop for an agent, 
+executing tools and intercepting delegations."""\n        agent = params.agent\n
+if agent is None:\n            raise ValueError("Agent must be provided in 
+AgentLoopParams")\n\n        generator: AsyncIterator[AgentEvent] = 
+agent.run(params.input_text)\n        state = LoopState()\n\n        while 
+True:\n            pending_tool_calls: list[ToolCall] = []\n            \n      
+# Collect events and extract tool calls\n            async for event in 
+self.collect_events_and_tool_calls(generator, pending_tool_calls):\n            
+yield event\n\n            if not pending_tool_calls:\n                # Check 
+thinking patterns and stall failures when no tools are pending\n                
+thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)\n    
+if thinking_event:\n                    yield thinking_event\n\n                
+stall_event = self.orchestrator.validator.check_stall_failure(agent)\n          
+if stall_event:\n                    yield stall_event\n\n                # 
+Check for colon stall\n                colon_stall_result = 
+self.check_colon_stall(agent, state.colon_stall_retries)\n                if 
+colon_stall_result is not None:\n                    # Colon stall occurred, 
+update generator and retry count\n                    generator, 
+state.colon_stall_retries = colon_stall_result\n                    continue\n\n
+# Agent finished — exit the loop\n                break\n\n            # Execute
+all pending tool calls (regular + delegation)\n            async for event in 
+self.orchestrator.tool_controller.process_pending_tool_calls(\n                
+agent, pending_tool_calls, params.depth, state.tool_errors\n            ):\n    
+yield event\n\n            state.tool_call_count += len(pending_tool_calls)\n\n 
+# Inject role anchor if needed\n            self.inject_role_anchor(agent, 
+state.tool_call_count)\n\n            should_break, state.wrapup_warned, 
+error_event = self.enforce_turn_limits(\n                
+TurnEnforcementParams(\n                    agent=agent,\n                    
+max_turns=params.max_turns,\n                    
+tool_call_count=state.tool_call_count,\n                    
+msg_start_index=params.msg_start_index,\n                    
+wrapup_warned=state.wrapup_warned,\n                )\n            )\n          
+if error_event:\n                yield error_event\n            if 
+should_break:\n                break\n\n            # All tool results submitted
+— continue the agent\n            generator = 
+agent.continue_with_tool_results()\n\n        self._finalize_loop(agent, 
+state)', 'new_str': '    async def run_agent_loop(\n        self,\n        
+params: AgentLoopParams,\n    ) -> AsyncIterator[AgentEvent]:\n        """Handle
+the run loop for an agent, executing tools and intercepting delegations."""\n   
+agent = params.agent\n        if agent is None:\n            raise 
+ValueError("Agent must be provided in AgentLoopParams")\n\n        generator: 
+AsyncIterator[AgentEvent] = agent.run(params.input_text)\n        state = 
+LoopState()\n\n        while True:\n            pending_tool_calls: 
+list[ToolCall] = []\n            \n            # Collect events and extract tool
+calls\n            async for event in 
+self.collect_events_and_tool_calls(generator, pending_tool_calls):\n            
+yield event\n\n            if not pending_tool_calls:\n                
+should_continue = await self._handle_no_pending_tools(agent, state, generator, 
+params)\n                if should_continue is not None:\n                    
+generator, state.colon_stall_retries = should_continue\n                    
+continue\n                break\n\n            # Execute pending tools and 
+update state\n            async for event in self._execute_pending_tools(agent, 
+pending_tool_calls, params, state):\n                yield event\n\n            
+# Check turn limits after tool execution\n            should_break = 
+self._check_turn_limits_after_tools(agent, params, state)\n            if 
+should_break:\n                break\n\n            # All tool results submitted
+— continue the agent\n            generator = 
+agent.continue_with_tool_results()\n\n        self._finalize_loop(agent, 
+state)\n\n    async def _handle_no_pending_tools(\n        self,\n        agent:
+Agent,\n        state: LoopState,\n        generator: 
+AsyncIterator[AgentEvent],\n        params: AgentLoopParams,\n    ) -> 
+tuple[AsyncIterator[AgentEvent], int] | None:\n        """Handle case when no 
+tool calls are pending."""\n        # Check thinking patterns and stall failures
+when no tools are pending\n        thinking_event = 
+self.orchestrator.validator.check_thinking_pattern(agent)\n        if 
+thinking_event:\n            yield thinking_event\n\n        stall_event = 
+self.orchestrator.validator.check_stall_failure(agent)\n        if 
+stall_event:\n            yield stall_event\n\n        # Check for colon stall\n
+colon_stall_result = self.check_colon_stall(agent, state.colon_stall_retries)\n 
+if colon_stall_result is not None:\n            # Colon stall occurred, update 
+generator and retry count\n            return colon_stall_result\n\n        # 
+Agent finished — exit the loop\n        return None\n\n    async def 
+_execute_pending_tools(\n        self,\n        agent: Agent,\n        
+pending_tool_calls: list[ToolCall],\n        params: AgentLoopParams,\n        
+state: LoopState,\n    ) -> AsyncIterator[AgentEvent]:\n        """Execute all 
+pending tool calls and update state."""\n        # Execute all pending tool 
+calls (regular + delegation)\n        async for event in 
+self.orchestrator.tool_controller.process_pending_tool_calls(\n            
+agent, pending_tool_calls, params.depth, state.tool_errors\n        ):\n        
+yield event\n\n        state.tool_call_count += len(pending_tool_calls)\n\n     
+# Inject role anchor if needed\n        self.inject_role_anchor(agent, 
+state.tool_call_count)\n\n    def _check_turn_limits_after_tools(\n        
+self,\n        agent: Agent,\n        params: AgentLoopParams,\n        state: 
+LoopState,\n    ) -> bool:\n        """Check turn limits after tool execution 
+and return whether to break."""\n        should_break, state.wrapup_warned, 
+error_event = self.enforce_turn_limits(\n            TurnEnforcementParams(\n   
+agent=agent,\n                max_turns=params.max_turns,\n                
+tool_call_count=state.tool_call_count,\n                
+msg_start_index=params.msg_start_index,\n                
+wrapup_warned=state.wrapup_warned,\n            )\n        )\n        if 
+error_event:\n            yield error_event\n        return should_break'})
 
 [result] Successfully edited src/henchman/agents/orchestrator.py...
-
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': 'class ToolController:\n    
-"""Manages tool execution and result processing."""\n    def __init__(self, orchestrator: "Orchestrator"):\n    
-self.orchestrator = orchestrator\n        self.metrics = orchestrator.metrics', 'new_str': 'class 
-ToolController(OrchestratorComponent):\n    """Manages tool execution and result processing."""'})
+Wait, I need to fix the yield statements in the helper methods. They should be async generators. Let me fix this:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+async def _handle_no_pending_tools(\n        self,\n        agent: Agent,\n     
+state: LoopState,\n        generator: AsyncIterator[AgentEvent],\n        
+params: AgentLoopParams,\n    ) -> tuple[AsyncIterator[AgentEvent], int] | 
+None:\n        """Handle case when no tool calls are pending."""\n        # 
+Check thinking patterns and stall failures when no tools are pending\n        
+thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)\n    
+if thinking_event:\n            yield thinking_event\n\n        stall_event = 
+self.orchestrator.validator.check_stall_failure(agent)\n        if 
+stall_event:\n            yield stall_event\n\n        # Check for colon stall\n
+colon_stall_result = self.check_colon_stall(agent, state.colon_stall_retries)\n 
+if colon_stall_result is not None:\n            # Colon stall occurred, update 
+generator and retry count\n            return colon_stall_result\n\n        # 
+Agent finished — exit the loop\n        return None', 'new_str': '    async def 
+_handle_no_pending_tools(\n        self,\n        agent: Agent,\n        state: 
+LoopState,\n        generator: AsyncIterator[AgentEvent],\n        params: 
+AgentLoopParams,\n    ) -> AsyncIterator[tuple[AsyncIterator[AgentEvent], int] |
+None]:\n        """Handle case when no tool calls are pending."""\n        # 
+Check thinking patterns and stall failures when no tools are pending\n        
+thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)\n    
+if thinking_event:\n            yield thinking_event\n\n        stall_event = 
+self.orchestrator.validator.check_stall_failure(agent)\n        if 
+stall_event:\n            yield stall_event\n\n        # Check for colon stall\n
+colon_stall_result = self.check_colon_stall(agent, state.colon_stall_retries)\n 
+if colon_stall_result is not None:\n            # Colon stall occurred, update 
+generator and retry count\n            yield colon_stall_result\n            
+return\n\n        # Agent finished — exit the loop\n        yield None'})
 
 [result] Successfully edited src/henchman/agents/orchestrator.py...
-Now let me address the duplicate `update_delegation_metrics` methods. I'll keep the public one and remove the private one:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 1060, 'end_line': 1075})
+Actually, this approach is getting too complex. Let me revert and take a simpler approach - just extract the logic without trying to make the helpers async generators:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+481, 'end_line': 600})
+
+[result]     async def run_agent_loop(
+        self,
+        params: AgentLoopParams,
+    ) -> AsyncIterator[AgentEvent]:
+        """Handle the run loop for an agent, executing tools and intercepting 
+delegatio...
+I see the issue - I need to revert and take a different approach. The problem is that the helper methods need to yield events back to the main loop. Let me revert and try a cleaner approach:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1, 'end_line': 50})
+
+[result] """Orchestrator for multi-agent development team."""
+
+from __future__ import annotations
+
+import time
+from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
+from enum impor...
+Let me take a step back and think about this more carefully. The issue is that I'm trying to refactor async generator methods which yield events. The helper methods need to be async generators themselves or return events that the main loop can yield. Let me look at the original code again and create a simpler refactoring:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git diff 
+src/henchman/agents/orchestrator.py | head -100'})
+
+[result] diff --git a/src/henchman/agents/orchestrator.py 
+b/src/henchman/agents/orchestrator.py
+index 1eaa1a1..6291bb5 100644
+--- a/src/henchman/agents/orchestrator.py
++++ b/src/henchman/agents/orchestrator.py...
+I see the problem - my refactoring broke the code. Let me revert and start over with a cleaner approach:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git checkout 
+src/henchman/agents/orchestrator.py'})
+
+[result] Updated 1 path from the index
+...
+Now let me think about this more carefully. The `run_agent_loop` method has 63 lines and cyclomatic complexity 11. Let me analyze it better:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+481, 'end_line': 548})
+
+[result]     async def run_agent_loop(
+        self,
+        params: AgentLoopParams,
+    ) -> AsyncIterator[AgentEvent]:
+        """Handle the run loop for an agent, executing tools and intercepting 
+delegatio...
+The method has clear sections:
+1. Setup and validation
+2. Main loop with event collection
+3. Handling no pending tools (thinking, stall, colon stall checks)
+4. Executing pending tools
+5. Updating state and checking turn limits
+6. Finalizing
+
+Let me refactor by extracting the "no pending tools" logic and the "execute pending tools" logic into separate methods. But I need to be careful with the async generator pattern. Instead of trying to make helper methods async generators, I'll have them return events or handle the yielding internally in a different way.
+
+Actually, looking at the code more carefully, I think the best approach is to extract the logic but keep the yielding in the main method. Let me create a simpler refactoring:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+async def run_agent_loop(\n        self,\n        params: AgentLoopParams,\n    
+) -> AsyncIterator[AgentEvent]:\n        """Handle the run loop for an agent, 
+executing tools and intercepting delegations."""\n        agent = params.agent\n
+if agent is None:\n            raise ValueError("Agent must be provided in 
+AgentLoopParams")\n\n        generator: AsyncIterator[AgentEvent] = 
+agent.run(params.input_text)\n        state = LoopState()\n\n        while 
+True:\n            pending_tool_calls: list[ToolCall] = []\n            \n      
+# Collect events and extract tool calls\n            async for event in 
+self.collect_events_and_tool_calls(generator, pending_tool_calls):\n            
+yield event\n\n            if not pending_tool_calls:\n                # Check 
+thinking patterns and stall failures when no tools are pending\n                
+thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)\n    
+if thinking_event:\n                    yield thinking_event\n\n                
+stall_event = self.orchestrator.validator.check_stall_failure(agent)\n          
+if stall_event:\n                    yield stall_event\n\n                # 
+Check for colon stall\n                colon_stall_result = 
+self.check_colon_stall(agent, state.colon_stall_retries)\n                if 
+colon_stall_result is not None:\n                    # Colon stall occurred, 
+update generator and retry count\n                    generator, 
+state.colon_stall_retries = colon_stall_result\n                    continue\n\n
+# Agent finished — exit the loop\n                break\n\n            # Execute
+all pending tool calls (regular + delegation)\n            async for event in 
+self.orchestrator.tool_controller.process_pending_tool_calls(\n                
+agent, pending_tool_calls, params.depth, state.tool_errors\n            ):\n    
+yield event\n\n            state.tool_call_count += len(pending_tool_calls)\n\n 
+# Inject role anchor if needed\n            self.inject_role_anchor(agent, 
+state.tool_call_count)\n\n            should_break, state.wrapup_warned, 
+error_event = self.enforce_turn_limits(\n                
+TurnEnforcementParams(\n                    agent=agent,\n                    
+max_turns=params.max_turns,\n                    
+tool_call_count=state.tool_call_count,\n                    
+msg_start_index=params.msg_start_index,\n                    
+wrapup_warned=state.wrapup_warned,\n                )\n            )\n          
+if error_event:\n                yield error_event\n            if 
+should_break:\n                break\n\n            # All tool results submitted
+— continue the agent\n            generator = 
+agent.continue_with_tool_results()\n\n        self._finalize_loop(agent, 
+state)', 'new_str': '    async def run_agent_loop(\n        self,\n        
+params: AgentLoopParams,\n    ) -> AsyncIterator[AgentEvent]:\n        """Handle
+the run loop for an agent, executing tools and intercepting delegations."""\n   
+agent = params.agent\n        if agent is None:\n            raise 
+ValueError("Agent must be provided in AgentLoopParams")\n\n        generator: 
+AsyncIterator[AgentEvent] = agent.run(params.input_text)\n        state = 
+LoopState()\n\n        while True:\n            pending_tool_calls: 
+list[ToolCall] = []\n            \n            # Collect events and extract tool
+calls\n            async for event in 
+self.collect_events_and_tool_calls(generator, pending_tool_calls):\n            
+yield event\n\n            if not pending_tool_calls:\n                
+should_continue = await self._handle_no_pending_tools(agent, state)\n           
+if should_continue:\n                    for event in should_continue[0]:\n     
+yield event\n                    generator, state.colon_stall_retries = 
+should_continue[1]\n                    continue\n                break\n\n     
+# Execute pending tools\n            async for event in 
+self._execute_pending_tools(agent, pending_tool_calls, params, state):\n        
+yield event\n\n            # Check turn limits\n            turn_limit_result = 
+self._check_turn_limits(agent, params, state)\n            if 
+turn_limit_result:\n                should_break, error_event = 
+turn_limit_result\n                if error_event:\n                    yield 
+error_event\n                if should_break:\n                    break\n\n    
+# Continue with tool results\n            generator = 
+agent.continue_with_tool_results()\n\n        self._finalize_loop(agent, 
+state)\n\n    async def _handle_no_pending_tools(\n        self,\n        agent:
+Agent,\n        state: LoopState,\n    ) -> tuple[list[AgentEvent], 
+tuple[AsyncIterator[AgentEvent], int]] | None:\n        """Handle case when no 
+tool calls are pending.\n        \n        Returns:\n            Tuple of 
+(events_to_yield, (new_generator, new_retry_count)) if colon stall,\n           
+None if agent finished.\n        """\n        events: list[AgentEvent] = []\n   
+\n        # Check thinking patterns\n        thinking_event = 
+self.orchestrator.validator.check_thinking_pattern(agent)\n        if 
+thinking_event:\n            events.append(thinking_event)\n\n        # Check 
+stall failures\n        stall_event = 
+self.orchestrator.validator.check_stall_failure(agent)\n        if 
+stall_event:\n            events.append(stall_event)\n\n        # Check for 
+colon stall\n        colon_stall_result = self.check_colon_stall(agent, 
+state.colon_stall_retries)\n        if colon_stall_result is not None:\n        
+return (events, colon_stall_result)\n\n        # Yield any collected events 
+before finishing\n        if events:\n            # We need to yield these 
+events, but we\'re not in an async generator\n            # The caller will 
+handle yielding\n            pass\n            \n        # Agent finished\n     
+return None if not events else (events, None)\n\n    async def 
+_execute_pending_tools(\n        self,\n        agent: Agent,\n        
+pending_tool_calls: list[ToolCall],\n        params: AgentLoopParams,\n        
+state: LoopState,\n    ) -> AsyncIterator[AgentEvent]:\n        """Execute all 
+pending tool calls and update state."""\n        # Execute all pending tool 
+calls (regular + delegation)\n        async for event in 
+self.orchestrator.tool_controller.process_pending_tool_calls(\n            
+agent, pending_tool_calls, params.depth, state.tool_errors\n        ):\n        
+yield event\n\n        state.tool_call_count += len(pending_tool_calls)\n\n     
+# Inject role anchor if needed\n        self.inject_role_anchor(agent, 
+state.tool_call_count)\n\n    def _check_turn_limits(\n        self,\n        
+agent: Agent,\n        params: AgentLoopParams,\n        state: LoopState,\n    
+) -> tuple[bool, AgentEvent | None] | None:\n        """Check turn limits and 
+return (should_break, error_event) or None."""\n        should_break, 
+state.wrapup_warned, error_event = self.enforce_turn_limits(\n            
+TurnEnforcementParams(\n                agent=agent,\n                
+max_turns=params.max_turns,\n                
+tool_call_count=state.tool_call_count,\n                
+msg_start_index=params.msg_start_index,\n                
+wrapup_warned=state.wrapup_warned,\n            )\n        )\n        if 
+error_event or should_break:\n            return (should_break, error_event)\n  
+return None'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Wait, I'm overcomplicating this. The real issue is that I'm trying to refactor an async generator method which has a specific pattern. Let me look at the tests to understand what's expected:
+[tool] pytest_run({'path': 
+'tests/agents/test_orchestrator.py::test_orchestrator_run_basic', 'verbose': 
+True})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+I see the issue - my refactoring has a bug. When `_handle_no_pending_tools` returns `(events, None)` for the "agent finished" case, the code tries to unpack `None`. Let me fix this:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+if not pending_tool_calls:\n                should_continue = await 
+self._handle_no_pending_tools(agent, state)\n                if 
+should_continue:\n                    for event in should_continue[0]:\n        
+yield event\n                    generator, state.colon_stall_retries = 
+should_continue[1]\n                    continue\n                break', 
+'new_str': '            if not pending_tool_calls:\n                result = 
+await self._handle_no_pending_tools(agent, state)\n                if result is 
+None:\n                    # Agent finished\n                    break\n        
+\n                events_to_yield, colon_stall_result = result\n                
+for event in events_to_yield:\n                    yield event\n                
+\n                if colon_stall_result is not None:\n                    # 
+Colon stall occurred\n                    generator, state.colon_stall_retries =
+colon_stall_result\n                    continue\n                \n            
+# Agent finished (after yielding events)\n                break'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me also fix the return type annotation and logic in `_handle_no_pending_tools`:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+async def _handle_no_pending_tools(\n        self,\n        agent: Agent,\n     
+state: LoopState,\n    ) -> tuple[list[AgentEvent], 
+tuple[AsyncIterator[AgentEvent], int]] | None:\n        """Handle case when no 
+tool calls are pending.\n        \n        Returns:\n            Tuple of 
+(events_to_yield, (new_generator, new_retry_count)) if colon stall,\n           
+None if agent finished.\n        """\n        events: list[AgentEvent] = []\n   
+\n        # Check thinking patterns\n        thinking_event = 
+self.orchestrator.validator.check_thinking_pattern(agent)\n        if 
+thinking_event:\n            events.append(thinking_event)\n\n        # Check 
+stall failures\n        stall_event = 
+self.orchestrator.validator.check_stall_failure(agent)\n        if 
+stall_event:\n            events.append(stall_event)\n\n        # Check for 
+colon stall\n        colon_stall_result = self.check_colon_stall(agent, 
+state.colon_stall_retries)\n        if colon_stall_result is not None:\n        
+return (events, colon_stall_result)\n\n        # Yield any collected events 
+before finishing\n        if events:\n            # We need to yield these 
+events, but we\'re not in an async generator\n            # The caller will 
+handle yielding\n            pass\n            \n        # Agent finished\n     
+return None if not events else (events, None)', 'new_str': '    async def 
+_handle_no_pending_tools(\n        self,\n        agent: Agent,\n        state: 
+LoopState,\n    ) -> tuple[list[AgentEvent], tuple[AsyncIterator[AgentEvent], 
+int] | None] | None:\n        """Handle case when no tool calls are pending.\n  
+\n        Returns:\n            - None: Agent finished with no events to yield\n
+- (events, None): Agent finished with events to yield\n            - (events, 
+(generator, retries)): Colon stall occurred\n        """\n        events: 
+list[AgentEvent] = []\n        \n        # Check thinking patterns\n        
+thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)\n    
+if thinking_event:\n            events.append(thinking_event)\n\n        # Check
+stall failures\n        stall_event = 
+self.orchestrator.validator.check_stall_failure(agent)\n        if 
+stall_event:\n            events.append(stall_event)\n\n        # Check for 
+colon stall\n        colon_stall_result = self.check_colon_stall(agent, 
+state.colon_stall_retries)\n        if colon_stall_result is not None:\n        
+return (events, colon_stall_result)\n\n        # Agent finished (with or without
+events)\n        return (events, None) if events else None'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me fix the `_check_turn_limits` method call:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+# Check turn limits\n            turn_limit_result = 
+self._check_turn_limits(agent, params, state)\n            if 
+turn_limit_result:\n                should_break, error_event = 
+turn_limit_result\n                if error_event:\n                    yield 
+error_event\n                if should_break:\n                    break', 
+'new_str': '            # Check turn limits\n            turn_limit_result = 
+self._check_turn_limits(agent, params, state)\n            if turn_limit_result 
+is not None:\n                should_break, error_event = turn_limit_result\n   
+if error_event:\n                    yield error_event\n                if 
+should_break:\n                    break'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me run the tests again to see if my refactoring works:
+[tool] pytest_run({'path': 
+'tests/agents/test_orchestrator.py::test_orchestrator_run_basic', 'verbose': 
+True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good! The test passes. Now let me run all the orchestrator tests to make sure I didn't break anything:
+[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Excellent! All tests pass. Now let me address the duplicate code issue. Looking at the smell report, there are two duplicate code issues:
+
+1. `check_colon_stall` (line 576) is 100% similar to `_check_colon_stall` (line 1236)
+2. `enforce_turn_limits` (line 613) is 98% similar to `_enforce_turn_limits` (line 1087)
+
+Let me examine these duplicates:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+576, 'end_line': 600})
+
+[result]         # Execute all pending tool calls (regular + delegation)
+        async for event in 
+self.orchestrator.tool_controller.process_pending_tool_calls(
+            agent, pending_tool_calls, params.d...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+600, 'end_line': 630})
+
+[result]                 wrapup_warned=state.wrapup_warned,
+            )
+        )
+        if error_event or should_break:
+            return (should_break, error_event)
+        return None
+
+    def _finalize...
+Let me find the `check_colon_stall` and `_check_colon_stall` methods:
+[tool] grep({'pattern': 'def.*check_colon_stall', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 633:    def check_colon_stall(
+1293:    def _check_colon_stall(...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+633, 'end_line': 660})
+
+[result]     def check_colon_stall(
+        self,
+        agent: Agent,
+        colon_stall_retries: int,
+    ) -> tuple[AsyncIterator[AgentEvent], int] | None:
+        """Check for colon stall pattern and han...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1293, 'end_line': 1320})
+
+[result]     def _check_colon_stall(
+        self,
+        agent: Agent,
+        colon_stall_retries: int,
+    ) -> tuple[AsyncIterator[AgentEvent], int] | None:
+        """Check for colon stall pattern and ha...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1315, 'end_line': 1330})
+
+[result]         last_content = self._last_assistant_content(agent)
+        if (
+            last_content
+            and last_content.strip().endswith(":")
+            and len(last_content.strip()) > _COLON_S...
+I can see the duplicate code. Both methods are identical except:
+1. `check_colon_stall` calls `self.last_assistant_content(agent)` 
+2. `_check_colon_stall` calls `self._last_assistant_content(agent)`
+
+And `_check_colon_stall` has more detailed docstring. Let me check what these methods do:
+[tool] grep({'pattern': 'def.*last_assistant_content', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 732:    def last_assistant_content(agent: Agent) -> str:
+897:    def _last_assistant_content(agent: "Agent") -> str:...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+732, 'end_line': 740})
+
+[result]     def last_assistant_content(agent: Agent) -> str:
+        """Return the content of the agent's last assistant message."""
+        for msg in reversed(agent.messages):
+            if msg.role == "as...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+897, 'end_line': 905})
+
+[result]     def _last_assistant_content(agent: "Agent") -> str:
+        """Return the content of the agent's last assistant message.
+
+        Args:
+            agent: The agent whose messages to inspect.
+
+   ...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+905, 'end_line': 910})
+
+[result]         """
+        return ExecutionController.last_assistant_content(agent)
+
+    def _load_agent_configs(self) -> dict[str, Any]:
+        """Load and merge agent configurations.
+
+...
+So `_last_assistant_content` is just a proxy that calls `ExecutionController.last_assistant_content`. The methods are essentially the same. Let me extract the common logic:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+def check_colon_stall(\n        self,\n        agent: Agent,\n        
+colon_stall_retries: int,\n    ) -> tuple[AsyncIterator[AgentEvent], int] | 
+None:\n        """Check for colon stall pattern and handle if detected."""\n    
+if colon_stall_retries >= _MAX_COLON_STALL_RETRIES:\n            return None\n\n
+last_content = self.last_assistant_content(agent)\n        if (\n            
+last_content\n            and last_content.strip().endswith(":")\n            
+and len(last_content.strip()) > _COLON_STALL_MIN_LENGTH\n        ):\n           
+colon_stall_retries += 1\n            agent.messages.append(\n                
+Message(role="user", content=_COLON_STALL_NUDGE)\n            )\n            
+return agent.continue_with_tool_results(), colon_stall_retries\n\n        return
+None', 'new_str': '    def check_colon_stall(\n        self,\n        agent: 
+Agent,\n        colon_stall_retries: int,\n    ) -> 
+tuple[AsyncIterator[AgentEvent], int] | None:\n        """Check for colon stall 
+pattern and handle if detected."""\n        return 
+self._check_colon_stall_common(agent, colon_stall_retries, 
+self.last_assistant_content)'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me update the `_check_colon_stall` method to use the same common function:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+def _check_colon_stall(\n        self,\n        agent: Agent,\n        
+colon_stall_retries: int,\n    ) -> tuple[AsyncIterator[AgentEvent], int] | 
+None:\n        """Check for colon stall pattern and handle if detected.\n\n     
+Colon-stall guard: catch ANY agent (including tech_lead)\n        that ends its 
+response with ":" - a high-confidence signal\n        the agent announced work 
+but stopped without doing it.\n\n        Args:\n            agent: The agent to 
+check.\n            colon_stall_retries: Current colon stall retry count.\n\n   
+Returns:\n            - None: No colon stall detected\n            - Tuple: 
+Colon stall detected, return updated generator and retry count\n        """\n   
+if colon_stall_retries >= _MAX_COLON_STALL_RETRIES:\n            return None\n\n
+last_content = self._last_assistant_content(agent)\n        if (\n            
+last_content\n            and last_content.strip().endswith(":")\n            
+and len(last_content.strip()) > _COLON_STALL_MIN_LENGTH\n        ):\n           
+colon_stall_retries += 1\n            agent.messages.append(\n                
+Message(role="user", content=_COLON_STALL_NUDGE)\n            )\n            
+return agent.continue_with_tool_results(), colon_stall_retries\n\n        return
+None', 'new_str': '    def _check_colon_stall(\n        self,\n        agent: 
+Agent,\n        colon_stall_retries: int,\n    ) -> 
+tuple[AsyncIterator[AgentEvent], int] | None:\n        """Check for colon stall 
+pattern and handle if detected.\n\n        Colon-stall guard: catch ANY agent 
+(including tech_lead)\n        that ends its response with ":" - a 
+high-confidence signal\n        the agent announced work but stopped without 
+doing it.\n\n        Args:\n            agent: The agent to check.\n            
+colon_stall_retries: Current colon stall retry count.\n\n        Returns:\n     
+- None: No colon stall detected\n            - Tuple: Colon stall detected, 
+return updated generator and retry count\n        """\n        return 
+self._check_colon_stall_common(agent, colon_stall_retries, 
+self._last_assistant_content)'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to add the common function. Let me add it after the `check_colon_stall` method:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+def check_colon_stall(\n        self,\n        agent: Agent,\n        
+colon_stall_retries: int,\n    ) -> tuple[AsyncIterator[AgentEvent], int] | 
+None:\n        """Check for colon stall pattern and handle if detected."""\n    
+return self._check_colon_stall_common(agent, colon_stall_retries, 
+self.last_assistant_content)\n\n    async def collect_events_and_tool_calls(', 
+'new_str': '    def check_colon_stall(\n        self,\n        agent: Agent,\n  
+colon_stall_retries: int,\n    ) -> tuple[AsyncIterator[AgentEvent], int] | 
+None:\n        """Check for colon stall pattern and handle if detected."""\n    
+return self._check_colon_stall_common(agent, colon_stall_retries, 
+self.last_assistant_content)\n\n    def _check_colon_stall_common(\n        
+self,\n        agent: Agent,\n        colon_stall_retries: int,\n        
+content_getter: Callable[[Agent], str],\n    ) -> 
+tuple[AsyncIterator[AgentEvent], int] | None:\n        """Common logic for 
+checking colon stall pattern.\n        \n        Args:\n            agent: The 
+agent to check.\n            colon_stall_retries: Current colon stall retry 
+count.\n            content_getter: Function to get the last assistant 
+content.\n            \n        Returns:\n            - None: No colon stall 
+detected\n            - Tuple: Colon stall detected, return updated generator 
+and retry count\n        """\n        if colon_stall_retries >= 
+_MAX_COLON_STALL_RETRIES:\n            return None\n\n        last_content = 
+content_getter(agent)\n        if (\n            last_content\n            and 
+last_content.strip().endswith(":")\n            and len(last_content.strip()) > 
+_COLON_STALL_MIN_LENGTH\n        ):\n            colon_stall_retries += 1\n     
+agent.messages.append(\n                Message(role="user", 
+content=_COLON_STALL_NUDGE)\n            )\n            return 
+agent.continue_with_tool_results(), colon_stall_retries\n\n        return 
+None\n\n    async def collect_events_and_tool_calls('})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+I need to import `Callable`. Let me check the imports:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1, 'end_line': 15})
+
+[result] """Orchestrator for multi-agent development team."""
+
+from __future__ import annotations
+
+import time
+from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
+from enum impor...
+I need to add `Callable` to the imports:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': 
+'from __future__ import annotations\n\nimport time\nfrom collections.abc import 
+AsyncIterator\nfrom dataclasses import dataclass, field\nfrom enum import 
+Enum\nfrom typing import Any', 'new_str': 'from __future__ import 
+annotations\n\nimport time\nfrom collections.abc import AsyncIterator\nfrom 
+dataclasses import dataclass, field\nfrom enum import Enum\nfrom typing import 
+Any, Callable'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me check the duplicate `enforce_turn_limits` methods:
+[tool] grep({'pattern': 'def.*enforce_turn_limits', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 689:    def enforce_turn_limits(
+1163:    def _enforce_turn_limits(...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+689, 'end_line': 730})
+
+[result]     def enforce_turn_limits(
+        self,
+        params: TurnEnforcementParams,
+    ) -> tuple[bool, bool, AgentEvent | None]:
+        """Enforce turn limits with warnings and hard stops."""
+       ...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+730, 'end_line': 735})
 
 [result]             )
+            params.agent.messages.append(Message(role="user", content=warn_msg))
+            return False, True, None
 
-        yield AgentEvent(
-            type=EventType.AGENT_COMPLETED,
-            data={"agent": role, "status": status.value},
-            source_agent="orchestrator",
-        )
+        return False, wrapup_warned, None
 
-    d...
-I need to find where `_update_delegation_metrics` is called and replace it with the public method:
-[tool] grep({'pattern': '_update_delegation_metrics', 'path': 'src/henchman/agents/orchestrator.py', 
-'line_numbers': True})
+...
 
-[result] 1068:    def _update_delegation_metrics(self, target: str) -> None:...
-Let me check if it's called anywhere:
-[tool] grep({'pattern': '\\._update_delegation_metrics', 'path': 'src/henchman/agents/orchestrator.py', 
-'line_numbers': True})
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1163, 'end_line': 1215})
 
-[result] No matches found...
-It seems `_update_delegation_metrics` is not called. Let me check if `update_delegation_metrics` (without underscore) is called:
-[tool] grep({'pattern': '\\.update_delegation_metrics', 'path': 'src/henchman/agents/orchestrator.py', 
-'line_numbers': True})
+[result]     def _enforce_turn_limits(
+        self,
+        params: TurnEnforcementParams,
+    ) -> tuple[bool, bool, AgentEvent | None]:
+        """Enforce turn limits with warnings and hard stops.
 
-[result] 290:        self.update_delegation_metrics(target)...
-So `update_delegation_metrics` is called in `ToolController.execute_delegation_tool`. The `_update_delegation_metrics` appears to be unused. Let me remove it:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '    def 
-_update_delegation_metrics(self, target: str) -> None:\n        """Update metrics for a delegation.\n\n        
-Args:\n            target: Target agent role.\n        """\n        self.metrics.delegation_count += 1\n        
-if target in self.metrics.delegation_by_type:\n            self.metrics.delegation_by_type[target] += 1', 
-'new_str': ''})
+        ...
+The methods are identical except for one line:
+- `enforce_turn_limits` has `params.agent.messages.append(Message(role="user", content=warn_msg))`
+- `_enforce_turn_limits` has `agent.messages.append(Message(role="user", content=warn_msg))`
+
+But `agent = params.agent`, so they're the same. Let me extract the common logic:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+def enforce_turn_limits(\n        self,\n        params: 
+TurnEnforcementParams,\n    ) -> tuple[bool, bool, AgentEvent | None]:\n        
+"""Enforce turn limits with warnings and hard stops."""\n        agent = 
+params.agent\n        max_turns = params.max_turns\n        tool_call_count = 
+params.tool_call_count\n        msg_start_index = params.msg_start_index\n      
+wrapup_warned = params.wrapup_warned\n\n        if max_turns <= 0:\n            
+return False, wrapup_warned, None\n\n        remaining = max_turns - 
+tool_call_count\n        if remaining <= 0:\n            # Hard stop — build a 
+progress summary\n            progress = 
+TimeoutSummaryBuilder.build_summary(agent, msg_start_index)\n            
+timeout_msg = (\n                "[TURN LIMIT REACHED] You have used all 
+available "\n                "turns. Here is a summary of your progress so 
+far:\\n\\n"\n                f"{progress}\\n\\n"\n                "The Tech Lead
+will decide how to proceed."\n            )\n            
+agent.messages.append(Message(role="assistant", content=timeout_msg))\n         
+error_event = AgentEvent(\n                type=EventType.ERROR,\n              
+data=f"Turn limit ({max_turns}) reached for "\n                
+f"{agent.identity.role if agent.identity else \'agent\'}",\n                
+source_agent="orchestrator",\n            )\n            return True, 
+wrapup_warned, error_event\n\n        if not wrapup_warned and remaining <= 
+_WRAPUP_WARNING_OFFSET:\n            warn_msg = (\n                f"[WRAP-UP 
+WARNING] You have {remaining} tool-call "\n                f"turn(s) remaining. 
+Prioritise:\\n"\n                f"1. Run any final verification (tests, 
+lint).\\n"\n                f"2. Write a completion report using the "\n        
+f"DELEGATION_SUMMARY_SCHEMA format.\\n"\n                f"3. List BLOCKERS if 
+you cannot finish in time."\n            )\n            
+params.agent.messages.append(Message(role="user", content=warn_msg))\n          
+return False, True, None\n\n        return False, wrapup_warned, None', 
+'new_str': '    def enforce_turn_limits(\n        self,\n        params: 
+TurnEnforcementParams,\n    ) -> tuple[bool, bool, AgentEvent | None]:\n        
+"""Enforce turn limits with warnings and hard stops."""\n        return 
+self._enforce_turn_limits_common(params)'})
 
 [result] Successfully edited src/henchman/agents/orchestrator.py...
-Now let me address the duplicate `collect_events_and_tool_calls` methods. Let me check where they're called:
-[tool] grep({'pattern': 'collect_events_and_tool_calls', 'path': 'src/henchman/agents/orchestrator.py', 
-'line_numbers': True})
 
-[result] 484:            async for event in self.collect_events_and_tool_calls(generator, pending_tool_calls):
-582:    async def collect_events_and_tool_calls(
-1164:            async for event in self._collect...
-So we have `collect_events_and_tool_calls` (line 582) called at line 484, and `_collect_events_and_tool_calls` (line 1255) called at line 1164. Let me examine both methods:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 580, 'end_line': 595})
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+def _enforce_turn_limits(\n        self,\n        params: 
+TurnEnforcementParams,\n    ) -> tuple[bool, bool, AgentEvent | None]:\n        
+"""Enforce turn limits with warnings and hard stops.\n\n        Args:\n         
+params: Parameters for turn limit enforcement.\n\n        Returns:\n            
+Tuple of (should_break, new_wrapup_warned, error_event).\n        """\n        
+agent = params.agent\n        max_turns = params.max_turns\n        
+tool_call_count = params.tool_call_count\n        msg_start_index = 
+params.msg_start_index\n        wrapup_warned = params.wrapup_warned\n\n        
+if max_turns <= 0:\n            return False, wrapup_warned, None\n\n        
+remaining = max_turns - tool_call_count\n        if remaining <= 0:\n           
+# Hard stop — build a progress summary\n            progress = 
+TimeoutSummaryBuilder.build_summary(agent, msg_start_index)\n            
+timeout_msg = (\n                "[TURN LIMIT REACHED] You have used all 
+available "\n                "turns. Here is a summary of your progress so 
+far:\\n\\n"\n                f"{progress}\\n\\n"\n                "The Tech Lead
+will decide how to proceed."\n            )\n            
+agent.messages.append(Message(role="assistant", content=timeout_msg))\n         
+error_event = AgentEvent(\n                type=EventType.ERROR,\n              
+data=f"Turn limit ({max_turns}) reached for "\n                
+f"{agent.identity.role if agent.identity else \'agent\'}",\n                
+source_agent="orchestrator",\n            )\n            return True, 
+wrapup_warned, error_event\n\n        if not wrapup_warned and remaining <= 
+_WRAPUP_WARNING_OFFSET:\n            warn_msg = (\n                f"[WRAP-UP 
+WARNING] You have {remaining} tool-call "\n                f"turn(s) remaining. 
+Prioritise:\\n"\n                f"1. Run any final verification (tests, 
+lint).\\n"\n                f"2. Write a completion report using the "\n        
+f"DELEGATION_SUMMARY_SCHEMA format.\\n"\n                f"3. List BLOCKERS if 
+you cannot finish in time."\n            )\n            
+agent.messages.append(Message(role="user", content=warn_msg))\n            
+return False, True, None\n\n        return False, wrapup_warned, None', 
+'new_str': '    def _enforce_turn_limits(\n        self,\n        params: 
+TurnEnforcementParams,\n    ) -> tuple[bool, bool, AgentEvent | None]:\n        
+"""Enforce turn limits with warnings and hard stops.\n\n        Args:\n         
+params: Parameters for turn limit enforcement.\n\n        Returns:\n            
+Tuple of (should_break, new_wrapup_warned, error_event).\n        """\n        
+return self._enforce_turn_limits_common(params)'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to add the common function. Let me add it after the `enforce_turn_limits` method:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+def enforce_turn_limits(\n        self,\n        params: 
+TurnEnforcementParams,\n    ) -> tuple[bool, bool, AgentEvent | None]:\n        
+"""Enforce turn limits with warnings and hard stops."""\n        return 
+self._enforce_turn_limits_common(params)\n\n    def assess_completion(self, 
+agent: Agent) -> CompletionStatus:', 'new_str': '    def enforce_turn_limits(\n 
+self,\n        params: TurnEnforcementParams,\n    ) -> tuple[bool, bool, 
+AgentEvent | None]:\n        """Enforce turn limits with warnings and hard 
+stops."""\n        return self._enforce_turn_limits_common(params)\n\n    def 
+_enforce_turn_limits_common(\n        self,\n        params: 
+TurnEnforcementParams,\n    ) -> tuple[bool, bool, AgentEvent | None]:\n        
+"""Common logic for enforcing turn limits with warnings and hard stops.\n       
+\n        Args:\n            params: Parameters for turn limit enforcement.\n\n 
+Returns:\n            Tuple of (should_break, new_wrapup_warned, error_event).\n
+"""\n        agent = params.agent\n        max_turns = params.max_turns\n       
+tool_call_count = params.tool_call_count\n        msg_start_index = 
+params.msg_start_index\n        wrapup_warned = params.wrapup_warned\n\n        
+if max_turns <= 0:\n            return False, wrapup_warned, None\n\n        
+remaining = max_turns - tool_call_count\n        if remaining <= 0:\n           
+# Hard stop — build a progress summary\n            progress = 
+TimeoutSummaryBuilder.build_summary(agent, msg_start_index)\n            
+timeout_msg = (\n                "[TURN LIMIT REACHED] You have used all 
+available "\n                "turns. Here is a summary of your progress so 
+far:\\n\\n"\n                f"{progress}\\n\\n"\n                "The Tech Lead
+will decide how to proceed."\n            )\n            
+agent.messages.append(Message(role="assistant", content=timeout_msg))\n         
+error_event = AgentEvent(\n                type=EventType.ERROR,\n              
+data=f"Turn limit ({max_turns}) reached for "\n                
+f"{agent.identity.role if agent.identity else \'agent\'}",\n                
+source_agent="orchestrator",\n            )\n            return True, 
+wrapup_warned, error_event\n\n        if not wrapup_warned and remaining <= 
+_WRAPUP_WARNING_OFFSET:\n            warn_msg = (\n                f"[WRAP-UP 
+WARNING] You have {remaining} tool-call "\n                f"turn(s) remaining. 
+Prioritise:\\n"\n                f"1. Run any final verification (tests, 
+lint).\\n"\n                f"2. Write a completion report using the "\n        
+f"DELEGATION_SUMMARY_SCHEMA format.\\n"\n                f"3. List BLOCKERS if 
+you cannot finish in time."\n            )\n            
+agent.messages.append(Message(role="user", content=warn_msg))\n            
+return False, True, None\n\n        return False, wrapup_warned, None\n\n    def
+assess_completion(self, agent: Agent) -> CompletionStatus:'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me run the tests to make sure my refactoring didn't break anything:
+[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Great! All tests pass. Now let me address the Feature Envy issues. Looking at the smell report, I need to address:
+
+1. `PromptFactory.create_tech_lead_prompt` accesses 'c' 8 times but 'self' only 0 times
+2. `TimeoutSummaryBuilder._format_summary` accesses 'lines' 5 times but 'self' only 0 times
+3. `AgentValidator.check_stall_failure` accesses 'agent' 5 times but 'self' only 1 times
+4. `ToolController.execute_regular_tool` accesses 'tool_call' 6 times but 'self' only 3 times
+5. `ToolController.prepare_delegation_brief` accesses 'tool_call' 6 times but 'self' only 0 times
+6. `ExecutionController.enforce_turn_limits` accesses 'params' 6 times but 'self' only 0 times
+7. `Orchestrator._enforce_turn_limits` accesses 'params' 5 times but 'self' only 0 times
+8. `Orchestrator._run_agent_loop` accesses 'state' 9 times but 'self' only 7 times
+
+Actually, I already addressed #6 and #7 by extracting the common logic. Let me look at the others. First, `PromptFactory.create_tech_lead_prompt`:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+100, 'end_line': 130})
+
+[result]     def create_tech_lead_prompt(
+        agent_configs: dict[str, Any],
+        system_prompt: str | None,
+        environment_context: str | None,
+    ) -> str:
+        """Create the Tech Lead system...
+The smell detector says it accesses 'c' 8 times. That's because it's iterating over `agent_configs.values()`. This is actually fine - it's a static method that processes its parameters. The "Feature Envy" here is misleading because static methods by definition don't access `self`. This is probably a false positive.
+
+However, I can improve this by extracting the team member extraction logic:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+@staticmethod\n    def create_tech_lead_prompt(\n        agent_configs: 
+dict[str, Any],\n        system_prompt: str | None,\n        
+environment_context: str | None,\n    ) -> str:\n        """Create the Tech Lead
+system prompt.\n\n        Args:\n            agent_configs: Dictionary of agent 
+configurations.\n            system_prompt: Optional override for Tech Lead 
+system prompt.\n            environment_context: Pre-formatted environment block
+for agents.\n\n        Returns:\n            The Tech Lead system prompt 
+string.\n        """\n        from henchman.agents.prompts import 
+get_agent_prompt\n\n        team_members = [f"{c.name} ({c.role})" for c in 
+agent_configs.values() if c.enabled]\n        team_descriptions = {\n           
+c.role: c.description or "" for c in agent_configs.values() if c.enabled\n      
+}\n\n        return system_prompt or get_agent_prompt(\n            
+role="tech_lead",\n            team_members=team_members,\n            
+delegatable_agents=[c.role for c in agent_configs.values() if c.enabled],\n     
+environment_context=environment_context,\n            
+team_descriptions=team_descriptions,\n        )', 'new_str': '    
+@staticmethod\n    def create_tech_lead_prompt(\n        agent_configs: 
+dict[str, Any],\n        system_prompt: str | None,\n        
+environment_context: str | None,\n    ) -> str:\n        """Create the Tech Lead
+system prompt.\n\n        Args:\n            agent_configs: Dictionary of agent 
+configurations.\n            system_prompt: Optional override for Tech Lead 
+system prompt.\n            environment_context: Pre-formatted environment block
+for agents.\n\n        Returns:\n            The Tech Lead system prompt 
+string.\n        """\n        from henchman.agents.prompts import 
+get_agent_prompt\n\n        enabled_configs = [c for c in agent_configs.values()
+if c.enabled]\n        team_members = [f"{config.name} ({config.role})" for 
+config in enabled_configs]\n        team_descriptions = {\n            
+config.role: config.description or "" for config in enabled_configs\n        }\n
+delegatable_agents = [config.role for config in enabled_configs]\n\n        
+return system_prompt or get_agent_prompt(\n            role="tech_lead",\n      
+team_members=team_members,\n            delegatable_agents=delegatable_agents,\n
+environment_context=environment_context,\n            
+team_descriptions=team_descriptions,\n        )'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me look at `TimeoutSummaryBuilder._format_summary`:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+176, 'end_line': 190})
+
+[result] 
+    @staticmethod
+    def _format_summary(tools_used: list[str], files_touched: set[str], 
+narration_parts: list[str]) -> str:
+        lines = ["**Progress at timeout:**"]
+        if tools_used:
+     ...
+This is also a static method. The smell detector says it accesses 'lines' 5 times. That's because it's building a list. This is fine for a static method. However, I can make it a regular method and store `lines` as an instance variable, but that would be over-engineering for a simple formatting method.
+
+Actually, looking at the smell report more carefully, it says "accesses 'lines' 5 times but 'self' only 0 times". Since it's a static method, it can't access `self`. This is another false positive from the smell detector for static methods.
+
+Let me check `AgentValidator.check_stall_failure`:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+237, 'end_line': 255})
 
 [result]         return None
 
-    async def collect_events_and_tool_calls(
-        self,
-        generator: AsyncIterator[AgentEvent],
-        pending_tool_calls: list[ToolCall],
-    ) -> AsyncIterator[AgentEv...
-
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 1253, 'end_line': 1268})
-
-[result]         return None
-
-    async def _collect_events_and_tool_calls(
-        self,
-        generator: AsyncIterator[AgentEvent],
-        pending_tool_calls: list[ToolCall],
-    ) -> AsyncIterator[AgentE...
-
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 1268, 'end_line': 1280})
-
-[result] 
-        Yields:
-            AgentEvents from the generator.
-        """
-        try:
-            async for event in generator:
-                if event.type == EventType.TOOL_CALL_REQUEST:
-          ...
-They are identical! Let me remove the private one and update the call to use the public one:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '            async for event in 
-self._collect_events_and_tool_calls(generator, pending_tool_calls):', 'new_str': '            async for event in
-self.collect_events_and_tool_calls(generator, pending_tool_calls):'})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-Now let me remove the duplicate `_collect_events_and_tool_calls` method:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 1253, 'end_line': 1285})
-
-[result]         return None
-
-    async def _collect_events_and_tool_calls(
-        self,
-        generator: AsyncIterator[AgentEvent],
-        pending_tool_calls: list[ToolCall],
-    ) -> AsyncIterator[AgentE...
-
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '    async def 
-_collect_events_and_tool_calls(\n        self,\n        generator: AsyncIterator[AgentEvent],\n        
-pending_tool_calls: list[ToolCall],\n    ) -> AsyncIterator[AgentEvent]:\n        """Collect events from 
-generator and extract pending tool calls.\n\n        This method drains the generator, yields all events, and 
-collects\n        tool call requests into the pending_tool_calls list.\n\n        Args:\n            generator: 
-Event generator from the agent.\n            pending_tool_calls: List to collect tool calls into (modified 
-in-place).\n\n        Yields:\n            AgentEvents from the generator.\n        """\n        try:\n         
-async for event in generator:\n                if event.type == EventType.TOOL_CALL_REQUEST:\n                  
-pending_tool_calls.append(event.data)\n                yield event\n        except StopAsyncIteration:\n        
-pass', 'new_str': ''})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-Now let me address the Feature Envy issue in `ExecutionController.run_agent_loop`. The method accesses `state` 10 times but `self` only 8 times. Let me examine the method more closely:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 460, 'end_line': 550})
-
-[result] 
-
-class ExecutionController:
-    """Manages agent execution loops and state."""
-    def __init__(self, orchestrator: "Orchestrator"):
-        self.orchestrator = orchestrator
-
-    async def run_agent_...
-The `run_agent_loop` method is quite long (70 lines) and has high cyclomatic complexity. Let me refactor it by extracting helper methods. First, let me check what the `LoopState` class looks like:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 60, 'end_line': 75})
-
-[result]     brief: dict[str, Any] | None = None
-
-
-@dataclass
-class DelegationParams:
-    """Parameters for delegating a task to a specialist agent."""
-    target_role: str
-    task: str
-    brief: dict[str, A...
-
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 75, 'end_line': 90})
-
-[result] @dataclass
-class TurnEnforcementParams:
-    """Parameters for enforcing turn limits.
-
-    Encapsulates parameters for turn limits to address Primitive Obsession.
-    """
-    agent: Agent
-    max_turns...
-
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 90, 'end_line': 100})
-
-[result]     """Internal state for the agent execution loop."""
-    tool_call_count: int = 0
-    tool_errors: list[str] = field(default_factory=list)
-    wrapup_warned: bool = False
-    colon_stall_retries: in...
-Now let me refactor the `run_agent_loop` method by extracting helper methods. I'll create methods for different responsibilities:
-
-1. `_process_no_pending_tools` - handle when no tools are pending
-2. `_process_pending_tools` - handle when tools are pending
-3. `_finalize_loop` - store final state
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '    async def run_agent_loop(\n    
-self,\n        params: AgentLoopParams,\n    ) -> AsyncIterator[AgentEvent]:\n        """Handle the run loop for
-an agent, executing tools and intercepting delegations."""\n        agent = params.agent\n        if agent is 
-None:\n            raise ValueError("Agent must be provided in AgentLoopParams")\n\n        generator: 
-AsyncIterator[AgentEvent] = agent.run(params.input_text)\n        state = LoopState()\n\n        while True:\n  
-# Drain the current generator, collecting tool calls\n            pending_tool_calls: list[ToolCall] = []\n\n   
-# Collect events and extract tool calls\n            async for event in 
-self.collect_events_and_tool_calls(generator, pending_tool_calls):\n                yield event\n\n            
-if not pending_tool_calls:\n                # Check thinking patterns and stall failures when no tools are 
-pending\n                thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)\n           
-if thinking_event:\n                    yield thinking_event\n\n                stall_event = 
-self.orchestrator.validator.check_stall_failure(agent)\n                if stall_event:\n                    
-yield stall_event\n\n                # Check for colon stall\n                colon_stall_result = 
-self.check_colon_stall(agent, state.colon_stall_retries)\n                if colon_stall_result is not None:\n  
-# Colon stall occurred, update generator and retry count\n                    generator, 
-state.colon_stall_retries = colon_stall_result\n                    continue\n\n                # Agent finished
-— exit the loop\n                break\n\n            # Execute all pending tool calls (regular + delegation)\n 
-async for event in self.orchestrator.tool_controller.process_pending_tool_calls(\n                agent, 
-pending_tool_calls, params.depth, state.tool_errors\n            ):\n                yield event\n\n            
-state.tool_call_count += len(pending_tool_calls)\n\n            # Inject role anchor if needed\n            
-self.inject_role_anchor(agent, state.tool_call_count)\n\n            should_break, state.wrapup_warned, 
-error_event = self.enforce_turn_limits(\n                TurnEnforcementParams(\n                    
-agent=agent,\n                    max_turns=params.max_turns,\n                    
-tool_call_count=state.tool_call_count,\n                    msg_start_index=params.msg_start_index,\n           
-wrapup_warned=state.wrapup_warned,\n                )\n            )\n            if error_event:\n             
-yield error_event\n            if should_break:\n                break\n\n            # All tool results 
-submitted — continue the agent\n            generator = agent.continue_with_tool_results()\n\n        # Store 
-tool errors on the agent for the caller to retrieve\n        if not hasattr(agent, "_delegation_tool_errors"):\n
-agent._delegation_tool_errors = []  # type: ignore[attr-defined]\n        agent._delegation_tool_errors = 
-state.tool_errors  # type: ignore[attr-defined]\n\n        # Store final tool call count so callers can assess 
-completion\n        self.orchestrator._last_loop_tool_call_count = state.tool_call_count', 'new_str': '    async
-def run_agent_loop(\n        self,\n        params: AgentLoopParams,\n    ) -> AsyncIterator[AgentEvent]:\n     
-"""Handle the run loop for an agent, executing tools and intercepting delegations."""\n        agent = 
-params.agent\n        if agent is None:\n            raise ValueError("Agent must be provided in 
-AgentLoopParams")\n\n        generator: AsyncIterator[AgentEvent] = agent.run(params.input_text)\n        state 
-= LoopState()\n\n        while True:\n            pending_tool_calls: list[ToolCall] = []\n            \n       
-# Collect events and extract tool calls\n            async for event in 
-self.collect_events_and_tool_calls(generator, pending_tool_calls):\n                yield event\n\n            
-if not pending_tool_calls:\n                should_continue = await self._process_no_pending_tools(agent, state,
-generator)\n                if should_continue is not None:\n                    generator = should_continue\n  
-continue\n                break\n\n            await self._process_pending_tools(agent, pending_tool_calls, 
-params, state)\n            state.tool_call_count += len(pending_tool_calls)\n\n            should_break = 
-self._check_turn_limits_and_inject_anchor(agent, params, state)\n            if should_break:\n                
-break\n\n            # All tool results submitted — continue the agent\n            generator = 
-agent.continue_with_tool_results()\n\n        self._finalize_loop(agent, state)\n\n    async def 
-_process_no_pending_tools(\n        self,\n        agent: Agent,\n        state: LoopState,\n        generator: 
-AsyncIterator[AgentEvent],\n    ) -> AsyncIterator[AgentEvent] | None:\n        """Handle the case when no tools
-are pending.\n        \n        Returns:\n            New generator if colon stall detected, None otherwise.\n  
-"""\n        # Check thinking patterns and stall failures when no tools are pending\n        thinking_event = 
-self.orchestrator.validator.check_thinking_pattern(agent)\n        if thinking_event:\n            yield 
-thinking_event\n\n        stall_event = self.orchestrator.validator.check_stall_failure(agent)\n        if 
-stall_event:\n            yield stall_event\n\n        # Check for colon stall\n        colon_stall_result = 
-self.check_colon_stall(agent, state.colon_stall_retries)\n        if colon_stall_result is not None:\n          
-# Colon stall occurred, update generator and retry count\n            new_generator, state.colon_stall_retries =
-colon_stall_result\n            return new_generator\n\n        # Agent finished — exit the loop\n        return
-None\n\n    async def _process_pending_tools(\n        self,\n        agent: Agent,\n        pending_tool_calls:
-list[ToolCall],\n        params: AgentLoopParams,\n        state: LoopState,\n    ) -> None:\n        """Execute
-all pending tool calls (regular + delegation)."""\n        async for event in 
-self.orchestrator.tool_controller.process_pending_tool_calls(\n            agent, pending_tool_calls, 
-params.depth, state.tool_errors\n        ):\n            yield event\n\n    def 
-_check_turn_limits_and_inject_anchor(\n        self,\n        agent: Agent,\n        params: AgentLoopParams,\n 
-state: LoopState,\n    ) -> bool:\n        """Check turn limits and inject role anchor if needed.\n        \n   
-Returns:\n            True if should break the loop, False otherwise.\n        """\n        # Inject role anchor
-if needed\n        self.inject_role_anchor(agent, state.tool_call_count)\n\n        should_break, 
-state.wrapup_warned, error_event = self.enforce_turn_limits(\n            TurnEnforcementParams(\n              
-agent=agent,\n                max_turns=params.max_turns,\n                
-tool_call_count=state.tool_call_count,\n                msg_start_index=params.msg_start_index,\n               
-wrapup_warned=state.wrapup_warned,\n            )\n        )\n        if error_event:\n            yield 
-error_event\n        return should_break\n\n    def _finalize_loop(self, agent: Agent, state: LoopState) -> 
-None:\n        """Store final state after loop completion."""\n        # Store tool errors on the agent for the 
-caller to retrieve\n        if not hasattr(agent, "_delegation_tool_errors"):\n            
-agent._delegation_tool_errors = []  # type: ignore[attr-defined]\n        agent._delegation_tool_errors = 
-state.tool_errors  # type: ignore[attr-defined]\n\n        # Store final tool call count so callers can assess 
-completion\n        self.orchestrator._last_loop_tool_call_count = state.tool_call_count'})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-Wait, I need to fix the async generator methods. They need to be `async def` and yield events. Let me fix this:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '    async def 
-_process_no_pending_tools(\n        self,\n        agent: Agent,\n        state: LoopState,\n        generator: 
-AsyncIterator[AgentEvent],\n    ) -> AsyncIterator[AgentEvent] | None:\n        """Handle the case when no tools
-are pending.\n        \n        Returns:\n            New generator if colon stall detected, None otherwise.\n  
-"""\n        # Check thinking patterns and stall failures when no tools are pending\n        thinking_event = 
-self.orchestrator.validator.check_thinking_pattern(agent)\n        if thinking_event:\n            yield 
-thinking_event\n\n        stall_event = self.orchestrator.validator.check_stall_failure(agent)\n        if 
-stall_event:\n            yield stall_event\n\n        # Check for colon stall\n        colon_stall_result = 
-self.check_colon_stall(agent, state.colon_stall_retries)\n        if colon_stall_result is not None:\n          
-# Colon stall occurred, update generator and retry count\n            new_generator, state.colon_stall_retries =
-colon_stall_result\n            return new_generator\n\n        # Agent finished — exit the loop\n        return
-None', 'new_str': '    async def _process_no_pending_tools(\n        self,\n        agent: Agent,\n        
-state: LoopState,\n    ) -> AsyncIterator[AgentEvent] | None:\n        """Handle the case when no tools are 
-pending.\n        \n        Returns:\n            New generator if colon stall detected, None otherwise.\n      
-"""\n        # Check thinking patterns and stall failures when no tools are pending\n        thinking_event = 
-self.orchestrator.validator.check_thinking_pattern(agent)\n        if thinking_event:\n            # Note: This 
-event needs to be yielded by the caller\n            pass\n\n        stall_event = 
-self.orchestrator.validator.check_stall_failure(agent)\n        if stall_event:\n            # Note: This event 
-needs to be yielded by the caller\n            pass\n\n        # Check for colon stall\n        
-colon_stall_result = self.check_colon_stall(agent, state.colon_stall_retries)\n        if colon_stall_result is 
-not None:\n            # Colon stall occurred, update generator and retry count\n            new_generator, 
-state.colon_stall_retries = colon_stall_result\n            return new_generator\n\n        # Agent finished — 
-exit the loop\n        return None'})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-Actually, I need to rethink this. The events need to be yielded from the main loop. Let me revert and take a different approach. Let me first run the tests to see what's broken:
-[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': True})
-
-✗ \[error] ============================= test session starts ==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- /home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-I see the issue. I need to fix the refactoring. Let me revert to a simpler approach that maintains the original logic but extracts smaller methods:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '    async def run_agent_loop(\n    
-self,\n        params: AgentLoopParams,\n    ) -> AsyncIterator[AgentEvent]:\n        """Handle the run loop for
-an agent, executing tools and intercepting delegations."""\n        agent = params.agent\n        if agent is 
-None:\n            raise ValueError("Agent must be provided in AgentLoopParams")\n\n        generator: 
-AsyncIterator[AgentEvent] = agent.run(params.input_text)\n        state = LoopState()\n\n        while True:\n  
-pending_tool_calls: list[ToolCall] = []\n            \n            # Collect events and extract tool calls\n    
-async for event in self.collect_events_and_tool_calls(generator, pending_tool_calls):\n                yield 
-event\n\n            if not pending_tool_calls:\n                should_continue = await 
-self._process_no_pending_tools(agent, state, generator)\n                if should_continue is not None:\n      
-generator = should_continue\n                    continue\n                break\n\n            await 
-self._process_pending_tools(agent, pending_tool_calls, params, state)\n            state.tool_call_count += 
-len(pending_tool_calls)\n\n            should_break = self._check_turn_limits_and_inject_anchor(agent, params, 
-state)\n            if should_break:\n                break\n\n            # All tool results submitted — 
-continue the agent\n            generator = agent.continue_with_tool_results()\n\n        
-self._finalize_loop(agent, state)\n\n    async def _process_no_pending_tools(\n        self,\n        agent: 
-Agent,\n        state: LoopState,\n    ) -> AsyncIterator[AgentEvent] | None:\n        """Handle the case when 
-no tools are pending.\n        \n        Returns:\n            New generator if colon stall detected, None 
-otherwise.\n        """\n        # Check thinking patterns and stall failures when no tools are pending\n       
-thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)\n        if thinking_event:\n        
-# Note: This event needs to be yielded by the caller\n            pass\n\n        stall_event = 
-self.orchestrator.validator.check_stall_failure(agent)\n        if stall_event:\n            # Note: This event 
-needs to be yielded by the caller\n            pass\n\n        # Check for colon stall\n        
-colon_stall_result = self.check_colon_stall(agent, state.colon_stall_retries)\n        if colon_stall_result is 
-not None:\n            # Colon stall occurred, update generator and retry count\n            new_generator, 
-state.colon_stall_retries = colon_stall_result\n            return new_generator\n\n        # Agent finished — 
-exit the loop\n        return None\n\n    async def _process_pending_tools(\n        self,\n        agent: 
-Agent,\n        pending_tool_calls: list[ToolCall],\n        params: AgentLoopParams,\n        state: 
-LoopState,\n    ) -> None:\n        """Execute all pending tool calls (regular + delegation)."""\n        async 
-for event in self.orchestrator.tool_controller.process_pending_tool_calls(\n            agent, 
-pending_tool_calls, params.depth, state.tool_errors\n        ):\n            yield event\n\n    def 
-_check_turn_limits_and_inject_anchor(\n        self,\n        agent: Agent,\n        params: AgentLoopParams,\n 
-state: LoopState,\n    ) -> bool:\n        """Check turn limits and inject role anchor if needed.\n        \n   
-Returns:\n            True if should break the loop, False otherwise.\n        """\n        # Inject role anchor
-if needed\n        self.inject_role_anchor(agent, state.tool_call_count)\n\n        should_break, 
-state.wrapup_warned, error_event = self.enforce_turn_limits(\n            TurnEnforcementParams(\n              
-agent=agent,\n                max_turns=params.max_turns,\n                
-tool_call_count=state.tool_call_count,\n                msg_start_index=params.msg_start_index,\n               
-wrapup_warned=state.wrapup_warned,\n            )\n        )\n        if error_event:\n            yield 
-error_event\n        return should_break\n\n    def _finalize_loop(self, agent: Agent, state: LoopState) -> 
-None:\n        """Store final state after loop completion."""\n        # Store tool errors on the agent for the 
-caller to retrieve\n        if not hasattr(agent, "_delegation_tool_errors"):\n            
-agent._delegation_tool_errors = []  # type: ignore[attr-defined]\n        agent._delegation_tool_errors = 
-state.tool_errors  # type: ignore[attr-defined]\n\n        # Store final tool call count so callers can assess 
-completion\n        self.orchestrator._last_loop_tool_call_count = state.tool_call_count', 'new_str': '    async
-def run_agent_loop(\n        self,\n        params: AgentLoopParams,\n    ) -> AsyncIterator[AgentEvent]:\n     
-"""Handle the run loop for an agent, executing tools and intercepting delegations."""\n        agent = 
-params.agent\n        if agent is None:\n            raise ValueError("Agent must be provided in 
-AgentLoopParams")\n\n        generator: AsyncIterator[AgentEvent] = agent.run(params.input_text)\n        state 
-= LoopState()\n\n        while True:\n            pending_tool_calls: list[ToolCall] = []\n            \n       
-# Collect events and extract tool calls\n            async for event in 
-self.collect_events_and_tool_calls(generator, pending_tool_calls):\n                yield event\n\n            
-if not pending_tool_calls:\n                should_continue = await self._handle_no_pending_tools(agent, 
-state)\n                if should_continue is not None:\n                    generator = should_continue\n      
-continue\n                break\n\n            # Execute all pending tool calls (regular + delegation)\n        
-async for event in self.orchestrator.tool_controller.process_pending_tool_calls(\n                agent, 
-pending_tool_calls, params.depth, state.tool_errors\n            ):\n                yield event\n\n            
-state.tool_call_count += len(pending_tool_calls)\n\n            should_break = await 
-self._check_and_handle_turn_limits(agent, params, state)\n            if should_break:\n                
-break\n\n            # All tool results submitted — continue the agent\n            generator = 
-agent.continue_with_tool_results()\n\n        self._finalize_loop(agent, state)\n\n    async def 
-_handle_no_pending_tools(\n        self,\n        agent: Agent,\n        state: LoopState,\n    ) -> 
-AsyncIterator[AgentEvent] | None:\n        """Handle the case when no tools are pending.\n        \n        
-Returns:\n            New generator if colon stall detected, None otherwise.\n        """\n        # Check 
-thinking patterns and stall failures when no tools are pending\n        thinking_event = 
-self.orchestrator.validator.check_thinking_pattern(agent)\n        if thinking_event:\n            # Note: This 
-event needs to be yielded by the caller\n            pass\n\n        stall_event = 
-self.orchestrator.validator.check_stall_failure(agent)\n        if stall_event:\n            # Note: This event 
-needs to be yielded by the caller\n            pass\n\n        # Check for colon stall\n        
-colon_stall_result = self.check_colon_stall(agent, state.colon_stall_retries)\n        if colon_stall_result is 
-not None:\n            # Colon stall occurred, update generator and retry count\n            new_generator, 
-state.colon_stall_retries = colon_stall_result\n            return new_generator\n\n        # Agent finished — 
-exit the loop\n        return None\n\n    async def _check_and_handle_turn_limits(\n        self,\n        
-agent: Agent,\n        params: AgentLoopParams,\n        state: LoopState,\n    ) -> bool:\n        """Check 
-turn limits and inject role anchor if needed.\n        \n        Returns:\n            True if should break the 
-loop, False otherwise.\n        """\n        # Inject role anchor if needed\n        
-self.inject_role_anchor(agent, state.tool_call_count)\n\n        should_break, state.wrapup_warned, error_event 
-= self.enforce_turn_limits(\n            TurnEnforcementParams(\n                agent=agent,\n                
-max_turns=params.max_turns,\n                tool_call_count=state.tool_call_count,\n                
-msg_start_index=params.msg_start_index,\n                wrapup_warned=state.wrapup_warned,\n            )\n    
-)\n        if error_event:\n            # Note: This event needs to be yielded by the caller\n            pass\n
-return should_break\n\n    def _finalize_loop(self, agent: Agent, state: LoopState) -> None:\n        """Store 
-final state after loop completion."""\n        # Store tool errors on the agent for the caller to retrieve\n    
-if not hasattr(agent, "_delegation_tool_errors"):\n            agent._delegation_tool_errors = []  # type: 
-ignore[attr-defined]\n        agent._delegation_tool_errors = state.tool_errors  # type: 
-ignore[attr-defined]\n\n        # Store final tool call count so callers can assess completion\n        
-self.orchestrator._last_loop_tool_call_count = state.tool_call_count'})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-Actually, I realize the events need to be yielded from the main loop. Let me restore the original logic but extract smaller, focused methods that don't break the async generator pattern:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '    async def run_agent_loop(\n    
-self,\n        params: AgentLoopParams,\n    ) -> AsyncIterator[AgentEvent]:\n        """Handle the run loop for
-an agent, executing tools and intercepting delegations."""\n        agent = params.agent\n        if agent is 
-None:\n            raise ValueError("Agent must be provided in AgentLoopParams")\n\n        generator: 
-AsyncIterator[AgentEvent] = agent.run(params.input_text)\n        state = LoopState()\n\n        while True:\n  
-pending_tool_calls: list[ToolCall] = []\n            \n            # Collect events and extract tool calls\n    
-async for event in self.collect_events_and_tool_calls(generator, pending_tool_calls):\n                yield 
-event\n\n            if not pending_tool_calls:\n                should_continue = await 
-self._handle_no_pending_tools(agent, state)\n                if should_continue is not None:\n                  
-generator = should_continue\n                    continue\n                break\n\n            # Execute all 
-pending tool calls (regular + delegation)\n            async for event in 
-self.orchestrator.tool_controller.process_pending_tool_calls(\n                agent, pending_tool_calls, 
-params.depth, state.tool_errors\n            ):\n                yield event\n\n            
-state.tool_call_count += len(pending_tool_calls)\n\n            should_break = await 
-self._check_and_handle_turn_limits(agent, params, state)\n            if should_break:\n                
-break\n\n            # All tool results submitted — continue the agent\n            generator = 
-agent.continue_with_tool_results()\n\n        self._finalize_loop(agent, state)\n\n    async def 
-_handle_no_pending_tools(\n        self,\n        agent: Agent,\n        state: LoopState,\n    ) -> 
-AsyncIterator[AgentEvent] | None:\n        """Handle the case when no tools are pending.\n        \n        
-Returns:\n            New generator if colon stall detected, None otherwise.\n        """\n        # Check 
-thinking patterns and stall failures when no tools are pending\n        thinking_event = 
-self.orchestrator.validator.check_thinking_pattern(agent)\n        if thinking_event:\n            # Note: This 
-event needs to be yielded by the caller\n            pass\n\n        stall_event = 
-self.orchestrator.validator.check_stall_failure(agent)\n        if stall_event:\n            # Note: This event 
-needs to be yielded by the caller\n            pass\n\n        # Check for colon stall\n        
-colon_stall_result = self.check_colon_stall(agent, state.colon_stall_retries)\n        if colon_stall_result is 
-not None:\n            # Colon stall occurred, update generator and retry count\n            new_generator, 
-state.colon_stall_retries = colon_stall_result\n            return new_generator\n\n        # Agent finished — 
-exit the loop\n        return None\n\n    async def _check_and_handle_turn_limits(\n        self,\n        
-agent: Agent,\n        params: AgentLoopParams,\n        state: LoopState,\n    ) -> bool:\n        """Check 
-turn limits and inject role anchor if needed.\n        \n        Returns:\n            True if should break the 
-loop, False otherwise.\n        """\n        # Inject role anchor if needed\n        
-self.inject_role_anchor(agent, state.tool_call_count)\n\n        should_break, state.wrapup_warned, error_event 
-= self.enforce_turn_limits(\n            TurnEnforcementParams(\n                agent=agent,\n                
-max_turns=params.max_turns,\n                tool_call_count=state.tool_call_count,\n                
-msg_start_index=params.msg_start_index,\n                wrapup_warned=state.wrapup_warned,\n            )\n    
-)\n        if error_event:\n            # Note: This event needs to be yielded by the caller\n            pass\n
-return should_break\n\n    def _finalize_loop(self, agent: Agent, state: LoopState) -> None:\n        """Store 
-final state after loop completion."""\n        # Store tool errors on the agent for the caller to retrieve\n    
-if not hasattr(agent, "_delegation_tool_errors"):\n            agent._delegation_tool_errors = []  # type: 
-ignore[attr-defined]\n        agent._delegation_tool_errors = state.tool_errors  # type: 
-ignore[attr-defined]\n\n        # Store final tool call count so callers can assess completion\n        
-self.orchestrator._last_loop_tool_call_count = state.tool_call_count', 'new_str': '    async def 
-run_agent_loop(\n        self,\n        params: AgentLoopParams,\n    ) -> AsyncIterator[AgentEvent]:\n        
-"""Handle the run loop for an agent, executing tools and intercepting delegations."""\n        agent = 
-params.agent\n        if agent is None:\n            raise ValueError("Agent must be provided in 
-AgentLoopParams")\n\n        generator: AsyncIterator[AgentEvent] = agent.run(params.input_text)\n        state 
-= LoopState()\n\n        while True:\n            pending_tool_calls: list[ToolCall] = []\n            \n       
-# Collect events and extract tool calls\n            async for event in 
-self.collect_events_and_tool_calls(generator, pending_tool_calls):\n                yield event\n\n            
-if not pending_tool_calls:\n                if await self._handle_no_pending_tools(agent, state, generator):\n  
-continue\n                break\n\n            # Execute all pending tool calls (regular + delegation)\n        
-async for event in self.orchestrator.tool_controller.process_pending_tool_calls(\n                agent, 
-pending_tool_calls, params.depth, state.tool_errors\n            ):\n                yield event\n\n            
-state.tool_call_count += len(pending_tool_calls)\n\n            if await 
-self._check_and_handle_turn_limits(agent, params, state):\n                break\n\n            # All tool 
-results submitted — continue the agent\n            generator = agent.continue_with_tool_results()\n\n        
-self._finalize_loop(agent, state)\n\n    async def _handle_no_pending_tools(\n        self,\n        agent: 
-Agent,\n        state: LoopState,\n        generator: AsyncIterator[AgentEvent],\n    ) -> bool:\n        
-"""Handle the case when no tools are pending.\n        \n        Returns:\n            True if should continue 
-loop, False if should break.\n        """\n        # Check thinking patterns and stall failures when no tools 
-are pending\n        thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)\n        if 
-thinking_event:\n            # Note: This event needs to be yielded by the caller\n            pass\n\n        
-stall_event = self.orchestrator.validator.check_stall_failure(agent)\n        if stall_event:\n            # 
-Note: This event needs to be yielded by the caller\n            pass\n\n        # Check for colon stall\n       
-colon_stall_result = self.check_colon_stall(agent, state.colon_stall_retries)\n        if colon_stall_result is 
-not None:\n            # Colon stall occurred, update generator and retry count\n            generator, 
-state.colon_stall_retries = colon_stall_result\n            return True\n\n        # Agent finished — exit the 
-loop\n        return False\n\n    async def _check_and_handle_turn_limits(\n        self,\n        agent: 
-Agent,\n        params: AgentLoopParams,\n        state: LoopState,\n    ) -> bool:\n        """Check turn 
-limits and inject role anchor if needed.\n        \n        Returns:\n            True if should break the loop,
-False otherwise.\n        """\n        # Inject role anchor if needed\n        self.inject_role_anchor(agent, 
-state.tool_call_count)\n\n        should_break, state.wrapup_warned, error_event = self.enforce_turn_limits(\n  
-TurnEnforcementParams(\n                agent=agent,\n                max_turns=params.max_turns,\n             
-tool_call_count=state.tool_call_count,\n                msg_start_index=params.msg_start_index,\n               
-wrapup_warned=state.wrapup_warned,\n            )\n        )\n        if error_event:\n            # Note: This 
-event needs to be yielded by the caller\n            pass\n        return should_break\n\n    def 
-_finalize_loop(self, agent: Agent, state: LoopState) -> None:\n        """Store final state after loop 
-completion."""\n        # Store tool errors on the agent for the caller to retrieve\n        if not 
-hasattr(agent, "_delegation_tool_errors"):\n            agent._delegation_tool_errors = []  # type: 
-ignore[attr-defined]\n        agent._delegation_tool_errors = state.tool_errors  # type: 
-ignore[attr-defined]\n\n        # Store final tool call count so callers can assess completion\n        
-self.orchestrator._last_loop_tool_call_count = state.tool_call_count'})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-I need to fix the logic - the generator needs to be updated when colon stall is detected. Let me check the tests:
-[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': True})
-
-✗ \[error] ============================= test session starts ==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- /home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-The test is failing because events aren't being yielded properly. The issue is that when we extract methods, we lose the ability to yield events from them. Let me think about this differently. Instead of trying to extract methods that yield events, I should extract pure functions that return values and let the main loop yield events. Let me revert to a cleaner approach:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 460, 'end_line': 550})
-
-[result] 
-
-class ExecutionController:
-    """Manages agent execution loops and state."""
-    def __init__(self, orchestrator: "Orchestrator"):
-        self.orchestrator = orchestrator
-
-    async def run_agent_...
-I see the problem. The extracted methods don't yield events, and the generator update logic is broken. Let me restore the original `run_agent_loop` method but keep the other improvements I made. Actually, let me take a step back and fix this properly. The real issue is that I need to handle the events properly. Let me rewrite the method more carefully:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '    async def run_agent_loop(\n    
-self,\n        params: AgentLoopParams,\n    ) -> AsyncIterator[AgentEvent]:\n        """Handle the run loop for
-an agent, executing tools and intercepting delegations."""\n        agent = params.agent\n        if agent is 
-None:\n            raise ValueError("Agent must be provided in AgentLoopParams")\n\n        generator: 
-AsyncIterator[AgentEvent] = agent.run(params.input_text)\n        state = LoopState()\n\n        while True:\n  
-pending_tool_calls: list[ToolCall] = []\n            \n            # Collect events and extract tool calls\n    
-async for event in self.collect_events_and_tool_calls(generator, pending_tool_calls):\n                yield 
-event\n\n            if not pending_tool_calls:\n                if await self._handle_no_pending_tools(agent, 
-state, generator):\n                    continue\n                break\n\n            # Execute all pending 
-tool calls (regular + delegation)\n            async for event in 
-self.orchestrator.tool_controller.process_pending_tool_calls(\n                agent, pending_tool_calls, 
-params.depth, state.tool_errors\n            ):\n                yield event\n\n            
-state.tool_call_count += len(pending_tool_calls)\n\n            if await 
-self._check_and_handle_turn_limits(agent, params, state):\n                break\n\n            # All tool 
-results submitted — continue the agent\n            generator = agent.continue_with_tool_results()\n\n        
-self._finalize_loop(agent, state)\n\n    async def _handle_no_pending_tools(\n        self,\n        agent: 
-Agent,\n        state: LoopState,\n        generator: AsyncIterator[AgentEvent],\n    ) -> bool:\n        
-"""Handle the case when no tools are pending.\n        \n        Returns:\n            True if should continue 
-loop, False if should break.\n        """\n        # Check thinking patterns and stall failures when no tools 
-are pending\n        thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)\n        if 
-thinking_event:\n            # Note: This event needs to be yielded by the caller\n            pass\n\n        
-stall_event = self.orchestrator.validator.check_stall_failure(agent)\n        if stall_event:\n            # 
-Note: This event needs to be yielded by the caller\n            pass\n\n        # Check for colon stall\n       
-colon_stall_result = self.check_colon_stall(agent, state.colon_stall_retries)\n        if colon_stall_result is 
-not None:\n            # Colon stall occurred, update generator and retry count\n            generator, 
-state.colon_stall_retries = colon_stall_result\n            return True\n\n        # Agent finished — exit the 
-loop\n        return False\n\n    async def _check_and_handle_turn_limits(\n        self,\n        agent: 
-Agent,\n        params: AgentLoopParams,\n        state: LoopState,\n    ) -> bool:\n        """Check turn 
-limits and inject role anchor if needed.\n        \n        Returns:\n            True if should break the loop,
-False otherwise.\n        """\n        # Inject role anchor if needed\n        self.inject_role_anchor(agent, 
-state.tool_call_count)\n\n        should_break, state.wrapup_warned, error_event = self.enforce_turn_limits(\n  
-TurnEnforcementParams(\n                agent=agent,\n                max_turns=params.max_turns,\n             
-tool_call_count=state.tool_call_count,\n                msg_start_index=params.msg_start_index,\n               
-wrapup_warned=state.wrapup_warned,\n            )\n        )\n        if error_event:\n            # Note: This 
-event needs to be yielded by the caller\n            pass\n        return should_break\n\n    def 
-_finalize_loop(self, agent: Agent, state: LoopState) -> None:\n        """Store final state after loop 
-completion."""\n        # Store tool errors on the agent for the caller to retrieve\n        if not 
-hasattr(agent, "_delegation_tool_errors"):\n            agent._delegation_tool_errors = []  # type: 
-ignore[attr-defined]\n        agent._delegation_tool_errors = state.tool_errors  # type: 
-ignore[attr-defined]\n\n        # Store final tool call count so callers can assess completion\n        
-self.orchestrator._last_loop_tool_call_count = state.tool_call_count', 'new_str': '    async def 
-run_agent_loop(\n        self,\n        params: AgentLoopParams,\n    ) -> AsyncIterator[AgentEvent]:\n        
-"""Handle the run loop for an agent, executing tools and intercepting delegations."""\n        agent = 
-params.agent\n        if agent is None:\n            raise ValueError("Agent must be provided in 
-AgentLoopParams")\n\n        generator: AsyncIterator[AgentEvent] = agent.run(params.input_text)\n        state 
-= LoopState()\n\n        while True:\n            pending_tool_calls: list[ToolCall] = []\n            \n       
-# Collect events and extract tool calls\n            async for event in 
-self.collect_events_and_tool_calls(generator, pending_tool_calls):\n                yield event\n\n            
-if not pending_tool_calls:\n                # Check thinking patterns and stall failures when no tools are 
-pending\n                thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)\n           
-if thinking_event:\n                    yield thinking_event\n\n                stall_event = 
-self.orchestrator.validator.check_stall_failure(agent)\n                if stall_event:\n                    
-yield stall_event\n\n                # Check for colon stall\n                colon_stall_result = 
-self.check_colon_stall(agent, state.colon_stall_retries)\n                if colon_stall_result is not None:\n  
-# Colon stall occurred, update generator and retry count\n                    generator, 
-state.colon_stall_retries = colon_stall_result\n                    continue\n\n                # Agent finished
-— exit the loop\n                break\n\n            # Execute all pending tool calls (regular + delegation)\n 
-async for event in self.orchestrator.tool_controller.process_pending_tool_calls(\n                agent, 
-pending_tool_calls, params.depth, state.tool_errors\n            ):\n                yield event\n\n            
-state.tool_call_count += len(pending_tool_calls)\n\n            # Inject role anchor if needed\n            
-self.inject_role_anchor(agent, state.tool_call_count)\n\n            should_break, state.wrapup_warned, 
-error_event = self.enforce_turn_limits(\n                TurnEnforcementParams(\n                    
-agent=agent,\n                    max_turns=params.max_turns,\n                    
-tool_call_count=state.tool_call_count,\n                    msg_start_index=params.msg_start_index,\n           
-wrapup_warned=state.wrapup_warned,\n                )\n            )\n            if error_event:\n             
-yield error_event\n            if should_break:\n                break\n\n            # All tool results 
-submitted — continue the agent\n            generator = agent.continue_with_tool_results()\n\n        
-self._finalize_loop(agent, state)\n\n    def _finalize_loop(self, agent: Agent, state: LoopState) -> None:\n    
-"""Store final state after loop completion."""\n        # Store tool errors on the agent for the caller to 
-retrieve\n        if not hasattr(agent, "_delegation_tool_errors"):\n            agent._delegation_tool_errors =
-[]  # type: ignore[attr-defined]\n        agent._delegation_tool_errors = state.tool_errors  # type: 
-ignore[attr-defined]\n\n        # Store final tool call count so callers can assess completion\n        
-self.orchestrator._last_loop_tool_call_count = state.tool_call_count'})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-Now I need to remove the unused methods I added:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 550, 'end_line': 600})
-
-[result]             mission_note = ""
-            if self.orchestrator.ledger:
-                recap = self.orchestrator.ledger.mission_recap()
-                if recap:
-                    mission_note = f" ...
-Good, the unused methods are already gone. Now let me run the tests again:
-[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': True})
-
-[result] ============================= test session starts ==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- /home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Great! All tests pass. Now let me check if there are other code smells I should address. Let me look at the other medium and high severity smells mentioned in the report:
-
-From the report, I see there are other issues:
-1. **Line 277**: `execute_delegation_tool` has 58 lines (threshold: 30) - Long Method
-2. **Line 351**: `prepare_delegation_context` is 96% similar to `_prepare_delegation_context` - Duplicate Code
-3. **Line 359**: `process_delegation_results` is 100% similar to `_process_delegation_results` - Duplicate Code
-
-Let me check these:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 270, 'end_line': 330})
-
-[result]                 async for event in self.execute_delegation_tool(
-                    agent, tool_call, depth, tool_errors
-                ):
-                    yield event
-            else:
-         ...
-The `execute_delegation_tool` method is indeed long. Let me refactor it by extracting helper methods:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '    async def 
-execute_delegation_tool(\n        self,\n        agent: Agent,\n        tool_call: ToolCall,\n        depth: 
-int,\n        tool_errors: list[str],\n    ) -> AsyncIterator[AgentEvent]:\n        """Execute a delegation tool
-call."""\n        target = tool_call.arguments.get("agent", "")\n        task = tool_call.arguments.get("task", 
-"")\n\n        # Update delegation metrics\n        self.update_delegation_metrics(target)\n        
-self.update_tool_metrics(_DELEGATE_TASK_TOOL, tool_call.arguments, True)\n\n        # Register delegation in 
-ledger\n        ledger_record = None\n        if self.orchestrator.ledger:\n            ledger_record = 
-self.orchestrator.ledger.add_delegation(agent=target, task=task)\n\n        yield AgentEvent(\n            
-type=EventType.AGENT_DELEGATED,\n            data={\n                "from": agent.identity.id if agent.identity
-else "unknown",\n                "to": target,\n                "task": task,\n            },\n            
-source_agent="orchestrator",\n        )\n\n        # Run delegation and collect summary\n        result_content 
-= ""\n        delegation_had_error = False\n        delegation_status = ""\n        delegation_brief = 
-self.prepare_delegation_brief(tool_call)\n        params = DelegationParams(\n            target_role=target,\n 
-task=task,\n            brief=delegation_brief,\n            depth=depth + 1,\n        )\n        async for 
-sub_event in self.run_delegation(params):\n            if sub_event.type == EventType.AGENT_COMPLETED:\n        
-result_content = sub_event.data.get("summary", "Completed.")\n                delegation_status = 
-sub_event.data.get("status", "completed")\n            if sub_event.type == EventType.ERROR:\n                
-delegation_had_error = True\n            yield sub_event\n\n        if not result_content:\n            
-result_content = "Delegation completed (no output)."\n\n        # Specialist doing no work is a soft failure — 
-inform the Tech Lead\n        if delegation_status == "no_work_done":\n            result_content = (\n         
-f"⚠️ Agent {target} ended without making any tool calls.\\n\\n"\n                f"{result_content}"\n          
-)\n\n        # Process delegation result\n        self.process_delegation_result(\n            agent, tool_call,
-result_content, delegation_had_error, ledger_record\n        )\n\n        # Yield tool result event\n        
-yield self.yield_tool_result_event(agent, tool_call, result_content, success=True)', 'new_str': '    async def 
-execute_delegation_tool(\n        self,\n        agent: Agent,\n        tool_call: ToolCall,\n        depth: 
-int,\n        tool_errors: list[str],\n    ) -> AsyncIterator[AgentEvent]:\n        """Execute a delegation tool
-call."""\n        target = tool_call.arguments.get("agent", "")\n        task = tool_call.arguments.get("task", 
-"")\n\n        self._update_delegation_metrics_and_tools(target, tool_call)\n        ledger_record = 
-self._register_delegation_in_ledger(target, task)\n        \n        yield self._create_delegation_event(agent, 
-target, task)\n\n        result_content, delegation_had_error, delegation_status = await 
-self._run_delegation_and_collect_results(\n            target, task, tool_call, depth\n        )\n\n        
-result_content = self._handle_delegation_result(target, result_content, delegation_status)\n\n        
-self._process_delegation_result(agent, tool_call, result_content, delegation_had_error, ledger_record)\n\n      
-# Yield tool result event\n        yield self.yield_tool_result_event(agent, tool_call, result_content, 
-success=True)\n\n    def _update_delegation_metrics_and_tools(self, target: str, tool_call: ToolCall) -> None:\n
-"""Update delegation metrics and tool metrics."""\n        self.update_delegation_metrics(target)\n        
-self.update_tool_metrics(_DELEGATE_TASK_TOOL, tool_call.arguments, True)\n\n    def 
-_register_delegation_in_ledger(self, target: str, task: str) -> Any | None:\n        """Register delegation in 
-ledger if available."""\n        if self.orchestrator.ledger:\n            return 
-self.orchestrator.ledger.add_delegation(agent=target, task=task)\n        return None\n\n    def 
-_create_delegation_event(self, agent: Agent, target: str, task: str) -> AgentEvent:\n        """Create and 
-return a delegation event."""\n        return AgentEvent(\n            type=EventType.AGENT_DELEGATED,\n        
-data={\n                "from": agent.identity.id if agent.identity else "unknown",\n                "to": 
-target,\n                "task": task,\n            },\n            source_agent="orchestrator",\n        )\n\n 
-async def _run_delegation_and_collect_results(\n        self,\n        target: str,\n        task: str,\n       
-tool_call: ToolCall,\n        depth: int,\n    ) -> tuple[str, bool, str]:\n        """Run delegation and 
-collect results."""\n        result_content = ""\n        delegation_had_error = False\n        
-delegation_status = ""\n        delegation_brief = self.prepare_delegation_brief(tool_call)\n        params = 
-DelegationParams(\n            target_role=target,\n            task=task,\n            
-brief=delegation_brief,\n            depth=depth + 1,\n        )\n        async for sub_event in 
-self.run_delegation(params):\n            if sub_event.type == EventType.AGENT_COMPLETED:\n                
-result_content = sub_event.data.get("summary", "Completed.")\n                delegation_status = 
-sub_event.data.get("status", "completed")\n            if sub_event.type == EventType.ERROR:\n                
-delegation_had_error = True\n            yield sub_event\n\n        if not result_content:\n            
-result_content = "Delegation completed (no output)."\n        \n        return result_content, 
-delegation_had_error, delegation_status\n\n    def _handle_delegation_result(self, target: str, result_content: 
-str, delegation_status: str) -> str:\n        """Handle delegation result, including special cases like no work 
-done."""\n        if delegation_status == "no_work_done":\n            return (\n                f"⚠️ Agent 
-{target} ended without making any tool calls.\\n\\n"\n                f"{result_content}"\n            )\n      
-return result_content\n\n    def _process_delegation_result(\n        self,\n        agent: Agent,\n        
-tool_call: ToolCall,\n        result_content: str,\n        delegation_had_error: bool,\n        ledger_record: 
-Any | None,\n    ) -> None:\n        """Process the result of a delegation."""\n        # Update ledger with 
-outcome\n        if self.orchestrator.ledger and ledger_record:\n            if delegation_had_error:\n         
-self.orchestrator.ledger.fail_delegation(ledger_record, result_content)\n            else:\n                
-self.orchestrator.ledger.complete_delegation(ledger_record, result_content)\n\n        # Append ledger snapshot 
-so Tech Lead can re-orient\n        submitted_content = result_content\n        if self.orchestrator.ledger:\n  
-submitted_content = f"{result_content}\\n\\n{self.orchestrator.ledger.render()}"\n\n        
-agent.submit_tool_result(tool_call.id, submitted_content)'})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-Wait, I need to fix the async generator issue again. The `_run_delegation_and_collect_results` method yields events but also returns values. This is a problem. Let me revert and take a simpler approach - just extract the non-yielding parts:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '    async def 
-execute_delegation_tool(\n        self,\n        agent: Agent,\n        tool_call: ToolCall,\n        depth: 
-int,\n        tool_errors: list[str],\n    ) -> AsyncIterator[AgentEvent]:\n        """Execute a delegation tool
-call."""\n        target = tool_call.arguments.get("agent", "")\n        task = tool_call.arguments.get("task", 
-"")\n\n        self._update_delegation_metrics_and_tools(target, tool_call)\n        ledger_record = 
-self._register_delegation_in_ledger(target, task)\n        \n        yield self._create_delegation_event(agent, 
-target, task)\n\n        result_content, delegation_had_error, delegation_status = await 
-self._run_delegation_and_collect_results(\n            target, task, tool_call, depth\n        )\n\n        
-result_content = self._handle_delegation_result(target, result_content, delegation_status)\n\n        
-self._process_delegation_result(agent, tool_call, result_content, delegation_had_error, ledger_record)\n\n      
-# Yield tool result event\n        yield self.yield_tool_result_event(agent, tool_call, result_content, 
-success=True)\n\n    def _update_delegation_metrics_and_tools(self, target: str, tool_call: ToolCall) -> None:\n
-"""Update delegation metrics and tool metrics."""\n        self.update_delegation_metrics(target)\n        
-self.update_tool_metrics(_DELEGATE_TASK_TOOL, tool_call.arguments, True)\n\n    def 
-_register_delegation_in_ledger(self, target: str, task: str) -> Any | None:\n        """Register delegation in 
-ledger if available."""\n        if self.orchestrator.ledger:\n            return 
-self.orchestrator.ledger.add_delegation(agent=target, task=task)\n        return None\n\n    def 
-_create_delegation_event(self, agent: Agent, target: str, task: str) -> AgentEvent:\n        """Create and 
-return a delegation event."""\n        return AgentEvent(\n            type=EventType.AGENT_DELEGATED,\n        
-data={\n                "from": agent.identity.id if agent.identity else "unknown",\n                "to": 
-target,\n                "task": task,\n            },\n            source_agent="orchestrator",\n        )\n\n 
-async def _run_delegation_and_collect_results(\n        self,\n        target: str,\n        task: str,\n       
-tool_call: ToolCall,\n        depth: int,\n    ) -> tuple[str, bool, str]:\n        """Run delegation and 
-collect results."""\n        result_content = ""\n        delegation_had_error = False\n        
-delegation_status = ""\n        delegation_brief = self.prepare_delegation_brief(tool_call)\n        params = 
-DelegationParams(\n            target_role=target,\n            task=task,\n            
-brief=delegation_brief,\n            depth=depth + 1,\n        )\n        async for sub_event in 
-self.run_delegation(params):\n            if sub_event.type == EventType.AGENT_COMPLETED:\n                
-result_content = sub_event.data.get("summary", "Completed.")\n                delegation_status = 
-sub_event.data.get("status", "completed")\n            if sub_event.type == EventType.ERROR:\n                
-delegation_had_error = True\n            yield sub_event\n\n        if not result_content:\n            
-result_content = "Delegation completed (no output)."\n        \n        return result_content, 
-delegation_had_error, delegation_status\n\n    def _handle_delegation_result(self, target: str, result_content: 
-str, delegation_status: str) -> str:\n        """Handle delegation result, including special cases like no work 
-done."""\n        if delegation_status == "no_work_done":\n            return (\n                f"⚠️ Agent 
-{target} ended without making any tool calls.\\n\\n"\n                f"{result_content}"\n            )\n      
-return result_content\n\n    def _process_delegation_result(\n        self,\n        agent: Agent,\n        
-tool_call: ToolCall,\n        result_content: str,\n        delegation_had_error: bool,\n        ledger_record: 
-Any | None,\n    ) -> None:\n        """Process the result of a delegation."""\n        # Update ledger with 
-outcome\n        if self.orchestrator.ledger and ledger_record:\n            if delegation_had_error:\n         
-self.orchestrator.ledger.fail_delegation(ledger_record, result_content)\n            else:\n                
-self.orchestrator.ledger.complete_delegation(ledger_record, result_content)\n\n        # Append ledger snapshot 
-so Tech Lead can re-orient\n        submitted_content = result_content\n        if self.orchestrator.ledger:\n  
-submitted_content = f"{result_content}\\n\\n{self.orchestrator.ledger.render()}"\n\n        
-agent.submit_tool_result(tool_call.id, submitted_content)', 'new_str': '    async def execute_delegation_tool(\n
-self,\n        agent: Agent,\n        tool_call: ToolCall,\n        depth: int,\n        tool_errors: 
-list[str],\n    ) -> AsyncIterator[AgentEvent]:\n        """Execute a delegation tool call."""\n        target =
-tool_call.arguments.get("agent", "")\n        task = tool_call.arguments.get("task", "")\n\n        # Update 
-delegation metrics\n        self.update_delegation_metrics(target)\n        
-self.update_tool_metrics(_DELEGATE_TASK_TOOL, tool_call.arguments, True)\n\n        # Register delegation in 
-ledger\n        ledger_record = self._register_delegation_in_ledger(target, task)\n\n        yield 
-self._create_delegation_event(agent, target, task)\n\n        # Run delegation and collect summary\n        
-result_content = ""\n        delegation_had_error = False\n        delegation_status = ""\n        
-delegation_brief = self.prepare_delegation_brief(tool_call)\n        params = DelegationParams(\n            
-target_role=target,\n            task=task,\n            brief=delegation_brief,\n            depth=depth + 1,\n
-)\n        async for sub_event in self.run_delegation(params):\n            if sub_event.type == 
-EventType.AGENT_COMPLETED:\n                result_content = sub_event.data.get("summary", "Completed.")\n      
-delegation_status = sub_event.data.get("status", "completed")\n            if sub_event.type == 
-EventType.ERROR:\n                delegation_had_error = True\n            yield sub_event\n\n        if not 
-result_content:\n            result_content = "Delegation completed (no output)."\n\n        # Specialist doing 
-no work is a soft failure — inform the Tech Lead\n        if delegation_status == "no_work_done":\n            
-result_content = (\n                f"⚠️ Agent {target} ended without making any tool calls.\\n\\n"\n           
-f"{result_content}"\n            )\n\n        # Process delegation result\n        
-self._process_delegation_result(\n            agent, tool_call, result_content, delegation_had_error, 
-ledger_record\n        )\n\n        # Yield tool result event\n        yield self.yield_tool_result_event(agent,
-tool_call, result_content, success=True)\n\n    def _register_delegation_in_ledger(self, target: str, task: str)
--> Any | None:\n        """Register delegation in ledger if available."""\n        if 
-self.orchestrator.ledger:\n            return self.orchestrator.ledger.add_delegation(agent=target, task=task)\n
-return None\n\n    def _create_delegation_event(self, agent: Agent, target: str, task: str) -> AgentEvent:\n    
-"""Create and return a delegation event."""\n        return AgentEvent(\n            
-type=EventType.AGENT_DELEGATED,\n            data={\n                "from": agent.identity.id if agent.identity
-else "unknown",\n                "to": target,\n                "task": task,\n            },\n            
-source_agent="orchestrator",\n        )\n\n    def _process_delegation_result(\n        self,\n        agent: 
-Agent,\n        tool_call: ToolCall,\n        result_content: str,\n        delegation_had_error: bool,\n       
-ledger_record: Any | None,\n    ) -> None:\n        """Process the result of a delegation."""\n        # Update 
-ledger with outcome\n        if self.orchestrator.ledger and ledger_record:\n            if 
-delegation_had_error:\n                self.orchestrator.ledger.fail_delegation(ledger_record, result_content)\n
-else:\n                self.orchestrator.ledger.complete_delegation(ledger_record, result_content)\n\n        # 
-Append ledger snapshot so Tech Lead can re-orient\n        submitted_content = result_content\n        if 
-self.orchestrator.ledger:\n            submitted_content = 
-f"{result_content}\\n\\n{self.orchestrator.ledger.render()}"\n\n        agent.submit_tool_result(tool_call.id, 
-submitted_content)'})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-Now let me check the duplicate methods `prepare_delegation_context` and `process_delegation_results`:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 345, 'end_line': 370})
-
-[result]             data={
-                "from": agent.identity.id if agent.identity else "unknown",
-                "to": target,
-                "task": task,
-            },
-            source_agent="orch...
-Let me search for these duplicate methods:
-[tool] grep({'pattern': 'def prepare_delegation_context', 'path': 'src/henchman/agents/orchestrator.py', 
-'line_numbers': True})
-
-[result] 383:    def prepare_delegation_context(...
-
-[tool] grep({'pattern': 'def _prepare_delegation_context', 'path': 'src/henchman/agents/orchestrator.py', 
-'line_numbers': True})
-
-[result] 1291:    def _prepare_delegation_context(...
-
-[tool] grep({'pattern': 'def process_delegation_results', 'path': 'src/henchman/agents/orchestrator.py', 
-'line_numbers': True})
-
-[result] 391:    def process_delegation_results(...
-
-[tool] grep({'pattern': 'def _process_delegation_results', 'path': 'src/henchman/agents/orchestrator.py', 
-'line_numbers': True})
-
-[result] 1308:    def _process_delegation_results(...
-Let me check if these are actually duplicates or just similar:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 383, 'end_line': 395})
-
-[result]     def prepare_delegation_context(
-        self,
-        target_role: str,
-        brief: dict[str, Any] | None,
-    ) -> dict[str, Any]:
-        """Prepare context for delegation by adding handoff n...
-
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 391, 'end_line': 400})
-
-[result]     def process_delegation_results(
-        self,
-        target_role: str,
-        target_agent: Agent,
-        msg_start: int,
-    ) -> tuple[str, dict[str, str], CompletionStatus]:
-        """Proce...
-These are just proxy methods that delegate to the delegation runner. Let me check the private versions:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 1291, 'end_line': 1305})
-
-[result]     def _prepare_delegation_context(
-        target_role: str,
-        brief: dict[str, Any] | None,
-    ) -> dict[str, Any]:
-        """Prepare context for delegation by adding handoff notes and fail...
-Let me see the full implementation of these methods:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 1291, 'end_line': 1320})
-
-[result]     def _prepare_delegation_context(
-        target_role: str,
-        brief: dict[str, Any] | None,
-    ) -> dict[str, Any]:
-        """Prepare context for delegation by adding handoff notes and fail...
-
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 1320, 'end_line': 1330})
-
-[result]             target_agent: The agent that executed the delegation.
-            msg_start: Index where the agent's messages started.
-
-        Returns:
-            Tuple of (summary, parsed_completion_re...
-So these are also proxy methods. The issue is that `ToolController` has proxy methods that delegate to `orchestrator._delegation_runner`, and `Orchestrator` has private methods that delegate to `self._delegation_runner`. This is indeed duplication. The `ToolController` methods should probably be removed since they're just forwarding to the delegation runner. Let me check if they're used:
-[tool] grep({'pattern': '\\.prepare_delegation_context', 'path': 'src/henchman/agents/orchestrator.py', 
-'line_numbers': True})
-
-[result] No matches found...
-
-[tool] grep({'pattern': '\\.process_delegation_results', 'path': 'src/henchman/agents/orchestrator.py', 
-'line_numbers': True})
-
-[result] No matches found...
-They're not used! Let me remove them:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '    def 
-prepare_delegation_context(\n        self,\n        target_role: str,\n        brief: dict[str, Any] | None,\n  
-) -> dict[str, Any]:\n        """Prepare context for delegation by adding handoff notes and failure 
-context."""\n        return self.orchestrator._delegation_runner._prepare_delegation_context(target_role, 
-brief)\n\n    def process_delegation_results(\n        self,\n        target_role: str,\n        target_agent: 
-Agent,\n        msg_start: int,\n    ) -> tuple[str, dict[str, str], CompletionStatus]:\n        """Process 
-delegation results and prepare completion data."""\n        return 
-self.orchestrator._delegation_runner._process_delegation_results(\n            target_role, target_agent, 
-msg_start\n        )', 'new_str': ''})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-Now let me run the tests to make sure everything still works:
-[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': True})
-
-[result] ============================= test session starts ==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- /home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Excellent! All tests pass. Now let me run a broader test to make sure I didn't break anything else:
-[tool] pytest_run({'path': 'tests/', 'verbose': False, 'timeout': 60})
-
-✗ \[error] Tests timed out after 60s
-Let me run a smaller subset:
-[tool] pytest_run({'path': 'tests/agents/', 'verbose': False})
-
-[result] ============================= test session starts ==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- /home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-✗ Error: ToolExecutor._handle_context_compacted_event() takes 1 positional argument but 2 were given
-[2026-02-27T20:07:55Z] Running pytest to verify tests pass...
+    def check_stall_failure(self, agent: Agent) -> AgentEvent | None:
+        """Check if agent has stalled and report failure."""
+        if agent is self.orchestrator.tech_lead ...
+✗ Error: ToolExecutor._handle_context_compacted_event() takes 1 positional 
+argument but 2 were given
+[2026-02-27T20:30:02Z] Running pytest to verify tests pass...
 ============================= test session starts ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
 rootdir: /home/matthew/mlg-cli
@@ -1242,7 +1325,7 @@ tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidatio
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
-  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=3451008) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=3487575) is multi-threaded, use of fork() may lead to deadlocks in the child.
     self.pid = os.fork()
 
 tests/test_interactive.py::test_tool_form
@@ -1318,14 +1401,14 @@ tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conv
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
-  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/filters/base.py:243: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def __init__(self, func: Callable[[], bool]) -> None:
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/filters/app.py:62: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    from prompt_toolkit.layout import walk
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
-tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
-  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/layout/controls.py:292: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def __init__(
+tests/ui_integration/test_tool_integration.py::TestToolDisplayFormatting::test_tool_call_display
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/key_binding/key_bindings.py:279: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    keys = tuple(_parse_key(k) for k in keys)
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
@@ -1351,7 +1434,7 @@ src/henchman/agents/identity.py                      9      0      0      0   10
 src/henchman/agents/ledger.py                       83      0     16      0   100%
 src/henchman/agents/metrics.py                     169     23     36      4    82%   88->exit, 168, 172, 233->239, 284-321, 333-347, 359-362, 375-408
 src/henchman/agents/metrics_reporter.py            127      0     16      0   100%
-src/henchman/agents/orchestrator.py                527     95    162     12    78%   160->163, 172->exit, 235, 318, 339, 363->370, 371->374, 401-413, 488, 563-574, 611, 860-861, 941->exit, 1072->1079, 1099-1139, 1164-1234, 1255-1270, 1289, 1309, 1328-1329, 1375, 1379
+src/henchman/agents/orchestrator.py                529     70    164     14    83%   162->165, 174->exit, 237, 320, 341, 365->372, 373->376, 403-415, 490, 528->530, 530->534, 622-633, 689, 952-953, 1033->exit, 1164->1171, 1191, 1216-1286, 1307, 1326, 1346, 1365-1366, 1412, 1416
 src/henchman/agents/pool.py                         71      2     30      3    95%   127-128, 147->155, 230->exit
 src/henchman/agents/presets.py                      51      1     18      3    94%   70, 74->76, 78->80
 src/henchman/agents/prompts.py                      47      1     12      2    95%   584->586, 590
@@ -1458,11 +1541,11 @@ src/henchman/tools/builtins/coverage_map.py        152      1     58      4    9
 src/henchman/tools/builtins/dead_code.py           133     10     88      6    91%   142-143, 212, 245-249, 261->253, 288, 314, 355->354
 src/henchman/tools/builtins/delegate.py             17      1      0      0    94%   111
 src/henchman/tools/builtins/diff_view.py            52      5     18      1    91%   196, 203-210
-src/henchman/tools/builtins/env_inspect.py          79      3     34      4    94%   110, 114, 136->135, 146
+src/henchman/tools/builtins/env_inspect.py          79      4     34      5    92%   110, 114, 136->135, 146, 210
 src/henchman/tools/builtins/file_edit.py            69      1     24      2    97%   235->238, 269
 src/henchman/tools/builtins/file_read.py            45      0     10      0   100%
 src/henchman/tools/builtins/file_write.py           23      0      0      0   100%
-src/henchman/tools/builtins/git_ops.py              88     15     28      5    79%   130-133, 205, 230, 266, 284, 298-304
+src/henchman/tools/builtins/git_ops.py              88     14     28      4    81%   130-133, 230, 266, 284, 298-304
 src/henchman/tools/builtins/glob_tool.py            42      0     12      0   100%
 src/henchman/tools/builtins/grep.py                142      9     60      7    92%   132, 148, 155, 257, 350, 374-379, 382
 src/henchman/tools/builtins/import_graph.py        212     18    102     14    90%   141, 169-170, 271, 307-308, 314-315, 318, 322-323, 325->310, 341->344, 362-363, 368, 394->391, 432-433, 479, 499, 502->501, 529->526, 534->526
@@ -1492,7 +1575,7 @@ src/henchman/utils/tokens.py                        55      2     20      2    9
 src/henchman/utils/validation.py                    82      1     36      1    98%   45
 src/henchman/version.py                              3      0      0      0   100%
 --------------------------------------------------------------------------------------------
-TOTAL                                            13694   2325   4048    453    81%
-=========== 2586 passed, 5 skipped, 34 warnings in 200.73s (0:03:20) ===========
-[2026-02-27T20:07:55Z] All tests passed.
+TOTAL                                            13696   2300   4050    455    81%
+=========== 2586 passed, 5 skipped, 34 warnings in 177.31s (0:02:57) ===========
+[2026-02-27T20:30:02Z] All tests passed.
 Committing changes...
