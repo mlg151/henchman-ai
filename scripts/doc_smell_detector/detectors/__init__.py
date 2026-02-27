@@ -11,10 +11,12 @@ from scripts.doc_smell_detector.detectors.docstring_quality import (
 )
 from scripts.doc_smell_detector.detectors.orphaned_pages import OrphanedPagesDetector
 from scripts.doc_smell_detector.detectors.stale_content import StaleContentDetector
+from scripts.doc_smell_detector.detectors.staleness_age import StalenessAgeDetector
 
 ALL_DETECTORS: list[type[DocSmellDetector]] = [
     OrphanedPagesDetector,
     StaleContentDetector,
+    StalenessAgeDetector,
     BrokenLinksDetector,
     DocstringQualityDetector,
     ConfigIssuesDetector,

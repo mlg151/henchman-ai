@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import anyio

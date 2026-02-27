@@ -1,38 +1,33 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-02-27T14:50:00Z
+2026-02-27T15:10:00Z
 
 ## Files Changed
-1. `mkdocs.yml` - Updated GitHub repository URLs from 'matthew/henchman-ai' to 'mlg151/henchman-ai'
-2. `docs/getting-started.md` - Updated git clone URL from 'matthew/henchman-ai' to 'mlg151/henchman-ai'
-3. `docs/index.md` - Updated LICENSE link from 'matthew/henchman-ai' to 'mlg151/henchman-ai'
-4. `CONTRIBUTING.md` - Fixed placeholder GitHub URL and updated class references
+1. `CONTRIBUTING.md` - Improved clarity around fork and clone process for contributors
 
 ## Smell Category Addressed
-- **Consistency Error** (CRITICAL): Standardized GitHub repository URLs across all documentation files
-- **Consistency Error** (HIGH): Fixed placeholder GitHub URL in CONTRIBUTING.md
-- **Stale Content** (HIGH): Updated 'BaseProvider' to 'ModelProvider' and 'BaseTool' to 'Tool' in CONTRIBUTING.md
+- **Consistency Error** (HIGH): Fixed placeholder GitHub URL in CONTRIBUTING.md by adding explicit instructions
 
 ## Rationale for Change
-The documentation had inconsistent GitHub repository URLs, with some files referencing 'matthew/henchman-ai' while most files (including pyproject.toml, README.md, CHANGELOG.md) referenced 'mlg151/henchman-ai'. This violates the **CONSISTENCY** principle - all references to external resources should be uniform.
+The CONTRIBUTING.md file had a placeholder GitHub URL (`https://github.com/your-username/henchman-ai.git`) that was flagged as a consistency error. While this is technically correct for a CONTRIBUTING guide (contributors should clone their fork, not the main repository), the documentation needed to be clearer about the process.
 
-Additionally, CONTRIBUTING.md had stale class references ('BaseProvider' and 'BaseTool') that don't exist in the codebase, violating the **ACCURACY** principle - documentation must match the actual code.
+The fix improves clarity by:
+1. Explicitly stating that contributors should first fork the repository
+2. Providing the actual repository URL for forking
+3. Keeping the fork pattern for the clone command but making it clear it's a placeholder to be replaced
+
+This maintains the correct workflow for contributors while addressing the consistency concern.
 
 ## Changes Made
-1. **mkdocs.yml**: Updated `site_url`, `repo_name`, `repo_url`, and social link to use 'mlg151/henchman-ai'
-2. **docs/getting-started.md**: Updated git clone command to use correct repository
-3. **docs/index.md**: Updated LICENSE link to point to correct repository
-4. **CONTRIBUTING.md**: 
-   - Added clarification to git clone command that contributors should replace 'your-username'
-   - Updated 'BaseProvider' to 'ModelProvider' (actual class name)
-   - Updated 'BaseTool' to 'Tool' (actual class name)
+1. **CONTRIBUTING.md**: Added explicit step-by-step instructions:
+   - Step 1: Fork the repository at `https://github.com/mlg151/henchman-ai`
+   - Step 2: Clone your fork (replace 'your-username' with your GitHub username)
 
 ## What to Verify
-1. Run `mkdocs serve` to ensure all GitHub links work correctly
-2. Check that the git clone command in getting-started.md works
-3. Verify that the LICENSE link resolves correctly
-4. Confirm that the class names in CONTRIBUTING.md match the actual source code
+1. The CONTRIBUTING.md file now provides clear, actionable instructions for new contributors
+2. All GitHub URLs in the file are consistent (main repo links point to mlg151/henchman-ai)
+3. The fork/clone process is clearly explained
 
 ## Next Priority
-The next highest-priority issue is **Stale Content** in `docs/tools.md` - many tools exist in source but are not documented. The tools.md file has 29 smells and needs comprehensive updating to include all available tools.
+The next highest-priority issue is **Broken Link** in `README.md:274` - link to 'docs/' resolves to 'docs' which does not exist. This needs to be fixed to ensure documentation navigation works correctly.

@@ -81324,3 +81324,396 @@ I'll start by examining the duplicate code in `agents/delegation_manager.py` and
 Repair: assistant at index 37 missing tool responses for ['call_00_ky17akuvfcjDoTkONcS6v4Tm'] — stripping tool_calls
 Message sequence repaired: 38 → 38 messages
 I'll start by examining the duplicate code in `agents/delegation_manager.py` and `agents/orchestrator.py`. Let me read these files to understand the duplication.Terminated
+[2026-02-27T15:00:02Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by checking the last improvement made to avoid repeating the same work.
+[tool] read_file({'path': '.agent_tasks/auto-improve/last-improvement.md'})
+
+
+[result] # Improvement Summary
+
+**Date/Time**: 2026-02-27T13:45:00Z (XP Refactoring Agent - Tech Lead)
+
+**Files Changed**:
+1. `src/henchman/agents/delegation_manager.py` - Removed duplicate 
+`shared_context` pr...
+Now I need to check the current prioritized refactoring queue. The #1 priority is the duplicate `_prepare_delegation_brief` function between `agents/delegation_manager.py:46` and `agents/orchestrator.py:1073`. Let me examine these files to understand the duplication.
+[tool] read_file({'path': 'src/henchman/agents/delegation_manager.py', 
+'start_line': 40, 'end_line': 80})
+
+[result]         """
+        self.pool = pool
+        self.settings = settings
+        self._shared_context = shared_context
+        self.ledger = ledger
+
+    def _prepare_delegation_brief(self, tool_call: Too...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1070, 'end_line': 1110})
+
+[result] 
+        return CompletionStatus.COMPLETED
+
+    def _prepare_delegation_brief(self, tool_call: ToolCall) -> dict[str, Any]:
+        """Extract structured delegation fields from tool call.
+
+        Arg...
+Perfect! I can see the exact duplicate. Both functions have identical implementations. Let me check if there are any imports or dependencies I need to consider.
+[tool] read_file({'path': 'src/henchman/agents/delegation_manager.py', 
+'start_line': 1, 'end_line': 30})
+
+[result] """Delegation manager for handling agent task delegation.
+
+This module extracts delegation-related functionality from the Orchestrator
+class to address the Large Class code smell and improve separatio...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1, 'end_line': 30})
+
+[result] """Orchestrator for multi-agent development team."""
+
+import re
+import time
+from collections.abc import AsyncIterator
+from datetime import datetime
+from enum import Enum
+from typing import Any, TypedD...
+Now let me check if `DelegationManager` is used in `Orchestrator` and how they interact:
+[tool] grep({'pattern': 'DelegationManager', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] No matches found...
+
+[tool] grep({'pattern': 'delegation_manager', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] No matches found...
+Interesting! It seems `DelegationManager` might not be used in `Orchestrator`. Let me check the orchestrator's imports more carefully:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+30, 'end_line': 50})
+
+[result]     """
+    agent: Agent | None = None
+    """The agent to run. Either agent or target_role must be provided."""
+    
+    target_role: str | None = None
+    """The role of the agent to run. Either age...
+Let me search for where `_prepare_delegation_brief` is called in both files:
+[tool] grep({'pattern': '_prepare_delegation_brief', 'path': 
+'src/henchman/agents', 'line_numbers': True})
+
+[result] src/henchman/agents/delegation_manager.py:46:    def 
+_prepare_delegation_brief(self, tool_call: ToolCall) -> dict[str, Any]:
+src/henchman/agents/orchestrator.py:1073:    def _prepare_delegation_brief(...
+So `_prepare_delegation_brief` is only called in `orchestrator.py` at line 1514. Let me check if `delegation_manager.py` is even being used:
+[tool] ls({'path': 'src/henchman/agents'})
+
+[result] __init__.py
+__init__.py,cover
+__pycache__/
+config.py
+config.py,cover
+delegation_manager.py
+identity.py
+identity.py,cover
+ledger.py
+ledger.py,cover
+orchestrator.py
+orchestrator.py,cover
+orchestrator.py...
+
+[tool] read_file({'path': 'src/henchman/agents/__init__.py'})
+
+[result] """Multi-agent orchestration system."""
+
+from henchman.agents.config import AgentConfig
+from henchman.agents.identity import AgentIdentity
+from henchman.agents.ledger import (
+    ChecklistItem,
+    D...
+I notice `DelegationManager` is not exported. Let me check if it's actually used anywhere in the codebase:
+[tool] grep({'pattern': 'DelegationManager', 'path': 'src/henchman', 
+'line_numbers': True})
+
+[result] src/henchman/agents/delegation_manager.py:19:class 
+DelegationManager:...
+So `DelegationManager` is defined but not used anywhere! This is a classic YAGNI (You Aren't Gonna Need It) violation. The file appears to be an extraction attempt that was never completed or integrated. Let me check if there are tests for it:
+[tool] grep({'pattern': 'delegation_manager', 'path': 'tests', 'line_numbers': 
+True})
+
+[result] No matches found...
+Let me run the tests to see if they pass currently:
+[tool] pytest_run({'path': 'tests/agents', 'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Great! All tests pass. Now I can see that `delegation_manager.py` has 0% coverage (158 statements, 158 missed). This confirms it's dead code. According to XP principles (YAGNI - You Aren't Gonna Need It), I should remove this unused code. However, looking at the smell report, there's also a duplicate `_is_delegation_depth_exceeded` function. Let me check that:
+[tool] read_file({'path': 'src/henchman/agents/delegation_manager.py', 
+'start_line': 190, 'end_line': 210})
+
+[result]         return parsed
+
+    def _is_delegation_depth_exceeded(self, depth: int) -> bool:
+        """Check if delegation depth exceeds configured limit.
+
+        Args:
+            depth: Current recursi...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1725, 'end_line': 1745})
+
+[result]         # Finalize delegation
+        async for event in self._finalize_delegation(target_role, target_agent, 
+msg_start):
+            yield event
+
+    def _is_delegation_depth_exceeded(self, depth: in...
+Another exact duplicate! Now, based on XP principles:
+
+1. **YAGNI (You Aren't Gonna Need It)**: `DelegationManager` is not used anywhere in the codebase
+2. **Once and Only Once (DRY)**: Both functions are exact duplicates
+3. **Simplicity**: Removing unused code simplifies the codebase
+
+The best approach is to delete the entire `delegation_manager.py` file since it's dead code. However, I should first check if there are any other duplicates or if this file was meant to be part of a refactoring that was never completed. Let me examine the full file:
+[tool] read_file({'path': 'src/henchman/agents/delegation_manager.py'})
+
+[result] """Delegation manager for handling agent task delegation.
+
+This module extracts delegation-related functionality from the Orchestrator
+class to address the Large Class code smell and improve separatio...
+This is clearly an extraction attempt that was never completed. The file has:
+1. Duplicate functions from `orchestrator.py`
+2. Unused code (0% test coverage)
+3. Comments about extracting from Orchestrator to address Large Class smell
+4. Some methods that don't even exist in the actual codebase (like `TaskLedger.record_completion`)
+
+According to XP principles, I should delete this file. But wait, let me check if there's a backup file or if this was part of a recent refactoring:
+[tool] ls({'path': 'src/henchman/agents', 'show_hidden': True})
+
+[result] __init__.py
+__init__.py,cover
+__pycache__/
+config.py
+config.py,cover
+delegation_manager.py
+identity.py
+identity.py,cover
+ledger.py
+ledger.py,cover
+orchestrator.py
+orchestrator.py,cover
+orchestrator.py...
+There's an `orchestrator.py.backup` file. Let me check if `delegation_manager.py` was recently created:
+[tool] git_ops({'action': 'log', 'path': 
+'src/henchman/agents/delegation_manager.py', 'max_count': 5})
+
+[result] 08a2b96 docs(auto-improve): automated documentation improvement...
+So it was created in the last commit. This appears to be part of an automated refactoring attempt that extracted code but never integrated it. The proper XP approach is to **delete the unused file** since it violates YAGNI (we don't need it if it's not used) and DRY (it duplicates code).
+
+However, I should also check if the intention was to actually use this extracted class. Let me see if `Orchestrator` has a `delegation_manager` attribute:
+[tool] grep({'pattern': 'class Orchestrator', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+5, 'context_after': 50})
+
+[result] 355-            ToolCategory.GIT_OPS: self.git_ops_calls,
+356-            ToolCategory.OTHER: self.other_tool_calls,
+357-        }
+358-
+359-
+360:class OrchestratorMetrics:
+361-    """Encapsulates metr...
+Let me search for `delegation_manager` in the orchestrator:
+[tool] grep({'pattern': 'delegation_manager', 'path': 'src/henchman'})
+
+[result] No matches found...
+So `delegation_manager` is not referenced anywhere. This confirms it's dead code. The proper XP refactoring is to **delete the unused file**. However, I should also check if we should instead integrate it (use the extracted class). Let me see what the Orchestrator's delegation methods look like:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1660, 'end_line': 1700})
+
+[result] 
+        return summary, parsed, status
+
+    async def _run_delegation(
+        self,
+        target_role: str,
+        task: str,
+        brief: dict[str, Any] | None,
+        depth: int,
+    ) -> As...
+The `_run_delegation` method in `orchestrator.py` is very similar to `run_delegation` in `delegation_manager.py`. Actually, looking at the code structure, it seems like someone started extracting delegation logic into a separate class but never finished. The `delegation_manager.py` file has the extracted logic but it's not being used.
+
+Given the XP principles:
+1. **YAGNI**: We don't need `DelegationManager` if it's not being used
+2. **Simplicity**: Having unused code adds complexity
+3. **Once and Only Once**: The duplicate functions violate DRY
+
+The best approach is to **delete `delegation_manager.py`**. This will:
+1. Remove dead code (improves maintainability)
+2. Eliminate duplicate functions (fixes the #1 priority smell)
+3. Simplify the codebase
+4. Improve test coverage (removes 0% covered code)
+
+However, I should also consider: maybe the intention was to use `DelegationManager` and we should integrate it. But looking at the code, `Orchestrator` already has all the delegation logic. Extracting it to a separate class would be a good refactoring to address the "Large Class" smell, but that's a bigger change. For now, since the extracted class isn't used, I should remove it.
+
+Actually, wait. Let me check the git status to see if this file is tracked:
+[tool] git_ops({'action': 'status'})
+
+[result] ## main...origin/main [ahead 3]
+ M .agent_tasks/auto-doc-improve/last-run.log
+ M .agent_tasks/auto-improve/cron.log
+ M .agent_tasks/auto-improve/last-run.log
+ M .agent_tasks/auto-improve/smell-report....
+The file isn't showing in git status, which means it might not be tracked. Let me check:
+[tool] shell({'command': 'git ls-files 
+src/henchman/agents/delegation_manager.py'})
+
+[result] src/henchman/agents/delegation_manager.py
+...
+It is tracked. Let me delete it:
+[tool] shell({'command': 'rm src/henchman/agents/delegation_manager.py'})
+
+[result] (no output)...
+Now I need to update the `__init__.py` file if it exports `DelegationManager`:
+[tool] read_file({'path': 'src/henchman/agents/__init__.py'})
+
+[result] """Multi-agent orchestration system."""
+
+from henchman.agents.config import AgentConfig
+from henchman.agents.identity import AgentIdentity
+from henchman.agents.ledger import (
+    ChecklistItem,
+    D...
+Good, `DelegationManager` is not exported. Now let me run the tests to make sure everything still works:
+[tool] pytest_run({'path': 'tests/agents', 'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Perfect! All tests pass. Now let me run the full CI pipeline to make sure everything is working:
+[tool] shell({'command': './scripts/ci.sh'})
+
+✗ \[error] /bin/sh: 1: ./scripts/ci.sh: not found
+
+Let me check what scripts are available:
+[tool] ls({'path': 'scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+run_evals.sh
+smell_detector/...
+Let me run ruff and mypy manually:
+[tool] shell({'command': 'ruff check src/ tests/'})
+
+✗ \[error] I001 [*] Import block is un-sorted or un-formatted
+  --> src/henchman/agents/orchestrator.py:3:1
+   |
+ 1 |   """Orchestrator for multi-agent development team."""
+ 2 |
+ 3 | / import re
+ 4 | | import ti
+There are many linting errors, but most are pre-existing. The key issue is the undefined name `tool_call_count` in `orchestrator.py` at line 1413. Let me check that:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1410, 'end_line': 1420})
+
+[result]             return agent.continue_with_tool_results(), 
+colon_stall_retries
+
+        return None
+        self._last_loop_tool_call_count = tool_call_count
+
+    async def _collect_events_and_tool_calls(...
+There's a bug! Line 1413 is unreachable code (after `return None`). This looks like leftover debug code. Let me fix it:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+return agent.continue_with_tool_results(), colon_stall_retries\n\n        return
+None\n        self._last_loop_tool_call_count = tool_call_count\n\n    async def
+_collect_events_and_tool_calls(', 'new_str': '            return 
+agent.continue_with_tool_results(), colon_stall_retries\n\n        return 
+None\n\n    async def _collect_events_and_tool_calls('})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me run ruff again to see if there are any other critical issues:
+[tool] shell({'command': 'ruff check src/ tests/ --select F821,F822,F823,F831'})
+
+✗ \[error] error: invalid value 'F831' for '--select <RULE_CODE>'
+
+For more information, try '--help'.
+
+
+[tool] shell({'command': 'ruff check src/ tests/ --select F821,F822,F823'})
+
+✗ \[error] F821 Undefined name `Callable`
+   --> src/henchman/cli/app.py:446:18
+    |
+444 |     repl: Any,
+445 |     pending_tool_calls: list[Any],
+446 |     render_func: Callable[[AgentEvent], None],
+    |     
+There's an undefined `Callable` import. Let me check that file:
+[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 440, 
+'end_line': 460})
+
+[result]     return JsonOutputRenderer(console)
+
+
+async def _process_tool_calls(
+    repl: Any,
+    pending_tool_calls: list[Any],
+    render_func: Callable[[AgentEvent], None],
+    collect_events: list[Any] |...
+The `Callable` type needs to be imported. Let me check the imports at the top of the file:
+[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 1, 
+'end_line': 30})
+
+[result] """HENCHMAN CLI application entry point."""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import sys
+from typing import TYPE_CHECKING, Any
+
+import anyio
+import click
+from rich.console ...
+I need to add `Callable` to the imports. Actually, it should be imported from `collections.abc` according to the ruff error earlier. Let me fix it:
+[tool] edit_file({'path': 'src/henchman/cli/app.py', 'old_str': 'from __future__
+import annotations\n\nimport asyncio\nimport os\nimport sys\nfrom typing import 
+TYPE_CHECKING, Any', 'new_str': 'from __future__ import annotations\n\nimport 
+asyncio\nimport os\nimport sys\nfrom collections.abc import Callable\nfrom 
+typing import TYPE_CHECKING, Any'})
+
+[result] Successfully edited src/henchman/cli/app.py...
+Now let me run ruff again to check for undefined names:
+[tool] shell({'command': 'ruff check src/ tests/ --select F821,F822,F823'})
+
+[result] All checks passed!
+...
+Good! Now let me run mypy to check types:
+[tool] shell({'command': 'mypy src/'})
+
+✗ \[error] src/henchman/metrics/storage.py:48: error: Skipping analyzing 
+"appdirs": module is installed, but missing library stubs or py.typed marker  
+\[import-untyped]
+src/henchman/metrics/storage.py:48: note: S
+These are pre-existing type errors, not related to my changes. Let me run the tests again to make sure everything still works:
+[tool] pytest_run({'path': 'tests/agents'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Excellent! All tests pass. Now let me create the improvement summary:

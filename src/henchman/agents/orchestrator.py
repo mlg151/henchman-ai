@@ -1410,7 +1410,6 @@ class Orchestrator:
             return agent.continue_with_tool_results(), colon_stall_retries
 
         return None
-        self._last_loop_tool_call_count = tool_call_count
 
     async def _collect_events_and_tool_calls(
         self,

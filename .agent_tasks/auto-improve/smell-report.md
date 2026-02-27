@@ -1,17 +1,17 @@
-# Code Smell Report — ❌ F (Score: 35.1/100)
+# Code Smell Report — ❌ F (Score: 35.0/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T14:30:13.456964+00:00_
+_Generated: 2026-02-27T15:00:20.416181+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.1/100 |
+| **Overall Score** | 35.0/100 |
 | **Files Scanned** | 146 |
-| **Total Lines (non-blank)** | 30,268 |
+| **Total Lines (non-blank)** | 30,273 |
 | **Total Smells** | 2768 |
 | **Avg Maintainability Index** | 70.0 |
 | **Avg Cyclomatic Complexity** | 13.6 |
@@ -47,19 +47,19 @@ These are the highest-impact smells to address first:
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 2. **agents/delegation_manager.py:192** — 🟠 HIGH — Duplicate Code  
-   Function '_is_delegation_depth_exceeded' is an exact duplicate of '_is_delegation_depth_exceeded' at agents/orchestrator.py:1721  
+   Function '_is_delegation_depth_exceeded' is an exact duplicate of '_is_delegation_depth_exceeded' at agents/orchestrator.py:1729  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 3. **agents/orchestrator.py:627** — 🟠 HIGH — Large Class  
-   Class 'Orchestrator' spans 1647 lines (threshold: 300)  
+   Class 'Orchestrator' spans 1655 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
 4. **agents/orchestrator.py:627** — 🟠 HIGH — Large Class  
    Class 'Orchestrator' has 68 methods (threshold: 20)  
    → _Split Class — group related methods into smaller collaborating classes._
 
-5. **agents/orchestrator.py:1655** — 🟠 HIGH — Primitive Obsession  
-   Repeated primitive parameter group appears in: '_run_delegation' (line 1655), '_execute_delegation_loop' (line 1821)  
+5. **agents/orchestrator.py:1663** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: '_run_delegation' (line 1663), '_execute_delegation_loop' (line 1829)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
 6. **agents/presets.py:30** — 🟠 HIGH — Primitive Obsession  
@@ -108,7 +108,7 @@ These are the highest-impact smells to address first:
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
 | 1 | cli/textual_app.py | ❌ F | 0.4 | 121 | 1439 | 1 | 0.0 |
-| 2 | agents/orchestrator.py | ❌ F | 0.6 | 141 | 1753 | 2 | 13.2 |
+| 2 | agents/orchestrator.py | ❌ F | 0.6 | 141 | 1758 | 2 | 13.5 |
 | 3 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
 | 4 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 5 | cli/commands/session.py | ❌ F | 10.0 | 65 | 295 | 33 | 11.0 |
@@ -148,13 +148,13 @@ _... and 106 more smells._
 
 ### agents/orchestrator.py — ❌ F (0.6/100)
 
-LOC: 1753 | Classes: 10 | Functions: 1 | MI: 2 | Avg CC: 13.2
+LOC: 1758 | Classes: 10 | Functions: 1 | MI: 2 | Avg CC: 13.5
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 627 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1647 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 627 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1655 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
 | 627 | 🟠 HIGH | Large Class | Class 'Orchestrator' has 68 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 1655 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_run_delegation' (line 1655), '_execute_delegation_loop' (line 1821) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 1663 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_run_delegation' (line 1663), '_execute_delegation_loop' (line 1829) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
 | 221 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 92% similar to '__init__' at agents/orchestrator.py:265 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 253 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 100% similar to 'track_tool_usage' at agents/orchestrator.py:257 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 302 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 100% similar to '__init__' at cli/textual_app.py:277 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -164,9 +164,9 @@ LOC: 1753 | Classes: 10 | Functions: 1 | MI: 2 | Avg CC: 13.2
 | 1073 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._prepare_delegation_brief' accesses 'tool_call' 6 times but 'self' only 0 times | Move Method — consider moving '_prepare_delegation_brief' to the class that owns 'tool_call'. |
 | 1136 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._handle_regular_tool' accesses 'tool_call' 6 times but 'self' only 1 times | Move Method — consider moving '_handle_regular_tool' to the class that owns 'tool_call'. |
 | 1177 | 🟡 MEDIUM | Primitive Obsession | Function '_enforce_turn_limits' has 4 primitive-typed parameters: max_turns: Name(id='int', ctx=Load()), tool_call_count: Name(id='int', ctx=Load()), msg_start_index: Name(id='int', ctx=Load()), wrapup_warned: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 1286 | 🟡 MEDIUM | Long Method | Function '_run_agent_loop' has 60 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1286 | 🟡 MEDIUM | Complex Function | Function '_run_agent_loop' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 1462 | 🟡 MEDIUM | Long Method | Function '_execute_delegation_tool' has 53 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 1286 | 🟡 MEDIUM | Long Method | Function '_run_agent_loop' has 68 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 1286 | 🟡 MEDIUM | Complex Function | Function '_run_agent_loop' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 1470 | 🟡 MEDIUM | Long Method | Function '_execute_delegation_tool' has 53 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 
 _... and 126 more smells._
 
@@ -561,7 +561,7 @@ LOC: 376 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 13.0
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 46 | 🟠 HIGH | Duplicate Code | Function '_prepare_delegation_brief' is an exact duplicate of '_prepare_delegation_brief' at agents/orchestrator.py:1073 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 192 | 🟠 HIGH | Duplicate Code | Function '_is_delegation_depth_exceeded' is an exact duplicate of '_is_delegation_depth_exceeded' at agents/orchestrator.py:1721 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 192 | 🟠 HIGH | Duplicate Code | Function '_is_delegation_depth_exceeded' is an exact duplicate of '_is_delegation_depth_exceeded' at agents/orchestrator.py:1729 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
 | 46 | 🟡 MEDIUM | Feature Envy | Method 'DelegationManager._prepare_delegation_brief' accesses 'tool_call' 6 times but 'self' only 0 times | Move Method — consider moving '_prepare_delegation_brief' to the class that owns 'tool_call'. |
 | 64 | 🟡 MEDIUM | Complex Function | Function '_prepare_delegation_context' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
 | 80 | 🟡 MEDIUM | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
@@ -572,7 +572,7 @@ LOC: 376 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 13.0
 | 108 | 🟡 MEDIUM | Feature Envy | Method 'DelegationManager._assemble_delegation_input' accesses 'brief' 6 times but 'self' only 0 times | Move Method — consider moving '_assemble_delegation_input' to the class that owns 'brief'. |
 | 108 | 🟡 MEDIUM | Complex Function | Function '_assemble_delegation_input' has cyclomatic complexity 15 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
 | 181 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 252 | 🟡 MEDIUM | Duplicate Code | Function '_yield_agent_not_found_completion' is 93% similar to '_yield_agent_not_found_completion' at agents/orchestrator.py:1765 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 252 | 🟡 MEDIUM | Duplicate Code | Function '_yield_agent_not_found_completion' is 93% similar to '_yield_agent_not_found_completion' at agents/orchestrator.py:1773 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 342 | 🟡 MEDIUM | Feature Envy | Method 'DelegationManager._build_timeout_summary' accesses 'msg' 5 times but 'self' only 0 times | Move Method — consider moving '_build_timeout_summary' to the class that owns 'msg'. |
 | 372 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
