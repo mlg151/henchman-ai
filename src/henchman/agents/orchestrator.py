@@ -20,6 +20,50 @@ from henchman.tools.builtins.delegate import DelegateTaskTool
 from henchman.tools.registry import ToolRegistry
 
 
+# Configuration constants for magic numbers
+PERCENTAGE_MULTIPLIER = 100.0
+"""Multiplier for converting ratios to percentages."""
+
+SECONDS_PER_MINUTE = 60.0
+"""Number of seconds in a minute."""
+
+MAX_USER_INPUT_LENGTH = 500
+"""Maximum length for user input truncation."""
+
+MAX_ERROR_MESSAGE_LENGTH = 200
+"""Maximum length for error message truncation."""
+
+MAX_SUMMARY_LENGTH = 200
+"""Maximum length for summary text truncation."""
+
+MAX_CONTENT_LENGTH = 800
+"""Maximum length for content truncation."""
+
+RECENT_CONTEXT_ENTRIES = 5
+"""Number of recent shared context entries to show."""
+
+MAX_STALL_NUDGES = 10
+"""Maximum number of stall nudges before marking as stalled."""
+
+RECENT_ERRORS_TO_SHOW = 10
+"""Number of recent tool errors to show in summaries."""
+
+RECENT_TOOLS_TO_SHOW = 10
+"""Number of recent tool calls to show in timeout summaries."""
+
+MAX_TOOL_CALL_DISPLAY_LENGTH = 120
+"""Maximum length for displaying tool call names in summaries."""
+
+MAX_NARRATION_DISPLAY_LENGTH = 300
+"""Maximum length for displaying narration in timeout summaries."""
+
+MAX_TOOL_ARGUMENTS_TO_DISPLAY = 2
+"""Maximum number of tool arguments to show in summaries."""
+
+MAX_TOOL_USAGE_TO_DISPLAY = 5
+"""Maximum number of tool usage entries to show in metrics."""
+
+
 class CompletionStatus(Enum):
     """Status of an agent's work upon completion.
 
@@ -123,6 +167,7 @@ class PerformanceMetrics:
     ERROR_RATE_TARGET = 50.0  # Target reduction of 50%
     CONTEXT_WINDOW_TARGET = 40.0  # Target < 40% (from 65%)
     FILE_RE_READS_TARGET = 1.3  # Target < 1.3 (60% reduction from 3.2)
+    FILE_RE_READS_BASELINE = 3.2  # Baseline from which we're reducing by 60%
 
     def __init__(self) -> None:
         """Initialize performance metrics with default values."""
@@ -186,7 +231,7 @@ class QualityMetrics:
         """Calculate test results percentage."""
         if self.test_results["total"] > 0:
             self.test_results["percentage"] = (
-                self.test_results["passing"] / self.test_results["total"] * 100.0
+                self.test_results["passing"] / self.test_results["total"] * PERCENTAGE_MULTIPLIER
             )
 
 
@@ -244,7 +289,7 @@ class ToolMetrics:
     def calculate_error_rate(self) -> float:
         """Calculate error rate percentage."""
         if self.total_tool_calls > 0:
-            return (self.failed_tool_calls / self.total_tool_calls) * 100.0
+            return (self.failed_tool_calls / self.total_tool_calls) * PERCENTAGE_MULTIPLIER
         return 0.0
 
     def get_tool_call_counts_by_category(self) -> dict[ToolCategory, int]:
@@ -301,12 +346,12 @@ class OrchestratorMetrics:
         if self.performance.task_start_time and self.performance.task_end_time:
             duration = self.performance.task_end_time - self.performance.task_start_time
             # Store duration in minutes for readability
-            self.performance.task_duration_minutes = duration / 60.0
+            self.performance.task_duration_minutes = duration / SECONDS_PER_MINUTE
 
         # Calculate delegation rate
         total_tasks = self.tools.total_tool_calls + self.delegation_count
         if total_tasks > 0:
-            self.performance.delegation_rate = self.delegation_count / total_tasks * 100.0
+            self.performance.delegation_rate = self.delegation_count / total_tasks * PERCENTAGE_MULTIPLIER
 
         # Calculate error rate
         self.performance.error_rate = self.tools.calculate_error_rate()
@@ -653,7 +698,7 @@ class Orchestrator:
             AgentEvent stream from the orchestration.
         """
         # Initialize a fresh task ledger for this request
-        self.ledger = TaskLedger(goal=user_input[:500])
+        self.ledger = TaskLedger(goal=user_input[:MAX_USER_INPUT_LENGTH])
 
         # Reset metrics for this run
         self.metrics.reset_for_run()
@@ -928,7 +973,7 @@ class Orchestrator:
 
         # Track tool errors for delegation summaries
         if not result.success:
-            tool_errors.append(f"{tool_call.name}: {(result.content or 'unknown error')[:200]}")
+            tool_errors.append(f"{tool_call.name}: {(result.content or 'unknown error')[:MAX_ERROR_MESSAGE_LENGTH]}")
 
         # Update metrics for tool usage
         self._update_tool_metrics(tool_call.name, tool_call.arguments, result.success)
@@ -1325,8 +1370,8 @@ class Orchestrator:
         # knows what prior agents accomplished.
         if self.shared_context:
             handoff_lines = []
-            for entry in self.shared_context[-5:]:
-                handoff_lines.append(f"- **{entry['agent']}**: {entry['summary'][:200]}")
+            for entry in self.shared_context[-RECENT_CONTEXT_ENTRIES:]:
+                handoff_lines.append(f"- **{entry['agent']}**: {entry['summary'][:MAX_SUMMARY_LENGTH]}")
             handoff_notes = "### Prior agent work\n" + "\n".join(handoff_lines)
             existing_bg = brief.get("background") or ""
             brief["background"] = (
@@ -1384,7 +1429,7 @@ class Orchestrator:
         tool_errors: list[str] = getattr(target_agent, "_delegation_tool_errors", [])
         if tool_errors:
             error_digest = "\n--- ⚠️ TOOL ERRORS ---\n" + "\n".join(
-                f"• {e}" for e in tool_errors[-10:]
+                f"• {e}" for e in tool_errors[-RECENT_ERRORS_TO_SHOW:]
             )
             summary = f"{summary}\n{error_digest}"
 
@@ -1495,7 +1540,7 @@ class Orchestrator:
         self.shared_context.append(
             {
                 "agent": target_role,
-                "summary": summary[:800],
+                "summary": summary[:MAX_CONTENT_LENGTH],
                 "files_modified": parsed.get("files_modified", ""),
                 "timestamp": datetime.now().isoformat(),
             }
@@ -1632,25 +1677,25 @@ class Orchestrator:
                 if msg.tool_calls:
                     for tc in msg.tool_calls:
                         tools_used.append(
-                            f"{tc.name}({', '.join(f'{k}={v!r}' for k, v in list(tc.arguments.items())[:2])})"
+                            f"{tc.name}({', '.join(f'{k}={v!r}' for k, v in list(tc.arguments.items())[:MAX_TOOL_ARGUMENTS_TO_DISPLAY])})"
                         )
                         # Track file paths from common tools
                         path = tc.arguments.get("path") or tc.arguments.get("file_path")
                         if path and isinstance(path, str):
                             files_touched.add(path)
                 if msg.content:
-                    narration_parts.append(msg.content[:200])
+                    narration_parts.append(msg.content[:MAX_SUMMARY_LENGTH])
 
         lines = ["**Progress at timeout:**"]
         if tools_used:
             lines.append(f"- Tool calls made: {len(tools_used)}")
             # Show last 10 tool calls
-            for t in tools_used[-10:]:
-                lines.append(f"  • {t[:120]}")
+            for t in tools_used[-RECENT_TOOLS_TO_SHOW:]:
+                lines.append(f"  • {t[:MAX_TOOL_CALL_DISPLAY_LENGTH]}")
         if files_touched:
             lines.append(f"- Files touched: {', '.join(sorted(files_touched))}")
         if narration_parts:
-            lines.append(f"- Last agent output: {narration_parts[-1][:300]}")
+            lines.append(f"- Last agent output: {narration_parts[-1][:MAX_NARRATION_DISPLAY_LENGTH]}")
         if not tools_used and not narration_parts:
             lines.append("- No significant progress was made.")
         return "\n".join(lines)
@@ -1808,7 +1853,7 @@ class Orchestrator:
             tool_summary = ", ".join(
                 [
                     f"{k}: {v}"
-                    for k, v in sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:5]
+                    for k, v in sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:MAX_TOOL_USAGE_TO_DISPLAY]
                 ]
             )
             return f"- **Tool Usage**: {tool_summary}"
@@ -1856,7 +1901,7 @@ class Orchestrator:
         target = PerformanceMetrics.FILE_RE_READS_TARGET
         return (
             f"- **File re-reads per task**: {file_re_reads} "
-            f"(Target < {target}, 60% reduction from 3.2)"
+            f"(Target < {target}, 60% reduction from {PerformanceMetrics.FILE_RE_READS_BASELINE})"
         )
 
     def _format_delegation_target(self) -> str:

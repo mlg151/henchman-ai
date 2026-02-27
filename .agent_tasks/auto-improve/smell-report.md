@@ -1,19 +1,19 @@
-# Code Smell Report — ❌ F (Score: 35.4/100)
+# Code Smell Report — ❌ F (Score: 35.5/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T07:30:13.099816+00:00_
+_Generated: 2026-02-27T08:00:13.643624+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.4/100 |
-| **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 29,487 |
-| **Total Smells** | 2741 |
-| **Avg Maintainability Index** | 69.7 |
+| **Overall Score** | 35.5/100 |
+| **Files Scanned** | 145 |
+| **Total Lines (non-blank)** | 29,500 |
+| **Total Smells** | 2740 |
+| **Avg Maintainability Index** | 70.0 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
 ### Smells by Severity
@@ -22,7 +22,7 @@ _Generated: 2026-02-27T07:30:13.099816+00:00_
 |:---------|------:|
 | low | 1887 |
 | medium | 669 |
-| high | 185 |
+| high | 184 |
 
 ### Smells by Category
 
@@ -30,7 +30,7 @@ _Generated: 2026-02-27T07:30:13.099816+00:00_
 |:---------|------:|
 | Missing Type Hint | 1310 |
 | Feature Envy | 367 |
-| Duplicate Code | 327 |
+| Duplicate Code | 326 |
 | Magic Number | 211 |
 | Long Method | 169 |
 | Deep Nesting | 168 |
@@ -42,65 +42,65 @@ _Generated: 2026-02-27T07:30:13.099816+00:00_
 
 These are the highest-impact smells to address first:
 
-1. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
-   Function '__getattr__' is an exact duplicate of '__getattr__' at cli/app.py:23  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
-
-2. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
+1. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-3. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
+2. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-4. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
+3. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
    Magic number 60.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-5. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
+4. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-6. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
+5. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
    Class 'Orchestrator' spans 1363 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
-7. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
+6. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
    Function '__init__' has 88 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-8. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
+7. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
    Magic number 500 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-9. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
+8. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
    Magic number 200 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-10. **agents/orchestrator.py:1064** — 🟠 HIGH — Long Method  
+9. **agents/orchestrator.py:1064** — 🟠 HIGH — Long Method  
    Function '_run_agent_loop' has 82 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-11. **agents/orchestrator.py:1064** — 🟠 HIGH — Primitive Obsession  
+10. **agents/orchestrator.py:1064** — 🟠 HIGH — Primitive Obsession  
    Repeated primitive parameter group appears in: '_run_agent_loop' (line 1064), '_run_delegation' (line 1399)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-12. **agents/orchestrator.py:1328** — 🟠 HIGH — Magic Number  
+11. **agents/orchestrator.py:1328** — 🟠 HIGH — Magic Number  
    Magic number 5 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-13. **agents/orchestrator.py:1329** — 🟠 HIGH — Magic Number  
+12. **agents/orchestrator.py:1329** — 🟠 HIGH — Magic Number  
    Magic number 200 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-14. **agents/orchestrator.py:1387** — 🟠 HIGH — Magic Number  
+13. **agents/orchestrator.py:1387** — 🟠 HIGH — Magic Number  
    Magic number 10 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-15. **agents/orchestrator.py:1399** — 🟠 HIGH — Long Method  
+14. **agents/orchestrator.py:1399** — 🟠 HIGH — Long Method  
    Function '_run_delegation' has 80 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
+
+15. **agents/orchestrator.py:1498** — 🟠 HIGH — Magic Number  
+   Magic number 800 — consider extracting to a named constant  
+   → _Extract Constant / Introduce Named Constant._
 
 
 ## 📊 Files Ranked by Quality
@@ -120,7 +120,7 @@ These are the highest-impact smells to address first:
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 124 additional files omitted._
+_Showing 20 worst files. 125 additional files omitted._
 
 ### cli/textual_app.py — ❌ F (0.4/100)
 
@@ -602,10 +602,11 @@ LOC: 436 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 0.0
 
 _... and 19 more smells._
 
-## ✨ Clean Files (25 files with no smells)
+## ✨ Clean Files (27 files with no smells)
 
 <details><summary>Click to expand</summary>
 
+- __init__.py — ✅ A
 - __main__.py — ✅ A
 - agents/__init__.py — ✅ A
 - agents/config.py — ✅ A
@@ -630,6 +631,7 @@ _... and 19 more smells._
 - tools/__init__.py — ✅ A
 - tools/builtins/__init__.py — ✅ A
 - utils/__init__.py — ✅ A
+- utils/lazy_import.py — ✅ A
 - version.py — ✅ A
 
 </details>
