@@ -1,106 +1,106 @@
-# Code Smell Report — ❌ F (Score: 35.6/100)
+# Code Smell Report — ❌ F (Score: 35.5/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T03:30:13.392214+00:00_
+_Generated: 2026-02-27T04:00:11.965087+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.6/100 |
+| **Overall Score** | 35.5/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 28,835 |
-| **Total Smells** | 2711 |
+| **Total Lines (non-blank)** | 28,973 |
+| **Total Smells** | 2713 |
 | **Avg Maintainability Index** | 69.8 |
-| **Avg Cyclomatic Complexity** | 14.7 |
+| **Avg Cyclomatic Complexity** | 14.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1825 |
-| medium | 662 |
-| high | 224 |
+| low | 1833 |
+| medium | 658 |
+| high | 222 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1247 |
-| Feature Envy | 362 |
+| Missing Type Hint | 1257 |
+| Feature Envy | 361 |
 | Duplicate Code | 326 |
 | Magic Number | 216 |
-| Deep Nesting | 189 |
-| Long Method | 174 |
+| Deep Nesting | 183 |
+| Long Method | 173 |
 | Primitive Obsession | 90 |
-| Complex Function | 68 |
-| Large Class | 39 |
+| Complex Function | 67 |
+| Large Class | 40 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/tools/builtins/import_graph.py:74** — 🟠 HIGH — Complex Function  
-   Function 'execute' has cyclomatic complexity 21 (rank D)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-2. **/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Complex Function  
+1. **/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 26 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-3. **/home/matthew/mlg-cli/src/henchman/tools/builtins/patch_apply.py:140** — 🟠 HIGH — Complex Function  
+2. **/home/matthew/mlg-cli/src/henchman/tools/builtins/patch_apply.py:140** — 🟠 HIGH — Complex Function  
    Function '_parse_patch' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-4. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pytest_run.py:89** — 🟠 HIGH — Complex Function  
+3. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pytest_run.py:89** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-5. **/home/matthew/mlg-cli/src/henchman/tools/builtins/python_ast.py:230** — 🟠 HIGH — Complex Function  
+4. **/home/matthew/mlg-cli/src/henchman/tools/builtins/python_ast.py:230** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-6. **/home/matthew/mlg-cli/src/henchman/tools/builtins/traceback_parse.py:52** — 🟠 HIGH — Complex Function  
+5. **/home/matthew/mlg-cli/src/henchman/tools/builtins/traceback_parse.py:52** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-7. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
+6. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
    Function 'compact' has cyclomatic complexity 22 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-8. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
+7. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
    Function '_calculate_importance_scores' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-9. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
+8. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
    Function '__getattr__' is an exact duplicate of '__getattr__' at cli/app.py:23  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-10. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
+9. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-11. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
+10. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-12. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
+11. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
    Magic number 60.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-13. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
+12. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-14. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
+13. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
    Class 'Orchestrator' spans 1363 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
-15. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
+14. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
    Function '__init__' has 88 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
+
+15. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
+   Magic number 500 — consider extracting to a named constant  
+   → _Extract Constant / Introduce Named Constant._
 
 
 ## 📊 Files Ranked by Quality
@@ -386,14 +386,13 @@ LOC: 688 | Classes: 1 | Functions: 0 | MI: 40 | Avg CC: 11.0
 
 _... and 45 more smells._
 
-### tools/builtins/import_graph.py — ❌ F (13.0/100)
+### tools/builtins/import_graph.py — ❌ F (12.9/100)
 
-LOC: 312 | Classes: 1 | Functions: 0 | MI: 43 | Avg CC: 17.3
+LOC: 450 | Classes: 1 | Functions: 0 | MI: 43 | Avg CC: 13.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 74 | 🟠 HIGH | Complex Function | Function 'execute' has cyclomatic complexity 21 (rank D) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 327 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_build_import_graph' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 12 | 🟡 MEDIUM | Large Class | Class 'ImportGraphTool' spans 534 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
 | 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/patch_apply.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -402,13 +401,14 @@ LOC: 312 | Classes: 1 | Functions: 0 | MI: 43 | Avg CC: 17.3
 | 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 36 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 74 | 🟡 MEDIUM | Long Method | Function 'execute' has 74 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 74 | 🟡 MEDIUM | Primitive Obsession | Function 'execute' has 4 primitive-typed parameters: path: Name(id='str', ctx=Load()), scan_dir: Name(id='str', ctx=Load()), detect_cycles: Name(id='bool', ctx=Load()), classify: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 74 | 🟡 MEDIUM | Feature Envy | Method 'ImportGraphTool.execute' accesses 'parts' 9 times but 'self' only 5 times | Move Method — consider moving 'execute' to the class that owns 'parts'. |
-| 195 | 🟡 MEDIUM | Complex Function | Function '_find_reverse_imports' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 226 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_find_reverse_imports' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 74 | 🟡 MEDIUM | Complex Function | Function 'execute' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 282 | 🟡 MEDIUM | Complex Function | Function '_find_reverse_imports' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 313 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_find_reverse_imports' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 321 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_find_reverse_imports' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 325 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_find_reverse_imports' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 
-_... and 43 more smells._
+_... and 45 more smells._
 
 ### tools/builtins/coverage_map.py — ❌ F (14.3/100)
 

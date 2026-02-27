@@ -202,98 +202,123 @@ class KgUpdateTool(Tool):
         if not entity_id:
             return ToolResult(content="'entity_id' is required and must be a non-empty string.")
 
+        # Dispatch to appropriate handler method
         if action == "add_entity":
-            entity_type = str(params.get("entity_type", "convention")).strip()
-            if entity_type not in VALID_ENTITY_TYPES:
-                return ToolResult(
-                    content=(
-                        f"Invalid entity_type '{entity_type}'. "
-                        f"Must be one of: {', '.join(sorted(VALID_ENTITY_TYPES))}."
-                    )
-                )
-            name = str(params.get("name", entity_id)).strip()
-            if not name:
-                name = entity_id
-            description = str(params.get("description") or "")
-            file_path = params.get("file_path")
-            tags = params.get("tags", [])
-
-            entity = Entity(
-                id=entity_id,
-                entity_type=entity_type,
-                name=name,
-                description=description,
-                file_path=str(file_path) if file_path and str(file_path) != "None" else None,
-                tags=list(tags) if isinstance(tags, (list, tuple)) else [],
-            )
-            store.add_entity(entity)
-            store.save()
-            return ToolResult(content=f"Added entity '{entity_id}' ({entity_type}).")
-
+            return self._handle_add_entity(store, entity_id, params)
         elif action == "add_observation":
-            observation_text = str(
-                params.get("observation") or params.get("description") or ""
-            ).strip()
-            source = str(params.get("source") or "agent").strip()
-            if not observation_text:
-                return ToolResult(content="'observation' or 'description' is required.")
-
-            if store.get_entity(entity_id) is None:
-                return ToolResult(
-                    content=f"Entity '{entity_id}' not found. Add it first with add_entity."
-                )
-
-            obs = Observation(content=observation_text, source=source, author="agent")
-            store.add_observation(entity_id, obs)
-            store.save()
-            return ToolResult(content=f"Added observation to '{entity_id}': {observation_text}")
-
+            return self._handle_add_observation(store, entity_id, params)
         elif action == "add_relation":
-            target_id = _validate_id(params.get("target_id"))
-            if not target_id:
-                return ToolResult(content="'target_id' is required for add_relation.")
-
-            relation_type = str(params.get("relation_type", "related_to")).strip()
-            if relation_type not in VALID_RELATION_TYPES:
-                return ToolResult(
-                    content=(
-                        f"Invalid relation_type '{relation_type}'. "
-                        f"Must be one of: {', '.join(sorted(VALID_RELATION_TYPES))}."
-                    )
-                )
-
-            # Both endpoints must exist
-            missing = []
-            if store.get_entity(entity_id) is None:
-                missing.append(entity_id)
-            if store.get_entity(target_id) is None:
-                missing.append(target_id)
-            if missing:
-                return ToolResult(
-                    content=(
-                        f"Cannot add relation — entity not found: "
-                        f"{', '.join(repr(m) for m in missing)}. "
-                        f"Add them first with add_entity."
-                    )
-                )
-
-            description = str(params.get("description") or "")
-            rel = Relation(
-                source=entity_id,
-                target=target_id,
-                relation_type=relation_type,
-                description=description,
-            )
-            store.add_relation(rel)
-            store.save()
-            return ToolResult(
-                content=(f"Added relation: '{entity_id}' —[{relation_type}]→ '{target_id}'.")
-            )
-
+            return self._handle_add_relation(store, entity_id, params)
         elif action == "remove_entity":
-            if store.remove_entity(entity_id):
-                store.save()
-                return ToolResult(content=f"Removed entity '{entity_id}'.")
-            return ToolResult(content=f"Entity '{entity_id}' not found.")
+            return self._handle_remove_entity(store, entity_id)
 
         return ToolResult(content=f"Unknown action: '{action}'.")
+
+    def _handle_add_entity(
+        self, store: KnowledgeStore, entity_id: str, params: dict[str, object]
+    ) -> ToolResult:
+        """Handle add_entity action."""
+        entity_type = str(params.get("entity_type", "convention")).strip()
+        if entity_type not in VALID_ENTITY_TYPES:
+            return ToolResult(
+                content=(
+                    f"Invalid entity_type '{entity_type}'. "
+                    f"Must be one of: {', '.join(sorted(VALID_ENTITY_TYPES))}."
+                )
+            )
+
+        name = str(params.get("name", entity_id)).strip()
+        if not name:
+            name = entity_id
+
+        description = str(params.get("description") or "")
+        file_path = params.get("file_path")
+        tags = params.get("tags", [])
+
+        entity = Entity(
+            id=entity_id,
+            entity_type=entity_type,
+            name=name,
+            description=description,
+            file_path=str(file_path) if file_path and str(file_path) != "None" else None,
+            tags=list(tags) if isinstance(tags, (list, tuple)) else [],
+        )
+        store.add_entity(entity)
+        store.save()
+        return ToolResult(content=f"Added entity '{entity_id}' ({entity_type}).")
+
+    def _handle_add_observation(
+        self, store: KnowledgeStore, entity_id: str, params: dict[str, object]
+    ) -> ToolResult:
+        """Handle add_observation action."""
+        observation_text = str(
+            params.get("observation") or params.get("description") or ""
+        ).strip()
+        source = str(params.get("source") or "agent").strip()
+
+        if not observation_text:
+            return ToolResult(content="'observation' or 'description' is required.")
+
+        if store.get_entity(entity_id) is None:
+            return ToolResult(
+                content=f"Entity '{entity_id}' not found. Add it first with add_entity."
+            )
+
+        obs = Observation(content=observation_text, source=source, author="agent")
+        store.add_observation(entity_id, obs)
+        store.save()
+        return ToolResult(content=f"Added observation to '{entity_id}': {observation_text}")
+
+    def _handle_add_relation(
+        self, store: KnowledgeStore, entity_id: str, params: dict[str, object]
+    ) -> ToolResult:
+        """Handle add_relation action."""
+        target_id = _validate_id(params.get("target_id"))
+        if not target_id:
+            return ToolResult(content="'target_id' is required for add_relation.")
+
+        relation_type = str(params.get("relation_type", "related_to")).strip()
+        if relation_type not in VALID_RELATION_TYPES:
+            return ToolResult(
+                content=(
+                    f"Invalid relation_type '{relation_type}'. "
+                    f"Must be one of: {', '.join(sorted(VALID_RELATION_TYPES))}."
+                )
+            )
+
+        # Both endpoints must exist
+        missing = []
+        if store.get_entity(entity_id) is None:
+            missing.append(entity_id)
+        if store.get_entity(target_id) is None:
+            missing.append(target_id)
+        if missing:
+            return ToolResult(
+                content=(
+                    f"Cannot add relation — entity not found: "
+                    f"{', '.join(repr(m) for m in missing)}. "
+                    f"Add them first with add_entity."
+                )
+            )
+
+        description = str(params.get("description") or "")
+        rel = Relation(
+            source=entity_id,
+            target=target_id,
+            relation_type=relation_type,
+            description=description,
+        )
+        store.add_relation(rel)
+        store.save()
+        return ToolResult(
+            content=(f"Added relation: '{entity_id}' —[{relation_type}]→ '{target_id}'.")
+        )
+
+    def _handle_remove_entity(
+        self, store: KnowledgeStore, entity_id: str
+    ) -> ToolResult:
+        """Handle remove_entity action."""
+        if store.remove_entity(entity_id):
+            store.save()
+            return ToolResult(content=f"Removed entity '{entity_id}'.")
+        return ToolResult(content=f"Entity '{entity_id}' not found.")
