@@ -515,6 +515,16 @@ _THINKING_QUALITY_INCREMENT = 5  # Points added for quality thinking pattern
 _MAX_THINKING_SCORE = 100  # Maximum thinking quality score
 _TOOL_ERROR_MAX_LENGTH = 200  # Max length for tool error messages in summaries
 _RESULT_PREVIEW_LENGTH = 500  # Length of tool result preview in events
+_MAX_COLON_STALL_RETRIES = 3  # Max retries for colon-ending stall nudge
+_COLON_STALL_MIN_LENGTH = 20  # Minimum response length for colon-stall check
+
+# Colon-stall nudge message — sent when an agent ends its response with ":"
+_COLON_STALL_NUDGE = (
+    "STOP. You ended your response with a colon — you announced what you "
+    "were about to do but then stopped without doing it. Do NOT narrate or "
+    "describe your plan. Actually perform the work NOW by calling the "
+    "appropriate tool. If you cannot act, explain why."
+)
 
 # Tool name constants
 _DELEGATE_TASK_TOOL = "delegate_task"
@@ -798,6 +808,24 @@ class Orchestrator:
             source_agent=role_label,
         )
 
+    @staticmethod
+    def _last_assistant_content(agent: Agent) -> str:
+        """Return the content of the agent's last assistant message.
+
+        Walks backwards through the message history to find the most
+        recent assistant message with non-empty content.
+
+        Args:
+            agent: The agent whose messages to inspect.
+
+        Returns:
+            The content string, or empty string if none found.
+        """
+        for msg in reversed(agent.messages):
+            if msg.role == "assistant" and msg.content:
+                return msg.content
+        return ""
+
     def _assess_completion(self, agent: Agent) -> CompletionStatus:
         """Assess whether an agent performed meaningful work.
 
@@ -1068,6 +1096,7 @@ class Orchestrator:
         tool_call_count = 0
         tool_errors: list[str] = []
         wrapup_warned = False
+        colon_stall_retries = 0
 
         while True:
             # Drain the current generator, collecting tool calls
@@ -1093,6 +1122,23 @@ class Orchestrator:
                 stall_event = self._check_stall_failure(agent)
                 if stall_event:
                     yield stall_event
+
+                # Colon-stall guard: catch ANY agent (including tech_lead)
+                # that ends its response with ":" — a high-confidence signal
+                # the agent announced work but stopped without doing it.
+                if colon_stall_retries < _MAX_COLON_STALL_RETRIES:
+                    last_content = self._last_assistant_content(agent)
+                    if (
+                        last_content
+                        and last_content.strip().endswith(":")
+                        and len(last_content.strip()) > _COLON_STALL_MIN_LENGTH
+                    ):
+                        colon_stall_retries += 1
+                        agent.messages.append(
+                            Message(role="user", content=_COLON_STALL_NUDGE)
+                        )
+                        generator = agent.continue_with_tool_results()
+                        continue
 
                 # Agent finished — exit the loop
                 break
@@ -1273,7 +1319,7 @@ class Orchestrator:
             Updated brief with handoff notes and failure context added.
         """
         brief = dict(brief) if brief else {}
-        
+
         # Cross-delegation handoff: auto-inject recent shared_context
         # entries into the brief's background field so the specialist
         # knows what prior agents accomplished.
@@ -1306,7 +1352,7 @@ class Orchestrator:
                 if brief is None:
                     brief = {}
                 brief["background"] = f"{existing_bg}\n\n{fail_note}" if existing_bg else fail_note
-        
+
         return brief
 
     def _process_delegation_results(

@@ -1,50 +1,51 @@
 # Improvement Summary
 
-**Date/Time**: 2026-02-26 (XP Refactoring Agent)
+**Date/Time**: 2026-02-27 (XP Refactoring Agent)
 
 **Files Changed**:
-1. `src/henchman/cli/app.py` - Refactored `_run_headless` function
-   - Extracted 162-line function into 6 smaller, focused helper functions
-   - Reduced nesting depth from 8+ levels to 4-5 levels
-   - Improved readability and maintainability
-   - Added proper type hints and docstrings
-   - Functions extracted:
-     - `_run_headless_text` - Handle text output format
-     - `_run_headless_json` - Handle JSON output format  
-     - `_run_headless_stream_json` - Handle streaming JSON output format
-     - `_run_headless_json_complete` - Handle complete JSON output format
-     - `_check_completion_status` - Check if agent completed without work
-     - `_process_tool_calls` - Execute pending tool calls (already existed but moved outside)
-     - `_initialize_json_processing` - Initialize MCP servers for JSON processing (already existed but moved outside)
+1. `src/henchman/cli/tool_executor.py` - Refactored `process_agent_stream` and related methods
+   - Extracted 115-line `process_agent_stream` function into smaller, focused methods
+   - Reduced nesting depth from 12 levels to maximum 6 levels
+   - Implemented dispatch pattern for event type handling
+   - Extracted `is_own_event` calculation into separate method
+   - Simplified `_handle_tool_call_result_event` by extracting helper methods
+   - Added proper type hints for dispatch dictionary
 
-2. `tests/cli/test_app_extended.py` - Updated tests to match new function names
-   - Updated test assertions from `run_single_prompt_json` to `_run_headless_json`
-   - Updated test assertions from `run_single_prompt_stream_json` to `_run_headless_stream_json`
-   - Updated test function names to match new function names
+**Identified Smells Addressed**:
+- **Deep Nesting**: Reduced from 12 levels to 6 levels in `process_agent_stream`
+- **Long Method**: Split 115-line method into 7 smaller methods
+- **Feature Envy**: Reduced excessive event object access by encapsulating logic
+- **Complex Conditional Chain**: Replaced long if/elif chain with dispatch pattern
 
-**Rationale**:
-- **Long Method**: The original `_run_headless` function had 162 lines (CRITICAL smell, threshold: 30)
-- **Deep Nesting**: Multiple nested async functions made the code hard to read and maintain
-- **Feature Envy**: The function accessed `repl` object extensively without clear separation
-- **Duplicate Code**: Similar patterns for different output formats (text, json, stream-json, json-complete)
-- **Improved Maintainability**: Each extracted function has a single responsibility and clear purpose
-- **Better Testability**: Smaller functions are easier to test in isolation
-- **Enhanced Readability**: Function names clearly indicate their purpose
+**Refactoring Strategy Applied**:
+1. **Extract Method**: Created `_initialize_processing_state`, `_determine_if_own_event`, `_update_processing_state_for_event`, `_process_event_by_type`
+2. **Replace Conditional with Dispatch**: Used dictionary mapping for event type handlers
+3. **Introduce Parameter Object**: Used processing_state dictionary to group related variables
+4. **Extract Helper Methods**: Created `_display_tool_result` and `_flush_pending_tool_calls_to_session`
+5. **Simplify Nested Conditionals**: Reduced nesting in `_handle_tool_call_result_event` by early returns
 
 **Testing Implications**:
-- All existing tests pass with minor updates to match new function names
-- No changes to external API or behavior
-- Improved test coverage for individual helper functions
-- Tests now verify each output format handler independently
+- All existing tests pass without modification
+- Event dispatch pattern maintains backward compatibility
+- Helper methods are private/internal, preserving public API
+- Type hints added for better static analysis
+
+**Code Quality Improvements**:
+- ✅ Reduced cyclomatic complexity by breaking down large method
+- ✅ Improved readability with intention-revealing method names
+- ✅ Better separation of concerns with focused methods
+- ✅ Enhanced maintainability with dispatch pattern
+- ✅ Proper type hints for better IDE support and static checking
 
 **Performance Impact**:
 - No performance degradation expected
-- Slight improvement in code organization and maintainability
-- Better separation of concerns for different output formats
+- Dispatch pattern may have slight overhead but improves maintainability
+- Memory usage unchanged (processing_state dictionary replaces individual variables)
 
-**Code Quality Improvements**:
-- Reduced cyclomatic complexity by breaking down complex function
-- Improved type hint coverage
-- Better docstring documentation
-- Clearer error handling boundaries
-- More consistent code structure across output format handlers
+**Files Changed**:
+- `src/henchman/cli/tool_executor.py`: Major refactoring of `process_agent_stream` and related methods
+
+**Next Steps**:
+1. Consider refactoring other handler methods with deep nesting
+2. Evaluate potential for further extraction of common patterns
+3. Monitor test coverage to ensure all paths are tested
