@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T17:00:13.392339+00:00_
+_Generated: 2026-02-27T17:30:14.609630+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-02-27T17:00:13.392339+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 37.0/100 |
 | **Files Scanned** | 148 |
-| **Total Lines (non-blank)** | 30,006 |
-| **Total Smells** | 2727 |
+| **Total Lines (non-blank)** | 30,001 |
+| **Total Smells** | 2693 |
 | **Avg Maintainability Index** | 69.9 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -21,19 +21,19 @@ _Generated: 2026-02-27T17:00:13.392339+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 1910 |
-| medium | 663 |
-| high | 154 |
+| medium | 655 |
+| high | 128 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1332 |
-| Feature Envy | 364 |
-| Duplicate Code | 320 |
-| Magic Number | 196 |
+| Missing Type Hint | 1334 |
+| Feature Envy | 358 |
+| Duplicate Code | 317 |
+| Magic Number | 175 |
 | Long Method | 167 |
-| Deep Nesting | 165 |
+| Deep Nesting | 159 |
 | Primitive Obsession | 85 |
 | Complex Function | 58 |
 | Large Class | 40 |
@@ -62,45 +62,45 @@ These are the highest-impact smells to address first:
    Method 'ChatCommand._resume' accesses 'ctx' 12 times but 'self' only 0 times  
    → _Move Method — consider moving '_resume' to the class that owns 'ctx'._
 
-6. **cli/commands/context.py:71** — 🟠 HIGH — Feature Envy  
+6. **cli/commands/context.py:85** — 🟠 HIGH — Feature Envy  
    Method 'ContextCommand._show_status' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_status' to the class that owns 'ctx'._
 
-7. **cli/commands/context.py:348** — 🟠 HIGH — Feature Envy  
+7. **cli/commands/context.py:283** — 🟠 HIGH — Duplicate Code  
+   Function '_handle_importance_parameter' is an exact duplicate of '_handle_similarity_parameter' at cli/commands/context.py:290  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+8. **cli/commands/context.py:309** — 🟠 HIGH — Feature Envy  
    Method 'ContextCommand._show_stats' accesses 'ctx' 21 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_stats' to the class that owns 'ctx'._
 
-8. **cli/commands/mcp.py:121** — 🟠 HIGH — Feature Envy  
+9. **cli/commands/mcp.py:121** — 🟠 HIGH — Feature Envy  
    Method 'McpCommand._logging' accesses 'ctx' 15 times but 'self' only 0 times  
    → _Move Method — consider moving '_logging' to the class that owns 'ctx'._
 
-9. **cli/commands/model.py:61** — 🟠 HIGH — Feature Envy  
+10. **cli/commands/model.py:61** — 🟠 HIGH — Feature Envy  
    Method 'ModelCommand._show_current' accesses 'ctx' 10 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_current' to the class that owns 'ctx'._
 
-10. **cli/commands/model.py:125** — 🟠 HIGH — Feature Envy  
+11. **cli/commands/model.py:125** — 🟠 HIGH — Feature Envy  
    Method 'ModelCommand._set_provider' accesses 'ctx' 26 times but 'self' only 2 times  
    → _Move Method — consider moving '_set_provider' to the class that owns 'ctx'._
 
-11. **cli/commands/plan.py:32** — 🟠 HIGH — Feature Envy  
+12. **cli/commands/plan.py:32** — 🟠 HIGH — Feature Envy  
    Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-12. **cli/commands/session.py:86** — 🟠 HIGH — Deep Nesting  
-   Nesting depth 6 in 'execute' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
+13. **cli/commands/session.py:149** — 🟠 HIGH — Feature Envy  
+   Method 'SessionCommand._merge' accesses 'ctx' 13 times but 'self' only 10 times  
+   → _Move Method — consider moving '_merge' to the class that owns 'ctx'._
 
-13. **cli/commands/session.py:127** — 🟠 HIGH — Magic Number  
-   Magic number 3 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
+14. **cli/commands/session.py:323** — 🟠 HIGH — Feature Envy  
+   Method 'SessionCommand._import' accesses 'ctx' 10 times but 'self' only 7 times  
+   → _Move Method — consider moving '_import' to the class that owns 'ctx'._
 
-14. **cli/commands/session.py:137** — 🟠 HIGH — Magic Number  
-   Magic number 3 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
-
-15. **cli/commands/session.py:137** — 🟠 HIGH — Magic Number  
-   Magic number 3 — consider extracting to a named constant  
-   → _Extract Constant / Introduce Named Constant._
+15. **cli/commands/session.py:352** — 🟠 HIGH — Feature Envy  
+   Method 'SessionCommand._list' accesses 'meta' 11 times but 'self' only 7 times  
+   → _Move Method — consider moving '_list' to the class that owns 'meta'._
 
 
 ## 📊 Files Ranked by Quality
@@ -114,8 +114,8 @@ These are the highest-impact smells to address first:
 | 5 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
 | 6 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
 | 7 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
-| 8 | cli/commands/session.py | ❌ F | 11.1 | 66 | 301 | 37 | 11.0 |
-| 9 | core/agent.py | ❌ F | 11.1 | 43 | 573 | 37 | 11.0 |
+| 8 | core/agent.py | ❌ F | 11.1 | 43 | 573 | 37 | 11.0 |
+| 9 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
 | 10 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
 
 ## 📁 Per-File Details
@@ -290,30 +290,6 @@ LOC: 725 | Classes: 5 | Functions: 0 | MI: 37 | Avg CC: 17.0
 
 _... and 61 more smells._
 
-### cli/commands/session.py — ❌ F (11.1/100)
-
-LOC: 301 | Classes: 1 | Functions: 0 | MI: 37 | Avg CC: 11.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 86 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 127 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 137 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 137 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 149 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._merge' accesses 'ctx' 13 times but 'self' only 2 times | Move Method — consider moving '_merge' to the class that owns 'ctx'. |
-| 155 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 163 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 164 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 165 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 166 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 167 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 169 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 205 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 209 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 210 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-
-_... and 51 more smells._
-
 ### core/agent.py — ❌ F (11.1/100)
 
 LOC: 573 | Classes: 2 | Functions: 0 | MI: 37 | Avg CC: 11.0
@@ -337,6 +313,30 @@ LOC: 573 | Classes: 2 | Functions: 0 | MI: 37 | Avg CC: 11.0
 | 168 | 🟢 LOW | Missing Type Hint | Function 'clear_history' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 28 more smells._
+
+### cli/commands/session.py — ❌ F (11.5/100)
+
+LOC: 324 | Classes: 1 | Functions: 0 | MI: 38 | Avg CC: 11.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 149 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._merge' accesses 'ctx' 13 times but 'self' only 10 times | Move Method — consider moving '_merge' to the class that owns 'ctx'. |
+| 323 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._import' accesses 'ctx' 10 times but 'self' only 7 times | Move Method — consider moving '_import' to the class that owns 'ctx'. |
+| 352 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._list' accesses 'meta' 11 times but 'self' only 7 times | Move Method — consider moving '_list' to the class that owns 'meta'. |
+| 121 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._branch' accesses 'ctx' 9 times but 'self' only 6 times | Move Method — consider moving '_branch' to the class that owns 'ctx'. |
+| 230 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._template_save' accesses 'ctx' 8 times but 'self' only 5 times | Move Method — consider moving '_template_save' to the class that owns 'ctx'. |
+| 248 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._template_create' accesses 'ctx' 7 times but 'self' only 4 times | Move Method — consider moving '_template_create' to the class that owns 'ctx'. |
+| 266 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._template_list' accesses 'ctx' 8 times but 'self' only 0 times | Move Method — consider moving '_template_list' to the class that owns 'ctx'. |
+| 299 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._export' accesses 'ctx' 6 times but 'self' only 5 times | Move Method — consider moving '_export' to the class that owns 'ctx'. |
+| 352 | 🟡 MEDIUM | Complex Function | Function '_list' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 19 | 🟢 LOW | Large Class | Class 'SessionCommand' spans 380 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 39 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 48 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 57 | 🟢 LOW | Missing Type Hint | Function 'usage' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 65 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 91 | 🟢 LOW | Missing Type Hint | Function '_get_manager' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 20 more smells._
 
 ### providers/anthropic.py — ❌ F (11.8/100)
 
@@ -506,6 +506,30 @@ LOC: 432 | Classes: 1 | Functions: 0 | MI: 49 | Avg CC: 12.0
 
 _... and 16 more smells._
 
+### cli/commands/context.py — ❌ F (15.0/100)
+
+LOC: 302 | Classes: 1 | Functions: 0 | MI: 50 | Avg CC: 11.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 85 | 🟠 HIGH | Feature Envy | Method 'ContextCommand._show_status' accesses 'ctx' 13 times but 'self' only 0 times | Move Method — consider moving '_show_status' to the class that owns 'ctx'. |
+| 283 | 🟠 HIGH | Duplicate Code | Function '_handle_importance_parameter' is an exact duplicate of '_handle_similarity_parameter' at cli/commands/context.py:290 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 309 | 🟠 HIGH | Feature Envy | Method 'ContextCommand._show_stats' accesses 'ctx' 21 times but 'self' only 0 times | Move Method — consider moving '_show_stats' to the class that owns 'ctx'. |
+| 75 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_help_message' accesses 'ctx' 7 times but 'self' only 1 times | Move Method — consider moving '_show_help_message' to the class that owns 'ctx'. |
+| 85 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_status' accesses 'context_settings' 8 times but 'self' only 0 times | Move Method — consider moving '_show_status' to the class that owns 'context_settings'. |
+| 152 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._manage_strategy' accesses 'ctx' 8 times but 'self' only 6 times | Move Method — consider moving '_manage_strategy' to the class that owns 'ctx'. |
+| 185 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'ctx' 9 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'ctx'. |
+| 185 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'context_settings'. |
+| 276 | 🟡 MEDIUM | Duplicate Code | Function '_handle_threshold_parameter' is 100% similar to '_handle_importance_parameter' at cli/commands/context.py:283 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 276 | 🟡 MEDIUM | Duplicate Code | Function '_handle_threshold_parameter' is 100% similar to '_handle_similarity_parameter' at cli/commands/context.py:290 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 309 | 🟡 MEDIUM | Complex Function | Function '_show_stats' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 15 | 🟢 LOW | Large Class | Class 'ContextCommand' spans 348 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 25 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 34 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 43 | 🟢 LOW | Missing Type Hint | Function 'usage' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 22 more smells._
+
 ### tools/builtins/dead_code.py — ❌ F (15.0/100)
 
 LOC: 301 | Classes: 1 | Functions: 0 | MI: 50 | Avg CC: 15.5
@@ -529,30 +553,6 @@ LOC: 301 | Classes: 1 | Functions: 0 | MI: 50 | Avg CC: 15.5
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
 _... and 34 more smells._
-
-### cli/commands/context.py — ❌ F (15.2/100)
-
-LOC: 330 | Classes: 1 | Functions: 0 | MI: 51 | Avg CC: 11.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 71 | 🟠 HIGH | Feature Envy | Method 'ContextCommand._show_status' accesses 'ctx' 13 times but 'self' only 0 times | Move Method — consider moving '_show_status' to the class that owns 'ctx'. |
-| 348 | 🟠 HIGH | Feature Envy | Method 'ContextCommand._show_stats' accesses 'ctx' 21 times but 'self' only 0 times | Move Method — consider moving '_show_stats' to the class that owns 'ctx'. |
-| 45 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand.execute' accesses 'ctx' 8 times but 'self' only 6 times | Move Method — consider moving 'execute' to the class that owns 'ctx'. |
-| 60 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 71 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_status' accesses 'context_settings' 8 times but 'self' only 0 times | Move Method — consider moving '_show_status' to the class that owns 'context_settings'. |
-| 138 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._manage_strategy' accesses 'ctx' 8 times but 'self' only 2 times | Move Method — consider moving '_manage_strategy' to the class that owns 'ctx'. |
-| 165 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'ctx' 9 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'ctx'. |
-| 165 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'context_settings'. |
-| 255 | 🟡 MEDIUM | Duplicate Code | Function '_handle_threshold_parameter' is 100% similar to '_handle_importance_parameter' at cli/commands/context.py:277 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 255 | 🟡 MEDIUM | Duplicate Code | Function '_handle_threshold_parameter' is 100% similar to '_handle_similarity_parameter' at cli/commands/context.py:299 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 277 | 🟡 MEDIUM | Duplicate Code | Function '_handle_importance_parameter' is 100% similar to '_handle_similarity_parameter' at cli/commands/context.py:299 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 348 | 🟡 MEDIUM | Complex Function | Function '_show_stats' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 15 | 🟢 LOW | Large Class | Class 'ContextCommand' spans 387 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 19 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 28 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 22 more smells._
 
 ### cli/textual_bridge.py — ❌ F (15.7/100)
 
