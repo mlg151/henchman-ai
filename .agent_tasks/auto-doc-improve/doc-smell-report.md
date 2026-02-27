@@ -1,17 +1,17 @@
-# Documentation Smell Report — ✅ A (Score: 93.8/100)
+# Documentation Smell Report — ✅ A (Score: 93.9/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-02-27T15:07:38.155810+00:00_
+_Generated: 2026-02-27T15:20:36.961433+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ✅ A |
-| **Overall Score** | 93.8/100 |
+| **Overall Score** | 93.9/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 126 |
-| **Total Smells** | 391 |
+| **Total Smells** | 390 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
@@ -20,7 +20,7 @@ _Generated: 2026-02-27T15:07:38.155810+00:00_
 |:---------|------:|
 | low | 293 |
 | medium | 51 |
-| high | 47 |
+| high | 46 |
 
 ### Smells by Category
 
@@ -32,92 +32,92 @@ _Generated: 2026-02-27T15:07:38.155810+00:00_
 | Missing Docstring | 5 |
 | Stale Age | 4 |
 | Broken Link | 3 |
-| Consistency Error | 2 |
 | Config Issue | 2 |
+| Consistency Error | 1 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **CONTRIBUTING.md:36** — 🟠 HIGH — Consistency Error  
-   Contains placeholder GitHub URL 'your-username/henchman-ai.git' that should be replaced with the actual repo URL  
-   → _Replace the placeholder URL with the actual project repository URL._
-
-2. **README.md:274** — 🟠 HIGH — Broken Link  
+1. **README.md:274** — 🟠 HIGH — Broken Link  
    Link to 'docs/' resolves to 'docs' which does not exist  
    → _Fix the link target or create the missing file 'docs'._
 
-3. **README.md:310** — 🟠 HIGH — Broken Link  
+2. **README.md:310** — 🟠 HIGH — Broken Link  
    Link to 'LICENSE' resolves to 'LICENSE' which does not exist  
    → _Fix the link target or create the missing file 'LICENSE'._
 
-4. **docs/api.md:1** — 🟠 HIGH — Stale Age  
+3. **docs/api.md:1** — 🟠 HIGH — Stale Age  
    Doc file last modified 34 days ago  
    → _Review and update this documentation to ensure it still reflects current behaviour._
 
-5. **docs/extensions.md:1** — 🟠 HIGH — Stale Age  
+4. **docs/extensions.md:1** — 🟠 HIGH — Stale Age  
    Doc file last modified 34 days ago  
    → _Review and update this documentation to ensure it still reflects current behaviour._
 
-6. **docs/mcp.md:1** — 🟠 HIGH — Stale Age  
+5. **docs/mcp.md:1** — 🟠 HIGH — Stale Age  
    Doc file last modified 34 days ago  
    → _Review and update this documentation to ensure it still reflects current behaviour._
 
-7. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+6. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'ask_user' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'ask_user' tool, including its parameters and usage._
 
-8. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+7. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'code_format' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'code_format' tool, including its parameters and usage._
 
-9. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+8. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'coverage_map' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'coverage_map' tool, including its parameters and usage._
 
-10. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+9. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'dead_code' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'dead_code' tool, including its parameters and usage._
 
-11. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+10. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'delegate_task' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'delegate_task' tool, including its parameters and usage._
 
-12. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+11. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'diff_view' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'diff_view' tool, including its parameters and usage._
 
-13. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+12. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'edit_file' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'edit_file' tool, including its parameters and usage._
 
-14. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+13. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'env_inspect' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'env_inspect' tool, including its parameters and usage._
 
-15. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+14. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'git_ops' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'git_ops' tool, including its parameters and usage._
 
-16. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+15. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'glob' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'glob' tool, including its parameters and usage._
 
-17. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+16. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'grep' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'grep' tool, including its parameters and usage._
 
-18. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+17. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'import_graph' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'import_graph' tool, including its parameters and usage._
 
-19. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+18. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'kg_query' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'kg_query' tool, including its parameters and usage._
 
-20. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+19. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'kg_update' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'kg_update' tool, including its parameters and usage._
+
+20. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+   Tool 'lint_check' exists in source but is not documented in tools.md  
+   → _Add a section documenting the 'lint_check' tool, including its parameters and usage._
 
 
 ## 📊 Files Ranked by Quality
@@ -448,15 +448,6 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 | 146 | 🟢 LOW | Incomplete Docstring | 'ToolRegistry.add_auto_approve_policy' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ToolRegistry.add_auto_approve_policy'. |
 | 157 | 🟢 LOW | Incomplete Docstring | 'ToolRegistry.remove_auto_approve_policy' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ToolRegistry.remove_auto_approve_policy'. |
 
-### CONTRIBUTING.md — 👍 B (88.0/100) (last modified 2026-02-27)
-
-Words: 780 | Headings: 42 | Links: 7 | Code blocks: 7
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 36 | 🟠 HIGH | Consistency Error | Contains placeholder GitHub URL 'your-username/henchman-ai.git' that should be replaced with the actual repo URL | Replace the placeholder URL with the actual project repository URL. |
-| 102 | 🟢 LOW | Stale Content | Hardcoded line count '50 lines' may become stale as the codebase evolves | Remove the specific line count or replace with a relative description (e.g. 'compact', 'concise'). |
-
 ### src/henchman/cli/session_manager.py — 👍 B (88.0/100) (last modified 2026-02-14)
 
 Public APIs: 14 | Documented: 14 | Coverage: 100.0%
@@ -512,6 +503,18 @@ Public APIs: 6 | Documented: 6 | Coverage: 100.0%
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
 | 84 | 🟠 HIGH | Stale Docstring | 'McpTool.execute' has undocumented parameters: params | Add these parameters to the Args: section: params |
+
+### src/henchman/metrics/collector.py — ✅ A (90.0/100) (last modified 2026-02-25)
+
+Public APIs: 12 | Documented: 12 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 84 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.should_sample' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.should_sample'. |
+| 93 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.start_command' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.start_command'. |
+| 307 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.record_agent_switch' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.record_agent_switch'. |
+| 312 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.record_context_compaction' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.record_context_compaction'. |
+| 373 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.process_agent_event' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.process_agent_event'. |
 
 ## ✨ Clean Files (68 files with no smells)
 
