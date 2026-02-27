@@ -19,7 +19,6 @@ from henchman.providers.registry import ProviderRegistry
 from henchman.tools.builtins.delegate import DelegateTaskTool
 from henchman.tools.registry import ToolRegistry
 
-
 # Configuration constants for magic numbers
 PERCENTAGE_MULTIPLIER = 100.0
 """Multiplier for converting ratios to percentages."""
@@ -599,6 +598,34 @@ class Orchestrator:
             system_prompt: Optional override for Tech Lead system prompt.
             environment_context: Pre-formatted environment block for agents.
         """
+        self._initialize_basic_attributes(
+            default_provider, provider_registry, tool_registry, event_bus, settings, environment_context
+        )
+        self._initialize_metrics_and_state()
+        agent_configs = self._load_agent_configs()
+        self._create_agent_pool(agent_configs, default_provider, provider_registry, environment_context)
+        self._initialize_shared_context_and_ledger()
+        self._setup_tech_lead_agent(agent_configs, default_provider, system_prompt, environment_context)
+
+    def _initialize_basic_attributes(
+        self,
+        default_provider: ModelProvider,
+        provider_registry: ProviderRegistry | None,
+        tool_registry: ToolRegistry | None,
+        event_bus: EventBus | None,
+        settings: Settings | None,
+        environment_context: str | None,
+    ) -> None:
+        """Initialize basic orchestrator attributes.
+
+        Args:
+            default_provider: The default model provider.
+            provider_registry: Registry for provider overrides.
+            tool_registry: Registry containing all available tools.
+            event_bus: Optional existing event bus.
+            settings: Optional application settings.
+            environment_context: Pre-formatted environment block for agents.
+        """
         self.default_provider = default_provider
         self.provider_registry = provider_registry
         self.tool_registry = tool_registry or ToolRegistry()
@@ -606,6 +633,8 @@ class Orchestrator:
         self.settings = settings or Settings()
         self.environment_context = environment_context
 
+    def _initialize_metrics_and_state(self) -> None:
+        """Initialize metrics and internal state tracking."""
         # Thinking and delegation metrics - using encapsulated class instead of primitive dict
         self.metrics = OrchestratorMetrics()
 
@@ -615,13 +644,34 @@ class Orchestrator:
         # The completion status of the most recent run()/run_direct() call
         self.last_completion_status: CompletionStatus = CompletionStatus.COMPLETED
 
-        # Load agent configs
+    def _load_agent_configs(self) -> dict[str, Any]:
+        """Load and merge agent configurations.
+
+        Returns:
+            Dictionary of agent configurations with custom overrides applied.
+        """
         agent_configs = get_default_team()
         if self.settings.agents.agents:
             # Merge custom configs/overrides
             for role, config in self.settings.agents.agents.items():
                 agent_configs[role] = config
+        return agent_configs
 
+    def _create_agent_pool(
+        self,
+        agent_configs: dict[str, Any],
+        default_provider: ModelProvider,
+        provider_registry: ProviderRegistry | None,
+        environment_context: str | None,
+    ) -> None:
+        """Create the agent pool with loaded configurations.
+
+        Args:
+            agent_configs: Dictionary of agent configurations.
+            default_provider: The default model provider.
+            provider_registry: Registry for provider overrides.
+            environment_context: Pre-formatted environment block for agents.
+        """
         self.pool = AgentPool(
             configs=agent_configs,
             default_provider=default_provider,
@@ -635,21 +685,63 @@ class Orchestrator:
             adaptive_compression=self.settings.context.adaptive_compression,
         )
 
+    def _initialize_shared_context_and_ledger(self) -> None:
+        """Initialize shared context history and task ledger."""
         # Shared context history
         self.shared_context: list[dict[str, Any]] = []
 
         # Task ledger – created per run() call
         self.ledger: TaskLedger | None = None
 
-        # Create Tech Lead agent
-        # Tech Lead uses the parent tool_registry directly (not a copy)
-        # so that tools added later (MCP, extensions, tests) are visible.
-        # DelegateTaskTool is registered on the parent;
-        # delegated agents won't see it because create_scoped_registry
-        # filters by each agent's allowed_tools list.
+    def _setup_tech_lead_agent(
+        self,
+        agent_configs: dict[str, Any],
+        default_provider: ModelProvider,
+        system_prompt: str | None,
+        environment_context: str | None,
+    ) -> None:
+        """Set up the Tech Lead agent with prompt, identity, and configuration.
+
+        Args:
+            agent_configs: Dictionary of agent configurations.
+            default_provider: The default model provider.
+            system_prompt: Optional override for Tech Lead system prompt.
+            environment_context: Pre-formatted environment block for agents.
+        """
+        self._register_delegate_task_tool()
+        tl_prompt = self._create_tech_lead_prompt(agent_configs, system_prompt, environment_context)
+        tl_identity = self._create_tech_lead_identity()
+        self._create_tech_lead_agent(default_provider, tl_prompt, tl_identity)
+        self._configure_tech_lead_stall_detection()
+
+    def _register_delegate_task_tool(self) -> None:
+        """Register the delegate_task tool if not already present.
+
+        Tech Lead uses the parent tool_registry directly (not a copy)
+        so that tools added later (MCP, extensions, tests) are visible.
+        DelegateTaskTool is registered on the parent;
+        delegated agents won't see it because create_scoped_registry
+        filters by each agent's allowed_tools list.
+        """
         if not self.tool_registry.get("delegate_task"):
             self.tool_registry.register(DelegateTaskTool())
 
+    def _create_tech_lead_prompt(
+        self,
+        agent_configs: dict[str, Any],
+        system_prompt: str | None,
+        environment_context: str | None,
+    ) -> str:
+        """Create the Tech Lead system prompt.
+
+        Args:
+            agent_configs: Dictionary of agent configurations.
+            system_prompt: Optional override for Tech Lead system prompt.
+            environment_context: Pre-formatted environment block for agents.
+
+        Returns:
+            The Tech Lead system prompt string.
+        """
         from henchman.agents.prompts import get_agent_prompt
 
         team_members = [f"{c.name} ({c.role})" for c in agent_configs.values() if c.enabled]
@@ -657,7 +749,8 @@ class Orchestrator:
         team_descriptions = {
             c.role: c.description or "" for c in agent_configs.values() if c.enabled
         }
-        tl_prompt = system_prompt or get_agent_prompt(
+
+        return system_prompt or get_agent_prompt(
             role="tech_lead",
             team_members=team_members,
             delegatable_agents=[c.role for c in agent_configs.values() if c.enabled],
@@ -665,15 +758,34 @@ class Orchestrator:
             team_descriptions=team_descriptions,
         )
 
+    def _create_tech_lead_identity(self) -> Any:
+        """Create the Tech Lead agent identity.
+
+        Returns:
+            AgentIdentity instance for the Tech Lead.
+        """
         from henchman.agents.identity import AgentIdentity
 
-        tl_identity = AgentIdentity(
+        return AgentIdentity(
             id="tech_lead",
             name="Leader",
             role="tech_lead",
             description="Architect, implementer, and quality gate",
         )
 
+    def _create_tech_lead_agent(
+        self,
+        default_provider: ModelProvider,
+        tl_prompt: str,
+        tl_identity: Any,
+    ) -> None:
+        """Create the Tech Lead agent instance.
+
+        Args:
+            default_provider: The default model provider.
+            tl_prompt: Tech Lead system prompt.
+            tl_identity: Tech Lead agent identity.
+        """
         self.tech_lead = Agent(
             provider=default_provider,
             tool_registry=self.tool_registry,
@@ -684,8 +796,13 @@ class Orchestrator:
             cluster_similarity_threshold=self.settings.context.cluster_similarity_threshold,
             adaptive_compression=self.settings.context.adaptive_compression,
         )
-        # Tech Lead legitimately narrates plans before delegating —
-        # disable stall detection so it isn't killed for planning.
+
+    def _configure_tech_lead_stall_detection(self) -> None:
+        """Configure stall detection for the Tech Lead agent.
+
+        Tech Lead legitimately narrates plans before delegating —
+        disable stall detection so it isn't killed for planning.
+        """
         self.tech_lead.stall_detection_enabled = False
 
     async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
