@@ -159,65 +159,98 @@ class KgQueryTool(Tool):
             int(top_k_val) if isinstance(top_k_val, (int, str)) and str(top_k_val).isdigit() else 10
         )
 
+        # Dispatch to appropriate handler method
         if action == "search":
-            if not query:
-                return ToolResult(content="'query' is required for search action.")
-            entities = store.search_entities(query)
-            if entity_type:
-                entities = [e for e in entities if e.entity_type == str(entity_type)]
-            if not entities:
-                return ToolResult(content=f"No entities found matching '{query}'.")
-            return ToolResult(content=store.format_for_llm(entities))
-
+            return self._handle_search(store, query, entity_type)
         elif action == "get":
-            if not query:
-                return ToolResult(content="'query' (entity id) is required for get action.")
-            entity = store.get_entity(query)
-            if entity is None:
-                return ToolResult(content=f"Entity '{query}' not found.")
-            return ToolResult(content=store.format_entity_for_llm(entity))
-
+            return self._handle_get(store, query)
         elif action == "neighbors":
-            if not query:
-                return ToolResult(content="'query' (entity id) is required for neighbors action.")
-            neighbors = store.get_neighbors(query, depth=depth)
-            if not neighbors:
-                return ToolResult(content=f"No neighbors found for '{query}'.")
-            return ToolResult(content=store.format_for_llm(neighbors))
-
+            return self._handle_neighbors(store, query, depth)
         elif action == "relations":
-            if not query:
-                return ToolResult(content="'query' (entity id) is required for relations action.")
-            relations = store.get_relations(query)
-            if not relations:
-                return ToolResult(content=f"No relations found for '{query}'.")
-            lines = [f"# Relations for `{query}`\n"]
-            for rel in relations:
-                arrow = "→" if rel.source == query else "←"
-                other = rel.target if rel.source == query else rel.source
-                desc = f" ({rel.description})" if rel.description else ""
-                lines.append(f"- {arrow} **{rel.relation_type}**: `{other}`{desc}")
-            return ToolResult(content="\n".join(lines))
-
+            return self._handle_relations(store, query)
         elif action == "important":
-            ranked = store.get_important_entities(top_k=top_k)
-            if not ranked:
-                return ToolResult(content="Knowledge graph is empty.")
-            lines = ["# Most Important Entities (by PageRank)\n"]
-            for entity, score in ranked:
-                lines.append(f"- **{entity.name}** ({entity.entity_type}) — score: {score:.4f}")
-            return ToolResult(content="\n".join(lines))
-
+            return self._handle_important(store, top_k)
         elif action == "stats":
-            components = store.get_connected_components()
-            return ToolResult(
-                content=(
-                    f"# Knowledge Graph Stats\n\n"
-                    f"- **Entities:** {store.entity_count()}\n"
-                    f"- **Relations:** {store.relation_count()}\n"
-                    f"- **Connected components:** {len(components)}\n"
-                    f"- **Last indexed:** {store.meta.last_indexed or 'never'}"
-                )
-            )
+            return self._handle_stats(store)
+        else:
+            return ToolResult(content=f"Unknown action: '{action}'.")
 
-        return ToolResult(content=f"Unknown action: '{action}'.")
+    def _handle_search(
+        self, store: KnowledgeStore, query: str, entity_type: object | None
+    ) -> ToolResult:
+        """Handle search action."""
+        if not query:
+            return ToolResult(content="'query' is required for search action.")
+
+        entities = store.search_entities(query)
+        if entity_type:
+            entities = [e for e in entities if e.entity_type == str(entity_type)]
+        if not entities:
+            return ToolResult(content=f"No entities found matching '{query}'.")
+
+        return ToolResult(content=store.format_for_llm(entities))
+
+    def _handle_get(self, store: KnowledgeStore, query: str) -> ToolResult:
+        """Handle get action."""
+        if not query:
+            return ToolResult(content="'query' (entity id) is required for get action.")
+
+        entity = store.get_entity(query)
+        if entity is None:
+            return ToolResult(content=f"Entity '{query}' not found.")
+
+        return ToolResult(content=store.format_entity_for_llm(entity))
+
+    def _handle_neighbors(self, store: KnowledgeStore, query: str, depth: int) -> ToolResult:
+        """Handle neighbors action."""
+        if not query:
+            return ToolResult(content="'query' (entity id) is required for neighbors action.")
+
+        neighbors = store.get_neighbors(query, depth=depth)
+        if not neighbors:
+            return ToolResult(content=f"No neighbors found for '{query}'.")
+
+        return ToolResult(content=store.format_for_llm(neighbors))
+
+    def _handle_relations(self, store: KnowledgeStore, query: str) -> ToolResult:
+        """Handle relations action."""
+        if not query:
+            return ToolResult(content="'query' (entity id) is required for relations action.")
+
+        relations = store.get_relations(query)
+        if not relations:
+            return ToolResult(content=f"No relations found for '{query}'.")
+
+        lines = [f"# Relations for `{query}`\n"]
+        for rel in relations:
+            arrow = "→" if rel.source == query else "←"
+            other = rel.target if rel.source == query else rel.source
+            desc = f" ({rel.description})" if rel.description else ""
+            lines.append(f"- {arrow} **{rel.relation_type}**: `{other}`{desc}")
+
+        return ToolResult(content="\n".join(lines))
+
+    def _handle_important(self, store: KnowledgeStore, top_k: int) -> ToolResult:
+        """Handle important action."""
+        ranked = store.get_important_entities(top_k=top_k)
+        if not ranked:
+            return ToolResult(content="Knowledge graph is empty.")
+
+        lines = ["# Most Important Entities (by PageRank)\n"]
+        for entity, score in ranked:
+            lines.append(f"- **{entity.name}** ({entity.entity_type}) — score: {score:.4f}")
+
+        return ToolResult(content="\n".join(lines))
+
+    def _handle_stats(self, store: KnowledgeStore) -> ToolResult:
+        """Handle stats action."""
+        components = store.get_connected_components()
+        return ToolResult(
+            content=(
+                f"# Knowledge Graph Stats\n\n"
+                f"- **Entities:** {store.entity_count()}\n"
+                f"- **Relations:** {store.relation_count()}\n"
+                f"- **Connected components:** {len(components)}\n"
+                f"- **Last indexed:** {store.meta.last_indexed or 'never'}"
+            )
+        )

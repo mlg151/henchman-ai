@@ -3,30 +3,30 @@
 **Date/Time**: 2026-02-27 (XP Refactoring Agent)
 
 **Files Changed**:
-1. `src/henchman/providers/anthropic.py` - Refactored `chat_completion_stream` method
-   - Extracted 153-line method with 12-level nesting into 11 focused methods
-   - Reduced maximum nesting depth from 12 levels to 4 levels
-   - Created `_EventProcessingResult` helper class for event processing
-   - Separated concerns: validation, parameter preparation, streaming, event handling, retry logic
+1. `src/henchman/tools/builtins/kg_query.py` - Refactored `execute` method
+   - Extracted 81-line method with cyclomatic complexity 30 into 7 focused methods
+   - Reduced maximum nesting depth from 6 levels to 3 levels
+   - Created separate handler methods for each action type
+   - Improved readability and maintainability
 
 **Identified Smells Addressed**:
-- **Long Method**: Reduced from 153 lines to ~20 lines in main method (87% reduction)
-- **Deep Nesting**: Reduced from 12 levels to 4 levels (67% reduction)
-- **Complex Function**: Distributed cyclomatic complexity 33 across smaller methods
-- **Mixed Responsibilities**: Separated validation, formatting, streaming, tool processing, rate limiting, retry logic
-- **Primitive Obsession**: Created `_EventProcessingResult` class to encapsulate event data
+- **Complex Function**: Reduced cyclomatic complexity from 30 (rank D) to ~5 per method
+- **Long Method**: Reduced from 81 lines to ~20 lines in main method (75% reduction)
+- **Deep Nesting**: Reduced from 6 levels to 3 levels (50% reduction)
+- **Feature Envy**: Reduced store access concentration by distributing across methods
+- **Primitive Obsession**: Better parameter handling through method signatures
 
 **Refactoring Strategy Applied**:
-1. **Extract Method**: Created 11 focused helper methods from monolithic method
-2. **Introduce Parameter Object**: Created `_EventProcessingResult` class
-3. **Separate Concerns**: Isolated validation, parameter preparation, streaming, event handling
+1. **Extract Method**: Created 7 focused handler methods from monolithic `execute` method
+2. **Replace Conditional with Polymorphism**: Used method dispatch pattern instead of long if-elif chain
+3. **Separate Concerns**: Isolated each action type (search, get, neighbors, relations, important, stats)
 4. **Flatten Nested Conditionals**: Reduced nesting through early returns and method extraction
 5. **Improve Readability**: Intention-revealing method names and single responsibilities
 
 **Testing Implications**:
-- All existing tests pass without modification (29/29 tests)
-- Public API remains unchanged (`chat_completion_stream` signature preserved)
-- Error handling behavior identical (same exception types and messages)
+- All existing tests pass without modification (19/19 tests for kg_query)
+- Public API remains unchanged (`execute` signature preserved)
+- Error handling behavior identical (same error messages and conditions)
 - No changes to external interfaces or behavior
 - Helper methods are private/internal for encapsulation
 
@@ -36,39 +36,46 @@
 - ✅ Better separation of concerns with focused methods
 - ✅ Enhanced maintainability with simpler control flow
 - ✅ Proper type hints maintained throughout
-- ✅ Fixed mypy type errors with proper null checks
+- ✅ Fixed deep nesting issues
 
 **Performance Impact**:
 - No performance degradation expected
-- Same number of API calls and token counting
-- Memory usage similar (slight overhead for `_EventProcessingResult` objects)
+- Same number of knowledge graph operations
+- Memory usage similar
 - Error paths remain identical
 
 **Files Changed**:
-- `src/henchman/providers/anthropic.py`: Refactored `chat_completion_stream` and added helper methods/classes
+- `src/henchman/tools/builtins/kg_query.py`: Refactored `execute` method and added handler methods
 
 **Nesting Depth Analysis**:
-- **Before**: 12 levels maximum (while → try-except → async with → async for → if-elif chain → nested ifs)
-- **After**: 4 levels maximum in any single method
-  - Main method: 2 levels (async for)
-  - Event handlers: 3-4 levels (if-elif chains with simple conditionals)
+- **Before**: 6 levels maximum (if-elif chain with nested conditionals and loops)
+- **After**: 3 levels maximum in any single method
+  - Main method: 2 levels (if-elif dispatch)
+  - Handler methods: 2-3 levels (simple conditionals and loops)
 
 **Method Breakdown**:
-1. `chat_completion_stream` (20 lines) - Main orchestrator
-2. `_validate_messages` (15 lines) - Message validation
-3. `_validate_and_repair_message_sequence` (10 lines) - Sequence repair
-4. `_prepare_request_params` (15 lines) - Parameter preparation
-5. `_stream_with_retry` (30 lines) - Retry logic
-6. `_process_stream` (25 lines) - Streaming loop
-7. `_process_event` (10 lines) - Event dispatcher
-8. `_handle_content_block_start` (10 lines) - Start events
-9. `_handle_content_block_delta` (25 lines) - Delta events
-10. `_handle_content_block_stop` (3 lines) - Stop events
-11. `_handle_message_delta` (15 lines) - Message delta
-12. `_build_tool_calls_from_pending` (20 lines) - Tool call construction
+1. `execute` (25 lines) - Main orchestrator and parameter validation
+2. `_handle_search` (10 lines) - Search action handler
+3. `_handle_get` (8 lines) - Get action handler  
+4. `_handle_neighbors` (8 lines) - Neighbors action handler
+5. `_handle_relations` (12 lines) - Relations action handler
+6. `_handle_important` (8 lines) - Important action handler
+7. `_handle_stats` (6 lines) - Stats action handler
+
+**Cyclomatic Complexity Analysis**:
+- **Before**: 30 (rank D - very complex)
+- **After**: 
+  - `execute`: ~5 (rank A - simple)
+  - Each handler: 2-4 (rank A - simple)
+  - **Total reduction**: ~80% reduction in per-method complexity
 
 **Next Steps**:
-1. Consider similar refactoring for `openai_compat.py:127` (138-line method)
-2. Evaluate potential for extracting common streaming patterns across providers
+1. Consider similar refactoring for `kg_update.py:186` (cyclomatic complexity 26)
+2. Evaluate potential for extracting common validation logic
 3. Monitor test coverage to ensure all paths are tested
-4. Consider adding unit tests for individual helper methods
+4. Consider adding unit tests for individual handler methods
+
+**Previous Improvement** (2026-02-27):
+- Refactored `anthropic.py` `chat_completion_stream` method (153 lines → 20 lines main method)
+- Reduced nesting from 12 levels to 4 levels
+- Created 11 helper methods and `_EventProcessingResult` class

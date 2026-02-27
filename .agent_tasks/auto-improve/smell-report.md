@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T01:30:12.551892+00:00_
+_Generated: 2026-02-27T02:04:34.579274+00:00_
 
 ## Executive Summary
 
@@ -11,97 +11,96 @@ _Generated: 2026-02-27T01:30:12.551892+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 35.8/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 28,374 |
-| **Total Smells** | 2702 |
-| **Avg Maintainability Index** | 70.0 |
-| **Avg Cyclomatic Complexity** | 16.1 |
+| **Total Lines (non-blank)** | 28,594 |
+| **Total Smells** | 2706 |
+| **Avg Maintainability Index** | 69.9 |
+| **Avg Cyclomatic Complexity** | 15.5 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1784 |
-| medium | 671 |
-| high | 238 |
-| critical | 9 |
+| low | 1808 |
+| medium | 668 |
+| high | 230 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1204 |
-| Feature Envy | 357 |
-| Duplicate Code | 325 |
-| Deep Nesting | 231 |
+| Missing Type Hint | 1226 |
+| Feature Envy | 362 |
+| Duplicate Code | 326 |
 | Magic Number | 218 |
-| Long Method | 174 |
-| Primitive Obsession | 85 |
-| Complex Function | 72 |
-| Large Class | 36 |
+| Deep Nesting | 208 |
+| Long Method | 173 |
+| Primitive Obsession | 86 |
+| Complex Function | 70 |
+| Large Class | 37 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **providers/anthropic.py:171** — 🔴 CRITICAL — Long Method  
-   Function 'chat_completion_stream' has 153 lines (threshold: 30)  
-   → _Extract Method — break this function into smaller, intention-revealing helper functions._
-
-2. **providers/anthropic.py:265** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 8 in 'chat_completion_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-3. **providers/anthropic.py:270** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 9 in 'chat_completion_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-4. **providers/anthropic.py:283** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 8 in 'chat_completion_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-5. **providers/anthropic.py:287** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 9 in 'chat_completion_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-6. **providers/anthropic.py:289** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 10 in 'chat_completion_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-7. **providers/anthropic.py:290** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 11 in 'chat_completion_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-8. **providers/anthropic.py:296** — 🔴 CRITICAL — Deep Nesting  
-   Nesting depth 12 in 'chat_completion_stream' (threshold: 4)  
-   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
-
-9. **providers/openai_compat.py:127** — 🔴 CRITICAL — Long Method  
-   Function 'chat_completion_stream' has 138 lines (threshold: 30)  
-   → _Extract Method — break this function into smaller, intention-revealing helper functions._
-
-10. **/home/matthew/mlg-cli/src/henchman/cli/output_handler.py:61** — 🟠 HIGH — Complex Function  
+1. **/home/matthew/mlg-cli/src/henchman/cli/output_handler.py:61** — 🟠 HIGH — Complex Function  
    Function 'get_toolbar_status' has cyclomatic complexity 24 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-11. **/home/matthew/mlg-cli/src/henchman/providers/anthropic.py:171** — 🟠 HIGH — Complex Function  
-   Function 'chat_completion_stream' has cyclomatic complexity 33 (rank E)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-12. **/home/matthew/mlg-cli/src/henchman/providers/openai_compat.py:127** — 🟠 HIGH — Complex Function  
-   Function 'chat_completion_stream' has cyclomatic complexity 32 (rank E)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-13. **/home/matthew/mlg-cli/src/henchman/tools/builtins/grep.py:160** — 🟠 HIGH — Complex Function  
+2. **/home/matthew/mlg-cli/src/henchman/tools/builtins/grep.py:160** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/import_graph.py:74** — 🟠 HIGH — Complex Function  
+3. **/home/matthew/mlg-cli/src/henchman/tools/builtins/import_graph.py:74** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_query.py:134** — 🟠 HIGH — Complex Function  
+4. **/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_query.py:134** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 30 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+5. **/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Complex Function  
+   Function 'execute' has cyclomatic complexity 26 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+6. **/home/matthew/mlg-cli/src/henchman/tools/builtins/patch_apply.py:140** — 🟠 HIGH — Complex Function  
+   Function '_parse_patch' has cyclomatic complexity 23 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+7. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pytest_run.py:89** — 🟠 HIGH — Complex Function  
+   Function 'execute' has cyclomatic complexity 21 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+8. **/home/matthew/mlg-cli/src/henchman/tools/builtins/python_ast.py:230** — 🟠 HIGH — Complex Function  
+   Function 'execute' has cyclomatic complexity 23 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+9. **/home/matthew/mlg-cli/src/henchman/tools/builtins/traceback_parse.py:52** — 🟠 HIGH — Complex Function  
+   Function 'execute' has cyclomatic complexity 23 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+10. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
+   Function 'compact' has cyclomatic complexity 22 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+11. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
+   Function '_calculate_importance_scores' has cyclomatic complexity 21 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+12. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
+   Function '__getattr__' is an exact duplicate of '__getattr__' at cli/app.py:23  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+13. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
+   Magic number 100.0 — consider extracting to a named constant  
+   → _Extract Constant / Introduce Named Constant._
+
+14. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
+   Magic number 100.0 — consider extracting to a named constant  
+   → _Extract Constant / Introduce Named Constant._
+
+15. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
+   Magic number 60.0 — consider extracting to a named constant  
+   → _Extract Constant / Introduce Named Constant._
 
 
 ## 📊 Files Ranked by Quality
@@ -117,7 +116,7 @@ These are the highest-impact smells to address first:
 | 7 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
 | 8 | utils/compaction.py | ❌ F | 10.9 | 52 | 436 | 36 | 15.3 |
 | 9 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
-| 10 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
+| 10 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
 
 ## 📁 Per-File Details
 
@@ -339,6 +338,30 @@ LOC: 725 | Classes: 5 | Functions: 0 | MI: 37 | Avg CC: 17.0
 
 _... and 61 more smells._
 
+### providers/anthropic.py — ❌ F (11.8/100)
+
+LOC: 396 | Classes: 2 | Functions: 0 | MI: 39 | Avg CC: 11.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 138 | 🟠 HIGH | Feature Envy | Method 'AnthropicProvider._format_messages' accesses 'msg' 13 times but 'self' only 0 times | Move Method — consider moving '_format_messages' to the class that owns 'msg'. |
+| 241 | 🟠 HIGH | Duplicate Code | Function '_validate_messages' is an exact duplicate of '_validate_messages' at providers/openai_compat.py:160 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 42 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 4 primitive-typed parameters: content: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), thinking: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), current_tool_id: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), total_output_tokens_delta: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 92 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: api_key: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), model: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), tokens_per_minute: Name(id='int', ctx=Load()), max_retries: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 138 | 🟡 MEDIUM | Complex Function | Function '_format_messages' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 199 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._parse_finish_reason' accesses 'FinishReason' 5 times but 'self' only 0 times | Move Method — consider moving '_parse_finish_reason' to the class that owns 'FinishReason'. |
+| 199 | 🟡 MEDIUM | Duplicate Code | Function '_parse_finish_reason' is 100% similar to '_parse_finish_reason' at providers/openai_compat.py:94 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 332 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._process_stream' accesses 'chunk' 9 times but 'self' only 3 times | Move Method — consider moving '_process_stream' to the class that owns 'chunk'. |
+| 386 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._handle_content_block_start' accesses 'block' 5 times but 'self' only 0 times | Move Method — consider moving '_handle_content_block_start' to the class that owns 'block'. |
+| 404 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._handle_content_block_delta' accesses 'delta' 7 times but 'self' only 3 times | Move Method — consider moving '_handle_content_block_delta' to the class that owns 'delta'. |
+| 42 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/7 params untyped | Add Type Annotations for all parameters and return type. |
+| 59 | 🟢 LOW | Missing Type Hint | Function '_should_yield' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 81 | 🟢 LOW | Large Class | Class 'AnthropicProvider' spans 400 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 92 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
+| 117 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 22 more smells._
+
 ### cli/tool_executor.py — ❌ F (12.1/100)
 
 LOC: 688 | Classes: 1 | Functions: 0 | MI: 40 | Avg CC: 11.0
@@ -530,30 +553,6 @@ LOC: 330 | Classes: 1 | Functions: 0 | MI: 51 | Avg CC: 11.0
 | 28 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 22 more smells._
-
-### providers/anthropic.py — ❌ F (15.2/100)
-
-LOC: 268 | Classes: 1 | Functions: 0 | MI: 51 | Avg CC: 22.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 171 | 🔴 CRITICAL | Long Method | Function 'chat_completion_stream' has 153 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 265 | 🔴 CRITICAL | Deep Nesting | Nesting depth 8 in 'chat_completion_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 270 | 🔴 CRITICAL | Deep Nesting | Nesting depth 9 in 'chat_completion_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 283 | 🔴 CRITICAL | Deep Nesting | Nesting depth 8 in 'chat_completion_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 287 | 🔴 CRITICAL | Deep Nesting | Nesting depth 9 in 'chat_completion_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 289 | 🔴 CRITICAL | Deep Nesting | Nesting depth 10 in 'chat_completion_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 290 | 🔴 CRITICAL | Deep Nesting | Nesting depth 11 in 'chat_completion_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 296 | 🔴 CRITICAL | Deep Nesting | Nesting depth 12 in 'chat_completion_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 98 | 🟠 HIGH | Feature Envy | Method 'AnthropicProvider._format_messages' accesses 'msg' 13 times but 'self' only 0 times | Move Method — consider moving '_format_messages' to the class that owns 'msg'. |
-| 171 | 🟠 HIGH | Complex Function | Function 'chat_completion_stream' has cyclomatic complexity 33 (rank E) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 250 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'chat_completion_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 258 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'chat_completion_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 260 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in 'chat_completion_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 280 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in 'chat_completion_stream' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 52 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: api_key: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), model: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), tokens_per_minute: Name(id='int', ctx=Load()), max_retries: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-
-_... and 18 more smells._
 
 ### tools/builtins/kg_query.py — ❌ F (15.4/100)
 
