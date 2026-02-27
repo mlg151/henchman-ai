@@ -1,105 +1,105 @@
-# Code Smell Report — ❌ F (Score: 35.5/100)
+# Code Smell Report — ❌ F (Score: 35.7/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T04:00:11.965087+00:00_
+_Generated: 2026-02-27T04:30:12.781537+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.5/100 |
+| **Overall Score** | 35.7/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 28,973 |
+| **Total Lines (non-blank)** | 28,993 |
 | **Total Smells** | 2713 |
 | **Avg Maintainability Index** | 69.8 |
-| **Avg Cyclomatic Complexity** | 14.6 |
+| **Avg Cyclomatic Complexity** | 14.4 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1833 |
+| low | 1837 |
 | medium | 658 |
-| high | 222 |
+| high | 218 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1257 |
-| Feature Envy | 361 |
+| Missing Type Hint | 1261 |
+| Feature Envy | 364 |
 | Duplicate Code | 326 |
 | Magic Number | 216 |
-| Deep Nesting | 183 |
+| Deep Nesting | 177 |
 | Long Method | 173 |
 | Primitive Obsession | 90 |
-| Complex Function | 67 |
+| Complex Function | 66 |
 | Large Class | 40 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Complex Function  
-   Function 'execute' has cyclomatic complexity 26 (rank D)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-2. **/home/matthew/mlg-cli/src/henchman/tools/builtins/patch_apply.py:140** — 🟠 HIGH — Complex Function  
+1. **/home/matthew/mlg-cli/src/henchman/tools/builtins/patch_apply.py:140** — 🟠 HIGH — Complex Function  
    Function '_parse_patch' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-3. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pytest_run.py:89** — 🟠 HIGH — Complex Function  
+2. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pytest_run.py:89** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-4. **/home/matthew/mlg-cli/src/henchman/tools/builtins/python_ast.py:230** — 🟠 HIGH — Complex Function  
+3. **/home/matthew/mlg-cli/src/henchman/tools/builtins/python_ast.py:230** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-5. **/home/matthew/mlg-cli/src/henchman/tools/builtins/traceback_parse.py:52** — 🟠 HIGH — Complex Function  
+4. **/home/matthew/mlg-cli/src/henchman/tools/builtins/traceback_parse.py:52** — 🟠 HIGH — Complex Function  
    Function 'execute' has cyclomatic complexity 23 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-6. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
+5. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
    Function 'compact' has cyclomatic complexity 22 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-7. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
+6. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
    Function '_calculate_importance_scores' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-8. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
+7. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
    Function '__getattr__' is an exact duplicate of '__getattr__' at cli/app.py:23  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-9. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
+8. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-10. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
+9. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-11. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
+10. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
    Magic number 60.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-12. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
+11. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-13. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
+12. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
    Class 'Orchestrator' spans 1363 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
-14. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
+13. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
    Function '__init__' has 88 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-15. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
+14. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
    Magic number 500 — consider extracting to a named constant  
+   → _Extract Constant / Introduce Named Constant._
+
+15. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
+   Magic number 200 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
 

@@ -154,75 +154,8 @@ class PatchApplyTool(Tool):
         Raises:
             ValueError: If patch is malformed.
         """
-        file_patches: dict[str, list[dict[str, object]]] = {}
-        current_file: str | None = default_path
-        current_hunk: dict[str, object] | None = None
-        hunk_lines: list[str] = []
-
-        lines = patch.split("\n")
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-
-            # File header
-            if (
-                line.startswith("--- ")
-                and i + 1 < len(lines)
-                and lines[i + 1].startswith("+++ ")
-            ):
-                if default_path is None:
-                    path_str = lines[i + 1][4:].strip()
-                    # Strip a/ or b/ prefix
-                    if path_str.startswith("b/"):
-                        path_str = path_str[2:]
-                    current_file = path_str
-                i += 2
-                continue
-
-            # Hunk header
-            match = re.match(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", line)
-            if match:
-                # Save previous hunk
-                if current_hunk is not None and current_file:
-                    current_hunk["lines"] = hunk_lines
-                    file_patches.setdefault(current_file, []).append(current_hunk)
-
-                old_start = int(match.group(1))
-                old_count = int(match.group(2)) if match.group(2) else 1
-                new_start = int(match.group(3))
-                new_count = int(match.group(4)) if match.group(4) else 1
-
-                current_hunk = {
-                    "old_start": old_start,
-                    "old_count": old_count,
-                    "new_start": new_start,
-                    "new_count": new_count,
-                }
-                hunk_lines = []
-                i += 1
-                continue
-
-            # Hunk content
-            if current_hunk is not None:
-                if line.startswith("+") or line.startswith("-") or line.startswith(" "):
-                    hunk_lines.append(line)
-                elif line == "" and i == len(lines) - 1:
-                    pass  # trailing newline
-                elif line.startswith("\\"):
-                    pass  # "\ No newline at end of file"
-
-            i += 1
-
-        # Save last hunk
-        if current_hunk is not None and current_file:
-            current_hunk["lines"] = hunk_lines
-            file_patches.setdefault(current_file, []).append(current_hunk)
-
-        if not file_patches and default_path is None:
-            msg = "No file path found in patch and no default path provided"
-            raise ValueError(msg)
-
-        return file_patches
+        parser = PatchParser(patch, default_path)
+        return parser.parse()
 
     def _apply_hunks(
         self,
@@ -346,3 +279,139 @@ class PatchApplyTool(Tool):
         if start < 0 or start + len(old_lines) > len(lines):
             return False
         return lines[start : start + len(old_lines)] == old_lines
+
+
+class PatchParser:
+    """Parser for unified diff patches."""
+
+    def __init__(self, patch: str, default_path: str | None = None) -> None:
+        """Initialize parser.
+
+        Args:
+            patch: The unified diff text.
+            default_path: Default file path for headerless patches.
+        """
+        self.lines = patch.split("\n")
+        self.default_path = default_path
+        self.file_patches: dict[str, list[dict[str, object]]] = {}
+        self.current_file: str | None = default_path
+        self.current_hunk: dict[str, object] | None = None
+        self.hunk_lines: list[str] = []
+        self.index = 0
+
+    def parse(self) -> dict[str, list[dict[str, object]]]:
+        """Parse the patch into file patches.
+
+        Returns:
+            Dict mapping file paths to lists of hunk dicts.
+
+        Raises:
+            ValueError: If patch is malformed.
+        """
+        while self.index < len(self.lines):
+            self._process_line()
+
+        self._save_current_hunk()
+
+        if not self.file_patches and self.default_path is None:
+            msg = "No file path found in patch and no default path provided"
+            raise ValueError(msg)
+
+        return self.file_patches
+
+    def _process_line(self) -> None:
+        """Process the current line."""
+        line = self.lines[self.index]
+
+        if self._is_file_header(line):
+            self._handle_file_header()
+        elif self._is_hunk_header(line):
+            self._handle_hunk_header(line)
+        elif self.current_hunk is not None:
+            self._handle_hunk_content(line)
+        else:
+            self.index += 1
+
+    def _is_file_header(self, line: str) -> bool:
+        """Check if line is part of a file header.
+
+        Args:
+            line: The line to check.
+
+        Returns:
+            True if this is a file header line.
+        """
+        return (
+            line.startswith("--- ")
+            and self.index + 1 < len(self.lines)
+            and self.lines[self.index + 1].startswith("+++ ")
+        )
+
+    def _handle_file_header(self) -> None:
+        """Handle a file header section."""
+        if self.default_path is None:
+            path_line = self.lines[self.index + 1]
+            path_str = path_line[4:].strip()
+            # Strip a/ or b/ prefix
+            if path_str.startswith("b/"):
+                path_str = path_str[2:]
+            self.current_file = path_str
+        self.index += 2
+
+    def _is_hunk_header(self, line: str) -> bool:
+        """Check if line is a hunk header.
+
+        Args:
+            line: The line to check.
+
+        Returns:
+            True if this is a hunk header.
+        """
+        return bool(re.match(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", line))
+
+    def _handle_hunk_header(self, line: str) -> None:
+        """Handle a hunk header.
+
+        Args:
+            line: The hunk header line.
+        """
+        self._save_current_hunk()
+
+        match = re.match(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", line)
+        if not match:
+            return
+
+        old_start = int(match.group(1))
+        old_count = int(match.group(2)) if match.group(2) else 1
+        new_start = int(match.group(3))
+        new_count = int(match.group(4)) if match.group(4) else 1
+
+        self.current_hunk = {
+            "old_start": old_start,
+            "old_count": old_count,
+            "new_start": new_start,
+            "new_count": new_count,
+        }
+        self.hunk_lines = []
+        self.index += 1
+
+    def _handle_hunk_content(self, line: str) -> None:
+        """Handle hunk content line.
+
+        Args:
+            line: The hunk content line.
+        """
+        if line.startswith("+") or line.startswith("-") or line.startswith(" "):
+            self.hunk_lines.append(line)
+        elif line == "" and self.index == len(self.lines) - 1:
+            pass  # trailing newline
+        elif line.startswith("\\"):
+            pass  # "\ No newline at end of file"
+
+        self.index += 1
+
+    def _save_current_hunk(self) -> None:
+        """Save the current hunk if it exists."""
+        if self.current_hunk is not None and self.current_file:
+            self.current_hunk["lines"] = self.hunk_lines
+            self.file_patches.setdefault(self.current_file, []).append(self.current_hunk)
