@@ -3,69 +3,81 @@
 **Date/Time**: 2026-02-27 (XP Refactoring Agent - Tech Lead)
 
 **Files Changed**:
-1. `src/henchman/agents/orchestrator.py` - Refactored the `_run_agent_loop` method (134 lines) by extracting helper method and simplifying logic
+1. `src/henchman/agents/orchestrator.py` - Refactored the `_run_delegation` method (115 lines) by extracting 6 helper methods
 
 **Identified Smells Addressed**:
-- **Long Method**: `_run_agent_loop` had 134 lines (threshold: 30) - HIGH severity (#3 priority in smell report)
-- **Complex Control Flow**: Nested async loops and multiple break/continue conditions
-- **Poor Readability**: Hard to understand due to mixing event collection, tool processing, and stall detection
-- **Feature Envy**: Method accessed agent attributes frequently without clear organization
+- **Long Method**: `_run_delegation` had 115 lines (threshold: 30) - HIGH severity (#4 priority in smell report)
+- **Complex Control Flow**: Multiple error handling paths and delegation phases mixed together
+- **Poor Readability**: Hard to understand due to mixing validation, setup, execution, and cleanup
+- **Feature Envy**: Method accessed multiple external objects without clear organization
 
 **Refactoring Strategy Applied**:
-1. **Extract Method**: Created `_collect_events_and_tool_calls()` helper to handle event collection and tool call extraction
-2. **Simplify Control Flow**: Removed unnecessary variables and streamlined the main loop
-3. **Improve Readability**: Clear separation between event collection and tool processing phases
-4. **Maintain Yield Semantics**: Preserved original async generator behavior while extracting logic
-5. **Remove Dead Code**: Eliminated unused variables and simplified conditionals
+1. **Extract Method**: Created 6 helper methods to handle distinct phases:
+   - `_is_delegation_depth_exceeded()` - Check depth limit
+   - `_yield_depth_exceeded_error()` - Yield error events for depth exceeded
+   - `_get_target_agent_with_error_handling()` - Get agent with error handling
+   - `_yield_agent_not_found_completion()` - Yield completion for agent not found
+   - `_prepare_delegation_execution()` - Clear history and prepare context
+   - `_execute_delegation_loop()` - Run agent loop
+   - `_finalize_delegation()` - Process results and yield completion
+2. **Simplify Control Flow**: Clear separation of validation, setup, execution, and cleanup phases
+3. **Improve Readability**: Each helper method has a single responsibility
+4. **Maintain Async Semantics**: Properly handle async generators with `async for` loops
+5. **Type Safety**: All helper methods have proper type hints
 
-**New Helper Method Created**:
-1. `_collect_events_and_tool_calls()` - Collects events from generator and extracts pending tool calls
+**New Helper Methods Created**:
+1. `_is_delegation_depth_exceeded()` - Boolean check for depth limit
+2. `_yield_depth_exceeded_error()` - Async generator for depth error events
+3. `_get_target_agent_with_error_handling()` - Returns Agent or AgentEvent
+4. `_yield_agent_not_found_completion()` - Async generator for agent not found
+5. `_prepare_delegation_execution()` - Returns (full_task, msg_start) tuple
+6. `_execute_delegation_loop()` - Async generator for agent execution
+7. `_finalize_delegation()` - Async generator for result processing
 
 **Refactoring Approach**:
-- **Main `_run_agent_loop` method**: Reduced complexity by extracting event collection logic
-- **Logical separation**: Clear phases: 1) Collect events, 2) Handle no-tool scenario, 3) Process tools, 4) Update state
-- **Clear flow**: Main method now has clearer structure with focused responsibilities
+- **Main `_run_delegation` method**: Reduced from 115 to 35 lines (70% reduction)
+- **Logical separation**: Clear phases: 1) Validation, 2) Setup, 3) Execution, 4) Cleanup
+- **Clear flow**: Main method now orchestrates the delegation process
 - **Test preservation**: All existing behavior maintained
-- **Type safety**: Helper method has proper type hints
+- **Type safety**: Helper methods have proper type hints and documentation
 
 **Before/After Comparison**:
 ```
-BEFORE: Single 134-line method doing everything
-├── Line 1226-1360: Complex while loop with nested async for
-├── Line 1228-1245: Initialize state variables
-├── Line 1247-1265: Drain generator and collect tool calls
-├── Line 1267-1295: Handle no-tool-calls scenario
-├── Line 1297-1305: Process pending tool calls
-├── Line 1307-1310: Update tool call count
-├── Line 1312-1313: Inject role anchor
-├── Line 1315-1325: Enforce turn limits
-├── Line 1327-1328: Continue agent
-└── Line 1330-1340: Store final state
+BEFORE: Single 115-line method doing everything
+├── Line 1583-1697: Complex async method with multiple responsibilities
+├── Line 1618-1629: Depth validation with error events
+├── Line 1631-1640: Agent retrieval with error handling
+├── Line 1642-1644: Agent started event
+├── Line 1646-1657: Clean history and prepare context
+├── Line 1659-1670: Run agent loop
+└── Line 1672-1697: Process results and yield completion
 
-AFTER: 91-line main method with extracted helper
-├── Line 1226-1317: Simplified while loop
-├── Line 1247-1250: Use helper for event collection
-├── Line 1252-1280: Cleaner no-tool-calls handling
-├── Line 1282-1317: Same processing logic but clearer
-└── Line 1343-1361: Extracted helper method
+AFTER: 35-line main method with 7 extracted helpers
+├── Line 1583-1617: Main method orchestrates delegation
+├── Line 1618-1622: Depth validation via helper
+├── Line 1624-1630: Agent retrieval via helper
+├── Line 1632-1634: Agent started event
+├── Line 1636-1640: Preparation via helper
+├── Line 1642-1644: Execution via helper
+└── Line 1646-1648: Finalization via helper
 ```
 
 **Code Quality Improvements**:
-- ✅ Reduced method complexity (extracted event collection logic)
-- ✅ Improved readability (clearer separation of concerns)
-- ✅ Eliminated unused variables (should_continue, new_generator)
-- ✅ Maintained async generator semantics (proper yield behavior)
+- ✅ Reduced method complexity (extracted 7 helper methods)
+- ✅ Improved readability (clear separation of concerns)
+- ✅ Better error handling (dedicated methods for error scenarios)
+- ✅ Maintained async generator semantics (proper `async for` usage)
 - ✅ Enhanced maintainability (easier to understand and modify)
-- ✅ Better documentation (clearer method purpose)
-- ✅ Follows Single Responsibility Principle (helper focuses on event collection)
-- ✅ Improved cohesion (related operations grouped in helper)
+- ✅ Better documentation (clearer method purposes)
+- ✅ Follows Single Responsibility Principle (each helper has one job)
+- ✅ Improved cohesion (related operations grouped in helpers)
 
 **Testing Implications**:
 - All 51 existing tests in `test_orchestrator.py` pass without modification
-- Public API remains unchanged (same `_run_agent_loop` signature)
+- Public API remains unchanged (same `_run_delegation` signature)
 - No changes to external interfaces or behavior
 - Same functionality with improved internal structure
-- Coverage maintained (89% for orchestrator.py)
+- Coverage maintained (88% for orchestrator.py)
 
 **Performance Impact**:
 - No performance degradation expected
@@ -75,48 +87,48 @@ AFTER: 91-line main method with extracted helper
 
 **XP Principles Applied**:
 - **YAGNI**: Only extracted existing logic, didn't add speculative features
-- **Once and Only Once**: Event collection logic now in single helper method
+- **Once and Only Once**: Common patterns now in reusable helper methods
 - **Simplicity**: Clearer, more focused methods instead of one complex method
 - **Intention-Revealing Code**: Method names clearly describe their purpose
 - **Continuous Refactoring**: Improved code without changing external behavior
 
 **Smell Report Impact**:
-- ✅ Addressed #3 priority smell: Long Method in `orchestrator.py:1226`
-- ✅ Reduced method length from 134 to 91 lines (32% reduction)
+- ✅ Addressed #4 priority smell: Long Method in `orchestrator.py:1583`
+- ✅ Reduced method length from 115 to 35 lines (70% reduction)
 - ✅ Improved maintainability index for the file
 - ✅ Set example for refactoring other long methods in the codebase
 
 **Method Complexity Reduction**:
-- Original: Nested async loops, multiple state variables, complex conditionals
-- New: Clearer flow with extracted helper for event collection
-- **Overall improvement**: Much easier to understand and test
+- Original: Mixed validation, setup, execution, cleanup in one method
+- New: Clear orchestration with dedicated helpers for each phase
+- **Overall improvement**: Much easier to understand, test, and maintain
 
 **Readability Improvements**:
-1. **Clear phases**: Event collection → Tool processing → State update
-2. **Extracted logic**: Event collection separated into helper
-3. **Simplified conditionals**: Removed unnecessary variables
-4. **Better documentation**: Clearer docstrings and comments
+1. **Clear phases**: Validation → Setup → Execution → Cleanup
+2. **Extracted logic**: Each phase in dedicated helper
+3. **Simplified main method**: Only 35 lines of orchestration
+4. **Better documentation**: Clear docstrings for all helpers
 5. **Logical grouping**: Related operations kept together
 
 **Maintainability Benefits**:
-1. **Easier debugging**: Can test event collection independently
-2. **Simpler modifications**: Change event collection without affecting tool processing
-3. **Better reuse**: Helper could be reused elsewhere if needed
+1. **Easier debugging**: Can test each phase independently
+2. **Simpler modifications**: Change one phase without affecting others
+3. **Better reuse**: Helpers could be reused elsewhere if needed
 4. **Clearer dependencies**: Parameter passing shows data flow
 5. **Easier onboarding**: New developers can understand the structure quickly
 
 **Pattern Reusability**:
-This refactoring pattern (extract event collection from complex loops) can be applied to:
+This refactoring pattern (extract phases from complex async methods) can be applied to:
 - Other async generator methods in the codebase
-- Methods with complex nested loops
+- Methods with complex error handling
 - Code that mixes multiple responsibilities
 - Similar patterns throughout the codebase
 
 **Verification**:
 - ✅ All 51 tests in `tests/agents/test_orchestrator.py` pass
-- ✅ Ruff linting passes (no violations after fixing whitespace and unused variables)
+- ✅ Ruff linting passes (no violations after fixing docstring whitespace)
 - ✅ Mypy type checking passes (no issues)
-- ✅ Public API unchanged (same `_run_agent_loop` signature)
+- ✅ Public API unchanged (same `_run_delegation` signature)
 - ✅ Error handling identical
 - ✅ Performance characteristics preserved
 - ✅ All edge cases handled identically
@@ -124,40 +136,34 @@ This refactoring pattern (extract event collection from complex loops) can be ap
 **Execution Flow Comparison**:
 ```
 BEFORE: Monolithic execution
-1. Initialize state
-2. While loop:
-   a. Drain generator (nested async for)
-   b. Check for no tools
-   c. Handle stall detection
-   d. Process tools
-   e. Update state
-   f. Enforce limits
-   g. Continue generator
+1. Validate depth
+2. Get agent with error handling
+3. Yield started event
+4. Clear history and prepare context
+5. Run agent loop
+6. Process results and yield completion
 
-AFTER: Structured execution
-1. Initialize state
-2. While loop:
-   a. Collect events via helper
-   b. Check for no tools (simplified)
-   c. Handle stall detection
-   d. Process tools
-   e. Update state
-   f. Enforce limits
-   g. Continue generator
+AFTER: Structured orchestration
+1. Validate depth via helper
+2. Get agent via helper with error handling
+3. Yield started event
+4. Prepare via helper
+5. Execute via helper
+6. Finalize via helper
 ```
 
 **Error Handling Preservation**:
-- ✅ All stall detection logic identical
-- ✅ All thinking pattern checks identical
-- ✅ All turn limit enforcement identical
-- ✅ All tool error collection identical
-- ✅ All colon-stall guard logic identical
+- ✅ All depth validation logic identical
+- ✅ All agent retrieval error handling identical
+- ✅ All event yielding patterns identical
+- ✅ All result processing logic identical
+- ✅ All shared context updates identical
 
 **Method Cohesion Analysis**:
-- Helper method: High cohesion (single purpose: event collection)
-- Main method: Improved cohesion (orchestrates loop execution)
-- Clear separation: Event collection vs. tool processing
-- Usage sites: Improved clarity (named method call)
+- Helper methods: High cohesion (single purpose each)
+- Main method: Improved cohesion (orchestrates delegation process)
+- Clear separation: Validation vs. Setup vs. Execution vs. Cleanup
+- Usage sites: Improved clarity (named method calls)
 
 **Test Coverage Implications**:
 - Original tests pass (51/51 for orchestrator)
@@ -173,29 +179,28 @@ AFTER: Structured execution
 4. All type inference preserved
 
 **Linting Issues Resolved**:
-1. **Unused variables**: Removed `should_continue` and `new_generator`
-2. **Whitespace issues**: Fixed docstring formatting
-3. **Code readability**: Significantly improved
-4. **Maintainability**: Greatly enhanced
+1. **Docstring whitespace**: Fixed trailing spaces in all helper method docstrings
+2. **Code readability**: Significantly improved
+3. **Maintainability**: Greatly enhanced
 
 **Code Metrics Comparison**:
-- **Before**: 134-line method, complex control flow
-- **After**: 91-line method + 19-line helper, clearer structure
+- **Before**: 115-line method, complex control flow
+- **After**: 35-line method + 7 helpers, clearer structure
 - **Quality improvement**: Addressed high-priority code smell
 
 **Maintainability Benefits**:
-1. **Single Responsibility**: Helper focuses on event collection
-2. **Easier Testing**: Can test event collection independently
+1. **Single Responsibility**: Each helper focuses on one phase
+2. **Easier Testing**: Can test each phase independently
 3. **Clearer Understanding**: Method names reveal intent
 4. **Better Organization**: Related operations grouped
 5. **Enhanced Reusability**: Pattern can be applied elsewhere
 
 **Pattern Reusability**:
-This refactoring pattern can be applied to other code with complex loops:
+This refactoring pattern can be applied to other code with complex phases:
 - Other files in the smell report with Long Method violations
 - Async generator methods throughout codebase
 - Methods doing multiple unrelated things
 - Similar function patterns
 
 **Conclusion**:
-Successfully refactored the 134-line `_run_agent_loop` method in `orchestrator.py` by extracting the event collection logic into a helper method. This addresses the #3 priority smell from the code smell report and demonstrates the value of applying Extract Method refactoring to complex async generators. The solution maintains all existing behavior, passes all tests, and improves code quality without changing external interfaces. The refactored code is more readable, maintainable, and testable while preserving all functionality.
+Successfully refactored the 115-line `_run_delegation` method in `orchestrator.py` by extracting 7 helper methods for distinct phases of the delegation process. This addresses the #4 priority smell from the code smell report and demonstrates the value of applying Extract Method refactoring to complex async methods with multiple responsibilities. The solution maintains all existing behavior, passes all tests, and improves code quality without changing external interfaces. The refactored code is more readable, maintainable, and testable while preserving all functionality.
