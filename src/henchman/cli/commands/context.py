@@ -15,6 +15,12 @@ if TYPE_CHECKING:
 class ContextCommand(Command):
     """Manage intelligent context settings."""
 
+    # Command argument indices
+    _SUBCOMMAND_IDX = 0
+    _STRATEGY_ACTION_IDX = 0
+    _STRATEGY_PARAM_IDX = 1
+    _STRATEGY_VALUE_IDX = 2
+
     @property
     def name(self) -> str:
         """Command name.
@@ -48,25 +54,33 @@ class ContextCommand(Command):
         Args:
             ctx: Command context.
         """
-        args = ctx.args
-        if not args:
+        if not ctx.args:
             await self._show_status(ctx)
-        elif args[0] == "enable":
-            await self._enable_intelligent_context(ctx)
-        elif args[0] == "disable":
-            await self._disable_intelligent_context(ctx)
-        elif args[0] == "strategy":
-            await self._manage_strategy(ctx, args[1:] if len(args) > 1 else [])
-        elif args[0] == "stats":
-            await self._show_stats(ctx)
+            return
+
+        subcommand = ctx.args[self._SUBCOMMAND_IDX].lower()
+        dispatch = {
+            "enable": self._enable_intelligent_context,
+            "disable": self._disable_intelligent_context,
+            "strategy": lambda c: self._manage_strategy(c, c.args[1:]),
+            "stats": self._show_stats,
+        }
+
+        handler = dispatch.get(subcommand)
+        if handler:
+            await handler(ctx)
         else:
-            ctx.console.print(f"[yellow]Usage: {self.usage}[/]")
-            ctx.console.print("\nSubcommands:")
-            ctx.console.print("  enable     - Enable intelligent context management")
-            ctx.console.print("  disable    - Disable intelligent context management")
-            ctx.console.print("  strategy   - Set compression strategy")
-            ctx.console.print("  stats      - Show context usage statistics")
-            ctx.console.print("")
+            await self._show_help_message(ctx)
+
+    async def _show_help_message(self, ctx: CommandContext) -> None:
+        """Show detailed help message."""
+        ctx.console.print(f"[yellow]Usage: {self.usage}[/]")
+        ctx.console.print("\nSubcommands:")
+        ctx.console.print("  enable     - Enable intelligent context management")
+        ctx.console.print("  disable    - Disable intelligent context management")
+        ctx.console.print("  strategy   - Set compression strategy")
+        ctx.console.print("  stats      - Show context usage statistics")
+        ctx.console.print("")
 
     async def _show_status(self, ctx: CommandContext) -> None:
         """Show current intelligent context status.
@@ -144,8 +158,11 @@ class ContextCommand(Command):
         """
         if not args:
             await self._show_strategy_status(ctx)
-        elif args[0] == "set":
-            if len(args) < 2:
+            return
+
+        action = args[self._STRATEGY_ACTION_IDX].lower()
+        if action == "set":
+            if len(args) < 2:  # Need at least 'set' and 'parameter'
                 ctx.console.print("[yellow]Usage: /context strategy set <parameter> <value>[/]")
                 ctx.console.print("\nParameters:")
                 ctx.console.print("  max_tokens <int>          - Maximum tokens before compaction")
@@ -158,7 +175,10 @@ class ContextCommand(Command):
                     "  adaptive <on|off>         - Enable/disable adaptive compression"
                 )
                 return
-            await self._set_strategy_parameter(ctx, args[1], args[2] if len(args) > 2 else None)
+            
+            param = args[self._STRATEGY_PARAM_IDX]
+            value = args[self._STRATEGY_VALUE_IDX] if len(args) > self._STRATEGY_VALUE_IDX else None
+            await self._set_strategy_parameter(ctx, param, value)
         else:
             ctx.console.print("[yellow]Usage: /context strategy [set <parameter> <value>][/]")
 
@@ -230,118 +250,59 @@ class ContextCommand(Command):
         except ValueError as e:
             ctx.console.print(f"[red]Invalid value: {e}[/]")
 
-    async def _handle_max_tokens_parameter(self, ctx: CommandContext, value: str) -> None:
-        """Handle max_tokens parameter setting.
+    async def _update_context_setting(
+        self, ctx: CommandContext, param_name: str, value: any, display_value: str
+    ) -> None:
+        """Helper to update a context setting and save it.
 
         Args:
             ctx: Command context.
-            value: Parameter value as string.
-
-        Raises:
-            ValueError: If value is invalid.
+            param_name: Name of the setting in ContextSettings.
+            value: New value for the setting.
+            display_value: Formatted value string for success message.
         """
-        from henchman.config import load_settings
-        from henchman.config.settings import save_settings
+        settings = load_settings()
+        setattr(settings.context, param_name, value)
+        save_settings(settings)
+        ctx.console.print(f"[green]✓ {param_name.replace('_', ' ').capitalize()} set to {display_value}[/]")
 
+    async def _handle_max_tokens_parameter(self, ctx: CommandContext, value: str) -> None:
+        """Handle max_tokens parameter setting."""
         int_value = int(value)
         if int_value < 1000:
             raise ValueError("Max tokens must be at least 1000")
-
-        settings = load_settings()
-        settings.context.max_tokens = int_value
-        save_settings(settings)
-        ctx.console.print(f"[green]✓ Max tokens set to {int_value}[/]")
+        await self._update_context_setting(ctx, "max_tokens", int_value, str(int_value))
 
     async def _handle_threshold_parameter(self, ctx: CommandContext, value: str) -> None:
-        """Handle threshold parameter setting.
-
-        Args:
-            ctx: Command context.
-            value: Parameter value as string.
-
-        Raises:
-            ValueError: If value is invalid.
-        """
-        from henchman.config import load_settings
-        from henchman.config.settings import save_settings
-
+        """Handle threshold parameter setting."""
         float_value = float(value)
         if not 0.1 <= float_value <= 1.0:
             raise ValueError("Threshold must be between 0.1 and 1.0")
-
-        settings = load_settings()
-        settings.context.compaction_threshold = float_value
-        save_settings(settings)
-        ctx.console.print(f"[green]✓ Compaction threshold set to {float_value}[/]")
+        await self._update_context_setting(ctx, "compaction_threshold", float_value, str(float_value))
 
     async def _handle_importance_parameter(self, ctx: CommandContext, value: str) -> None:
-        """Handle importance parameter setting.
-
-        Args:
-            ctx: Command context.
-            value: Parameter value as string.
-
-        Raises:
-            ValueError: If value is invalid.
-        """
-        from henchman.config import load_settings
-        from henchman.config.settings import save_settings
-
+        """Handle importance parameter setting."""
         float_value = float(value)
         if not 0.0 <= float_value <= 1.0:
             raise ValueError("Importance threshold must be between 0.0 and 1.0")
-
-        settings = load_settings()
-        settings.context.importance_threshold = float_value
-        save_settings(settings)
-        ctx.console.print(f"[green]✓ Importance threshold set to {float_value}[/]")
+        await self._update_context_setting(ctx, "importance_threshold", float_value, str(float_value))
 
     async def _handle_similarity_parameter(self, ctx: CommandContext, value: str) -> None:
-        """Handle similarity parameter setting.
-
-        Args:
-            ctx: Command context.
-            value: Parameter value as string.
-
-        Raises:
-            ValueError: If value is invalid.
-        """
-        from henchman.config import load_settings
-        from henchman.config.settings import save_settings
-
+        """Handle similarity parameter setting."""
         float_value = float(value)
         if not 0.0 <= float_value <= 1.0:
             raise ValueError("Similarity threshold must be between 0.0 and 1.0")
-
-        settings = load_settings()
-        settings.context.cluster_similarity_threshold = float_value
-        save_settings(settings)
-        ctx.console.print(f"[green]✓ Cluster similarity threshold set to {float_value}[/]")
+        await self._update_context_setting(
+            ctx, "cluster_similarity_threshold", float_value, str(float_value)
+        )
 
     async def _handle_adaptive_parameter(self, ctx: CommandContext, value: str) -> None:
-        """Handle adaptive parameter setting.
-
-        Args:
-            ctx: Command context.
-            value: Parameter value as string.
-
-        Raises:
-            ValueError: If value is invalid.
-        """
-        from henchman.config import load_settings
-        from henchman.config.settings import save_settings
-
+        """Handle adaptive parameter setting."""
         lower_value = value.lower()
-        settings = load_settings()
-
         if lower_value in ["on", "true", "yes", "1"]:
-            settings.context.adaptive_compression = True
-            save_settings(settings)
-            ctx.console.print("[green]✓ Adaptive compression enabled[/]")
+            await self._update_context_setting(ctx, "adaptive_compression", True, "enabled")
         elif lower_value in ["off", "false", "no", "0"]:
-            settings.context.adaptive_compression = False
-            save_settings(settings)
-            ctx.console.print("[green]✓ Adaptive compression disabled[/]")
+            await self._update_context_setting(ctx, "adaptive_compression", False, "disabled")
         else:
             raise ValueError("Value must be 'on' or 'off'")
 

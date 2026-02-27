@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T16:31:21.397031+00:00_
+_Generated: 2026-02-27T17:00:13.392339+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-02-27T16:31:21.397031+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 37.0/100 |
 | **Files Scanned** | 148 |
-| **Total Lines (non-blank)** | 30,019 |
-| **Total Smells** | 2731 |
+| **Total Lines (non-blank)** | 30,006 |
+| **Total Smells** | 2727 |
 | **Avg Maintainability Index** | 69.9 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,20 +20,20 @@ _Generated: 2026-02-27T16:31:21.397031+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1913 |
+| low | 1910 |
 | medium | 663 |
-| high | 155 |
+| high | 154 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1333 |
-| Feature Envy | 365 |
-| Duplicate Code | 321 |
+| Missing Type Hint | 1332 |
+| Feature Envy | 364 |
+| Duplicate Code | 320 |
 | Magic Number | 196 |
 | Long Method | 167 |
-| Deep Nesting | 166 |
+| Deep Nesting | 165 |
 | Primitive Obsession | 85 |
 | Complex Function | 58 |
 | Large Class | 40 |
@@ -112,10 +112,10 @@ These are the highest-impact smells to address first:
 | 3 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 4 | agents/orchestrator.py | ❌ F | 8.6 | 64 | 995 | 29 | 14.0 |
 | 5 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
-| 6 | core/agent.py | ❌ F | 10.7 | 47 | 586 | 36 | 11.0 |
-| 7 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
-| 8 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
-| 9 | cli/commands/session.py | ❌ F | 11.1 | 66 | 301 | 37 | 11.0 |
+| 6 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
+| 7 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
+| 8 | cli/commands/session.py | ❌ F | 11.1 | 66 | 301 | 37 | 11.0 |
+| 9 | core/agent.py | ❌ F | 11.1 | 43 | 573 | 37 | 11.0 |
 | 10 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
 
 ## 📁 Per-File Details
@@ -242,30 +242,6 @@ LOC: 546 | Classes: 4 | Functions: 1 | MI: 34 | Avg CC: 14.8
 
 _... and 44 more smells._
 
-### core/agent.py — ❌ F (10.7/100)
-
-LOC: 586 | Classes: 2 | Functions: 0 | MI: 36 | Avg CC: 11.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 78 | 🟠 HIGH | Primitive Obsession | Function '__init__' has 10 primitive-typed parameters: system_prompt: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), model: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), summarize_dropped: Name(id='bool', ctx=Load()), base_tool_iterations: Name(id='int', ctx=Load()), max_protected_ratio: Name(id='float', ctx=Load()), intelligent_context: Name(id='bool', ctx=Load()), importance_threshold: Name(id='float', ctx=Load()), cluster_similarity_threshold: Name(id='float', ctx=Load()), adaptive_compression: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 491 | 🟠 HIGH | Feature Envy | Method 'Agent._process_chunk' accesses 'chunk' 12 times but 'self' only 3 times | Move Method — consider moving '_process_chunk' to the class that owns 'chunk'. |
-| 589 | 🟠 HIGH | Duplicate Code | Function '_handle_stop_finish' is an exact duplicate of '_handle_other_finish' at core/agent.py:618 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 42 | 🟡 MEDIUM | Large Class | Class 'Agent' spans 720 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 374 | 🟡 MEDIUM | Feature Envy | Method 'Agent._process_streaming_response' accesses 'state' 5 times but 'self' only 2 times | Move Method — consider moving '_process_streaming_response' to the class that owns 'state'. |
-| 491 | 🟡 MEDIUM | Feature Envy | Method 'Agent._process_chunk' accesses 'state' 8 times but 'self' only 3 times | Move Method — consider moving '_process_chunk' to the class that owns 'state'. |
-| 573 | 🟡 MEDIUM | Feature Envy | Method 'Agent._create_assistant_message' accesses 'state' 5 times but 'self' only 0 times | Move Method — consider moving '_create_assistant_message' to the class that owns 'state'. |
-| 646 | 🟡 MEDIUM | Long Method | Function 'run' has 66 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 646 | 🟡 MEDIUM | Complex Function | Function 'run' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 42 | 🟢 LOW | Large Class | Class 'Agent' has 27 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 78 | 🟢 LOW | Long Method | Function '__init__' has 38 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 78 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/14 params untyped | Add Type Annotations for all parameters and return type. |
-| 151 | 🟢 LOW | Missing Type Hint | Function 'history' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 156 | 🟢 LOW | Missing Type Hint | Function 'tools' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 160 | 🟢 LOW | Missing Type Hint | Function '_emit' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 32 more smells._
-
 ### extensions/plugin_manager.py — ❌ F (10.9/100)
 
 LOC: 668 | Classes: 1 | Functions: 0 | MI: 36 | Avg CC: 0.0
@@ -337,6 +313,30 @@ LOC: 301 | Classes: 1 | Functions: 0 | MI: 37 | Avg CC: 11.0
 | 210 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
 _... and 51 more smells._
+
+### core/agent.py — ❌ F (11.1/100)
+
+LOC: 573 | Classes: 2 | Functions: 0 | MI: 37 | Avg CC: 11.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 78 | 🟠 HIGH | Primitive Obsession | Function '__init__' has 10 primitive-typed parameters: system_prompt: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), model: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), summarize_dropped: Name(id='bool', ctx=Load()), base_tool_iterations: Name(id='int', ctx=Load()), max_protected_ratio: Name(id='float', ctx=Load()), intelligent_context: Name(id='bool', ctx=Load()), importance_threshold: Name(id='float', ctx=Load()), cluster_similarity_threshold: Name(id='float', ctx=Load()), adaptive_compression: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 491 | 🟠 HIGH | Feature Envy | Method 'Agent._process_chunk' accesses 'chunk' 12 times but 'self' only 3 times | Move Method — consider moving '_process_chunk' to the class that owns 'chunk'. |
+| 42 | 🟡 MEDIUM | Large Class | Class 'Agent' spans 705 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 374 | 🟡 MEDIUM | Feature Envy | Method 'Agent._process_streaming_response' accesses 'state' 5 times but 'self' only 2 times | Move Method — consider moving '_process_streaming_response' to the class that owns 'state'. |
+| 491 | 🟡 MEDIUM | Feature Envy | Method 'Agent._process_chunk' accesses 'state' 8 times but 'self' only 3 times | Move Method — consider moving '_process_chunk' to the class that owns 'state'. |
+| 570 | 🟡 MEDIUM | Feature Envy | Method 'Agent._create_assistant_message' accesses 'state' 5 times but 'self' only 0 times | Move Method — consider moving '_create_assistant_message' to the class that owns 'state'. |
+| 631 | 🟡 MEDIUM | Long Method | Function 'run' has 66 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 631 | 🟡 MEDIUM | Complex Function | Function 'run' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 42 | 🟢 LOW | Large Class | Class 'Agent' has 26 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 78 | 🟢 LOW | Long Method | Function '__init__' has 38 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 78 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/14 params untyped | Add Type Annotations for all parameters and return type. |
+| 151 | 🟢 LOW | Missing Type Hint | Function 'history' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 156 | 🟢 LOW | Missing Type Hint | Function 'tools' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 160 | 🟢 LOW | Missing Type Hint | Function '_emit' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 168 | 🟢 LOW | Missing Type Hint | Function 'clear_history' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 28 more smells._
 
 ### providers/anthropic.py — ❌ F (11.8/100)
 
