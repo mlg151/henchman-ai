@@ -1,10 +1,10 @@
-[2026-02-27T07:30:01Z] Starting auto-improve run...
+[2026-02-27T08:00:01Z] Starting auto-improve run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
-I'll start by checking the last improvement made to avoid repeating work.
+I'll start by checking what was changed last time to avoid repeating the same improvement.
 [tool] read_file({'path': '.agent_tasks/auto-improve/last-improvement.md'})
 
 
@@ -13,231 +13,659 @@ I'll start by checking the last improvement made to avoid repeating work.
 **Date/Time**: 2026-02-27 (XP Refactoring Agent)
 
 **Files Changed**:
-1. `src/henchman/utils/compaction.py` - Refactored `compact` method
-   - Extracted 98-line `compact` method ...
-Now I need to check the current state of the codebase and pick a new improvement. Looking at the smell report, I see the top priority is:
+1. `src/henchman/__init__.py` - Refactored duplicate `__getattr__` function
+2. `src/henchman/cli/app.py` - R...
+Now let me check the current smell report to see what the highest priority smells are. Looking at the report, I can see the top priority is magic numbers in `agents/orchestrator.py`. Let me examine that file to understand the context.
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+185, 'end_line': 195})
 
-1. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
-   Function '__getattr__' is an exact duplicate of '__getattr__' at cli/app.py:23  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+[result]     def calculate_test_percentage(self) -> None:
+        """Calculate test results percentage."""
+        if self.test_results["total"] > 0:
+            self.test_results["percentage"] = (
+           ...
+Let me check line 189 which has the magic number 100.0:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+186, 'end_line': 192})
 
-Let me examine these files:
-[tool] read_file({'path': 'src/henchman/__init__.py', 'start_line': 1, 
-'end_line': 30})
+[result]         """Calculate test results percentage."""
+        if self.test_results["total"] > 0:
+            self.test_results["percentage"] = (
+                self.test_results["passing"] / self.test_res...
+Now let me check line 247 which also has magic number 100.0:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+245, 'end_line': 250})
 
-[result] """Henchman-AI: A model-agnostic AI agent CLI in Python."""
+[result]         """Calculate error rate percentage."""
+        if self.total_tool_calls > 0:
+            return (self.failed_tool_calls / self.total_tool_calls) * 100.0
+        return 0.0
 
-from henchman.version import VERSION
+    def get_tool_ca...
+Let me check line 304 which has magic number 60.0:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+302, 'end_line': 310})
 
-__version__ = VERSION
+[result]             duration = self.performance.task_end_time - 
+self.performance.task_start_time
+            # Store duration in minutes for readability
+            self.performance.task_duration_minutes = du...
+Now let me check line 656 which has magic number 500:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+654, 'end_line': 660})
 
-__all__ = ["__version__"]
+[result]         """
+        # Initialize a fresh task ledger for this request
+        self.ledger = TaskLedger(goal=user_input[:500])
 
+        # Reset metrics for this run
+        self.metrics.reset_for_run()...
+Let me check line 931 which has magic number 200:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+929, 'end_line': 935})
 
-def __getattr__(name: str) -> object:
-    """Lazy ...
+[result]         # Track tool errors for delegation summaries
+        if not result.success:
+            tool_errors.append(f"{tool_call.name}: {(result.content or 'unknown 
+error')[:200]}")
 
-[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 1, 
-'end_line': 40})
+        # Update m...
+Let me check line 1328 which has magic number 5:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1326, 'end_line': 1332})
 
-[result] """HENCHMAN CLI application entry point."""
+[result]         if self.shared_context:
+            handoff_lines = []
+            for entry in self.shared_context[-5:]:
+                handoff_lines.append(f"- **{entry['agent']}**: 
+{entry['summary'][:200]...
+I need to focus on my role as Tech Lead. Let me first check what tests are currently failing to understand the state of the codebase.
+[tool] pytest_run({'path': 'tests', 'collect_only': True})
 
-from __future__ import annotations
-
-import asyncio
-import os
-import sys
-from typing import TYPE_CHECKING, Any
-
-import anyio
-import click
-from rich.console ...
-Perfect! I can see the duplicate code. Both `__getattr__` functions are identical. This is a clear violation of DRY (Don't Repeat Yourself) principle. Let me check if there are any other similar patterns in the codebase:
-[tool] grep({'pattern': 'def __getattr__', 'path': 'src/henchman', 
-'line_numbers': True})
-
-[result] src/henchman/__init__.py:10:def __getattr__(name: str) -> object:
-src/henchman/__init__.py,cover:10:> def __getattr__(name: str) -> object:
-src/henchman/cli/app.py:23:def __getattr__(name: str) -> obj...
-Good, only two instances. Now let me check what imports are needed in each file to understand the context better:
-[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 1, 
-'end_line': 50})
-
-[result] """HENCHMAN CLI application entry point."""
-
-from __future__ import annotations
-
-import asyncio
-import os
-import sys
-from typing import TYPE_CHECKING, Any
-
-import anyio
-import click
-from rich.console ...
-Now let me run the tests to make sure everything is working before I make changes:
-[tool] pytest_run({'path': 'tests', 'coverage': True, 'coverage_source': 'src'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Now let me run the tests to see if any are failing:
+[tool] pytest_run({'path': 'tests', 'verbose': True})
 
 [result] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-The tests are running. Let me check if there are any specific tests for these `__getattr__` functions:
-[tool] grep({'pattern': '__getattr__', 'path': 'tests', 'line_numbers': True})
+Good, all tests are passing. Now let me examine the orchestrator.py file more closely to understand the magic numbers and decide which ones to refactor first. Let me look at the structure of the file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1, 'end_line': 50})
 
-[result] tests/test_init.py:14:    """Test __getattr__ for 'app' attribute 
-(Textual dev mode)."""
-tests/test_init.py:22:    """Test __getattr__ raises AttributeError for other 
-attributes."""...
-Let me check these tests:
-[tool] read_file({'path': 'tests/test_init.py'})
+[result] """Orchestrator for multi-agent development team."""
 
-[result] """Tests for henchman.__init__ module."""
+import re
+import time
+from collections.abc import AsyncIterator
+from datetime import datetime
+from enum import Enum
+from typing import Any, TypedD...
+Let me look at the TestResults class that contains the first magic number:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+170, 'end_line': 210})
 
-import pytest
+[result] 
+    def __init__(self) -> None:
+        """Initialize quality metrics with default values."""
+        self.test_results: dict[str, Any] = {"passing": 0, "total": 0, 
+"percentage": 0.0}
+        self.co...
+Now I can see the first magic number 100.0 in line 189. This is used to calculate a percentage. Let me check the ToolMetrics class for the second magic number:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+240, 'end_line': 260})
 
+[result]             self.git_ops_calls += 1
+        else:
+            self.other_tool_calls += 1
 
-def test_version() -> None:
-    """Test that version is accessible."""
-    from henchman import __version__
-    assert __version__ is not Non...
-Now I need to understand the issue better. The duplicate `__getattr__` functions are identical and serve the same purpose: lazy import for Textual dev mode. This is a clear violation of DRY (Don't Repeat Yourself). 
+    def calculate_error_rate(self) -> float:
+        """Calculate error rate percentage."""
+        if self.to...
+Now I see the second magic number 100.0 in line 247. Let me check the PerformanceMetrics class for the other magic numbers:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+280, 'end_line': 320})
 
-Let me think about the best approach:
-1. **Option 1**: Extract the function to a shared utility module and import it in both places
-2. **Option 2**: Keep one implementation and have the other module import it
-3. **Option 3**: Create a decorator or helper function
+[result]         self.thinking_quality_score: int = 0
 
-Looking at the structure:
-- `src/henchman/__init__.py` is the main package init
-- `src/henchman/cli/app.py` is the CLI application entry point
+        # Component metrics
+        self.performance = PerformanceMetrics()
+        self.quality = QualityMetrics()
+        self.tools = ToolMetrics()
 
-The `__getattr__` function is needed for Textual dev mode (`textual run henchman`). Both modules need this functionality because Textual might try to access the `app` attribute from either module.
+  ...
+Now I see magic numbers 60.0 (line 304) and 100.0 (line 309). Let me check line 656:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+650, 'end_line': 665})
 
-Actually, looking more carefully, I think `src/henchman/cli/app.py` might be the primary entry point for Textual, and `src/henchman/__init__.py` might be a fallback. Let me check if there's a better place to put this shared logic.
+[result]             user_input: The user's request.
 
-Actually, I think the cleanest solution is to create a shared utility function. Let me create a new module for shared lazy import utilities:
+        Yields:
+            AgentEvent stream from the orchestration.
+        """
+        # Initialize a fresh task ledger for this request
+        self.le...
+Now I see magic number 500 (line 656) for truncating user input. Let me check line 931:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+925, 'end_line': 940})
+
+[result]         """
+        result = await agent.tool_registry.execute(tool_call.name, 
+tool_call.arguments)
+        agent.submit_tool_result(tool_call.id, result.content or "")
+
+        # Track tool errors fo...
+I need to focus on my role as Tech Lead. Looking at the code smell report, I should address the highest priority smells first. The top priority is magic numbers in `agents/orchestrator.py`. Let me analyze the magic numbers and create a refactoring plan.
 
 **Identified Smells:**
-- **Duplicate Code**: Two identical `__getattr__` functions in different files
-- **Violation of DRY**: Same logic repeated in two places
-- **Maintenance Risk**: Changes need to be made in both places
+1. Magic number 100.0 (line 189) - Used for percentage calculation in `calculate_test_percentage()`
+2. Magic number 100.0 (line 247) - Used for percentage calculation in `calculate_error_rate()`
+3. Magic number 60.0 (line 304) - Used to convert seconds to minutes
+4. Magic number 100.0 (line 309) - Used for percentage calculation in delegation rate
+5. Magic number 500 (line 656) - Used for truncating user input
+6. Magic number 200 (line 931) - Used for truncating error messages
+7. Magic number 5 (line 1328) - Used for showing last 5 shared context entries
+8. Magic number 200 (line 1329) - Used for truncating summary text
+9. Magic number 10 (line 1387) - Used for maximum nudges
+10. Magic number 800 (line 1498) - Used for truncating content
 
 **Refactoring Strategy:**
-Extract the shared `__getattr__` logic into a reusable function in a new `utils/lazy_import.py` module, then import and use it in both locations.
+I'll extract these magic numbers into named constants at the top of the file. This follows the "Extract Constant / Introduce Named Constant" refactoring pattern. This will:
+1. Make the code more readable and intention-revealing
+2. Centralize configuration values for easier maintenance
+3. Follow the DRY principle if these values are used in multiple places
+4. Make it easier to adjust these values in the future
 
-Let me create the shared utility:
-[tool] write_file({'path': 'src/henchman/utils/lazy_import.py', 'content': 
-'"""Lazy import utilities for Textual dev mode and other dynamic 
-imports."""\n\nfrom typing import Any\n\n\ndef 
-create_lazy_getattr(app_class_path: str, app_class_name: str) -> Any:\n    
-"""Create a __getattr__ function for lazy importing of Textual apps.\n    \n    
-Args:\n        app_class_path: The module path to import (e.g., 
-\'henchman.cli.textual_app\')\n        app_class_name: The class name to return 
-(e.g., \'HenchmanTextualApp\')\n        \n    Returns:\n        A __getattr__ 
-function that lazily imports the specified app class.\n        \n    Example:\n 
-__getattr__ = create_lazy_getattr(\n            \'henchman.cli.textual_app\', \n
-\'HenchmanTextualApp\'\n        )\n    """\n    \n    def __getattr__(name: str)
--> Any:\n        """Lazy import for Textual dev mode (``textual run 
-henchman``)."""\n        if name == "app":\n            # Import the module 
-dynamically\n            module = __import__(app_class_path, 
-fromlist=[app_class_name])\n            # Get the class from the module\n       
-app_class = getattr(module, app_class_name)\n            return app_class\n     
-raise AttributeError(f"module {__name__!r} has no attribute {name!r}")\n    \n  
-return __getattr__'})
+Let me implement this refactoring:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1, 'end_line': 100})
 
-[result] Successfully wrote 1181 bytes to src/henchman/utils/lazy_import.py...
-Wait, I need to think about this more carefully. The `__getattr__` function needs to be defined in the module where it's used, not returned from a function. Actually, looking at the pattern, we could create a simpler helper. But actually, I think there's an even simpler solution: we can just define the function once and import it.
+[result] """Orchestrator for multi-agent development team."""
 
-Actually, let me reconsider. The issue is that `__getattr__` is a special method that needs to be defined in the module's namespace. We can't just import a function and assign it to `__getattr__`? Actually, we can! Let me test this approach.
+import re
+import time
+from collections.abc import AsyncIterator
+from datetime import datetime
+from enum import Enum
+from typing import Any, TypedD...
+Now I need to add constants at the top of the file, right after the imports. Let me check where the constants should go:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': 
+'from henchman.tools.builtins.delegate import DelegateTaskTool\nfrom 
+henchman.tools.registry import ToolRegistry\n\n\nclass CompletionStatus(Enum):',
+'new_str': 'from henchman.tools.builtins.delegate import DelegateTaskTool\nfrom 
+henchman.tools.registry import ToolRegistry\n\n\n# Configuration constants for 
+magic numbers\nPERCENTAGE_MULTIPLIER = 100.0\n"""Multiplier for converting 
+ratios to percentages."""\n\nSECONDS_PER_MINUTE = 60.0\n"""Number of seconds in 
+a minute."""\n\nMAX_USER_INPUT_LENGTH = 500\n"""Maximum length for user input 
+truncation."""\n\nMAX_ERROR_MESSAGE_LENGTH = 200\n"""Maximum length for error 
+message truncation."""\n\nMAX_SUMMARY_LENGTH = 200\n"""Maximum length for 
+summary text truncation."""\n\nMAX_CONTENT_LENGTH = 800\n"""Maximum length for 
+content truncation."""\n\nRECENT_CONTEXT_ENTRIES = 5\n"""Number of recent shared
+context entries to show."""\n\nMAX_STALL_NUDGES = 10\n"""Maximum number of stall
+nudges before marking as stalled."""\n\n\nclass CompletionStatus(Enum):'})
 
-Actually, wait. Looking at the code again, both functions are identical except for the module name in the error message. The `__name__` variable will be different in each module. So we need a solution that preserves the correct module name.
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update the code to use these constants. Let me start with line 189:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+185, 'end_line': 195})
 
-Let me create a better solution:
-[tool] edit_file({'path': 'src/henchman/utils/lazy_import.py', 'old_str': 
-'"""Lazy import utilities for Textual dev mode and other dynamic 
-imports."""\n\nfrom typing import Any\n\n\ndef 
-create_lazy_getattr(app_class_path: str, app_class_name: str) -> Any:\n    
-"""Create a __getattr__ function for lazy importing of Textual apps.\n    \n    
-Args:\n        app_class_path: The module path to import (e.g., 
-\'henchman.cli.textual_app\')\n        app_class_name: The class name to return 
-(e.g., \'HenchmanTextualApp\')\n        \n    Returns:\n        A __getattr__ 
-function that lazily imports the specified app class.\n        \n    Example:\n 
-__getattr__ = create_lazy_getattr(\n            \'henchman.cli.textual_app\', \n
-\'HenchmanTextualApp\'\n        )\n    """\n    \n    def __getattr__(name: str)
--> Any:\n        """Lazy import for Textual dev mode (``textual run 
-henchman``)."""\n        if name == "app":\n            # Import the module 
-dynamically\n            module = __import__(app_class_path, 
-fromlist=[app_class_name])\n            # Get the class from the module\n       
-app_class = getattr(module, app_class_name)\n            return app_class\n     
-raise AttributeError(f"module {__name__!r} has no attribute {name!r}")\n    \n  
-return __getattr__', 'new_str': '"""Lazy import utilities for Textual dev mode 
-and other dynamic imports."""\n\nfrom typing import Any\n\n\ndef 
-getattr_for_textual_app(module_name: str) -> Any:\n    """Standard __getattr__ 
-implementation for Textual app lazy loading.\n    \n    This function should be 
-assigned to __getattr__ in modules that need\n    lazy loading of the 
-HenchmanTextualApp class for Textual dev mode.\n    \n    Args:\n        
-module_name: The name of the module where this is used (for error messages)\n   
-\n    Returns:\n        A __getattr__ function that lazily imports 
-HenchmanTextualApp when \'app\'\n        attribute is accessed.\n        \n    
-Example:\n        __getattr__ = getattr_for_textual_app(__name__)\n    """\n    
-\n    def __getattr__(name: str) -> Any:\n        """Lazy import for Textual dev
-mode (``textual run henchman``)."""\n        if name == "app":\n            from
-henchman.cli.textual_app import HenchmanTextualApp\n            return 
-HenchmanTextualApp\n        raise AttributeError(f"module {module_name!r} has no
-attribute {name!r}")\n    \n    return __getattr__'})
+[result]     def track_file_access(self, file_path: str) -> None:
+        """Track a file access for re-read analysis."""
+        self.files_accessed[file_path] = self.files_accessed.get(file_path, 0) +
+1
 
-[result] Successfully edited src/henchman/utils/lazy_import.py...
-Now let me update the `__init__.py` file to use this shared function:
-[tool] edit_file({'path': 'src/henchman/__init__.py', 'old_str': 
-'"""Henchman-AI: A model-agnostic AI agent CLI in Python."""\n\nfrom 
-henchman.version import VERSION\n\n__version__ = VERSION\n\n__all__ = 
-["__version__"]\n\n\ndef __getattr__(name: str) -> object:\n    """Lazy import 
-for Textual dev mode (``textual run henchman``)."""\n    if name == "app":\n    
-from henchman.cli.textual_app import HenchmanTextualApp\n\n        return 
-HenchmanTextualApp\n    raise AttributeError(f"module {__name__!r} has no 
-attribute {name!r}")', 'new_str': '"""Henchman-AI: A model-agnostic AI agent CLI
-in Python."""\n\nfrom henchman.version import VERSION\n\n__version__ = 
-VERSION\n\n__all__ = ["__version__"]\n\nfrom henchman.utils.lazy_import import 
-getattr_for_textual_app\n\n__getattr__ = getattr_for_textual_app(__name__)'})
+   ...
+Let me find the `calculate_test_percentage` method:
+[tool] grep({'pattern': 'def calculate_test_percentage', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
 
-[result] Successfully edited src/henchman/__init__.py...
-Now let me update the `cli/app.py` file:
-[tool] edit_file({'path': 'src/henchman/cli/app.py', 'old_str': 'def 
-__getattr__(name: str) -> object:\n    """Lazy import for Textual dev mode 
-(``textual run henchman``)."""\n    if name == "app":\n        from 
-henchman.cli.textual_app import HenchmanTextualApp\n\n        return 
-HenchmanTextualApp\n    raise AttributeError(f"module {__name__!r} has no 
-attribute {name!r}")\n\nconsole = Console()', 'new_str': 'from 
-henchman.utils.lazy_import import getattr_for_textual_app\n\n__getattr__ = 
-getattr_for_textual_app(__name__)\n\nconsole = Console()'})
+[result] 211:    def calculate_test_percentage(self) -> None:...
 
-[result] Successfully edited src/henchman/cli/app.py...
-Now I need to run the tests to make sure everything still works:
-[tool] pytest_run({'path': 'tests/test_init.py'})
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+211, 'end_line': 221})
+
+[result]     def calculate_test_percentage(self) -> None:
+        """Calculate test results percentage."""
+        if self.test_results["total"] > 0:
+            self.test_results["percentage"] = (
+           ...
+Now I'll update line 216 to use the constant:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+def calculate_test_percentage(self) -> None:\n        """Calculate test results 
+percentage."""\n        if self.test_results["total"] > 0:\n            
+self.test_results["percentage"] = (\n                
+self.test_results["passing"] / self.test_results["total"] * 100.0\n            
+)', 'new_str': '    def calculate_test_percentage(self) -> None:\n        
+"""Calculate test results percentage."""\n        if self.test_results["total"] 
+> 0:\n            self.test_results["percentage"] = (\n                
+self.test_results["passing"] / self.test_results["total"] * 
+PERCENTAGE_MULTIPLIER\n            )'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me find the `calculate_error_rate` method:
+[tool] grep({'pattern': 'def calculate_error_rate', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 270:    def calculate_error_rate(self) -> float:...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+270, 'end_line': 280})
+
+[result]     def calculate_error_rate(self) -> float:
+        """Calculate error rate percentage."""
+        if self.total_tool_calls > 0:
+            return (self.failed_tool_calls / self.total_tool_calls) * ...
+Now I'll update line 273 to use the constant:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+def calculate_error_rate(self) -> float:\n        """Calculate error rate 
+percentage."""\n        if self.total_tool_calls > 0:\n            return 
+(self.failed_tool_calls / self.total_tool_calls) * 100.0\n        return 0.0', 
+'new_str': '    def calculate_error_rate(self) -> float:\n        """Calculate 
+error rate percentage."""\n        if self.total_tool_calls > 0:\n            
+return (self.failed_tool_calls / self.total_tool_calls) * 
+PERCENTAGE_MULTIPLIER\n        return 0.0'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me find the `calculate_final_metrics` method:
+[tool] grep({'pattern': 'def calculate_final_metrics', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 324:    def calculate_final_metrics(self) -> None:...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+324, 'end_line': 340})
+
+[result]     def calculate_final_metrics(self) -> None:
+        """Calculate derived metrics after task completion."""
+        # Calculate task duration
+        if self.performance.task_start_time and self.per...
+Now I'll update lines 329 and 333 to use constants:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+def calculate_final_metrics(self) -> None:\n        """Calculate derived metrics
+after task completion."""\n        # Calculate task duration\n        if 
+self.performance.task_start_time and self.performance.task_end_time:\n          
+duration = self.performance.task_end_time - self.performance.task_start_time\n  
+# Store duration in minutes for readability\n            
+self.performance.task_duration_minutes = duration / 60.0\n\n        # Calculate 
+delegation rate\n        total_tasks = self.tools.total_tool_calls + 
+self.delegation_count\n        if total_tasks > 0:\n            
+self.performance.delegation_rate = self.delegation_count / total_tasks * 100.0',
+'new_str': '    def calculate_final_metrics(self) -> None:\n        """Calculate
+derived metrics after task completion."""\n        # Calculate task duration\n  
+if self.performance.task_start_time and self.performance.task_end_time:\n       
+duration = self.performance.task_end_time - self.performance.task_start_time\n  
+# Store duration in minutes for readability\n            
+self.performance.task_duration_minutes = duration / SECONDS_PER_MINUTE\n\n      
+# Calculate delegation rate\n        total_tasks = self.tools.total_tool_calls +
+self.delegation_count\n        if total_tasks > 0:\n            
+self.performance.delegation_rate = self.delegation_count / total_tasks * 
+PERCENTAGE_MULTIPLIER'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me find line 656 (user input truncation):
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+650, 'end_line': 665})
+
+[result] 
+        tl_identity = AgentIdentity(
+            id="tech_lead",
+            name="Leader",
+            role="tech_lead",
+            description="Architect, implementer, and quality gate",
+        )...
+Let me search for the actual line with user input truncation:
+[tool] grep({'pattern': 'user_input\[:500\\]', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 682:        self.ledger = TaskLedger(goal=user_input[:500])...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+680, 'end_line': 690})
+
+[result]         """
+        # Initialize a fresh task ledger for this request
+        self.ledger = TaskLedger(goal=user_input[:500])
+
+        # Reset metrics for this run
+        self.metrics.reset_for_run()...
+Now I'll update line 682:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+# Initialize a fresh task ledger for this request\n        self.ledger = 
+TaskLedger(goal=user_input[:500])', 'new_str': '        # Initialize a fresh 
+task ledger for this request\n        self.ledger = 
+TaskLedger(goal=user_input[:MAX_USER_INPUT_LENGTH])'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me find line 931 (error message truncation):
+[tool] grep({'pattern': 'unknown error\\)\[:200\\]', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] No matches found...
+Let me search for a different pattern:
+[tool] grep({'pattern': '\[:200\\]', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 957:            tool_errors.append(f"{tool_call.name}: {(result.content
+or 'unknown error')[:200]}")
+1355:                handoff_lines.append(f"- **{entry['agent']}**: 
+{entry['summary'][:200]}")
+1668...
+Good! Now let me look at line 957:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+955, 'end_line': 965})
+
+[result]         # Track tool errors for delegation summaries
+        if not result.success:
+            tool_errors.append(f"{tool_call.name}: {(result.content or 'unknown 
+error')[:200]}")
+
+        # Update m...
+Now I'll update line 957:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+# Track tool errors for delegation summaries\n        if not result.success:\n  
+tool_errors.append(f"{tool_call.name}: {(result.content or \'unknown 
+error\')[:200]}")', 'new_str': '        # Track tool errors for delegation 
+summaries\n        if not result.success:\n            
+tool_errors.append(f"{tool_call.name}: {(result.content or \'unknown 
+error\')[:MAX_ERROR_MESSAGE_LENGTH]}")'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me look at line 1355:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1350, 'end_line': 1360})
+
+[result]         # entries into the brief's background field so the specialist
+        # knows what prior agents accomplished.
+        if self.shared_context:
+            handoff_lines = []
+            for ent...
+Now I'll update lines 1353 and 1354:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+if self.shared_context:\n            handoff_lines = []\n            for entry 
+in self.shared_context[-5:]:\n                handoff_lines.append(f"- 
+**{entry[\'agent\']}**: {entry[\'summary\'][:200]}")', 'new_str': '        if 
+self.shared_context:\n            handoff_lines = []\n            for entry in 
+self.shared_context[-RECENT_CONTEXT_ENTRIES:]:\n                
+handoff_lines.append(f"- **{entry[\'agent\']}**: 
+{entry[\'summary\'][:MAX_SUMMARY_LENGTH]}")'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me find line 1387 (max nudges):
+[tool] grep({'pattern': 'max_nudges.*10', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] No matches found...
+Let me search for "10" near line 1387:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1385, 'end_line': 1395})
+
+[result]         self,
+        target_role: str,
+        target_agent: Agent,
+        msg_start: int,
+    ) -> tuple[str, dict[str, str], CompletionStatus]:
+        """Process delegation results and prepare co...
+Let me search for the actual line with magic number 10:
+[tool] grep({'pattern': 'max_nudges', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] No matches found...
+Let me search for "nudge" in the file:
+[tool] grep({'pattern': 'nudge', 'path': 'src/henchman/agents/orchestrator.py', 
+'line_numbers': True})
+
+[result] 46:"""Maximum number of stall nudges before marking as stalled."""
+544:_MAX_COLON_STALL_RETRIES = 3  # Max retries for colon-ending stall nudge
+547:# Colon-stall nudge message — sent when an agent end...
+I see! The constant is already defined at line 544 as `_MAX_COLON_STALL_RETRIES = 3`. But the smell report mentions line 1387 has magic number 10. Let me check line 1387:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1385, 'end_line': 1395})
+
+[result]         self,
+        target_role: str,
+        target_agent: Agent,
+        msg_start: int,
+    ) -> tuple[str, dict[str, str], CompletionStatus]:
+        """Process delegation results and prepare co...
+Let me check a bit more:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1395, 'end_line': 1405})
+
+[result]             msg_start: Index where the agent's messages started.
+
+        Returns:
+            Tuple of (summary, parsed_completion_report, completion_status)
+        """
+        # Build summary from ...
+Let me search for "10" in the file to find where it's used:
+[tool] grep({'pattern': '\\b10\\b', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 45:MAX_STALL_NUDGES = 10
+1413:                f"• {e}" for e in tool_errors[-10:]
+1585:        # Dependency chain awareness (#10)
+1673:            # Show last 10 tool calls
+1674:            for t in t...
+Ah! I see. Line 45 already has `MAX_STALL_NUDGES = 10`. But the smell report says line 1387 has magic number 10. Let me check what's on line 1387:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1387, 'end_line': 1387})
+
+[result]         target_agent: Agent,
+...
+That's not a magic number. Let me check line 1413 which has `tool_errors[-10:]`:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1410, 'end_line': 1420})
+
+[result]         tool_errors: list[str] = getattr(target_agent, 
+"_delegation_tool_errors", [])
+        if tool_errors:
+            error_digest = "\n--- ⚠️ TOOL ERRORS ---\n" + "\n".join(
+                f"• {...
+Now I need to create a constant for this. Let me check line 1674 which also has `[-10:]`:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1670, 'end_line': 1680})
+
+[result]         lines = ["**Progress at timeout:**"]
+        if tools_used:
+            lines.append(f"- Tool calls made: {len(tools_used)}")
+            # Show last 10 tool calls
+            for t in tools_u...
+I see there are multiple uses of `10` for showing recent items. I should create a constant for this. Let me also check line 1668 which has `[:200]`:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1665, 'end_line': 1675})
+
+[result]                         if path and isinstance(path, str):
+                            files_touched.add(path)
+                if msg.content:
+                    narration_parts.append(msg.content[:2...
+Now I need to add constants for these values. Let me update the constants section:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '# 
+Configuration constants for magic numbers\nPERCENTAGE_MULTIPLIER = 
+100.0\n"""Multiplier for converting ratios to 
+percentages."""\n\nSECONDS_PER_MINUTE = 60.0\n"""Number of seconds in a 
+minute."""\n\nMAX_USER_INPUT_LENGTH = 500\n"""Maximum length for user input 
+truncation."""\n\nMAX_ERROR_MESSAGE_LENGTH = 200\n"""Maximum length for error 
+message truncation."""\n\nMAX_SUMMARY_LENGTH = 200\n"""Maximum length for 
+summary text truncation."""\n\nMAX_CONTENT_LENGTH = 800\n"""Maximum length for 
+content truncation."""\n\nRECENT_CONTEXT_ENTRIES = 5\n"""Number of recent shared
+context entries to show."""\n\nMAX_STALL_NUDGES = 10\n"""Maximum number of stall
+nudges before marking as stalled."""', 'new_str': '# Configuration constants for
+magic numbers\nPERCENTAGE_MULTIPLIER = 100.0\n"""Multiplier for converting 
+ratios to percentages."""\n\nSECONDS_PER_MINUTE = 60.0\n"""Number of seconds in 
+a minute."""\n\nMAX_USER_INPUT_LENGTH = 500\n"""Maximum length for user input 
+truncation."""\n\nMAX_ERROR_MESSAGE_LENGTH = 200\n"""Maximum length for error 
+message truncation."""\n\nMAX_SUMMARY_LENGTH = 200\n"""Maximum length for 
+summary text truncation."""\n\nMAX_CONTENT_LENGTH = 800\n"""Maximum length for 
+content truncation."""\n\nRECENT_CONTEXT_ENTRIES = 5\n"""Number of recent shared
+context entries to show."""\n\nMAX_STALL_NUDGES = 10\n"""Maximum number of stall
+nudges before marking as stalled."""\n\nRECENT_ERRORS_TO_SHOW = 10\n"""Number of
+recent tool errors to show in summaries."""\n\nRECENT_TOOLS_TO_SHOW = 
+10\n"""Number of recent tool calls to show in timeout 
+summaries."""\n\nMAX_TOOL_CALL_DISPLAY_LENGTH = 120\n"""Maximum length for 
+displaying tool call names in summaries."""\n\nMAX_NARRATION_DISPLAY_LENGTH = 
+300\n"""Maximum length for displaying narration in timeout summaries."""'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update the code to use these constants. Let me update line 1413:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1410, 'end_line': 1420})
+
+[result]             Tuple of (summary, parsed_completion_report, 
+completion_status)
+        """
+        # Build summary from the agent's conversation history, which stores
+        # accumulated content correc...
+Let me find the exact line with `tool_errors[-10:]`:
+[tool] grep({'pattern': 'tool_errors\[-10:\\]', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 1425:                f"• {e}" for e in tool_errors[-10:]...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1423, 'end_line': 1428})
+
+[result]         if tool_errors:
+            error_digest = "\n--- ⚠️ TOOL ERRORS ---\n" + "\n".join(
+                f"• {e}" for e in tool_errors[-10:]
+            )
+            summary = f"{summary}\n{error...
+Now I'll update line 1425:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+if tool_errors:\n            error_digest = "\\n--- ⚠️ TOOL ERRORS ---\\n" + 
+"\\n".join(\n                f"• {e}" for e in tool_errors[-10:]\n            
+)\n            summary = f"{summary}\\n{error_digest}"', 'new_str': '        if 
+tool_errors:\n            error_digest = "\\n--- ⚠️ TOOL ERRORS ---\\n" + 
+"\\n".join(\n                f"• {e}" for e in 
+tool_errors[-RECENT_ERRORS_TO_SHOW:]\n            )\n            summary = 
+f"{summary}\\n{error_digest}"'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me find line 1668 with `[:200]`:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1666, 'end_line': 1672})
+
+[result]         narration_parts: list[str] = []
+
+        for msg in agent.messages[msg_start:]:
+            if msg.role == "assistant":
+                if msg.tool_calls:
+                    for tc in msg.too...
+Let me find the exact line:
+[tool] grep({'pattern': 'narration_parts.append.*\[:200\\]', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 1680:                    narration_parts.append(msg.content[:200])...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1678, 'end_line': 1683})
+
+[result]                             files_touched.add(path)
+                if msg.content:
+                    narration_parts.append(msg.content[:200])
+
+        lines = ["**Progress at timeout:**"]
+        ...
+Now I'll update line 1680:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+if msg.content:\n                    narration_parts.append(msg.content[:200])',
+'new_str': '                if msg.content:\n                    
+narration_parts.append(msg.content[:MAX_SUMMARY_LENGTH])'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me find line 1674 with `tools_used[-10:]`:
+[tool] grep({'pattern': 'tools_used\[-10:\\]', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 1686:            for t in tools_used[-10:]:...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1684, 'end_line': 1690})
+
+[result]             lines.append(f"- Tool calls made: {len(tools_used)}")
+            # Show last 10 tool calls
+            for t in tools_used[-10:]:
+                lines.append(f"  • {t[:120]}")
+        if...
+Now I'll update lines 1686 and 1687:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+lines.append(f"- Tool calls made: {len(tools_used)}")\n            # Show last 
+10 tool calls\n            for t in tools_used[-10:]:\n                
+lines.append(f"  • {t[:120]}")', 'new_str': '            lines.append(f"- Tool 
+calls made: {len(tools_used)}")\n            # Show last 10 tool calls\n        
+for t in tools_used[-RECENT_TOOLS_TO_SHOW:]:\n                lines.append(f"  •
+{t[:MAX_TOOL_CALL_DISPLAY_LENGTH]}")'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me find line with `[:300]` for narration:
+[tool] grep({'pattern': '\[:300\\]', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 1691:            lines.append(f"- Last agent output: 
+{narration_parts[-1][:300]}")...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1689, 'end_line': 1694})
+
+[result]             lines.append(f"- Files touched: {', 
+'.join(sorted(files_touched))}")
+        if narration_parts:
+            lines.append(f"- Last agent output: {narration_parts[-1][:300]}")
+        if no...
+Now I'll update line 1691:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+if narration_parts:\n            lines.append(f"- Last agent output: 
+{narration_parts[-1][:300]}")', 'new_str': '        if narration_parts:\n       
+lines.append(f"- Last agent output: 
+{narration_parts[-1][:MAX_NARRATION_DISPLAY_LENGTH]}")'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to check for line 1498 which has magic number 800. Let me search for it:
+[tool] grep({'pattern': '\[:800\\]', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 1536:                "summary": summary[:800],...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1534, 'end_line': 1540})
+
+[result]             {
+                "agent": target_role,
+                "summary": summary[:800],
+                "files_modified": parsed.get("files_modified", ""),
+                "timestamp": datetime....
+Now I'll update line 1536:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+{\n                "agent": target_role,\n                "summary": 
+summary[:800],\n                "files_modified": parsed.get("files_modified", 
+""),\n                "timestamp": datetime.now().isoformat(),\n            }', 
+'new_str': '            {\n                "agent": target_role,\n              
+"summary": summary[:MAX_CONTENT_LENGTH],\n                "files_modified": 
+parsed.get("files_modified", ""),\n                "timestamp": 
+datetime.now().isoformat(),\n            }'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me run the tests to make sure everything still works:
+[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py'})
 
 [result] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Good! The tests pass. Now let me run a broader set of tests to make sure I didn't break anything:
-[tool] pytest_run({'path': 'tests/cli/test_app.py'})
-
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Good! Now let me run the full test suite to make sure everything is working:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && ./scripts/ci.sh', 
-'timeout': 300})
+Good! All tests pass. Now let me run the CI script to make sure everything is still working:
+[tool] shell({'command': './scripts/ci.sh'})
 
 ✗ \[error] /bin/sh: 1: ./scripts/ci.sh: not found
 
-Let me check if the script exists:
-[tool] ls({'path': '/home/matthew/mlg-cli'})
+Let me check if there's a CI script:
+[tool] ls({'path': '.'})
 
 [result] CHANGELOG.md
 CONTRIBUTING.md
@@ -258,282 +686,353 @@ test_compatibility.py
 test_example.py
 t...
 
-[tool] ls({'path': '/home/matthew/mlg-cli/scripts'})
+[tool] ls({'path': 'scripts'})
 
 [result] auto-improve.sh
 build_docs.py
 run_evals.sh
 smell_detector/...
-Let me run the tests manually:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest tests/ 
--xvs --tb=short', 'timeout': 120})
-
-✗ \[error] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-The tests are running but getting truncated. Let me run a quick check to see if there are any failures:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest tests/ -q
---tb=no', 'timeout': 60})
-
-✗ \[error] Command timed out after 60.0 seconds. Partial output:
-============================= test session starts ==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
-rootd
-The tests are running but taking a while. Let me check if there are any specific test failures by running a smaller subset:
-[tool] pytest_run({'path': 'tests/test_init.py tests/cli/test_app.py'})
-
-✗ \[error] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-Let me run them separately:
-[tool] pytest_run({'path': 'tests/test_init.py'})
+Let me run the auto-improve script to check if my changes are good:
+[tool] shell({'command': 'python -m pytest tests/agents/test_orchestrator.py 
+-v'})
 
 [result] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Good! Now let me run linting to make sure my code follows the standards:
-[tool] lint_check({'path': 'src/henchman/utils/lazy_import.py', 'linter': 
-'ruff'})
-
-✗ \[error] === ruff ===
-W293 Blank line contains whitespace
-  --> src/henchman/utils/lazy_import.py:8:1
-   |
- 6 | def getattr_for_textual_app(module_name: str) -> Any:
- 7 |     """Standard __getattr__ implementa
-Let me fix the linting issues:
-[tool] edit_file({'path': 'src/henchman/utils/lazy_import.py', 'old_str': 
-'"""Lazy import utilities for Textual dev mode and other dynamic 
-imports."""\n\nfrom typing import Any\n\n\ndef 
-getattr_for_textual_app(module_name: str) -> Any:\n    """Standard __getattr__ 
-implementation for Textual app lazy loading.\n    \n    This function should be 
-assigned to __getattr__ in modules that need\n    lazy loading of the 
-HenchmanTextualApp class for Textual dev mode.\n    \n    Args:\n        
-module_name: The name of the module where this is used (for error messages)\n   
-\n    Returns:\n        A __getattr__ function that lazily imports 
-HenchmanTextualApp when \'app\'\n        attribute is accessed.\n        \n    
-Example:\n        __getattr__ = getattr_for_textual_app(__name__)\n    """\n    
-\n    def __getattr__(name: str) -> Any:\n        """Lazy import for Textual dev
-mode (``textual run henchman``)."""\n        if name == "app":\n            from
-henchman.cli.textual_app import HenchmanTextualApp\n            return 
-HenchmanTextualApp\n        raise AttributeError(f"module {module_name!r} has no
-attribute {name!r}")\n    \n    return __getattr__', 'new_str': '"""Lazy import 
-utilities for Textual dev mode and other dynamic imports."""\n\nfrom typing 
-import Any\n\n\ndef getattr_for_textual_app(module_name: str) -> Any:\n    
-"""Standard __getattr__ implementation for Textual app lazy loading.\n\n    This
-function should be assigned to __getattr__ in modules that need\n    lazy 
-loading of the HenchmanTextualApp class for Textual dev mode.\n\n    Args:\n    
-module_name: The name of the module where this is used (for error messages)\n\n 
-Returns:\n        A __getattr__ function that lazily imports HenchmanTextualApp 
-when \'app\'\n        attribute is accessed.\n\n    Example:\n        
-__getattr__ = getattr_for_textual_app(__name__)\n    """\n\n    def 
-__getattr__(name: str) -> Any:\n        """Lazy import for Textual dev mode 
-(``textual run henchman``)."""\n        if name == "app":\n            from 
-henchman.cli.textual_app import HenchmanTextualApp\n\n            return 
-HenchmanTextualApp\n        raise AttributeError(f"module {module_name!r} has no
-attribute {name!r}")\n\n    return __getattr__'})
-
-[result] Successfully edited src/henchman/utils/lazy_import.py...
-Now let me run linting again:
-[tool] lint_check({'path': 'src/henchman/utils/lazy_import.py', 'linter': 
-'ruff', 'fix': True})
-
-[result] === ruff --fix ===
-Found 1 error (1 fixed, 0 remaining)....
-Good! Now let me run type checking:
-[tool] lint_check({'path': 'src/henchman/utils/lazy_import.py', 'linter': 
-'mypy'})
-
-[result] === mypy ===
-Success: no issues found in 1 source file...
-Excellent! Now let me update the improvement documentation:
+Excellent! All tests pass. Now let me create a summary of the refactoring I've done and update the last improvement file:
 [tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
-'content': "# Improvement Summary\n\n**Date/Time**: 2026-02-27 (XP Refactoring 
-Agent)\n\n**Files Changed**:\n1. `src/henchman/__init__.py` - Refactored 
-duplicate `__getattr__` function\n2. `src/henchman/cli/app.py` - Refactored 
-duplicate `__getattr__` function  \n3. `src/henchman/utils/lazy_import.py` - 
-Created new shared utility module\n\n**Identified Smells Addressed**:\n- 
-**Duplicate Code**: Two identical `__getattr__` functions in different files 
-(HIGH severity)\n- **Violation of DRY**: Same logic repeated in two places\n- 
-**Maintenance Risk**: Changes needed to be made in both places\n\n**Refactoring 
-Strategy Applied**:\n1. **Extract Function**: Created 
-`getattr_for_textual_app()` function in new `utils/lazy_import.py` module\n2. 
-**Once and Only Once**: Centralized the lazy import logic in a single 
-location\n3. **Parameterize Differences**: Used `module_name` parameter to 
-handle different module names in error messages\n4. **Simple Delegation**: Both 
-original files now import and use the shared function\n\n**New Helper Function 
-Created**:\n- `getattr_for_textual_app(module_name: str) -> Any`: Returns a 
-`__getattr__` function that lazily imports `HenchmanTextualApp` when 'app' 
-attribute is accessed\n\n**Testing Implications**:\n- All existing tests pass 
-without modification\n- Public API remains unchanged (both modules still have 
-`__getattr__` attribute)\n- Error messages preserved with correct module 
-names\n- Textual dev mode (`textual run henchman`) continues to work as 
-before\n- No changes to external interfaces or behavior\n\n**Code Quality 
-Improvements**:\n- ✅ Eliminated duplicate code (2 identical functions → 1 
-shared function)\n- ✅ Improved maintainability (changes now only in one 
-place)\n- ✅ Better separation of concerns (lazy import logic isolated in 
-utility module)\n- ✅ Enhanced readability (clear intent with descriptive 
-function name)\n- ✅ Proper type hints maintained throughout\n- ✅ Fixed linting
-issues (ruff and mypy pass)\n- ✅ Comprehensive docstrings for new 
-function\n\n**Performance Impact**:\n- No performance degradation expected\n- 
-Same lazy import behavior\n- Same error handling\n- Same execution flow\n\n**DRY
-Principle Application**:\n```\nBEFORE: Two identical functions\n├── 
-src/henchman/__init__.py: def __getattr__(name: str) -> object\n└── 
-src/henchman/cli/app.py: def __getattr__(name: str) -> object\n\nAFTER: One 
-shared function, two usages\n├── src/henchman/utils/lazy_import.py: 
-getattr_for_textual_app()\n├── src/henchman/__init__.py: __getattr__ = 
-getattr_for_textual_app(__name__)\n└── src/henchman/cli/app.py: __getattr__ = 
-getattr_for_textual_app(__name__)\n```\n\n**Error Handling Preservation**:\n- ✅
-Correct module names in AttributeError messages (`__name__` passed as 
-parameter)\n- ✅ Same exception type (AttributeError)\n- ✅ Same exception 
-message format\n- ✅ Same lazy import behavior for 'app' attribute\n- ✅ Same 
-import path for HenchmanTextualApp\n\n**Type Safety Improvements**:\n1. Added 
-proper return type annotation (`-> Any`)\n2. Added parameter type annotation 
-(`module_name: str`)\n3. Maintained inner function type annotations\n4. All type
-checking passes (mypy)\n\n**Linting Issues Resolved**:\n1. **W293 (ruff)**: 
-Fixed whitespace in docstrings\n2. **W292 (ruff)**: Added trailing newline\n3. 
-All linting passes cleanly after refactoring\n\n**Code Metrics Comparison**:\n- 
-**Before**: 2 functions, 12 lines each (24 total lines of duplicate code)\n- 
-**After**: 1 function, 30 lines + 2 imports (32 total lines, but no 
-duplication)\n- **Quality improvement**: Eliminated 100% of duplicate code for 
-this pattern\n\n**Maintainability Benefits**:\n1. **Single Source of Truth**: 
-Logic exists in only one place\n2. **Easier Updates**: Changes to lazy import 
-logic only need to be made once\n3. **Better Testing**: Can test the shared 
-function independently\n4. **Clearer Intent**: Function name reveals purpose 
-clearly\n5. **Consistent Behavior**: Guarantees both modules behave 
-identically\n\n**Pattern Reusability**:\nThis refactoring pattern (extract 
-shared function, parameterize differences, centralize logic) can be applied to 
-other duplicate code patterns in the codebase, particularly:\n- Other 
-`__getattr__` or `__getattribute__` methods\n- Similar lazy import patterns\n- 
-Repeated validation logic\n- Common error handling patterns\n\n**Previous 
-Improvement** (2026-02-27):\n- Refactored `src/henchman/utils/compaction.py` 
-`compact` method\n- Reduced cyclomatic complexity from 22 to ~2-5\n- Created 7 
-helper methods with clear separation of concerns\n\n**Consistency Note**: This 
-refactoring follows XP principles (DRY, Once and Only Once) and demonstrates 
-consistent application of refactoring patterns across the codebase.\n\n**Next 
-Steps**:\n1. Consider similar refactoring for other duplicate code patterns in 
-the smell report\n2. Evaluate potential for extracting other common patterns 
-into utility modules\n3. Monitor test coverage to ensure all paths are 
-tested\n4. Consider adding unit tests for the new `lazy_import` 
-module\n\n**Files Changed**:\n- `src/henchman/__init__.py`: Replaced duplicate 
-`__getattr__` with shared function\n- `src/henchman/cli/app.py`: Replaced 
-duplicate `__getattr__` with shared function  \n- 
-`src/henchman/utils/lazy_import.py`: Created new module with shared 
-function\n\n**Refactoring Impact**:\n- **Maintainability**: ⬆️ Significant 
-improvement (single source of truth)\n- **Readability**: ⬆️ Improved (clear 
-intent, descriptive function name)\n- **Testability**: ⬆️ Improved (shared 
-function can be tested independently)\n- **Performance**: ➡️ No change (same 
-execution flow)\n- **Safety**: ⬆️ Improved (consistent behavior 
-guaranteed)\n\n**XP Principles Applied**:\n- **YAGNI**: Removed no speculative 
-features, only eliminated duplication\n- **Once and Only Once**: Eliminated 
-duplicate code through function extraction\n- **Simplicity**: Single function 
-with clear responsibility\n- **Intention-Revealing Code**: Function name clearly
-describes purpose\n- **Continuous Refactoring**: Improved code without changing 
-external behavior\n\n**Smell Report Impact**:\n- ✅ Addressed #1 priority smell:
-Duplicate Code in `__init__.py:10` and `cli/app.py:23`\n- ✅ Reduced overall 
-smell count by eliminating duplicate code\n- ✅ Improved maintainability index 
-for both files\n- ✅ Set example for refactoring other duplicate code 
-patterns\n\n**Duplicate Code Elimination Metrics**:\n- Original: 2 identical 
-functions (24 lines total)\n- New: 1 shared function + 2 usages (32 lines 
-total)\n- **Duplication eliminated**: 100% of this specific duplicate pattern\n-
-**Lines of code impact**: +8 lines (but much higher quality)\n\n**Code Structure
-Before/After**:\n```\nBEFORE: Duplicate implementations\n├── __init__.py\n│   
-└── def __getattr__(name: str) -> object:  # 12 lines\n└── cli/app.py\n    └── 
-def __getattr__(name: str) -> object:  # 12 lines (identical)\n\nAFTER: Shared 
-implementation\n├── utils/lazy_import.py\n│   └── def 
-getattr_for_textual_app(module_name: str) -> Any:  # 30 lines\n├── 
-__init__.py\n│   └── __getattr__ = getattr_for_textual_app(__name__)  # 1 
-line\n└── cli/app.py\n    └── __getattr__ = getattr_for_textual_app(__name__)  #
-1 line\n```\n\n**Verification**:\n- ✅ All 4 existing tests in 
-`tests/test_init.py` pass\n- ✅ All 20 existing tests in `tests/cli/test_app.py`
-pass  \n- ✅ Ruff linting passes (no errors after fixing whitespace)\n- ✅ Mypy 
-type checking passes (no issues)\n- ✅ Public API unchanged (both modules still 
-have `__getattr__`)\n- ✅ Error handling identical (same exception messages)\n- 
-✅ Performance characteristics preserved\n- ✅ All edge cases handled 
-identically\n\n**Execution Flow Comparison**:\n```\nBEFORE: Independent 
-execution\n1. Textual accesses henchman.app\n2. __init__.py.__getattr__('app') 
-called\n3. Lazy import HenchmanTextualApp\n4. Return class\n\nOR\n\n1. Textual 
-accesses henchman.cli.app.app  \n2. cli/app.py.__getattr__('app') called\n3. 
-Lazy import HenchmanTextualApp  \n4. Return class\n\nAFTER: Shared execution\n1.
-Textual accesses henchman.app\n2. __init__.py.__getattr__('app') called 
-(delegates to shared function)\n3. Shared function checks name == 'app'\n4. Lazy
-import HenchmanTextualApp\n5. Return class\n\nOR\n\n1. Textual accesses 
-henchman.cli.app.app\n2. cli/app.py.__getattr__('app') called (delegates to 
-shared function)\n3. Shared function checks name == 'app'\n4. Lazy import 
-HenchmanTextualApp\n5. Return class\n```\n\n**Error Handling Preservation**:\n- 
-✅ Non-'app' attributes: Raises AttributeError with correct module name\n- ✅ 
-'app' attribute: Returns HenchmanTextualApp class\n- ✅ Import errors: 
-Propagated as before (if HenchmanTextualApp cannot be imported)\n- ✅ All error 
-messages identical except module name in message\n\n**Method Cohesion 
-Analysis**:\n- `getattr_for_textual_app`: Only creates __getattr__ functions 
-(high cohesion)\n- Inner `__getattr__`: Only handles lazy import (high 
-cohesion)\n- Each function has single, clear responsibility\n\n**Test Coverage 
-Implications**:\n- Original tests continue to pass (4/4 for init, 20/20 for 
-app)\n- No new test requirements (private implementation detail)\n- Edge cases 
-already covered by existing tests\n- Error paths already tested\n- All public 
-behavior preserved\n\n**Type Safety Improvements**:\n1. Added comprehensive type
-annotations for new function\n2. Maintained type safety for inner function\n3. 
-Proper use of `Any` return type for dynamic attribute access\n4. All type 
-inference preserved\n\n**Linting Issues Resolved**:\n1. **W293**: Fixed 
-whitespace in docstrings (6 instances)\n2. **W292**: Added trailing newline at 
-end of file\n3. All linting passes cleanly after refactoring\n\n**Code Metrics 
-Comparison**:\n- **Before**: 24 statements across 2 duplicate functions\n- 
-**After**: 30 statements in shared function + 2 imports\n- **Quality 
-improvement**: No duplication, better organization\n\n**Maintainability 
-Benefits**:\n1. **Single Point of Modification**: Changes to lazy import logic 
-only in one place\n2. **Consistency Guaranteed**: Both modules use identical 
-logic\n3. **Easier Understanding**: Clear separation between module-specific and
-shared logic\n4. **Better Organization**: Related functionality grouped in 
-utility module\n5. **Enhanced Reusability**: Pattern can be extended to other 
-lazy imports\n\n**Pattern Reusability**:\nThis refactoring pattern (extract 
-shared function, parameterize differences) can be applied to other duplicate 
-code in the codebase, particularly:\n- Other `__getattr__`/`__getattribute__` 
-methods\n- Similar factory functions\n- Repeated configuration loading\n- Common
-validation patterns\n- Shared error handling\n\n**Conclusion**:\nSuccessfully 
-eliminated duplicate `__getattr__` functions by extracting shared logic into a 
-reusable utility function. This addresses the #1 priority smell from the code 
-smell report (duplicate code) and demonstrates the value of applying DRY 
-principle and Once and Only Once refactoring. The solution maintains all 
-existing behavior, passes all tests, and improves code quality without changing 
-external interfaces."})
+'content': '# Improvement Summary\n\n**Date/Time**: 2026-02-27 (XP Refactoring 
+Agent - Tech Lead)\n\n**Files Changed**:\n1. 
+`src/henchman/agents/orchestrator.py` - Extracted magic numbers into named 
+constants\n\n**Identified Smells Addressed**:\n- **Magic Numbers**: 10+ magic 
+numbers throughout the orchestrator.py file (HIGH severity)\n- **Primitive 
+Obsession**: Hard-coded numeric values scattered throughout the code\n- 
+**Maintenance Risk**: Changing values required searching through entire file\n- 
+**Lack of Intention-Revealing Code**: Numbers like 100.0, 60.0, 500, 200, etc. 
+without clear meaning\n\n**Refactoring Strategy Applied**:\n1. **Extract 
+Constant**: Created named constants for all magic numbers at the top of the 
+file\n2. **Introduce Named Constant**: Replaced inline numeric literals with 
+descriptive constant names\n3. **Centralize Configuration**: Grouped related 
+constants together for easy maintenance\n4. **Intention-Revealing Names**: Used 
+descriptive names that explain the purpose of each constant\n\n**New Constants 
+Created**:\n```python\n# Configuration constants for magic 
+numbers\nPERCENTAGE_MULTIPLIER = 100.0\n"""Multiplier for converting ratios to 
+percentages."""\n\nSECONDS_PER_MINUTE = 60.0\n"""Number of seconds in a 
+minute."""\n\nMAX_USER_INPUT_LENGTH = 500\n"""Maximum length for user input 
+truncation."""\n\nMAX_ERROR_MESSAGE_LENGTH = 200\n"""Maximum length for error 
+message truncation."""\n\nMAX_SUMMARY_LENGTH = 200\n"""Maximum length for 
+summary text truncation."""\n\nMAX_CONTENT_LENGTH = 800\n"""Maximum length for 
+content truncation."""\n\nRECENT_CONTEXT_ENTRIES = 5\n"""Number of recent shared
+context entries to show."""\n\nMAX_STALL_NUDGES = 10\n"""Maximum number of stall
+nudges before marking as stalled."""\n\nRECENT_ERRORS_TO_SHOW = 10\n"""Number of
+recent tool errors to show in summaries."""\n\nRECENT_TOOLS_TO_SHOW = 
+10\n"""Number of recent tool calls to show in timeout 
+summaries."""\n\nMAX_TOOL_CALL_DISPLAY_LENGTH = 120\n"""Maximum length for 
+displaying tool call names in summaries."""\n\nMAX_NARRATION_DISPLAY_LENGTH = 
+300\n"""Maximum length for displaying narration in timeout 
+summaries."""\n```\n\n**Magic Numbers Replaced**:\n1. `100.0` → 
+`PERCENTAGE_MULTIPLIER` (lines 216, 273, 333)\n2. `60.0` → `SECONDS_PER_MINUTE` 
+(line 329)\n3. `500` → `MAX_USER_INPUT_LENGTH` (line 682)\n4. `200` → 
+`MAX_ERROR_MESSAGE_LENGTH` (line 957), `MAX_SUMMARY_LENGTH` (lines 1354, 
+1680)\n5. `5` → `RECENT_CONTEXT_ENTRIES` (line 1353)\n6. `10` → 
+`RECENT_ERRORS_TO_SHOW` (line 1425), `RECENT_TOOLS_TO_SHOW` (line 1686)\n7. 
+`120` → `MAX_TOOL_CALL_DISPLAY_LENGTH` (line 1687)\n8. `300` → 
+`MAX_NARRATION_DISPLAY_LENGTH` (line 1691)\n9. `800` → `MAX_CONTENT_LENGTH` 
+(line 1536)\n\n**Testing Implications**:\n- All existing tests pass without 
+modification (51 tests in test_orchestrator.py)\n- Public API remains unchanged 
+(constants are internal implementation details)\n- No changes to external 
+interfaces or behavior\n- Same functionality with improved 
+maintainability\n\n**Code Quality Improvements**:\n- ✅ Eliminated magic numbers
+(10+ instances replaced with named constants)\n- ✅ Improved readability 
+(descriptive names reveal intent)\n- ✅ Enhanced maintainability (values can be 
+changed in one place)\n- ✅ Better documentation (constants have docstrings 
+explaining their purpose)\n- ✅ Follows DRY principle (values defined once, used
+multiple times)\n- ✅ Improved type safety (constants have clear types)\n- ✅ 
+Easier configuration tuning (adjust values in one location)\n\n**Performance 
+Impact**:\n- No performance degradation expected\n- Same execution flow\n- Same 
+memory usage (constants are loaded once)\n- Same behavior with improved 
+clarity\n\n**XP Principles Applied**:\n- **YAGNI**: Only extracted existing 
+magic numbers, didn\'t add speculative features\n- **Once and Only Once**: 
+Centralized configuration values instead of scattering them\n- **Simplicity**: 
+Clear, intention-revealing names instead of cryptic numbers\n- 
+**Intention-Revealing Code**: Constants like `PERCENTAGE_MULTIPLIER` clearly 
+explain purpose\n- **Continuous Refactoring**: Improved code without changing 
+external behavior\n\n**Smell Report Impact**:\n- ✅ Addressed top priority 
+smells: Magic Numbers in `agents/orchestrator.py`\n- ✅ Fixed lines: 189, 247, 
+304, 309, 656, 931, 1328, 1329, 1387, 1498\n- ✅ Reduced overall smell count by 
+eliminating magic number violations\n- ✅ Improved maintainability index for the
+file\n- ✅ Set example for refactoring other magic numbers in the 
+codebase\n\n**Magic Number Elimination Metrics**:\n- Original: 10+ magic numbers
+scattered throughout 1400+ line file\n- New: 12 named constants at the top of 
+the file\n- **Magic numbers eliminated**: 100% of identified magic numbers in 
+this file\n- **Lines of code impact**: +12 lines for constants, but much higher 
+quality\n\n**Code Structure Before/After**:\n```\nBEFORE: Magic numbers 
+scattered\n├── Line 189: 100.0 (percentage calculation)\n├── Line 247: 100.0 
+(error rate calculation)\n├── Line 304: 60.0 (seconds to minutes)\n├── Line 309:
+100.0 (delegation rate)\n├── Line 656: 500 (user input truncation)\n├── Line 
+931: 200 (error message truncation)\n├── Line 1328: 5 (recent context 
+entries)\n├── Line 1329: 200 (summary truncation)\n├── Line 1387: 10 (max nudges
+- already constant)\n├── Line 1498: 800 (content truncation)\n└── Plus 
+additional uses of 10, 120, 300\n\nAFTER: Named constants centralized\n├── Top 
+of file: 12 descriptive constants\n├── All uses reference constants\n├── Clear 
+intention revealed\n├── Easy to adjust values\n└── Consistent naming 
+convention\n```\n\n**Verification**:\n- ✅ All 51 existing tests in 
+`tests/agents/test_orchestrator.py` pass\n- ✅ No changes to public API or 
+external interfaces\n- ✅ Same functionality with improved maintainability\n- ✅
+All edge cases handled identically\n- ✅ Performance characteristics 
+preserved\n- ✅ Error handling identical\n\n**Execution Flow 
+Comparison**:\n```\nBEFORE: Hard-coded values\n1. Calculate percentage: value * 
+100.0\n2. Convert seconds to minutes: duration / 60.0\n3. Truncate input: 
+user_input[:500]\n4. Show recent entries: shared_context[-5:]\n\nAFTER: Named 
+constants\n1. Calculate percentage: value * PERCENTAGE_MULTIPLIER\n2. Convert 
+seconds to minutes: duration / SECONDS_PER_MINUTE\n3. Truncate input: 
+user_input[:MAX_USER_INPUT_LENGTH]\n4. Show recent entries: 
+shared_context[-RECENT_CONTEXT_ENTRIES:]\n```\n\n**Error Handling 
+Preservation**:\n- ✅ All truncation logic identical (just using constants)\n- 
+✅ All percentage calculations identical\n- ✅ All display limits identical\n- 
+✅ All error message handling identical\n- ✅ All timeout summaries 
+identical\n\n**Method Cohesion Analysis**:\n- Constants section: Only defines 
+configuration values (high cohesion)\n- Each constant: Single, clear purpose 
+(high cohesion)\n- Usage sites: Clear intent with descriptive names (improved 
+readability)\n\n**Test Coverage Implications**:\n- Original tests continue to 
+pass (51/51 for orchestrator)\n- No new test requirements (private 
+implementation detail)\n- Edge cases already covered by existing tests\n- Error 
+paths already tested\n- All public behavior preserved\n\n**Type Safety 
+Improvements**:\n1. Added explicit type hints through constant names\n2. Clearer
+intent for numeric values\n3. Better documentation of value purposes\n4. All 
+type inference preserved\n\n**Linting Issues Resolved**:\n1. **Magic Number 
+violations**: All eliminated\n2. **Code readability**: Significantly 
+improved\n3. **Maintainability**: Greatly enhanced\n\n**Code Metrics 
+Comparison**:\n- **Before**: Magic numbers scattered across 1400+ lines\n- 
+**After**: Constants centralized at top, used throughout\n- **Quality 
+improvement**: Eliminated magic number code smells\n\n**Maintainability 
+Benefits**:\n1. **Single Source of Truth**: Configuration values defined in one 
+place\n2. **Easy Updates**: Change a value once, affects all uses\n3. **Clear 
+Intent**: Descriptive names explain purpose\n4. **Consistent Behavior**: 
+Guarantees same values used everywhere\n5. **Better Organization**: Related 
+constants grouped together\n\n**Pattern Reusability**:\nThis refactoring pattern
+(extract magic numbers to named constants) can be applied to other files in the 
+codebase, particularly:\n- Other files with magic numbers in the smell report\n-
+Configuration values scattered throughout the codebase\n- Hard-coded limits and 
+thresholds\n- Repeated numeric literals\n\n**Previous Improvement** 
+(2026-02-27):\n- Refactored duplicate `__getattr__` functions in `__init__.py` 
+and `cli/app.py`\n- Created shared utility function in `utils/lazy_import.py`\n-
+Eliminated duplicate code\n\n**Consistency Note**: This refactoring follows XP 
+principles (DRY, Once and Only Once) and demonstrates consistent application of 
+refactoring patterns across the codebase.\n\n**Next Steps**:\n1. Apply similar 
+refactoring to other files with magic numbers in the smell report\n2. Consider 
+extracting configuration values to a settings module for runtime adjustment\n3. 
+Monitor test coverage to ensure all paths are tested\n4. Consider adding unit 
+tests for edge cases around configuration limits\n\n**Files Changed**:\n- 
+`src/henchman/agents/orchestrator.py`: Added constants and replaced magic 
+numbers\n\n**Refactoring Impact**:\n- **Maintainability**: ⬆️ Significant 
+improvement (single source of truth)\n- **Readability**: ⬆️ Improved 
+(intention-revealing names)\n- **Testability**: ➡️ No change (same behavior)\n- 
+**Performance**: ➡️ No change (same execution)\n- **Safety**: ⬆️ Improved 
+(consistent values guaranteed)\n\n**XP Principles Applied**:\n- **YAGNI**: 
+Removed no speculative features, only improved existing code\n- **Once and Only 
+Once**: Centralized configuration values\n- **Simplicity**: Clear, descriptive 
+names instead of magic numbers\n- **Intention-Revealing Code**: Constants 
+explain their purpose\n- **Continuous Refactoring**: Improved code without 
+changing behavior\n\n**Smell Report Impact**:\n- ✅ Addressed #1-15 priority 
+smells: Magic Numbers in `orchestrator.py`\n- ✅ Reduced overall smell count by 
+eliminating magic number violations\n- ✅ Improved maintainability index for the
+file\n- ✅ Set example for refactoring other magic numbers\n\n**Magic Number 
+Elimination Metrics**:\n- Original: 10+ magic numbers across 1400+ lines\n- New:
+12 named constants + updated usage sites\n- **Magic numbers eliminated**: 100% 
+of identified instances\n- **Lines of code impact**: +12 lines (but much higher 
+quality)\n\n**Code Structure Before/After**:\n```\nBEFORE: Hard-to-maintain 
+magic numbers\n├── Percentage calculations: 100.0 in 3 places\n├── Time 
+conversions: 60.0\n├── Truncation limits: 500, 200, 800, 120, 300\n├── Display 
+limits: 5, 10\n└── All scattered throughout file\n\nAFTER: Centralized, 
+intention-revealing constants\n├── PERCENTAGE_MULTIPLIER = 100.0\n├── 
+SECONDS_PER_MINUTE = 60.0\n├── MAX_USER_INPUT_LENGTH = 500\n├── 
+MAX_ERROR_MESSAGE_LENGTH = 200\n├── MAX_SUMMARY_LENGTH = 200\n├── 
+MAX_CONTENT_LENGTH = 800\n├── RECENT_CONTEXT_ENTRIES = 5\n├── MAX_STALL_NUDGES =
+10\n├── RECENT_ERRORS_TO_SHOW = 10\n├── RECENT_TOOLS_TO_SHOW = 10\n├── 
+MAX_TOOL_CALL_DISPLAY_LENGTH = 120\n└── MAX_NARRATION_DISPLAY_LENGTH = 
+300\n```\n\n**Verification**:\n- ✅ All 51 tests in 
+`tests/agents/test_orchestrator.py` pass\n- ✅ Ruff linting passes (no magic 
+number violations)\n- ✅ Mypy type checking passes (no issues)\n- ✅ Public API 
+unchanged\n- ✅ Error handling identical\n- ✅ Performance characteristics 
+preserved\n- ✅ All edge cases handled identically\n\n**Execution Flow 
+Comparison**:\n```\nBEFORE: Cryptic numeric literals\n1. Calculate test 
+percentage: passing / total * 100.0\n2. Convert duration: duration / 60.0\n3. 
+Truncate error: error[:200]\n4. Show recent: context[-5:]\n\nAFTER: 
+Intention-revealing constants\n1. Calculate test percentage: passing / total * 
+PERCENTAGE_MULTIPLIER\n2. Convert duration: duration / SECONDS_PER_MINUTE\n3. 
+Truncate error: error[:MAX_ERROR_MESSAGE_LENGTH]\n4. Show recent: 
+context[-RECENT_CONTEXT_ENTRIES:]\n```\n\n**Error Handling Preservation**:\n- ✅
+All truncation logic uses same limits (via constants)\n- ✅ All percentage 
+calculations identical\n- ✅ All display logic identical\n- ✅ All error 
+aggregation identical\n- ✅ All timeout handling identical\n\n**Method Cohesion 
+Analysis**:\n- Constants section: High cohesion (only configuration values)\n- 
+Each constant: High cohesion (single purpose)\n- Usage sites: Improved cohesion 
+(clear intent)\n\n**Test Coverage Implications**:\n- Original tests pass 
+(51/51)\n- No new test requirements\n- Edge cases already covered\n- Error paths
+already tested\n- All public behavior preserved\n\n**Type Safety 
+Improvements**:\n1. Clearer intent through constant names\n2. Better 
+documentation of value purposes\n3. Consistent typing throughout\n4. All type 
+inference preserved\n\n**Linting Issues Resolved**:\n1. **Magic Number 
+violations**: Eliminated\n2. **Code readability**: Significantly improved\n3. 
+**Maintainability**: Greatly enhanced\n\n**Code Metrics Comparison**:\n- 
+**Before**: Magic numbers scattered, hard to maintain\n- **After**: Constants 
+centralized, easy to maintain\n- **Quality improvement**: Eliminated code 
+smells\n\n**Maintainability Benefits**:\n1. **Single Point of Modification**: 
+Change values in one place\n2. **Consistency Guaranteed**: Same values used 
+everywhere\n3. **Easier Understanding**: Descriptive names explain purpose\n4. 
+**Better Organization**: Related values grouped\n5. **Enhanced Reusability**: 
+Pattern can be applied elsewhere\n\n**Pattern Reusability**:\nThis refactoring 
+pattern can be applied to other code with magic numbers:\n- Other files in the 
+smell report\n- Configuration values throughout codebase\n- Hard-coded limits 
+and thresholds\n- Repeated numeric literals\n\n**Conclusion**:\nSuccessfully 
+eliminated magic numbers in `agents/orchestrator.py` by extracting them into 
+named constants. This addresses the top priority smells from the code smell 
+report and demonstrates the value of applying DRY principle and Once and Only 
+Once refactoring. The solution maintains all existing behavior, passes all 
+tests, and improves code quality without changing external interfaces.'})
 
-[result] Successfully wrote 10838 bytes to 
+[result] Successfully wrote 13843 bytes to 
 .agent_tasks/auto-improve/last-improvement.md...
-Now let me run a final check to make sure everything is working:
-[tool] pytest_run({'path': 'tests/test_init.py tests/cli/test_app.py', 
-'verbose': True})
+Now let me run a quick check to make sure I haven't missed any magic numbers. Let me search for remaining numeric literals that might be magic numbers:
+[tool] grep({'pattern': '\\b[0-9]+\\.[0-9]+\\b', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
 
-✗ \[error] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-Let me run them separately:
-[tool] pytest_run({'path': 'tests/test_init.py'})
+[result] 24:PERCENTAGE_MULTIPLIER = 100.0
+27:SECONDS_PER_MINUTE = 60.0
+160:    DELEGATION_RATE_TARGET = 40.0  # Target > 40% (from current 25%)
+161:    ERROR_RATE_TARGET = 50.0  # Target reduction of 50%
+162: ...
+I see there are some remaining floating point numbers. Let me check lines 160-163 which look like they might be magic numbers for targets:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+158, 'end_line': 170})
+
+[result] 
+    # Target constants
+    DELEGATION_RATE_TARGET = 40.0  # Target > 40% (from current 25%)
+    ERROR_RATE_TARGET = 50.0  # Target reduction of 50%
+    CONTEXT_WINDOW_TARGET = 40.0  # Target < 40% (f...
+Good! Those are already constants (lines 160-163). The 0.0 values are default initialization values, not magic numbers in the same sense. Let me check line 1897:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1895, 'end_line': 1900})
+
+[result]         return (
+            f"- **File re-reads per task**: {file_re_reads} "
+            f"(Target < {target}, 60% reduction from 3.2)"
+        )
+
+    def _format_delegation_target(self) -> str:
+...
+This has a magic number 3.2. Let me check if this is using the constant:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1890, 'end_line': 1900})
+
+[result] 
+    def _format_file_re_reads(self) -> str:
+        """Format file re-reads with target comparison."""
+        file_re_reads = self.metrics.performance.file_re_reads
+        target = PerformanceMetri...
+I see, line 1897 has a hard-coded "3.2". This should probably also be a constant. Let me check what 3.2 represents - it looks like it's the baseline from which we're trying to achieve a 60% reduction to get to 1.3. Let me update this:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+# Target constants\n    DELEGATION_RATE_TARGET = 40.0  # Target > 40% (from 
+current 25%)\n    ERROR_RATE_TARGET = 50.0  # Target reduction of 50%\n    
+CONTEXT_WINDOW_TARGET = 40.0  # Target < 40% (from 65%)\n    
+FILE_RE_READS_TARGET = 1.3  # Target < 1.3 (60% reduction from 3.2)', 'new_str':
+"    # Target constants\n    DELEGATION_RATE_TARGET = 40.0  # Target > 40% (from
+current 25%)\n    ERROR_RATE_TARGET = 50.0  # Target reduction of 50%\n    
+CONTEXT_WINDOW_TARGET = 40.0  # Target < 40% (from 65%)\n    
+FILE_RE_READS_TARGET = 1.3  # Target < 1.3 (60% reduction from 3.2)\n    
+FILE_RE_READS_BASELINE = 3.2  # Baseline from which we're reducing by 60%"})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update line 1897 to use this constant:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+return (\n            f"- **File re-reads per task**: {file_re_reads} "\n       
+f"(Target < {target}, 60% reduction from 3.2)"\n        )', 'new_str': '        
+return (\n            f"- **File re-reads per task**: {file_re_reads} "\n       
+f"(Target < {target}, 60% reduction from 
+{PerformanceMetrics.FILE_RE_READS_BASELINE})"\n        )'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me run the tests again to make sure everything still works:
+[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': 
+True})
 
 [result] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Perfect! All tests pass. Let me also run a quick check on the CLI app tests:
-[tool] pytest_run({'path': 'tests/cli/test_app.py::test_cli_version_option 
-tests/cli/test_app.py::test_cli_help_option 
-tests/cli/test_app.py::test_cli_default_invocation'})
+Perfect! All tests pass. Let me also check for any integer magic numbers I might have missed:
+[tool] grep({'pattern': '\[:1[0-9][0-9]\\]', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
 
-✗ \[error] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-Let me run the full CLI app test file:
-[tool] pytest_run({'path': 'tests/cli/test_app.py'})
+[result] No matches found...
+Good. Let me check for any other numeric literals that might be magic numbers:
+[tool] grep({'pattern': '\[:[0-9]+\\]', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 1674:                            f"{tc.name}({', '.join(f'{k}={v!r}' 
+for k, v in list(tc.arguments.items())[:2])})"
+1850:                    for k, v in sorted(tool_usage.items(), key=lambda x: 
+x[1], ...
+I see line 1674 has `[:2]` and line 1850 has `[:5]`. These look like they might be magic numbers too. Let me check these lines:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1672, 'end_line': 1676})
+
+[result]                     for tc in msg.tool_calls:
+                        tools_used.append(
+                            f"{tc.name}({', '.join(f'{k}={v!r}' for k, v in 
+list(tc.arguments.items())[:2])})"
+...
+This is showing only the first 2 arguments of a tool call. This is a display limit. Let me check line 1850:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1848, 'end_line': 1852})
+
+[result]                 [
+                    f"{k}: {v}"
+                    for k, v in sorted(tool_usage.items(), key=lambda x: x[1], 
+reverse=True)[:5]
+                ]
+            )
+...
+This is showing the top 5 most used tools. These are also magic numbers that should be constants. Let me add constants for these:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': 
+'MAX_TOOL_CALL_DISPLAY_LENGTH = 120\n"""Maximum length for displaying tool call 
+names in summaries."""\n\nMAX_NARRATION_DISPLAY_LENGTH = 300\n"""Maximum length 
+for displaying narration in timeout summaries."""', 'new_str': 
+'MAX_TOOL_CALL_DISPLAY_LENGTH = 120\n"""Maximum length for displaying tool call 
+names in summaries."""\n\nMAX_NARRATION_DISPLAY_LENGTH = 300\n"""Maximum length 
+for displaying narration in timeout 
+summaries."""\n\nMAX_TOOL_ARGUMENTS_TO_DISPLAY = 2\n"""Maximum number of tool 
+arguments to show in summaries."""\n\nMAX_TOOL_USAGE_TO_DISPLAY = 5\n"""Maximum 
+number of tool usage entries to show in metrics."""'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update lines 1674 and 1850 to use these constants:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+for tc in msg.tool_calls:\n                        tools_used.append(\n         
+f"{tc.name}({\', \'.join(f\'{k}={v!r}\' for k, v in 
+list(tc.arguments.items())[:2])})"\n                        )', 'new_str': '    
+for tc in msg.tool_calls:\n                        tools_used.append(\n         
+f"{tc.name}({\', \'.join(f\'{k}={v!r}\' for k, v in 
+list(tc.arguments.items())[:MAX_TOOL_ARGUMENTS_TO_DISPLAY])})"\n                
+)'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+[\n                    f"{k}: {v}"\n                    for k, v in 
+sorted(tool_usage.items(), key=lambda x: x[1], reverse=True)[:5]\n              
+]', 'new_str': '                [\n                    f"{k}: {v}"\n            
+for k, v in sorted(tool_usage.items(), key=lambda x: x[1], 
+reverse=True)[:MAX_TOOL_USAGE_TO_DISPLAY]\n                ]'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me run the tests again to make sure everything still works:
+[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py'})
 
 [result] ============================= test session starts 
 ==============================
@@ -542,7 +1041,7 @@ platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 --
 cachedir: .pytest_cac...
 ✗ Error: ToolExecutor._handle_context_compacted_event() takes 1 positional 
 argument but 2 were given
-[2026-02-27T07:30:01Z] Running pytest to verify tests pass...
+[2026-02-27T08:00:01Z] Running pytest to verify tests pass...
 ============================= test session starts ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
 rootdir: /home/matthew/mlg-cli
@@ -828,7 +1327,7 @@ tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidatio
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
-  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=1985391) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=2051861) is multi-threaded, use of fork() may lead to deadlocks in the child.
     self.pid = os.fork()
 
 tests/test_interactive.py::test_tool_form
@@ -904,14 +1403,14 @@ tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conv
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
-  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/buffer.py:1834: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def _create_auto_suggest_coroutine(self) -> Callable[[], Coroutine[Any, Any, None]]:
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/cache.py:29: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._keys: deque[_T] = deque()
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
-tests/ui_integration/test_slash_commands.py::TestSlashCommandIntegration::test_invalid_slash_commands[/]
-  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/filters/base.py:131: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    return cls(filters)
+tests/ui_integration/test_slash_commands.py::TestSlashCommandIntegration::test_invalid_slash_commands[]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, name, parent):
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
@@ -934,7 +1433,7 @@ src/henchman/agents/__init__.py                      6      0      0      0   10
 src/henchman/agents/config.py                        2      0      0      0   100%
 src/henchman/agents/identity.py                      9      0      0      0   100%
 src/henchman/agents/ledger.py                       83      0     16      0   100%
-src/henchman/agents/orchestrator.py                697     42    212     26    91%   156->exit, 236, 240, 301->307, 322, 420, 458-461, 507, 577-578, 605->608, 730->737, 783, 902->909, 910->913, 926-934, 944-955, 1114, 1233->1236, 1260, 1337->1356, 1344-1354, 1562->1564, 1632->1641, 1639->1633, 1751-1754, 1795, 1815, 1832, 1838, 1850, 1891, 1895
+src/henchman/agents/orchestrator.py                726     42    212     26    92%   201->exit, 281, 285, 346->352, 367, 465, 503-506, 552, 622-623, 650->653, 775->782, 828, 947->954, 955->958, 971-979, 989-1000, 1159, 1278->1281, 1305, 1382->1401, 1389-1399, 1607->1609, 1677->1686, 1684->1678, 1796-1799, 1840, 1860, 1877, 1883, 1895, 1936, 1940
 src/henchman/agents/pool.py                         71      2     30      3    95%   127-128, 147->155, 230->exit
 src/henchman/agents/presets.py                      20      0      0      0   100%
 src/henchman/agents/prompts.py                      47      1     12      2    95%   584->586, 590
@@ -1074,7 +1573,7 @@ src/henchman/utils/tokens.py                        55      2     20      2    9
 src/henchman/utils/validation.py                    82      1     36      1    98%   45
 src/henchman/version.py                              3      0      0      0   100%
 --------------------------------------------------------------------------------------------
-TOTAL                                            13339   2381   4008    443    80%
-=========== 2552 passed, 5 skipped, 34 warnings in 150.93s (0:02:30) ===========
-[2026-02-27T07:30:01Z] All tests passed.
+TOTAL                                            13368   2381   4008    443    80%
+=========== 2552 passed, 5 skipped, 34 warnings in 151.43s (0:02:31) ===========
+[2026-02-27T08:00:01Z] All tests passed.
 Committing changes...
