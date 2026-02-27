@@ -1615,51 +1615,156 @@ class Orchestrator:
         Yields:
             AgentEvents from the specialist agent.
         """
-        if depth > self.settings.agents.max_delegation_depth:
-            yield AgentEvent(
-                type=EventType.ERROR,
-                data=f"Error: Maximum delegation depth ({self.settings.agents.max_delegation_depth}) exceeded.",
-                source_agent="orchestrator",
-            )
-            yield AgentEvent(
-                type=EventType.AGENT_COMPLETED,
-                data={"summary": "Max depth exceeded"},
-                source_agent="orchestrator",
-            )
+        # Validate delegation depth
+        if self._is_delegation_depth_exceeded(depth):
+            async for event in self._yield_depth_exceeded_error():
+                yield event
             return
 
-        try:
-            target_agent = self.pool.get_agent(target_role)
-        except ValueError as e:
-            yield AgentEvent(type=EventType.ERROR, data=str(e), source_agent="orchestrator")
-            yield AgentEvent(
-                type=EventType.AGENT_COMPLETED,
-                data={"summary": f"Agent {target_role} not found"},
-                source_agent="orchestrator",
-            )
+        # Get target agent with error handling
+        target_agent_result = await self._get_target_agent_with_error_handling(target_role)
+        if isinstance(target_agent_result, AgentEvent):
+            yield target_agent_result
+            async for event in self._yield_agent_not_found_completion(target_role):
+                yield event
             return
+        target_agent = target_agent_result
 
+        # Start delegation
         yield AgentEvent(
             type=EventType.AGENT_STARTED, data={"agent": target_role}, source_agent="orchestrator"
         )
 
+        # Prepare and execute delegation
+        full_task, msg_start = self._prepare_delegation_execution(target_agent, target_role, brief, task)
+
+        # Execute the agent loop
+        async for event in self._execute_delegation_loop(target_agent, full_task, depth, msg_start):
+            yield event
+
+        # Finalize delegation
+        async for event in self._finalize_delegation(target_role, target_agent, msg_start):
+            yield event
+
+    def _is_delegation_depth_exceeded(self, depth: int) -> bool:
+        """Check if delegation depth exceeds configured limit.
+
+        Args:
+            depth: Current recursion depth.
+
+        Returns:
+            True if depth exceeds limit, False otherwise.
+        """
+        return depth > self.settings.agents.max_delegation_depth
+
+    async def _yield_depth_exceeded_error(self) -> AsyncIterator[AgentEvent]:
+        """Yield error events for exceeded delegation depth.
+
+        Yields:
+            ERROR and AGENT_COMPLETED events.
+        """
+        yield AgentEvent(
+            type=EventType.ERROR,
+            data=f"Error: Maximum delegation depth ({self.settings.agents.max_delegation_depth}) exceeded.",
+            source_agent="orchestrator",
+        )
+        yield AgentEvent(
+            type=EventType.AGENT_COMPLETED,
+            data={"summary": "Max depth exceeded"},
+            source_agent="orchestrator",
+        )
+
+    async def _get_target_agent_with_error_handling(
+        self, target_role: str
+    ) -> Agent | AgentEvent:
+        """Get target agent with proper error handling.
+
+        Args:
+            target_role: The role ID of the specialist.
+
+        Returns:
+            Agent instance if found, otherwise AgentEvent with error.
+        """
+        try:
+            return self.pool.get_agent(target_role)
+        except ValueError as e:
+            return AgentEvent(type=EventType.ERROR, data=str(e), source_agent="orchestrator")
+
+    async def _yield_agent_not_found_completion(
+        self, target_role: str
+    ) -> AsyncIterator[AgentEvent]:
+        """Yield completion event for agent not found error.
+
+        Args:
+            target_role: The role ID that was not found.
+
+        Yields:
+            AGENT_COMPLETED event.
+        """
+        yield AgentEvent(
+            type=EventType.AGENT_COMPLETED,
+            data={"summary": f"Agent {target_role} not found"},
+            source_agent="orchestrator",
+        )
+
+    def _prepare_delegation_execution(
+        self,
+        target_agent: Agent,
+        target_role: str,
+        brief: dict[str, Any] | None,
+        task: str,
+    ) -> tuple[str, int]:
+        """Prepare agent and context for delegation execution.
+
+        Args:
+            target_agent: The agent to execute delegation.
+            target_role: The role ID of the specialist.
+            brief: Structured delegation brief.
+            task: The task description.
+
+        Returns:
+            Tuple of (full_task, msg_start) where:
+            - full_task: Assembled task with context
+            - msg_start: Starting message index for result extraction
+        """
         # Clean start: wipe prior conversation so the specialist has no
-        # stale context from earlier delegations.  The system prompt is
+        # stale context from earlier delegations. The system prompt is
         # preserved by clear_history().
         target_agent.clear_history()
 
         # Prepare context for delegation
-        brief = self._prepare_delegation_context(target_role, brief)
+        prepared_brief = self._prepare_delegation_context(target_role, brief)
 
         # Assemble the full task from the structured brief fields
         full_task = self._assemble_delegation_input(
-            task, brief, mission=self.ledger.goal if self.ledger else None
+            task, prepared_brief, mission=self.ledger.goal if self.ledger else None
         )
 
         # Record where the agent's messages start so we can extract a clean
         # summary afterwards (content events may be duplicated during streaming).
-        max_turns = self.settings.agents.max_delegation_turns
         msg_start = len(target_agent.messages)
+
+        return full_task, msg_start
+
+    async def _execute_delegation_loop(
+        self,
+        target_agent: Agent,
+        full_task: str,
+        depth: int,
+        msg_start: int,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute the agent loop for delegation.
+
+        Args:
+            target_agent: The agent to execute.
+            full_task: Assembled task with context.
+            depth: Current recursion depth.
+            msg_start: Starting message index.
+
+        Yields:
+            AgentEvents from the specialist agent.
+        """
+        max_turns = self.settings.agents.max_delegation_turns
         async for event in self._run_agent_loop(
             target_agent,
             full_task,
@@ -1669,6 +1774,22 @@ class Orchestrator:
         ):
             yield event
 
+    async def _finalize_delegation(
+        self,
+        target_role: str,
+        target_agent: Agent,
+        msg_start: int,
+    ) -> AsyncIterator[AgentEvent]:
+        """Process delegation results and yield completion event.
+
+        Args:
+            target_role: The role ID of the specialist.
+            target_agent: The agent that executed the delegation.
+            msg_start: Starting message index for result extraction.
+
+        Yields:
+            AGENT_COMPLETED event with results.
+        """
         # Process delegation results
         summary, parsed, status = self._process_delegation_results(
             target_role, target_agent, msg_start
