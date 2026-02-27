@@ -90,32 +90,35 @@ class ContextCommand(Command):
         """
         settings = load_settings()
         context_settings = settings.context
+        
+        # Use a local reference to reduce ctx accesses (Feature Envy)
+        console = ctx.console
 
-        ctx.console.print("\n[bold blue]Intelligent Context Management[/]\n")
-        ctx.console.print(
+        console.print("\n[bold blue]Intelligent Context Management[/]\n")
+        console.print(
             f"  Status: [{'green' if context_settings.intelligent_context else 'red'}]"
             f"{'Enabled' if context_settings.intelligent_context else 'Disabled'}[/]"
         )
-        ctx.console.print(
+        console.print(
             f"  Adaptive compression: [{'green' if context_settings.adaptive_compression else 'yellow'}]"
             f"{'Enabled' if context_settings.adaptive_compression else 'Disabled'}[/]"
         )
-        ctx.console.print(f"  Max tokens: [cyan]{context_settings.max_tokens}[/]")
-        ctx.console.print(
+        console.print(f"  Max tokens: [cyan]{context_settings.max_tokens}[/]")
+        console.print(
             f"  Compaction threshold: [cyan]{context_settings.compaction_threshold * 100:.0f}%[/]"
         )
-        ctx.console.print(
+        console.print(
             f"  Importance threshold: [cyan]{context_settings.importance_threshold}[/]"
         )
-        ctx.console.print(
+        console.print(
             f"  Cluster similarity: [cyan]{context_settings.cluster_similarity_threshold}[/]"
         )
-        ctx.console.print("")
-        ctx.console.print("  Use [cyan]/context enable[/] to enable intelligent context")
-        ctx.console.print("  Use [cyan]/context disable[/] to disable intelligent context")
-        ctx.console.print("  Use [cyan]/context strategy[/] to manage compression strategies")
-        ctx.console.print("  Use [cyan]/context stats[/] to view usage statistics")
-        ctx.console.print("")
+        console.print("")
+        console.print("  Use [cyan]/context enable[/] to enable intelligent context")
+        console.print("  Use [cyan]/context disable[/] to disable intelligent context")
+        console.print("  Use [cyan]/context strategy[/] to manage compression strategies")
+        console.print("  Use [cyan]/context stats[/] to view usage statistics")
+        console.print("")
 
     async def _enable_intelligent_context(self, ctx: CommandContext) -> None:
         """Enable intelligent context management.
@@ -162,11 +165,11 @@ class ContextCommand(Command):
 
         action = args[self._STRATEGY_ACTION_IDX].lower()
         if action == "set":
-            if len(args) < 2:  # Need at least 'set' and 'parameter'
+            if len(args) < 3:  # Need at least 'set', 'parameter' and 'value'
                 ctx.console.print("[yellow]Usage: /context strategy set <parameter> <value>[/]")
                 ctx.console.print("\nParameters:")
                 ctx.console.print("  max_tokens <int>          - Maximum tokens before compaction")
-                ctx.console.print("  threshold <float>         - Compaction threshold (0.0-1.0)")
+                ctx.console.print("  threshold <float>         - Compaction threshold (0.1-1.0)")
                 ctx.console.print("  importance <float>        - Importance threshold (0.0-1.0)")
                 ctx.console.print(
                     "  similarity <float>        - Cluster similarity threshold (0.0-1.0)"
@@ -177,7 +180,7 @@ class ContextCommand(Command):
                 return
             
             param = args[self._STRATEGY_PARAM_IDX]
-            value = args[self._STRATEGY_VALUE_IDX] if len(args) > self._STRATEGY_VALUE_IDX else None
+            value = args[self._STRATEGY_VALUE_IDX]
             await self._set_strategy_parameter(ctx, param, value)
         else:
             ctx.console.print("[yellow]Usage: /context strategy [set <parameter> <value>][/]")
@@ -190,27 +193,28 @@ class ContextCommand(Command):
         """
         settings = load_settings()
         context_settings = settings.context
+        console = ctx.console
 
-        ctx.console.print("\n[bold blue]Compression Strategy Settings[/]\n")
-        ctx.console.print(f"  Max tokens: [cyan]{context_settings.max_tokens}[/]")
-        ctx.console.print(
+        console.print("\n[bold blue]Compression Strategy Settings[/]\n")
+        console.print(f"  Max tokens: [cyan]{context_settings.max_tokens}[/]")
+        console.print(
             f"  Compaction threshold: [cyan]{context_settings.compaction_threshold}[/]"
         )
-        ctx.console.print(
+        console.print(
             f"  Importance threshold: [cyan]{context_settings.importance_threshold}[/]"
         )
-        ctx.console.print(
+        console.print(
             f"  Cluster similarity: [cyan]{context_settings.cluster_similarity_threshold}[/]"
         )
-        ctx.console.print(
+        console.print(
             f"  Adaptive compression: [{'green' if context_settings.adaptive_compression else 'yellow'}]"
             f"{'Enabled' if context_settings.adaptive_compression else 'Disabled'}[/]"
         )
-        ctx.console.print("")
-        ctx.console.print(
+        console.print("")
+        console.print(
             "  Use [cyan]/context strategy set <parameter> <value>[/] to change settings"
         )
-        ctx.console.print("")
+        console.print("")
 
     async def _set_strategy_parameter(
         self, ctx: CommandContext, param: str, value: str | None
@@ -266,35 +270,44 @@ class ContextCommand(Command):
         save_settings(settings)
         ctx.console.print(f"[green]✓ {param_name.replace('_', ' ').capitalize()} set to {display_value}[/]")
 
+    async def _handle_range_parameter(
+        self, 
+        ctx: CommandContext, 
+        value: str, 
+        param_name: str, 
+        min_val: float, 
+        max_val: float | None = None,
+        is_int: bool = False,
+        label: str | None = None
+    ) -> None:
+        """Generic handler for range-validated parameters (DRY)."""
+        val = int(value) if is_int else float(value)
+        
+        display_label = label or param_name.replace('_', ' ').capitalize()
+        if max_val is not None:
+            if not min_val <= val <= max_val:
+                raise ValueError(f"{display_label} must be between {min_val} and {max_val}")
+        else:
+            if val < min_val:
+                raise ValueError(f"{display_label} must be at least {min_val}")
+                
+        await self._update_context_setting(ctx, param_name, val, str(val))
+
     async def _handle_max_tokens_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle max_tokens parameter setting."""
-        int_value = int(value)
-        if int_value < 1000:
-            raise ValueError("Max tokens must be at least 1000")
-        await self._update_context_setting(ctx, "max_tokens", int_value, str(int_value))
+        await self._handle_range_parameter(ctx, value, "max_tokens", 1000, is_int=True)
 
     async def _handle_threshold_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle threshold parameter setting."""
-        float_value = float(value)
-        if not 0.1 <= float_value <= 1.0:
-            raise ValueError("Threshold must be between 0.1 and 1.0")
-        await self._update_context_setting(ctx, "compaction_threshold", float_value, str(float_value))
+        await self._handle_range_parameter(ctx, value, "compaction_threshold", 0.1, 1.0, label="Threshold")
 
     async def _handle_importance_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle importance parameter setting."""
-        float_value = float(value)
-        if not 0.0 <= float_value <= 1.0:
-            raise ValueError("Importance threshold must be between 0.0 and 1.0")
-        await self._update_context_setting(ctx, "importance_threshold", float_value, str(float_value))
+        await self._handle_range_parameter(ctx, value, "importance_threshold", 0.0, 1.0)
 
     async def _handle_similarity_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle similarity parameter setting."""
-        float_value = float(value)
-        if not 0.0 <= float_value <= 1.0:
-            raise ValueError("Similarity threshold must be between 0.0 and 1.0")
-        await self._update_context_setting(
-            ctx, "cluster_similarity_threshold", float_value, str(float_value)
-        )
+        await self._handle_range_parameter(ctx, value, "cluster_similarity_threshold", 0.0, 1.0)
 
     async def _handle_adaptive_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle adaptive parameter setting."""
@@ -316,6 +329,9 @@ class ContextCommand(Command):
             ctx.console.print("[yellow]No active agent. Cannot show context statistics.[/]")
             return
 
+        # Use local reference to reduce ctx accesses
+        console = ctx.console
+
         # Try to get statistics from the agent's context manager
         try:
             from henchman.utils.intelligent_context import IntelligentContextManager
@@ -326,37 +342,29 @@ class ContextCommand(Command):
                 compactor = ctx.agent.compactor
                 stats = compactor.get_statistics() if hasattr(compactor, "get_statistics") else {}
 
-                ctx.console.print("\n[bold blue]Context Usage Statistics[/]\n")
+                console.print("\n[bold blue]Context Usage Statistics[/]\n")
 
                 if stats:
-                    ctx.console.print(
-                        f"  Total messages: [cyan]{stats.get('total_messages', 'N/A')}[/]"
-                    )
-                    ctx.console.print(
-                        f"  Clusters created: [cyan]{stats.get('clusters_created', 'N/A')}[/]"
-                    )
-                    ctx.console.print(
-                        f"  Compression ratio: [cyan]{stats.get('compression_ratio', 'N/A')}[/]"
-                    )
-                    ctx.console.print(
-                        f"  Tokens saved: [cyan]{stats.get('tokens_saved', 'N/A')}[/]"
-                    )
+                    console.print(f"  Total messages: [cyan]{stats.get('total_messages', 'N/A')}[/]")
+                    console.print(f"  Clusters created: [cyan]{stats.get('clusters_created', 'N/A')}[/]")
+                    console.print(f"  Compression ratio: [cyan]{stats.get('compression_ratio', 'N/A')}[/]")
+                    console.print(f"  Tokens saved: [cyan]{stats.get('tokens_saved', 'N/A')}[/]")
                 else:
-                    ctx.console.print("  [dim]No statistics available.[/]")
+                    console.print("  [dim]No statistics available.[/]")
 
                 # Show current context size if available
                 if hasattr(ctx.agent, "session") and ctx.agent.session:
                     messages = (
                         ctx.agent.session.messages if hasattr(ctx.agent.session, "messages") else []
                     )
-                    ctx.console.print(f"  Current messages in session: [cyan]{len(messages)}[/]")
+                    console.print(f"  Current messages in session: [cyan]{len(messages)}[/]")
 
-                ctx.console.print("")
+                console.print("")
             else:
-                ctx.console.print("[yellow]Intelligent context manager not active.[/]")
-                ctx.console.print("[dim]Enable intelligent context with /context enable[/]")
+                console.print("[yellow]Intelligent context manager not active.[/]")
+                console.print("[dim]Enable intelligent context with /context enable[/]")
 
         except ImportError:
-            ctx.console.print("[yellow]Intelligent context module not available.[/]")
+            console.print("[yellow]Intelligent context module not available.[/]")
         except Exception as e:
-            ctx.console.print(f"[yellow]Could not retrieve statistics: {e}[/]")
+            console.print(f"[yellow]Could not retrieve statistics: {e}[/]")
