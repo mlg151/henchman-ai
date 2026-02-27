@@ -6,7 +6,8 @@ import asyncio
 import os
 import sys
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Optional
 
 import anyio
 import click
@@ -26,6 +27,30 @@ from henchman.utils.lazy_import import getattr_for_textual_app
 __getattr__ = getattr_for_textual_app(__name__)
 
 console = Console()
+
+
+@dataclass
+class RunConfig:
+    """Configuration for running the Henchman CLI."""
+
+    output_format: str = "text"
+    plan_mode: bool = False
+    yes: bool = False
+    agent_role: Optional[str] = None
+    prompt: Optional[str] = None
+    debug: bool = False
+    tui: bool = False
+    team: bool = False
+
+
+@dataclass
+class RuntimeContext:
+    """Consolidated runtime context for the CLI."""
+
+    provider: Any
+    settings: Any
+    system_prompt: str
+    env_block: str
 
 
 def _get_provider() -> ModelProvider:
@@ -141,25 +166,14 @@ def _show_team_info() -> None:
     console.print(table)
 
 
-def _run_interactive(
-    output_format: str, plan_mode: bool = False, yes: bool = False, agent_role: str | None = None
-) -> None:
-    """Run interactive REPL mode.
+def _prepare_runtime_context() -> RuntimeContext:
+    """Prepare common runtime objects like provider, settings, and context.
 
-    Args:
-        output_format: Output format (text, json, stream-json, json-complete).
-        plan_mode: Whether to start in plan mode.
-        yes: Auto-approve all tool executions.
-        agent_role: Target a specific specialist agent.
+    Returns:
+        A RuntimeContext instance.
     """
-    from pathlib import Path
-
-    from henchman.cli.console import OutputRenderer, ThemeManager
-    from henchman.cli.repl import Repl, ReplConfig
-    from henchman.cli.ui_renderer import UIRenderer
     from henchman.config import ContextLoader, load_settings
     from henchman.config.environment import format_environment_block, gather_environment
-    from henchman.rag import initialize_rag
 
     provider = _get_provider()
     settings = load_settings()
@@ -172,27 +186,66 @@ def _run_interactive(
     env_ctx = gather_environment()
     env_block = format_environment_block(env_ctx)
 
+    return RuntimeContext(
+        provider=provider,
+        settings=settings,
+        system_prompt=system_prompt,
+        env_block=env_block,
+    )
+
+
+def _get_theme_and_renderer(settings: Any, silent: bool = False) -> tuple[Any, Any]:
+    """Initialize theme and UI renderer based on settings.
+
+    Args:
+        settings: Application settings.
+        silent: Whether to suppress warnings about missing themes.
+
+    Returns:
+        Tuple of (theme, renderer).
+    """
+    from henchman.cli.console import OutputRenderer, ThemeManager
+    from henchman.cli.ui_renderer import UIRenderer
+
     # Create themed renderer based on settings
     theme_manager = ThemeManager()
     theme_name = settings.ui.theme if settings.ui else "dark"
 
     # Validate theme exists, fall back to default if not
     if theme_name not in theme_manager.list_themes():
-        console.print(f"[yellow]Warning:[/] Theme '{theme_name}' not found")
-        console.print("[dim]Falling back to default theme (dark)[/]")
+        if not silent:
+            console.print(f"[yellow]Warning:[/] Theme '{theme_name}' not found")
+            console.print("[dim]Falling back to default theme (dark)[/]")
         theme_name = "dark"
 
     theme = theme_manager.get_theme(theme_name)
     output_renderer = OutputRenderer(console=console, theme=theme)
     renderer = UIRenderer(console=console, renderer=output_renderer)
 
-    config = ReplConfig(system_prompt=system_prompt, auto_approve_tools=yes)
+    return theme, renderer
+
+
+def _run_interactive(config: RunConfig) -> None:
+    """Run interactive REPL mode.
+
+    Args:
+        config: Run configuration.
+    """
+    from pathlib import Path
+
+    from henchman.cli.repl import Repl, ReplConfig
+    from henchman.rag import initialize_rag
+
+    ctx = _prepare_runtime_context()
+    _, renderer = _get_theme_and_renderer(ctx.settings)
+
+    repl_config = ReplConfig(system_prompt=ctx.system_prompt, auto_approve_tools=config.yes)
     repl = Repl(
-        provider=provider,
+        provider=ctx.provider,
         console=console,
-        config=config,
-        settings=settings,
-        environment_context=env_block,
+        config=repl_config,
+        settings=ctx.settings,
+        environment_context=ctx.env_block,
         renderer=renderer,
     )
 
@@ -202,13 +255,13 @@ def _run_interactive(
     repl.set_session(session)
 
     # Initialize RAG system
-    rag_system = initialize_rag(settings.rag, console=console, index=False)
+    rag_system = initialize_rag(ctx.settings.rag, console=console, index=False)
     if rag_system:
         repl.tool_registry.register(rag_system.search_tool)
         repl.rag_system = rag_system
 
     # Set plan mode if requested
-    if plan_mode and repl.session_manager.current:
+    if config.plan_mode and repl.session_manager.current:
         repl.session_manager.current.plan_mode = True
         repl.tool_manager.set_plan_mode(True)
         # Add plan mode prompt to system prompt
@@ -216,16 +269,11 @@ def _run_interactive(
 
         repl.agent.system_prompt += PLAN_MODE_PROMPT
 
-    if output_format == "text":
-        if agent_role:
+    if config.output_format == "text":
+        if config.agent_role:
 
             async def start_repl() -> None:
-                """Start the REPL with agent role context.
-
-                This wrapper function allows passing agent_role context
-                to the REPL in future implementations.
-                """
-                # In the future we might want to do something with agent_role here
+                """Start the REPL with agent role context."""
                 await repl.run()
 
             anyio.run(start_repl)
@@ -239,112 +287,71 @@ def _run_interactive(
         anyio.run(repl.run)
 
 
-def _run_textual_tui(
-    output_format: str, plan_mode: bool = False, yes: bool = False, agent_role: str | None = None
-) -> None:
+def _run_textual_tui(config: RunConfig) -> None:
     """Run Textual TUI mode.
 
     Args:
-        output_format: Output format (ignored for TUI mode).
-        plan_mode: Whether to start in plan mode.
-        yes: Auto-approve all tool executions.
-        agent_role: Target a specific specialist agent.
+        config: Run configuration.
     """
     from henchman.cli.textual_app import TextualConfig, run_textual_app
-    from henchman.config import ContextLoader, load_settings
-    from henchman.config.environment import format_environment_block, gather_environment
 
-    provider = _get_provider()
-    settings = load_settings()
-
-    # Load context from HENCHMAN.md files
-    context_loader = ContextLoader()
-    system_prompt = context_loader.load()
-
-    # Gather environment context once
-    env_ctx = gather_environment()
-    env_block = format_environment_block(env_ctx)
+    ctx = _prepare_runtime_context()
 
     # Add plan mode prompt if requested
-    if plan_mode:
+    if config.plan_mode:
         from henchman.cli.commands.plan import PLAN_MODE_PROMPT
 
-        system_prompt += PLAN_MODE_PROMPT
+        ctx.system_prompt += PLAN_MODE_PROMPT
 
-    config = TextualConfig(system_prompt=system_prompt, auto_approve_tools=yes, agent_role=agent_role)
+    textual_config = TextualConfig(
+        system_prompt=ctx.system_prompt, auto_approve_tools=config.yes, agent_role=config.agent_role
+    )
 
-    if output_format != "text":
+    if config.output_format != "text":
         console.print(
             "[yellow]Warning:[/] Textual TUI only supports text output format. Using text format."
         )
 
     run_textual_app(
-        provider=provider,
-        config=config,
-        settings=settings,
-        environment_context=env_block,
+        provider=ctx.provider,
+        config=textual_config,
+        settings=ctx.settings,
+        environment_context=ctx.env_block,
     )
 
 
-def _create_headless_repl(
-    plan_mode: bool = False,
-    yes: bool = False,
-) -> tuple[Any, Any, Any]:
+def _create_headless_repl(config: RunConfig) -> tuple[Any, Any, Any]:
     """Create and configure a REPL instance for headless mode.
 
     Args:
-        plan_mode: Whether to run in plan mode.
-        yes: Auto-approve all tool executions.
+        config: Run configuration.
 
     Returns:
         Tuple of (repl instance, settings, system_prompt).
     """
     from pathlib import Path
 
-    from henchman.cli.console import OutputRenderer, ThemeManager
     from henchman.cli.repl import Repl, ReplConfig
-    from henchman.cli.ui_renderer import UIRenderer
-    from henchman.config import ContextLoader, load_settings
-    from henchman.config.environment import format_environment_block, gather_environment
     from henchman.rag import initialize_rag
 
-    provider = _get_provider()
-    settings = load_settings()
-
-    # Load context from HENCHMAN.md files
-    context_loader = ContextLoader()
-    system_prompt = context_loader.load()
-
-    # Gather environment context once
-    env_ctx = gather_environment()
-    env_block = format_environment_block(env_ctx)
+    ctx = _prepare_runtime_context()
 
     # Add plan mode prompt if requested
-    if plan_mode:  # pragma: no cover
+    if config.plan_mode:  # pragma: no cover
         from henchman.cli.commands.plan import PLAN_MODE_PROMPT
 
-        system_prompt += PLAN_MODE_PROMPT
+        ctx.system_prompt += PLAN_MODE_PROMPT
 
-    # Create themed renderer based on settings (for text output mode)
-    theme_manager = ThemeManager()
-    theme_name = settings.ui.theme if settings.ui else "dark"
+    # Initialize theme and UI renderer (for text output mode)
+    _, renderer = _get_theme_and_renderer(ctx.settings, silent=True)
 
-    # Validate theme exists, fall back to default if not
-    if theme_name not in theme_manager.list_themes():
-        # In headless mode, we don't print warnings to console
-        theme_name = "dark"
-
-    theme = theme_manager.get_theme(theme_name)
-    output_renderer = OutputRenderer(console=console, theme=theme)
-    renderer = UIRenderer(console=console, renderer=output_renderer)
-
-    config = ReplConfig(system_prompt=system_prompt, auto_approve_tools=yes)
+    repl_config = ReplConfig(system_prompt=ctx.system_prompt, auto_approve_tools=config.yes)
     repl = Repl(
-        provider=provider,
+        provider=ctx.provider,
         console=console,
-        config=config,
-        settings=settings,
-        environment_context=env_block,
+        config=repl_config,
+        settings=ctx.settings,
+        environment_context=ctx.env_block,
         renderer=renderer,
     )
 
@@ -354,45 +361,38 @@ def _create_headless_repl(
     repl.set_session(session)
 
     # Initialize RAG system
-    rag_system = initialize_rag(settings.rag, index=False)  # No console output in headless
+    rag_system = initialize_rag(ctx.settings.rag, index=False)  # No console output in headless
     if rag_system:
         repl.tool_registry.register(rag_system.search_tool)
         repl.rag_system = rag_system
 
     # Set plan mode if requested
-    if plan_mode and repl.session_manager.current:  # pragma: no cover
+    if config.plan_mode and repl.session_manager.current:  # pragma: no cover
         repl.session_manager.current.plan_mode = True
         repl.tool_manager.set_plan_mode(True)
 
-    return repl, settings, system_prompt
+    return repl, ctx.settings, ctx.system_prompt
 
 
-def _run_headless(
-    prompt: str,
-    output_format: str,
-    plan_mode: bool = False,
-    yes: bool = False,
-    agent_role: str | None = None,
-) -> None:
+def _run_headless(config: RunConfig) -> None:
     """Run headless mode with a single prompt.
 
     Args:
-        prompt: The prompt to process.
-        output_format: Output format (text, json, stream-json, json-complete).
-        plan_mode: Whether to run in plan mode.
-        yes: Auto-approve all tool executions.
-        agent_role: Target a specific specialist agent.
+        config: Run configuration.
     """
-    repl, settings, system_prompt = _create_headless_repl(plan_mode, yes)
+    if config.prompt is None:
+        return
 
-    if output_format == "text":
-        anyio.run(_run_headless_text, repl, prompt, agent_role)
-    elif output_format == "json":
-        anyio.run(_run_headless_json, repl, prompt)
-    elif output_format == "stream-json":
-        anyio.run(_run_headless_stream_json, repl, prompt)
-    elif output_format == "json-complete":
-        anyio.run(_run_headless_json_complete, repl, prompt)
+    repl, _, _ = _create_headless_repl(config)
+
+    if config.output_format == "text":
+        anyio.run(_run_headless_text, repl, config.prompt, config.agent_role)
+    elif config.output_format == "json":
+        anyio.run(_run_headless_json, repl, config.prompt)
+    elif config.output_format == "stream-json":
+        anyio.run(_run_headless_stream_json, repl, config.prompt)
+    elif config.output_format == "json-complete":
+        anyio.run(_run_headless_json_complete, repl, config.prompt)
     else:  # pragma: no cover
         pass
 
@@ -653,38 +653,47 @@ def chat_command(
     debug: bool,
 ) -> None:
     """Start an interactive chat session or run with --prompt for headless mode."""
-    # Configure debug output filtering
-    if not debug:
-        import builtins
-        _orig_print = builtins.print
-        def _filtered_print(*args: object, **kwargs: object) -> None:
-            """Filter out DEBUG print statements when debug mode is disabled.
+    config = RunConfig(
+        prompt=prompt,
+        agent_role=agent,
+        team=team,
+        output_format=output_format,
+        plan_mode=plan,
+        yes=yes,
+        tui=tui,
+        debug=debug,
+    )
 
-            Args:
-                *args: Arguments passed to print function.
-                **kwargs: Keyword arguments passed to print function.
-            """
+    # Configure debug output filtering
+    if not config.debug:
+        import builtins
+
+        _orig_print = builtins.print
+
+        def _filtered_print(*args: object, **kwargs: object) -> None:
+            """Filter out DEBUG print statements when debug mode is disabled."""
             if args and isinstance(args[0], str) and args[0].startswith("DEBUG"):
                 return
             _orig_print(*args, **kwargs)  # type: ignore[call-overload]
+
         builtins.print = _filtered_print
-    if team:
+
+    if config.team:
         _show_team_info()
         return
 
-    if tui and prompt:
+    if config.tui and config.prompt:
         console.print(
             "[yellow]Warning:[/] Textual TUI does not support headless mode. Using interactive mode."
         )
-        tui = True
-        prompt = None
+        config.prompt = None
 
-    if prompt:
-        _run_headless(prompt, output_format, plan, yes, agent_role=agent)
-    elif tui:
-        _run_textual_tui(output_format, plan, yes, agent_role=agent)
+    if config.prompt:
+        _run_headless(config)
+    elif config.tui:
+        _run_textual_tui(config)
     else:
-        _run_interactive(output_format, plan, yes, agent_role=agent)
+        _run_interactive(config)
 
 
 # Add serve command to CLI group

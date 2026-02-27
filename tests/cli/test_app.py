@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from henchman.cli.app import cli, main
+from henchman.cli.app import RunConfig, cli, main
 from henchman.version import VERSION
 
 
@@ -46,9 +46,10 @@ def test_cli_with_prompt_option() -> None:
         result = runner.invoke(cli, ["chat", "--prompt", "Hello world"])
         assert result.exit_code == 0
         mock_run.assert_called_once()
-        # Check prompt is passed
-        call_args = mock_run.call_args
-        assert call_args[0][0] == "Hello world"  # First positional arg
+        # Check prompt is passed in RunConfig
+        config = mock_run.call_args[0][0]
+        assert isinstance(config, RunConfig)
+        assert config.prompt == "Hello world"
 
 
 def test_cli_with_short_prompt_option() -> None:
@@ -258,7 +259,7 @@ class TestShowTeamInfo:
             patch("henchman.cli.app.anyio") as mock_anyio,
         ):
             mock_provider.return_value = MagicMock()
-            _run_interactive("text")
+            _run_interactive(RunConfig(output_format="text"))
 
             # Verify Repl was called with correct arguments
             assert mock_repl.call_count == 1
@@ -288,7 +289,7 @@ class TestRunHeadless:
         ):
             mock_provider.return_value = MagicMock()
 
-            _run_headless("Hello world", "text")
+            _run_headless(RunConfig(prompt="Hello world", output_format="text"))
 
             # Verify Repl was called with correct arguments
             assert mock_repl.call_count == 1
