@@ -18,7 +18,7 @@ from henchman.providers.base import ToolCall
 from henchman.tools.base import ConfirmationRequest
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Callable
 
     from rich.status import Status
 
@@ -220,33 +220,63 @@ class ToolExecutor:
         result_text = result_data.get("result", "")
         success = result_data.get("success", True)
 
+        self._display_tool_result(result_text, success)
+
+        # Only record results and flush assistant messages if it's our event
+        if not is_own_event:
+            return session_tool_calls_flushed
+
+        handled_tool_call_ids.add(tc_id)
+
+        # Record to session: flush assistant tool_calls msg once,
+        # then each tool result as it arrives.
+        if not session_tool_calls_flushed and pending_tool_calls:
+            session_tool_calls_flushed = self._flush_pending_tool_calls_to_session(
+                pending_tool_calls, accumulated_content, last_agent_id
+            )
+
+        self.output_handler.session_manager.record_tool_result(tc_id, result_text)
+        return session_tool_calls_flushed
+
+    def _display_tool_result(self, result_text: str, success: bool) -> None:
+        """Display tool result with appropriate styling.
+
+        Args:
+            result_text: The result text to display.
+            success: Whether the tool execution was successful.
+        """
         if success:
             self.output_handler.muted(f"\\[result] {_escape(result_text[:MAX_RESULT_PREVIEW_LENGTH])}...")
         else:
             self.output_handler.error(f"\\[error] {_escape(result_text[:MAX_RESULT_PREVIEW_LENGTH])}")
 
-        # Only record results and flush assistant messages if it's our event
-        if is_own_event:
-            handled_tool_call_ids.add(tc_id)
+    def _flush_pending_tool_calls_to_session(
+        self,
+        pending_tool_calls: list[ToolCall],
+        accumulated_content: list[str],
+        last_agent_id: str | None,
+    ) -> bool:
+        """Flush pending tool calls to session recording.
 
-            # Record to session: flush assistant tool_calls msg once,
-            # then each tool result as it arrives.
-            if not session_tool_calls_flushed and pending_tool_calls:
-                tool_calls_dicts = [
-                    {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                    for tc in pending_tool_calls
-                ]
-                self.output_handler.session_manager.record_agent_message(
-                    content="".join(accumulated_content) if accumulated_content else None,
-                    tool_calls=tool_calls_dicts,
-                    agent_id=last_agent_id,
-                )
-                accumulated_content.clear()
-                session_tool_calls_flushed = True
+        Args:
+            pending_tool_calls: List of pending tool calls.
+            accumulated_content: List of accumulated content for session.
+            last_agent_id: ID of the last agent that sent an event.
 
-            self.output_handler.session_manager.record_tool_result(tc_id, result_text)
-
-        return session_tool_calls_flushed
+        Returns:
+            True after flushing (always returns True).
+        """
+        tool_calls_dicts = [
+            {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
+            for tc in pending_tool_calls
+        ]
+        self.output_handler.session_manager.record_agent_message(
+            content="".join(accumulated_content) if accumulated_content else None,
+            tool_calls=tool_calls_dicts,
+            agent_id=last_agent_id,
+        )
+        accumulated_content.clear()
+        return True
 
     async def _execute_and_record_tool_call(
         self,
@@ -505,100 +535,233 @@ class ToolExecutor:
         if self._should_stop_due_to_limits(agent):
             return
 
-        pending_tool_calls: list[ToolCall] = []
-        handled_tool_call_ids: set[str] = set()
-        accumulated_content: list[str] = []
-        last_agent_id: str | None = None
-        # Track whether pending tool calls have been recorded to session
-        # (for tool calls handled inline by the orchestrator)
-        _session_tool_calls_flushed = False
-        is_thinking = False
+        # Initialize processing state
+        processing_state = self._initialize_processing_state()
 
         async for event in event_stream:
-            # Distinguish between events from the current agent and delegated sub-agents
-            is_own_event: bool
-            if event.source_agent is None:
-                is_own_event = True
-            else:
-                # Safely check if event is from the current agent
-                try:
-                    agent_id = agent.identity.id if agent.identity else None
-                    if agent_id is not None:
-                        # Compare as strings to avoid type mismatches
-                        is_own_event = str(event.source_agent) == str(agent_id)
-                    else:
-                        is_own_event = False
-                except (AttributeError, TypeError):
-                    # If anything goes wrong (missing attributes, etc.), assume not own event
-                    is_own_event = False
+            # Update processing state for this event
+            self._update_processing_state_for_event(
+                processing_state, event, agent, status_obj
+            )
 
-            # Handle transition out of thinking
-            if is_thinking and event.type != EventType.THOUGHT:
-                self.output_handler.print_newline()
-                is_thinking = False
-
-            # Update status continuously
-            if status_obj:
-                # Status object parameter kept for backward compatibility
-                # Spinner functionality was removed, so no action needed
-                pass
-
-            if event.source_agent:
-                last_agent_id = event.source_agent
-
-            if event.type == EventType.CONTENT:
-                self._handle_content_event(
-                    event, is_own_event, content_collector, accumulated_content
-                )
-
-            elif event.type == EventType.THOUGHT:
-                is_thinking = self._handle_thought_event(event, is_thinking, status_obj)
-
-            elif event.type == EventType.CONTEXT_COMPACTED:
-                self._handle_context_compacted_event()
-
-            elif event.type == EventType.TOOL_CALL_REQUEST:
-                self._handle_tool_call_request_event(event, is_own_event, pending_tool_calls)
-
-            elif event.type == EventType.TOOL_CALL_RESULT:
-                _session_tool_calls_flushed = self._handle_tool_call_result_event(
-                    event,
-                    is_own_event,
-                    pending_tool_calls,
-                    handled_tool_call_ids,
-                    accumulated_content,
-                    last_agent_id,
-                    _session_tool_calls_flushed,
-                )
-
-            elif event.type == EventType.AGENT_DELEGATED:
-                self._handle_agent_delegated_event(event)
-
-            elif event.type == EventType.AGENT_STARTED:
-                self._handle_agent_started_event(event, status_obj)
-
-            elif event.type == EventType.AGENT_COMPLETED:
-                self._handle_agent_completed_event(event)
-
-            elif event.type == EventType.AGENT_MESSAGE:
-                self._handle_agent_message_event(event)
-
-            elif event.type == EventType.FINISHED:
-                is_thinking = self._handle_finished_event(is_thinking, status_obj)
-
-            elif event.type == EventType.ERROR:
-                self._handle_error_event(event)
+            # Process the event based on its type
+            await self._process_event_by_type(
+                event, processing_state, agent, content_collector, status_obj
+            )
 
         # After the stream ends, handle session recording and tool execution
         await self._handle_post_stream_processing(
+            processing_state["pending_tool_calls"],
+            processing_state["handled_tool_call_ids"],
+            processing_state["accumulated_content"],
+            processing_state["last_agent_id"],
+            processing_state["session_tool_calls_flushed"],
+            agent,
+            content_collector,
+        )
+
+    def _initialize_processing_state(self) -> dict[str, Any]:
+        """Initialize the state for processing an agent event stream.
+
+        Returns:
+            Dictionary containing all processing state variables.
+        """
+        return {
+            "pending_tool_calls": [],
+            "handled_tool_call_ids": set(),
+            "accumulated_content": [],
+            "last_agent_id": None,
+            "session_tool_calls_flushed": False,
+            "is_thinking": False,
+        }
+
+    def _determine_if_own_event(self, event: AgentEvent, agent: Agent) -> bool:
+        """Determine if an event belongs to the current agent.
+
+        Args:
+            event: The agent event to check.
+            agent: The current agent.
+
+        Returns:
+            True if the event belongs to the current agent, False otherwise.
+        """
+        if event.source_agent is None:
+            return True
+
+        try:
+            agent_id = agent.identity.id if agent.identity else None
+            if agent_id is not None:
+                # Compare as strings to avoid type mismatches
+                return str(event.source_agent) == str(agent_id)
+            return False
+        except (AttributeError, TypeError):
+            # If anything goes wrong, assume not own event
+            return False
+
+    def _update_processing_state_for_event(
+        self,
+        processing_state: dict[str, Any],
+        event: AgentEvent,
+        agent: Agent,
+        status_obj: Any | None,
+    ) -> None:
+        """Update processing state based on the current event.
+
+        Args:
+            processing_state: The current processing state dictionary.
+            event: The current agent event.
+            agent: The current agent.
+            status_obj: Optional status object for updating status.
+        """
+        # Handle transition out of thinking
+        if processing_state["is_thinking"] and event.type != EventType.THOUGHT:
+            self.output_handler.print_newline()
+            processing_state["is_thinking"] = False
+
+        # Update status continuously
+        if status_obj:
+            # Status object parameter kept for backward compatibility
+            # Spinner functionality was removed, so no action needed
+            pass
+
+        if event.source_agent:
+            processing_state["last_agent_id"] = event.source_agent
+
+    async def _process_event_by_type(
+        self,
+        event: AgentEvent,
+        processing_state: dict[str, Any],
+        agent: Agent,
+        content_collector: list[str] | None,
+        status_obj: Any | None,
+    ) -> None:
+        """Process an event based on its type using a dispatch pattern.
+
+        Args:
+            event: The agent event to process.
+            processing_state: The current processing state dictionary.
+            agent: The current agent.
+            content_collector: Optional list to collect content for session.
+            status_obj: Optional status object for updating status.
+        """
+        # Determine if this event belongs to the current agent
+        is_own_event = self._determine_if_own_event(event, agent)
+
+        # Dispatch based on event type
+        # Note: We use Callable[..., Any] to handle different handler signatures
+        event_handlers: dict[EventType, Callable[..., Any]] = {
+            EventType.CONTENT: self._handle_content_event,
+            EventType.THOUGHT: self._handle_thought_event_with_state,
+            EventType.CONTEXT_COMPACTED: self._handle_context_compacted_event,
+            EventType.TOOL_CALL_REQUEST: self._handle_tool_call_request_event,
+            EventType.TOOL_CALL_RESULT: self._handle_tool_call_result_event_with_state,
+            EventType.AGENT_DELEGATED: self._handle_agent_delegated_event,
+            EventType.AGENT_STARTED: self._handle_agent_started_event,
+            EventType.AGENT_COMPLETED: self._handle_agent_completed_event,
+            EventType.AGENT_MESSAGE: self._handle_agent_message_event,
+            EventType.FINISHED: self._handle_finished_event_with_state,
+            EventType.ERROR: self._handle_error_event,
+        }
+
+        handler = event_handlers.get(event.type)
+        if handler:
+            # Call the appropriate handler based on its signature
+            if event.type == EventType.THOUGHT:
+                processing_state["is_thinking"] = handler(
+                    event, processing_state["is_thinking"], status_obj
+                )
+            elif event.type == EventType.TOOL_CALL_RESULT:
+                processing_state["session_tool_calls_flushed"] = handler(
+                    event,
+                    is_own_event,
+                    processing_state["pending_tool_calls"],
+                    processing_state["handled_tool_call_ids"],
+                    processing_state["accumulated_content"],
+                    processing_state["last_agent_id"],
+                    processing_state["session_tool_calls_flushed"],
+                )
+            elif event.type == EventType.FINISHED:
+                processing_state["is_thinking"] = handler(
+                    processing_state["is_thinking"], status_obj
+                )
+            elif event.type in (EventType.AGENT_STARTED, EventType.TOOL_CALL_REQUEST):
+                # These handlers need both event and additional args
+                if event.type == EventType.AGENT_STARTED:
+                    handler(event, status_obj)
+                else:  # TOOL_CALL_REQUEST
+                    handler(event, is_own_event, processing_state["pending_tool_calls"])
+            elif event.type in (EventType.CONTENT, EventType.AGENT_DELEGATED,
+                              EventType.AGENT_COMPLETED, EventType.AGENT_MESSAGE,
+                              EventType.ERROR, EventType.CONTEXT_COMPACTED):
+                # These handlers only need the event
+                if event.type == EventType.CONTENT:
+                    handler(event, is_own_event, content_collector,
+                           processing_state["accumulated_content"])
+                else:
+                    handler(event)
+
+    def _handle_thought_event_with_state(
+        self, event: AgentEvent, is_thinking: bool, status_obj: Any | None
+    ) -> bool:
+        """Wrapper for _handle_thought_event that matches the new signature.
+
+        Args:
+            event: The THOUGHT event.
+            is_thinking: Current thinking state.
+            status_obj: Optional status object.
+
+        Returns:
+            Updated thinking state.
+        """
+        return self._handle_thought_event(event, is_thinking, status_obj)
+
+    def _handle_tool_call_result_event_with_state(
+        self,
+        event: AgentEvent,
+        is_own_event: bool,
+        pending_tool_calls: list[ToolCall],
+        handled_tool_call_ids: set[str],
+        accumulated_content: list[str],
+        last_agent_id: str | None,
+        session_tool_calls_flushed: bool,
+    ) -> bool:
+        """Wrapper for _handle_tool_call_result_event that matches the new signature.
+
+        Args:
+            event: The TOOL_CALL_RESULT event.
+            is_own_event: Whether this event belongs to the current agent.
+            pending_tool_calls: List of pending tool calls.
+            handled_tool_call_ids: Set of tool call IDs already handled.
+            accumulated_content: List of accumulated content for session.
+            last_agent_id: ID of the last agent that sent an event.
+            session_tool_calls_flushed: Whether tool calls have been recorded to session.
+
+        Returns:
+            Updated session_tool_calls_flushed flag.
+        """
+        return self._handle_tool_call_result_event(
+            event,
+            is_own_event,
             pending_tool_calls,
             handled_tool_call_ids,
             accumulated_content,
             last_agent_id,
-            _session_tool_calls_flushed,
-            agent,
-            content_collector,
+            session_tool_calls_flushed,
         )
+
+    def _handle_finished_event_with_state(
+        self, is_thinking: bool, status_obj: Any | None
+    ) -> bool:
+        """Wrapper for _handle_finished_event that matches the new signature.
+
+        Args:
+            is_thinking: Current thinking state.
+            status_obj: Optional status object.
+
+        Returns:
+            Updated thinking state.
+        """
+        return self._handle_finished_event(is_thinking, status_obj)
 
     async def execute_tool_calls(
         self,

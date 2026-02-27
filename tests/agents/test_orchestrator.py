@@ -1043,3 +1043,185 @@ def test_reset_metrics_for_run():
     assert orchestrator.metrics["total_tool_calls"] == 0
     assert orchestrator.metrics["test_results"] == {"passing": 0, "total": 0, "percentage": 0.0}
     assert orchestrator.metrics["linting_status"] == {"errors": 0, "warnings": 0}
+
+
+# -- Colon-stall guard tests (orchestrator-level, works for ALL agents) --------
+
+
+def test_last_assistant_content_found():
+    """_last_assistant_content returns the last assistant message content."""
+    agent = MagicMock(spec=["messages"])
+    agent.messages = [
+        Message(role="user", content="hello"),
+        Message(role="assistant", content="first reply"),
+        Message(role="user", content="more input"),
+        Message(role="assistant", content="Now let me create the file:"),
+    ]
+    result = Orchestrator._last_assistant_content(agent)
+    assert result == "Now let me create the file:"
+
+
+def test_last_assistant_content_empty():
+    """_last_assistant_content returns empty string if no assistant messages."""
+    agent = MagicMock(spec=["messages"])
+    agent.messages = [
+        Message(role="user", content="hello"),
+    ]
+    result = Orchestrator._last_assistant_content(agent)
+    assert result == ""
+
+
+def test_last_assistant_content_skips_empty():
+    """_last_assistant_content skips assistant messages with empty content."""
+    agent = MagicMock(spec=["messages"])
+    agent.messages = [
+        Message(role="assistant", content="good content"),
+        Message(role="assistant", content=""),
+        Message(role="assistant", content=None),
+    ]
+    result = Orchestrator._last_assistant_content(agent)
+    assert result == "good content"
+
+
+@pytest.mark.asyncio
+async def test_colon_stall_guard_nudges_agent():
+    """Orchestrator colon-stall guard nudges agent that ends with ':'."""
+    from henchman.agents.orchestrator import _COLON_STALL_NUDGE
+
+    # Agent first responds with colon-ending (stall), then responds properly
+    chunk_stall = StreamChunk(
+        content="Now I need to replace the entire function with my refactored version:",
+        finish_reason=FinishReason.STOP,
+    )
+    chunk_ok = StreamChunk(
+        content="Done! The function has been updated.",
+        finish_reason=FinishReason.STOP,
+    )
+
+    call_count = 0
+
+    async def mock_stream(*_args, **_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 1:
+            yield chunk_stall
+        else:
+            yield chunk_ok
+
+    mock_prov = MagicMock(spec=ModelProvider)
+    mock_prov.chat_completion_stream = mock_stream
+    mock_prov.default_model = "test-model"
+
+    orchestrator = Orchestrator(default_provider=mock_prov)
+    # Run the tech_lead
+    events = []
+    async for event in orchestrator.run("Fix the sync function"):
+        events.append(event)
+
+    # The stall nudge message should have been injected into tech_lead messages
+    nudge_messages = [
+        m for m in orchestrator.tech_lead.messages
+        if m.role == "user" and m.content == _COLON_STALL_NUDGE
+    ]
+    assert len(nudge_messages) >= 1, (
+        "Colon-stall nudge was not injected into tech_lead messages"
+    )
+    # The agent was called more than once (retried after stall)
+    assert call_count >= 2
+
+
+@pytest.mark.asyncio
+async def test_colon_stall_guard_skips_short_responses():
+    """Short responses ending with ':' are not treated as stalls."""
+    chunk = StreamChunk(
+        content="Step 1:",  # Only 7 chars — below _COLON_STALL_MIN_LENGTH
+        finish_reason=FinishReason.STOP,
+    )
+
+    async def mock_stream(*_args, **_kwargs):
+        yield chunk
+
+    mock_prov = MagicMock(spec=ModelProvider)
+    mock_prov.chat_completion_stream = mock_stream
+    mock_prov.default_model = "test-model"
+
+    orchestrator = Orchestrator(default_provider=mock_prov)
+    events = []
+    async for event in orchestrator.run("Do something"):
+        events.append(event)
+
+    # Should NOT have nudge messages — too short to be a stall
+    from henchman.agents.orchestrator import _COLON_STALL_NUDGE
+
+    nudge_messages = [
+        m for m in orchestrator.tech_lead.messages
+        if m.role == "user" and m.content == _COLON_STALL_NUDGE
+    ]
+    assert len(nudge_messages) == 0
+
+
+@pytest.mark.asyncio
+async def test_colon_stall_guard_respects_max_retries():
+    """Colon-stall guard stops retrying after _MAX_COLON_STALL_RETRIES."""
+    from henchman.agents.orchestrator import _MAX_COLON_STALL_RETRIES
+
+    # Agent ALWAYS stalls with a colon
+    chunk = StreamChunk(
+        content="Now I will create the replacement function with the full implementation:",
+        finish_reason=FinishReason.STOP,
+    )
+
+    call_count = 0
+
+    async def mock_stream(*_args, **_kwargs):
+        nonlocal call_count
+        call_count += 1
+        yield chunk
+
+    mock_prov = MagicMock(spec=ModelProvider)
+    mock_prov.chat_completion_stream = mock_stream
+    mock_prov.default_model = "test-model"
+
+    orchestrator = Orchestrator(default_provider=mock_prov)
+    events = []
+    async for event in orchestrator.run("Fix something"):
+        events.append(event)
+
+    # Should have retried exactly _MAX_COLON_STALL_RETRIES times
+    # 1 initial call + _MAX_COLON_STALL_RETRIES retries
+    assert call_count == 1 + _MAX_COLON_STALL_RETRIES
+
+
+@pytest.mark.asyncio
+async def test_colon_stall_guard_resets_on_non_colon():
+    """Agent that stops stalling (no colon) is not nudged further."""
+    chunk_stall = StreamChunk(
+        content="Let me create the updated version of the function:",
+        finish_reason=FinishReason.STOP,
+    )
+    chunk_ok = StreamChunk(
+        content="THINKING:\n1. Analysed the problem\n2. here is my plan\n3. delegating",
+        finish_reason=FinishReason.STOP,
+    )
+
+    call_count = 0
+
+    async def mock_stream(*_args, **_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield chunk_stall
+        else:
+            yield chunk_ok
+
+    mock_prov = MagicMock(spec=ModelProvider)
+    mock_prov.chat_completion_stream = mock_stream
+    mock_prov.default_model = "test-model"
+
+    orchestrator = Orchestrator(default_provider=mock_prov)
+    events = []
+    async for event in orchestrator.run("Fix something"):
+        events.append(event)
+
+    # Only 2 calls: initial stall + one retry that succeeded
+    assert call_count == 2
