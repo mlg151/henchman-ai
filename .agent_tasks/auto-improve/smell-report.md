@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 35.6/100)
+# Code Smell Report — ❌ F (Score: 35.4/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T07:00:13.077829+00:00_
+_Generated: 2026-02-27T07:30:13.099816+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.6/100 |
+| **Overall Score** | 35.4/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 29,358 |
-| **Total Smells** | 2743 |
+| **Total Lines (non-blank)** | 29,487 |
+| **Total Smells** | 2741 |
 | **Avg Maintainability Index** | 69.7 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
@@ -20,87 +20,87 @@ _Generated: 2026-02-27T07:00:13.077829+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1877 |
-| medium | 657 |
-| high | 209 |
+| low | 1887 |
+| medium | 669 |
+| high | 185 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1299 |
-| Feature Envy | 368 |
+| Missing Type Hint | 1310 |
+| Feature Envy | 367 |
 | Duplicate Code | 327 |
-| Magic Number | 217 |
-| Deep Nesting | 173 |
-| Long Method | 170 |
-| Primitive Obsession | 90 |
-| Complex Function | 60 |
+| Magic Number | 211 |
+| Long Method | 169 |
+| Deep Nesting | 168 |
+| Primitive Obsession | 91 |
+| Complex Function | 59 |
 | Large Class | 39 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
-   Function '_calculate_importance_scores' has cyclomatic complexity 21 (rank D)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-2. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
+1. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
    Function '__getattr__' is an exact duplicate of '__getattr__' at cli/app.py:23  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-3. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
+2. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-4. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
+3. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-5. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
+4. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
    Magic number 60.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-6. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
+5. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-7. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
+6. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
    Class 'Orchestrator' spans 1363 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
-8. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
+7. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
    Function '__init__' has 88 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-9. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
+8. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
    Magic number 500 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-10. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
+9. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
    Magic number 200 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-11. **agents/orchestrator.py:1064** — 🟠 HIGH — Long Method  
+10. **agents/orchestrator.py:1064** — 🟠 HIGH — Long Method  
    Function '_run_agent_loop' has 82 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-12. **agents/orchestrator.py:1064** — 🟠 HIGH — Primitive Obsession  
+11. **agents/orchestrator.py:1064** — 🟠 HIGH — Primitive Obsession  
    Repeated primitive parameter group appears in: '_run_agent_loop' (line 1064), '_run_delegation' (line 1399)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-13. **agents/orchestrator.py:1328** — 🟠 HIGH — Magic Number  
+12. **agents/orchestrator.py:1328** — 🟠 HIGH — Magic Number  
    Magic number 5 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-14. **agents/orchestrator.py:1329** — 🟠 HIGH — Magic Number  
+13. **agents/orchestrator.py:1329** — 🟠 HIGH — Magic Number  
    Magic number 200 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-15. **agents/orchestrator.py:1387** — 🟠 HIGH — Magic Number  
+14. **agents/orchestrator.py:1387** — 🟠 HIGH — Magic Number  
    Magic number 10 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
+
+15. **agents/orchestrator.py:1399** — 🟠 HIGH — Long Method  
+   Function '_run_delegation' has 80 lines (threshold: 30)  
+   → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
 
 ## 📊 Files Ranked by Quality
@@ -109,7 +109,7 @@ These are the highest-impact smells to address first:
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
 | 1 | cli/textual_app.py | ❌ F | 0.4 | 121 | 1439 | 1 | 0.0 |
 | 2 | agents/orchestrator.py | ❌ F | 2.0 | 139 | 1447 | 7 | 14.6 |
-| 3 | utils/intelligent_context.py | ❌ F | 7.6 | 90 | 784 | 25 | 15.8 |
+| 3 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
 | 4 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 5 | cli/commands/session.py | ❌ F | 9.8 | 67 | 296 | 33 | 11.0 |
 | 6 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
@@ -170,29 +170,29 @@ LOC: 1447 | Classes: 8 | Functions: 1 | MI: 7 | Avg CC: 14.6
 
 _... and 124 more smells._
 
-### utils/intelligent_context.py — ❌ F (7.6/100)
+### utils/intelligent_context.py — ❌ F (6.4/100)
 
-LOC: 784 | Classes: 2 | Functions: 0 | MI: 25 | Avg CC: 15.8
+LOC: 913 | Classes: 2 | Functions: 0 | MI: 21 | Avg CC: 14.5
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 44 | 🟠 HIGH | Large Class | Class 'IntelligentContextManager' spans 1009 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 97 | 🟠 HIGH | Magic Number | Magic number 0.75 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 199 | 🟠 HIGH | Feature Envy | Method 'IntelligentContextManager._calculate_importance_scores' accesses 'message' 15 times but 'self' only 0 times | Move Method — consider moving '_calculate_importance_scores' to the class that owns 'message'. |
-| 199 | 🟠 HIGH | Complex Function | Function '_calculate_importance_scores' has cyclomatic complexity 21 (rank D) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 254 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_calculate_importance_scores' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 254 | 🟠 HIGH | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 262 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_calculate_importance_scores' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 262 | 🟠 HIGH | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 269 | 🟠 HIGH | Magic Number | Magic number 0.2 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 275 | 🟠 HIGH | Magic Number | Magic number 500 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 277 | 🟠 HIGH | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 285 | 🟠 HIGH | Magic Number | Magic number 0.1 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 454 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 528 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 531 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 44 | 🟠 HIGH | Large Class | Class 'IntelligentContextManager' spans 1177 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 933 | 🟠 HIGH | Duplicate Code | Function '_apply_research_compression_strategy' is an exact duplicate of '_apply_general_compression_strategy' at utils/intelligent_context.py:993 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 44 | 🟡 MEDIUM | Large Class | Class 'IntelligentContextManager' has 36 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 55 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: max_tokens: Name(id='int', ctx=Load()), max_protected_ratio: Name(id='float', ctx=Load()), importance_threshold: Name(id='float', ctx=Load()), cluster_similarity_threshold: Name(id='float', ctx=Load()), adaptive_compression: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 83 | 🟡 MEDIUM | Feature Envy | Method 'IntelligentContextManager.enforce_safety_limits' accesses 'msg' 7 times but 'self' only 1 times | Move Method — consider moving 'enforce_safety_limits' to the class that owns 'msg'. |
+| 97 | 🟡 MEDIUM | Magic Number | Magic number 0.75 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 529 | 🟡 MEDIUM | Complex Function | Function '_cluster_temporal_proximity' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 591 | 🟡 MEDIUM | Complex Function | Function '_cluster_topic_similarity' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 622 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_cluster_topic_similarity' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 622 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 656 | 🟡 MEDIUM | Complex Function | Function '_cluster_role_patterns' has cyclomatic complexity 20 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 696 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 699 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 811 | 🟡 MEDIUM | Complex Function | Function '_detect_conversation_type' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 896 | 🟡 MEDIUM | Magic Number | Magic number 0.1 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-_... and 75 more smells._
+_... and 73 more smells._
 
 ### cli/textual_widgets.py — ❌ F (8.2/100)
 

@@ -6,11 +6,6 @@ __version__ = VERSION
 
 __all__ = ["__version__"]
 
+from henchman.utils.lazy_import import getattr_for_textual_app
 
-def __getattr__(name: str) -> object:
-    """Lazy import for Textual dev mode (``textual run henchman``)."""
-    if name == "app":
-        from henchman.cli.textual_app import HenchmanTextualApp
-
-        return HenchmanTextualApp
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+__getattr__ = getattr_for_textual_app(__name__)
