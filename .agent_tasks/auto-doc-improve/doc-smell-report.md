@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 93.8/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-02-27T15:04:49.089399+00:00_
+_Generated: 2026-02-27T15:07:38.155810+00:00_
 
 ## Executive Summary
 
@@ -39,7 +39,7 @@ _Generated: 2026-02-27T15:04:49.089399+00:00_
 
 These are the highest-impact documentation smells to address first:
 
-1. **CONTRIBUTING.md:35** — 🟠 HIGH — Consistency Error  
+1. **CONTRIBUTING.md:36** — 🟠 HIGH — Consistency Error  
    Contains placeholder GitHub URL 'your-username/henchman-ai.git' that should be replaced with the actual repo URL  
    → _Replace the placeholder URL with the actual project repository URL._
 
@@ -400,11 +400,11 @@ Public APIs: 3 | Documented: 3 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 599 | 🟡 MEDIUM | Incomplete Docstring | 'cli' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: ctx |
-| 644 | 🟡 MEDIUM | Incomplete Docstring | 'chat_command' has 8 parameter(s) but no Args: section in docstring | Add an Args: section documenting: prompt, agent, team, output_format, plan, yes, tui, debug |
-| 599 | 🟢 LOW | Incomplete Docstring | 'cli' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'cli'. |
-| 644 | 🟢 LOW | Incomplete Docstring | 'chat_command' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'chat_command'. |
-| 693 | 🟢 LOW | Incomplete Docstring | 'main' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'main'. |
+| 600 | 🟡 MEDIUM | Incomplete Docstring | 'cli' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: ctx |
+| 645 | 🟡 MEDIUM | Incomplete Docstring | 'chat_command' has 8 parameter(s) but no Args: section in docstring | Add an Args: section documenting: prompt, agent, team, output_format, plan, yes, tui, debug |
+| 600 | 🟢 LOW | Incomplete Docstring | 'cli' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'cli'. |
+| 645 | 🟢 LOW | Incomplete Docstring | 'chat_command' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'chat_command'. |
+| 694 | 🟢 LOW | Incomplete Docstring | 'main' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'main'. |
 
 ### src/henchman/cli/textual_screens.py — 👍 B (86.0/100) (last modified 2026-02-24)
 
@@ -450,12 +450,12 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 
 ### CONTRIBUTING.md — 👍 B (88.0/100) (last modified 2026-02-27)
 
-Words: 769 | Headings: 41 | Links: 7 | Code blocks: 7
+Words: 780 | Headings: 42 | Links: 7 | Code blocks: 7
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 35 | 🟠 HIGH | Consistency Error | Contains placeholder GitHub URL 'your-username/henchman-ai.git' that should be replaced with the actual repo URL | Replace the placeholder URL with the actual project repository URL. |
-| 101 | 🟢 LOW | Stale Content | Hardcoded line count '50 lines' may become stale as the codebase evolves | Remove the specific line count or replace with a relative description (e.g. 'compact', 'concise'). |
+| 36 | 🟠 HIGH | Consistency Error | Contains placeholder GitHub URL 'your-username/henchman-ai.git' that should be replaced with the actual repo URL | Replace the placeholder URL with the actual project repository URL. |
+| 102 | 🟢 LOW | Stale Content | Hardcoded line count '50 lines' may become stale as the codebase evolves | Remove the specific line count or replace with a relative description (e.g. 'compact', 'concise'). |
 
 ### src/henchman/cli/session_manager.py — 👍 B (88.0/100) (last modified 2026-02-14)
 
