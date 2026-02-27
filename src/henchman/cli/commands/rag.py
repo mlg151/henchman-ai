@@ -70,13 +70,16 @@ class RagCommand(Command):
 
     async def _show_help(self, ctx: CommandContext) -> None:
         """Show help for /rag command."""
-        ctx.console.print("\n[bold blue]RAG Index Commands[/]\n")
-        ctx.console.print("  /rag status     - Show index statistics")
-        ctx.console.print("  /rag reindex    - Force full reindex of all files")
-        ctx.console.print("  /rag clear      - Clear current project's index")
-        ctx.console.print("  /rag clear-all  - Clear ALL RAG indices")
-        ctx.console.print("  /rag cleanup    - Clean up old project-based indices")
-        ctx.console.print("")
+        from henchman.cli.commands import show_command_help
+
+        help_lines = [
+            "  /rag status     - Show index statistics",
+            "  /rag reindex    - Force full reindex of all files",
+            "  /rag clear      - Clear current project's index",
+            "  /rag clear-all  - Clear ALL RAG indices",
+            "  /rag cleanup    - Clean up old project-based indices",
+        ]
+        show_command_help(ctx, "RAG Index", help_lines)
 
     def _get_rag_system(self, ctx: CommandContext) -> RagSystem | None:
         """Get the RAG system from context.

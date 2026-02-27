@@ -74,20 +74,23 @@ class SessionCommand(Command):
 
     async def _show_help(self, ctx: CommandContext) -> None:
         """Show help for /session command."""
-        ctx.console.print("\n[bold blue]Enhanced Session Commands[/]\n")
-        ctx.console.print("  /session branch <id> <point> [tag]  - Branch from session at message point")
-        ctx.console.print("  /session merge <id1> <id2> [strategy] [tag] - Merge sessions")
-        ctx.console.print("  /session template save <id> <name>  - Save session as template")
-        ctx.console.print("  /session template create <name>     - Create from template")
-        ctx.console.print("  /session template list              - List templates")
-        ctx.console.print("  /session template delete <id>       - Delete template")
-        ctx.console.print("  /session export <id> [format]       - Export session (json/markdown)")
-        ctx.console.print("  /session import <file> [format]     - Import session")
-        ctx.console.print("  /session list                       - List sessions with enhanced info")
-        ctx.console.print("")
-        ctx.console.print("[dim]Strategies: union, intersection, smart[/]")
-        ctx.console.print("[dim]Formats: json (default), markdown[/]")
-        ctx.console.print("")
+        from henchman.cli.commands import show_command_help
+
+        help_lines = [
+            "  /session branch <id> <point> [tag]  - Branch from session at message point",
+            "  /session merge <id1> <id2> [strategy] [tag] - Merge sessions",
+            "  /session template save <id> <name>  - Save session as template",
+            "  /session template create <name>     - Create from template",
+            "  /session template list              - List templates",
+            "  /session template delete <id>       - Delete template",
+            "  /session export <id> [format]       - Export session (json/markdown)",
+            "  /session import <file> [format]     - Import session",
+            "  /session list                       - List sessions with enhanced info",
+            "",
+            "[dim]Strategies: union, intersection, smart[/]",
+            "[dim]Formats: json (default), markdown[/]",
+        ]
+        show_command_help(ctx, "Enhanced Session", help_lines)
 
     async def _branch(self, ctx: CommandContext) -> None:
         """Branch from an existing session."""

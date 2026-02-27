@@ -67,11 +67,14 @@ class ChatCommand(Command):
 
     async def _show_help(self, ctx: CommandContext) -> None:
         """Show help for /chat command."""
-        ctx.console.print("\n[bold blue]Chat Session Commands[/]\n")
-        ctx.console.print("  /chat save [tag]       - Save current session")
-        ctx.console.print("  /chat list             - List saved sessions")
-        ctx.console.print("  /chat resume <tag|id>  - Resume a saved session")
-        ctx.console.print("")
+        from henchman.cli.commands import show_command_help
+
+        help_lines = [
+            "  /chat save [tag]       - Save current session",
+            "  /chat list             - List saved sessions",
+            "  /chat resume <tag|id>  - Resume a saved session",
+        ]
+        show_command_help(ctx, "Chat Session", help_lines)
 
     async def _save(self, ctx: CommandContext) -> None:
         """Save the current session."""

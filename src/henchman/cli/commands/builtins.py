@@ -192,14 +192,14 @@ class ToolsCommand(Command):
             ctx: Command context.
         """
         ctx.console.print("\n[bold blue]Available Tools[/]\n")
-        
+
         # Get tools from registry if available
         tool_registry = ctx.tool_registry
-        
+
         # If no direct tool registry, check if agent has one
         if not tool_registry and ctx.agent and hasattr(ctx.agent, 'tool_registry'):
             tool_registry = ctx.agent.tool_registry
-        
+
         if tool_registry:
             # Get all registered tools
             tool_names = tool_registry.list_tools()
