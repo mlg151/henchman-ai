@@ -6,7 +6,7 @@ import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
 from henchman.agents.delegation import DelegationRunner
 from henchman.agents.identity import AgentIdentity
@@ -114,15 +114,17 @@ class PromptFactory:
         """
         from henchman.agents.prompts import get_agent_prompt
 
-        team_members = [f"{c.name} ({c.role})" for c in agent_configs.values() if c.enabled]
+        enabled_configs = [c for c in agent_configs.values() if c.enabled]
+        team_members = [f"{config.name} ({config.role})" for config in enabled_configs]
         team_descriptions = {
-            c.role: c.description or "" for c in agent_configs.values() if c.enabled
+            config.role: config.description or "" for config in enabled_configs
         }
+        delegatable_agents = [config.role for config in enabled_configs]
 
         return system_prompt or get_agent_prompt(
             role="tech_lead",
             team_members=team_members,
-            delegatable_agents=[c.role for c in agent_configs.values() if c.enabled],
+            delegatable_agents=delegatable_agents,
             environment_context=environment_context,
             team_descriptions=team_descriptions,
         )
@@ -498,54 +500,111 @@ class ExecutionController:
                 yield event
 
             if not pending_tool_calls:
-                # Check thinking patterns and stall failures when no tools are pending
-                thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)
-                if thinking_event:
-                    yield thinking_event
-
-                stall_event = self.orchestrator.validator.check_stall_failure(agent)
-                if stall_event:
-                    yield stall_event
-
-                # Check for colon stall
-                colon_stall_result = self.check_colon_stall(agent, state.colon_stall_retries)
+                result = await self._handle_no_pending_tools(agent, state)
+                if result is None:
+                    # Agent finished
+                    break
+                
+                events_to_yield, colon_stall_result = result
+                for event in events_to_yield:
+                    yield event
+                
                 if colon_stall_result is not None:
-                    # Colon stall occurred, update generator and retry count
+                    # Colon stall occurred
                     generator, state.colon_stall_retries = colon_stall_result
                     continue
-
-                # Agent finished — exit the loop
+                
+                # Agent finished (after yielding events)
                 break
 
-            # Execute all pending tool calls (regular + delegation)
-            async for event in self.orchestrator.tool_controller.process_pending_tool_calls(
-                agent, pending_tool_calls, params.depth, state.tool_errors
-            ):
+            # Execute pending tools
+            async for event in self._execute_pending_tools(agent, pending_tool_calls, params, state):
                 yield event
 
-            state.tool_call_count += len(pending_tool_calls)
+            # Check turn limits
+            turn_limit_result = self._check_turn_limits(agent, params, state)
+            if turn_limit_result is not None:
+                should_break, error_event = turn_limit_result
+                if error_event:
+                    yield error_event
+                if should_break:
+                    break
 
-            # Inject role anchor if needed
-            self.inject_role_anchor(agent, state.tool_call_count)
-
-            should_break, state.wrapup_warned, error_event = self.enforce_turn_limits(
-                TurnEnforcementParams(
-                    agent=agent,
-                    max_turns=params.max_turns,
-                    tool_call_count=state.tool_call_count,
-                    msg_start_index=params.msg_start_index,
-                    wrapup_warned=state.wrapup_warned,
-                )
-            )
-            if error_event:
-                yield error_event
-            if should_break:
-                break
-
-            # All tool results submitted — continue the agent
+            # Continue with tool results
             generator = agent.continue_with_tool_results()
 
         self._finalize_loop(agent, state)
+
+    async def _handle_no_pending_tools(
+        self,
+        agent: Agent,
+        state: LoopState,
+    ) -> tuple[list[AgentEvent], tuple[AsyncIterator[AgentEvent], int] | None] | None:
+        """Handle case when no tool calls are pending.
+        
+        Returns:
+            - None: Agent finished with no events to yield
+            - (events, None): Agent finished with events to yield
+            - (events, (generator, retries)): Colon stall occurred
+        """
+        events: list[AgentEvent] = []
+        
+        # Check thinking patterns
+        thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)
+        if thinking_event:
+            events.append(thinking_event)
+
+        # Check stall failures
+        stall_event = self.orchestrator.validator.check_stall_failure(agent)
+        if stall_event:
+            events.append(stall_event)
+
+        # Check for colon stall
+        colon_stall_result = self.check_colon_stall(agent, state.colon_stall_retries)
+        if colon_stall_result is not None:
+            return (events, colon_stall_result)
+
+        # Agent finished (with or without events)
+        return (events, None) if events else None
+
+    async def _execute_pending_tools(
+        self,
+        agent: Agent,
+        pending_tool_calls: list[ToolCall],
+        params: AgentLoopParams,
+        state: LoopState,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute all pending tool calls and update state."""
+        # Execute all pending tool calls (regular + delegation)
+        async for event in self.orchestrator.tool_controller.process_pending_tool_calls(
+            agent, pending_tool_calls, params.depth, state.tool_errors
+        ):
+            yield event
+
+        state.tool_call_count += len(pending_tool_calls)
+
+        # Inject role anchor if needed
+        self.inject_role_anchor(agent, state.tool_call_count)
+
+    def _check_turn_limits(
+        self,
+        agent: Agent,
+        params: AgentLoopParams,
+        state: LoopState,
+    ) -> tuple[bool, AgentEvent | None] | None:
+        """Check turn limits and return (should_break, error_event) or None."""
+        should_break, state.wrapup_warned, error_event = self.enforce_turn_limits(
+            TurnEnforcementParams(
+                agent=agent,
+                max_turns=params.max_turns,
+                tool_call_count=state.tool_call_count,
+                msg_start_index=params.msg_start_index,
+                wrapup_warned=state.wrapup_warned,
+            )
+        )
+        if error_event or should_break:
+            return (should_break, error_event)
+        return None
 
     def _finalize_loop(self, agent: Agent, state: LoopState) -> None:
         """Store final state after loop completion."""
@@ -579,10 +638,29 @@ class ExecutionController:
         colon_stall_retries: int,
     ) -> tuple[AsyncIterator[AgentEvent], int] | None:
         """Check for colon stall pattern and handle if detected."""
+        return self._check_colon_stall_common(agent, colon_stall_retries, self.last_assistant_content)
+
+    def _check_colon_stall_common(
+        self,
+        agent: Agent,
+        colon_stall_retries: int,
+        content_getter: Callable[[Agent], str],
+    ) -> tuple[AsyncIterator[AgentEvent], int] | None:
+        """Common logic for checking colon stall pattern.
+        
+        Args:
+            agent: The agent to check.
+            colon_stall_retries: Current colon stall retry count.
+            content_getter: Function to get the last assistant content.
+            
+        Returns:
+            - None: No colon stall detected
+            - Tuple: Colon stall detected, return updated generator and retry count
+        """
         if colon_stall_retries >= _MAX_COLON_STALL_RETRIES:
             return None
 
-        last_content = self.last_assistant_content(agent)
+        last_content = content_getter(agent)
         if (
             last_content
             and last_content.strip().endswith(":")
@@ -615,6 +693,20 @@ class ExecutionController:
         params: TurnEnforcementParams,
     ) -> tuple[bool, bool, AgentEvent | None]:
         """Enforce turn limits with warnings and hard stops."""
+        return self._enforce_turn_limits_common(params)
+
+    def _enforce_turn_limits_common(
+        self,
+        params: TurnEnforcementParams,
+    ) -> tuple[bool, bool, AgentEvent | None]:
+        """Common logic for enforcing turn limits with warnings and hard stops.
+        
+        Args:
+            params: Parameters for turn limit enforcement.
+
+        Returns:
+            Tuple of (should_break, new_wrapup_warned, error_event).
+        """
         agent = params.agent
         max_turns = params.max_turns
         tool_call_count = params.tool_call_count
@@ -652,7 +744,7 @@ class ExecutionController:
                 f"DELEGATION_SUMMARY_SCHEMA format.\n"
                 f"3. List BLOCKERS if you cannot finish in time."
             )
-            params.agent.messages.append(Message(role="user", content=warn_msg))
+            agent.messages.append(Message(role="user", content=warn_msg))
             return False, True, None
 
         return False, wrapup_warned, None
@@ -1096,47 +1188,7 @@ class Orchestrator:
         Returns:
             Tuple of (should_break, new_wrapup_warned, error_event).
         """
-        agent = params.agent
-        max_turns = params.max_turns
-        tool_call_count = params.tool_call_count
-        msg_start_index = params.msg_start_index
-        wrapup_warned = params.wrapup_warned
-
-        if max_turns <= 0:
-            return False, wrapup_warned, None
-
-        remaining = max_turns - tool_call_count
-        if remaining <= 0:
-            # Hard stop — build a progress summary
-            progress = TimeoutSummaryBuilder.build_summary(agent, msg_start_index)
-            timeout_msg = (
-                "[TURN LIMIT REACHED] You have used all available "
-                "turns. Here is a summary of your progress so far:\n\n"
-                f"{progress}\n\n"
-                "The Tech Lead will decide how to proceed."
-            )
-            agent.messages.append(Message(role="assistant", content=timeout_msg))
-            error_event = AgentEvent(
-                type=EventType.ERROR,
-                data=f"Turn limit ({max_turns}) reached for "
-                f"{agent.identity.role if agent.identity else 'agent'}",
-                source_agent="orchestrator",
-            )
-            return True, wrapup_warned, error_event
-
-        if not wrapup_warned and remaining <= _WRAPUP_WARNING_OFFSET:
-            warn_msg = (
-                f"[WRAP-UP WARNING] You have {remaining} tool-call "
-                f"turn(s) remaining. Prioritise:\n"
-                f"1. Run any final verification (tests, lint).\n"
-                f"2. Write a completion report using the "
-                f"DELEGATION_SUMMARY_SCHEMA format.\n"
-                f"3. List BLOCKERS if you cannot finish in time."
-            )
-            agent.messages.append(Message(role="user", content=warn_msg))
-            return False, True, None
-
-        return False, wrapup_warned, None
+        return self._enforce_turn_limits_common(params)
 
     async def _run_agent_loop(
         self,
@@ -1252,22 +1304,7 @@ class Orchestrator:
             - None: No colon stall detected
             - Tuple: Colon stall detected, return updated generator and retry count
         """
-        if colon_stall_retries >= _MAX_COLON_STALL_RETRIES:
-            return None
-
-        last_content = self._last_assistant_content(agent)
-        if (
-            last_content
-            and last_content.strip().endswith(":")
-            and len(last_content.strip()) > _COLON_STALL_MIN_LENGTH
-        ):
-            colon_stall_retries += 1
-            agent.messages.append(
-                Message(role="user", content=_COLON_STALL_NUDGE)
-            )
-            return agent.continue_with_tool_results(), colon_stall_retries
-
-        return None
+        return self._check_colon_stall_common(agent, colon_stall_retries, self._last_assistant_content)
 
 
 
