@@ -243,6 +243,61 @@ class PythonAstTool(Tool):
         Returns:
             ToolResult with the symbol table.
         """
+        return await self._parse_python_file(path, include_docstrings)
+
+    async def _parse_python_file(self, path: str, include_docstrings: bool) -> ToolResult:
+        """Orchestrate the parsing of a Python file.
+
+        Args:
+            path: Path to the Python file.
+            include_docstrings: Include first-line docstrings in output.
+
+        Returns:
+            ToolResult with the symbol table.
+        """
+        # Validate input
+        validation_error = self._validate_path(path)
+        if validation_error is not None:
+            return validation_error
+
+        # Read file
+        file_path = Path(path)
+        try:
+            source = file_path.read_text()
+        except PermissionError:
+            return ToolResult(
+                content=f"Error: Permission denied: {path}",
+                success=False,
+                error=f"Permission denied: {path}",
+            )
+
+        # Parse AST
+        try:
+            tree = ast.parse(source, filename=path)
+        except SyntaxError as e:
+            return ToolResult(
+                content=f"Syntax error in {path}: {e}",
+                success=False,
+                error=str(e),
+            )
+
+        # Generate symbol table
+        sections = self._generate_symbol_table(tree, file_path.name, include_docstrings)
+
+        return ToolResult(
+            content="\n".join(sections),
+            success=True,
+        )
+
+    def _validate_path(self, path: str) -> ToolResult | None:
+        """Validate the provided file path.
+
+        Args:
+            path: Path to validate.
+
+        Returns:
+            ToolResult with error if validation fails, None if valid.
+        """
         if not path:
             return ToolResult(
                 content="Error: No path provided",
@@ -258,33 +313,59 @@ class PythonAstTool(Tool):
                 error=f"File not found: {path}",
             )
 
-        try:
-            source = file_path.read_text()
-        except PermissionError:
-            return ToolResult(
-                content=f"Error: Permission denied: {path}",
-                success=False,
-                error=f"Permission denied: {path}",
-            )
+        return None
 
-        try:
-            tree = ast.parse(source, filename=path)
-        except SyntaxError as e:
-            return ToolResult(
-                content=f"Syntax error in {path}: {e}",
-                success=False,
-                error=str(e),
-            )
+    def _generate_symbol_table(
+        self, tree: ast.Module, file_name: str, include_docstrings: bool
+    ) -> list[str]:
+        """Generate symbol table sections from AST.
 
-        sections: list[str] = [f"# Symbol table for {file_path.name}"]
+        Args:
+            tree: AST module node.
+            file_name: Name of the file being analyzed.
+            include_docstrings: Include first-line docstrings in output.
+
+        Returns:
+            List of formatted sections.
+        """
+        sections: list[str] = [f"# Symbol table for {file_name}"]
 
         # Module docstring
+        self._add_module_docstring(sections, tree, include_docstrings)
+
+        # Imports
+        self._add_imports_section(sections, tree)
+
+        # Top-level assignments
+        self._add_assignments_section(sections, tree)
+
+        # Functions and classes
+        self._add_functions_and_classes_sections(sections, tree, include_docstrings)
+
+        return sections
+
+    def _add_module_docstring(
+        self, sections: list[str], tree: ast.Module, include_docstrings: bool
+    ) -> None:
+        """Add module docstring to sections if present and requested.
+
+        Args:
+            sections: List to append to.
+            tree: AST module node.
+            include_docstrings: Whether to include docstrings.
+        """
         if include_docstrings:
             module_doc = self._get_docstring(tree)
             if module_doc:
                 sections.append(f'"""{module_doc}"""')
 
-        # Imports
+    def _add_imports_section(self, sections: list[str], tree: ast.Module) -> None:
+        """Add imports section to sections if imports exist.
+
+        Args:
+            sections: List to append to.
+            tree: AST module node.
+        """
         imports = [
             n for n in ast.iter_child_nodes(tree) if isinstance(n, (ast.Import, ast.ImportFrom))
         ]
@@ -293,7 +374,13 @@ class PythonAstTool(Tool):
             for imp in imports:
                 sections.append(self._format_import(imp))
 
-        # Top-level assignments
+    def _add_assignments_section(self, sections: list[str], tree: ast.Module) -> None:
+        """Add assignments section to sections if assignments exist.
+
+        Args:
+            sections: List to append to.
+            tree: AST module node.
+        """
         assigns = [
             n for n in ast.iter_child_nodes(tree) if isinstance(n, (ast.Assign, ast.AnnAssign))
         ]
@@ -308,7 +395,16 @@ class PythonAstTool(Tool):
                     names = ", ".join(ast.unparse(t) for t in a.targets)
                     sections.append(f"{names}  [L{a.lineno}]")
 
-        # Functions and classes
+    def _add_functions_and_classes_sections(
+        self, sections: list[str], tree: ast.Module, include_docstrings: bool
+    ) -> None:
+        """Add functions and classes sections to sections.
+
+        Args:
+            sections: List to append to.
+            tree: AST module node.
+            include_docstrings: Include first-line docstrings in output.
+        """
         for node in ast.iter_child_nodes(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 sections.append("")
@@ -320,8 +416,3 @@ class PythonAstTool(Tool):
                 sections.extend(
                     self._format_class(node, include_docstrings=include_docstrings)
                 )
-
-        return ToolResult(
-            content="\n".join(sections),
-            success=True,
-        )
