@@ -107,9 +107,9 @@ async def test_cross_delegation_handoff_notes(mock_provider):
 
     mock_provider.chat_completion_stream.side_effect = side_effect
     orchestrator = Orchestrator(default_provider=mock_provider)
-    orchestrator.shared_context = [
+    orchestrator.shared_context.append(
         {"agent": "explorer", "summary": "Found the API docs", "timestamp": "t"},
-    ]
+    )
 
     events = []
     async for event in orchestrator.run("Fix the bug"):

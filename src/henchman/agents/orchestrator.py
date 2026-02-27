@@ -1,13 +1,12 @@
 """Orchestrator for multi-agent development team."""
 
-import re
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from henchman.agents.delegation import DelegationRunner
 from henchman.agents.ledger import TaskLedger
 from henchman.agents.metrics_reporter import MetricsReporter
 from henchman.agents.pool import AgentPool
@@ -97,17 +96,8 @@ MAX_ERROR_MESSAGE_LENGTH = 200
 MAX_SUMMARY_LENGTH = 200
 """Maximum length for summary text truncation."""
 
-MAX_CONTENT_LENGTH = 800
-"""Maximum length for content truncation."""
-
-RECENT_CONTEXT_ENTRIES = 5
-"""Number of recent shared context entries to show."""
-
 MAX_STALL_NUDGES = 10
 """Maximum number of stall nudges before marking as stalled."""
-
-RECENT_ERRORS_TO_SHOW = 10
-"""Number of recent tool errors to show in summaries."""
 
 RECENT_TOOLS_TO_SHOW = 10
 """Number of recent tool calls to show in timeout summaries."""
@@ -591,6 +581,7 @@ class Orchestrator:
         self._create_agent_pool(agent_configs, default_provider, provider_registry, environment_context)
         self._initialize_shared_context_and_ledger()
         self._setup_tech_lead_agent(agent_configs, default_provider, system_prompt, environment_context)
+        self._initialize_delegation_runner()
 
     def _initialize_basic_attributes(
         self,
@@ -680,6 +671,17 @@ class Orchestrator:
 
         # Task ledger – created per run() call
         self.ledger: TaskLedger | None = None
+
+    def _initialize_delegation_runner(self) -> None:
+        """Initialize the delegation runner with shared state and callbacks."""
+        self._delegation_runner = DelegationRunner(
+            pool=self.pool,
+            settings=self.settings,
+            shared_context=self.shared_context,
+            metrics=self.metrics,
+            run_agent_loop=self._run_agent_loop,
+            assess_completion=self._assess_completion,
+        )
 
     def _setup_tech_lead_agent(
         self,
@@ -804,6 +806,7 @@ class Orchestrator:
         """
         # Initialize a fresh task ledger for this request
         self.ledger = TaskLedger(goal=user_input[:MAX_USER_INPUT_LENGTH])
+        self._delegation_runner.ledger = self.ledger
 
         # Reset metrics for this run
         self.metrics.reset_for_run()
@@ -1486,6 +1489,8 @@ class Orchestrator:
     ) -> dict[str, Any]:
         """Prepare context for delegation by adding handoff notes and failure context.
 
+        Delegates to :class:`DelegationRunner`.
+
         Args:
             target_role: The role ID of the specialist.
             brief: Original delegation brief.
@@ -1493,42 +1498,7 @@ class Orchestrator:
         Returns:
             Updated brief with handoff notes and failure context added.
         """
-        brief = dict(brief) if brief else {}
-
-        # Cross-delegation handoff: auto-inject recent shared_context
-        # entries into the brief's background field so the specialist
-        # knows what prior agents accomplished.
-        if self.shared_context:
-            handoff_lines = []
-            for entry in self.shared_context[-RECENT_CONTEXT_ENTRIES:]:
-                handoff_lines.append(f"- **{entry['agent']}**: {entry['summary'][:MAX_SUMMARY_LENGTH]}")
-            handoff_notes = "### Prior agent work\n" + "\n".join(handoff_lines)
-            existing_bg = brief.get("background") or ""
-            brief["background"] = (
-                f"{existing_bg}\n\n{handoff_notes}" if existing_bg else handoff_notes
-            )
-
-        # Inject prior failure context if the same role failed before (#17)
-        if self.ledger:
-            prior_failures = [
-                d
-                for d in self.ledger.delegations
-                if d.agent == target_role and d.status == "FAILED"
-            ]
-            if prior_failures:
-                last_fail = prior_failures[-1]
-                fail_note = (
-                    f"### Prior Attempt Failed\n"
-                    f"A previous delegation to you for "
-                    f'"{last_fail.task}" ended with status FAILED. '
-                    f"Avoid repeating the same approach."
-                )
-                existing_bg = brief.get("background") if brief else None
-                if brief is None:
-                    brief = {}
-                brief["background"] = f"{existing_bg}\n\n{fail_note}" if existing_bg else fail_note
-
-        return brief
+        return self._delegation_runner._prepare_delegation_context(target_role, brief)
 
     def _process_delegation_results(
         self,
@@ -1538,6 +1508,8 @@ class Orchestrator:
     ) -> tuple[str, dict[str, str], CompletionStatus]:
         """Process delegation results and prepare completion data.
 
+        Delegates to :class:`DelegationRunner`.
+
         Args:
             target_role: The role ID of the specialist.
             target_agent: The agent that executed the delegation.
@@ -1546,30 +1518,9 @@ class Orchestrator:
         Returns:
             Tuple of (summary, parsed_completion_report, completion_status)
         """
-        # Build summary from the agent's conversation history, which stores
-        # accumulated content correctly without streaming duplication.
-        summary_parts = [
-            m.content
-            for m in target_agent.messages[msg_start:]
-            if m.role == "assistant" and m.content
-        ]
-        summary = "\n\n".join(summary_parts)
-
-        # Append tool-error digest so the Tech Lead sees what failed
-        tool_errors: list[str] = getattr(target_agent, "_delegation_tool_errors", [])
-        if tool_errors:
-            error_digest = "\n--- ⚠️ TOOL ERRORS ---\n" + "\n".join(
-                f"• {e}" for e in tool_errors[-RECENT_ERRORS_TO_SHOW:]
-            )
-            summary = f"{summary}\n{error_digest}"
-
-        # Parse structured completion report from specialist output
-        parsed = self._parse_completion_report(summary)
-
-        # Assess whether the specialist actually did meaningful work
-        status = self._assess_completion(target_agent)
-
-        return summary, parsed, status
+        return self._delegation_runner._process_delegation_results(
+            target_role, target_agent, msg_start
+        )
 
     async def _run_delegation(
         self,
@@ -1577,14 +1528,7 @@ class Orchestrator:
     ) -> AsyncIterator[AgentEvent]:
         """Execute a delegation to a specialist agent.
 
-        Each specialist starts with a **clean context** -- its conversation
-        history is cleared before every delegation so it operates from a
-        self-contained brief rather than accumulated (and often polluted)
-        prior context.
-
-        The Tech Lead is the system of record.  All relevant information
-        must flow through the structured ``brief`` fields that the Tech
-        Lead populates when calling ``delegate_task``.
+        Delegates to :class:`DelegationRunner`.
 
         Args:
             params: Delegation parameters containing target role, task,
@@ -1593,195 +1537,8 @@ class Orchestrator:
         Yields:
             AgentEvents from the specialist agent.
         """
-        # Validate delegation depth
-        if self._is_delegation_depth_exceeded(params.depth):
-            async for event in self._yield_depth_exceeded_error():
-                yield event
-            return
-
-        # Get target agent with error handling
-        target_agent_result = await self._get_target_agent_with_error_handling(params.target_role)
-        if isinstance(target_agent_result, AgentEvent):
-            yield target_agent_result
-            async for event in self._yield_agent_not_found_completion(params.target_role):
-                yield event
-            return
-        params.target_agent = target_agent_result
-
-        # Start delegation
-        yield AgentEvent(
-            type=EventType.AGENT_STARTED,
-            data={"agent": params.target_role},
-            source_agent="orchestrator",
-        )
-
-        # Prepare and execute delegation
-        self._prepare_delegation_execution(params)
-
-        # Execute the agent loop
-        async for event in self._execute_delegation_loop(params):
+        async for event in self._delegation_runner.run_delegation(params):
             yield event
-
-        # Finalize delegation
-        async for event in self._finalize_delegation(params):
-            yield event
-
-    def _is_delegation_depth_exceeded(self, depth: int) -> bool:
-        """Check if delegation depth exceeds configured limit.
-
-        Args:
-            depth: Current recursion depth.
-
-        Returns:
-            True if depth exceeds limit, False otherwise.
-        """
-        return depth > self.settings.agents.max_delegation_depth
-
-    async def _yield_depth_exceeded_error(self) -> AsyncIterator[AgentEvent]:
-        """Yield error events for exceeded delegation depth.
-
-        Yields:
-            ERROR and AGENT_COMPLETED events.
-        """
-        yield AgentEvent(
-            type=EventType.ERROR,
-            data=f"Error: Maximum delegation depth ({self.settings.agents.max_delegation_depth}) exceeded.",
-            source_agent="orchestrator",
-        )
-        yield AgentEvent(
-            type=EventType.AGENT_COMPLETED,
-            data={"summary": "Max depth exceeded"},
-            source_agent="orchestrator",
-        )
-
-    async def _get_target_agent_with_error_handling(
-        self, target_role: str
-    ) -> Agent | AgentEvent:
-        """Get target agent with proper error handling.
-
-        Args:
-            target_role: The role ID of the specialist.
-
-        Returns:
-            Agent instance if found, otherwise AgentEvent with error.
-        """
-        try:
-            return self.pool.get_agent(target_role)
-        except ValueError as e:
-            return AgentEvent(type=EventType.ERROR, data=str(e), source_agent="orchestrator")
-
-    async def _yield_agent_not_found_completion(
-        self, target_role: str
-    ) -> AsyncIterator[AgentEvent]:
-        """Yield completion event for agent not found error.
-
-        Args:
-            target_role: The role ID that was not found.
-
-        Yields:
-            AGENT_COMPLETED event.
-        """
-        yield AgentEvent(
-            type=EventType.AGENT_COMPLETED,
-            data={"summary": f"Agent {target_role} not found"},
-            source_agent="orchestrator",
-        )
-
-    def _prepare_delegation_execution(
-        self,
-        params: DelegationParams,
-    ) -> None:
-        """Prepare agent and context for delegation execution.
-
-        Mutates ``params`` in place, setting ``full_task`` and ``msg_start``.
-
-        Args:
-            params: Delegation parameters (must have ``target_agent`` set).
-        """
-        assert params.target_agent is not None
-        target_agent = params.target_agent
-
-        # Clean start: wipe prior conversation so the specialist has no
-        # stale context from earlier delegations. The system prompt is
-        # preserved by clear_history().
-        target_agent.clear_history()
-
-        # Prepare context for delegation
-        prepared_brief = self._prepare_delegation_context(params.target_role, params.brief)
-
-        # Assemble the full task from the structured brief fields
-        params.full_task = self._assemble_delegation_input(
-            params.task, prepared_brief, mission=self.ledger.goal if self.ledger else None
-        )
-
-        # Record where the agent's messages start so we can extract a clean
-        # summary afterwards (content events may be duplicated during streaming).
-        params.msg_start = len(target_agent.messages)
-
-    async def _execute_delegation_loop(
-        self,
-        params: DelegationParams,
-    ) -> AsyncIterator[AgentEvent]:
-        """Execute the agent loop for delegation.
-
-        Args:
-            params: Delegation parameters (must have ``target_agent``,
-                ``full_task``, and ``msg_start`` set).
-
-        Yields:
-            AgentEvents from the specialist agent.
-        """
-        max_turns = self.settings.agents.max_delegation_turns
-        loop_params = AgentLoopParams(
-            agent=params.target_agent,
-            input_text=params.full_task,
-            depth=params.depth,
-            max_turns=max_turns,
-            msg_start_index=params.msg_start,
-        )
-        async for event in self._run_agent_loop(loop_params):
-            yield event
-
-    async def _finalize_delegation(
-        self,
-        params: DelegationParams,
-    ) -> AsyncIterator[AgentEvent]:
-        """Process delegation results and yield completion event.
-
-        Args:
-            params: Delegation parameters (must have ``target_agent``
-                and ``msg_start`` set).
-
-        Yields:
-            AGENT_COMPLETED event with results.
-        """
-        assert params.target_agent is not None
-        # Process delegation results
-        summary, parsed, status = self._process_delegation_results(
-            params.target_role, params.target_agent, params.msg_start
-        )
-
-        # Update shared context (still tracked for Tech Lead's use, just not
-        # injected into specialist prompts)
-        self.shared_context.append(
-            {
-                "agent": params.target_role,
-                "summary": summary[:MAX_CONTENT_LENGTH],
-                "files_modified": parsed.get("files_modified", ""),
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-
-        yield AgentEvent(
-            type=EventType.AGENT_COMPLETED,
-            data={
-                "agent": params.target_role,
-                "summary": summary,
-                "status": status.value,
-                **parsed,
-            },
-            source_agent="orchestrator",
-        )
 
     @staticmethod
     def _assemble_delegation_input(
@@ -1791,8 +1548,7 @@ class Orchestrator:
     ) -> str:
         """Build a self-contained input string from the structured delegation brief.
 
-        The resulting text gives the specialist everything it needs without
-        any prior conversation history.
+        Delegates to :class:`DelegationRunner`.
 
         Args:
             task: The core task description.
@@ -1802,60 +1558,13 @@ class Orchestrator:
         Returns:
             A formatted string ready to be passed as user input to the specialist.
         """
-        sections: list[str] = []
-
-        # Mission header gives the specialist project-level context (#6)
-        if mission:
-            sections.append(f"## Mission\n{mission}")
-
-        sections.append(f"## Task\n{task}")
-
-        if not brief:
-            return "\n\n".join(sections)
-
-        if brief.get("done_when"):
-            sections.append(
-                f"## Done When\n{brief['done_when']}\n"
-                f"_(Stop working once these conditions are met.)_"
-            )
-
-        if brief.get("requirements"):
-            sections.append(f"## Requirements\n{brief['requirements']}")
-
-        files = brief.get("files")
-        if files:
-            file_list = "\n".join(f"- `{f}`" for f in files)
-            sections.append(f"## Relevant Files\n{file_list}")
-
-        # Dependency chain awareness (#10)
-        depends_on = brief.get("depends_on")
-        if depends_on:
-            if isinstance(depends_on, str):
-                depends_on = [depends_on]
-            dep_list = "\n".join(f"- {d}" for d in depends_on)
-            sections.append(
-                f"## Depends On\n{dep_list}\n"
-                f"_(These tasks were completed earlier; "
-                f"build on their outputs.)_"
-            )
-
-        if brief.get("background"):
-            sections.append(f"## Background\n{brief['background']}")
-
-        if brief.get("context"):
-            sections.append(f"## Additional Context\n{brief['context']}")
-
-        return "\n\n".join(sections)
+        return DelegationRunner._assemble_delegation_input(task, brief, mission)
 
     @staticmethod
     def _parse_completion_report(summary: str) -> dict[str, str]:
         """Extract structured fields from a specialist's completion report.
 
-        Looks for the ``DELEGATION_SUMMARY_SCHEMA`` format::
-
-            STATUS: DONE | FAILED | BLOCKED
-            FILES_MODIFIED: ...
-            VERIFICATION: ...
+        Delegates to :class:`DelegationRunner`.
 
         Args:
             summary: Raw summary text from the specialist.
@@ -1863,21 +1572,7 @@ class Orchestrator:
         Returns:
             Dict with extracted fields (may be empty if format not found).
         """
-        parsed: dict[str, str] = {}
-        patterns = {
-            "status": r"STATUS:\s*(.+?)(?:\n|$)",
-            "files_modified": r"FILES_MODIFIED:\s*(.+?)(?:\n|$)",
-            "tests_run": r"TESTS_RUN:\s*(.+?)(?:\n|$)",
-            "verification": r"VERIFICATION:\s*(.+?)(?:\n|$)",
-            "blockers": r"BLOCKERS:\s*(.+?)(?:\n|$)",
-            "handoff_notes": r"HANDOFF_NOTES:\s*(.+?)(?:\n|$)",
-            "artifacts": r"ARTIFACTS:\s*(.+?)(?:\n|$)",
-        }
-        for key, pattern in patterns.items():
-            match = re.search(pattern, summary, re.IGNORECASE)
-            if match:
-                parsed[key] = match.group(1).strip()
-        return parsed
+        return DelegationRunner._parse_completion_report(summary)
 
     @staticmethod
     def _build_timeout_summary(agent: Agent, msg_start: int) -> str:
