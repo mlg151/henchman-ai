@@ -70736,3 +70736,2152 @@ TOTAL                                            13434   2381   4036    445    8
 =========== 2552 passed, 5 skipped, 34 warnings in 153.77s (0:02:33) ===========
 [2026-02-27T10:30:01Z] All tests passed.
 Committing changes...
+[main 5cc7c82] chore(auto-improve): automated codebase improvement
+ 5 files changed, 2357 insertions(+), 1247 deletions(-)
+[2026-02-27T10:30:01Z] Auto-improve complete.
+[2026-02-27T11:00:02Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by checking what was done in the last improvement to avoid repeating work.
+[tool] read_file({'path': '.agent_tasks/auto-improve/last-improvement.md'})
+
+
+[result] # Improvement Summary
+
+**Date/Time**: 2026-02-27 (XP Refactoring Agent - Tech Lead)
+
+**Files Changed**:
+1. `src/henchman/agents/orchestrator.py` - Refactored the `_run_delegation` 
+method (115 lines) b...
+Now I need to check the current smell report to see what's the next highest priority item. Looking at the report, I can see several high-priority items. Let me check the current state of the codebase to understand what needs to be addressed next.
+
+Looking at the smell report, I see that item #3 is a high-priority Primitive Obsession smell in `agents/orchestrator.py:1228` where a repeated primitive parameter group appears in multiple methods. This seems like a good candidate for refactoring.
+
+Let me examine the code to understand the pattern:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1220, 'end_line': 1240})
+
+[result]                 "result": (result_content or 
+"")[:_RESULT_PREVIEW_LENGTH],
+                "success": success,
+            },
+            source_agent=agent.identity.id if agent.identity else None,
+  ...
+Let me see more of this method and find the other methods with the same parameter pattern:
+[tool] grep({'pattern': 
+'_run_delegation.*user_input.*depth.*max_turns.*msg_start_index', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] No matches found...
+Let me check the `_run_delegation` method signature:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1580, 'end_line': 1590})
+
+[result] 
+        return summary, parsed, status
+
+    async def _run_delegation(
+        self,
+        target_role: str,
+        task: str,
+        brief: dict[str, Any] | None,
+        depth: int,
+    ) -> As...
+Let me check the `_execute_delegation_loop` method:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1740, 'end_line': 1760})
+
+[result]             task, prepared_brief, mission=self.ledger.goal if 
+self.ledger else None
+        )
+
+        # Record where the agent's messages start so we can extract a clean
+        # summary afterwards ...
+Now I see the pattern. The smell report says there's a repeated primitive parameter group in:
+1. `_run_agent_loop` (line 1228) - parameters: `user_input: str, depth: int, max_turns: int, msg_start_index: int`
+2. `_run_delegation` (line 1583) - parameters: `target_role: str, task: str, brief: dict[str, Any] | None, depth: int`
+3. `_execute_delegation_loop` (line 1749) - parameters: `target_agent: Agent, full_task: str, depth: int, msg_start: int`
+
+Actually, looking more carefully, the parameters aren't exactly the same across all three methods. Let me check what the actual repeated pattern is. Let me look at the full signatures:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1225, 'end_line': 1235})
+
+[result] 
+
+
+    async def _run_agent_loop(
+        self,
+        agent: Agent,
+        user_input: str,
+        depth: int = 0,
+        max_turns: int = 0,
+        msg_start_index: int = 0,
+    ) -> AsyncItera...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1580, 'end_line': 1590})
+
+[result] 
+        return summary, parsed, status
+
+    async def _run_delegation(
+        self,
+        target_role: str,
+        task: str,
+        brief: dict[str, Any] | None,
+        depth: int,
+    ) -> As...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1745, 'end_line': 1755})
+
+[result]         msg_start = len(target_agent.messages)
+
+        return full_task, msg_start
+
+    async def _execute_delegation_loop(
+        self,
+        target_agent: Agent,
+        full_task: str,
+        ...
+I need to analyze the actual code to understand the Primitive Obsession smell. Let me check what the smell detector is actually detecting by looking at the parameters more carefully. The issue seems to be that these methods have groups of primitive parameters that could be grouped into objects.
+
+Let me run the tests first to ensure the codebase is in a working state:
+[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': 
+True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good, tests are passing. Now let me examine the actual parameter groups more carefully. Let me look at the actual calls to these methods to understand the pattern better:
+[tool] grep({'pattern': '_run_agent_loop', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+2, 'context_after': 2})
+
+[result] 829-
+830-        event_count = 0
+831:        async for event in self._run_agent_loop(self.tech_lead, user_input):
+832-            event_count += 1
+833-            yield event
+--
+884-        )
+885-
+886...
+Let me see the full call at line 1768:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1765, 'end_line': 1775})
+
+[result]             AgentEvents from the specialist agent.
+        """
+        max_turns = self.settings.agents.max_delegation_turns
+        async for event in self._run_agent_loop(
+            target_agent,
+...
+Now let me check where `_run_delegation` is called:
+[tool] grep({'pattern': '_run_delegation', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+2, 'context_after': 2})
+
+[result] 1433-        delegation_status = ""
+1434-        delegation_brief = self._prepare_delegation_brief(tool_call)
+1435:        async for sub_event in self._run_delegation(target, task, 
+delegation_brief, d...
+Now I need to understand what the smell detector is actually detecting. Looking at the smell report again, it says "Repeated primitive parameter group appears in: '_run_agent_loop' (line 1228), '_run_delegation' (line 1583), '_execute_delegation_loop' (line 1749)". 
+
+Let me check if there's a common pattern. Looking at the parameters:
+1. `_run_agent_loop`: `agent: Agent, user_input: str, depth: int = 0, max_turns: int = 0, msg_start_index: int = 0`
+2. `_run_delegation`: `target_role: str, task: str, brief: dict[str, Any] | None, depth: int`
+3. `_execute_delegation_loop`: `target_agent: Agent, full_task: str, depth: int, msg_start: int`
+
+Actually, I think the smell detector might be detecting that these methods all have similar parameter patterns related to running agent loops with depth tracking. Let me check if there's a more specific pattern by looking at how these methods are related.
+
+Actually, looking more carefully at the code, I see that `_execute_delegation_loop` calls `_run_agent_loop`. So there's a relationship here. The issue seems to be that we have multiple methods that handle similar concepts (running agent loops with parameters like depth, task/input, and message tracking) but they use different parameter names and structures.
+
+Let me create a data class to encapsulate these common parameters. Based on the pattern I see, the common concepts are:
+1. An agent to run (either as `Agent` object or `target_role` string)
+2. Input/task to process (`user_input`, `task`, `full_task`)
+3. Depth tracking (`depth`)
+4. Message tracking (`msg_start_index`, `msg_start`)
+5. Turn limits (`max_turns`)
+
+Let me create a parameter object to encapsulate this:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1, 'end_line': 50})
+
+[result] """Orchestrator for multi-agent development team."""
+
+import re
+import time
+from collections.abc import AsyncIterator
+from datetime import datetime
+from enum import Enum
+from typing import Any, TypedD...
+Now let me check what imports are already there and add a dataclass. First, let me see the full imports:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1, 'end_line': 30})
+
+[result] """Orchestrator for multi-agent development team."""
+
+import re
+import time
+from collections.abc import AsyncIterator
+from datetime import datetime
+from enum import Enum
+from typing import Any, TypedD...
+Now I need to add a dataclass import and create the parameter object. Let me add it after the imports:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+10, 'end_line': 10})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py (replaced lines
+10-10)...
+Wait, I need to see the exact line. Let me check:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+5, 'end_line': 15})
+
+[result] from collections.abc import AsyncIterator
+from datetime import datetime
+from enum import Enum
+from typing import Any, TypedDict
+
+from henchman.agents.pool import AgentPool
+from henchman.agents.presets...
+I need to add the dataclass import. Let me check the imports section more carefully and add it:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': 
+'from enum import Enum\nfrom typing import Any, TypedDict', 'new_str': 'from 
+enum import Enum\nfrom typing import Any, TypedDict\nfrom dataclasses import 
+dataclass'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to add the dataclass definition. Let me find a good place to add it, perhaps after the imports and before the configuration constants:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+20, 'end_line': 40})
+
+[result] from henchman.tools.registry import ToolRegistry
+
+# Configuration constants for magic numbers
+PERCENTAGE_MULTIPLIER = 100.0
+"""Multiplier for converting ratios to percentages."""
+
+SECONDS_PER_MINUTE =...
+Let me add the dataclass right after the imports and before the configuration constants:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': 
+'from henchman.tools.registry import ToolRegistry\n\n# Configuration constants 
+for magic numbers', 'new_str': 'from henchman.tools.registry import 
+ToolRegistry\n\n\n@dataclass\nclass AgentLoopParams:\n    """Parameters for 
+running an agent loop.\n    \n    Encapsulates the common parameters used across
+different agent execution methods\n    to address Primitive Obsession code 
+smell.\n    """\n    agent: Agent | None = None\n    """The agent to run. Either
+agent or target_role must be provided."""\n    \n    target_role: str | None = 
+None\n    """The role of the agent to run. Either agent or target_role must be 
+provided."""\n    \n    input_text: str = ""\n    """The input text, task, or 
+user input for the agent to process."""\n    \n    depth: int = 0\n    
+"""Current delegation depth for tracking recursion."""\n    \n    max_turns: int
+= 0\n    """Maximum number of turns allowed (0 for unlimited)."""\n    \n    
+msg_start_index: int = 0\n    """Starting index in agent messages for tracking 
+output."""\n    \n    brief: dict[str, Any] | None = None\n    """Optional 
+briefing information for delegation tasks."""\n\n\n# Configuration constants for
+magic numbers'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to refactor the `_run_agent_loop` method to use this parameter object. Let me first look at the current signature:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1228, 'end_line': 1245})
+
+[result]         truncated_error = error_message[:_TOOL_ERROR_MAX_LENGTH]
+        tool_errors.append(f"{tool_name}: {truncated_error}")
+
+    def _yield_tool_result_event(
+        self, agent: Agent, tool_call:...
+Let me find the actual `_run_agent_loop` method:
+[tool] grep({'pattern': 'async def _run_agent_loop"', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] No matches found...
+
+[tool] grep({'pattern': 'def _run_agent_loop', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 1258:    async def _run_agent_loop(...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1258, 'end_line': 1275})
+
+[result]     async def _run_agent_loop(
+        self,
+        agent: Agent,
+        user_input: str,
+        depth: int = 0,
+        max_turns: int = 0,
+        msg_start_index: int = 0,
+    ) -> AsyncIterator...
+Now I need to refactor this method to use the `AgentLoopParams` dataclass. Let me first update the method signature:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+async def _run_agent_loop(\n        self,\n        agent: Agent,\n        
+user_input: str,\n        depth: int = 0,\n        max_turns: int = 0,\n        
+msg_start_index: int = 0,\n    ) -> AsyncIterator[AgentEvent]:\n        
+"""Handle the run loop for an agent, executing tools and intercepting 
+delegations.\n\n        This method is the core execution engine. It:\n        
+1. Runs the agent and collects events\n        2. Collects ALL tool calls from a
+single LLM response\n        3. Executes regular tools via the agent\'s tool 
+registry\n        4. Intercepts ``delegate_task`` calls and runs sub-agent 
+loops\n        5. Submits all results back to the agent and continues\n        
+6. Periodically re-injects role anchoring reminders (Task 5)\n        7. 
+Enforces per-delegation turn limits with wrap-up warnings', 'new_str': '    
+async def _run_agent_loop(\n        self,\n        params: AgentLoopParams,\n   
+) -> AsyncIterator[AgentEvent]:\n        """Handle the run loop for an agent, 
+executing tools and intercepting delegations.\n\n        This method is the core
+execution engine. It:\n        1. Runs the agent and collects events\n        2.
+Collects ALL tool calls from a single LLM response\n        3. Executes regular 
+tools via the agent\'s tool registry\n        4. Intercepts ``delegate_task`` 
+calls and runs sub-agent loops\n        5. Submits all results back to the agent
+and continues\n        6. Periodically re-injects role anchoring reminders (Task
+5)\n        7. Enforces per-delegation turn limits with wrap-up warnings\n      
+\n        Args:\n            params: Agent loop parameters containing agent, 
+input, depth, etc.\n        """'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update the method body to use the params object. Let me see the beginning of the method body:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1275, 'end_line': 1295})
+
+[result]         """
+        8. Tracks tool errors for aggregation in delegation summaries
+
+        Args:
+            agent: The agent to run.
+            user_input: Initial input for the agent.
+            d...
+I need to update the method body to extract parameters from the params object. Let me update the beginning of the method body:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+"""\n        8. Tracks tool errors for aggregation in delegation summaries\n\n  
+Args:\n            agent: The agent to run.\n            user_input: Initial 
+input for the agent.\n            depth: Current delegation depth.\n            
+max_turns: Maximum tool-call turns (0 = unlimited).\n            
+msg_start_index: Index into agent.messages where this run began\n               
+(used to build a progress summary on timeout).\n\n        Yields:\n            
+AgentEvents from the agent loop.\n        """\n        generator: 
+AsyncIterator[AgentEvent] = agent.run(user_input)\n        tool_call_count = 0\n
+tool_errors: list[str] = []\n        wrapup_warned = False\n        
+colon_stall_retries = 0', 'new_str': '        """\n        8. Tracks tool errors
+for aggregation in delegation summaries\n\n        Yields:\n            
+AgentEvents from the agent loop.\n        """\n        # Extract parameters from
+the params object\n        agent = params.agent\n        if agent is None:\n    
+raise ValueError("Agent must be provided in AgentLoopParams")\n        \n       
+user_input = params.input_text\n        depth = params.depth\n        max_turns 
+= params.max_turns\n        msg_start_index = params.msg_start_index\n        \n
+generator: AsyncIterator[AgentEvent] = agent.run(user_input)\n        
+tool_call_count = 0\n        tool_errors: list[str] = []\n        wrapup_warned 
+= False\n        colon_stall_retries = 0'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update all the calls to `_run_agent_loop` in the code. Let me find them:
+[tool] grep({'pattern': '_run_agent_loop("', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+1, 'context_after': 3})
+
+✗ \[error] Error: Invalid regex pattern: missing ), unterminated subpattern at 
+position 15
+
+[tool] grep({'pattern': '_run_agent_loop', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+1, 'context_after': 3})
+
+[result] 860-        event_count = 0
+861:        async for event in self._run_agent_loop(self.tech_lead, user_input):
+862-            event_count += 1
+863-            yield event
+864-
+--
+915-
+916:        async...
+I need to update each call. Let me start with the first one at line 861:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+858, 'end_line': 868})
+
+[result]         )
+
+        event_count = 0
+        async for event in self._run_agent_loop(self.tech_lead, user_input):
+            event_count += 1
+            yield event
+
+        # Set task end time and ca...
+
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+event_count = 0\n        async for event in self._run_agent_loop(self.tech_lead,
+user_input):\n            event_count += 1\n            yield event', 'new_str':
+'        event_count = 0\n        params = AgentLoopParams(\n            
+agent=self.tech_lead,\n            input_text=user_input,\n        )\n        
+async for event in self._run_agent_loop(params):\n            event_count += 1\n
+yield event'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me update the second call at line 916:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+914, 'end_line': 920})
+
+[result]         agent = self.pool.get_agent(role)
+
+        yield AgentEvent(
+            type=EventType.AGENT_STARTED, data={"agent": role}, 
+source_agent="orchestrator"
+        )
+
+        async for event in s...
+
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+async for event in self._run_agent_loop(agent, user_input):', 'new_str': '      
+params = AgentLoopParams(\n            agent=agent,\n            
+input_text=user_input,\n        )\n        async for event in 
+self._run_agent_loop(params):'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me update the third call at line 1800-1803:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1797, 'end_line': 1810})
+
+[result] 
+        Args:
+            target_agent: The agent to execute.
+            full_task: Assembled task with context.
+            depth: Current recursion depth.
+            msg_start: Starting message i...
+Let me see more of this call:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1800, 'end_line': 1810})
+
+[result]             full_task: Assembled task with context.
+            depth: Current recursion depth.
+            msg_start: Starting message index.
+
+        Yields:
+            AgentEvents from the special...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1805, 'end_line': 1815})
+
+[result]             AgentEvents from the specialist agent.
+        """
+        max_turns = self.settings.agents.max_delegation_turns
+        async for event in self._run_agent_loop(
+            target_agent,
+...
+
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+max_turns = self.settings.agents.max_delegation_turns\n        async for event 
+in self._run_agent_loop(\n            target_agent,\n            full_task,\n   
+depth,\n            max_turns=max_turns,\n            
+msg_start_index=msg_start,\n        ):\n            yield event', 'new_str': '  
+max_turns = self.settings.agents.max_delegation_turns\n        params = 
+AgentLoopParams(\n            agent=target_agent,\n            
+input_text=full_task,\n            depth=depth,\n            
+max_turns=max_turns,\n            msg_start_index=msg_start,\n        )\n       
+async for event in self._run_agent_loop(params):\n            yield event'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update the `_run_delegation` method to also use the parameter object. Let me look at its signature:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1613, 'end_line': 1625})
+
+[result]             summary = f"{summary}\n{error_digest}"
+
+        # Parse structured completion report from specialist output
+        parsed = self._parse_completion_report(summary)
+
+        # Assess whethe...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1625, 'end_line': 1640})
+
+[result]         target_role: str,
+        task: str,
+        brief: dict[str, Any] | None,
+        depth: int,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute a delegation to a specialist agent.
+
+     ...
+I need to update this method to use the `AgentLoopParams` as well. However, looking at the method, it doesn't directly call `_run_agent_loop` - it calls `_execute_delegation_loop`. Let me check what `_execute_delegation_loop` does and see if we should update it too.
+
+Actually, looking back at the smell report, it says the repeated primitive parameter group appears in `_run_delegation` (line 1583). But `_run_delegation` has parameters `target_role: str, task: str, brief: dict[str, Any] | None, depth: int`. This is different from the `_run_agent_loop` parameters.
+
+Wait, I think I misunderstood the smell. The smell detector is saying that there's a repeated primitive parameter group across these three methods, but they're not identical parameters. They're different parameter groups that represent similar concepts. 
+
+Let me think about this differently. The `_run_delegation` method takes parameters for delegation, while `_run_agent_loop` takes parameters for running an agent loop. They're related but not identical.
+
+Actually, looking more carefully at the code, `_run_delegation` calls `_execute_delegation_loop`, which then calls `_run_agent_loop`. So there's a chain: `_run_delegation` → `_execute_delegation_loop` → `_run_agent_loop`.
+
+The issue is that we're passing primitive parameters through this chain. We could create a parameter object that encapsulates all the parameters needed for the entire delegation chain.
+
+But actually, I think the refactoring I've done so far addresses the main issue. The `_run_agent_loop` method now uses a parameter object instead of primitive parameters. The `_execute_delegation_loop` method also calls `_run_agent_loop` with the parameter object.
+
+However, `_run_delegation` still has primitive parameters. Let me check if we should update it too. Actually, looking at the smell report again, it says "Repeated primitive parameter group appears in: '_run_agent_loop' (line 1228), '_run_delegation' (line 1583), '_execute_delegation_loop' (line 1749)".
+
+I think the smell detector is detecting that these methods all have groups of primitive parameters that could be encapsulated. Since I've already encapsulated the parameters for `_run_agent_loop`, and `_execute_delegation_loop` now uses that parameter object, I should also update `_run_delegation` to use a parameter object.
+
+But `_run_delegation` has different parameters: `target_role: str, task: str, brief: dict[str, Any] | None, depth: int`. These are delegation-specific parameters, not agent-loop parameters.
+
+Actually, let me think about this more carefully. The `_run_delegation` method prepares a delegation and then calls `_execute_delegation_loop`. The `_execute_delegation_loop` method takes `target_agent: Agent, full_task: str, depth: int, msg_start: int`.
+
+So we have:
+- `_run_delegation`: Takes delegation parameters, gets the agent, prepares the task
+- `_execute_delegation_loop`: Takes execution parameters, runs the agent loop
+
+I think the real issue is that `_execute_delegation_loop` should also use the `AgentLoopParams` object. Let me check its signature:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1780, 'end_line': 1795})
+
+[result]             task, prepared_brief, mission=self.ledger.goal if 
+self.ledger else None
+        )
+
+        # Record where the agent's messages start so we can extract a clean
+        # summary afterwards ...
+Yes, `_execute_delegation_loop` should also use `AgentLoopParams`. Let me update it:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+async def _execute_delegation_loop(\n        self,\n        target_agent: 
+Agent,\n        full_task: str,\n        depth: int,\n        msg_start: int,\n 
+) -> AsyncIterator[AgentEvent]:\n        """Execute the agent loop for 
+delegation.\n\n        Args:\n            target_agent: The agent to execute.\n 
+full_task: Assembled task with context.\n            depth: Current recursion 
+depth.\n            msg_start: Starting message index.\n\n        Yields:\n     
+AgentEvents from the specialist agent.\n        """\n        max_turns = 
+self.settings.agents.max_delegation_turns\n        params = AgentLoopParams(\n  
+agent=target_agent,\n            input_text=full_task,\n            
+depth=depth,\n            max_turns=max_turns,\n            
+msg_start_index=msg_start,\n        )\n        async for event in 
+self._run_agent_loop(params):\n            yield event', 'new_str': '    async 
+def _execute_delegation_loop(\n        self,\n        params: AgentLoopParams,\n
+) -> AsyncIterator[AgentEvent]:\n        """Execute the agent loop for 
+delegation.\n\n        Args:\n            params: Agent loop parameters 
+containing agent, task, depth, etc.\n\n        Yields:\n            AgentEvents 
+from the specialist agent.\n        """\n        # Ensure max_turns is set from 
+settings if not provided\n        if params.max_turns == 0:\n            
+params.max_turns = self.settings.agents.max_delegation_turns\n            \n    
+async for event in self._run_agent_loop(params):\n            yield event'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update the call to `_execute_delegation_loop` in `_run_delegation`. Let me find it:
+[tool] grep({'pattern': '_execute_delegation_loop', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+2, 'context_after': 2})
+
+[result] 1680-
+1681-        # Execute the agent loop
+1682:        async for event in self._execute_delegation_loop(target_agent, 
+full_task, depth, msg_start):
+1683-            yield event
+1684-
+--
+1787-       ...
+Let me see the context around line 1682:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1675, 'end_line': 1690})
+
+[result]             type=EventType.AGENT_STARTED, data={"agent": target_role}, 
+source_agent="orchestrator"
+        )
+
+        # Prepare and execute delegation
+        full_task, msg_start = self._prepare_dele...
+I need to update this call to use `AgentLoopParams`:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+# Execute the agent loop\n        async for event in 
+self._execute_delegation_loop(target_agent, full_task, depth, msg_start):\n     
+yield event', 'new_str': '        # Execute the agent loop\n        params = 
+AgentLoopParams(\n            agent=target_agent,\n            
+input_text=full_task,\n            depth=depth,\n            
+msg_start_index=msg_start,\n        )\n        async for event in 
+self._execute_delegation_loop(params):\n            yield event'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update the `_run_delegation` method signature to also use a parameter object. But `_run_delegation` has different parameters than `AgentLoopParams`. It has `target_role`, `task`, `brief`, and `depth`. 
+
+Actually, I think we should create a separate parameter object for delegation parameters. Let me create a `DelegationParams` dataclass:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': 
+'@dataclass\nclass AgentLoopParams:\n    """Parameters for running an agent 
+loop.\n    \n    Encapsulates the common parameters used across different agent 
+execution methods\n    to address Primitive Obsession code smell.\n    """\n    
+agent: Agent | None = None\n    """The agent to run. Either agent or target_role
+must be provided."""\n    \n    target_role: str | None = None\n    """The role 
+of the agent to run. Either agent or target_role must be provided."""\n    \n   
+input_text: str = ""\n    """The input text, task, or user input for the agent 
+to process."""\n    \n    depth: int = 0\n    """Current delegation depth for 
+tracking recursion."""\n    \n    max_turns: int = 0\n    """Maximum number of 
+turns allowed (0 for unlimited)."""\n    \n    msg_start_index: int = 0\n    
+"""Starting index in agent messages for tracking output."""\n    \n    brief: 
+dict[str, Any] | None = None\n    """Optional briefing information for 
+delegation tasks."""', 'new_str': '@dataclass\nclass AgentLoopParams:\n    
+"""Parameters for running an agent loop.\n    \n    Encapsulates the common 
+parameters used across different agent execution methods\n    to address 
+Primitive Obsession code smell.\n    """\n    agent: Agent | None = None\n    
+"""The agent to run. Either agent or target_role must be provided."""\n    \n   
+target_role: str | None = None\n    """The role of the agent to run. Either 
+agent or target_role must be provided."""\n    \n    input_text: str = ""\n    
+"""The input text, task, or user input for the agent to process."""\n    \n    
+depth: int = 0\n    """Current delegation depth for tracking recursion."""\n    
+\n    max_turns: int = 0\n    """Maximum number of turns allowed (0 for 
+unlimited)."""\n    \n    msg_start_index: int = 0\n    """Starting index in 
+agent messages for tracking output."""\n    \n    brief: dict[str, Any] | None =
+None\n    """Optional briefing information for delegation 
+tasks."""\n\n\n@dataclass\nclass DelegationParams:\n    """Parameters for 
+delegating a task to a specialist agent.\n    \n    Encapsulates the parameters 
+used for delegation to address Primitive Obsession code smell.\n    """\n    
+target_role: str\n    """The role of the agent to delegate to."""\n    \n    
+task: str\n    """The task description to delegate."""\n    \n    brief: 
+dict[str, Any] | None = None\n    """Optional briefing information for the 
+delegation."""\n    \n    depth: int = 0\n    """Current delegation depth for 
+tracking recursion."""'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update the `_run_delegation` method to use `DelegationParams`. Let me update its signature:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+async def _run_delegation(\n        self,\n        target_role: str,\n        
+task: str,\n        brief: dict[str, Any] | None,\n        depth: int,\n    ) ->
+AsyncIterator[AgentEvent]:', 'new_str': '    async def _run_delegation(\n       
+self,\n        params: DelegationParams,\n    ) -> AsyncIterator[AgentEvent]:'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update the method body to extract parameters from the params object. Let me see the beginning of the method body:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1635, 'end_line': 1655})
+
+[result]         parsed = self._parse_completion_report(summary)
+
+        # Assess whether the specialist actually did meaningful work
+        status = self._assess_completion(target_agent)
+
+        return sum...
+Let me see more of the method body to find where the parameters are used:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1655, 'end_line': 1675})
+
+[result]         Lead populates when calling ``delegate_task``.
+
+        Improvements in v0.2.7:
+        - Enforces ``max_delegation_turns`` per specialist run.
+        - Auto-injects cross-delegation handoff ...
+I need to update the docstring and extract parameters from the params object. Let me update the docstring and add parameter extraction:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+Args:\n            target_role: The role ID of the specialist.\n            
+task: The task description.\n            brief: Structured delegation brief with
+optional keys:\n                ``done_when``, ``context``, ``files``, 
+``background``,\n                ``requirements``.\n            depth: Current 
+recursion depth.\n\n        Yields:\n            AgentEvents from the specialist
+agent.\n        """\n        # Validate delegation depth\n        if 
+self._is_delegation_depth_exceeded(depth):', 'new_str': '        Args:\n        
+params: Delegation parameters containing target role, task, brief, and 
+depth.\n\n        Yields:\n            AgentEvents from the specialist agent.\n 
+"""\n        # Extract parameters from the params object\n        target_role = 
+params.target_role\n        task = params.task\n        brief = params.brief\n  
+depth = params.depth\n        \n        # Validate delegation depth\n        if 
+self._is_delegation_depth_exceeded(depth):'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update the call to `_run_delegation` in the code. Let me find where it's called:
+[tool] grep({'pattern': '_run_delegation("', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+1, 'context_after': 3})
+
+✗ \[error] Error: Invalid regex pattern: missing ), unterminated subpattern at 
+position 15
+
+[tool] grep({'pattern': '_run_delegation', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+1, 'context_after': 3})
+
+[result] 1493-        delegation_brief = 
+self._prepare_delegation_brief(tool_call)
+1494:        async for sub_event in self._run_delegation(target, task, 
+delegation_brief, depth + 1):
+1495-            if sub_e...
+I need to update the call at line 1494:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1490, 'end_line': 1500})
+
+[result]         result_content = ""
+        delegation_had_error = False
+        delegation_status = ""
+        delegation_brief = self._prepare_delegation_brief(tool_call)
+        async for sub_event in self...
+
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+delegation_brief = self._prepare_delegation_brief(tool_call)\n        async for 
+sub_event in self._run_delegation(target, task, delegation_brief, depth + 1):', 
+'new_str': '        delegation_brief = 
+self._prepare_delegation_brief(tool_call)\n        delegation_params = 
+DelegationParams(\n            target_role=target,\n            task=task,\n    
+brief=delegation_brief,\n            depth=depth + 1,\n        )\n        async 
+for sub_event in self._run_delegation(delegation_params):'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to run the tests to make sure everything still works:
+[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': 
+True})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+There's a syntax error. Let me check line 1618:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1615, 'end_line': 1625})
+
+[result]         Args:
+            target_role: The role ID of the specialist.
+            target_agent: The agent that executed the delegation.
+            msg_start: Index where the agent's messages started....
+The syntax error seems to be on line 1618. Let me check what's on that line:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1616, 'end_line': 1620})
+
+[result]             target_role: The role ID of the specialist.
+            target_agent: The agent that executed the delegation.
+            msg_start: Index where the agent's messages started.
+
+        Retu...
+The line looks fine. Let me check if there's an issue with string literals. Let me look at a larger context:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1610, 'end_line': 1630})
+
+[result]         target_agent: Agent,
+        msg_start: int,
+    ) -> tuple[str, dict[str, str], CompletionStatus]:
+        """Process delegation results and prepare completion data.
+
+        Args:
+          ...
+The syntax error message says "unterminated string literal (detected at line 1618)". Line 1618 is `msg_start: Index where the agent's messages started.`. This looks like a docstring line. The issue might be that there's an unterminated string somewhere above this line.
+
+Let me check the lines before 1618 more carefully. Actually, wait - the error says "detected at line 1618", which means the actual error might be before line 1618. Let me check if there's an unterminated string in the docstring or code above.
+
+Actually, I think I see the issue. When I edited the `_run_delegation` method, I might have accidentally created a syntax error. Let me check the method signature and docstring again. Actually, looking at the error, it seems like there might be an issue with a string literal in the code.
+
+Let me run a quick syntax check on the file:
+[tool] python_exec({'code': 'import ast\nwith 
+open(\'src/henchman/agents/orchestrator.py\', \'r\') as f:\n    content = 
+f.read()\ntry:\n    ast.parse(content)\n    print("Syntax is OK")\nexcept 
+SyntaxError as e:\n    print(f"Syntax error at line {e.lineno}, column 
+{e.offset}: {e.msg}")\n    # Show context around the error\n    lines = 
+content.split(\'\\n\')\n    start = max(0, e.lineno - 3)\n    end = 
+min(len(lines), e.lineno + 2)\n    for i in range(start, end):\n        
+print(f"{i+1}: {lines[i]}")'})
+
+[result] Syntax error at line 1618, column 45: unterminated string literal 
+(detected at line 1618)
+1616:             target_role: The role ID of the specialist.
+1617:             target_agent: The agent that e...
+The error is on line 1618. Let me look at the exact character at column 45. The line is `msg_start: Index where the agent's messages started.`. Column 45 would be around the word "started". 
+
+Actually, I think the issue might be that there's an unmatched quote somewhere earlier in the file. When Python sees an unterminated string literal, it continues looking for the closing quote and might think the rest of the file is part of the string.
+
+Let me check if there are any string literals with issues. Actually, let me check the lines around where I made changes. I edited the `_run_delegation` method docstring. Let me look at that area:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1640, 'end_line': 1660})
+
+[result]         # Parse structured completion report from specialist output
+        parsed = self._parse_completion_report(summary)
+
+        # Assess whether the specialist actually did meaningful work
+      ...
+Let me see more of the docstring:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1660, 'end_line': 1680})
+
+[result]         must flow through the structured ``brief`` fields that the Tech
+        Lead populates when calling ``delegate_task``.
+
+        Improvements in v0.2.7:
+        - Enforces ``max_delegation_turn...
+The docstring looks fine. Let me check if there's an issue with triple quotes somewhere. Actually, wait - I think I see the issue. When I edited the docstring earlier, I might have accidentally created a syntax error. Let me check the exact edit I made. I replaced the Args section. Let me look at the original code around that area to see if there was a syntax issue.
+
+Actually, let me check if there's an issue with the `_finalize_delegation` method docstring which is around line 1618. Let me look at that method:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1605, 'end_line': 1625})
+
+[result]         return brief
+
+    def _process_delegation_results(
+        self,
+        target_role: str,
+        target_agent: Agent,
+        msg_start: int,
+    ) -> tuple[str, dict[str, str], CompletionSt...
+The `_process_delegation_results` method looks fine. The issue might be elsewhere. Let me check if there's an issue with string literals in the file. Actually, let me run a more detailed check:
+[tool] python_exec({'code': 'import re\n\nwith 
+open(\'src/henchman/agents/orchestrator.py\', \'r\') as f:\n    lines = 
+f.readlines()\n\n# Check for unbalanced quotes\nin_string = False\nstring_char =
+None\nfor i, line in enumerate(lines, 1):\n    # Skip comments\n    stripped = 
+line.strip()\n    if stripped.startswith(\'#\'):\n        continue\n        \n  
+# Check for string literals\n    j = 0\n    while j < len(line):\n        char =
+line[j]\n        if char in (\'"\', "\'"):\n            if not in_string:\n     
+# Start of string\n                in_string = True\n                string_char
+= char\n                # Check if it\'s a triple quote\n                if j + 
+2 < len(line) and line[j:j+3] == string_char * 3:\n                    
+string_char = string_char * 3\n                    j += 2\n            elif char
+== string_char:\n                # Check if it\'s the end of the string\n       
+if string_char == \'"""\' or string_char == "\'\'\'":\n                    if j 
++ 2 < len(line) and line[j:j+3] == string_char:\n                        
+in_string = False\n                        string_char = None\n                 
+j += 2\n                else:\n                    in_string = False\n          
+string_char = None\n        elif char == \'\\\\\':\n            # Skip escaped 
+character\n            j += 1\n        j += 1\n    \n    if in_string:\n        
+print(f"Line {i} is inside a string literal started with {string_char}")\n      
+print(f"  Line: {line.rstrip()}")'})
+
+[result] Line 1 is inside a string literal started with """
+  Line: """Orchestrator for multi-agent development team."""
+Line 2 is inside a string literal started with """
+  Line: 
+Line 3 is inside a string li...
+The output shows that the entire file is being treated as being inside a string literal! This means there's an unterminated triple-quote string at the beginning of the file. Let me check the very beginning of the file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1, 'end_line': 10})
+
+[result] """Orchestrator for multi-agent development team."""
+
+import re
+import time
+from collections.abc import AsyncIterator
+from datetime import datetime
+from enum import Enum
+from typing import Any, TypedD...
+The module docstring looks fine - it's properly terminated with triple quotes. But the script is detecting that the entire file is inside a string literal. This suggests there might be an issue with how the script is parsing the file.
+
+Actually, wait - I think the issue is with my test script. It's not handling triple quotes correctly. The module docstring `"""Orchestrator for multi-agent development team."""` is a valid triple-quoted string. But my test script might be treating it as a single-quoted string that never ends.
+
+Let me check the actual file for syntax errors by running Python directly:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m py_compile 
+src/henchman/agents/orchestrator.py'})
+
+✗ \[error]   File "src/henchman/agents/orchestrator.py", line 1618
+    msg_start: Index where the agent's messages started.
+                                    ^
+SyntaxError: unterminated string literal (detecte
+So there is a syntax error at line 1618. The issue is with the docstring line `msg_start: Index where the agent's messages started.`. 
+
+Wait, that line is part of a docstring. Let me look at the context around line 1618 again:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1610, 'end_line': 1630})
+
+[result]         target_agent: Agent,
+        msg_start: int,
+    ) -> tuple[str, dict[str, str], CompletionStatus]:
+        """Process delegation results and prepare completion data.
+
+        Args:
+          ...
+The docstring looks fine. The syntax error says "unterminated string literal (detected at line 1618)". The issue might be that there's an unterminated string somewhere before line 1618 that Python is treating as continuing through line 1618.
+
+Let me check if there's an issue with string literals in the code. Actually, I think the issue might be that when I edited the `_run_delegation` method docstring, I might have accidentally created a syntax error with the triple quotes.
+
+Let me look at the `_run_delegation` method docstring more carefully. Actually, I just realized something. When I edited the `_run_delegation` method, I changed the Args section. But I didn't check if there were any other changes to the docstring that might have caused issues.
+
+Actually, let me check if there's an issue with the docstring indentation or quotes. The error is at line 1618, which is in the `_process_delegation_results` method, not `_run_delegation`. So the issue is elsewhere.
+
+Wait, I think I see the issue. Line 1618 is `msg_start: Index where the agent's messages started.`. This is a docstring line. The issue might be that there's an unmatched quote or triple quote somewhere in the file that's causing Python to think this line is still inside a string literal.
+
+Let me check for unmatched quotes in the file. Actually, let me use a simpler approach - let me check the file from the beginning up to line 1618 to see if there's a syntax issue:
+[tool] python_exec({'code': 'import ast\nwith 
+open(\'src/henchman/agents/orchestrator.py\', \'r\') as f:\n    # Read only up 
+to line 1618\n    lines = []\n    for i, line in enumerate(f, 1):\n        
+lines.append(line)\n        if i >= 1620:  # Read a bit past line 1618\n        
+break\n    content = \'\'.join(lines)\n\ntry:\n    ast.parse(content)\n    
+print("Syntax is OK up to line 1620")\nexcept SyntaxError as e:\n    
+print(f"Syntax error at line {e.lineno}: {e.msg}")\n    # Show the line with the
+error\n    lines = content.split(\'\\n\')\n    if e.lineno <= len(lines):\n     
+print(f"Line {e.lineno}: {lines[e.lineno-1]}")'})
+
+[result] Syntax error at line 1618: unterminated string literal (detected at 
+line 1618)
+Line 1618:             msg_start: Index where the agent's messages started.
+...
+So the syntax error is definitely at line 1618. The issue is that Python thinks there's an unterminated string literal. This usually happens when there's a string that starts but doesn't end.
+
+Let me look at the lines before 1618 to see if there's an unterminated string:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1600, 'end_line': 1620})
+
+[result]                 existing_bg = brief.get("background") if brief else 
+None
+                if brief is None:
+                    brief = {}
+                brief["background"] = f"{existing_bg}\n\n{fail...
+The docstring looks fine. Let me check if there's an issue with the method signature or something else. Actually, wait - I just realized something. The error message says "unterminated string literal (detected at line 1618)". This means Python detected an unterminated string literal, and it noticed this at line 1618. But the actual unterminated string might be earlier in the file.
+
+Let me check if there's an issue with string literals in the `_prepare_delegation_brief` method which is just before `_process_delegation_results`:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1550, 'end_line': 1600})
+
+[result]         # Update metrics for tool usage
+        self._update_tool_metrics(tool_call.name, tool_call.arguments, 
+result.success)
+
+        # Yield tool result event using helper method
+        yield self...
+I see a potential issue! Look at line 1589-1592:
+```python
+                fail_note = (
+                    f"### Prior Attempt Failed\n"
+                    f"A previous delegation to you for "
+                    f'"{last_fail.task}" ended with status FAILED. '
+                    f"Avoid repeating the same approach."
+                )
+```
+
+There's a string that starts with `f'` (line 1591) but it ends with `'` (single quote). Then line 1592 has `f"Avoid repeating the same approach."` which starts with `f"` (double quote). This might be causing confusion.
+
+Actually, that should be fine because the string on line 1591 is `f'"{last_fail.task}" ended with status FAILED. '` - it starts with `f'` and ends with `'`. That's valid.
+
+Let me check if there's an issue with the parentheses. The string starts with `(` on line 1589 and should end with `)` on line 1593. Let me see line 1593:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1590, 'end_line': 1600})
+
+[result]                 if d.agent == target_role and d.status == "FAILED"
+            ]
+            if prior_failures:
+                last_fail = prior_failures[-1]
+                fail_note = (
+           ...
+The parentheses look balanced. Let me check if the closing parenthesis is on the next line:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1595, 'end_line': 1605})
+
+[result]                     f"### Prior Attempt Failed\n"
+                    f"A previous delegation to you for "
+                    f'"{last_fail.task}" ended with status FAILED. '
+                    f"Av...
+The parentheses look balanced. Let me check if there's an issue elsewhere. Actually, let me try to compile just the part of the file up to line 1618 to see where the actual error is:
+[tool] python_exec({'code': '# Let me check the file character by character 
+around the problem area\nwith open(\'src/henchman/agents/orchestrator.py\', 
+\'r\') as f:\n    lines = f.readlines()\n\n# Check lines 
+1610-1625\nprint("Checking lines 1610-1625:")\nfor i in range(1609, 1625):\n    
+if i < len(lines):\n        print(f"{i+1:4}: {repr(lines[i])}")'})
+
+[result] Checking lines 1610-1625:
+1610: '        target_agent: Agent,\n'
+1611: '        msg_start: int,\n'
+1612: '    ) -> tuple[str, dict[str, str], CompletionStatus]:\n'
+1613: '        """Process delegation...
+Line 1618 has `"            msg_start: Index where the agent's messages started.\n"`. There's a single quote in `agent's`. That might be the issue! If there's an unterminated string earlier in the file, Python might think this single quote is closing a string that was opened earlier.
+
+Actually, wait. Line 1618 is inside a docstring (triple-quoted string). The single quote in `agent's` should be fine because it's inside a triple-quoted string.
+
+But here's the thing: if there's an unterminated string earlier in the file, Python might not recognize that this is inside a docstring. The error message says "unterminated string literal (detected at line 1618)". This suggests that Python thinks there's a string literal that started before line 1618 and hasn't been closed.
+
+Let me check if there's an issue with the docstring itself. The docstring starts at line 1613 with `"""Process delegation results and prepare completion data.` and should end at line 1622 with `"""`. Let me verify:
+
+Line 1613: `        """Process delegation results and prepare completion data.`
+Line 1622: `        """`
+
+That looks correct. But wait - line 1613 doesn't have the closing triple quotes on the same line. That's fine for a multi-line docstring.
+
+Actually, I think I need to look for unterminated string literals earlier in the file. Let me write a script to check for unbalanced quotes:
+[tool] python_exec({'code': 'def check_quotes(filename):\n    with 
+open(filename, \'r\') as f:\n        content = f.read()\n    \n    in_string = 
+False\n    string_char = None\n    line_num = 1\n    char_num = 0\n    
+string_start_line = 0\n    string_start_char = 0\n    \n    i = 0\n    while i <
+len(content):\n        char = content[i]\n        char_num += 1\n        \n     
+if char == \'\\n\':\n            line_num += 1\n            char_num = 0\n      
+\n        if not in_string:\n            # Not in a string, look for string 
+start\n            if char in (\'"\', "\'"):\n                # Check if it\'s a
+triple quote\n                if i + 2 < len(content) and content[i:i+3] == char
+* 3:\n                    in_string = True\n                    string_char = 
+char * 3\n                    string_start_line = line_num\n                    
+string_start_char = char_num\n                    i += 2  # Skip the other two 
+quotes\n                else:\n                    in_string = True\n           
+string_char = char\n                    string_start_line = line_num\n          
+string_start_char = char_num\n        else:\n            # In a string, look for
+string end\n            if char == \'\\\\\':\n                # Skip escaped 
+character\n                i += 1\n                if i < len(content) and 
+content[i] == \'\\n\':\n                    line_num += 1\n                    
+char_num = 0\n            elif char == string_char:\n                # Check if 
+it\'s the end of the string\n                if len(string_char) == 3:\n        
+if i + 2 < len(content) and content[i:i+3] == string_char:\n                    
+in_string = False\n                        string_char = None\n                 
+i += 2  # Skip the other two quotes\n                else:\n                    
+in_string = False\n                    string_char = None\n        \n        i 
++= 1\n    \n    if in_string:\n        print(f"Unterminated string literal 
+starting at line {string_start_line}, char {string_start_char}")\n        
+print(f"String started with: {string_char}")\n        return False\n    else:\n 
+print("All string literals are properly terminated")\n        return 
+True\n\ncheck_quotes(\'src/henchman/agents/orchestrator.py\')'})
+
+[result] Unterminated string literal starting at line 1, char 1
+String started with: """
+...
+Ah! So there's an unterminated triple-quoted string starting at line 1, char 1. That's the module docstring! But the module docstring should be terminated. Let me check if it's properly terminated:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1, 'end_line': 5})
+
+[result] """Orchestrator for multi-agent development team."""
+
+import re
+import time
+from collections.abc import AsyncIterator
+...
+The module docstring looks properly terminated: `"""Orchestrator for multi-agent development team."""`. It starts and ends on the same line with triple quotes.
+
+But my script says it's unterminated. This suggests there might be another triple quote somewhere in the file that's not properly matched. Or my script might have a bug.
+
+Actually, wait. My script is checking for triple quotes. If there's a triple quote later in the file that's not properly closed, it might think the string started at line 1 continues.
+
+Let me modify my script to be more accurate:
+[tool] python_exec({'code': 'def check_quotes_simple(filename):\n    with 
+open(filename, \'r\') as f:\n        lines = f.readlines()\n    \n    
+in_triple_single = False\n    in_triple_double = False\n    in_single = False\n 
+in_double = False\n    escape_next = False\n    \n    for line_num, line in 
+enumerate(lines, 1):\n        i = 0\n        while i < len(line):\n            
+char = line[i]\n            \n            if escape_next:\n                
+escape_next = False\n                i += 1\n                continue\n         
+\n            if char == \'\\\\\':\n                escape_next = True\n        
+i += 1\n                continue\n            \n            # Check for triple 
+quotes\n            if i + 2 < len(line) and line[i:i+3] == \'"""\':\n          
+if not (in_single or in_double or in_triple_single):\n                    if 
+in_triple_double:\n                        in_triple_double = False\n           
+else:\n                        in_triple_double = True\n                i += 2  
+# Skip the other two quotes\n            elif i + 2 < len(line) and line[i:i+3] 
+== "\'\'\'":\n                if not (in_single or in_double or 
+in_triple_double):\n                    if in_triple_single:\n                  
+in_triple_single = False\n                    else:\n                        
+in_triple_single = True\n                i += 2  # Skip the other two quotes\n  
+elif char == \'"\':\n                if not (in_single or in_triple_single or 
+in_triple_double):\n                    if in_double:\n                        
+in_double = False\n                    else:\n                        in_double 
+= True\n            elif char == "\'":\n                if not (in_double or 
+in_triple_single or in_triple_double):\n                    if in_single:\n     
+in_single = False\n                    else:\n                        in_single 
+= True\n            \n            i += 1\n        \n        # Check if we\'re 
+still in a string at the end of the line\n        if in_single or in_double:\n  
+# Single or double quotes should not span multiple lines\n            # (unless 
+they\'re part of a triple quote)\n            print(f"Line {line_num}: 
+Unterminated single/double quote string")\n            return False\n    \n    
+if in_triple_single or in_triple_double:\n        print(f"Unterminated 
+triple-quoted string")\n        return False\n    \n    print("All string 
+literals are properly terminated")\n    return 
+True\n\ncheck_quotes_simple(\'src/henchman/agents/orchestrator.py\')'})
+
+[result] Line 218: Unterminated single/double quote string
+...
+Ah! There's an unterminated single or double quote string at line 218. Let me check line 218:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+215, 'end_line': 225})
+
+[result]     ERROR_RATE_TARGET = 50.0  # Target reduction of 50%
+    CONTEXT_WINDOW_TARGET = 40.0  # Target < 40% (from 65%)
+    FILE_RE_READS_TARGET = 1.3  # Target < 1.3 (60% reduction from 3.2)
+    FILE_RE_...
+Line 218 is `    FILE_RE_READS_BASELINE = 3.2  # Baseline from which we're reducing by 60%`. There's no string literal here. Let me check a few lines before and after:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+210, 'end_line': 230})
+
+[result] class PerformanceMetrics:
+    """Encapsulates performance-related metrics."""
+
+    # Target constants
+    DELEGATION_RATE_TARGET = 40.0  # Target > 40% (from current 25%)
+    ERROR_RATE_TARGET = 50.0 ...
+I don't see any string literals here. My script might be getting confused by something. Let me check if there's an issue with the docstring at line 212: `    """Encapsulates performance-related metrics."""`. That's a triple-quoted string on one line.
+
+Actually, I think my script might have a bug. Let me write a simpler check:
+[tool] python_exec({'code': 'import ast\n\ntry:\n    with 
+open(\'src/henchman/agents/orchestrator.py\', \'r\') as f:\n        content = 
+f.read()\n    ast.parse(content)\n    print("File parses successfully")\nexcept 
+SyntaxError as e:\n    print(f"Syntax error: {e}")\n    print(f"Line {e.lineno},
+offset {e.offset}")\n    \n    # Show the problematic line\n    lines = 
+content.split(\'\\n\')\n    if e.lineno <= len(lines):\n        print(f"Problem 
+line: {lines[e.lineno-1]}")\n        \n        # Show context\n        start = 
+max(0, e.lineno - 5)\n        end = min(len(lines), e.lineno + 4)\n        
+print("\\nContext:")\n        for i in range(start, end):\n            
+print(f"{i+1:4}: {lines[i]}")'})
+
+[result] Syntax error: unterminated string literal (detected at line 1618) 
+(<unknown>, line 1618)
+Line 1618, offset 45
+Problem line:             msg_start: Index where the agent's messages started.
+
+Context:
+1...
+So Python is definitely reporting a syntax error at line 1618. The issue is that Python thinks there's an unterminated string literal, and it detects this at line 1618.
+
+The fact that it says "detected at line 1618" means the actual unterminated string started earlier. Python keeps looking for the closing quote and when it reaches line 1618, it realizes something is wrong.
+
+Let me check if there's an issue with string literals in the `_prepare_delegation_context` method. Actually, I just noticed something. Look at line 1591 in the code I saw earlier:
+
+```python
+f'"{last_fail.task}" ended with status FAILED. '
+```
+
+This is an f-string that starts with `f'` (single quote) and contains `"` (double quote) inside. Then it ends with `'` (single quote). That should be fine.
+
+But wait, let me look at the full context again:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1585, 'end_line': 1595})
+
+[result]         # Inject prior failure context if the same role failed before 
+(#17)
+        if self.ledger:
+            prior_failures = [
+                d
+                for d in self.ledger.delegations
+  ...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1590, 'end_line': 1600})
+
+[result]                 if d.agent == target_role and d.status == "FAILED"
+            ]
+            if prior_failures:
+                last_fail = prior_failures[-1]
+                fail_note = (
+           ...
+I see it now! Look at line 1593:
+```python
+                    f'"{last_fail.task}" ended with status FAILED. '
+```
+
+This is an f-string that starts with `f'` (single quote). It contains `"` (double quote) and ends with `'` (single quote). That should be fine.
+
+But wait, let me check if there's a missing closing parenthesis. The `fail_note = (` starts on line 1589 and should close on line 1594. Let me see line 1594:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1593, 'end_line': 1603})
+
+[result]                 last_fail = prior_failures[-1]
+                fail_note = (
+                    f"### Prior Attempt Failed\n"
+                    f"A previous delegation to you for "
+                ...
+The parentheses look balanced. Line 1594 has the closing `)`.
+
+Actually, I think I need to look at this more carefully. Let me write a script to find the actual issue:
+[tool] python_exec({'code': '# Let me check the file incrementally\nwith 
+open(\'src/henchman/agents/orchestrator.py\', \'r\') as f:\n    content = 
+f.read()\n\n# Try parsing incrementally to find where the error actually 
+starts\nfor end_line in range(1500, 1620, 10):\n    try:\n        
+partial_content = \'\\n\'.join(content.split(\'\\n\')[:end_line])\n        
+ast.parse(partial_content)\n        print(f"Parses OK up to line {end_line}")\n 
+except SyntaxError as e:\n        print(f"Syntax error at or before line 
+{end_line}: {e}")\n        break'})
+
+✗ \[error] Traceback (most recent call last):
+  File "<string>", line 9, in <module>
+NameError: name 'ast' is not defined. Did you forget to import 'ast'?
+
+
+[tool] python_exec({'code': 'import ast\n\n# Let me check the file 
+incrementally\nwith open(\'src/henchman/agents/orchestrator.py\', \'r\') as f:\n
+content = f.read()\n\n# Try parsing incrementally to find where the error 
+actually starts\nfor end_line in range(1500, 1620, 10):\n    try:\n        
+partial_content = \'\\n\'.join(content.split(\'\\n\')[:end_line])\n        
+ast.parse(partial_content)\n        print(f"Parses OK up to line {end_line}")\n 
+except SyntaxError as e:\n        print(f"Syntax error at or before line 
+{end_line}: {e}")\n        break'})
+
+[result] Syntax error at or before line 1500: unterminated triple-quoted string 
+literal (detected at line 1500) (<unknown>, line 1466)
+...
+Ah! Now we're getting somewhere. There's an unterminated triple-quoted string literal detected at line 1500, and the error is at line 1466. Let me check line 1466:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1460, 'end_line': 1470})
+
+[result]             tool_call: The delegation tool call to execute.
+            depth: Current delegation depth.
+            tool_errors: List to collect tool errors (unused for delegation).
+
+        Yields:
+...
+Line 1466 is `        """`. That's a closing triple quote for a docstring. Let me check what docstring this is closing. Let me look at the method this is in:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1440, 'end_line': 1460})
+
+[result]             if tool_call.name == _DELEGATE_TASK_TOOL:
+                async for event in self._execute_delegation_tool(
+                    agent, tool_call, depth, tool_errors
+                ):
+    ...
+So line 1466 is closing the docstring for `_execute_delegation_tool`. The docstring starts at line 1453 with `"""Execute a delegation tool call.`. That looks fine.
+
+But wait, the error says "unterminated triple-quoted string literal (detected at line 1500)". So Python thinks there's a triple-quoted string that starts before line 1466 and isn't closed by line 1466.
+
+Actually, I think I see the issue! Look at line 1453: `        """Execute a delegation tool call.`. This is a triple-quoted string that starts on line 1453. But where does it end? It should end at line 1466 with `        """`. 
+
+But wait, there's text between line 1453 and line 1466. Let me check if there's another triple quote in between:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1450, 'end_line': 1470})
+
+[result]         self,
+        agent: Agent,
+        tool_call: ToolCall,
+        depth: int,
+        tool_errors: list[str],
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute a delegation tool call.
+
+   ...
+The docstring looks fine. It starts at line 1453 and ends at line 1466. There are no other triple quotes in between.
+
+But wait! I just realized something. When I edited the `_run_delegation` method earlier, I changed its signature and docstring. What if I accidentally created a syntax error there? Let me check the `_run_delegation` method:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1640, 'end_line': 1660})
+
+[result]         # Parse structured completion report from specialist output
+        parsed = self._parse_completion_report(summary)
+
+        # Assess whether the specialist actually did meaningful work
+      ...
+Let me see the full docstring:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1655, 'end_line': 1680})
+
+[result]         history is cleared before every delegation so it operates from 
+a
+        self-contained brief rather than accumulated (and often polluted)
+        prior context.
+
+        The Tech Lead is the ...
+The docstring looks fine. It starts with `"""Execute a delegation to a specialist agent.` and should end with `        """` before the method body starts.
+
+Wait, I need to see where the docstring ends. Let me check:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1675, 'end_line': 1685})
+
+[result]         # Extract parameters from the params object
+        target_role = params.target_role
+        task = params.task
+        brief = params.brief
+        depth = params.depth
+        
+        # Val...
+I don't see the closing triple quotes for the docstring! The docstring starts at line 1649 (`        """Execute a delegation to a specialist agent.`) but I don't see where it ends. The method body starts at line 1675 with `        # Extract parameters from the params object`. 
+
+There should be a closing `"""` before line 1675. Let me check:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1670, 'end_line': 1680})
+
+[result]             params: Delegation parameters containing target role, task,
+brief, and depth.
+
+        Yields:
+            AgentEvents from the specialist agent.
+        """
+        # Extract parameters f...
+Ah! I see the issue now. Line 1673 has `        """`. That's the closing triple quote for the docstring. So the docstring is properly closed.
+
+But wait, let me trace through this more carefully. The docstring starts at line 1649 and ends at line 1673. That's 24 lines of docstring. That seems long but possible.
+
+Actually, I think I need to check if there's an issue with the indentation. The docstring starts at column 8 (indented with 8 spaces). The closing `"""` should be at the same indentation level.
+
+Let me check the exact indentation. Actually, let me just fix this by rewriting the `_run_delegation` method docstring to be simpler. The issue might be that when I edited the docstring, I accidentally created a syntax error.
+
+Actually, wait. Let me first check if the issue is actually in the `_run_delegation` method. The error said "unterminated triple-quoted string literal (detected at line 1500)" and the error is at line 1466. That's in the `_execute_delegation_tool` method, not `_run_delegation`.
+
+But the `_execute_delegation_tool` method comes before `_run_delegation` in the file. So if there's an unterminated string in `_execute_delegation_tool`, it would affect everything after it.
+
+Actually, I think the issue might be simpler. Let me just restore the original `_run_delegation` method signature and see if that fixes the syntax error. Then I can reapply my changes more carefully.
+
+Actually, wait. I just realized something. When I edited the `_run_delegation` method, I only changed the signature and the beginning of the method. I didn't change the docstring except for the Args section. But what if my edit accidentally removed the closing triple quotes?
+
+Let me check the original state of the file before my changes. Actually, let me just fix the syntax error by checking the `_execute_delegation_tool` method more carefully.
+
+Actually, you know what? Let me take a different approach. Instead of trying to find the exact syntax error, let me just rewrite the problematic section. The issue seems to be in the `_execute_delegation_tool` method docstring. Let me check if there's an issue with it:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1445, 'end_line': 1470})
+
+[result]             else:
+                async for event in self._execute_regular_tool(agent, tool_call, 
+tool_errors):
+                    yield event
+
+    async def _execute_delegation_tool(
+        self,
+ ...
+The `_execute_delegation_tool` method docstring looks fine. It starts at line 1453 and ends at line 1466.
+
+Wait, I just had a thought. What if the issue is not with the docstrings themselves, but with a string literal somewhere else? Like an f-string or a regular string that has an unmatched quote?
+
+Actually, let me just run a simple test. Let me create a minimal version of the file and see if it parses:
+[tool] python_exec({'code': '# Create a minimal test\ntest_code = 
+\'\'\'\n"""Orchestrator for multi-agent development team."""\n\nimport 
+re\nimport time\nfrom collections.abc import AsyncIterator\nfrom datetime import
+datetime\nfrom enum import Enum\nfrom typing import Any, TypedDict\nfrom 
+dataclasses import dataclass\n\n# Just include the problematic method\nasync def
+_execute_delegation_tool(\n    self,\n    agent,\n    tool_call,\n    depth: 
+int,\n    tool_errors: list[str],\n):\n    """Execute a delegation tool 
+call.\n\n    Args:\n        agent: The agent that made the delegation.\n        
+tool_call: The delegation tool call to execute.\n        depth: Current 
+delegation depth.\n        tool_errors: List to collect tool errors (unused for 
+delegation).\n\n    Yields:\n        AgentEvents from delegation execution.\n   
+"""\n    target = tool_call.arguments.get("agent", "")\n    task = 
+tool_call.arguments.get("task", "")\n    return\n\'\'\'\n\ntry:\n    
+ast.parse(test_code)\n    print("Minimal test parses OK")\nexcept SyntaxError as
+e:\n    print(f"Syntax error in minimal test: {e}")'})
+
+✗ \[error] Traceback (most recent call last):
+  File "<string>", line 38, in <module>
+NameError: name 'ast' is not defined. Did you forget to import 'ast'?
+
+
+[tool] python_exec({'code': 'import ast\n\n# Create a minimal test\ntest_code = 
+\'\'\'\n"""Orchestrator for multi-agent development team."""\n\nimport 
+re\nimport time\nfrom collections.abc import AsyncIterator\nfrom datetime import
+datetime\nfrom enum import Enum\nfrom typing import Any, TypedDict\nfrom 
+dataclasses import dataclass\n\n# Just include the problematic method\nasync def
+_execute_delegation_tool(\n    self,\n    agent,\n    tool_call,\n    depth: 
+int,\n    tool_errors: list[str],\n):\n    """Execute a delegation tool 
+call.\n\n    Args:\n        agent: The agent that made the delegation.\n        
+tool_call: The delegation tool call to execute.\n        depth: Current 
+delegation depth.\n        tool_errors: List to collect tool errors (unused for 
+delegation).\n\n    Yields:\n        AgentEvents from delegation execution.\n   
+"""\n    target = tool_call.arguments.get("agent", "")\n    task = 
+tool_call.arguments.get("task", "")\n    return\n\'\'\'\n\ntry:\n    
+ast.parse(test_code)\n    print("Minimal test parses OK")\nexcept SyntaxError as
+e:\n    print(f"Syntax error in minimal test: {e}")'})
+
+[result] Minimal test parses OK
+...
+So the `_execute_delegation_tool` method by itself parses fine. The issue must be elsewhere in the file.
+
+You know what? Let me just revert all my changes and start over. The syntax error is preventing tests from running, so I need to fix it first. Let me check the git status to see what I changed:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git diff 
+src/henchman/agents/orchestrator.py | head -100'})
+
+[result] diff --git a/src/henchman/agents/orchestrator.py 
+b/src/henchman/agents/orchestrator.py
+index 2010158..b075893 100644
+--- a/src/henchman/agents/orchestrator.py
++++ b/src/henchman/agents/orchestrator.py...
+Let me see more of the diff:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git diff 
+src/henchman/agents/orchestrator.py | tail -100'})
+
+[result] -        async for sub_event in self._run_delegation(target, task, 
+delegation_brief, depth + 1):
++        delegation_params = DelegationParams(
++            target_role=target,
++            task=task,...
+I see the changes. The issue might be that I introduced a syntax error when I edited the `_run_delegation` method. Let me check if there's an issue with the docstring. Actually, I think the issue might be that I didn't properly close the docstring or there's an indentation issue.
+
+Actually, looking at the diff, I see that I changed the `_run_delegation` method signature and docstring. The docstring now has an Args section that says `params: Delegation parameters containing target role, task, brief, and depth.`. That looks fine.
+
+But wait, I just realized something. When I edited the `_run_delegation` method, I removed the old Args section and added a new one. But what if there was a syntax error in the original code that I didn't notice?
+
+Actually, let me just revert my changes and start over. But first, let me check if the original code had a syntax error. Let me check the git status of the file:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git status'})
+
+[result] On branch main
+Your branch is ahead of 'origin/main' by 38 commits.
+  (use "git push" to publish your local commits)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be c...
+Let me check if the original code had a syntax error by reverting my changes:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git checkout -- 
+src/henchman/agents/orchestrator.py'})
+
+[result] (no output)...
+Now let me run the tests again to see if the original code had a syntax error:
+[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': 
+True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good! The original code passes tests. So the syntax error was introduced by my changes. Now I need to reapply my refactoring more carefully.
+
+Let me start by adding the dataclass imports and definitions again, but this time I'll do it step by step and test after each step.
+
+First, let me add the dataclass import:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': 
+'from enum import Enum\nfrom typing import Any, TypedDict', 'new_str': 'from 
+enum import Enum\nfrom typing import Any, TypedDict\nfrom dataclasses import 
+dataclass'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me add the dataclass definitions after the imports:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': 
+'from henchman.tools.registry import ToolRegistry\n\n# Configuration constants 
+for magic numbers', 'new_str': 'from henchman.tools.registry import 
+ToolRegistry\n\n\n@dataclass\nclass AgentLoopParams:\n    """Parameters for 
+running an agent loop.\n    \n    Encapsulates the common parameters used across
+different agent execution methods\n    to address Primitive Obsession code 
+smell.\n    """\n    agent: Agent | None = None\n    """The agent to run. Either
+agent or target_role must be provided."""\n    \n    target_role: str | None = 
+None\n    """The role of the agent to run. Either agent or target_role must be 
+provided."""\n    \n    input_text: str = ""\n    """The input text, task, or 
+user input for the agent to process."""\n    \n    depth: int = 0\n    
+"""Current delegation depth for tracking recursion."""\n    \n    max_turns: int
+= 0\n    """Maximum number of turns allowed (0 for unlimited)."""\n    \n    
+msg_start_index: int = 0\n    """Starting index in agent messages for tracking 
+output."""\n    \n    brief: dict[str, Any] | None = None\n    """Optional 
+briefing information for delegation tasks."""\n\n\n@dataclass\nclass 
+DelegationParams:\n    """Parameters for delegating a task to a specialist 
+agent.\n    \n    Encapsulates the parameters used for delegation to address 
+Primitive Obsession code smell.\n    """\n    target_role: str\n    """The role 
+of the agent to delegate to."""\n    \n    task: str\n    """The task 
+description to delegate."""\n    \n    brief: dict[str, Any] | None = None\n    
+"""Optional briefing information for the delegation."""\n    \n    depth: int = 
+0\n    """Current delegation depth for tracking recursion."""\n\n\n# 
+Configuration constants for magic numbers'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me run a quick test to make sure the file still parses:
+[tool] pytest_run({'path': 
+'tests/agents/test_orchestrator.py::test_orchestrator_run_basic', 'verbose': 
+True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good! The test passes. Now let me update the `_run_agent_loop` method signature. But wait, I need to be more careful this time. Instead of changing the method signature directly, let me first create a new method that uses the parameter object, and then update the calls to use it.
+
+Actually, that would create duplicate code. Let me think about this differently. The issue last time was that I might have created a syntax error when editing the docstring. Let me be more careful this time.
+
+Actually, let me first update all the calls to `_run_agent_loop` to use the parameter object, and then update the method signature. That way, if there's a syntax error, I'll know it's in the method signature or docstring.
+
+Let me start by updating the first call to `_run_agent_loop`:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+860, 'end_line': 870})
+
+[result] 
+        Args:
+            user_input: The user's request.
+
+        Yields:
+            AgentEvent stream from the orchestration.
+        """
+        # Initialize a fresh task ledger for this request
+...
+Let me find the actual call:
+[tool] grep({'pattern': '_run_agent_loop.*self.tech_lead', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+2, 'context_after': 2})
+
+[result] 879-
+880-        event_count = 0
+881:        async for event in self._run_agent_loop(self.tech_lead, user_input):
+882-            event_count += 1
+883-            yield event...
+
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+event_count = 0\n        async for event in self._run_agent_loop(self.tech_lead,
+user_input):\n            event_count += 1\n            yield event', 'new_str':
+'        event_count = 0\n        params = AgentLoopParams(\n            
+agent=self.tech_lead,\n            input_text=user_input,\n        )\n        
+async for event in self._run_agent_loop(params):\n            event_count += 1\n
+yield event'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me update the second call:
+[tool] grep({'pattern': '_run_agent_loop.*agent.*user_input"', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+2, 'context_after': 2})
+
+[result] No matches found...
+
+[tool] grep({'pattern': '_run_agent_loop.*agent', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+2, 'context_after': 2})
+
+[result] 938-        )
+939-
+940:        async for event in self._run_agent_loop(agent, user_input):
+941-            yield event
+942-...
+
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+async for event in self._run_agent_loop(agent, user_input):\n            yield 
+event', 'new_str': '        params = AgentLoopParams(\n            
+agent=agent,\n            input_text=user_input,\n        )\n        async for 
+event in self._run_agent_loop(params):\n            yield event'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me update the third call in `_execute_delegation_loop`:
+[tool] grep({'pattern': '_run_agent_loop.*target_agent.*full_task', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True, 'context_before': 
+2, 'context_after': 2})
+
+[result] No matches found...
+Let me find the `_execute_delegation_loop` method:
+[tool] grep({'pattern': 'def _execute_delegation_loop', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 1807:    async def _execute_delegation_loop(...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1807, 'end_line': 1825})
+
+[result]     async def _execute_delegation_loop(
+        self,
+        target_agent: Agent,
+        full_task: str,
+        depth: int,
+        msg_start: int,
+    ) -> AsyncIterator[AgentEvent]:
+        """Ex...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1820, 'end_line': 1830})
+
+[result]             msg_start: Starting message index.
+
+        Yields:
+            AgentEvents from the specialist agent.
+        """
+        max_turns = self.settings.agents.max_delegation_turns
+        asy...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1825, 'end_line': 1835})
+
+[result]         max_turns = self.settings.agents.max_delegation_turns
+        async for event in self._run_agent_loop(
+            target_agent,
+            full_task,
+            depth,
+            max_turns...
+
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+max_turns = self.settings.agents.max_delegation_turns\n        async for event 
+in self._run_agent_loop(\n            target_agent,\n            full_task,\n   
+depth,\n            max_turns=max_turns,\n            
+msg_start_index=msg_start,\n        ):\n            yield event', 'new_str': '  
+max_turns = self.settings.agents.max_delegation_turns\n        params = 
+AgentLoopParams(\n            agent=target_agent,\n            
+input_text=full_task,\n            depth=depth,\n            
+max_turns=max_turns,\n            msg_start_index=msg_start,\n        )\n       
+async for event in self._run_agent_loop(params):\n            yield event'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update the `_run_agent_loop` method signature. But first, let me run a test to make sure the changes so far don't break anything:
+[tool] pytest_run({'path': 
+'tests/agents/test_orchestrator.py::test_orchestrator_run_basic', 'verbose': 
+True})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Right, I need to update the `_run_agent_loop` method signature to accept the `AgentLoopParams` object instead of individual parameters. Let me find the method:
+[tool] grep({'pattern': 'def _run_agent_loop', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 1286:    async def _run_agent_loop(...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1286, 'end_line': 1305})
+
+[result]     async def _run_agent_loop(
+        self,
+        agent: Agent,
+        user_input: str,
+        depth: int = 0,
+        max_turns: int = 0,
+        msg_start_index: int = 0,
+    ) -> AsyncIterator...
+Now I need to update the method signature and the beginning of the method body. Let me update the signature first:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+async def _run_agent_loop(\n        self,\n        agent: Agent,\n        
+user_input: str,\n        depth: int = 0,\n        max_turns: int = 0,\n        
+msg_start_index: int = 0,\n    ) -> AsyncIterator[AgentEvent]:\n        
+"""Handle the run loop for an agent, executing tools and intercepting 
+delegations.\n\n        This method is the core execution engine. It:\n        
+1. Runs the agent and collects events\n        2. Collects ALL tool calls from a
+single LLM response\n        3. Executes regular tools via the agent\'s tool 
+registry\n        4. Intercepts ``delegate_task`` calls and runs sub-agent 
+loops\n        5. Submits all results back to the agent and continues\n        
+6. Periodically re-injects role anchoring reminders (Task 5)\n        7. 
+Enforces per-delegation turn limits with wrap-up warnings\n        8. Tracks 
+tool errors for aggregation in delegation summaries\n\n        Args:\n          
+agent: The agent to run.\n            user_input: Initial input for the agent.\n
+depth: Current delegation depth.\n            max_turns: Maximum tool-call turns
+(0 = unlimited).\n            msg_start_index: Index into agent.messages where 
+this run began\n                (used to build a progress summary on 
+timeout).\n\n        Yields:\n            AgentEvents from the agent loop.\n    
+"""\n        generator: AsyncIterator[AgentEvent] = agent.run(user_input)\n     
+tool_call_count = 0\n        tool_errors: list[str] = []\n        wrapup_warned 
+= False\n        colon_stall_retries = 0', 'new_str': '    async def 
+_run_agent_loop(\n        self,\n        params: AgentLoopParams,\n    ) -> 
+AsyncIterator[AgentEvent]:\n        """Handle the run loop for an agent, 
+executing tools and intercepting delegations.\n\n        This method is the core
+execution engine. It:\n        1. Runs the agent and collects events\n        2.
+Collects ALL tool calls from a single LLM response\n        3. Executes regular 
+tools via the agent\'s tool registry\n        4. Intercepts ``delegate_task`` 
+calls and runs sub-agent loops\n        5. Submits all results back to the agent
+and continues\n        6. Periodically re-injects role anchoring reminders (Task
+5)\n        7. Enforces per-delegation turn limits with wrap-up warnings\n      
+8. Tracks tool errors for aggregation in delegation summaries\n\n        Args:\n
+params: Agent loop parameters containing agent, input, depth, etc.\n\n        
+Yields:\n            AgentEvents from the agent loop.\n        """\n        # 
+Extract parameters from the params object\n        agent = params.agent\n       
+if agent is None:\n            raise ValueError("Agent must be provided in 
+AgentLoopParams")\n        \n        user_input = params.input_text\n        
+depth = params.depth\n        max_turns = params.max_turns\n        
+msg_start_index = params.msg_start_index\n        \n        generator: 
+AsyncIterator[AgentEvent] = agent.run(user_input)\n        tool_call_count = 0\n
+tool_errors: list[str] = []\n        wrapup_warned = False\n        
+colon_stall_retries = 0'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to update the `_execute_delegation_loop` method to also use `AgentLoopParams`. But wait, I already updated the call to `_run_agent_loop` in `_execute_delegation_loop` to use `AgentLoopParams`. However, `_execute_delegation_loop` still has the old signature. I need to update it too.
+
+Actually, let me think about this. The `_execute_delegation_loop` method calls `_run_agent_loop` with an `AgentLoopParams` object. But `_execute_delegation_loop` itself is called from `_run_delegation`. So I need to update `_execute_delegation_loop` to accept `AgentLoopParams` and update the call in `_run_delegation`.
+
+But first, let me run a test to see if the current changes work:
+[tool] pytest_run({'path': 
+'tests/agents/test_orchestrator.py::test_orchestrator_run_basic', 'verbose': 
+True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+✗ Error: ToolExecutor._handle_context_compacted_event() takes 1 positional 
+argument but 2 were given
+[2026-02-27T11:00:02Z] Running pytest to verify tests pass...
+============================= test session starts ==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+plugins: asyncio-1.3.0, dash-3.3.0, mock-3.15.1, cov-7.0.0, typeguard-4.4.4, anyio-4.12.1, hypothesis-6.148.7, playwright-0.7.2, base-url-2.1.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 2557 items
+
+tests/agents/test_completion_status.py .......................           [  0%]
+tests/agents/test_config.py ..                                           [  0%]
+tests/agents/test_delegation_e2e.py ...........                          [  1%]
+tests/agents/test_identity.py ..                                         [  1%]
+tests/agents/test_ledger.py ............................                 [  2%]
+tests/agents/test_orchestrator.py ...................................... [  4%]
+.............                                                            [  4%]
+tests/agents/test_pool.py ..........                                     [  4%]
+tests/agents/test_presets.py ......                                      [  5%]
+tests/agents/test_prompts.py ........................................... [  6%]
+.........                                                                [  7%]
+tests/agents/test_thinking_protocol.py .......                           [  7%]
+tests/cli/commands/test_context.py ........                              [  7%]
+tests/cli/commands/test_model.py .............                           [  8%]
+tests/cli/commands/test_model_integration.py ...                         [  8%]
+tests/cli/commands/test_plan.py .......                                  [  8%]
+tests/cli/commands/test_plan_branch.py ...                               [  8%]
+tests/cli/commands/test_session_resume_id.py .                           [  8%]
+tests/cli/commands/test_unlimited.py ..............                      [  9%]
+tests/cli/test_agent_command.py ...........                              [  9%]
+tests/cli/test_app.py ....................                               [ 10%]
+tests/cli/test_app_extended.py .....                                     [ 10%]
+tests/cli/test_builtins.py .......................                       [ 11%]
+tests/cli/test_chat_command.py ...................                       [ 12%]
+tests/cli/test_cli_smoke.py ....                                         [ 12%]
+tests/cli/test_command_processor.py ............                         [ 13%]
+tests/cli/test_commands.py ...............                               [ 13%]
+tests/cli/test_commands_repro.py ..                                      [ 13%]
+tests/cli/test_console.py ..........................................     [ 15%]
+tests/cli/test_console_confirm.py ...                                    [ 15%]
+tests/cli/test_core_init.py ........                                     [ 15%]
+tests/cli/test_delegation_session.py .....                               [ 16%]
+tests/cli/test_enhanced_tool_display.py ........                         [ 16%]
+tests/cli/test_escape_cancellation.py ........                           [ 16%]
+tests/cli/test_input.py ....................                             [ 17%]
+tests/cli/test_input_bindings.py ...                                     [ 17%]
+tests/cli/test_input_handler.py ..............                           [ 18%]
+tests/cli/test_interrupt.py .                                            [ 18%]
+tests/cli/test_json_output.py ............                               [ 18%]
+tests/cli/test_keyboard_fixes.py ..                                      [ 18%]
+tests/cli/test_keyboard_integration.py ..                                [ 18%]
+tests/cli/test_keyboard_interrupt.py ...                                 [ 18%]
+tests/cli/test_keyboard_verification.py ....                             [ 19%]
+tests/cli/test_loop_protection.py .............                          [ 19%]
+tests/cli/test_markup_safety.py ........................................ [ 21%]
+........................................................................ [ 23%]
+...................................                                      [ 25%]
+tests/cli/test_mcp_command.py ............                               [ 25%]
+tests/cli/test_mcp_logging.py ......                                     [ 26%]
+tests/cli/test_orchestration_leak_fix.py .                               [ 26%]
+tests/cli/test_output_handler.py .................                       [ 26%]
+tests/cli/test_repl.py ................................                  [ 27%]
+tests/cli/test_repl_attribute_fix.py .......................             [ 28%]
+tests/cli/test_repl_session_manager.py ...........                       [ 29%]
+tests/cli/test_repl_startup_message.py .                                 [ 29%]
+tests/cli/test_repl_toolbar.py .........                                 [ 29%]
+tests/cli/test_session_manager_errors.py ...                             [ 29%]
+tests/cli/test_team_command.py .....                                     [ 29%]
+tests/cli/test_textual_app.py ..................                         [ 30%]
+tests/cli/test_textual_bridge_bugs.py .....                              [ 30%]
+tests/cli/test_textual_config.py ..                                      [ 30%]
+tests/cli/test_textual_config_bugs.py ...                                [ 31%]
+tests/cli/test_textual_enhanced_chatmessage.py ..................        [ 31%]
+tests/cli/test_textual_functional_final.py .......................       [ 32%]
+tests/cli/test_textual_integration.py .................................. [ 34%]
+.............                                                            [ 34%]
+tests/cli/test_textual_phase1.py ....                                    [ 34%]
+tests/cli/test_textual_phase2.py ...                                     [ 34%]
+tests/cli/test_textual_phase3.py ..                                      [ 34%]
+tests/cli/test_textual_phase4.py ...                                     [ 35%]
+tests/cli/test_textual_progress_indicators.py ....                       [ 35%]
+tests/cli/test_textual_screens_bugs.py ...                               [ 35%]
+tests/cli/test_textual_search.py ............                            [ 35%]
+tests/cli/test_textual_session_management.py .....                       [ 35%]
+tests/cli/test_textual_tool_boxes.py ...                                 [ 36%]
+tests/cli/test_textual_widgets_bugs.py .....                             [ 36%]
+tests/cli/test_theme_command.py ...............                          [ 36%]
+tests/cli/test_thinking_in_chat.py .............                         [ 37%]
+tests/cli/test_thinking_indicator.py ...........                         [ 37%]
+tests/cli/test_thinking_streaming_and_tool_spacing.py .......            [ 38%]
+tests/cli/test_thinking_tool_display.py ..........                       [ 38%]
+tests/cli/test_ui_renderer_methods.py ..................                 [ 39%]
+tests/config/test_context.py .................................           [ 40%]
+tests/config/test_environment.py ....................................... [ 41%]
+..........                                                               [ 42%]
+tests/config/test_schema.py ................                             [ 42%]
+tests/config/test_schema_errors.py ..                                    [ 43%]
+tests/config/test_settings.py .........................                  [ 44%]
+tests/core/test_agent.py ...........................                     [ 45%]
+tests/core/test_automatic_compaction.py .....                            [ 45%]
+tests/core/test_compaction_start_index.py ....                           [ 45%]
+tests/core/test_eventbus.py ......                                       [ 45%]
+tests/core/test_events.py .............                                  [ 46%]
+tests/core/test_intelligent_context_integration.py ............          [ 46%]
+tests/core/test_session.py ..........................                    [ 47%]
+tests/core/test_session_enhanced.py ..............                       [ 48%]
+tests/core/test_session_errors.py ..                                     [ 48%]
+tests/core/test_session_manager.py ..................................... [ 49%]
+.                                                                        [ 49%]
+tests/core/test_streaming_tool_calls.py ...                              [ 49%]
+tests/core/test_turn_state.py ............                               [ 50%]
+tests/e2e/test_agent_interaction.py .                                    [ 50%]
+tests/e2e/test_context_safety.py ....                                    [ 50%]
+tests/e2e/test_mcp_integration.py .......                                [ 50%]
+tests/e2e/test_plan_mode_workflow.py .                                   [ 50%]
+tests/e2e/test_serena_cli_integration.py .........                       [ 51%]
+tests/e2e/test_tool_fix.py ....                                          [ 51%]
+tests/empty_message_validation/test_empty_messages.py .......            [ 51%]
+tests/extensions/test_base.py ........                                   [ 51%]
+tests/extensions/test_command.py .....                                   [ 52%]
+tests/extensions/test_manager.py ........................                [ 53%]
+tests/extensions/test_plugin_manager.py .........                        [ 53%]
+tests/extensions/test_plugin_models.py ..............                    [ 54%]
+tests/henchman/cli/test_textual_app.py ...............                   [ 54%]
+tests/henchman/cli/test_textual_widgets.py .........                     [ 54%]
+tests/integration/test_anthropic_functional.py s                         [ 54%]
+tests/integration/test_context_limits.py ...........                     [ 55%]
+tests/integration/test_mcp_serena.py .s....                              [ 55%]
+tests/integration/test_tool_integration.py .....s.                       [ 55%]
+tests/knowledge/test_scanner.py ................                         [ 56%]
+tests/knowledge/test_store.py .............................              [ 57%]
+tests/mcp/test_client.py ..........                                      [ 58%]
+tests/mcp/test_config.py .....                                           [ 58%]
+tests/mcp/test_filtered_stream.py ....                                   [ 58%]
+tests/mcp/test_manager.py ...........                                    [ 58%]
+tests/mcp/test_tool.py .......                                           [ 59%]
+tests/providers/test_413_error_handling.py .........                     [ 59%]
+tests/providers/test_anthropic.py .............................          [ 60%]
+tests/providers/test_anthropic_ratelimit.py .s.                          [ 60%]
+tests/providers/test_anthropic_validation.py .....                       [ 60%]
+tests/providers/test_base.py ...............                             [ 61%]
+tests/providers/test_deepseek.py .......                                 [ 61%]
+tests/providers/test_ollama.py .........                                 [ 62%]
+tests/providers/test_openai_compat.py ............................       [ 63%]
+tests/providers/test_openrouter.py ...........                           [ 63%]
+tests/providers/test_registry.py ........                                [ 63%]
+tests/rag/test_chunker.py .............                                  [ 64%]
+tests/rag/test_concurrency.py .............                              [ 64%]
+tests/rag/test_concurrency_smoke.py .....                                [ 65%]
+tests/rag/test_embedder.py .......                                       [ 65%]
+tests/rag/test_indexer.py ....................                           [ 66%]
+tests/rag/test_rag_command.py ....................                       [ 67%]
+tests/rag/test_rag_concurrency_integration.py ......                     [ 67%]
+tests/rag/test_rag_search_tool.py ...........                            [ 67%]
+tests/rag/test_repo_id.py ................                               [ 68%]
+tests/rag/test_store.py ...........                                      [ 68%]
+tests/rag/test_system.py ...........                                     [ 69%]
+tests/smoke/test_escape_key_behavior.py .......                          [ 69%]
+tests/smoke/test_large_file_handling.py ............                     [ 69%]
+tests/test_context_management.py .............                           [ 70%]
+tests/test_coverage_suite.py .......                                     [ 70%]
+tests/test_init.py ....                                                  [ 70%]
+tests/test_interactive.py ..                                             [ 70%]
+tests/test_main.py ..                                                    [ 71%]
+tests/test_phase5.py ..                                                  [ 71%]
+tests/test_phase6_1.py .                                                 [ 71%]
+tests/test_phase6_2.py .                                                 [ 71%]
+tests/test_phase6_3.py .                                                 [ 71%]
+tests/test_phase7.py ..                                                  [ 71%]
+tests/test_progress.py .                                                 [ 71%]
+tests/test_settings_persistence.py .                                     [ 71%]
+tests/test_version.py ...                                                [ 71%]
+tests/test_visualization.py .                                            [ 71%]
+tests/tools/test_ask_user_comprehensive.py .......                       [ 71%]
+tests/tools/test_ask_user_tool.py ........                               [ 72%]
+tests/tools/test_base.py ....................                            [ 72%]
+tests/tools/test_code_format.py .........                                [ 73%]
+tests/tools/test_coverage_map.py ..................                      [ 73%]
+tests/tools/test_dead_code.py .................                          [ 74%]
+tests/tools/test_delegate.py .                                           [ 74%]
+tests/tools/test_delegate_enhanced.py .....                              [ 74%]
+tests/tools/test_diff_view.py ................                           [ 75%]
+tests/tools/test_directory_tools.py ...............                      [ 76%]
+tests/tools/test_env_inspect.py .............                            [ 76%]
+tests/tools/test_file_tools.py ......................................    [ 78%]
+tests/tools/test_git_ops.py ...................                          [ 78%]
+tests/tools/test_grep_tool.py .....................                      [ 79%]
+tests/tools/test_import_graph.py .................                       [ 80%]
+tests/tools/test_kg_query.py ...................                         [ 81%]
+tests/tools/test_kg_update.py ..................                         [ 81%]
+tests/tools/test_lint_check.py ..............                            [ 82%]
+tests/tools/test_patch_apply.py .................                        [ 82%]
+tests/tools/test_pip_inspect.py ........                                 [ 83%]
+tests/tools/test_plan_mode_enforcement.py .....                          [ 83%]
+tests/tools/test_pytest_run.py ...............                           [ 84%]
+tests/tools/test_python_ast.py ................                          [ 84%]
+tests/tools/test_python_exec.py ..............                           [ 85%]
+tests/tools/test_registry.py .............................               [ 86%]
+tests/tools/test_shell_advanced.py ....                                  [ 86%]
+tests/tools/test_shell_interactive.py ....                               [ 86%]
+tests/tools/test_shell_sudo_logic.py ....                                [ 86%]
+tests/tools/test_shell_tool.py ..................                        [ 87%]
+tests/tools/test_test_gen.py ...............                             [ 88%]
+tests/tools/test_traceback_parse.py ..........                           [ 88%]
+tests/tools/test_web_fetch_tool.py .........                             [ 88%]
+tests/ui_integration/test_agent.py ........                              [ 89%]
+tests/ui_integration/test_compaction_llm.py ..                           [ 89%]
+tests/ui_integration/test_events.py ..                                   [ 89%]
+tests/ui_integration/test_llm.py ................                        [ 89%]
+tests/ui_integration/test_mcp.py ...........                             [ 90%]
+tests/ui_integration/test_plan_mode.py .....                             [ 90%]
+tests/ui_integration/test_repl_e2e.py ..                                 [ 90%]
+tests/ui_integration/test_repl_integration.py ......s...                 [ 91%]
+tests/ui_integration/test_session.py ..                                  [ 91%]
+tests/ui_integration/test_slash_commands.py ......................       [ 91%]
+tests/ui_integration/test_tokens_llm.py ...                              [ 92%]
+tests/ui_integration/test_tool_calls.py .........                        [ 92%]
+tests/ui_integration/test_tool_integration.py ...                        [ 92%]
+tests/utils/test_compaction.py .....                                     [ 92%]
+tests/utils/test_compaction_edge_cases.py .........                      [ 93%]
+tests/utils/test_compaction_validation.py ..............                 [ 93%]
+tests/utils/test_intelligent_context.py ..........................       [ 94%]
+tests/utils/test_multi_turn_tool_calls.py ....                           [ 94%]
+tests/utils/test_protected_zone.py ........                              [ 95%]
+tests/utils/test_ratelimit.py .....................                      [ 95%]
+tests/utils/test_retry.py ................                               [ 96%]
+tests/utils/test_summarization.py ................................       [ 97%]
+tests/utils/test_tiktoken_integration.py ......................          [ 98%]
+tests/utils/test_token_counter_extended.py ..                            [ 98%]
+tests/utils/test_tool_sequence_compaction.py ........                    [ 99%]
+tests/utils/test_validation.py .......................                   [100%]
+
+=============================== warnings summary ===============================
+../anaconda3/lib/python3.12/site-packages/fastapi/applications.py:18
+  /home/matthew/anaconda3/lib/python3.12/site-packages/fastapi/applications.py:18: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    from fastapi.exception_handlers import (
+
+../anaconda3/lib/python3.12/site-packages/fastapi/applications.py:30
+  /home/matthew/anaconda3/lib/python3.12/site-packages/fastapi/applications.py:30: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    from fastapi.openapi.utils import get_openapi
+
+tests/rag/test_concurrency_smoke.py:142
+  /home/matthew/mlg-cli/tests/rag/test_concurrency_smoke.py:142: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.e2e
+
+tests/cli/test_escape_cancellation.py::TestEscapeCancellation::test_cancel_or_clear_cancels_agent_task_when_processing
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'initialize_mcp.<locals>.connect_mcp' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_output_handler.py::TestOutputHandler::test_start_background_indexing_no_rag
+  /home/matthew/anaconda3/lib/python3.12/enum.py:1129: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __new__(cls, value):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_repl_attribute_fix.py::TestRunInteractiveInvokesReplRun::test_run_interactive_invokes_repl_run_with_anyio
+tests/cli/test_repl_attribute_fix.py::TestRunInteractiveInvokesReplRun::test_run_interactive_passes_correct_repl_instance
+  /home/matthew/mlg-cli/src/henchman/cli/app.py:201: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    repl.set_session(session)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_app.py:335: RuntimeWarning: Failed to load settings: Corrupted settings file. Using default settings.
+    warnings.warn(
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_app.py:364: RuntimeWarning: Failed to gather environment: Format error. Using empty environment context.
+    warnings.warn(
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_app.py:364: RuntimeWarning: Failed to gather environment: Cannot gather env. Using empty environment context.
+    warnings.warn(
+
+tests/e2e/test_context_safety.py::TestContextSafety::test_compactor_safety_limit
+  tests/e2e/test_context_safety.py:51: PytestWarning: The test <Function test_compactor_safety_limit> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+    def test_compactor_safety_limit(self):
+
+tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidation::test_agent_validates_messages_before_sending
+  /home/matthew/anaconda3/lib/python3.12/site-packages/tiktoken/model.py:101: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if model_name.startswith(model_prefix):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=2389366) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+tests/test_interactive.py::test_tool_form
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tool_form returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_interactive.py::test_tab_completion
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tab_completion returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase5.py::test_accessibility
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_accessibility returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase5.py::test_keybindings
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_keybindings returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_1.py::test_style_overrides
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_1.py::test_style_overrides returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_2.py::test_plugin_system
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_2.py::test_plugin_system returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_3.py::test_layout_settings
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_3.py::test_layout_settings returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_progress.py::test_progress_manager
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_progress.py::test_progress_manager returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_settings_persistence.py::test_settings_persistence
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_settings_persistence.py::test_settings_persistence returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_visualization.py::test_visualization
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_visualization.py::test_visualization returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_user_input_sent_to_llm
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_llm_response_displayed_in_ui
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_streaming_response_displayed
+tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_call_requested_and_executed
+tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_result_included_in_conversation
+tests/ui_integration/test_llm.py::TestLLMErrorHandling::test_llm_error_handled_gracefully
+tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conversation_flow
+  /home/matthew/mlg-cli/src/henchman/core/agent.py:467: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async for chunk in self.provider.chat_completion_stream(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/buffer.py:1834: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def _create_auto_suggest_coroutine(self) -> Callable[[], Coroutine[Any, Any, None]]:
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_slash_commands.py::TestSlashCommandIntegration::test_invalid_slash_commands[]
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/cache.py:29: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._keys: deque[_T] = deque()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/utils/test_compaction_validation.py::TestMessageSummarizer::test_summarize_handles_exception
+tests/utils/test_summarization.py::TestCompactWithSummarization::test_summarize_comprehensive_coverage[asyncio]
+  /home/matthew/mlg-cli/src/henchman/utils/compaction.py:664: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async for chunk in self.provider.chat_completion_stream(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.7-final-0 ________________
+
+Name                                             Stmts   Miss Branch BrPart  Cover   Missing
+--------------------------------------------------------------------------------------------
+src/henchman/__init__.py                             5      0      0      0   100%
+src/henchman/__main__.py                             1      0      0      0   100%
+src/henchman/agents/__init__.py                      6      0      0      0   100%
+src/henchman/agents/config.py                        2      0      0      0   100%
+src/henchman/agents/identity.py                      9      0      0      0   100%
+src/henchman/agents/ledger.py                       83      0     16      0   100%
+src/henchman/agents/orchestrator.py                810     43    226     27    92%   250->exit, 330, 334, 395->401, 416, 514, 552-555, 601, 706-707, 776->exit, 950->957, 1003, 1122->1129, 1130->1133, 1146-1154, 1164-1175, 1311, 1417, 1476->1479, 1503, 1580->1599, 1587-1597, 1927->1929, 1997->2006, 2004->1998, 2116-2119, 2160, 2180, 2197, 2203, 2215, 2256, 2260
+src/henchman/agents/pool.py                         71      2     30      3    95%   127-128, 147->155, 230->exit
+src/henchman/agents/presets.py                      39      0     16      2    96%   64->66, 68->70
+src/henchman/agents/prompts.py                      47      1     12      2    95%   584->586, 590
+src/henchman/api/__init__.py                         2      0      0      0   100%
+src/henchman/api/auth.py                            12      7      6      0    28%   22-33
+src/henchman/api/endpoints/__init__.py               2      0      0      0   100%
+src/henchman/api/endpoints/chat.py                 186    140     70      0    18%   67-78, 96-103, 123-145, 155-180, 200-230, 239-247, 263-271, 283-288, 307-364, 387-447, 475-496, 513-522
+src/henchman/api/endpoints/health.py                37     12      4      0    61%   47-50, 71-91, 123-145
+src/henchman/api/server.py                          64     29      6      0    50%   51-71, 78-110, 140, 150, 163, 187-189
+src/henchman/api/state.py                           10      0      0      0   100%
+src/henchman/cli/__init__.py                         4      0      0      0   100%
+src/henchman/cli/app.py                            263     70     76     13    68%   221-230, 252-280, 334, 389-394, 414-422, 435-440, 457-466, 495, 498-502, 531, 534-537, 552-578, 593, 656->670, 667, 671-672, 675-679, 684
+src/henchman/cli/command_processor.py               46      0     12      0   100%
+src/henchman/cli/commands/__init__.py               52      0      6      0   100%
+src/henchman/cli/commands/agent.py                  67      0     22      2    98%   107->109, 109->exit
+src/henchman/cli/commands/builtins.py               94      0     10      1    99%   209->207
+src/henchman/cli/commands/chat.py                   92      0     36      0   100%
+src/henchman/cli/commands/context.py               190     88     44      7    51%   114-115, 130-131, 147-163, 208-231, 243-253, 265-275, 287-297, 309-319, 331-346, 355-356, 384, 387->393, 395-401
+src/henchman/cli/commands/extensions.py             24      0      4      0   100%
+src/henchman/cli/commands/mcp.py                    88      0     30      0   100%
+src/henchman/cli/commands/model.py                 138     13     46      9    88%   80->84, 109->114, 114->118, 119->122, 123-124, 175-178, 182-183, 188->191, 205-207, 251->256, 290->297, 294-295
+src/henchman/cli/commands/plan.py                   30      0     12      1    98%   62->68
+src/henchman/cli/commands/rag.py                   121      4     38      2    96%   129-130, 134->exit, 207-208
+src/henchman/cli/commands/session.py               248    223     88      0     7%   38, 47, 55-73, 77-90, 94-120, 124-155, 159-178, 182-197, 201-216, 220-236, 240-250, 254-282, 286-313, 317-359
+src/henchman/cli/commands/team.py                   37      6     12      2    80%   24, 29, 62, 65-67
+src/henchman/cli/commands/theme.py                  97      3     30      3    95%   119->130, 124-126, 132->exit, 142
+src/henchman/cli/commands/unlimited.py              31      0     10      0   100%
+src/henchman/cli/console.py                        193     24     46     10    85%   252, 330, 332-336, 348, 396, 401, 420-421, 464-466, 468->459, 498, 518, 564, 568, 572, 576, 580, 584, 588, 592
+src/henchman/cli/core_init.py                       53      6      6      0    86%   145-152
+src/henchman/cli/input.py                          157     19     52      7    85%   101-104, 112-114, 176, 177->168, 181, 257->270, 305-308, 312, 318-319, 342, 370-373
+src/henchman/cli/input_handler.py                   41      0     10      1    98%   101->103
+src/henchman/cli/json_output.py                     28      0      8      0   100%
+src/henchman/cli/output_handler.py                 139     14     34      6    87%   104-105, 140, 143, 177->exit, 195, 199-200, 209, 330, 343, 353, 361, 380-381
+src/henchman/cli/plugins.py                         61     13     22      5    73%   29, 34, 43, 51, 77, 81-84, 95, 110-112, 114->exit, 124, 126->128
+src/henchman/cli/prompts.py                          7      0      0      0   100%
+src/henchman/cli/repl.py                           170     28     34      8    79%   121-122, 220, 230-245, 275, 310, 344-348, 375->378, 390-393, 408->412, 414-418, 430-431
+src/henchman/cli/serve.py                           34     23      6      0    28%   55-92
+src/henchman/cli/session_manager.py                 60      0     20      0   100%
+src/henchman/cli/textual_app.py                    836    218    186     39    70%   251, 264-323, 347-356, 413-415, 428-430, 443-445, 458-460, 473, 543-544, 605->exit, 619-645, 650-652, 660-661, 690, 711-712, 733, 751-752, 758-759, 789-790, 861->exit, 882, 893->895, 905-906, 911, 915, 925->exit, 935-948, 958-959, 964, 1023->1030, 1028-1029, 1048, 1056-1057, 1076-1077, 1095, 1102, 1123-1124, 1144-1148, 1156, 1188-1195, 1199, 1205-1209, 1243->1241, 1246, 1284->1286, 1301-1302, 1307, 1320, 1335, 1350-1351, 1369-1375, 1390-1391, 1406-1415, 1420, 1424-1425, 1436-1439, 1446->1445, 1461-1463, 1471-1485, 1491-1492, 1494, 1496, 1550-1557, 1581, 1595->1598, 1599->1601, 1602-1608, 1618-1620, 1641->1643, 1643->exit, 1645-1646, 1683-1692, 1714-1760
+src/henchman/cli/textual_bridge.py                 151     47     48      9    61%   76->78, 158, 201->exit, 206->exit, 211->exit, 216-217, 221-222, 227, 238-244, 248, 257-273, 278, 285, 290, 295-305, 309-310, 314, 318, 322, 331-332, 341-342
+src/henchman/cli/textual_config.py                 103     12     22      8    82%   155, 181, 187, 201, 203-207, 219, 231, 233-237, 262-263
+src/henchman/cli/textual_driver.py                  17     17      2      0     0%   1-30
+src/henchman/cli/textual_messages.py                46      5      0      0    89%   109-111, 170-171
+src/henchman/cli/textual_screens.py                123     42     30      4    59%   101-108, 146, 160, 164, 168, 234-235, 321-324, 327, 341, 349-357, 413-417, 456-466, 470
+src/henchman/cli/textual_widgets.py                470     45    102     15    88%   75, 169, 173-180, 184-192, 290, 399-400, 437, 479-480, 489, 500-502, 603, 608-609, 632, 639-640, 659-660, 675, 684, 690, 706, 710->721, 715-716, 722, 734, 742, 750-751, 760, 809->exit, 990-991
+src/henchman/cli/tool_executor.py                  247     45    104     17    80%   82, 98-102, 107, 135->exit, 154->160, 166, 217, 233->238, 312, 367-370, 418-420, 437-438, 451, 487-491, 502->510, 514, 596-599, 625, 693->exit, 807, 814, 840-873
+src/henchman/cli/tool_manager.py                    28      4      8      2    78%   118-123, 133->135, 151
+src/henchman/cli/ui_renderer.py                    132      4     16      3    95%   77->exit, 81, 90->exit, 213-215
+src/henchman/config/__init__.py                      5      0      0      0   100%
+src/henchman/config/context.py                      93      0     52      0   100%
+src/henchman/config/environment.py                 117      0     46      0   100%
+src/henchman/config/schema.py                       83      0      2      0   100%
+src/henchman/config/settings.py                     76      1     30      2    97%   62->67, 191
+src/henchman/core/__init__.py                        6      0      0      0   100%
+src/henchman/core/agent.py                         273     13     96      8    93%   207->exit, 242, 247, 284, 431, 441, 569-570, 624-625, 642, 756-761
+src/henchman/core/eventbus.py                       51      3     12      1    94%   114, 119-120
+src/henchman/core/events.py                         29      0      0      0   100%
+src/henchman/core/session.py                       326      8    106      8    96%   413, 568, 598, 622->639, 702, 704, 773->777, 892, 905-907
+src/henchman/core/turn.py                           95      3     34      7    92%   76->83, 88, 115->118, 133->138, 134->133, 201, 205
+src/henchman/extensions/__init__.py                  5      0      0      0   100%
+src/henchman/extensions/base.py                     19      0      0      0   100%
+src/henchman/extensions/manager.py                  94      0     26      0   100%
+src/henchman/extensions/models.py                   93      0      0      0   100%
+src/henchman/extensions/plugin_manager.py          368    209    118     17    39%   78, 100->103, 129-156, 181-196, 224, 228, 233, 241, 246-247, 286->295, 291-292, 321-322, 325-326, 334-338, 351, 353->348, 390, 457->439, 460-461, 534-549, 564-614, 629-683, 698-738, 753-767, 781-796, 809-823, 838-866, 875, 881-884, 895-923
+src/henchman/knowledge/__init__.py                   3      0      0      0   100%
+src/henchman/knowledge/models.py                    27      0      0      0   100%
+src/henchman/knowledge/scanner.py                  114      8     50      5    91%   85, 87-88, 201-204, 215, 251->263, 270->278
+src/henchman/knowledge/store.py                    195      8     72      8    94%   62-64, 135, 234, 256, 402, 404->400, 425, 427->423, 467->469, 469->471
+src/henchman/mcp/__init__.py                         5      0      0      0   100%
+src/henchman/mcp/client.py                          82      1     24      3    96%   88, 91->64, 200->204
+src/henchman/mcp/config.py                          14      0      0      0   100%
+src/henchman/mcp/manager.py                         63      3     22      1    93%   117-120, 174->178
+src/henchman/mcp/tool.py                            27      0      2      0   100%
+src/henchman/metrics/__init__.py                     6      6      0      0     0%   7-20
+src/henchman/metrics/collector.py                  135    135     52      0     0%   6-406
+src/henchman/metrics/dashboard.py                  142    142     24      0     0%   6-345
+src/henchman/metrics/exporter.py                    20     20      0      0     0%   6-126
+src/henchman/metrics/models.py                      73     73      0      0     0%   3-103
+src/henchman/metrics/storage.py                    166    166     56      0     0%   6-519
+src/henchman/providers/__init__.py                   8      0      0      0   100%
+src/henchman/providers/anthropic.py                175      3     68      4    97%   272-273, 320, 419->429, 423->429
+src/henchman/providers/base.py                      44      0      0      0   100%
+src/henchman/providers/deepseek.py                  12      0      0      0   100%
+src/henchman/providers/ollama.py                    15      0      0      0   100%
+src/henchman/providers/openai_compat.py            130      1     54      1    99%   369
+src/henchman/providers/openrouter.py                14      0      0      0   100%
+src/henchman/providers/registry.py                  35      0      4      0   100%
+src/henchman/providers/utils.py                     15      0      6      1    95%   50->55
+src/henchman/rag/__init__.py                         7      0      0      0   100%
+src/henchman/rag/chunker.py                         71      4     16      4    91%   161-163, 169->181, 193, 199->206
+src/henchman/rag/concurrency.py                     80      5     16      4    91%   71, 91->96, 114, 193, 209-210
+src/henchman/rag/embedder.py                        36      4      0      0    89%   31, 41, 53, 67
+src/henchman/rag/indexer.py                        138     14     56      3    87%   167->163, 270, 315-341
+src/henchman/rag/repo_id.py                         67      3     16      1    95%   89, 194-195
+src/henchman/rag/store.py                           84      9     22      5    83%   104-122, 217->exit, 227->exit, 239->243, 241->240
+src/henchman/rag/system.py                         101     14     36      6    81%   102, 178-180, 184-193, 221-222, 232, 238->exit, 274, 300
+src/henchman/tools/__init__.py                       3      0      0      0   100%
+src/henchman/tools/base.py                          42      0      2      0   100%
+src/henchman/tools/builtins/__init__.py             29      0      0      0   100%
+src/henchman/tools/builtins/ask_user.py             21      0      0      0   100%
+src/henchman/tools/builtins/code_format.py          44      6     10      2    85%   64, 132, 141-148
+src/henchman/tools/builtins/coverage_map.py        152      1     58      4    98%   160->151, 163->151, 165->151, 342
+src/henchman/tools/builtins/dead_code.py           133     10     88      6    91%   142-143, 212, 245-249, 261->253, 288, 314, 355->354
+src/henchman/tools/builtins/delegate.py             17      1      0      0    94%   111
+src/henchman/tools/builtins/diff_view.py            52      5     18      1    91%   196, 203-210
+src/henchman/tools/builtins/env_inspect.py          79      4     34      5    92%   110, 114, 136->135, 146, 210
+src/henchman/tools/builtins/file_edit.py            69      1     24      2    97%   235->238, 269
+src/henchman/tools/builtins/file_read.py            45      0     10      0   100%
+src/henchman/tools/builtins/file_write.py           23      0      0      0   100%
+src/henchman/tools/builtins/git_ops.py              88     14     28      4    81%   130-133, 230, 266, 284, 298-304
+src/henchman/tools/builtins/glob_tool.py            42      0     12      0   100%
+src/henchman/tools/builtins/grep.py                142      9     60      7    92%   132, 148, 155, 257, 350, 374-379, 382
+src/henchman/tools/builtins/import_graph.py        212     18    102     14    90%   141, 169-170, 271, 307-308, 314-315, 318, 322-323, 325->310, 341->344, 362-363, 368, 394->391, 432-433, 479, 499, 502->501, 529->526, 534->526
+src/henchman/tools/builtins/kg_query.py            115     14     46      1    88%   20-31, 124-132
+src/henchman/tools/builtins/kg_update.py           113     13     40      3    88%   50-61, 181-184, 232, 292
+src/henchman/tools/builtins/lint_check.py           64      7     20      3    88%   107, 109-112, 165, 169
+src/henchman/tools/builtins/ls.py                   47      3     16      3    90%   97->102, 103-104, 121
+src/henchman/tools/builtins/patch_apply.py         160     12     68     12    89%   104, 119-121, 182->185, 192, 202->197, 217->219, 240, 259, 280, 333, 356->358, 382, 408-409
+src/henchman/tools/builtins/pip_inspect.py          35      2      8      2    91%   93, 99
+src/henchman/tools/builtins/pytest_run.py           94     11     24      4    87%   184, 201-212, 225, 233->235, 244
+src/henchman/tools/builtins/python_ast.py          159     18     78      8    84%   66->70, 86-92, 93->82, 108-112, 190->195, 206, 267-268, 391-393, 394->389
+src/henchman/tools/builtins/python_exec.py          46      7     10      3    82%   81, 106, 115-118, 132
+src/henchman/tools/builtins/rag_search.py           39      0      8      0   100%
+src/henchman/tools/builtins/shell.py               217     68     46      2    67%   217-218, 246, 249->247, 251-252, 263-265, 526-594, 609-616, 633-651
+src/henchman/tools/builtins/test_gen.py            144      9     58      8    91%   95-96, 163, 166->165, 168, 264->235, 270->287, 272->271, 276, 344-347
+src/henchman/tools/builtins/traceback_parse.py      97      5     32     10    88%   187, 191, 194->197, 209, 212, 230->241, 233, 236->239, 261->266, 263->266
+src/henchman/tools/builtins/web_fetch.py            29      0      4      0   100%
+src/henchman/tools/builtins/web_search.py           15      1      0      0    93%   44
+src/henchman/tools/registry.py                      90      2     24      1    97%   287-292
+src/henchman/utils/__init__.py                       2      0      0      0   100%
+src/henchman/utils/compaction.py                   268      9    114     13    94%   181->195, 186->189, 189->181, 191-193, 204->207, 416->425, 484, 503, 534, 551->553, 638, 664->673, 737, 756-758
+src/henchman/utils/intelligent_context.py          372     65    180     27    79%   96-124, 164, 185-197, 338, 354, 439, 523->510, 556->587, 615->613, 632-633, 642-649, 735, 792, 796, 800, 821, 882-883, 889->888, 925, 955, 985, 1054->1053, 1060->1069, 1069->1048, 1077->1082, 1083, 1102, 1107, 1114->1113, 1118, 1124, 1141, 1147-1150, 1165-1172, 1197, 1220
+src/henchman/utils/lazy_import.py                    8      0      2      0   100%
+src/henchman/utils/ratelimit.py                     31      0     10      0   100%
+src/henchman/utils/retry.py                         52      1     12      1    97%   118
+src/henchman/utils/tokens.py                        55      2     20      2    95%   127, 132
+src/henchman/utils/validation.py                    82      1     36      1    98%   45
+src/henchman/version.py                              3      0      0      0   100%
+--------------------------------------------------------------------------------------------
+TOTAL                                            13471   2382   4038    446    80%
+=========== 2552 passed, 5 skipped, 34 warnings in 152.19s (0:02:32) ===========
+[2026-02-27T11:00:02Z] All tests passed.
+Committing changes...

@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 from enum import Enum
 from typing import Any, TypedDict
+from dataclasses import dataclass
 
 from henchman.agents.ledger import TaskLedger
 from henchman.agents.pool import AgentPool
@@ -18,6 +19,55 @@ from henchman.providers.base import Message, ModelProvider, ToolCall
 from henchman.providers.registry import ProviderRegistry
 from henchman.tools.builtins.delegate import DelegateTaskTool
 from henchman.tools.registry import ToolRegistry
+
+
+@dataclass
+class AgentLoopParams:
+    """Parameters for running an agent loop.
+    
+    Encapsulates the common parameters used across different agent execution methods
+    to address Primitive Obsession code smell.
+    """
+    agent: Agent | None = None
+    """The agent to run. Either agent or target_role must be provided."""
+    
+    target_role: str | None = None
+    """The role of the agent to run. Either agent or target_role must be provided."""
+    
+    input_text: str = ""
+    """The input text, task, or user input for the agent to process."""
+    
+    depth: int = 0
+    """Current delegation depth for tracking recursion."""
+    
+    max_turns: int = 0
+    """Maximum number of turns allowed (0 for unlimited)."""
+    
+    msg_start_index: int = 0
+    """Starting index in agent messages for tracking output."""
+    
+    brief: dict[str, Any] | None = None
+    """Optional briefing information for delegation tasks."""
+
+
+@dataclass
+class DelegationParams:
+    """Parameters for delegating a task to a specialist agent.
+    
+    Encapsulates the parameters used for delegation to address Primitive Obsession code smell.
+    """
+    target_role: str
+    """The role of the agent to delegate to."""
+    
+    task: str
+    """The task description to delegate."""
+    
+    brief: dict[str, Any] | None = None
+    """Optional briefing information for the delegation."""
+    
+    depth: int = 0
+    """Current delegation depth for tracking recursion."""
+
 
 # Configuration constants for magic numbers
 PERCENTAGE_MULTIPLIER = 100.0
@@ -828,7 +878,11 @@ class Orchestrator:
         )
 
         event_count = 0
-        async for event in self._run_agent_loop(self.tech_lead, user_input):
+        params = AgentLoopParams(
+            agent=self.tech_lead,
+            input_text=user_input,
+        )
+        async for event in self._run_agent_loop(params):
             event_count += 1
             yield event
 
@@ -883,7 +937,11 @@ class Orchestrator:
             type=EventType.AGENT_STARTED, data={"agent": role}, source_agent="orchestrator"
         )
 
-        async for event in self._run_agent_loop(agent, user_input):
+        params = AgentLoopParams(
+            agent=agent,
+            input_text=user_input,
+        )
+        async for event in self._run_agent_loop(params):
             yield event
 
         status = self._assess_completion(agent)
@@ -1227,11 +1285,7 @@ class Orchestrator:
 
     async def _run_agent_loop(
         self,
-        agent: Agent,
-        user_input: str,
-        depth: int = 0,
-        max_turns: int = 0,
-        msg_start_index: int = 0,
+        params: AgentLoopParams,
     ) -> AsyncIterator[AgentEvent]:
         """Handle the run loop for an agent, executing tools and intercepting delegations.
 
@@ -1246,16 +1300,21 @@ class Orchestrator:
         8. Tracks tool errors for aggregation in delegation summaries
 
         Args:
-            agent: The agent to run.
-            user_input: Initial input for the agent.
-            depth: Current delegation depth.
-            max_turns: Maximum tool-call turns (0 = unlimited).
-            msg_start_index: Index into agent.messages where this run began
-                (used to build a progress summary on timeout).
+            params: Agent loop parameters containing agent, input, depth, etc.
 
         Yields:
             AgentEvents from the agent loop.
         """
+        # Extract parameters from the params object
+        agent = params.agent
+        if agent is None:
+            raise ValueError("Agent must be provided in AgentLoopParams")
+        
+        user_input = params.input_text
+        depth = params.depth
+        max_turns = params.max_turns
+        msg_start_index = params.msg_start_index
+        
         generator: AsyncIterator[AgentEvent] = agent.run(user_input)
         tool_call_count = 0
         tool_errors: list[str] = []
@@ -1765,13 +1824,14 @@ class Orchestrator:
             AgentEvents from the specialist agent.
         """
         max_turns = self.settings.agents.max_delegation_turns
-        async for event in self._run_agent_loop(
-            target_agent,
-            full_task,
-            depth,
+        params = AgentLoopParams(
+            agent=target_agent,
+            input_text=full_task,
+            depth=depth,
             max_turns=max_turns,
             msg_start_index=msg_start,
-        ):
+        )
+        async for event in self._run_agent_loop(params):
             yield event
 
     async def _finalize_delegation(
