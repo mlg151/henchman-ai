@@ -1,106 +1,106 @@
-# Code Smell Report — ❌ F (Score: 35.0/100)
+# Code Smell Report — ❌ F (Score: 35.3/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T15:00:20.416181+00:00_
+_Generated: 2026-02-27T15:30:16.493338+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.0/100 |
-| **Files Scanned** | 146 |
-| **Total Lines (non-blank)** | 30,273 |
-| **Total Smells** | 2768 |
-| **Avg Maintainability Index** | 70.0 |
+| **Overall Score** | 35.3/100 |
+| **Files Scanned** | 145 |
+| **Total Lines (non-blank)** | 29,897 |
+| **Total Smells** | 2731 |
+| **Avg Maintainability Index** | 70.2 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1924 |
-| medium | 679 |
-| high | 165 |
+| low | 1905 |
+| medium | 663 |
+| high | 163 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1338 |
-| Feature Envy | 371 |
-| Duplicate Code | 324 |
-| Magic Number | 204 |
-| Long Method | 171 |
-| Deep Nesting | 167 |
-| Primitive Obsession | 93 |
-| Complex Function | 60 |
-| Large Class | 40 |
+| Missing Type Hint | 1327 |
+| Feature Envy | 365 |
+| Duplicate Code | 321 |
+| Magic Number | 196 |
+| Long Method | 167 |
+| Deep Nesting | 166 |
+| Primitive Obsession | 92 |
+| Complex Function | 58 |
+| Large Class | 39 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **agents/delegation_manager.py:46** — 🟠 HIGH — Duplicate Code  
-   Function '_prepare_delegation_brief' is an exact duplicate of '_prepare_delegation_brief' at agents/orchestrator.py:1073  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
-
-2. **agents/delegation_manager.py:192** — 🟠 HIGH — Duplicate Code  
-   Function '_is_delegation_depth_exceeded' is an exact duplicate of '_is_delegation_depth_exceeded' at agents/orchestrator.py:1729  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
-
-3. **agents/orchestrator.py:627** — 🟠 HIGH — Large Class  
-   Class 'Orchestrator' spans 1655 lines (threshold: 300)  
+1. **agents/orchestrator.py:627** — 🟠 HIGH — Large Class  
+   Class 'Orchestrator' spans 1654 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
-4. **agents/orchestrator.py:627** — 🟠 HIGH — Large Class  
+2. **agents/orchestrator.py:627** — 🟠 HIGH — Large Class  
    Class 'Orchestrator' has 68 methods (threshold: 20)  
    → _Split Class — group related methods into smaller collaborating classes._
 
-5. **agents/orchestrator.py:1663** — 🟠 HIGH — Primitive Obsession  
-   Repeated primitive parameter group appears in: '_run_delegation' (line 1663), '_execute_delegation_loop' (line 1829)  
+3. **agents/orchestrator.py:1662** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: '_run_delegation' (line 1662), '_execute_delegation_loop' (line 1828)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-6. **agents/presets.py:30** — 🟠 HIGH — Primitive Obsession  
+4. **agents/presets.py:30** — 🟠 HIGH — Primitive Obsession  
    Function '_create_agent_config' has 10 primitive-typed parameters: name: Name(id='str', ctx=Load()), role: Name(id='str', ctx=Load()), description: Name(id='str', ctx=Load()), basic_file_tools: Name(id='bool', ctx=Load()), file_edit_tools: Name(id='bool', ctx=Load()), git_tools: Name(id='bool', ctx=Load()), web_tools: Name(id='bool', ctx=Load()), knowledge_tools: Name(id='bool', ctx=Load()), shell_tools: Name(id='bool', ctx=Load()), python_dev_tools: Name(id='bool', ctx=Load())  
    → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
 
-7. **cli/app.py:143** — 🟠 HIGH — Long Method  
+5. **cli/app.py:144** — 🟠 HIGH — Long Method  
    Function '_run_interactive' has 85 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-8. **cli/app.py:143** — 🟠 HIGH — Primitive Obsession  
-   Repeated primitive parameter group appears in: '_run_interactive' (line 143), '_run_textual_tui' (line 241), '_run_headless' (line 369), 'chat_command' (line 644)  
+6. **cli/app.py:144** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: '_run_interactive' (line 144), '_run_textual_tui' (line 242), '_run_headless' (line 370), 'chat_command' (line 645)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-9. **cli/app.py:644** — 🟠 HIGH — Primitive Obsession  
+7. **cli/app.py:645** — 🟠 HIGH — Primitive Obsession  
    Function 'chat_command' has 8 primitive-typed parameters: prompt: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), agent: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), team: Name(id='bool', ctx=Load()), output_format: Name(id='str', ctx=Load()), plan: Name(id='bool', ctx=Load()), yes: Name(id='bool', ctx=Load()), tui: Name(id='bool', ctx=Load()), debug: Name(id='bool', ctx=Load())  
    → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
 
-10. **cli/commands/agent.py:33** — 🟠 HIGH — Feature Envy  
+8. **cli/commands/agent.py:33** — 🟠 HIGH — Feature Envy  
    Method 'AgentCommand.execute' accesses 'ctx' 10 times but 'self' only 2 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-11. **cli/commands/builtins.py:52** — 🟠 HIGH — Feature Envy  
+9. **cli/commands/builtins.py:52** — 🟠 HIGH — Feature Envy  
    Method 'HelpCommand.execute' accesses 'ctx' 16 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-12. **cli/commands/chat.py:120** — 🟠 HIGH — Feature Envy  
+10. **cli/commands/chat.py:120** — 🟠 HIGH — Feature Envy  
    Method 'ChatCommand._resume' accesses 'ctx' 12 times but 'self' only 0 times  
    → _Move Method — consider moving '_resume' to the class that owns 'ctx'._
 
-13. **cli/commands/context.py:71** — 🟠 HIGH — Feature Envy  
+11. **cli/commands/context.py:71** — 🟠 HIGH — Feature Envy  
    Method 'ContextCommand._show_status' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_status' to the class that owns 'ctx'._
 
-14. **cli/commands/context.py:348** — 🟠 HIGH — Feature Envy  
+12. **cli/commands/context.py:348** — 🟠 HIGH — Feature Envy  
    Method 'ContextCommand._show_stats' accesses 'ctx' 21 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_stats' to the class that owns 'ctx'._
 
-15. **cli/commands/mcp.py:121** — 🟠 HIGH — Feature Envy  
+13. **cli/commands/mcp.py:121** — 🟠 HIGH — Feature Envy  
    Method 'McpCommand._logging' accesses 'ctx' 15 times but 'self' only 0 times  
    → _Move Method — consider moving '_logging' to the class that owns 'ctx'._
+
+14. **cli/commands/model.py:61** — 🟠 HIGH — Feature Envy  
+   Method 'ModelCommand._show_current' accesses 'ctx' 10 times but 'self' only 0 times  
+   → _Move Method — consider moving '_show_current' to the class that owns 'ctx'._
+
+15. **cli/commands/model.py:125** — 🟠 HIGH — Feature Envy  
+   Method 'ModelCommand._set_provider' accesses 'ctx' 26 times but 'self' only 2 times  
+   → _Move Method — consider moving '_set_provider' to the class that owns 'ctx'._
 
 
 ## 📊 Files Ranked by Quality
@@ -108,7 +108,7 @@ These are the highest-impact smells to address first:
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
 | 1 | cli/textual_app.py | ❌ F | 0.4 | 121 | 1439 | 1 | 0.0 |
-| 2 | agents/orchestrator.py | ❌ F | 0.6 | 141 | 1758 | 2 | 13.5 |
+| 2 | agents/orchestrator.py | ❌ F | 0.6 | 141 | 1757 | 2 | 13.5 |
 | 3 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
 | 4 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 5 | cli/commands/session.py | ❌ F | 10.0 | 65 | 295 | 33 | 11.0 |
@@ -120,7 +120,7 @@ These are the highest-impact smells to address first:
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 126 additional files omitted._
+_Showing 20 worst files. 125 additional files omitted._
 
 ### cli/textual_app.py — ❌ F (0.4/100)
 
@@ -148,13 +148,13 @@ _... and 106 more smells._
 
 ### agents/orchestrator.py — ❌ F (0.6/100)
 
-LOC: 1758 | Classes: 10 | Functions: 1 | MI: 2 | Avg CC: 13.5
+LOC: 1757 | Classes: 10 | Functions: 1 | MI: 2 | Avg CC: 13.5
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 627 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1655 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 627 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1654 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
 | 627 | 🟠 HIGH | Large Class | Class 'Orchestrator' has 68 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 1663 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_run_delegation' (line 1663), '_execute_delegation_loop' (line 1829) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 1662 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_run_delegation' (line 1662), '_execute_delegation_loop' (line 1828) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
 | 221 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 92% similar to '__init__' at agents/orchestrator.py:265 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 253 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 100% similar to 'track_tool_usage' at agents/orchestrator.py:257 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 302 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 100% similar to '__init__' at cli/textual_app.py:277 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -166,7 +166,7 @@ LOC: 1758 | Classes: 10 | Functions: 1 | MI: 2 | Avg CC: 13.5
 | 1177 | 🟡 MEDIUM | Primitive Obsession | Function '_enforce_turn_limits' has 4 primitive-typed parameters: max_turns: Name(id='int', ctx=Load()), tool_call_count: Name(id='int', ctx=Load()), msg_start_index: Name(id='int', ctx=Load()), wrapup_warned: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 | 1286 | 🟡 MEDIUM | Long Method | Function '_run_agent_loop' has 68 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 1286 | 🟡 MEDIUM | Complex Function | Function '_run_agent_loop' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 1470 | 🟡 MEDIUM | Long Method | Function '_execute_delegation_tool' has 53 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 1469 | 🟡 MEDIUM | Long Method | Function '_execute_delegation_tool' has 53 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 
 _... and 126 more smells._
 
@@ -554,30 +554,6 @@ LOC: 330 | Classes: 1 | Functions: 0 | MI: 51 | Avg CC: 11.0
 
 _... and 22 more smells._
 
-### agents/delegation_manager.py — ❌ F (15.6/100)
-
-LOC: 376 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 13.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 46 | 🟠 HIGH | Duplicate Code | Function '_prepare_delegation_brief' is an exact duplicate of '_prepare_delegation_brief' at agents/orchestrator.py:1073 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 192 | 🟠 HIGH | Duplicate Code | Function '_is_delegation_depth_exceeded' is an exact duplicate of '_is_delegation_depth_exceeded' at agents/orchestrator.py:1729 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 46 | 🟡 MEDIUM | Feature Envy | Method 'DelegationManager._prepare_delegation_brief' accesses 'tool_call' 6 times but 'self' only 0 times | Move Method — consider moving '_prepare_delegation_brief' to the class that owns 'tool_call'. |
-| 64 | 🟡 MEDIUM | Complex Function | Function '_prepare_delegation_context' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 80 | 🟡 MEDIUM | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 84 | 🟡 MEDIUM | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 100 | 🟡 MEDIUM | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 100 | 🟡 MEDIUM | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 108 | 🟡 MEDIUM | Feature Envy | Method 'DelegationManager._assemble_delegation_input' accesses 'parts' 8 times but 'self' only 0 times | Move Method — consider moving '_assemble_delegation_input' to the class that owns 'parts'. |
-| 108 | 🟡 MEDIUM | Feature Envy | Method 'DelegationManager._assemble_delegation_input' accesses 'brief' 6 times but 'self' only 0 times | Move Method — consider moving '_assemble_delegation_input' to the class that owns 'brief'. |
-| 108 | 🟡 MEDIUM | Complex Function | Function '_assemble_delegation_input' has cyclomatic complexity 15 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 181 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 252 | 🟡 MEDIUM | Duplicate Code | Function '_yield_agent_not_found_completion' is 93% similar to '_yield_agent_not_found_completion' at agents/orchestrator.py:1773 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 342 | 🟡 MEDIUM | Feature Envy | Method 'DelegationManager._build_timeout_summary' accesses 'msg' 5 times but 'self' only 0 times | Move Method — consider moving '_build_timeout_summary' to the class that owns 'msg'. |
-| 372 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-
-_... and 22 more smells._
-
 ### cli/textual_bridge.py — ❌ F (15.7/100)
 
 LOC: 317 | Classes: 2 | Functions: 2 | MI: 52 | Avg CC: 0.0
@@ -601,6 +577,30 @@ LOC: 317 | Classes: 2 | Functions: 2 | MI: 52 | Avg CC: 0.0
 | 48 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 39 more smells._
+
+### tools/builtins/grep.py — ❌ F (15.7/100)
+
+LOC: 436 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 160 | 🟠 HIGH | Primitive Obsession | Function 'execute' has 10 primitive-typed parameters: pattern: Name(id='str', ctx=Load()), path: Name(id='str', ctx=Load()), ignore_case: Name(id='bool', ctx=Load()), line_numbers: Name(id='bool', ctx=Load()), glob: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), context_before: Name(id='int', ctx=Load()), context_after: Name(id='int', ctx=Load()), invert_match: Name(id='bool', ctx=Load()), whole_word: Name(id='bool', ctx=Load()), count_only: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 318 | 🟠 HIGH | Primitive Obsession | Function '_search_files_with_results' has 6 primitive-typed parameters: invert_match: Name(id='bool', ctx=Load()), has_context: Name(id='bool', ctx=Load()), context_before: Name(id='int', ctx=Load()), context_after: Name(id='int', ctx=Load()), line_numbers: Name(id='bool', ctx=Load()), multi_file: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 318 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_search_files_with_results' (line 318), '_search_single_file' (line 395) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 395 | 🟠 HIGH | Primitive Obsession | Function '_search_single_file' has 6 primitive-typed parameters: invert_match: Name(id='bool', ctx=Load()), has_context: Name(id='bool', ctx=Load()), context_before: Name(id='int', ctx=Load()), context_after: Name(id='int', ctx=Load()), line_numbers: Name(id='bool', ctx=Load()), multi_file: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 9 | 🟡 MEDIUM | Large Class | Class 'GrepTool' spans 509 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 31 | 🟡 MEDIUM | Long Method | Function 'parameters' has 54 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/import_graph.py:36 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/patch_apply.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:50 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 109 | 🟡 MEDIUM | Primitive Obsession | Function '_format_context_block' has 4 primitive-typed parameters: context_before: Name(id='int', ctx=Load()), context_after: Name(id='int', ctx=Load()), line_numbers: Name(id='bool', ctx=Load()), file_prefix: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 272 | 🟡 MEDIUM | Primitive Obsession | Function '_validate_and_setup' has 5 primitive-typed parameters: pattern: Name(id='str', ctx=Load()), path: Name(id='str', ctx=Load()), ignore_case: Name(id='bool', ctx=Load()), whole_word: Name(id='bool', ctx=Load()), glob: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 318 | 🟡 MEDIUM | Long Method | Function '_search_files_with_results' has 50 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 21 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 26 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 19 more smells._
 
 ## ✨ Clean Files (27 files with no smells)
 
