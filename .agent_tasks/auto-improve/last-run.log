@@ -307,4 +307,349 @@ tests/tools/test_lint_check.py ..............                            [ 82%]
 tests/tools/test_patch_apply.py .................                        [ 83%]
 tests/tools/test_pip_inspect.py ........                                 [ 83%]
 tests/tools/test_plan_mode_enforcement.py .....                          [ 83%]
-tests/tools/test_pytest_run.py .....
+tests/tools/test_pytest_run.py ...............                           [ 84%]
+tests/tools/test_python_ast.py ................                          [ 84%]
+tests/tools/test_python_exec.py ..............                           [ 85%]
+tests/tools/test_registry.py .............................               [ 86%]
+tests/tools/test_shell_advanced.py ....                                  [ 86%]
+tests/tools/test_shell_interactive.py ....                               [ 86%]
+tests/tools/test_shell_sudo_logic.py ....                                [ 86%]
+tests/tools/test_shell_tool.py ..................                        [ 87%]
+tests/tools/test_test_gen.py ...............                             [ 88%]
+tests/tools/test_traceback_parse.py ..........                           [ 88%]
+tests/tools/test_web_fetch_tool.py .........                             [ 89%]
+tests/ui_integration/test_agent.py ........                              [ 89%]
+tests/ui_integration/test_compaction_llm.py ..                           [ 89%]
+tests/ui_integration/test_events.py ..                                   [ 89%]
+tests/ui_integration/test_llm.py ................                        [ 90%]
+tests/ui_integration/test_mcp.py ...........                             [ 90%]
+tests/ui_integration/test_plan_mode.py .....                             [ 90%]
+tests/ui_integration/test_repl_e2e.py ..                                 [ 90%]
+tests/ui_integration/test_repl_integration.py ......s...                 [ 91%]
+tests/ui_integration/test_session.py ..                                  [ 91%]
+tests/ui_integration/test_slash_commands.py ......................       [ 92%]
+tests/ui_integration/test_tokens_llm.py ...                              [ 92%]
+tests/ui_integration/test_tool_calls.py .........                        [ 92%]
+tests/ui_integration/test_tool_integration.py ...                        [ 92%]
+tests/utils/test_compaction.py .....                                     [ 92%]
+tests/utils/test_compaction_edge_cases.py .........                      [ 93%]
+tests/utils/test_compaction_validation.py ..............                 [ 93%]
+tests/utils/test_intelligent_context.py ..........................       [ 94%]
+tests/utils/test_multi_turn_tool_calls.py ....                           [ 94%]
+tests/utils/test_protected_zone.py ........                              [ 95%]
+tests/utils/test_ratelimit.py .....................                      [ 96%]
+tests/utils/test_retry.py ................                               [ 96%]
+tests/utils/test_summarization.py ................................       [ 97%]
+tests/utils/test_tiktoken_integration.py ......................          [ 98%]
+tests/utils/test_token_counter_extended.py ..                            [ 98%]
+tests/utils/test_tool_sequence_compaction.py ........                    [ 99%]
+tests/utils/test_validation.py .......................                   [100%]
+
+=============================== warnings summary ===============================
+../anaconda3/lib/python3.12/site-packages/fastapi/applications.py:18
+  /home/matthew/anaconda3/lib/python3.12/site-packages/fastapi/applications.py:18: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    from fastapi.exception_handlers import (
+
+../anaconda3/lib/python3.12/site-packages/fastapi/applications.py:30
+  /home/matthew/anaconda3/lib/python3.12/site-packages/fastapi/applications.py:30: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    from fastapi.openapi.utils import get_openapi
+
+tests/rag/test_concurrency_smoke.py:142
+  /home/matthew/mlg-cli/tests/rag/test_concurrency_smoke.py:142: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.e2e
+
+tests/cli/test_enhanced_tool_display.py::TestConsoleIntegration::test_markdown_method_exists
+  /home/matthew/anaconda3/lib/python3.12/site-packages/markdown_it/ruler.py:87: RuntimeWarning: coroutine 'initialize_mcp.<locals>.connect_mcp' was never awaited
+    chains.add(name)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_repl.py::TestRepl::test_process_input_at_reference[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/selectors.py:464: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    max_ev = max(len(self._fd_to_key), 1)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_repl_attribute_fix.py::TestRunInteractiveInvokesReplRun::test_run_interactive_invokes_repl_run_with_anyio
+tests/cli/test_repl_attribute_fix.py::TestRunInteractiveInvokesReplRun::test_run_interactive_passes_correct_repl_instance
+  /home/matthew/mlg-cli/src/henchman/cli/app.py:255: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    repl.set_session(session)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_app.py:335: RuntimeWarning: Failed to load settings: Corrupted settings file. Using default settings.
+    warnings.warn(
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_app.py:364: RuntimeWarning: Failed to gather environment: Format error. Using empty environment context.
+    warnings.warn(
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_app.py:364: RuntimeWarning: Failed to gather environment: Cannot gather env. Using empty environment context.
+    warnings.warn(
+
+tests/e2e/test_context_safety.py::TestContextSafety::test_compactor_safety_limit
+  tests/e2e/test_context_safety.py:51: PytestWarning: The test <Function test_compactor_safety_limit> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+    def test_compactor_safety_limit(self):
+
+tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidation::test_agent_validates_messages_before_sending
+  /home/matthew/anaconda3/lib/python3.12/site-packages/tiktoken/model.py:101: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if model_name.startswith(model_prefix):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=3000520) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+tests/test_interactive.py::test_tool_form
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tool_form returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_interactive.py::test_tab_completion
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tab_completion returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase5.py::test_accessibility
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_accessibility returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase5.py::test_keybindings
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_keybindings returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_1.py::test_style_overrides
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_1.py::test_style_overrides returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_2.py::test_plugin_system
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_2.py::test_plugin_system returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_3.py::test_layout_settings
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_3.py::test_layout_settings returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_progress.py::test_progress_manager
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_progress.py::test_progress_manager returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_settings_persistence.py::test_settings_persistence
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_settings_persistence.py::test_settings_persistence returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_visualization.py::test_visualization
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_visualization.py::test_visualization returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_user_input_sent_to_llm
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_llm_response_displayed_in_ui
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_streaming_response_displayed
+tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_call_requested_and_executed
+tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_result_included_in_conversation
+tests/ui_integration/test_llm.py::TestLLMErrorHandling::test_llm_error_handled_gracefully
+tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conversation_flow
+  /home/matthew/mlg-cli/src/henchman/core/agent.py:467: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async for chunk in self.provider.chat_completion_stream(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/filters/base.py:17: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self) -> None:
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_tool_calls.py::TestToolCalls::test_shell_tool_basic
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/key_binding/key_bindings.py:279: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    keys = tuple(_parse_key(k) for k in keys)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/utils/test_compaction_validation.py::TestMessageSummarizer::test_summarize_handles_exception
+tests/utils/test_summarization.py::TestCompactWithSummarization::test_summarize_comprehensive_coverage[asyncio]
+  /home/matthew/mlg-cli/src/henchman/utils/compaction.py:664: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async for chunk in self.provider.chat_completion_stream(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.7-final-0 ________________
+
+Name                                             Stmts   Miss Branch BrPart  Cover   Missing
+--------------------------------------------------------------------------------------------
+src/henchman/__init__.py                             5      0      0      0   100%
+src/henchman/__main__.py                             1      0      0      0   100%
+src/henchman/agents/__init__.py                      6      0      0      0   100%
+src/henchman/agents/config.py                        2      0      0      0   100%
+src/henchman/agents/delegation.py                  138      6     48      3    94%   331->350, 338-348, 444->446
+src/henchman/agents/identity.py                      9      0      0      0   100%
+src/henchman/agents/ledger.py                       83      0     16      0   100%
+src/henchman/agents/metrics.py                     169     23     36      4    82%   88->exit, 168, 172, 233->239, 284-321, 333-347, 359-362, 375-408
+src/henchman/agents/metrics_reporter.py            127      0     16      0   100%
+src/henchman/agents/orchestrator.py                412     19    128     10    93%   258-259, 339->exit, 502->509, 555, 674->681, 682->685, 695-707, 843, 969, 1028->1031, 1061, 1124, 1144, 1228->1222, 1257, 1261
+src/henchman/agents/pool.py                         71      2     30      3    95%   127-128, 147->155, 230->exit
+src/henchman/agents/presets.py                      51      1     18      3    94%   70, 74->76, 78->80
+src/henchman/agents/prompts.py                      47      1     12      2    95%   584->586, 590
+src/henchman/api/__init__.py                         2      0      0      0   100%
+src/henchman/api/auth.py                            12      7      6      0    28%   22-33
+src/henchman/api/endpoints/__init__.py               2      0      0      0   100%
+src/henchman/api/endpoints/chat.py                 186    140     70      0    18%   67-78, 96-103, 123-145, 155-180, 200-230, 239-247, 263-271, 283-288, 307-364, 387-447, 475-496, 513-522
+src/henchman/api/endpoints/health.py                37     12      4      0    61%   47-50, 71-91, 123-145
+src/henchman/api/server.py                          64     29      6      0    50%   51-71, 78-110, 140, 150, 163, 187-189
+src/henchman/api/state.py                           10      0      0      0   100%
+src/henchman/cli/__init__.py                         4      0      0      0   100%
+src/henchman/cli/app.py                            268     62     78     14    71%   216->219, 275-279, 296-315, 384, 390-395, 415-423, 436-441, 458-467, 496, 499-503, 532, 535-538, 553-579, 594, 668->681, 676, 682-683, 686-689, 694
+src/henchman/cli/command_processor.py               46      0     12      0   100%
+src/henchman/cli/commands/__init__.py               63      0      8      0   100%
+src/henchman/cli/commands/agent.py                  67      0     22      2    98%   107->109, 109->exit
+src/henchman/cli/commands/builtins.py               94      0     10      1    99%   209->207
+src/henchman/cli/commands/chat.py                   88      0     36      0   100%
+src/henchman/cli/commands/context.py               190     88     44      7    51%   114-115, 130-131, 147-163, 208-231, 243-253, 265-275, 287-297, 309-319, 331-346, 355-356, 384, 387->393, 395-401
+src/henchman/cli/commands/extensions.py             24      0      4      0   100%
+src/henchman/cli/commands/mcp.py                    84      0     30      0   100%
+src/henchman/cli/commands/model.py                 137     13     46      9    88%   79->83, 108->113, 113->117, 118->121, 122-123, 174-177, 181-182, 187->190, 204-206, 250->255, 289->296, 293-294
+src/henchman/cli/commands/plan.py                   30      0     12      1    98%   62->68
+src/henchman/cli/commands/rag.py                   115      4     38      2    96%   130-131, 135->exit, 208-209
+src/henchman/cli/commands/session.py               228    128     90     18    41%   54, 63, 81, 83, 85, 89, 102, 125, 133-135, 143->145, 146-147, 153, 156, 163->171, 166->171, 169, 175->177, 179-180, 184-201, 205-219, 223-237, 241-257, 261-270, 274-294, 298-323, 329, 335-336, 349, 351, 361, 365-368
+src/henchman/cli/commands/team.py                   37      6     12      2    80%   24, 29, 62, 65-67
+src/henchman/cli/commands/theme.py                  97      3     30      3    95%   119->130, 124-126, 132->exit, 142
+src/henchman/cli/commands/unlimited.py              31      0     10      0   100%
+src/henchman/cli/console.py                        193     24     46     10    85%   252, 330, 332-336, 348, 396, 401, 420-421, 464-466, 468->459, 498, 518, 564, 568, 572, 576, 580, 584, 588, 592
+src/henchman/cli/core_init.py                       53      6      6      0    86%   145-152
+src/henchman/cli/input.py                          157     19     52      7    85%   101-104, 112-114, 176, 177->168, 181, 257->270, 305-308, 312, 318-319, 342, 370-373
+src/henchman/cli/input_handler.py                   41      0     10      1    98%   101->103
+src/henchman/cli/json_output.py                     28      0      8      0   100%
+src/henchman/cli/output_handler.py                 139     14     34      6    87%   104-105, 140, 143, 177->exit, 195, 199-200, 209, 330, 343, 353, 361, 380-381
+src/henchman/cli/plugins.py                         61     13     22      5    73%   29, 34, 43, 51, 77, 81-84, 95, 110-112, 114->exit, 124, 126->128
+src/henchman/cli/prompts.py                          7      0      0      0   100%
+src/henchman/cli/repl.py                           170     28     34      8    79%   121-122, 220, 230-245, 275, 310, 344-348, 375->378, 390-393, 408->412, 414-418, 430-431
+src/henchman/cli/serve.py                           34     23      6      0    28%   55-92
+src/henchman/cli/session_manager.py                 60      0     20      0   100%
+src/henchman/cli/textual_app.py                    836    218    186     39    70%   251, 264-323, 347-356, 413-415, 428-430, 443-445, 458-460, 473, 543-544, 605->exit, 619-645, 650-652, 660-661, 690, 711-712, 733, 751-752, 758-759, 789-790, 861->exit, 882, 893->895, 905-906, 911, 915, 925->exit, 935-948, 958-959, 964, 1023->1030, 1028-1029, 1048, 1056-1057, 1076-1077, 1095, 1102, 1123-1124, 1144-1148, 1156, 1188-1195, 1199, 1205-1209, 1243->1241, 1246, 1284->1286, 1301-1302, 1307, 1320, 1335, 1350-1351, 1369-1375, 1390-1391, 1406-1415, 1420, 1424-1425, 1436-1439, 1446->1445, 1461-1463, 1471-1485, 1491-1492, 1494, 1496, 1550-1557, 1581, 1595->1598, 1599->1601, 1602-1608, 1618-1620, 1641->1643, 1643->exit, 1645-1646, 1683-1692, 1714-1760
+src/henchman/cli/textual_bridge.py                 151     47     48      9    61%   76->78, 158, 201->exit, 206->exit, 211->exit, 216-217, 221-222, 227, 238-244, 248, 257-273, 278, 285, 290, 295-305, 309-310, 314, 318, 322, 331-332, 341-342
+src/henchman/cli/textual_config.py                 103     12     22      8    82%   155, 181, 187, 201, 203-207, 219, 231, 233-237, 262-263
+src/henchman/cli/textual_driver.py                  17     17      2      0     0%   1-30
+src/henchman/cli/textual_messages.py                46      5      0      0    89%   109-111, 170-171
+src/henchman/cli/textual_screens.py                123     42     30      4    59%   101-108, 146, 160, 164, 168, 234-235, 321-324, 327, 341, 349-357, 413-417, 456-466, 470
+src/henchman/cli/textual_widgets.py                470     45    102     15    88%   75, 169, 173-180, 184-192, 290, 399-400, 437, 479-480, 489, 500-502, 603, 608-609, 632, 639-640, 659-660, 675, 684, 690, 706, 710->721, 715-716, 722, 734, 742, 750-751, 760, 809->exit, 990-991
+src/henchman/cli/tool_executor.py                  247     45    104     17    80%   82, 98-102, 107, 135->exit, 154->160, 166, 217, 233->238, 312, 367-370, 418-420, 437-438, 451, 487-491, 502->510, 514, 596-599, 625, 693->exit, 807, 814, 840-873
+src/henchman/cli/tool_manager.py                    28      4      8      2    78%   118-123, 133->135, 151
+src/henchman/cli/ui_renderer.py                    132      4     16      3    95%   77->exit, 81, 90->exit, 213-215
+src/henchman/config/__init__.py                      5      0      0      0   100%
+src/henchman/config/context.py                      93      0     52      0   100%
+src/henchman/config/environment.py                 117      0     46      0   100%
+src/henchman/config/schema.py                       83      0      2      0   100%
+src/henchman/config/settings.py                     76      1     30      2    97%   62->67, 191
+src/henchman/core/__init__.py                        6      0      0      0   100%
+src/henchman/core/agent.py                         267      8     90      6    96%   207->exit, 242, 247, 284, 441, 627, 741-746
+src/henchman/core/eventbus.py                       51      3     12      1    94%   114, 119-120
+src/henchman/core/events.py                         29      0      0      0   100%
+src/henchman/core/session.py                       326      8    106      8    96%   413, 568, 598, 622->639, 702, 704, 773->777, 892, 905-907
+src/henchman/core/turn.py                           95      3     34      7    92%   76->83, 88, 115->118, 133->138, 134->133, 201, 205
+src/henchman/extensions/__init__.py                  5      0      0      0   100%
+src/henchman/extensions/base.py                     19      0      0      0   100%
+src/henchman/extensions/manager.py                  94      0     26      0   100%
+src/henchman/extensions/models.py                   93      0      0      0   100%
+src/henchman/extensions/plugin_manager.py          368    209    118     17    39%   78, 100->103, 129-156, 181-196, 224, 228, 233, 241, 246-247, 286->295, 291-292, 321-322, 325-326, 334-338, 351, 353->348, 390, 457->439, 460-461, 534-549, 564-614, 629-683, 698-738, 753-767, 781-796, 809-823, 838-866, 875, 881-884, 895-923
+src/henchman/knowledge/__init__.py                   3      0      0      0   100%
+src/henchman/knowledge/models.py                    27      0      0      0   100%
+src/henchman/knowledge/scanner.py                  114      8     50      5    91%   85, 87-88, 201-204, 215, 251->263, 270->278
+src/henchman/knowledge/store.py                    195      8     72      8    94%   62-64, 135, 234, 256, 402, 404->400, 425, 427->423, 467->469, 469->471
+src/henchman/mcp/__init__.py                         5      0      0      0   100%
+src/henchman/mcp/client.py                          82      1     24      3    96%   88, 91->64, 200->204
+src/henchman/mcp/config.py                          14      0      0      0   100%
+src/henchman/mcp/manager.py                         63      3     22      1    93%   117-120, 174->178
+src/henchman/mcp/tool.py                            27      0      2      0   100%
+src/henchman/metrics/__init__.py                     6      6      0      0     0%   7-20
+src/henchman/metrics/collector.py                  135    135     52      0     0%   6-406
+src/henchman/metrics/dashboard.py                  142    142     24      0     0%   6-345
+src/henchman/metrics/exporter.py                    20     20      0      0     0%   6-126
+src/henchman/metrics/models.py                      73     73      0      0     0%   3-103
+src/henchman/metrics/storage.py                    166    166     56      0     0%   6-519
+src/henchman/providers/__init__.py                   8      0      0      0   100%
+src/henchman/providers/anthropic.py                175      3     68      4    97%   272-273, 320, 419->429, 423->429
+src/henchman/providers/base.py                      44      0      0      0   100%
+src/henchman/providers/deepseek.py                  12      0      0      0   100%
+src/henchman/providers/ollama.py                    15      0      0      0   100%
+src/henchman/providers/openai_compat.py            130      1     54      1    99%   369
+src/henchman/providers/openrouter.py                14      0      0      0   100%
+src/henchman/providers/registry.py                  35      0      4      0   100%
+src/henchman/providers/utils.py                     15      0      6      1    95%   50->55
+src/henchman/rag/__init__.py                         7      0      0      0   100%
+src/henchman/rag/chunker.py                         71      4     16      4    91%   161-163, 169->181, 193, 199->206
+src/henchman/rag/concurrency.py                     80      5     16      4    91%   71, 91->96, 114, 193, 209-210
+src/henchman/rag/embedder.py                        36      4      0      0    89%   31, 41, 53, 67
+src/henchman/rag/indexer.py                        138     14     56      3    87%   167->163, 270, 315-341
+src/henchman/rag/repo_id.py                         67      3     16      1    95%   89, 194-195
+src/henchman/rag/store.py                           84      9     22      5    83%   104-122, 217->exit, 227->exit, 239->243, 241->240
+src/henchman/rag/system.py                         101     14     36      6    81%   102, 178-180, 184-193, 221-222, 232, 238->exit, 274, 300
+src/henchman/tools/__init__.py                       3      0      0      0   100%
+src/henchman/tools/base.py                          42      0      2      0   100%
+src/henchman/tools/builtins/__init__.py             29      0      0      0   100%
+src/henchman/tools/builtins/ask_user.py             21      0      0      0   100%
+src/henchman/tools/builtins/code_format.py          44      6     10      2    85%   64, 132, 141-148
+src/henchman/tools/builtins/coverage_map.py        152      1     58      4    98%   160->151, 163->151, 165->151, 342
+src/henchman/tools/builtins/dead_code.py           133     10     88      6    91%   142-143, 212, 245-249, 261->253, 288, 314, 355->354
+src/henchman/tools/builtins/delegate.py             17      1      0      0    94%   111
+src/henchman/tools/builtins/diff_view.py            52      5     18      1    91%   196, 203-210
+src/henchman/tools/builtins/env_inspect.py          79      4     34      5    92%   110, 114, 136->135, 146, 210
+src/henchman/tools/builtins/file_edit.py            69      1     24      2    97%   235->238, 269
+src/henchman/tools/builtins/file_read.py            45      0     10      0   100%
+src/henchman/tools/builtins/file_write.py           23      0      0      0   100%
+src/henchman/tools/builtins/git_ops.py              88     15     28      5    79%   130-133, 205, 230, 266, 284, 298-304
+src/henchman/tools/builtins/glob_tool.py            42      0     12      0   100%
+src/henchman/tools/builtins/grep.py                142      9     60      7    92%   132, 148, 155, 257, 350, 374-379, 382
+src/henchman/tools/builtins/import_graph.py        212     18    102     14    90%   141, 169-170, 271, 307-308, 314-315, 318, 322-323, 325->310, 341->344, 362-363, 368, 394->391, 432-433, 479, 499, 502->501, 529->526, 534->526
+src/henchman/tools/builtins/kg_query.py            115     14     46      1    88%   20-31, 124-132
+src/henchman/tools/builtins/kg_update.py           113     13     40      3    88%   50-61, 181-184, 232, 292
+src/henchman/tools/builtins/lint_check.py           64      7     20      3    88%   107, 109-112, 165, 169
+src/henchman/tools/builtins/ls.py                   47      3     16      3    90%   97->102, 103-104, 121
+src/henchman/tools/builtins/patch_apply.py         160     12     68     12    89%   104, 119-121, 182->185, 192, 202->197, 217->219, 240, 259, 280, 333, 356->358, 382, 408-409
+src/henchman/tools/builtins/pip_inspect.py          35      2      8      2    91%   93, 99
+src/henchman/tools/builtins/pytest_run.py           94     11     24      4    87%   184, 201-212, 225, 233->235, 244
+src/henchman/tools/builtins/python_ast.py          159     18     78      8    84%   66->70, 86-92, 93->82, 108-112, 190->195, 206, 267-268, 391-393, 394->389
+src/henchman/tools/builtins/python_exec.py          46      7     10      3    82%   81, 106, 115-118, 132
+src/henchman/tools/builtins/rag_search.py           39      0      8      0   100%
+src/henchman/tools/builtins/shell.py               217     68     46      2    67%   217-218, 246, 249->247, 251-252, 263-265, 526-594, 609-616, 633-651
+src/henchman/tools/builtins/test_gen.py            144      9     58      8    91%   95-96, 163, 166->165, 168, 264->235, 270->287, 272->271, 276, 344-347
+src/henchman/tools/builtins/traceback_parse.py      97      5     32     10    88%   187, 191, 194->197, 209, 212, 230->241, 233, 236->239, 261->266, 263->266
+src/henchman/tools/builtins/web_fetch.py            29      0      4      0   100%
+src/henchman/tools/builtins/web_search.py           15      1      0      0    93%   44
+src/henchman/tools/registry.py                      90      2     24      1    97%   287-292
+src/henchman/utils/__init__.py                       2      0      0      0   100%
+src/henchman/utils/compaction.py                   268      9    114     13    94%   181->195, 186->189, 189->181, 191-193, 204->207, 416->425, 484, 503, 534, 551->553, 638, 664->673, 737, 756-758
+src/henchman/utils/intelligent_context.py          372     65    180     27    79%   96-124, 164, 185-197, 338, 354, 439, 523->510, 556->587, 615->613, 632-633, 642-649, 735, 792, 796, 800, 821, 882-883, 889->888, 925, 955, 985, 1054->1053, 1060->1069, 1069->1048, 1077->1082, 1083, 1102, 1107, 1114->1113, 1118, 1124, 1141, 1147-1150, 1165-1172, 1197, 1220
+src/henchman/utils/lazy_import.py                    8      0      2      0   100%
+src/henchman/utils/ratelimit.py                     31      0     10      0   100%
+src/henchman/utils/retry.py                         52      1     12      1    97%   118
+src/henchman/utils/tokens.py                        55      2     20      2    95%   127, 132
+src/henchman/utils/validation.py                    82      1     36      1    98%   45
+src/henchman/version.py                              3      0      0      0   100%
+--------------------------------------------------------------------------------------------
+TOTAL                                            13494   2281   4042    455    81%
+=========== 2586 passed, 5 skipped, 34 warnings in 186.12s (0:03:06) ===========
+[2026-02-27T16:30:01Z] All tests passed.
+Committing changes...
