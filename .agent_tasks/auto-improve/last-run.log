@@ -1087,3 +1087,7 @@ TOTAL                                            13675   2330   4054    454    8
 =========== 2586 passed, 5 skipped, 31 warnings in 229.61s (0:03:49) ===========
 [2026-02-27T18:07:24Z] All tests passed.
 Committing changes...
+[main 2506264] chore(auto-improve): automated codebase improvement
+ 12 files changed, 3570 insertions(+), 2606 deletions(-)
+ create mode 100644 src/henchman/cli/textual_mixins.py
+[2026-02-27T18:07:24Z] Auto-improve complete.
