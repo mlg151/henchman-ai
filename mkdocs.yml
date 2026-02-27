@@ -1,10 +1,10 @@
 site_name: Henchman-AI
-site_url: https://github.com/matthew/henchman-ai
+site_url: https://github.com/mlg151/henchman-ai
 site_description: A Model-Agnostic AI Agent CLI in Python
 site_author: Matthew
 
-repo_name: matthew/henchman-ai
-repo_url: https://github.com/matthew/henchman-ai
+repo_name: mlg151/henchman-ai
+repo_url: https://github.com/mlg151/henchman-ai
 
 theme:
   name: material
@@ -63,4 +63,4 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/matthew/henchman-ai
+      link: https://github.com/mlg151/henchman-ai

@@ -61,4 +61,4 @@ henchman --prompt "Explain this code" < file.py
 
 ## License
 
-MIT License - see [LICENSE](https://github.com/matthew/henchman-ai/blob/main/LICENSE) for details.
+MIT License - see [LICENSE](https://github.com/mlg151/henchman-ai/blob/main/LICENSE) for details.

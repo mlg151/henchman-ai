@@ -11,7 +11,7 @@ pip install henchman-ai
 ### From Source
 
 ```bash
-git clone https://github.com/matthew/henchman-ai.git
+git clone https://github.com/mlg151/henchman-ai.git
 cd henchman-ai
 pip install -e ".[dev]"
 ```

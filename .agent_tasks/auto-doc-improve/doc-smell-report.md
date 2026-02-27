@@ -1,17 +1,17 @@
-# Documentation Smell Report — ✅ A (Score: 92.6/100)
+# Documentation Smell Report — ✅ A (Score: 93.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-02-27T14:44:27.765325+00:00_
+_Generated: 2026-02-27T14:48:21.621463+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ✅ A |
-| **Overall Score** | 92.6/100 |
+| **Overall Score** | 93.0/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 127 |
-| **Total Smells** | 396 |
+| **Total Smells** | 394 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
@@ -21,7 +21,7 @@ _Generated: 2026-02-27T14:44:27.765325+00:00_
 | low | 293 |
 | medium | 51 |
 | high | 45 |
-| critical | 7 |
+| critical | 5 |
 
 ### Smells by Category
 
@@ -33,92 +33,91 @@ _Generated: 2026-02-27T14:44:27.765325+00:00_
 | Consistency Error | 7 |
 | Missing Docstring | 5 |
 | Broken Link | 3 |
-| Orphaned Page | 2 |
 | Config Issue | 2 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **docs/architecture.md:1** — 🔴 CRITICAL — Orphaned Page  
-   'architecture.md' exists in docs/ but is not referenced in mkdocs.yml nav  
-   → _Add 'architecture.md' to the nav section in mkdocs.yml, or delete the file if it's no longer needed._
-
-2. **docs/getting-started.md:14** — 🔴 CRITICAL — Consistency Error  
+1. **docs/getting-started.md:14** — 🔴 CRITICAL — Consistency Error  
    References GitHub repo 'matthew/henchman-ai' but most files reference 'mlg151/henchman-ai'. Found conflicting repos: 'matthew/henchman-ai', 'mlg151/henchman-ai'  
    → _Standardise all GitHub URLs to use 'mlg151/henchman-ai'._
 
-3. **docs/index.md:64** — 🔴 CRITICAL — Consistency Error  
+2. **docs/index.md:64** — 🔴 CRITICAL — Consistency Error  
    References GitHub repo 'matthew/henchman-ai' but most files reference 'mlg151/henchman-ai'. Found conflicting repos: 'matthew/henchman-ai', 'mlg151/henchman-ai'  
    → _Standardise all GitHub URLs to use 'mlg151/henchman-ai'._
 
-4. **docs/intelligent-context-management.md:1** — 🔴 CRITICAL — Orphaned Page  
-   'intelligent-context-management.md' exists in docs/ but is not referenced in mkdocs.yml nav  
-   → _Add 'intelligent-context-management.md' to the nav section in mkdocs.yml, or delete the file if it's no longer needed._
+3. **mkdocs.yml:1** — 🔴 CRITICAL — Consistency Error  
+   References GitHub repo 'matthew/henchman-ai' but most files reference 'mlg151/henchman-ai'. Found conflicting repos: 'matthew/henchman-ai', 'mlg151/henchman-ai'  
+   → _Standardise all GitHub URLs to use 'mlg151/henchman-ai'._
+
+4. **mkdocs.yml:1** — 🔴 CRITICAL — Consistency Error  
+   References GitHub repo 'matthew/henchman-ai' but most files reference 'mlg151/henchman-ai'. Found conflicting repos: 'matthew/henchman-ai', 'mlg151/henchman-ai'  
+   → _Standardise all GitHub URLs to use 'mlg151/henchman-ai'._
 
 5. **mkdocs.yml:1** — 🔴 CRITICAL — Consistency Error  
    References GitHub repo 'matthew/henchman-ai' but most files reference 'mlg151/henchman-ai'. Found conflicting repos: 'matthew/henchman-ai', 'mlg151/henchman-ai'  
    → _Standardise all GitHub URLs to use 'mlg151/henchman-ai'._
 
-6. **mkdocs.yml:1** — 🔴 CRITICAL — Consistency Error  
-   References GitHub repo 'matthew/henchman-ai' but most files reference 'mlg151/henchman-ai'. Found conflicting repos: 'matthew/henchman-ai', 'mlg151/henchman-ai'  
-   → _Standardise all GitHub URLs to use 'mlg151/henchman-ai'._
-
-7. **mkdocs.yml:1** — 🔴 CRITICAL — Consistency Error  
-   References GitHub repo 'matthew/henchman-ai' but most files reference 'mlg151/henchman-ai'. Found conflicting repos: 'matthew/henchman-ai', 'mlg151/henchman-ai'  
-   → _Standardise all GitHub URLs to use 'mlg151/henchman-ai'._
-
-8. **CONTRIBUTING.md:35** — 🟠 HIGH — Consistency Error  
+6. **CONTRIBUTING.md:35** — 🟠 HIGH — Consistency Error  
    Contains placeholder GitHub URL 'your-username/henchman-ai.git' that should be replaced with the actual repo URL  
    → _Replace the placeholder URL with the actual project repository URL._
 
-9. **CONTRIBUTING.md:166** — 🟠 HIGH — Stale Content  
+7. **CONTRIBUTING.md:166** — 🟠 HIGH — Stale Content  
    References 'BaseProvider' but the actual class is 'ModelProvider'  
    → _Replace 'BaseProvider' with 'ModelProvider'._
 
-10. **CONTRIBUTING.md:174** — 🟠 HIGH — Stale Content  
+8. **CONTRIBUTING.md:174** — 🟠 HIGH — Stale Content  
    References 'BaseTool' but the actual class is 'Tool'  
    → _Replace 'BaseTool' with 'Tool'._
 
-11. **README.md:274** — 🟠 HIGH — Broken Link  
+9. **README.md:274** — 🟠 HIGH — Broken Link  
    Link to 'docs/' resolves to 'docs' which does not exist  
    → _Fix the link target or create the missing file 'docs'._
 
-12. **README.md:310** — 🟠 HIGH — Broken Link  
+10. **README.md:310** — 🟠 HIGH — Broken Link  
    Link to 'LICENSE' resolves to 'LICENSE' which does not exist  
    → _Fix the link target or create the missing file 'LICENSE'._
 
-13. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+11. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'ask_user' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'ask_user' tool, including its parameters and usage._
 
-14. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+12. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'code_format' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'code_format' tool, including its parameters and usage._
 
-15. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+13. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'coverage_map' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'coverage_map' tool, including its parameters and usage._
 
-16. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+14. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'dead_code' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'dead_code' tool, including its parameters and usage._
 
-17. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+15. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'delegate_task' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'delegate_task' tool, including its parameters and usage._
 
-18. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+16. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'diff_view' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'diff_view' tool, including its parameters and usage._
 
-19. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+17. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'edit_file' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'edit_file' tool, including its parameters and usage._
 
-20. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+18. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'env_inspect' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'env_inspect' tool, including its parameters and usage._
+
+19. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+   Tool 'git_ops' exists in source but is not documented in tools.md  
+   → _Add a section documenting the 'git_ops' tool, including its parameters and usage._
+
+20. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+   Tool 'glob' exists in source but is not documented in tools.md  
+   → _Add a section documenting the 'glob' tool, including its parameters and usage._
 
 
 ## 📊 Files Ranked by Quality
@@ -135,11 +134,11 @@ These are the highest-impact documentation smells to address first:
 | 8 | src/henchman/agents/orchestrator.py | ❌ F | 55.0 | 18 |
 | 9 | CONTRIBUTING.md | 🔶 D | 68.0 | 4 |
 | 10 | src/henchman/cli/output_handler.py | ⚠️ C | 74.0 | 13 |
-| 11 | docs/intelligent-context-management.md | ⚠️ C | 75.0 | 2 |
-| 12 | src/henchman/api/server.py | ⚠️ C | 75.0 | 8 |
-| 13 | README.md | ⚠️ C | 78.0 | 3 |
-| 14 | docs/architecture.md | 👍 B | 80.0 | 1 |
-| 15 | docs/getting-started.md | 👍 B | 80.0 | 1 |
+| 11 | src/henchman/api/server.py | ⚠️ C | 75.0 | 8 |
+| 12 | README.md | ⚠️ C | 78.0 | 3 |
+| 13 | docs/getting-started.md | 👍 B | 80.0 | 1 |
+| 14 | docs/index.md | 👍 B | 80.0 | 1 |
+| 15 | src/henchman/api/endpoints/health.py | 👍 B | 80.0 | 2 |
 
 ## 📁 Per-File Details
 
@@ -344,15 +343,6 @@ Public APIs: 18 | Documented: 18 | Coverage: 100.0%
 | 355 | 🟢 LOW | Incomplete Docstring | 'OutputHandler.complete_task' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputHandler.complete_task'. |
 | 363 | 🟢 LOW | Incomplete Docstring | 'OutputHandler.start_background_indexing' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputHandler.start_background_indexing'. |
 
-### docs/intelligent-context-management.md — ⚠️ C (75.0/100)
-
-Words: 1726 | Headings: 67 | Links: 4 | Code blocks: 27
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 1 | 🔴 CRITICAL | Orphaned Page | 'intelligent-context-management.md' exists in docs/ but is not referenced in mkdocs.yml nav | Add 'intelligent-context-management.md' to the nav section in mkdocs.yml, or delete the file if it's no longer needed. |
-| 474 | 🟡 MEDIUM | Broken Link | Link to 'configuration.md#performance-tuning' — file exists but anchor '#performance-tuning' not found | Verify the heading exists in 'docs/configuration.md' or fix the fragment. |
-
 ### src/henchman/api/server.py — ⚠️ C (75.0/100)
 
 Public APIs: 7 | Documented: 7 | Coverage: 100.0%
@@ -377,14 +367,6 @@ Words: 1142 | Headings: 58 | Links: 17 | Code blocks: 16
 | 274 | 🟠 HIGH | Broken Link | Link to 'docs/' resolves to 'docs' which does not exist | Fix the link target or create the missing file 'docs'. |
 | 310 | 🟠 HIGH | Broken Link | Link to 'LICENSE' resolves to 'LICENSE' which does not exist | Fix the link target or create the missing file 'LICENSE'. |
 | 85 | 🟢 LOW | Stale Content | Hardcoded line count '406 lines' may become stale as the codebase evolves | Remove the specific line count or replace with a relative description (e.g. 'compact', 'concise'). |
-
-### docs/architecture.md — 👍 B (80.0/100)
-
-Words: 968 | Headings: 24 | Links: 4 | Code blocks: 5
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 1 | 🔴 CRITICAL | Orphaned Page | 'architecture.md' exists in docs/ but is not referenced in mkdocs.yml nav | Add 'architecture.md' to the nav section in mkdocs.yml, or delete the file if it's no longer needed. |
 
 ### docs/getting-started.md — 👍 B (80.0/100)
 
@@ -516,7 +498,26 @@ Public APIs: 14 | Documented: 14 | Coverage: 100.0%
 | 219 | 🟢 LOW | Incomplete Docstring | 'ReplSessionManager.record_agent_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ReplSessionManager.record_agent_message'. |
 | 242 | 🟢 LOW | Incomplete Docstring | 'ReplSessionManager.record_tool_result' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ReplSessionManager.record_tool_result'. |
 
-## ✨ Clean Files (69 files with no smells)
+### src/henchman/core/eventbus.py — 👍 B (89.0/100)
+
+Public APIs: 7 | Documented: 7 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 1 | 🟡 MEDIUM | Missing Docstring | Module is missing a docstring | Add a module-level docstring describing the module's purpose. |
+| 53 | 🟢 LOW | Incomplete Docstring | 'EventBus.unsubscribe' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'EventBus.unsubscribe'. |
+| 62 | 🟢 LOW | Incomplete Docstring | 'EventBus.publish' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'EventBus.publish'. |
+| 117 | 🟢 LOW | Incomplete Docstring | 'EventBus.clear_history' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'EventBus.clear_history'. |
+
+### src/henchman/mcp/tool.py — ✅ A (90.0/100)
+
+Public APIs: 6 | Documented: 6 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 84 | 🟠 HIGH | Stale Docstring | 'McpTool.execute' has undocumented parameters: params | Add these parameters to the Args: section: params |
+
+## ✨ Clean Files (70 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -524,6 +525,7 @@ Public APIs: 14 | Documented: 14 | Coverage: 100.0%
 - RELEASE_CHECKLIST.md — ✅ A
 - docs/agents.md — ✅ A
 - docs/api.md — ✅ A
+- docs/architecture.md — ✅ A
 - docs/configuration.md — ✅ A
 - docs/extensions.md — ✅ A
 - docs/mcp.md — ✅ A

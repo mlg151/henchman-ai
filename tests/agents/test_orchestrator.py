@@ -1225,3 +1225,95 @@ async def test_colon_stall_guard_resets_on_non_colon():
 
     # Only 2 calls: initial stall + one retry that succeeded
     assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_regular_tool_calls_are_executed_before_continue(mock_provider):
+    """Regression test: _run_agent_loop must execute pending tool calls.
+
+    Without the call to _process_pending_tool_calls, the agent loop calls
+    continue_with_tool_results() with no tool responses submitted.  The
+    message-repair logic then strips the unanswered tool_calls and the
+    LLM regenerates the same call — an infinite loop.
+
+    See: .agent_tasks/auto-improve/infinite-loop-fix.md
+    """
+    # 1. Tech Lead wants to read a file
+    tc = ToolCall(id="call_rf", name="read_file", arguments={"path": "foo.py"})
+    chunk_tool = StreamChunk(tool_calls=[tc], finish_reason=FinishReason.TOOL_CALLS)
+
+    # 2. After tool result is submitted, Tech Lead finishes
+    chunk_done = StreamChunk(content="File contents look good.", finish_reason=FinishReason.STOP)
+
+    call_count = 0
+
+    async def side_effect(*_args, **_kwargs):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield chunk_tool
+        else:
+            yield chunk_done
+
+    mock_provider.chat_completion_stream.side_effect = side_effect
+
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    events = []
+    async for event in orchestrator.run("Read foo.py"):
+        events.append(event)
+
+    # The tool call should have been executed (not silently dropped)
+    tool_result_events = [
+        e for e in events if e.type == EventType.TOOL_CALL_RESULT
+    ]
+    assert len(tool_result_events) == 1, (
+        "Expected exactly one TOOL_CALL_RESULT event — tool calls must be "
+        "executed before continue_with_tool_results()"
+    )
+
+    # Agent should have continued and produced final content
+    content_events = [e for e in events if e.type == EventType.CONTENT]
+    assert any("File contents" in e.data for e in content_events)
+
+    # Only 2 LLM calls: initial (tool_call) + continuation (STOP)
+    assert call_count == 2, (
+        f"Expected 2 LLM calls but got {call_count} — "
+        "possible infinite loop if tool calls are not executed"
+    )
+
+
+@pytest.mark.asyncio
+async def test_multiple_tool_calls_all_executed(mock_provider):
+    """All tool calls in a single response are executed before continuing."""
+    tc1 = ToolCall(id="call_1", name="read_file", arguments={"path": "a.py"})
+    tc2 = ToolCall(id="call_2", name="read_file", arguments={"path": "b.py"})
+    chunk_tools = StreamChunk(
+        tool_calls=[tc1, tc2], finish_reason=FinishReason.TOOL_CALLS
+    )
+    chunk_done = StreamChunk(content="Both read.", finish_reason=FinishReason.STOP)
+
+    call_count = 0
+
+    async def side_effect(*_args, **_kwargs):  # noqa: ARG001
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield chunk_tools
+        else:
+            yield chunk_done
+
+    mock_provider.chat_completion_stream.side_effect = side_effect
+    orchestrator = Orchestrator(default_provider=mock_provider)
+
+    events = []
+    async for event in orchestrator.run("Read both files"):
+        events.append(event)
+
+    tool_results = [e for e in events if e.type == EventType.TOOL_CALL_RESULT]
+    assert len(tool_results) == 2, (
+        f"Expected 2 tool results but got {len(tool_results)} — "
+        "all tool calls in a batch must be executed"
+    )
+    assert call_count == 2
+
