@@ -52,6 +52,7 @@ class CommandContext:
         tool_registry: ToolRegistry instance if available.
         session: Current Session if available.
         repl: REPL instance if available.
+        registry: CommandRegistry instance if available.
     """
 
     console: Console
@@ -64,6 +65,7 @@ class CommandContext:
     session_manager: object | None = None
     project_hash: str | None = None
     mcp_manager: McpManager | None = None
+    registry: CommandRegistry | None = None
 
 
 class Command(ABC):

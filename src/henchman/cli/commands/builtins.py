@@ -56,20 +56,30 @@ class HelpCommand(Command):
             ctx: Command context.
         """
         ctx.console.print("\n[bold blue]Henchman-AI Commands[/]\n")
-        ctx.console.print("  /help     - Show this help message")
-        ctx.console.print("  /agent    - List or interact with specialist agents")
-        ctx.console.print("  /team     - Show team status or reset agents")
-        ctx.console.print("  /plan     - Toggle Plan Mode (Read-Only)")
-        ctx.console.print("  /rag      - Manage semantic search index")
-        ctx.console.print("  /chat     - Manage chat sessions (save, list, resume)")
-        ctx.console.print("  /session  - Enhanced session management (branch, merge, templates)")
-        ctx.console.print("  /mcp      - Manage MCP server connections")
-        ctx.console.print("  /model    - Show or change model/provider")
-        ctx.console.print("  /theme    - Manage UI themes (list, set, preview)")
-        ctx.console.print("  /context  - Manage intelligent context settings")
-        ctx.console.print("  /quit     - Exit the CLI")
-        ctx.console.print("  /clear    - Clear the screen")
-        ctx.console.print("  /tools    - List available tools")
+
+        # If a specific command is requested, show its usage
+        if ctx.args:
+            command_name = ctx.args[0].lower().removeprefix("/")
+            if ctx.registry:
+                cmd = ctx.registry.get(command_name)
+                if cmd:
+                    ctx.console.print(f"  [cyan]/{cmd.name}[/] - {cmd.description}")
+                    ctx.console.print(f"  Usage: [yellow]{cmd.usage}[/]\n")
+                    return
+
+            ctx.console.print(f"[red]Unknown command: /{command_name}[/]\n")
+
+        # Otherwise list all commands
+        if ctx.registry:
+            # Sort commands by name
+            commands = sorted(ctx.registry.get_commands(), key=lambda c: c.name)
+            for cmd in commands:
+                ctx.console.print(f"  [cyan]/{cmd.name:10}[/] - {cmd.description}")
+        else:
+            # Fallback if registry is missing
+            ctx.console.print("  /help     - Show this help message")
+            ctx.console.print("  /quit     - Exit the CLI")
+
         ctx.console.print("")
 
 
@@ -152,6 +162,12 @@ class ClearCommand(Command):
         Args:
             ctx: Command context.
         """
+        # Clear agent history if available
+        if ctx.agent:
+            ctx.agent.clear_history()
+            ctx.console.print("[dim]Agent history cleared.[/]")
+
+        # Clear the terminal screen
         ctx.console.clear()
 
 

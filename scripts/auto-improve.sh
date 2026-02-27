@@ -71,13 +71,13 @@ Tech-Stack Specific Guidelines:
 
 Execution Steps:
 
-    Code Smell Analysis: Scan the provided code for standard code smells (Long Method, Large Class, Primitive Obsession, Feature Envy, Magic Numbers, Deep Nesting).
+    Code Smell Analysis: Read the smell report section for the TARGET FILE below. Address ALL smells listed for that file.
 
     Determine the Refactoring Pattern: Select the appropriate Martin Fowler refactoring technique (e.g., Extract Method, Replace Conditional with Polymorphism, Introduce Parameter Object, Rename Method).
 
     Safety Check: Ensure the refactoring relies on standard testing paradigms. Do not change public API signatures unless explicitly instructed, as this breaks downstream contracts.
 
-    Execution: Rewrite the code.
+    Execution: Rewrite the code. Address EVERY smell listed in the report for this file, not just one.
 
 Output Format:
 Whenever you are provided with a code snippet to refactor, you must respond strictly in the following format:
@@ -89,8 +89,10 @@ Whenever you are provided with a code snippet to refactor, you must respond stri
     Refactored Code: (The complete, refactored code block)
 
     Testing Implications: (A 1-2 sentence note on what existing unit tests might need updating, or what new edge cases should be tested based on the structural change)
-    
-Please pick one improvement to make to the codebase, implement it, and ensure all tests pass. DO check .agent_tasks/auto-improve/last-improvement.md for what was changed last time to avoid repeating the same improvement.
+
+TARGET FILE: __TARGET_FILE__
+
+Your job is to refactor the TARGET FILE completely — address ALL code smells listed in the smell report for this file. Do not pick a different file. Do not skip smells. Work through every smell systematically.
 
 Write your changes to .agent_tasks/auto-improve/last-improvement.md with a brief summary of what you changed and why, including the date/time, files changed, and rationale.
 
@@ -103,8 +105,23 @@ SMELL_REPORT="$WORKDIR/.agent_tasks/auto-improve/smell-report.md"
 echo "Running code smell detector..." | tee -a "$LOGFILE"
 python -m scripts.smell_detector src/henchman --skip-ruff -o "$SMELL_REPORT" 2>&1 | tee -a "$LOGFILE"
 
+# ---------------------------------------------------------------------------
+# Extract the lowest-graded (worst) file from the "Files Ranked by Quality" table
+# The table has format: | Rank | File | Grade | Score | ...
+# Rank 1 = worst file. We grab the file path from that row.
+# ---------------------------------------------------------------------------
+TARGET_FILE=$(grep -E '^\| *1 \|' "$SMELL_REPORT" | head -1 | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $3); print $3}')
+
+if [ -z "$TARGET_FILE" ]; then
+  echo "[$TIMESTAMP] Could not extract target file from smell report. Falling back to full report." | tee -a "$LOGFILE"
+  PROMPT=$(echo "$PROMPT" | sed "s|__TARGET_FILE__|<unknown — read the smell report and pick the lowest-scored file>|g")
+else
+  echo "[$TIMESTAMP] Targeting lowest-graded file: $TARGET_FILE" | tee -a "$LOGFILE"
+  PROMPT=$(echo "$PROMPT" | sed "s|__TARGET_FILE__|src/henchman/$TARGET_FILE|g")
+fi
+
 # Append the smell report reference to the prompt.
-PROMPT="$PROMPT"$'\n\nRefer to the code smell report for prioritised improvement targets: @'"$SMELL_REPORT"
+PROMPT="$PROMPT"$'\n\nRefer to the code smell report for the full list of smells in the target file: @'"$SMELL_REPORT"
 
 # Run Henchman in headless mode with auto-approve
 echo "Running Henchman..." | tee -a "$LOGFILE"
