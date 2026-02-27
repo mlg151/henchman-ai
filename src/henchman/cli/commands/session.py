@@ -88,17 +88,43 @@ class SessionCommand(BaseCommand):
         else:
             await self._show_help(ctx)
 
+    def _get_manager(self, ctx: CommandContext) -> SessionManager | None:
+        """Get session manager from context with error handling.
 
+        Args:
+            ctx: Command context.
 
-    async def _branch(self, ctx: CommandContext) -> None:
-        """Branch from an existing session."""
+        Returns:
+            SessionManager or None if not available.
+        """
         manager: SessionManager | None = getattr(ctx, "session_manager", None)
         if manager is None:
             ctx.console.print("[red]Session manager not available[/]")
+        return manager
+
+    def _ensure_args(self, ctx: CommandContext, min_args: int, usage: str) -> bool:
+        """Ensure minimum number of arguments.
+
+        Args:
+            ctx: Command context.
+            min_args: Minimum number of arguments required.
+            usage: Usage string to show if validation fails.
+
+        Returns:
+            True if arguments are valid, False otherwise.
+        """
+        if len(ctx.args) < min_args:
+            ctx.console.print(f"[yellow]Usage: {usage}[/]")
+            return False
+        return True
+
+    async def _branch(self, ctx: CommandContext) -> None:
+        """Branch from an existing session."""
+        manager = self._get_manager(ctx)
+        if manager is None:
             return
 
-        if len(ctx.args) < 3:
-            ctx.console.print("[yellow]Usage: /session branch <id> <point> [tag][/]")
+        if not self._ensure_args(ctx, 3, "/session branch <id> <point> [tag]"):
             return
 
         session_id = ctx.args[1]
@@ -122,13 +148,11 @@ class SessionCommand(BaseCommand):
 
     async def _merge(self, ctx: CommandContext) -> None:
         """Merge multiple sessions."""
-        manager: SessionManager | None = getattr(ctx, "session_manager", None)
+        manager = self._get_manager(ctx)
         if manager is None:
-            ctx.console.print("[red]Session manager not available[/]")
             return
 
-        if len(ctx.args) < 3:
-            ctx.console.print("[yellow]Usage: /session merge <id1> <id2> [strategy] [tag][/]")
+        if not self._ensure_args(ctx, 3, "/session merge <id1> <id2> [strategy] [tag]"):
             return
 
         session_ids = [ctx.args[1], ctx.args[2]]
@@ -157,13 +181,11 @@ class SessionCommand(BaseCommand):
 
     async def _template(self, ctx: CommandContext) -> None:
         """Template operations."""
-        manager: SessionManager | None = getattr(ctx, "session_manager", None)
+        manager = self._get_manager(ctx)
         if manager is None:
-            ctx.console.print("[red]Session manager not available[/]")
             return
 
-        if len(ctx.args) < 2:
-            ctx.console.print("[yellow]Usage: /session template <save|create|list|delete> [args][/]")
+        if not self._ensure_args(ctx, 2, "/session template <save|create|list|delete> [args]"):
             return
 
         subcmd = ctx.args[1].lower()
@@ -180,8 +202,7 @@ class SessionCommand(BaseCommand):
 
     async def _template_save(self, ctx: CommandContext, manager: SessionManager) -> None:
         """Save a session as template."""
-        if len(ctx.args) < 4:
-            ctx.console.print("[yellow]Usage: /session template save <id> <name>[/]")
+        if not self._ensure_args(ctx, 4, "/session template save <id> <name>"):
             return
 
         session_id = ctx.args[2]
@@ -199,8 +220,7 @@ class SessionCommand(BaseCommand):
 
     async def _template_create(self, ctx: CommandContext, manager: SessionManager) -> None:
         """Create session from template."""
-        if len(ctx.args) < 3:
-            ctx.console.print("[yellow]Usage: /session template create <template_id> [tag][/]")
+        if not self._ensure_args(ctx, 3, "/session template create <template_id> [tag]"):
             return
 
         template_id = ctx.args[2]
@@ -238,8 +258,7 @@ class SessionCommand(BaseCommand):
 
     async def _template_delete(self, ctx: CommandContext, manager: SessionManager) -> None:
         """Delete a template."""
-        if len(ctx.args) < 3:
-            ctx.console.print("[yellow]Usage: /session template delete <template_id>[/]")
+        if not self._ensure_args(ctx, 3, "/session template delete <template_id>"):
             return
 
         template_id = ctx.args[2]
@@ -252,13 +271,11 @@ class SessionCommand(BaseCommand):
 
     async def _export(self, ctx: CommandContext) -> None:
         """Export a session."""
-        manager: SessionManager | None = getattr(ctx, "session_manager", None)
+        manager = self._get_manager(ctx)
         if manager is None:
-            ctx.console.print("[red]Session manager not available[/]")
             return
 
-        if len(ctx.args) < 2:
-            ctx.console.print("[yellow]Usage: /session export <id> [format][/]")
+        if not self._ensure_args(ctx, 2, "/session export <id> [format]"):
             return
 
         session_id = ctx.args[1]
@@ -267,30 +284,22 @@ class SessionCommand(BaseCommand):
         try:
             exported = manager.export_session(session_id, format)
 
-            if format == "json":
-                # Save to file
-                output_file = Path.cwd() / f"session_{session_id}.json"
-                output_file.write_text(exported)
-                ctx.console.print(f"[green]✓[/] Exported session to: {output_file}")
-            else:
-                # Save markdown to file
-                output_file = Path.cwd() / f"session_{session_id}.md"
-                output_file.write_text(exported)
-                ctx.console.print(f"[green]✓[/] Exported session to: {output_file}")
-
+            ext = "json" if format == "json" else "md"
+            output_file = Path.cwd() / f"session_{session_id}.{ext}"
+            output_file.write_text(exported)
+            
+            ctx.console.print(f"[green]✓[/] Exported session to: {output_file}")
             ctx.console.print(f"[dim]Format: {format}, Size: {len(exported)} bytes[/]")
         except (FileNotFoundError, ValueError) as e:
             ctx.console.print(f"[red]Error: {e}[/]")
 
     async def _import(self, ctx: CommandContext) -> None:
         """Import a session."""
-        manager: SessionManager | None = getattr(ctx, "session_manager", None)
+        manager = self._get_manager(ctx)
         if manager is None:
-            ctx.console.print("[red]Session manager not available[/]")
             return
 
-        if len(ctx.args) < 2:
-            ctx.console.print("[yellow]Usage: /session import <file> [format][/]")
+        if not self._ensure_args(ctx, 2, "/session import <file> [format]"):
             return
 
         file_path = Path(ctx.args[1])
@@ -315,9 +324,8 @@ class SessionCommand(BaseCommand):
 
     async def _list(self, ctx: CommandContext) -> None:
         """List sessions with enhanced information."""
-        manager: SessionManager | None = getattr(ctx, "session_manager", None)
+        manager = self._get_manager(ctx)
         if manager is None:
-            ctx.console.print("[red]Session manager not available[/]")
             return
 
         project_hash = getattr(ctx, "project_hash", None)

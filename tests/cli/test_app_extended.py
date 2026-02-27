@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from henchman.cli.app import _run_headless, _run_interactive, cli
+from henchman.cli.app import RunConfig, _run_headless, _run_interactive, cli
 from henchman.core.events import AgentEvent, EventType
 
 
@@ -19,7 +19,7 @@ def test_run_interactive_json_warning():
         patch("henchman.cli.app.console.print") as mock_print,
     ):
         mock_loader.return_value.load.return_value = "system prompt"
-        _run_interactive("json")
+        _run_interactive(RunConfig(output_format="json"))
         mock_print.assert_called()
         assert "JSON output formats not supported" in mock_print.call_args[0][0]
 
@@ -44,7 +44,7 @@ def test_run_interactive_plan_mode():
         patch("henchman.cli.repl.Repl", return_value=mock_repl_instance),
         patch("henchman.cli.app.anyio.run"),
     ):
-        _run_interactive("text", plan_mode=True)
+        _run_interactive(RunConfig(output_format="text", plan_mode=True))
         assert mock_session.plan_mode is True
         mock_repl_instance.tool_manager.set_plan_mode.assert_called_once_with(True)
         assert "PLAN" in mock_repl_instance.agent.system_prompt
@@ -155,4 +155,7 @@ def test_cli_plan_flag():
     with patch("henchman.cli.app._run_interactive") as mock_run:
         result = runner.invoke(cli, ["chat", "--plan"])
         assert result.exit_code == 0
-        mock_run.assert_called_once_with("text", True, False, agent_role=None)
+        call_args = mock_run.call_args[0][0]
+        assert isinstance(call_args, RunConfig)
+        assert call_args.plan_mode is True
+        assert call_args.output_format == "text"

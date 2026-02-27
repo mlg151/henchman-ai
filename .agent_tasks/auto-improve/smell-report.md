@@ -1,104 +1,104 @@
-# Code Smell Report — ❌ F (Score: 35.9/100)
+# Code Smell Report — ❌ F (Score: 37.0/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T16:00:17.598103+00:00_
+_Generated: 2026-02-27T16:31:21.397031+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.9/100 |
-| **Files Scanned** | 145 |
-| **Total Lines (non-blank)** | 29,817 |
-| **Total Smells** | 2721 |
-| **Avg Maintainability Index** | 70.0 |
+| **Overall Score** | 37.0/100 |
+| **Files Scanned** | 148 |
+| **Total Lines (non-blank)** | 30,019 |
+| **Total Smells** | 2731 |
+| **Avg Maintainability Index** | 69.9 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1901 |
-| medium | 661 |
-| high | 159 |
+| low | 1913 |
+| medium | 663 |
+| high | 155 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1323 |
-| Feature Envy | 366 |
+| Missing Type Hint | 1333 |
+| Feature Envy | 365 |
 | Duplicate Code | 321 |
 | Magic Number | 196 |
 | Long Method | 167 |
 | Deep Nesting | 166 |
 | Primitive Obsession | 85 |
 | Complex Function | 58 |
-| Large Class | 39 |
+| Large Class | 40 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **agents/orchestrator.py:564** — 🟠 HIGH — Large Class  
-   Class 'Orchestrator' spans 1602 lines (threshold: 300)  
+1. **agents/orchestrator.py:175** — 🟠 HIGH — Large Class  
+   Class 'Orchestrator' spans 1087 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
-2. **agents/orchestrator.py:564** — 🟠 HIGH — Large Class  
-   Class 'Orchestrator' has 65 methods (threshold: 20)  
-   → _Split Class — group related methods into smaller collaborating classes._
-
-3. **cli/app.py:645** — 🟠 HIGH — Primitive Obsession  
+2. **cli/app.py:645** — 🟠 HIGH — Primitive Obsession  
    Function 'chat_command' has 8 primitive-typed parameters: prompt: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), agent: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), team: Name(id='bool', ctx=Load()), output_format: Name(id='str', ctx=Load()), plan: Name(id='bool', ctx=Load()), yes: Name(id='bool', ctx=Load()), tui: Name(id='bool', ctx=Load()), debug: Name(id='bool', ctx=Load())  
    → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
 
-4. **cli/commands/agent.py:33** — 🟠 HIGH — Feature Envy  
+3. **cli/commands/agent.py:33** — 🟠 HIGH — Feature Envy  
    Method 'AgentCommand.execute' accesses 'ctx' 10 times but 'self' only 2 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-5. **cli/commands/builtins.py:52** — 🟠 HIGH — Feature Envy  
+4. **cli/commands/builtins.py:52** — 🟠 HIGH — Feature Envy  
    Method 'HelpCommand.execute' accesses 'ctx' 16 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-6. **cli/commands/chat.py:120** — 🟠 HIGH — Feature Envy  
+5. **cli/commands/chat.py:120** — 🟠 HIGH — Feature Envy  
    Method 'ChatCommand._resume' accesses 'ctx' 12 times but 'self' only 0 times  
    → _Move Method — consider moving '_resume' to the class that owns 'ctx'._
 
-7. **cli/commands/context.py:71** — 🟠 HIGH — Feature Envy  
+6. **cli/commands/context.py:71** — 🟠 HIGH — Feature Envy  
    Method 'ContextCommand._show_status' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_status' to the class that owns 'ctx'._
 
-8. **cli/commands/context.py:348** — 🟠 HIGH — Feature Envy  
+7. **cli/commands/context.py:348** — 🟠 HIGH — Feature Envy  
    Method 'ContextCommand._show_stats' accesses 'ctx' 21 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_stats' to the class that owns 'ctx'._
 
-9. **cli/commands/mcp.py:121** — 🟠 HIGH — Feature Envy  
+8. **cli/commands/mcp.py:121** — 🟠 HIGH — Feature Envy  
    Method 'McpCommand._logging' accesses 'ctx' 15 times but 'self' only 0 times  
    → _Move Method — consider moving '_logging' to the class that owns 'ctx'._
 
-10. **cli/commands/model.py:61** — 🟠 HIGH — Feature Envy  
+9. **cli/commands/model.py:61** — 🟠 HIGH — Feature Envy  
    Method 'ModelCommand._show_current' accesses 'ctx' 10 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_current' to the class that owns 'ctx'._
 
-11. **cli/commands/model.py:125** — 🟠 HIGH — Feature Envy  
+10. **cli/commands/model.py:125** — 🟠 HIGH — Feature Envy  
    Method 'ModelCommand._set_provider' accesses 'ctx' 26 times but 'self' only 2 times  
    → _Move Method — consider moving '_set_provider' to the class that owns 'ctx'._
 
-12. **cli/commands/plan.py:32** — 🟠 HIGH — Feature Envy  
+11. **cli/commands/plan.py:32** — 🟠 HIGH — Feature Envy  
    Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-13. **cli/commands/session.py:86** — 🟠 HIGH — Deep Nesting  
+12. **cli/commands/session.py:86** — 🟠 HIGH — Deep Nesting  
    Nesting depth 6 in 'execute' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-14. **cli/commands/session.py:93** — 🟠 HIGH — Feature Envy  
-   Method 'SessionCommand._branch' accesses 'ctx' 12 times but 'self' only 0 times  
-   → _Move Method — consider moving '_branch' to the class that owns 'ctx'._
+13. **cli/commands/session.py:127** — 🟠 HIGH — Magic Number  
+   Magic number 3 — consider extracting to a named constant  
+   → _Extract Constant / Introduce Named Constant._
 
-15. **cli/commands/session.py:100** — 🟠 HIGH — Magic Number  
+14. **cli/commands/session.py:137** — 🟠 HIGH — Magic Number  
+   Magic number 3 — consider extracting to a named constant  
+   → _Extract Constant / Introduce Named Constant._
+
+15. **cli/commands/session.py:137** — 🟠 HIGH — Magic Number  
    Magic number 3 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
@@ -108,19 +108,19 @@ These are the highest-impact smells to address first:
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
 | 1 | cli/textual_app.py | ❌ F | 0.4 | 121 | 1439 | 1 | 0.0 |
-| 2 | agents/orchestrator.py | ❌ F | 0.9 | 136 | 1660 | 3 | 13.5 |
-| 3 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
-| 4 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
-| 5 | cli/commands/session.py | ❌ F | 10.0 | 65 | 295 | 33 | 11.0 |
-| 6 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
-| 7 | core/agent.py | ❌ F | 10.7 | 47 | 586 | 36 | 11.0 |
-| 8 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
-| 9 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
+| 2 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
+| 3 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
+| 4 | agents/orchestrator.py | ❌ F | 8.6 | 64 | 995 | 29 | 14.0 |
+| 5 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
+| 6 | core/agent.py | ❌ F | 10.7 | 47 | 586 | 36 | 11.0 |
+| 7 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
+| 8 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
+| 9 | cli/commands/session.py | ❌ F | 11.1 | 66 | 301 | 37 | 11.0 |
 | 10 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 125 additional files omitted._
+_Showing 20 worst files. 128 additional files omitted._
 
 ### cli/textual_app.py — ❌ F (0.4/100)
 
@@ -145,30 +145,6 @@ LOC: 1439 | Classes: 1 | Functions: 2 | MI: 1 | Avg CC: 0.0
 | 229 | 🟢 LOW | Missing Type Hint | Function '_init_provider_and_settings' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 106 more smells._
-
-### agents/orchestrator.py — ❌ F (0.9/100)
-
-LOC: 1660 | Classes: 9 | Functions: 1 | MI: 3 | Avg CC: 13.5
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 564 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1602 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 564 | 🟠 HIGH | Large Class | Class 'Orchestrator' has 65 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 189 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 92% similar to '__init__' at agents/orchestrator.py:233 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 221 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 100% similar to 'track_tool_usage' at agents/orchestrator.py:225 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 270 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 100% similar to '__init__' at cli/textual_app.py:277 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 301 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'track_tool_call' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 716 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._create_tech_lead_prompt' accesses 'c' 8 times but 'self' only 0 times | Move Method — consider moving '_create_tech_lead_prompt' to the class that owns 'c'. |
-| 930 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._check_stall_failure' accesses 'agent' 5 times but 'self' only 1 times | Move Method — consider moving '_check_stall_failure' to the class that owns 'agent'. |
-| 998 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._prepare_delegation_brief' accesses 'tool_call' 6 times but 'self' only 0 times | Move Method — consider moving '_prepare_delegation_brief' to the class that owns 'tool_call'. |
-| 1082 | 🟡 MEDIUM | Primitive Obsession | Function '_enforce_turn_limits' has 4 primitive-typed parameters: max_turns: Name(id='int', ctx=Load()), tool_call_count: Name(id='int', ctx=Load()), msg_start_index: Name(id='int', ctx=Load()), wrapup_warned: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 1191 | 🟡 MEDIUM | Long Method | Function '_run_agent_loop' has 68 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1191 | 🟡 MEDIUM | Complex Function | Function '_run_agent_loop' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 1374 | 🟡 MEDIUM | Long Method | Function '_execute_delegation_tool' has 59 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1452 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._execute_regular_tool' accesses 'tool_call' 6 times but 'self' only 3 times | Move Method — consider moving '_execute_regular_tool' to the class that owns 'tool_call'. |
-| 1452 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._execute_regular_tool' accesses 'result' 6 times but 'self' only 3 times | Move Method — consider moving '_execute_regular_tool' to the class that owns 'result'. |
-
-_... and 121 more smells._
 
 ### utils/intelligent_context.py — ❌ F (6.4/100)
 
@@ -218,29 +194,29 @@ LOC: 897 | Classes: 13 | Functions: 3 | MI: 27 | Avg CC: 12.0
 
 _... and 74 more smells._
 
-### cli/commands/session.py — ❌ F (10.0/100)
+### agents/orchestrator.py — ❌ F (8.6/100)
 
-LOC: 295 | Classes: 1 | Functions: 0 | MI: 33 | Avg CC: 11.0
+LOC: 995 | Classes: 4 | Functions: 0 | MI: 29 | Avg CC: 14.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 86 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 93 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._branch' accesses 'ctx' 12 times but 'self' only 0 times | Move Method — consider moving '_branch' to the class that owns 'ctx'. |
-| 100 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 111 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 111 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 123 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._merge' accesses 'ctx' 16 times but 'self' only 0 times | Move Method — consider moving '_merge' to the class that owns 'ctx'. |
-| 130 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 139 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 140 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 141 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 142 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 143 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 145 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 181 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._template_save' accesses 'ctx' 10 times but 'self' only 0 times | Move Method — consider moving '_template_save' to the class that owns 'ctx'. |
-| 183 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 175 | 🟠 HIGH | Large Class | Class 'Orchestrator' spans 1087 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 175 | 🟡 MEDIUM | Large Class | Class 'Orchestrator' has 42 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 342 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._create_tech_lead_prompt' accesses 'c' 8 times but 'self' only 0 times | Move Method — consider moving '_create_tech_lead_prompt' to the class that owns 'c'. |
+| 557 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._check_stall_failure' accesses 'agent' 5 times but 'self' only 1 times | Move Method — consider moving '_check_stall_failure' to the class that owns 'agent'. |
+| 625 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._prepare_delegation_brief' accesses 'tool_call' 6 times but 'self' only 0 times | Move Method — consider moving '_prepare_delegation_brief' to the class that owns 'tool_call'. |
+| 709 | 🟡 MEDIUM | Primitive Obsession | Function '_enforce_turn_limits' has 4 primitive-typed parameters: max_turns: Name(id='int', ctx=Load()), tool_call_count: Name(id='int', ctx=Load()), msg_start_index: Name(id='int', ctx=Load()), wrapup_warned: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 818 | 🟡 MEDIUM | Long Method | Function '_run_agent_loop' has 68 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 818 | 🟡 MEDIUM | Complex Function | Function '_run_agent_loop' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 1001 | 🟡 MEDIUM | Long Method | Function '_execute_delegation_tool' has 59 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 1079 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._execute_regular_tool' accesses 'tool_call' 6 times but 'self' only 3 times | Move Method — consider moving '_execute_regular_tool' to the class that owns 'tool_call'. |
+| 1079 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._execute_regular_tool' accesses 'result' 6 times but 'self' only 3 times | Move Method — consider moving '_execute_regular_tool' to the class that owns 'result'. |
+| 1201 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._build_timeout_summary' accesses 'msg' 5 times but 'self' only 0 times | Move Method — consider moving '_build_timeout_summary' to the class that owns 'msg'. |
+| 1201 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._build_timeout_summary' accesses 'lines' 5 times but 'self' only 0 times | Move Method — consider moving '_build_timeout_summary' to the class that owns 'lines'. |
+| 1201 | 🟡 MEDIUM | Complex Function | Function '_build_timeout_summary' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 1228 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_build_timeout_summary' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 
-_... and 50 more smells._
+_... and 49 more smells._
 
 ### utils/compaction.py — ❌ F (10.3/100)
 
@@ -337,6 +313,30 @@ LOC: 725 | Classes: 5 | Functions: 0 | MI: 37 | Avg CC: 17.0
 | 545 | 🟡 MEDIUM | Feature Envy | Method 'SessionManager.merge_sessions' accesses 'merged' 8 times but 'self' only 3 times | Move Method — consider moving 'merge_sessions' to the class that owns 'merged'. |
 
 _... and 61 more smells._
+
+### cli/commands/session.py — ❌ F (11.1/100)
+
+LOC: 301 | Classes: 1 | Functions: 0 | MI: 37 | Avg CC: 11.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 86 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 127 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 137 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 137 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 149 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._merge' accesses 'ctx' 13 times but 'self' only 2 times | Move Method — consider moving '_merge' to the class that owns 'ctx'. |
+| 155 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 163 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 164 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 165 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 166 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 167 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 169 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 205 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 209 | 🟠 HIGH | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 210 | 🟠 HIGH | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+
+_... and 51 more smells._
 
 ### providers/anthropic.py — ❌ F (11.8/100)
 

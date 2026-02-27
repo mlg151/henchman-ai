@@ -89,7 +89,7 @@ class TestReplImportable:
 
     def test_run_interactive_imports_repl(self) -> None:
         """_run_interactive successfully imports Repl."""
-        from henchman.cli.app import _run_interactive
+        from henchman.cli.app import RunConfig, _run_interactive
 
         # The import should happen without errors
         assert _run_interactive is not None
@@ -100,7 +100,7 @@ class TestRunInteractiveInvokesReplRun:
 
     def test_run_interactive_invokes_repl_run_with_anyio(self) -> None:
         """_run_interactive calls repl.run via anyio.run."""
-        from henchman.cli.app import _run_interactive
+        from henchman.cli.app import RunConfig, _run_interactive
 
         mock_repl_instance = AsyncMock()
         mock_repl_instance.run = AsyncMock()
@@ -119,7 +119,7 @@ class TestRunInteractiveInvokesReplRun:
             ) as mock_repl_class,
             patch("henchman.cli.app.anyio.run") as mock_anyio_run,
         ):
-            _run_interactive("text")
+            _run_interactive(RunConfig(output_format="text"))
 
             # Verify Repl was instantiated
             assert mock_repl_class.called
@@ -129,7 +129,7 @@ class TestRunInteractiveInvokesReplRun:
 
     def test_run_interactive_passes_correct_repl_instance(self) -> None:
         """_run_interactive passes correct Repl instance to anyio.run."""
-        from henchman.cli.app import _run_interactive
+        from henchman.cli.app import RunConfig, _run_interactive
 
         mock_repl_instance = AsyncMock()
         mock_loader_instance = MagicMock()
@@ -149,7 +149,7 @@ class TestRunInteractiveInvokesReplRun:
             mock_provider = MagicMock()
             mock_get_provider.return_value = mock_provider
 
-            _run_interactive("text")
+            _run_interactive(RunConfig(output_format="text"))
 
             # Verify the correct instance was passed to anyio.run
             called_with = mock_anyio_run.call_args[0][0]
@@ -252,7 +252,7 @@ class TestNoAttributeErrorRegression:
 
     def test_no_attribute_error_with_mocked_repl_without_run(self) -> None:
         """Patch Repl to remove run, assert CLI fails with clear error."""
-        from henchman.cli.app import _run_interactive
+        from henchman.cli.app import RunConfig, _run_interactive
 
         mock_repl_class = MagicMock(spec=[])  # Empty spec - no attributes
         mock_loader_instance = MagicMock()
@@ -267,7 +267,7 @@ class TestNoAttributeErrorRegression:
             patch("henchman.cli.app.anyio.run") as mock_anyio_run,
         ):
             try:
-                _run_interactive("text")
+                _run_interactive(RunConfig(output_format="text"))
                 # Try to call anyio.run - this will fail if repl has no run
                 mock_anyio_run.assert_called()
             except AttributeError as e:

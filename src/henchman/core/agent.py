@@ -559,14 +559,11 @@ class Agent:
         self.messages.append(assistant_msg)
 
         # Handle specific finish reasons
-        if finish_reason == FinishReason.STOP:
-            async for event in self._handle_stop_finish(state):
+        if finish_reason in (FinishReason.STOP, FinishReason.LENGTH, FinishReason.CONTENT_FILTER):
+            async for event in self._yield_remaining_content(state):
                 yield event
         elif finish_reason == FinishReason.TOOL_CALLS:
             async for event in self._handle_tool_calls_finish(state, chunk.tool_calls):
-                yield event
-        elif finish_reason in (FinishReason.LENGTH, FinishReason.CONTENT_FILTER):
-            async for event in self._handle_other_finish(state):
                 yield event
         # Note: We break after handling finish reason, so no need to return anything
 
@@ -586,13 +583,13 @@ class Agent:
             reasoning_content=state.thinking if state.thinking else None,
         )
 
-    async def _handle_stop_finish(
+    async def _yield_remaining_content(
         self,
         state: StreamingAccumulationState,
     ) -> AsyncIterator[AgentEvent]:
-        """Handle STOP finish reason."""
-        # Yield content event if we haven't yielded any content yet
-        # (e.g., non-streaming response where all content comes with STOP)
+        """Yield content event if we haven't yielded any content yet."""
+        # This handles cases like non-streaming responses where all content comes with the finish reason,
+        # or streams that finish before yielding their last bits of content.
         if state.content and not state.content_yielded:
             yield self._emit(
                 type=EventType.CONTENT,
@@ -613,18 +610,6 @@ class Agent:
             yield self._emit(
                 type=EventType.TOOL_CALL_REQUEST,
                 data=tool_call,
-            )
-
-    async def _handle_other_finish(
-        self,
-        state: StreamingAccumulationState,
-    ) -> AsyncIterator[AgentEvent]:
-        """Handle LENGTH or CONTENT_FILTER finish reasons."""
-        # Yield any remaining content
-        if state.content and not state.content_yielded:
-            yield self._emit(
-                type=EventType.CONTENT,
-                data=state.content,
             )
 
     def _create_finished_event(
