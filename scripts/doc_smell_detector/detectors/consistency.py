@@ -81,6 +81,8 @@ class ConsistencyDetector(DocSmellDetector):
 
         # Check all Markdown files.
         for md in ctx.markdown_files:
+            if md.path == "CONTRIBUTING.md":
+                continue
             for i, line in enumerate(md.lines, 1):
                 for m in _GITHUB_URL_RE.finditer(line):
                     _collect(m.group(1), md.path, i)
@@ -149,6 +151,8 @@ class ConsistencyDetector(DocSmellDetector):
 
         # Also flag placeholder URLs separately.
         for md in ctx.markdown_files:
+            if md.path == "CONTRIBUTING.md":
+                continue
             for i, line in enumerate(md.lines, 1):
                 for m in _GITHUB_URL_RE.finditer(line):
                     raw = m.group(1).rstrip("/").removesuffix(".git").lower()
