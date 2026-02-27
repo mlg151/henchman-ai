@@ -1223,6 +1223,8 @@ class Orchestrator:
             source_agent=agent.identity.id if agent.identity else None,
         )
 
+
+
     async def _run_agent_loop(
         self,
         agent: Agent,
@@ -1264,16 +1266,9 @@ class Orchestrator:
             # Drain the current generator, collecting tool calls
             pending_tool_calls: list[ToolCall] = []
 
-            try:
-                async for event in generator:
-                    if event.type == EventType.TOOL_CALL_REQUEST:
-                        pending_tool_calls.append(event.data)
-                        # Yield for UI display
-                        yield event
-                    else:
-                        yield event
-            except StopAsyncIteration:
-                pass
+            # Collect events and extract tool calls
+            async for event in self._collect_events_and_tool_calls(generator, pending_tool_calls):
+                yield event
 
             if not pending_tool_calls:
                 # Check thinking patterns and stall failures when no tools are pending
@@ -1336,6 +1331,33 @@ class Orchestrator:
 
         # Store final tool call count so callers can assess completion
         self._last_loop_tool_call_count = tool_call_count
+
+    async def _collect_events_and_tool_calls(
+        self,
+        generator: AsyncIterator[AgentEvent],
+        pending_tool_calls: list[ToolCall],
+    ) -> AsyncIterator[AgentEvent]:
+        """Collect events from generator and extract pending tool calls.
+
+        This method drains the generator, yields all events, and collects
+        tool call requests into the pending_tool_calls list.
+
+        Args:
+            generator: Event generator from the agent.
+            pending_tool_calls: List to collect tool calls into (modified in-place).
+
+        Yields:
+            AgentEvents from the generator.
+        """
+        try:
+            async for event in generator:
+                if event.type == EventType.TOOL_CALL_REQUEST:
+                    pending_tool_calls.append(event.data)
+                yield event
+        except StopAsyncIteration:
+            pass
+
+
 
     async def _process_pending_tool_calls(
         self,
