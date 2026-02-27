@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 35.7/100)
+# Code Smell Report — ❌ F (Score: 35.6/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T06:30:12.171867+00:00_
+_Generated: 2026-02-27T07:00:13.077829+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 35.7/100 |
+| **Overall Score** | 35.6/100 |
 | **Files Scanned** | 144 |
-| **Total Lines (non-blank)** | 29,248 |
-| **Total Smells** | 2736 |
+| **Total Lines (non-blank)** | 29,358 |
+| **Total Smells** | 2743 |
 | **Avg Maintainability Index** | 69.7 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
@@ -20,86 +20,86 @@ _Generated: 2026-02-27T06:30:12.171867+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1868 |
+| low | 1877 |
 | medium | 657 |
-| high | 211 |
+| high | 209 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1292 |
-| Feature Envy | 366 |
+| Missing Type Hint | 1299 |
+| Feature Envy | 368 |
 | Duplicate Code | 327 |
 | Magic Number | 217 |
 | Deep Nesting | 173 |
 | Long Method | 170 |
 | Primitive Obsession | 90 |
-| Complex Function | 62 |
+| Complex Function | 60 |
 | Large Class | 39 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/utils/compaction.py:209** — 🟠 HIGH — Complex Function  
-   Function 'compact' has cyclomatic complexity 22 (rank D)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-2. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
+1. **/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py:199** — 🟠 HIGH — Complex Function  
    Function '_calculate_importance_scores' has cyclomatic complexity 21 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-3. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
+2. **__init__.py:10** — 🟠 HIGH — Duplicate Code  
    Function '__getattr__' is an exact duplicate of '__getattr__' at cli/app.py:23  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-4. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
+3. **agents/orchestrator.py:189** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-5. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
+4. **agents/orchestrator.py:247** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-6. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
+5. **agents/orchestrator.py:304** — 🟠 HIGH — Magic Number  
    Magic number 60.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-7. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
+6. **agents/orchestrator.py:309** — 🟠 HIGH — Magic Number  
    Magic number 100.0 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-8. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
+7. **agents/orchestrator.py:533** — 🟠 HIGH — Large Class  
    Class 'Orchestrator' spans 1363 lines (threshold: 300)  
    → _Extract Class — split into smaller, cohesive classes with single responsibilities._
 
-9. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
+8. **agents/orchestrator.py:536** — 🟠 HIGH — Long Method  
    Function '__init__' has 88 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-10. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
+9. **agents/orchestrator.py:656** — 🟠 HIGH — Magic Number  
    Magic number 500 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-11. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
+10. **agents/orchestrator.py:931** — 🟠 HIGH — Magic Number  
    Magic number 200 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-12. **agents/orchestrator.py:1064** — 🟠 HIGH — Long Method  
+11. **agents/orchestrator.py:1064** — 🟠 HIGH — Long Method  
    Function '_run_agent_loop' has 82 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-13. **agents/orchestrator.py:1064** — 🟠 HIGH — Primitive Obsession  
+12. **agents/orchestrator.py:1064** — 🟠 HIGH — Primitive Obsession  
    Repeated primitive parameter group appears in: '_run_agent_loop' (line 1064), '_run_delegation' (line 1399)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-14. **agents/orchestrator.py:1328** — 🟠 HIGH — Magic Number  
+13. **agents/orchestrator.py:1328** — 🟠 HIGH — Magic Number  
    Magic number 5 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
-15. **agents/orchestrator.py:1329** — 🟠 HIGH — Magic Number  
+14. **agents/orchestrator.py:1329** — 🟠 HIGH — Magic Number  
    Magic number 200 — consider extracting to a named constant  
+   → _Extract Constant / Introduce Named Constant._
+
+15. **agents/orchestrator.py:1387** — 🟠 HIGH — Magic Number  
+   Magic number 10 — consider extracting to a named constant  
    → _Extract Constant / Introduce Named Constant._
 
 
@@ -112,9 +112,9 @@ These are the highest-impact smells to address first:
 | 3 | utils/intelligent_context.py | ❌ F | 7.6 | 90 | 784 | 25 | 15.8 |
 | 4 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 5 | cli/commands/session.py | ❌ F | 9.8 | 67 | 296 | 33 | 11.0 |
-| 6 | core/agent.py | ❌ F | 10.7 | 47 | 586 | 36 | 11.0 |
-| 7 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
-| 8 | utils/compaction.py | ❌ F | 10.9 | 52 | 436 | 36 | 15.3 |
+| 6 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
+| 7 | core/agent.py | ❌ F | 10.7 | 47 | 586 | 36 | 11.0 |
+| 8 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
 | 9 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
 | 10 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
 
@@ -242,6 +242,30 @@ LOC: 296 | Classes: 1 | Functions: 0 | MI: 33 | Avg CC: 11.0
 
 _... and 52 more smells._
 
+### utils/compaction.py — ❌ F (10.3/100)
+
+LOC: 546 | Classes: 4 | Functions: 1 | MI: 34 | Avg CC: 14.8
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 86 | 🟠 HIGH | Duplicate Code | Function 'enforce_safety_limits' is an exact duplicate of 'enforce_safety_limits' at utils/intelligent_context.py:83 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 465 | 🟠 HIGH | Feature Envy | Method 'ContextCompactor._truncate_protected_zone' accesses 'msg' 11 times but 'self' only 0 times | Move Method — consider moving '_truncate_protected_zone' to the class that owns 'msg'. |
+| 63 | 🟡 MEDIUM | Large Class | Class 'ContextCompactor' spans 528 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 86 | 🟡 MEDIUM | Feature Envy | Method 'ContextCompactor.enforce_safety_limits' accesses 'msg' 7 times but 'self' only 1 times | Move Method — consider moving 'enforce_safety_limits' to the class that owns 'msg'. |
+| 102 | 🟡 MEDIUM | Magic Number | Magic number 0.75 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 142 | 🟡 MEDIUM | Long Method | Function '_group_into_sequences' has 51 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 142 | 🟡 MEDIUM | Complex Function | Function '_group_into_sequences' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 186 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_group_into_sequences' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 189 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_group_into_sequences' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 191 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_group_into_sequences' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 496 | 🟡 MEDIUM | Magic Number | Magic number 500 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 498 | 🟡 MEDIUM | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 499 | 🟡 MEDIUM | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 503 | 🟡 MEDIUM | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 505 | 🟡 MEDIUM | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+
+_... and 44 more smells._
+
 ### core/agent.py — ❌ F (10.7/100)
 
 LOC: 586 | Classes: 2 | Functions: 0 | MI: 36 | Avg CC: 11.0
@@ -289,30 +313,6 @@ LOC: 668 | Classes: 1 | Functions: 0 | MI: 36 | Avg CC: 0.0
 | 604 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_install_from_pypi' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 
 _... and 64 more smells._
-
-### utils/compaction.py — ❌ F (10.9/100)
-
-LOC: 436 | Classes: 4 | Functions: 1 | MI: 36 | Avg CC: 15.3
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 86 | 🟠 HIGH | Duplicate Code | Function 'enforce_safety_limits' is an exact duplicate of 'enforce_safety_limits' at utils/intelligent_context.py:83 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 209 | 🟠 HIGH | Long Method | Function 'compact' has 98 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 209 | 🟠 HIGH | Complex Function | Function 'compact' has cyclomatic complexity 22 (rank D) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 329 | 🟠 HIGH | Feature Envy | Method 'ContextCompactor._truncate_protected_zone' accesses 'msg' 11 times but 'self' only 0 times | Move Method — consider moving '_truncate_protected_zone' to the class that owns 'msg'. |
-| 63 | 🟡 MEDIUM | Complex Function | Function 'ContextCompactor' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 86 | 🟡 MEDIUM | Feature Envy | Method 'ContextCompactor.enforce_safety_limits' accesses 'msg' 7 times but 'self' only 1 times | Move Method — consider moving 'enforce_safety_limits' to the class that owns 'msg'. |
-| 102 | 🟡 MEDIUM | Magic Number | Magic number 0.75 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 142 | 🟡 MEDIUM | Long Method | Function '_group_into_sequences' has 51 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 142 | 🟡 MEDIUM | Complex Function | Function '_group_into_sequences' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 186 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_group_into_sequences' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 189 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_group_into_sequences' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 191 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_group_into_sequences' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 360 | 🟡 MEDIUM | Magic Number | Magic number 500 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 362 | 🟡 MEDIUM | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 363 | 🟡 MEDIUM | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-
-_... and 37 more smells._
 
 ### core/session.py — ❌ F (11.0/100)
 
