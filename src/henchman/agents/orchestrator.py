@@ -94,6 +94,14 @@ class LoopState:
     colon_stall_retries: int = 0
 
 
+@dataclass
+class NoPendingToolsResult:
+    """Result of handling no pending tools."""
+    events_to_yield: list[AgentEvent] = field(default_factory=list)
+    colon_stall_detected: bool = False
+    colon_stall_result: tuple[AsyncIterator[AgentEvent], int] | None = None
+
+
 class PromptFactory:
     """Factory for creating agent system prompts."""
     @staticmethod
@@ -1188,7 +1196,7 @@ class Orchestrator:
         Returns:
             Tuple of (should_break, new_wrapup_warned, error_event).
         """
-        return self._enforce_turn_limits_common(params)
+        return self.execution_controller.enforce_turn_limits(params)
 
     async def _run_agent_loop(
         self,
@@ -1234,22 +1242,15 @@ class Orchestrator:
                 yield event
 
             if not pending_tool_calls:
-                # Check thinking patterns and stall failures when no tools are pending
-                thinking_event = self.validator.check_thinking_pattern(agent)
-                if thinking_event:
-                    yield thinking_event
-
-                stall_event = self.validator.check_stall_failure(agent)
-                if stall_event:
-                    yield stall_event
-
-                # Check for colon stall
-                colon_stall_result = self._check_colon_stall(agent, state.colon_stall_retries)
-                if colon_stall_result is not None:
+                colon_stall_result = self._handle_no_pending_tools(agent, state)
+                for event in colon_stall_result.events_to_yield:
+                    yield event
+                
+                if colon_stall_result.colon_stall_detected:
                     # Colon stall occurred, update generator and retry count
-                    generator, state.colon_stall_retries = colon_stall_result
+                    generator, state.colon_stall_retries = colon_stall_result.colon_stall_result
                     continue
-
+                
                 # Agent finished — exit the loop
                 break
             should_break, state.wrapup_warned, error_event = self._enforce_turn_limits(
@@ -1285,6 +1286,35 @@ class Orchestrator:
         # Store final tool call count so callers can assess completion
         self._last_loop_tool_call_count = state.tool_call_count
 
+    def _handle_no_pending_tools(
+        self,
+        agent: Agent,
+        state: LoopState,
+    ) -> NoPendingToolsResult:
+        """Handle the case when no tool calls are pending.
+        
+        Returns:
+            NoPendingToolsResult with events to yield and colon stall info.
+        """
+        result = NoPendingToolsResult()
+        
+        # Check thinking patterns and stall failures when no tools are pending
+        thinking_event = self.validator.check_thinking_pattern(agent)
+        if thinking_event:
+            result.events_to_yield.append(thinking_event)
+
+        stall_event = self.validator.check_stall_failure(agent)
+        if stall_event:
+            result.events_to_yield.append(stall_event)
+
+        # Check for colon stall
+        colon_stall_result = self._check_colon_stall(agent, state.colon_stall_retries)
+        if colon_stall_result is not None:
+            result.colon_stall_detected = True
+            result.colon_stall_result = colon_stall_result
+        
+        return result
+
     def _check_colon_stall(
         self,
         agent: Agent,
@@ -1304,7 +1334,7 @@ class Orchestrator:
             - None: No colon stall detected
             - Tuple: Colon stall detected, return updated generator and retry count
         """
-        return self._check_colon_stall_common(agent, colon_stall_retries, self._last_assistant_content)
+        return self.execution_controller.check_colon_stall(agent, colon_stall_retries)
 
 
 
