@@ -147,10 +147,10 @@ class OpenAICompatibleProvider(ModelProvider):
             messages = self._repair_message_sequence_if_needed(messages)
             params = self._build_request_params(messages, tools, kwargs)
             response = await self._make_api_request(params)
-            
+
             async for chunk in self._process_stream_response(response):
                 yield chunk
-                
+
         except (ValueError, ContextTooLargeError, APIStatusError):
             # Re-raise validation, context too large, and API status errors
             raise
@@ -159,10 +159,10 @@ class OpenAICompatibleProvider(ModelProvider):
 
     def _validate_messages(self, messages: list[Message]) -> None:
         """Validate that messages are not empty and have content where required.
-        
+
         Args:
             messages: The conversation history to validate.
-            
+
         Raises:
             ValueError: If messages are empty or have invalid content.
         """
@@ -184,10 +184,10 @@ class OpenAICompatibleProvider(ModelProvider):
 
     def _repair_message_sequence_if_needed(self, messages: list[Message]) -> list[Message]:
         """Repair message sequence if it's invalid to prevent API errors.
-        
+
         Args:
             messages: The conversation history.
-            
+
         Returns:
             The repaired message sequence.
         """
@@ -207,12 +207,12 @@ class OpenAICompatibleProvider(ModelProvider):
         kwargs: dict[str, Any]
     ) -> dict[str, Any]:
         """Build the request parameters for the API call.
-        
+
         Args:
             messages: The conversation history.
             tools: Optional list of tools available to the model.
             kwargs: Additional parameters passed to the API.
-            
+
         Returns:
             The request parameters dictionary.
         """
@@ -225,18 +225,18 @@ class OpenAICompatibleProvider(ModelProvider):
 
         if tools:
             params["tools"] = [self._format_tool(t) for t in tools]
-            
+
         return params
 
     async def _make_api_request(self, params: dict[str, Any]) -> Any:
         """Make the API request with error handling for context too large errors.
-        
+
         Args:
             params: The request parameters.
-            
+
         Returns:
             The API response.
-            
+
         Raises:
             ContextTooLargeError: If the request is too large (413 error).
             APIStatusError: For other API errors.
@@ -253,10 +253,10 @@ class OpenAICompatibleProvider(ModelProvider):
 
     async def _process_stream_response(self, response: Any) -> AsyncIterator[StreamChunk]:
         """Process the streaming response and yield StreamChunk objects.
-        
+
         Args:
             response: The API response stream.
-            
+
         Yields:
             StreamChunk objects as the response is generated.
         """
@@ -302,7 +302,7 @@ class OpenAICompatibleProvider(ModelProvider):
         tool_call_deltas: list[Any]
     ) -> None:
         """Update pending tool calls with new delta information.
-        
+
         Args:
             pending_tool_calls: Dictionary tracking tool calls across chunks.
             tool_call_deltas: List of tool call delta objects from the API.
@@ -329,10 +329,10 @@ class OpenAICompatibleProvider(ModelProvider):
         pending_tool_calls: dict[int, dict[str, Any]]
     ) -> list[ToolCall]:
         """Build ToolCall objects from pending tool call data.
-        
+
         Args:
             pending_tool_calls: Dictionary tracking tool calls across chunks.
-            
+
         Returns:
             List of ToolCall objects.
         """
@@ -353,10 +353,10 @@ class OpenAICompatibleProvider(ModelProvider):
 
     def _extract_usage_info(self, chunk: Any) -> dict[str, int] | None:
         """Extract usage information from the chunk if available.
-        
+
         Args:
             chunk: The API response chunk.
-            
+
         Returns:
             Usage dictionary or None if not available.
         """
@@ -370,10 +370,10 @@ class OpenAICompatibleProvider(ModelProvider):
 
     def _create_error_chunk(self, error: Exception) -> StreamChunk:
         """Create an error StreamChunk for API/network errors.
-        
+
         Args:
             error: The exception that occurred.
-            
+
         Returns:
             An error StreamChunk.
         """
