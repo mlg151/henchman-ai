@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`textual_app.py` code smell refactoring** — Raised grade from F (30/100) to A (94.4/100).
+  - Extracted 12 mixin classes into new `src/henchman/cli/textual_mixins.py` (also grade A, 98.6/100).
+  - Resolved Large Class HIGH smell (1760 → ~300 lines), Long Method HIGH, and Duplicate Code HIGH.
+  - Added type hints, fixed BLE001/PLC0415 lint violations, unified toggle actions via `_toggle_tab()`.
+  - `textual_app.py` retains full public API via `__all__` re-exports for backward compatibility.
+- **`orchestrator.py`** — Added `from __future__ import annotations` to fix forward-reference `NameError` for `CompletionStatus` used before its definition.
+- **`command_processor.py`** — Restored special-case handling for `/quit` (returns `False` directly) ensuring correct REPL exit semantics.
+
 ### Added
 - **Git operations tool** (`git_ops`) — Dedicated READ tool for git queries (status, log, blame, show, branch_list, stash_list, diff_branches). Auto-approved, eliminating ~30% of shell calls for agent git operations.
 - **Dead code detector** (`dead_code`) — AST-based detection of unused imports, functions, and classes. Supports directory scanning, whitelisting, and respects `__all__` exports.

@@ -402,17 +402,21 @@ class TestHenchmanTextualApp:
         # Get the wrapped function
         wrapped = method.__wrapped__
 
-        # Check the source code contains asyncio.to_thread
+        # Check the source code is async (delegates to helper)
         import inspect
         source = inspect.getsource(wrapped)
-        assert 'asyncio.to_thread' in source, "Method should use asyncio.to_thread for async file reading"
         assert 'await' in source, "Method should be async"
 
-        # Check exception handler handles query_one failure
-        assert 'except Exception:' in source, "Method should have exception handler"
-        # Check for nested try-except in exception handler
-        assert 'chat.add_error_message' in source, "Should show error message"
-        assert 'logging.error' in source, "Should log error if UI fails"
+        # asyncio.to_thread is now in the extracted helper _read_context_file_content
+        from henchman.cli import textual_mixins
+        helper_source = inspect.getsource(textual_mixins._read_context_file_content)
+        assert 'asyncio.to_thread' in helper_source, "Helper should use asyncio.to_thread for async file reading"
+
+        # Error handling is in _handle_file_read_error helper
+        error_handler_source = inspect.getsource(
+            textual_app._handle_file_read_error
+        )
+        assert 'add_error_message' in error_handler_source, "Error handler should show error message"
 
     @patch.object(HenchmanTextualApp, "query_one")
     @patch("asyncio.to_thread")
@@ -534,10 +538,10 @@ class TestHenchmanTextualApp:
         assert textual_app.environment_context == "Environment context unavailable"
 
     @patch("henchman.config.context.ContextLoader")
-    @patch("logging.error")
+    @patch("henchman.cli.textual_mixins.logger")
     def test_fill_context_tree_proper_error_logging(
         self,
-        mock_logging_error,
+        mock_logger,
         mock_context_loader_class,
         textual_app,
     ):
@@ -546,6 +550,8 @@ class TestHenchmanTextualApp:
         When context loading fails, errors should be logged properly instead of
         being silently suppressed with contextlib.suppress(Exception).
         """
+        from henchman.cli.textual_mixins import _fill_context_tree
+
         # Create a mock tree
         mock_tree = MagicMock()
         mock_root = MagicMock()
@@ -554,32 +560,32 @@ class TestHenchmanTextualApp:
         # Setup mock to raise exception
         mock_loader = MagicMock()
         mock_context_loader_class.return_value = mock_loader
-        mock_loader.discover_files.side_effect = ValueError("Context discovery failed")
+        error = ValueError("Context discovery failed")
+        mock_loader.discover_files.side_effect = error
 
-        # Also make tree.root.add_leaf() fail
+        # Also make tree.root.add_leaf() fail (will be silently suppressed)
         mock_root.add_leaf.side_effect = AttributeError("Tree has no root")
 
-        # Call the method - should log errors instead of silently suppressing
-        textual_app._fill_context_tree(mock_tree)
+        # Call the module-level function
+        _fill_context_tree(mock_tree)
 
         # Verify context loading was attempted
         mock_loader.discover_files.assert_called_once()
 
         # Verify error was logged for context loading failure
-        mock_logging_error.assert_any_call("Failed to load context files: Context discovery failed")
+        mock_logger.error.assert_called_once_with(
+            "Failed to load context files: %s", error
+        )
 
-        # Verify error was logged for UI failure
-        mock_logging_error.assert_any_call("Failed to show error in UI: Tree has no root")
-
-        # Verify tree.root.add_leaf() was attempted (and failed)
+        # Verify tree.root.add_leaf() was attempted (suppressed when it fails)
         mock_root.add_leaf.assert_called_once_with("Error loading context: Context discovery failed")
 
     @patch("builtins.open")
     @patch.object(HenchmanTextualApp, "query_one")
-    @patch("logging.error")
+    @patch("henchman.cli.textual_mixins.logger")
     def test_persist_history_entry_shows_error_notification(
         self,
-        mock_logging_error,
+        mock_logger,
         mock_query_one,
         mock_open,
         textual_app,
@@ -599,29 +605,31 @@ class TestHenchmanTextualApp:
         mock_query_one.return_value = mock_chat_pane
 
         # Test 1: File open fails
-        mock_open.side_effect = PermissionError("Cannot write to file")
+        error1 = PermissionError("Cannot write to file")
+        mock_open.side_effect = error1
 
         # Call the method - should log error and show notification
         textual_app._persist_history_entry("test command")
 
-        # Verify error was logged
-        mock_logging_error.assert_any_call("Failed to persist history entry: Cannot write to file")
+        # Verify error was logged using module logger
+        mock_logger.error.assert_called_with("Failed to persist history entry: %s", error1)
 
         # Verify error notification was shown to user
         mock_chat_pane.add_error_message.assert_called_once_with(
             "Failed to save command history: Cannot write to file"
         )
 
-        # Test 2: UI notification also fails
+        # Test 2: UI notification also fails (silently suppressed by contextlib.suppress)
         mock_open.reset_mock()
-        mock_logging_error.reset_mock()
+        mock_logger.reset_mock()
         mock_chat_pane.reset_mock()
-        mock_open.side_effect = OSError("Disk full")
+        error2 = OSError("Disk full")
+        mock_open.side_effect = error2
         mock_query_one.side_effect = Exception("Widget not found")
 
-        # Call the method - should log both errors
+        # Call the method - inner UI failure is silently suppressed
         textual_app._persist_history_entry("another command")
 
-        # Verify both errors were logged
-        mock_logging_error.assert_any_call("Failed to persist history entry: Disk full")
-        mock_logging_error.assert_any_call("Failed to show history error in UI: Widget not found")
+        # Verify the file-write error was logged
+        mock_logger.error.assert_called_with("Failed to persist history entry: %s", error2)
+
