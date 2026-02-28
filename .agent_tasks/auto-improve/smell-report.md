@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-28T22:00:20.294437+00:00_
+_Generated: 2026-02-28T22:30:17.768743+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-02-28T22:00:20.294437+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 49.4/100 |
 | **Files Scanned** | 180 |
-| **Total Lines (non-blank)** | 31,377 |
-| **Total Smells** | 2373 |
+| **Total Lines (non-blank)** | 31,402 |
+| **Total Smells** | 2375 |
 | **Avg Maintainability Index** | 71.3 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-02-28T22:00:20.294437+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1698 |
+| low | 1700 |
 | medium | 589 |
 | high | 86 |
 
@@ -28,7 +28,7 @@ _Generated: 2026-02-28T22:00:20.294437+00:00_
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1161 |
+| Missing Type Hint | 1163 |
 | Feature Envy | 322 |
 | Duplicate Code | 295 |
 | Magic Number | 149 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_widgets.py | ❌ F | 8.5 | 78 | 918 | 28 | 0.0 |
+| 1 | cli/textual_widgets.py | ❌ F | 8.5 | 80 | 943 | 28 | 0.0 |
 | 2 | utils/compaction.py | ❌ F | 10.3 | 58 | 546 | 34 | 14.8 |
 | 3 | extensions/plugin_manager.py | ❌ F | 10.5 | 82 | 689 | 35 | 0.0 |
 | 4 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
@@ -124,13 +124,13 @@ _Showing 20 worst files. 160 additional files omitted._
 
 ### cli/textual_widgets.py — ❌ F (8.5/100)
 
-LOC: 918 | Classes: 16 | Functions: 3 | MI: 28 | Avg CC: 0.0
+LOC: 943 | Classes: 16 | Functions: 3 | MI: 28 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 982 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 100% similar to 'add_tool_message' at cli/textual_widgets.py:1020 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 982 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 94% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1020 | 🟡 MEDIUM | Duplicate Code | Function 'add_tool_message' is 94% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1012 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 100% similar to 'add_tool_message' at cli/textual_widgets.py:1050 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1012 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 94% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1050 | 🟡 MEDIUM | Duplicate Code | Function 'add_tool_message' is 94% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 108 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 121 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 131 | 🟢 LOW | Missing Type Hint | Function 'append' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
@@ -144,7 +144,7 @@ LOC: 918 | Classes: 16 | Functions: 3 | MI: 28 | Avg CC: 0.0
 | 239 | 🟢 LOW | Missing Type Hint | Function '_update_renderable' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 243 | 🟢 LOW | Missing Type Hint | Function 'toggle_expansion' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 63 more smells._
+_... and 65 more smells._
 
 ### utils/compaction.py — ❌ F (10.3/100)
 
