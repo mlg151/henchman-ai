@@ -498,7 +498,7 @@ class ToolController(OrchestratorComponent):
         ledger_record: Any | None,
     ) -> AsyncIterator[AgentEvent]:
         """Execute the delegation flow and yield events.
-        
+
         This handles the actual delegation execution, result collection,
         and final tool result event.
         """
@@ -513,7 +513,7 @@ class ToolController(OrchestratorComponent):
             brief=delegation_brief,
             depth=depth + 1,
         )
-        
+
         async for sub_event in self.run_delegation(params):
             if sub_event.type == EventType.AGENT_COMPLETED:
                 result_content = sub_event.data.get("summary", "Completed.")
@@ -527,9 +527,7 @@ class ToolController(OrchestratorComponent):
 
         # Specialist doing no work is a soft failure — inform the Tech Lead
         if delegation_status == "no_work_done":
-            result_content = (
-                f"⚠️ Agent {target} ended without making any tool calls.\n\n{result_content}"
-            )
+            result_content = self._format_no_work_done_result(result_content, target)
 
         # Process delegation result
         self._process_delegation_result(
@@ -538,6 +536,18 @@ class ToolController(OrchestratorComponent):
 
         # Yield tool result event
         yield self.yield_tool_result_event(agent, tool_call, result_content, success=True)
+
+    def _format_no_work_done_result(self, result_content: str, target: str) -> str:
+        """Format result when specialist did no work.
+
+        Args:
+            result_content: Original result content.
+            target: Target agent role.
+
+        Returns:
+            Formatted result with warning.
+        """
+        return f"⚠️ Agent {target} ended without making any tool calls.\n\n{result_content}"
 
     def _register_delegation_in_ledger(self, target: str, task: str) -> Any | None:
         """Register delegation in ledger if available."""
