@@ -180,9 +180,8 @@ class NoPendingToolsResult:
 class PromptFactory:
     """Factory for creating agent system prompts."""
 
-    @classmethod
+    @staticmethod
     def create_tech_lead_prompt(
-        cls: type[PromptFactory],
         agent_configs: dict[str, AgentConfig],
         system_prompt: str | None,
         environment_context: str | None,
@@ -199,10 +198,10 @@ class PromptFactory:
         """
         from henchman.agents.prompts import get_agent_prompt
 
-        enabled_configs = cls._get_enabled_agent_configs(agent_configs)
-        team_members = cls._build_team_members_list(enabled_configs)
-        team_descriptions = cls._build_team_descriptions_dict(enabled_configs)
-        delegatable_agents = cls._build_delegatable_agents_list(enabled_configs)
+        enabled_configs = PromptFactory._get_enabled_agent_configs(agent_configs)
+        team_members = PromptFactory._build_team_members_list(enabled_configs)
+        team_descriptions = PromptFactory._build_team_descriptions_dict(enabled_configs)
+        delegatable_agents = PromptFactory._build_delegatable_agents_list(enabled_configs)
 
         return system_prompt or get_agent_prompt(
             role="tech_lead",
@@ -212,25 +211,23 @@ class PromptFactory:
             team_descriptions=team_descriptions,
         )
 
-    @classmethod
-    def _get_enabled_agent_configs(
-        cls: type[PromptFactory], agent_configs: dict[str, AgentConfig]
-    ) -> list[AgentConfig]:
+    @staticmethod
+    def _get_enabled_agent_configs(agent_configs: dict[str, AgentConfig]) -> list[AgentConfig]:
         """Get enabled agent configurations from the config dictionary."""
         return [c for c in agent_configs.values() if c.enabled]
 
-    @classmethod
-    def _build_team_members_list(cls: type[PromptFactory], enabled_configs: list[Any]) -> list[str]:
+    @staticmethod
+    def _build_team_members_list(enabled_configs: list[Any]) -> list[str]:
         """Build list of team member descriptions."""
         return [f"{config.name} ({config.role})" for config in enabled_configs]
 
-    @classmethod
-    def _build_team_descriptions_dict(cls: type[PromptFactory], enabled_configs: list[Any]) -> dict[str, str]:
+    @staticmethod
+    def _build_team_descriptions_dict(enabled_configs: list[Any]) -> dict[str, str]:
         """Build dictionary of role descriptions."""
         return {config.role: config.description or "" for config in enabled_configs}
 
-    @classmethod
-    def _build_delegatable_agents_list(cls: type[PromptFactory], enabled_configs: list[Any]) -> list[str]:
+    @staticmethod
+    def _build_delegatable_agents_list(enabled_configs: list[Any]) -> list[str]:
         """Build list of delegatable agent roles."""
         return [config.role for config in enabled_configs]
 
@@ -238,8 +235,8 @@ class PromptFactory:
 class TimeoutSummaryBuilder:
     """Helper for building timeout summaries for agents."""
 
-    @classmethod
-    def build_summary(cls: type[TimeoutSummaryBuilder], agent: Agent, msg_start: int) -> str:
+    @staticmethod
+    def build_summary(agent: Agent, msg_start: int) -> str:
         """Build a progress summary from the agent's work so far.
 
         Called when a specialist hits the turn limit.  Extracts tool calls
@@ -259,13 +256,12 @@ class TimeoutSummaryBuilder:
 
         assistant_messages = [m for m in agent.messages[msg_start:] if m.role == "assistant"]
         for msg in assistant_messages:
-            cls._extract_msg_info(msg, tools_used, files_touched, narration_parts)
+            TimeoutSummaryBuilder._extract_msg_info(msg, tools_used, files_touched, narration_parts)
 
-        return cls._format_summary(tools_used, files_touched, narration_parts)
+        return TimeoutSummaryBuilder._format_summary(tools_used, files_touched, narration_parts)
 
-    @classmethod
+    @staticmethod
     def _extract_msg_info(
-        cls: type[TimeoutSummaryBuilder],
         msg: Message,
         tools_used: list[str],
         files_touched: set[str],
@@ -274,13 +270,12 @@ class TimeoutSummaryBuilder:
         """Extract information from a message for timeout summary."""
         if msg.tool_calls:
             for tc in msg.tool_calls:
-                cls._extract_tool_info(tc, tools_used, files_touched)
+                TimeoutSummaryBuilder._extract_tool_info(tc, tools_used, files_touched)
         if msg.content:
             narration_parts.append(msg.content[:MAX_SUMMARY_LENGTH])
 
-    @classmethod
+    @staticmethod
     def _extract_tool_info(
-        cls: type[TimeoutSummaryBuilder],
         tc: ToolCall,
         tools_used: list[str],
         files_touched: set[str],
@@ -295,23 +290,22 @@ class TimeoutSummaryBuilder:
         if path and isinstance(path, str):
             files_touched.add(path)
 
-    @classmethod
+    @staticmethod
     def _format_summary(
-        cls: type[TimeoutSummaryBuilder],
         tools_used: list[str],
         files_touched: set[str],
         narration_parts: list[str],
     ) -> str:
         """Format timeout summary from collected information."""
         lines = ["**Progress at timeout:**"]
-        cls._add_tools_section(lines, tools_used)
-        cls._add_files_section(lines, files_touched)
-        cls._add_narration_section(lines, narration_parts)
-        cls._add_no_progress_section(lines, tools_used, narration_parts)
+        TimeoutSummaryBuilder._add_tools_section(lines, tools_used)
+        TimeoutSummaryBuilder._add_files_section(lines, files_touched)
+        TimeoutSummaryBuilder._add_narration_section(lines, narration_parts)
+        TimeoutSummaryBuilder._add_no_progress_section(lines, tools_used, narration_parts)
         return "\n".join(lines)
 
-    @classmethod
-    def _add_tools_section(cls: type[TimeoutSummaryBuilder], lines: list[str], tools_used: list[str]) -> None:
+    @staticmethod
+    def _add_tools_section(lines: list[str], tools_used: list[str]) -> None:
         """Add tool usage section to summary lines."""
         if tools_used:
             lines.append(f"- Tool calls made: {len(tools_used)}")
@@ -319,23 +313,22 @@ class TimeoutSummaryBuilder:
             for tool in tools_used[-RECENT_TOOLS_TO_SHOW:]:
                 lines.append(f"  • {tool[:MAX_TOOL_CALL_DISPLAY_LENGTH]}")
 
-    @classmethod
-    def _add_files_section(cls: type[TimeoutSummaryBuilder], lines: list[str], files_touched: set[str]) -> None:
+    @staticmethod
+    def _add_files_section(lines: list[str], files_touched: set[str]) -> None:
         """Add files touched section to summary lines."""
         if files_touched:
             lines.append(f"- Files touched: {', '.join(sorted(files_touched))}")
 
-    @classmethod
-    def _add_narration_section(cls: type[TimeoutSummaryBuilder], lines: list[str], narration_parts: list[str]) -> None:
+    @staticmethod
+    def _add_narration_section(lines: list[str], narration_parts: list[str]) -> None:
         """Add narration section to summary lines."""
         if narration_parts:
             lines.append(
                 f"- Last agent output: {narration_parts[-1][:MAX_NARRATION_DISPLAY_LENGTH]}"
             )
 
-    @classmethod
+    @staticmethod
     def _add_no_progress_section(
-        cls: type[TimeoutSummaryBuilder],
         lines: list[str],
         tools_used: list[str],
         narration_parts: list[str],
@@ -371,7 +364,7 @@ class AgentValidator(OrchestratorComponent):
             return self._handle_missing_thinking_pattern(agent)
         return None
 
-    def _should_check_thinking_pattern(self, agent: Agent) -> bool:
+    def _should_check_thinking_pattern(self: AgentValidator, agent: Agent) -> bool:
         """Determine if thinking pattern should be checked for this agent."""
         return (
             agent is self.orchestrator.tech_lead
@@ -379,7 +372,7 @@ class AgentValidator(OrchestratorComponent):
             and agent.messages[-1].role == "assistant"
         )
 
-    def _handle_valid_thinking_pattern(self, content: str) -> None:
+    def _handle_valid_thinking_pattern(self: AgentValidator, content: str) -> None:
         """Handle valid thinking pattern and update metrics."""
         self.metrics.thinking_pattern_usage += 1
         lines = content.strip().split("\n")
@@ -392,7 +385,7 @@ class AgentValidator(OrchestratorComponent):
                 self.metrics.thinking_quality_score + _THINKING_QUALITY_INCREMENT,
             )
 
-    def _handle_missing_thinking_pattern(self, agent: Agent) -> AgentEvent:
+    def _handle_missing_thinking_pattern(self: AgentValidator, agent: Agent) -> AgentEvent:
         """Handle missing thinking pattern by adding reminder and returning event."""
         thinking_reminder = (
             "\n[Thinking Required] Your response must start with THINKING: "
@@ -443,6 +436,17 @@ class AgentValidator(OrchestratorComponent):
 
 class ToolController(OrchestratorComponent):
     """Manages tool execution and result processing."""
+
+    def __init__(self: ToolController, orchestrator: Orchestrator) -> None:
+        """Initialize the ToolController.
+
+        Args:
+            orchestrator: The parent orchestrator instance.
+        """
+        super().__init__(orchestrator)
+        self._delegation_result_content: str = ""
+        self._delegation_had_error: bool = False
+        self._delegation_status: str = ""
 
     async def process_pending_tool_calls(
         self,
@@ -502,26 +506,14 @@ class ToolController(OrchestratorComponent):
         This handles the actual delegation execution, result collection,
         and final tool result event.
         """
-        # Run delegation and collect summary
-        result_content = ""
-        delegation_had_error = False
-        delegation_status = ""
-        delegation_brief = self.prepare_delegation_brief(tool_call)
-        params = DelegationParams(
-            target_role=target,
-            task=task,
-            brief=delegation_brief,
-            depth=depth + 1,
-        )
-
-        # Execute delegation and yield events
-        async for sub_event in self.run_delegation(params):
-            if sub_event.type == EventType.AGENT_COMPLETED:
-                result_content = sub_event.data.get("summary", "Completed.")
-                delegation_status = sub_event.data.get("status", "completed")
-            if sub_event.type == EventType.ERROR:
-                delegation_had_error = True
+        # Execute delegation and collect results
+        async for sub_event in self._execute_delegation(target, task, tool_call, depth):
             yield sub_event
+
+        # Get delegation results from the yielded events
+        result_content, delegation_had_error, delegation_status = (
+            self._extract_delegation_results()
+        )
 
         # Process delegation results
         result_content = self._process_delegation_results(
@@ -535,6 +527,58 @@ class ToolController(OrchestratorComponent):
 
         # Yield tool result event
         yield self.yield_tool_result_event(agent, tool_call, result_content, success=True)
+
+    async def _execute_delegation(
+        self,
+        target: str,
+        task: str,
+        tool_call: ToolCall,
+        depth: int,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute delegation and yield events.
+
+        Args:
+            target: Target agent role.
+            task: Task description.
+            tool_call: The delegation tool call.
+            depth: Current delegation depth.
+
+        Yields:
+            Agent events from the delegation execution.
+        """
+        delegation_brief = self.prepare_delegation_brief(tool_call)
+        params = DelegationParams(
+            target_role=target,
+            task=task,
+            brief=delegation_brief,
+            depth=depth + 1,
+        )
+
+        # Track delegation results in instance variables
+        self._delegation_result_content = ""
+        self._delegation_had_error = False
+        self._delegation_status = ""
+
+        # Execute delegation and yield events
+        async for sub_event in self.run_delegation(params):
+            if sub_event.type == EventType.AGENT_COMPLETED:
+                self._delegation_result_content = sub_event.data.get("summary", "Completed.")
+                self._delegation_status = sub_event.data.get("status", "completed")
+            if sub_event.type == EventType.ERROR:
+                self._delegation_had_error = True
+            yield sub_event
+
+    def _extract_delegation_results(self) -> tuple[str, bool, str]:
+        """Extract delegation results from instance variables.
+
+        Returns:
+            Tuple of (result_content, delegation_had_error, delegation_status).
+        """
+        return (
+            self._delegation_result_content,
+            self._delegation_had_error,
+            self._delegation_status,
+        )
 
     def _process_delegation_results(
         self,
