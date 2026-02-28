@@ -42,10 +42,7 @@ class TurnEnforcementParams:
         remaining = self.max_turns - self.tool_call_count
 
         if remaining <= 0:
-            return _handle_limit_reached(
-                self.agent, self.max_turns,
-                self.msg_start_index, self.wrapup_warned,
-            )
+            return _handle_limit_reached(self)
 
         if not self.wrapup_warned and remaining <= WRAPUP_WARNING_OFFSET:
             _send_wrapup_warning(self.agent, remaining)
@@ -55,13 +52,11 @@ class TurnEnforcementParams:
 
 
 def _handle_limit_reached(
-    agent: Agent,
-    max_turns: int,
-    msg_start_index: int,
-    wrapup_warned: bool,  # noqa: FBT001
+    params: TurnEnforcementParams,
 ) -> tuple[bool, bool, AgentEvent]:
     """Handle case when turn limit has been reached."""
-    progress = TimeoutSummaryBuilder.build_summary(agent, msg_start_index)
+    agent = params.agent
+    progress = TimeoutSummaryBuilder.build_summary(agent, params.msg_start_index)
     timeout_msg = (
         "[TURN LIMIT REACHED] You have used all available "
         "turns. Here is a summary of your progress so far:\n\n"
@@ -73,10 +68,10 @@ def _handle_limit_reached(
     role_label = agent.identity.role if agent.identity else "agent"
     error_event = AgentEvent(
         type=EventType.ERROR,
-        data=f"Turn limit ({max_turns}) reached for {role_label}",
+        data=f"Turn limit ({params.max_turns}) reached for {role_label}",
         source_agent="orchestrator",
     )
-    return True, wrapup_warned, error_event
+    return True, params.wrapup_warned, error_event
 
 
 def _send_wrapup_warning(agent: Agent, remaining: int) -> None:

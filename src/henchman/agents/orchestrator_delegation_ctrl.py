@@ -10,9 +10,14 @@ from typing import TYPE_CHECKING, Any
 from henchman.core.events import AgentEvent, EventType
 
 from .orchestrator_components import OrchestratorComponent
+from .orchestrator_events import (
+    create_delegation_event,
+    create_tool_result_event,
+    extract_brief_fields,
+    update_ledger,
+)
 from .orchestrator_types import (
     DELEGATE_TASK_TOOL,
-    RESULT_PREVIEW_LENGTH,
     DelegationExecutionParams,
     DelegationParams,
 )
@@ -22,6 +27,11 @@ if TYPE_CHECKING:
 
     from henchman.core.agent import Agent
     from henchman.providers.base import ToolCall
+
+
+# ---------------------------------------------------------------------------
+# Delegation controller — manages delegation tool execution
+# ---------------------------------------------------------------------------
 
 
 class DelegationController(OrchestratorComponent):
@@ -38,13 +48,21 @@ class DelegationController(OrchestratorComponent):
         self._had_error: bool = False
         self._status: str = ""
 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
     async def execute_delegation_tool(
         self: DelegationController,
         agent: Agent,
         tool_call: ToolCall,
         depth: int,
     ) -> AsyncIterator[AgentEvent]:
-        """Execute a delegation tool call."""
+        """Execute a delegation tool call.
+
+        Records metrics, creates a ledger entry, then streams the
+        delegated agent run back to the caller.
+        """
         tc_args = tool_call.arguments
         target = tc_args.get("agent", "")
         task = tc_args.get("task", "")
@@ -61,7 +79,7 @@ class DelegationController(OrchestratorComponent):
             ledger.add_delegation(agent=target, task=task) if ledger else None
         )
 
-        yield _create_delegation_event(agent, target, task)
+        yield create_delegation_event(agent, target, task)
 
         params = DelegationExecutionParams(
             target=target, task=task, depth=depth,
@@ -69,6 +87,10 @@ class DelegationController(OrchestratorComponent):
         )
         async for event in self._run_delegation(params):
             yield event
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
     async def _run_delegation(
         self: DelegationController,
@@ -85,7 +107,7 @@ class DelegationController(OrchestratorComponent):
                 f"making any tool calls.\n\n{result}"
             )
 
-        _update_ledger(
+        update_ledger(
             self.orchestrator.ledger, params.ledger_record,
             result, had_error=self._had_error,
         )
@@ -96,14 +118,14 @@ class DelegationController(OrchestratorComponent):
             submitted = f"{result}\n\n{ledger.render()}"
 
         params.agent.submit_tool_result(params.tool_call.id, submitted)
-        yield _create_tool_result_event(params.agent, params.tool_call, result)
+        yield create_tool_result_event(params.agent, params.tool_call, result)
 
     async def _stream_delegation(
         self: DelegationController,
         params: DelegationExecutionParams,
     ) -> AsyncIterator[AgentEvent]:
         """Stream events from the delegation runner."""
-        brief = _extract_brief_fields(params.tool_call.arguments)
+        brief = extract_brief_fields(params.tool_call.arguments)
         delegation_params = DelegationParams(
             target_role=params.target,
             task=params.task,
@@ -123,69 +145,3 @@ class DelegationController(OrchestratorComponent):
             if sub_event.type == EventType.ERROR:
                 self._had_error = True
             yield sub_event
-
-
-# ---------------------------------------------------------------------------
-# Module-level helpers
-# ---------------------------------------------------------------------------
-
-_BRIEF_FIELDS = (
-    "done_when", "context", "files",
-    "background", "requirements", "depends_on",
-)
-
-
-def _extract_brief_fields(arguments: dict[str, Any]) -> dict[str, Any]:
-    """Extract delegation brief fields from tool arguments."""
-    return {f: arguments.get(f) for f in _BRIEF_FIELDS}
-
-
-def _create_delegation_event(
-    agent: Agent,
-    target: str,
-    task: str,
-) -> AgentEvent:
-    """Create a delegation event."""
-    return AgentEvent(
-        type=EventType.AGENT_DELEGATED,
-        data={
-            "from": agent.identity.id if agent.identity else "unknown",
-            "to": target,
-            "task": task,
-        },
-        source_agent="orchestrator",
-    )
-
-
-def _create_tool_result_event(
-    agent: Agent,
-    tool_call: ToolCall,
-    result_content: str,
-) -> AgentEvent:
-    """Create a tool result event."""
-    return AgentEvent(
-        type=EventType.TOOL_CALL_RESULT,
-        data={
-            "tool_call_id": tool_call.id,
-            "tool_name": tool_call.name,
-            "result": (result_content or "")[:RESULT_PREVIEW_LENGTH],
-            "success": True,
-        },
-        source_agent=agent.identity.id if agent.identity else None,
-    )
-
-
-def _update_ledger(
-    ledger: Any,
-    record: Any,
-    result: str,
-    *,
-    had_error: bool,
-) -> None:
-    """Update ledger with delegation outcome."""
-    if not ledger or not record:
-        return
-    if had_error:
-        ledger.fail_delegation(record, result)
-    else:
-        ledger.complete_delegation(record, result)

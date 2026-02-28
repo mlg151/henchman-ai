@@ -871,7 +871,7 @@ def test_update_tool_metrics():
     orchestrator = Orchestrator(default_provider=mock_provider)
 
     # Test tracking a read_file call
-    orchestrator.tool_controller.update_tool_metrics("read_file", {"path": "test.py"}, True)
+    orchestrator.tool_controller.update_tool_metrics("read_file", {"path": "test.py"}, success=True)
 
     assert orchestrator.metrics.tools.total_tool_calls == 1
     assert orchestrator.metrics.tools.successful_tool_calls == 1
@@ -883,7 +883,7 @@ def test_update_tool_metrics():
     assert orchestrator.metrics.performance.files_accessed["test.py"] == 1
 
     # Test tracking a failed tool call
-    orchestrator.tool_controller.update_tool_metrics("shell", {"command": "false"}, False)
+    orchestrator.tool_controller.update_tool_metrics("shell", {"command": "false"}, success=False)
 
     assert orchestrator.metrics.tools.total_tool_calls == 2
     assert orchestrator.metrics.tools.successful_tool_calls == 1
@@ -893,7 +893,7 @@ def test_update_tool_metrics():
     assert orchestrator.metrics.performance.tool_usage_by_type["shell"] == 1
 
     # Test file re-read tracking
-    orchestrator.tool_controller.update_tool_metrics("read_file", {"path": "test.py"}, True)
+    orchestrator.tool_controller.update_tool_metrics("read_file", {"path": "test.py"}, success=True)
 
     assert orchestrator.metrics.tools.total_tool_calls == 3
     assert orchestrator.metrics.tools.read_file_calls == 2

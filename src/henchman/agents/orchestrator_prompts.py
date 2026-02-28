@@ -30,20 +30,35 @@ class PromptFactory:
         Returns:
             The Tech Lead system prompt string.
         """
-        from henchman.agents.prompts import get_agent_prompt  # noqa: PLC0415
+        return system_prompt or _build_prompt(agent_configs, environment_context)
 
-        enabled = _get_enabled_configs(agent_configs)
-        team_members = [f"{c.name} ({c.role})" for c in enabled]
-        team_descriptions = {c.role: c.description or "" for c in enabled}
-        delegatable_agents = [c.role for c in enabled]
 
-        return system_prompt or get_agent_prompt(
-            role="tech_lead",
-            team_members=team_members,
-            delegatable_agents=delegatable_agents,
-            environment_context=environment_context,
-            team_descriptions=team_descriptions,
-        )
+def _build_prompt(
+    agent_configs: dict[str, AgentConfig],
+    environment_context: str | None,
+) -> str:
+    """Build the Tech Lead prompt from agent configurations."""
+    from henchman.agents.prompts import get_agent_prompt  # noqa: PLC0415
+
+    enabled = _get_enabled_configs(agent_configs)
+    members, descriptions, delegatable = _extract_team_info(enabled)
+    return get_agent_prompt(
+        role="tech_lead",
+        team_members=members,
+        delegatable_agents=delegatable,
+        environment_context=environment_context,
+        team_descriptions=descriptions,
+    )
+
+
+def _extract_team_info(
+    configs: list[AgentConfig],
+) -> tuple[list[str], dict[str, str], list[str]]:
+    """Extract team member info, descriptions, and delegatable agent roles."""
+    members = [f"{c.name} ({c.role})" for c in configs]
+    descriptions = {c.role: c.description or "" for c in configs}
+    delegatable = [c.role for c in configs]
+    return members, descriptions, delegatable
 
 
 def _get_enabled_configs(
