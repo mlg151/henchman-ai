@@ -9,19 +9,23 @@ Note: Extracted from ``textual_app.py`` to keep modules under 500 lines.
 from __future__ import annotations
 
 import contextlib
+import json
+import logging
 import re
 from abc import abstractmethod
-from collections.abc import Iterator
-from typing import Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from rich.markdown import Markdown as RichMarkdown
 from rich.markup import escape as markup_escape
-from textual import events
 from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.reactive import reactive
 from textual.widget import MountError
 from textual.widgets import RichLog, Static, TextArea
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from textual import events
 
 _T = TypeVar("_T", bound=Static)
 
@@ -245,11 +249,11 @@ class CollapsibleMessage(_BaseMessageWidget):
         else:
             self.remove_class("expanded")
 
-    def on_click(self, event: events.Click) -> None:
+    def on_click(self, _event: events.Click) -> None:
         """Handle click events to toggle expansion.
 
         Args:
-            event: Click event (unused).
+            _event: Click event (unused).
         """
         self.toggle_expansion()
 
@@ -295,7 +299,9 @@ def _looks_like_markdown(text: str) -> bool:
 class HenchmanTextArea(TextArea):
     """Custom TextArea with Enter/Shift-Enter and history navigation."""
 
-    BINDINGS = [
+    from typing import ClassVar
+    
+    BINDINGS: ClassVar[list[Binding]] = [
         Binding("ctrl+f", "app.search", "Search", show=False),
         Binding(
             "enter",
@@ -682,16 +688,19 @@ class ToolMessage(CollapsibleMessage):
         except (TypeError, ValueError):
             return str(args)
 
-    def _build_header_text(self, apply_markup_to_tool: bool = True) -> str:
+    def _build_header_text(self, apply_markup_to_tool: bool | None = None) -> str:
         """Build header text for tool call or thought.
 
         Args:
             apply_markup_to_tool: Whether to apply safe markup to tool name and args.
                                   Thought text always gets markup for consistency.
+                                  Defaults to True.
 
         Returns:
             Formatted header text.
         """
+        if apply_markup_to_tool is None:
+            apply_markup_to_tool = True
         if self._tool_call and hasattr(self._tool_call, "name"):
             compact = self._format_compact_args()
             name = self._tool_call.name
@@ -699,7 +708,7 @@ class ToolMessage(CollapsibleMessage):
                 compact = _safe_markup(compact) if compact else ""
                 name = _safe_markup(name)
             return f"🔧 {name}({compact})" if compact else f"🔧 {name}"
-        elif self._thought:
+        if self._thought:
             # Thought text always gets markup for consistency with UI display
             return f"🛠️  {_safe_markup(self._thought)}"
         else:
@@ -713,15 +722,18 @@ class ToolMessage(CollapsibleMessage):
         """
         return self._build_header_text(apply_markup_to_tool=True)
 
-    def _build_body_parts(self, pretty_format_args: bool = True) -> list[str]:
+    def _build_body_parts(self, pretty_format_args: bool | None = None) -> list[str]:
         """Build the parts that make up the body content.
 
         Args:
             pretty_format_args: Whether to pretty-format JSON arguments.
+                                Defaults to True.
 
         Returns:
             List of body content parts.
         """
+        if pretty_format_args is None:
+            pretty_format_args = True
         parts: list[str] = []
 
         # Add tool arguments if available
@@ -1032,6 +1044,37 @@ class ChatPane(VerticalScroll):
             )
         return self._add_typed_message_widget(widget_class, *args, **kwargs)
 
+    def _add_message_of_type(
+        self,
+        widget_class: type[_T],
+        *args: Any,
+        tracking_dict: dict[str, _T] | None = None,
+        tracking_key: str = "",
+        **kwargs: Any,
+    ) -> _T:
+        """Add a message widget of specified type to the chat pane.
+
+        This is a wrapper around _add_message_widget that provides a more
+        explicit API for adding specific message types.
+
+        Args:
+            widget_class: The widget class to instantiate.
+            *args: Positional arguments for widget constructor.
+            tracking_dict: Optional dictionary to track the widget.
+            tracking_key: Key to use for tracking if tracking_dict is provided.
+            **kwargs: Keyword arguments for widget constructor.
+
+        Returns:
+            The created widget.
+        """
+        return self._add_message_widget(
+            widget_class,
+            *args,
+            tracking_dict=tracking_dict,
+            tracking_key=tracking_key,
+            **kwargs,
+        )
+
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
@@ -1042,7 +1085,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ThinkingMessage widget.
         """
-        return self._add_message_widget(ThinkingMessage, thought, agent_name)
+        return self._add_message_of_type(ThinkingMessage, thought, agent_name)
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -1053,7 +1096,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        return self._add_message_widget(
+        return self._add_message_of_type(
             ThinkingMessage,
             "",
             agent_name,
@@ -1084,7 +1127,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ToolMessage widget.
         """
-        return self._add_message_widget(ToolMessage, thought, tool_call)
+        return self._add_message_of_type(ToolMessage, thought, tool_call)
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""
