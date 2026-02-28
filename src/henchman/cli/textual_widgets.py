@@ -638,22 +638,33 @@ class ToolMessage(CollapsibleMessage):
         self._body.add_class("tool")
         self._update_renderable()
 
+    def _parse_tool_arguments(self) -> Any:
+        """Parse tool arguments from string to object if possible.
+
+        Returns:
+            Parsed arguments object, or original string if parsing fails.
+        """
+        if not self._tool_call or not getattr(self._tool_call, "arguments", None):
+            return None
+        import json
+
+        args = self._tool_call.arguments
+        if isinstance(args, str):
+            try:
+                return json.loads(args)
+            except (json.JSONDecodeError, TypeError):
+                return args
+        return args
+
     def _format_compact_args(self) -> str:
         """Return a compact one-line representation of tool arguments.
 
         Returns:
             Compact ``key=value`` string or empty string.
         """
-        if not self._tool_call or not getattr(self._tool_call, "arguments", None):
+        args = self._parse_tool_arguments()
+        if args is None:
             return ""
-        import json
-
-        args = self._tool_call.arguments
-        if isinstance(args, str):
-            try:
-                args = json.loads(args)
-            except (json.JSONDecodeError, TypeError):
-                return str(args)
         if isinstance(args, dict):
             return ",".join(f"{k}={v}" for k, v in args.items())
         return str(args)
@@ -664,16 +675,11 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Pretty-printed JSON or string representation.
         """
-        if not self._tool_call or not getattr(self._tool_call, "arguments", None):
+        args = self._parse_tool_arguments()
+        if args is None:
             return ""
         import json
 
-        args = self._tool_call.arguments
-        if isinstance(args, str):
-            try:
-                args = json.loads(args)
-            except (json.JSONDecodeError, TypeError):
-                return str(args)
         try:
             return json.dumps(args, indent=2)
         except (TypeError, ValueError):
@@ -979,6 +985,30 @@ class ChatPane(VerticalScroll):
         """
         return self._create_and_add_widget(widget_class, *args, **kwargs)
 
+    def _add_message_widget_and_track(
+        self,
+        widget_class: type[_T],
+        tracking_dict: dict[str, _T],
+        key: str,
+        *args: Any,
+        **kwargs: Any,
+    ) -> _T:
+        """Add a message widget and track it in a dictionary.
+
+        Args:
+            widget_class: The widget class to instantiate.
+            tracking_dict: Dictionary to track the widget.
+            key: Key to use for tracking.
+            *args: Positional arguments for widget constructor.
+            **kwargs: Keyword arguments for widget constructor.
+
+        Returns:
+            The created widget with correct type.
+        """
+        widget = self._add_typed_message_widget(widget_class, *args, **kwargs)
+        tracking_dict[key] = widget
+        return widget
+
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
@@ -1000,9 +1030,9 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        widget = self._add_typed_message_widget(ThinkingMessage, "", agent_name)
-        self._active_thinking[agent_name] = widget
-        return widget
+        return self._add_message_widget_and_track(
+            ThinkingMessage, self._active_thinking, agent_name, "", agent_name
+        )
 
     def append_thinking_chunk(self, agent_name: str, chunk: str) -> None:
         """Append a streaming chunk to an active thinking message.
