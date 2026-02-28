@@ -4,6 +4,13 @@ import pytest
 
 from henchman.agents.identity import AgentIdentity
 from henchman.core.agent import Agent
+from henchman.core.agent_stall import (
+    MAX_INTENT_PHRASE_LENGTH,
+    MAX_STALL_NUDGES,
+    MIN_RESPONSE_LENGTH,
+    STALL_NUDGE_MESSAGE,
+    STALL_PHRASES,
+)
 from henchman.providers.base import FinishReason, Message, ModelProvider, StreamChunk, ToolCall
 
 
@@ -192,11 +199,11 @@ def test_agent_stall_detection_skip_short_response(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # Short response should skip
-    assert agent._should_skip_stall_check("Hi", False) is True
+    assert agent._stall.should_skip("Hi", False) is True
 
     # Longer response should not skip
     long_response = "This is a longer response that should be checked for stalling."
-    assert agent._should_skip_stall_check(long_response, False) is False
+    assert agent._stall.should_skip(long_response, False) is False
 
 
 def test_agent_stall_detection_skip_with_tool_calls(mock_provider):
@@ -204,20 +211,20 @@ def test_agent_stall_detection_skip_with_tool_calls(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # With tool calls should skip
-    assert agent._should_skip_stall_check("Any response", True) is True
+    assert agent._stall.should_skip("Any response", True) is True
 
     # Should reset stall count
-    agent._stall_nudge_count = 3
-    agent._should_skip_stall_check("Any response", True)
-    assert agent._stall_nudge_count == 0
+    agent._stall.nudge_count = 3
+    agent._stall.should_skip("Any response", True)
+    assert agent._stall.nudge_count == 0
 
 
 def test_agent_stall_detection_disabled(mock_provider):
     """Test stall detection when disabled."""
     agent = Agent(provider=mock_provider)
-    agent.stall_detection_enabled = False
+    agent._stall.enabled = False
 
-    assert agent._should_skip_stall_check("Any response", False) is True
+    assert agent._stall.should_skip("Any response", False) is True
 
 
 def test_agent_detect_stalling_patterns_colon_ending(mock_provider):
@@ -225,16 +232,16 @@ def test_agent_detect_stalling_patterns_colon_ending(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # Ends with colon - should detect stalling (regardless of length)
-    assert agent._detect_stalling_patterns("Let me create a file:") is True
-    assert agent._detect_stalling_patterns("I will now write the code:") is True
+    assert agent._stall.detect_patterns("Let me create a file:") is True
+    assert agent._stall.detect_patterns("I will now write the code:") is True
 
     # "Let me create a file" contains "let me " and is short (< 120 chars) - should detect
-    assert agent._detect_stalling_patterns("Let me create a file") is True
+    assert agent._stall.detect_patterns("Let me create a file") is True
 
     # Long response without colon and without stall phrase - should not detect
     long_response = "This is a very long response that does not contain any stall phrases and goes on for quite a while to exceed the maximum length threshold for intent phrase detection."
-    assert len(long_response.strip()) > agent.MAX_RESPONSE_LENGTH_FOR_INTENT_PHRASE
-    assert agent._detect_stalling_patterns(long_response) is False
+    assert len(long_response.strip()) > MAX_INTENT_PHRASE_LENGTH
+    assert agent._stall.detect_patterns(long_response) is False
 
 
 def test_agent_detect_stalling_patterns_intent_phrases(mock_provider):
@@ -242,16 +249,16 @@ def test_agent_detect_stalling_patterns_intent_phrases(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # Intent phrases should trigger stalling
-    assert agent._detect_stalling_patterns("Let me start by creating the file") is True
-    assert agent._detect_stalling_patterns("I'll write the code now") is True
-    assert agent._detect_stalling_patterns("First, I will implement the feature") is True
+    assert agent._stall.detect_patterns("Let me start by creating the file") is True
+    assert agent._stall.detect_patterns("I'll write the code now") is True
+    assert agent._stall.detect_patterns("First, I will implement the feature") is True
 
     # Questions with "should I" should not trigger
-    assert agent._detect_stalling_patterns("Should I create the file?") is False
+    assert agent._stall.detect_patterns("Should I create the file?") is False
 
     # Regular responses should not trigger
-    assert agent._detect_stalling_patterns("The file has been created") is False
-    assert agent._detect_stalling_patterns("I created the file as requested") is False
+    assert agent._stall.detect_patterns("The file has been created") is False
+    assert agent._stall.detect_patterns("I created the file as requested") is False
 
 
 @pytest.mark.asyncio
@@ -260,12 +267,12 @@ async def test_agent_check_for_stalling_no_stall(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # Normal response with tool calls
-    result = await agent._check_for_stalling("Created the file", True)
+    result = await agent._stall.check("Created the file", True)
     assert result is None
-    assert agent._stall_nudge_count == 0
+    assert agent._stall.nudge_count == 0
 
     # Normal response without tool calls but not stalling
-    result = await agent._check_for_stalling("The file has been created successfully", False)
+    result = await agent._stall.check("The file has been created successfully", False)
     assert result is None
 
 
@@ -276,24 +283,24 @@ async def test_agent_check_for_stalling_with_nudge(mock_provider):
 
     # Stalling response
     stalling_response = "Let me start by creating the file:"
-    result = await agent._check_for_stalling(stalling_response, False)
+    result = await agent._stall.check(stalling_response, False)
 
-    assert result == agent.STALL_NUDGE_MESSAGE
-    assert agent._stall_nudge_count == 1
+    assert result == STALL_NUDGE_MESSAGE
+    assert agent._stall.nudge_count == 1
 
 
 @pytest.mark.asyncio
 async def test_agent_check_for_stalling_max_nudges(mock_provider):
     """Test stall check when max nudges reached."""
     agent = Agent(provider=mock_provider)
-    agent._stall_nudge_count = agent.MAX_STALL_NUDGES
+    agent._stall.nudge_count = MAX_STALL_NUDGES
 
     # Stalling response at max nudges
     stalling_response = "Let me start by creating the file:"
-    result = await agent._check_for_stalling(stalling_response, False)
+    result = await agent._stall.check(stalling_response, False)
 
     assert result is None  # Should stop nudging
-    assert agent._stall_failure is True  # Should set failure flag
+    assert agent._stall.failure is True  # Should set failure flag
 
 
 @pytest.mark.asyncio
@@ -399,12 +406,12 @@ async def test_continue_with_tool_results_stall_detection(mock_provider, sample_
     # A nudge message should be in the conversation history
     nudge_messages = [m for m in agent.messages if m.role == "user" and "stopped without" in (m.content or "")]
     assert len(nudge_messages) == 1
-    assert agent._stall_nudge_count == 1
+    assert agent._stall.nudge_count == 1
 
 
 @pytest.mark.asyncio
 async def test_continue_with_tool_results_stall_failure(mock_provider, sample_tool_call):
-    """continue_with_tool_results() sets _stall_failure after max nudges."""
+    """continue_with_tool_results() sets _stall.failure after max nudges."""
     agent = Agent(provider=mock_provider)
     agent.messages.append(
         Message(role="assistant", content="", tool_calls=[sample_tool_call])
@@ -427,8 +434,8 @@ async def test_continue_with_tool_results_stall_failure(mock_provider, sample_to
         events.append(event)
 
     # After MAX_STALL_NUDGES nudges the agent should give up
-    assert agent._stall_failure is True
-    assert agent._stall_nudge_count == agent.MAX_STALL_NUDGES + 1
+    assert agent._stall.failure is True
+    assert agent._stall.nudge_count == MAX_STALL_NUDGES + 1
 
 
 @pytest.mark.asyncio
@@ -462,20 +469,20 @@ async def test_continue_with_tool_results_no_stall_on_normal_response(
 
     # Provider called exactly once — no nudge needed
     assert call_count == 1
-    assert agent._stall_nudge_count == 0
-    assert agent._stall_failure is False
+    assert agent._stall.nudge_count == 0
+    assert agent._stall.failure is False
 
 
 def test_agent_constants():
     """Test that constants are properly defined."""
     assert Agent.DEFAULT_MAX_TOKENS == 8000
     assert Agent.DEFAULT_TOKEN_RATIO == 0.85
-    assert Agent.MAX_STALL_NUDGES == 2
-    assert Agent.MIN_RESPONSE_LENGTH_FOR_STALL_CHECK == 20
-    assert Agent.MAX_RESPONSE_LENGTH_FOR_INTENT_PHRASE == 120
-    assert len(Agent.STALL_PHRASES) > 0
-    assert "let me start by" in Agent.STALL_PHRASES
-    assert "i'll create" in Agent.STALL_PHRASES
+    assert MAX_STALL_NUDGES == 2
+    assert MIN_RESPONSE_LENGTH == 20
+    assert MAX_INTENT_PHRASE_LENGTH == 120
+    assert len(STALL_PHRASES) > 0
+    assert "let me start by" in STALL_PHRASES
+    assert "i'll create" in STALL_PHRASES
 
 
 def test_agent_properties(mock_provider):
@@ -497,7 +504,7 @@ async def test_agent_emit_with_identity(mock_provider, agent_identity):
     agent = Agent(provider=mock_provider, identity=agent_identity)
 
     # Use a valid EventType for testing
-    event = agent._emit(type=EventType.CONTENT, data={"key": "value"})
+    event = agent._emit(event_type=EventType.CONTENT, data={"key": "value"})
 
     assert event.type == EventType.CONTENT
     assert event.data == {"key": "value"}
@@ -512,7 +519,7 @@ async def test_agent_emit_without_identity(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # Use a valid EventType for testing
-    event = agent._emit(type=EventType.CONTENT, data={"key": "value"})
+    event = agent._emit(event_type=EventType.CONTENT, data={"key": "value"})
 
     assert event.type == EventType.CONTENT
     assert event.data == {"key": "value"}
