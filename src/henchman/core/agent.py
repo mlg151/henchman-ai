@@ -216,14 +216,14 @@ class Agent:
             protected_count: Number of messages to protect from compaction.
         """
         compactor = _build_compactor(self._config, self._max_tokens)
-        
+
         # Calculate protect_from_index based on protected_count to match test expectations
         protect_idx = max(0, len(self.messages) - protected_count) if protected_count > 0 else self.turn.start_index
-        
+
         self.messages = compactor.compact(self.messages, protect_from_index=protect_idx)
         if not is_valid_message_sequence(self.messages):
             self.messages = repair_message_sequence(self.messages)
-        
+
         self.turn.start_index = max(0, len(self.messages) - protected_count)
         return True
 

@@ -88,7 +88,7 @@ class TurnState:
         tool_call_id: str,
         tool_name: str,
         arguments: dict[str, object],
-        result: "ToolResult | None" = None,
+        result: ToolResult | None = None,
     ) -> None:
         """Record a tool call for tracking.
 
@@ -122,7 +122,7 @@ class TurnState:
             self._consecutive_duplicates = 0
             self._last_call_signature = call_sig
 
-    def _track_result_hash(self: TurnState, result: "ToolResult | None") -> None:
+    def _track_result_hash(self: TurnState, result: ToolResult | None) -> None:
         """Track result hash for spinning detection."""
         if result and result.content:
             self.recent_result_hashes.append(_hash_content(result.content))
