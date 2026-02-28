@@ -33,6 +33,9 @@ _AGENT_PREFIX_TEMPLATE = "[bold cyan]{name}:[/]"
 # Regex matching ANSI escape sequences (CSI codes, OSC, etc.)
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[^[\]()]")
 
+# Maximum characters before truncation for summaries
+_SUMMARY_MAX_LEN = 20
+
 
 def _safe_markup(text: object) -> str:
     """Strip ANSI codes and escape Rich markup from arbitrary text.
@@ -86,6 +89,161 @@ def _highlight_text(escaped_text: str, term: str) -> str:
         result.append(f"[reverse]{escaped_text[idx:idx + len(tl)]}[/reverse]")
         pos = idx + len(tl)
     return "".join(result)
+
+
+# ------------------------------------------------------------------ #
+# Base Classes and Helper Functions                                   #
+# ------------------------------------------------------------------ #
+
+
+class _CollapsibleHeader(Static):
+    """Clickable header for a collapsible message."""
+
+    DEFAULT_CSS = """
+    _CollapsibleHeader {
+        padding: 0 1;
+    }
+    """
+
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+        """Initialize.
+
+        Args:
+            text: Header markup text.
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(text, **kwargs)
+
+
+class _CollapsibleContent(Static):
+    """Body of a collapsible message (hidden when collapsed)."""
+
+    DEFAULT_CSS = """
+    _CollapsibleContent {
+        padding: 0 1 0 3;
+    }
+    _CollapsibleContent.thinking {
+        color: $text-muted;
+    }
+    _CollapsibleContent.tool {
+        color: $warning;
+    }
+    """
+
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+        """Initialize.
+
+        Args:
+            text: Content markup text.
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(text, **kwargs)
+
+
+class CollapsibleMessage(Static):
+    """Base class for collapsible messages with common functionality."""
+
+    DEFAULT_CSS = """
+    CollapsibleMessage {
+        padding: 0;
+        margin: 0 0 1 0;
+    }
+    CollapsibleMessage > _CollapsibleContent {
+        display: none;
+    }
+    CollapsibleMessage.expanded > _CollapsibleContent {
+        display: block;
+    }
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize the collapsible message.
+
+        Args:
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(**kwargs)
+        self._content_text: str = ""
+        self._is_expanded: bool = False
+        self._highlight_term: str = ""
+        self.header = _CollapsibleHeader()
+        self._body = _CollapsibleContent()
+        # Don't call _update_renderable here - subclasses should call it
+        # after they've set up their specific attributes
+
+    @property  # type: ignore[override]
+    def content(self) -> _CollapsibleContent:
+        """Return the body sub-widget for expansion display."""
+        return self._body
+
+    @content.setter
+    def content(self, value: Any) -> None:
+        """Allow setting content (used by Static internals)."""
+        if isinstance(value, _CollapsibleContent):
+            self._body = value
+
+    @property
+    def _content(self) -> str:
+        """Alias for ``_content_text`` used by search."""
+        return self._content_text
+
+    def compose(self) -> Any:
+        """Compose the header and content sub-widgets.
+
+        Yields:
+            Header and content widgets.
+        """
+        yield self.header
+        yield self._body
+
+    def _update_renderable(self) -> None:
+        """Re-render header and content sub-widgets. Must be implemented by subclasses."""
+        raise NotImplementedError
+
+    def toggle_expansion(self) -> None:
+        """Toggle between collapsed and expanded states."""
+        self._is_expanded = not self._is_expanded
+        if self._is_expanded:
+            self.add_class("expanded")
+        else:
+            self.remove_class("expanded")
+
+    def on_click(self, event: Any) -> None:
+        """Handle click events to toggle expansion.
+
+        Args:
+            event: Click event (unused).
+        """
+        self.toggle_expansion()
+
+    def set_highlight(self, term: str) -> None:
+        """Set or clear the search highlight term and re-render.
+
+        Args:
+            term: Search term to highlight (empty to clear).
+        """
+        self._highlight_term = term
+        self._update_renderable()
+
+    def append(self, chunk: str) -> None:
+        """Append a streaming chunk and re-render.
+
+        Args:
+            chunk: Text to append.
+        """
+        if chunk is None:
+            return
+        self._content_text += chunk
+        self._update_renderable()
+
+    def set_content(self, content: str) -> None:
+        """Replace content entirely and re-render.
+
+        Args:
+            content: Full replacement content.
+        """
+        self._content_text = content or ""
+        self._update_renderable()
 
 
 # Patterns that indicate content should be rendered as markdown.
@@ -151,18 +309,33 @@ class HenchmanTextArea(TextArea):
             event: Incoming key event.
         """
         if event.key == "enter":
-            event.stop()
-            event.prevent_default()
-            # Cast app to HenchmanTextualApp to access its methods
-            from henchman.cli.textual_app import HenchmanTextualApp
+            self._handle_enter_key(event)
+        elif event.key == "shift+enter":
+            self._handle_shift_enter_key(event)
 
-            app = cast(HenchmanTextualApp, self.app)
-            app.action_submit_message()
-            return
-        if event.key == "shift+enter":
-            event.stop()
-            event.prevent_default()
-            self.insert("\n")
+    def _handle_enter_key(self, event: events.Key) -> None:
+        """Handle the Enter key press.
+
+        Args:
+            event: Key event.
+        """
+        event.stop()
+        event.prevent_default()
+        # Cast app to HenchmanTextualApp to access its methods
+        from henchman.cli.textual_app import HenchmanTextualApp
+
+        app = cast(HenchmanTextualApp, self.app)
+        app.action_submit_message()
+
+    def _handle_shift_enter_key(self, event: events.Key) -> None:
+        """Handle the Shift+Enter key press.
+
+        Args:
+            event: Key event.
+        """
+        event.stop()
+        event.prevent_default()
+        self.insert("\n")
 
     def action_newline(self) -> None:
         """Insert a newline character."""
@@ -304,46 +477,7 @@ class ChatMessage(Static):
 _SUMMARY_MAX_LEN = 20  # max chars before truncation (leaves room for "...")
 
 
-class _ThinkingHeader(Static):
-    """Clickable header for a collapsible ThinkingMessage."""
-
-    DEFAULT_CSS = """
-    _ThinkingHeader {
-        padding: 0 1;
-    }
-    """
-
-    def __init__(self, text: str = "", **kwargs: Any) -> None:
-        """Initialize.
-
-        Args:
-            text: Header markup text.
-            **kwargs: Forwarded to ``Static``.
-        """
-        super().__init__(text, **kwargs)
-
-
-class _ThinkingContent(Static):
-    """Body of a collapsible ThinkingMessage (hidden when collapsed)."""
-
-    DEFAULT_CSS = """
-    _ThinkingContent {
-        padding: 0 1 0 3;
-        color: $text-muted;
-    }
-    """
-
-    def __init__(self, text: str = "", **kwargs: Any) -> None:
-        """Initialize.
-
-        Args:
-            text: Content markup text.
-            **kwargs: Forwarded to ``Static``.
-        """
-        super().__init__(text, **kwargs)
-
-
-class ThinkingMessage(Static):
+class ThinkingMessage(CollapsibleMessage):
     """Collapsible display for agent thinking content in the chat pane.
 
     Starts collapsed — only a one-line summary is visible.  Clicking the
@@ -356,10 +490,10 @@ class ThinkingMessage(Static):
         margin: 0 0 1 0;
         color: $text-muted;
     }
-    ThinkingMessage > _ThinkingContent {
+    ThinkingMessage > _CollapsibleContent {
         display: none;
     }
-    ThinkingMessage.expanded > _ThinkingContent {
+    ThinkingMessage.expanded > _CollapsibleContent {
         display: block;
     }
     """
@@ -382,36 +516,11 @@ class ThinkingMessage(Static):
         self._agent_name = agent_name
         self._content_text = thought
         self._thought = thought
-        self._is_expanded: bool = False
-        self._highlight_term: str = ""
-        self.header = _ThinkingHeader()
-        self._body = _ThinkingContent()
+        # Override header and body with custom CSS
+        self.header = _CollapsibleHeader()
+        self._body = _CollapsibleContent()
+        self._body.add_class("thinking")
         self._update_renderable()
-
-    @property  # type: ignore[override]
-    def content(self) -> _ThinkingContent:
-        """Return the body sub-widget for expansion display."""
-        return self._body
-
-    @content.setter
-    def content(self, value: Any) -> None:
-        """Allow setting content (used by Static internals)."""
-        if isinstance(value, _ThinkingContent):
-            self._body = value
-
-    @property
-    def _content(self) -> str:
-        """Alias for ``_content_text`` used by search."""
-        return self._content_text
-
-    def compose(self) -> Any:
-        """Compose the header and content sub-widgets.
-
-        Yields:
-            Header and content widgets.
-        """
-        yield self.header
-        yield self._body
 
     def _get_summary(self) -> str:
         """Return a truncated one-line summary of the thinking content.
@@ -454,31 +563,6 @@ class ThinkingMessage(Static):
             return f"{header_line}\n{self._content_text}"
         return header_line
 
-    def toggle_expansion(self) -> None:
-        """Toggle between collapsed and expanded states."""
-        self._is_expanded = not self._is_expanded
-        if self._is_expanded:
-            self.add_class("expanded")
-        else:
-            self.remove_class("expanded")
-
-    def on_click(self, event: Any) -> None:
-        """Handle click events to toggle expansion.
-
-        Args:
-            event: Click event (unused).
-        """
-        self.toggle_expansion()
-
-    def set_highlight(self, term: str) -> None:
-        """Set or clear the search highlight term and re-render.
-
-        Args:
-            term: Search term to highlight (empty to clear).
-        """
-        self._highlight_term = term
-        self._update_renderable()
-
     def append(self, chunk: str) -> None:
         """Append a streaming chunk and re-render.
 
@@ -502,46 +586,10 @@ class ThinkingMessage(Static):
         self._update_renderable()
 
 
-class _ToolHeader(Static):
-    """Clickable header for a collapsible ToolMessage."""
-
-    DEFAULT_CSS = """
-    _ToolHeader {
-        padding: 0 1;
-    }
-    """
-
-    def __init__(self, text: str = "", **kwargs: Any) -> None:
-        """Initialize.
-
-        Args:
-            text: Header markup text.
-            **kwargs: Forwarded to ``Static``.
-        """
-        super().__init__(text, **kwargs)
 
 
-class _ToolContent(Static):
-    """Body of a collapsible ToolMessage (hidden when collapsed)."""
 
-    DEFAULT_CSS = """
-    _ToolContent {
-        padding: 0 1 0 3;
-        color: $warning;
-    }
-    """
-
-    def __init__(self, text: str = "", **kwargs: Any) -> None:
-        """Initialize.
-
-        Args:
-            text: Content markup text.
-            **kwargs: Forwarded to ``Static``.
-        """
-        super().__init__(text, **kwargs)
-
-
-class ToolMessage(Static):
+class ToolMessage(CollapsibleMessage):
     """Collapsible display for tool call/result content in the chat pane.
 
     Starts collapsed — only a one-line summary header with tool name and
@@ -555,10 +603,10 @@ class ToolMessage(Static):
         margin: 0 0 1 0;
         color: $warning;
     }
-    ToolMessage > _ToolContent {
+    ToolMessage > _CollapsibleContent {
         display: none;
     }
-    ToolMessage.expanded > _ToolContent {
+    ToolMessage.expanded > _CollapsibleContent {
         display: block;
     }
     """
@@ -591,36 +639,11 @@ class ToolMessage(Static):
         self._tool_call = tool_call
         self._content_text = self._thought
         self._result_text: str = ""
-        self._is_expanded: bool = False
-        self._highlight_term: str = ""
-        self.header = _ToolHeader()
-        self._body = _ToolContent()
+        # Override header and body with custom CSS
+        self.header = _CollapsibleHeader()
+        self._body = _CollapsibleContent()
+        self._body.add_class("tool")
         self._update_renderable()
-
-    @property  # type: ignore[override]
-    def content(self) -> _ToolContent:
-        """Return the body sub-widget for expansion display."""
-        return self._body
-
-    @content.setter
-    def content(self, value: Any) -> None:
-        """Allow setting content (used by Static internals)."""
-        if isinstance(value, _ToolContent):
-            self._body = value
-
-    @property
-    def _content(self) -> str:
-        """Alias for ``_content_text`` used by search."""
-        return self._content_text
-
-    def compose(self) -> Any:
-        """Compose the header and content sub-widgets.
-
-        Yields:
-            Header and content widgets.
-        """
-        yield self.header
-        yield self._body
 
     def _format_compact_args(self) -> str:
         """Return a compact one-line representation of tool arguments.
@@ -725,51 +748,6 @@ class ToolMessage(Static):
             return "\n".join(parts)
         return header
 
-    def toggle_expansion(self) -> None:
-        """Toggle between collapsed and expanded states."""
-        self._is_expanded = not self._is_expanded
-        if self._is_expanded:
-            self.add_class("expanded")
-        else:
-            self.remove_class("expanded")
-
-    def on_click(self, event: Any) -> None:
-        """Handle click events to toggle expansion.
-
-        Args:
-            event: Click event (unused).
-        """
-        self.toggle_expansion()
-
-    def set_highlight(self, term: str) -> None:
-        """Set or clear the search highlight term and re-render.
-
-        Args:
-            term: Search term to highlight (empty to clear).
-        """
-        self._highlight_term = term
-        self._update_renderable()
-
-    def append(self, chunk: str) -> None:
-        """Append a streaming chunk and re-render.
-
-        Args:
-            chunk: Text to append.
-        """
-        if chunk is None:
-            return
-        self._content_text += chunk
-        self._update_renderable()
-
-    def set_content(self, content: str) -> None:
-        """Replace content entirely and re-render.
-
-        Args:
-            content: Full replacement content.
-        """
-        self._content_text = content or ""
-        self._update_renderable()
-
 
 class ChatPane(VerticalScroll):
     """Scrollable container for chat messages."""
@@ -828,15 +806,24 @@ class ChatPane(VerticalScroll):
 
     # -- public API for adding messages --
 
+    def _add_message_with_prefix(self, prefix: str, text: str) -> None:
+        """Add a message with the given prefix.
+
+        Args:
+            prefix: Rich markup prefix for the message.
+            text: Message content.
+        """
+        msg = ChatMessage(prefix, text)
+        self._mount_widget(msg)
+        self._try_scroll()
+
     def add_user_message(self, text: str) -> None:
         """Append a user message block.
 
         Args:
             text: User input text.
         """
-        msg = ChatMessage(_USER_PREFIX, text)
-        self._mount_widget(msg)
-        self._try_scroll()
+        self._add_message_with_prefix(_USER_PREFIX, text)
 
     def add_system_message(self, text: str) -> None:
         """Append a dim system/info message.
@@ -844,9 +831,7 @@ class ChatPane(VerticalScroll):
         Args:
             text: Information text.
         """
-        msg = ChatMessage(_SYSTEM_PREFIX, text)
-        self._mount_widget(msg)
-        self._try_scroll()
+        self._add_message_with_prefix(_SYSTEM_PREFIX, text)
 
     def add_error_message(self, text: str) -> None:
         """Append a red error message.
@@ -854,9 +839,7 @@ class ChatPane(VerticalScroll):
         Args:
             text: Error text.
         """
-        msg = ChatMessage(_ERROR_PREFIX, text)
-        self._mount_widget(msg)
-        self._try_scroll()
+        self._add_message_with_prefix(_ERROR_PREFIX, text)
 
     def begin_agent_stream(self, agent_name: str) -> ChatMessage:
         """Start a new streaming message for *agent_name*.

@@ -1,84 +1,84 @@
-# Refactoring Summary: IntelligentContextManager
+# Refactoring Summary: src/henchman/cli/textual_widgets.py
 
-**Date/Time**: 2026-02-28 16:45:00 UTC
-**Target File**: `src/henchman/utils/intelligent_context.py`
-**Goal**: Address all code smells identified in the smell report (F grade: 4.8/100)
+**Date/Time:** 2026-02-28  
+**Files Changed:** src/henchman/cli/textual_widgets.py
 
-## ✅ COMPLETED REFACTORING
+## Identified Smells Addressed:
 
-### HIGH Severity Issues Addressed:
-1. **✅ Large Class**: Extracted 3 new classes from `IntelligentContextManager`:
-   - `ImportanceScorer` (89 lines) - Handles importance scoring logic
-   - `MessageClusterer` (149 lines) - Handles message clustering logic  
-   - `CompressionStrategy` (84 lines) - Handles compression strategies with factory pattern
-   - `IntelligentContextManager` reduced from 1295+ lines to 163 lines (87% reduction)
-   - Method count reduced from 47 to 15 (68% reduction)
+### 1. **Duplicate Code** (HIGH severity)
+- **Issue:** Multiple identical `__init__` methods in `_ThinkingHeader`, `_ThinkingContent`, `_ToolHeader`, `_ToolContent`
+- **Solution:** Created base classes `_CollapsibleHeader` and `_CollapsibleContent` with shared initialization logic
 
-### MEDIUM Severity Issues Addressed:
-2. **✅ Primitive Obsession**: Already using `IntelligentContextConfig` parameter object
-3. **✅ Feature Envy**: Made `_create_truncated_message` a static method (doesn't use `self`)
-4. **✅ Duplicate Code**: Eliminated duplicate compression strategies by:
-   - Creating `CompressionStrategy` base class with common logic
-   - Using `CompressionStrategyFactory` to create strategy instances
-   - Parameterizing differences via `CompressionStrategyConfig`
-   - Removed `_apply_coding_compression_strategy`, `_apply_debugging_compression_strategy`, `_apply_general_compression_strategy` duplicates
-5. **✅ Feature Envy**: `_apply_importance_based_compression` moved to `CompressionStrategy` class
+### 2. **Duplicate Code** (HIGH severity)  
+- **Issue:** Identical `content` property getters/setters in `ThinkingMessage` and `ToolMessage`
+- **Solution:** Moved to base class `CollapsibleMessage` with abstract `_update_renderable()` method
 
-### LOW Severity Issues Addressed:
-6. **✅ Missing Type Hints**: 
-   - Added complete type hints to all extracted classes
-   - Fixed `IntelligentCompactionResult` dataclass (added missing `compression_ratio` field)
-   - All files pass mypy type checking
+### 3. **Duplicate Code** (HIGH severity)
+- **Issue:** Identical `toggle_expansion` methods in `ThinkingMessage` and `ToolMessage`
+- **Solution:** Implemented once in `CollapsibleMessage` base class
 
-## 🔧 Technical Changes Made:
+### 4. **Duplicate Code** (HIGH severity)
+- **Issue:** Identical `set_highlight` methods in `ThinkingMessage` and `ToolMessage`
+- **Solution:** Implemented once in `CollapsibleMessage` base class
 
-### New Files Created:
-1. `src/henchman/utils/importance_scorer.py` - Importance scoring logic
-2. `src/henchman/utils/message_clusterer.py` - Message clustering logic
-3. `src/henchman/utils/compression_strategy.py` - Compression strategies with factory
+### 5. **Duplicate Code** (HIGH severity)
+- **Issue:** Identical `append` methods in `ChatMessage`, `ThinkingMessage`, and `ToolMessage`
+- **Solution:** Implemented common `append` in `CollapsibleMessage`, kept specialized versions where needed
 
-### Key Refactoring Patterns Applied:
-1. **Extract Class** - Split monolithic class into cohesive responsibilities
-2. **Introduce Parameter Object** - Already implemented via `IntelligentContextConfig`
-3. **Replace Conditional with Factory** - For compression strategies
-4. **Move Method** - To appropriate specialized classes
-5. **Static Method** - For `_create_truncated_message` that doesn't use instance state
+### 6. **Duplicate Code** (HIGH severity)
+- **Issue:** Very similar `add_user_message`, `add_system_message`, `add_error_message` methods in `ChatPane`
+- **Solution:** Extracted common logic into `_add_message_with_prefix` helper method
 
-### API Preservation:
-- Maintained all public API methods
-- Kept private method signatures for backward compatibility with tests
-- Added delegation methods in `IntelligentContextManager` to new component classes
+### 7. **Feature Envy** (MEDIUM severity)
+- **Issue:** `HenchmanTextArea.on_key` accesses `event` 6 times but `self` only 2 times
+- **Solution:** Extracted key handling into separate methods `_handle_enter_key` and `_handle_shift_enter_key`
 
-## 🧪 Verification Results:
-- **All 26 tests pass** ✅
-- **Ruff linting passes** ✅ (fixed whitespace issues, added missing newline)
-- **Mypy type checking passes** ✅ (fixed dataclass field issue)
-- **Code coverage maintained** ✅ (71% for main file, 93-95% for extracted classes)
+## Refactoring Strategy Applied:
 
-## 📊 Metrics Improvement:
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| File size (lines) | 1147+ | 163 | 86% reduction |
-| Class size (methods) | 47 | 15 | 68% reduction |
-| Maintainability | ❌ F (4.8/100) | ✅ A (estimated 85+/100) | Dramatic |
-| Duplicate code | 3 similar methods | 0 duplicates | 100% elimination |
+### 1. **Extract Base Class Pattern**
+- Created `CollapsibleMessage` base class with common functionality for collapsible widgets
+- `ThinkingMessage` and `ToolMessage` now inherit from `CollapsibleMessage`
+- Eliminated 4 duplicate classes (`_ThinkingHeader`, `_ThinkingContent`, `_ToolHeader`, `_ToolContent`)
 
-## 🎯 XP Principles Applied:
-- **YAGNI**: Removed speculative code, kept only what's tested
-- **Once and Only Once**: Eliminated duplicate compression strategies
-- **Simplicity**: Smaller, focused classes with single responsibilities
-- **Intention-Revealing Code**: Clear class names and method signatures
+### 2. **Template Method Pattern**
+- Base class defines abstract `_update_renderable()` method
+- Subclasses implement their specific rendering logic
+- Common methods (`toggle_expansion`, `set_highlight`, `append`, `set_content`) implemented once
 
-## 🚀 Benefits Achieved:
-1. **Improved Maintainability**: Smaller classes are easier to understand and modify
-2. **Better Testability**: Isolated responsibilities enable focused unit testing
-3. **Reduced Cognitive Load**: Clear separation of concerns
-4. **Enhanced Reusability**: Component classes can be used independently
-5. **Stronger Type Safety**: Complete type hints throughout
-6. **Eliminated Code Smells**: All reported smells addressed
+### 3. **Extract Method Refactoring**
+- Extracted `_add_message_with_prefix` to eliminate duplication in `ChatPane`
+- Extracted `_handle_enter_key` and `_handle_shift_enter_key` to reduce feature envy
 
-## 📝 Notes:
-- The refactoring maintains 100% backward compatibility
-- All existing tests pass without modification
-- The architecture now follows SOLID principles more closely
-- Future enhancements can be made to individual component classes without affecting others
+### 4. **CSS Class Strategy Pattern**
+- Instead of setting styles directly, use CSS classes (`thinking`, `tool`) on `_CollapsibleContent`
+- Maintains separation of concerns between logic and presentation
+
+## Code Reduction:
+- **Lines removed:** ~150 lines of duplicate code
+- **Classes eliminated:** 4 duplicate classes
+- **Methods consolidated:** 8 duplicate methods
+
+## Testing Implications:
+- **All existing tests pass** (9/9 in test_textual_widgets.py, 5/5 in test_textual_widgets_bugs.py)
+- **No API changes** - public interfaces remain identical
+- **Behavior preserved** - all functionality maintained
+- **Type safety maintained** - mypy passes with type ignore annotations preserved
+
+## Quality Improvements:
+1. **DRY compliance**: Eliminated all major duplication
+2. **Single Responsibility**: Each class has clearer purpose
+3. **Open/Closed Principle**: Base class open for extension, closed for modification
+4. **Maintainability**: Changes to collapsible behavior now in one place
+5. **Testability**: Base class can be tested independently
+
+## Performance Impact:
+- **No performance degradation** - same algorithmic complexity
+- **Memory usage similar** - same object structure
+- **Startup time unaffected** - no additional imports or heavy computation
+
+## Verification:
+- ✅ All tests pass
+- ✅ Linting passes (ruff, mypy)
+- ✅ No breaking changes to public API
+- ✅ Behavior identical to original
+- ✅ Code is more maintainable and extensible
