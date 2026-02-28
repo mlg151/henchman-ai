@@ -923,7 +923,9 @@ class ChatPane(VerticalScroll):
         self._try_scroll()
         return widget
 
-    def _create_and_add_widget(self, widget_class: type[Static], *args: Any, **kwargs: Any) -> Static:
+    def _create_and_add_widget(
+        self, widget_class: type[Static], *args: Any, **kwargs: Any
+    ) -> Static:
         """Create and add a widget to the pane.
 
         Args:
@@ -937,7 +939,7 @@ class ChatPane(VerticalScroll):
         widget = widget_class(*args, **kwargs)
         return self._add_widget(widget)
 
-    def _add_message(self, widget_class: type[Static], *args: Any, **kwargs: Any) -> Static:
+    def _add_message_widget(self, widget_class: type[Static], *args: Any, **kwargs: Any) -> Static:
         """Generic method to add a message widget to the chat pane.
 
         Args:
@@ -950,6 +952,10 @@ class ChatPane(VerticalScroll):
         """
         return self._create_and_add_widget(widget_class, *args, **kwargs)
 
+    def _add_message(self, widget_class: type[Static], *args: Any, **kwargs: Any) -> Static:
+        """Alias for _add_message_widget for backward compatibility."""
+        return self._add_message_widget(widget_class, *args, **kwargs)
+
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
@@ -960,7 +966,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ThinkingMessage widget.
         """
-        widget = self._add_message(ThinkingMessage, thought, agent_name)
+        widget = self._add_message_widget(ThinkingMessage, thought, agent_name)
         return cast(ThinkingMessage, widget)
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
@@ -972,7 +978,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        widget = self._add_message(ThinkingMessage, "", agent_name)
+        widget = self._add_message_widget(ThinkingMessage, "", agent_name)
         self._active_thinking[agent_name] = cast(ThinkingMessage, widget)
         return cast(ThinkingMessage, widget)
 
@@ -999,7 +1005,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ToolMessage widget.
         """
-        widget = self._add_message(ToolMessage, thought, tool_call)
+        widget = self._add_message_widget(ToolMessage, thought, tool_call)
         return cast(ToolMessage, widget)
 
     def clear_thinking_messages(self) -> None:
@@ -1046,20 +1052,26 @@ class _BaseRichLogPane(RichLog):
         self.border_title = border_title
 
 
-class ThinkingPane(_BaseRichLogPane):
+class _TitledPane(_BaseRichLogPane):
+    """Base class for panes with a specific border title."""
+
+    _DEFAULT_BORDER_TITLE: str = "Pane"
+
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize pane with default border title."""
+        super().__init__(border_title=self._DEFAULT_BORDER_TITLE, **kwargs)
+
+
+class ThinkingPane(_TitledPane):
     """Pane for agent reasoning/thinking output."""
 
-    def __init__(self, **kwargs: Any) -> None:
-        """Initialize thinking pane with specific border title."""
-        super().__init__(border_title="Thinking (legacy)", **kwargs)
+    _DEFAULT_BORDER_TITLE: str = "Thinking (legacy)"
 
 
-class ToolPane(_BaseRichLogPane):
+class ToolPane(_TitledPane):
     """Pane for tool call/result display."""
 
-    def __init__(self, **kwargs: Any) -> None:
-        """Initialize tool pane with specific border title."""
-        super().__init__(border_title="Tools", **kwargs)
+    _DEFAULT_BORDER_TITLE: str = "Tools"
 
 
 # ------------------------------------------------------------------ #
