@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-28T12:30:16.903652+00:00_
+_Generated: 2026-02-28T13:00:18.921836+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-02-28T12:30:16.903652+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 40.0/100 |
 | **Files Scanned** | 149 |
-| **Total Lines (non-blank)** | 30,677 |
+| **Total Lines (non-blank)** | 30,676 |
 | **Total Smells** | 2604 |
 | **Avg Maintainability Index** | 69.7 |
 | **Avg Cyclomatic Complexity** | 13.6 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/orchestrator.py | ❌ F | 3.6 | 83 | 1322 | 12 | 0.0 |
+| 1 | agents/orchestrator.py | ❌ F | 3.6 | 83 | 1321 | 12 | 0.0 |
 | 2 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
 | 3 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 4 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
@@ -124,25 +124,25 @@ _Showing 20 worst files. 129 additional files omitted._
 
 ### agents/orchestrator.py — ❌ F (3.6/100)
 
-LOC: 1322 | Classes: 16 | Functions: 0 | MI: 12 | Avg CC: 0.0
+LOC: 1321 | Classes: 16 | Functions: 0 | MI: 12 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 458 | 🟡 MEDIUM | Duplicate Code | Function 'update_tool_metrics' is 100% similar to 'update_tool_metrics' at agents/orchestrator.py:793 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1544 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_theme' at cli/console.py:169 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1544 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_rich_status_message' at cli/output_handler.py:225 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1544 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'load' at cli/session_manager.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1544 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'compute_project_hash' at cli/session_manager.py:199 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 457 | 🟡 MEDIUM | Duplicate Code | Function 'update_tool_metrics' is 100% similar to 'update_tool_metrics' at agents/orchestrator.py:792 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1543 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_theme' at cli/console.py:169 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1543 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_rich_status_message' at cli/output_handler.py:225 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1543 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'load' at cli/session_manager.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1543 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'compute_project_hash' at cli/session_manager.py:199 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 201 | 🟢 LOW | Feature Envy | Method 'PromptFactory.create_tech_lead_prompt' accesses 'PromptFactory' 4 times but 'self' only 0 times | Move Method — consider moving 'create_tech_lead_prompt' to the class that owns 'PromptFactory'. |
-| 282 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_msg_info' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_msg_info' to the class that owns 'msg'. |
-| 296 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_tool_info' accesses 'tc' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_tool_info' to the class that owns 'tc'. |
-| 312 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._format_summary' accesses 'TimeoutSummaryBuilder' 4 times but 'self' only 0 times | Move Method — consider moving '_format_summary' to the class that owns 'TimeoutSummaryBuilder'. |
-| 458 | 🟢 LOW | Missing Type Hint | Function 'update_tool_metrics' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 462 | 🟢 LOW | Missing Type Hint | Function 'track_tool_error' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 470 | 🟢 LOW | Missing Type Hint | Function 'update_delegation_metrics' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 491 | 🟢 LOW | Missing Type Hint | Function 'execute_delegation_tool' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 527 | 🟢 LOW | Missing Type Hint | Function '_execute_delegation_flow' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 564 | 🟢 LOW | Missing Type Hint | Function '_execute_delegation' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 281 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_msg_info' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_msg_info' to the class that owns 'msg'. |
+| 295 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_tool_info' accesses 'tc' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_tool_info' to the class that owns 'tc'. |
+| 311 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._format_summary' accesses 'TimeoutSummaryBuilder' 4 times but 'self' only 0 times | Move Method — consider moving '_format_summary' to the class that owns 'TimeoutSummaryBuilder'. |
+| 457 | 🟢 LOW | Missing Type Hint | Function 'update_tool_metrics' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 461 | 🟢 LOW | Missing Type Hint | Function 'track_tool_error' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 469 | 🟢 LOW | Missing Type Hint | Function 'update_delegation_metrics' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 490 | 🟢 LOW | Missing Type Hint | Function 'execute_delegation_tool' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 526 | 🟢 LOW | Missing Type Hint | Function '_execute_delegation_flow' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 563 | 🟢 LOW | Missing Type Hint | Function '_execute_delegation' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 68 more smells._
 

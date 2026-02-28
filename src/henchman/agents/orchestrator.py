@@ -197,7 +197,6 @@ class PromptFactory:
     """Factory for creating agent system prompts."""
 
     @staticmethod
-    @staticmethod
     def create_tech_lead_prompt(
         agent_configs: dict[str, AgentConfig],
         system_prompt: str | None,
