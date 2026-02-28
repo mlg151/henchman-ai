@@ -1,42 +1,42 @@
-# Code Smell Report — ❌ F (Score: 48.4/100)
+# Code Smell Report — ❌ F (Score: 49.4/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-28T20:00:22.912682+00:00_
+_Generated: 2026-02-28T20:30:17.985949+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 48.4/100 |
-| **Files Scanned** | 179 |
-| **Total Lines (non-blank)** | 31,431 |
-| **Total Smells** | 2436 |
-| **Avg Maintainability Index** | 71.2 |
+| **Overall Score** | 49.4/100 |
+| **Files Scanned** | 180 |
+| **Total Lines (non-blank)** | 31,401 |
+| **Total Smells** | 2372 |
+| **Avg Maintainability Index** | 71.3 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1699 |
-| medium | 651 |
+| low | 1696 |
+| medium | 590 |
 | high | 86 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1160 |
-| Duplicate Code | 355 |
-| Feature Envy | 324 |
-| Magic Number | 150 |
+| Missing Type Hint | 1161 |
+| Feature Envy | 322 |
+| Duplicate Code | 296 |
+| Magic Number | 149 |
 | Long Method | 145 |
 | Deep Nesting | 139 |
-| Primitive Obsession | 81 |
+| Primitive Obsession | 80 |
 | Complex Function | 47 |
-| Large Class | 35 |
+| Large Class | 33 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,30 +107,31 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_widgets.py | ❌ F | 8.2 | 75 | 927 | 27 | 0.0 |
+| 1 | cli/textual_widgets.py | ❌ F | 8.2 | 77 | 942 | 27 | 0.0 |
 | 2 | utils/compaction.py | ❌ F | 10.3 | 58 | 546 | 34 | 14.8 |
 | 3 | extensions/plugin_manager.py | ❌ F | 10.5 | 82 | 689 | 35 | 0.0 |
 | 4 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
 | 5 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
 | 6 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
-| 7 | core/agent.py | ❌ F | 12.1 | 53 | 374 | 40 | 0.0 |
-| 8 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
-| 9 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
-| 10 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
+| 7 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
+| 8 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
+| 9 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
+| 10 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 159 additional files omitted._
+_Showing 20 worst files. 160 additional files omitted._
 
 ### cli/textual_widgets.py — ❌ F (8.2/100)
 
-LOC: 927 | Classes: 16 | Functions: 3 | MI: 27 | Avg CC: 0.0
+LOC: 942 | Classes: 16 | Functions: 3 | MI: 27 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 979 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 100% similar to 'add_tool_message' at cli/textual_widgets.py:1017 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 979 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 94% similar to 'save' at core/session_manager_base.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1017 | 🟡 MEDIUM | Duplicate Code | Function 'add_tool_message' is 94% similar to 'save' at core/session_manager_base.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 947 | 🟡 MEDIUM | Duplicate Code | Function '_add_message_widget' is 100% similar to '_add_message_by_type' at cli/textual_widgets.py:979 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 997 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 100% similar to 'add_tool_message' at cli/textual_widgets.py:1035 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 997 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 94% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1035 | 🟡 MEDIUM | Duplicate Code | Function 'add_tool_message' is 94% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 108 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 121 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 131 | 🟢 LOW | Missing Type Hint | Function 'append' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
@@ -142,9 +143,8 @@ LOC: 927 | Classes: 16 | Functions: 3 | MI: 27 | Avg CC: 0.0
 | 224 | 🟢 LOW | Missing Type Hint | Function 'content' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 229 | 🟢 LOW | Missing Type Hint | Function 'compose' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 239 | 🟢 LOW | Missing Type Hint | Function '_update_renderable' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 243 | 🟢 LOW | Missing Type Hint | Function 'toggle_expansion' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 60 more smells._
+_... and 62 more smells._
 
 ### utils/compaction.py — ❌ F (10.3/100)
 
@@ -266,30 +266,6 @@ LOC: 688 | Classes: 1 | Functions: 0 | MI: 40 | Avg CC: 11.0
 
 _... and 45 more smells._
 
-### core/agent.py — ❌ F (12.1/100)
-
-LOC: 374 | Classes: 1 | Functions: 0 | MI: 40 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 35 | 🟡 MEDIUM | Large Class | Class 'Agent' has 47 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 112 | 🟡 MEDIUM | Duplicate Code | Function 'system_prompt' is 100% similar to 'stall_detection_enabled' at core/agent.py:144 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 112 | 🟡 MEDIUM | Duplicate Code | Function 'system_prompt' is 100% similar to '_stall_failure' at core/agent.py:153 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 112 | 🟡 MEDIUM | Duplicate Code | Function 'system_prompt' is 100% similar to '_stall_nudge_count' at core/agent.py:162 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 112 | 🟡 MEDIUM | Duplicate Code | Function 'system_prompt' is 100% similar to 'intelligent_context' at core/agent.py:171 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 112 | 🟡 MEDIUM | Duplicate Code | Function 'system_prompt' is 100% similar to 'max_protected_ratio' at core/agent.py:180 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 112 | 🟡 MEDIUM | Duplicate Code | Function 'system_prompt' is 100% similar to 'importance_threshold' at core/agent.py:189 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 112 | 🟡 MEDIUM | Duplicate Code | Function 'system_prompt' is 100% similar to 'cluster_similarity_threshold' at core/agent.py:198 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 112 | 🟡 MEDIUM | Duplicate Code | Function 'system_prompt' is 100% similar to 'adaptive_compression' at core/agent.py:207 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 112 | 🟡 MEDIUM | Duplicate Code | Function 'system_prompt' is 100% similar to 'summarize_dropped' at core/agent.py:216 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 144 | 🟡 MEDIUM | Duplicate Code | Function 'stall_detection_enabled' is 100% similar to '_stall_failure' at core/agent.py:153 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 144 | 🟡 MEDIUM | Duplicate Code | Function 'stall_detection_enabled' is 100% similar to '_stall_nudge_count' at core/agent.py:162 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 144 | 🟡 MEDIUM | Duplicate Code | Function 'stall_detection_enabled' is 100% similar to 'intelligent_context' at core/agent.py:171 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 144 | 🟡 MEDIUM | Duplicate Code | Function 'stall_detection_enabled' is 100% similar to 'max_protected_ratio' at core/agent.py:180 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 144 | 🟡 MEDIUM | Duplicate Code | Function 'stall_detection_enabled' is 100% similar to 'importance_threshold' at core/agent.py:189 | Extract Shared Function — identify the common logic and parameterise the differences. |
-
-_... and 38 more smells._
-
 ### tools/builtins/import_graph.py — ❌ F (12.9/100)
 
 LOC: 450 | Classes: 1 | Functions: 0 | MI: 43 | Avg CC: 13.0
@@ -374,8 +350,6 @@ LOC: 462 | Classes: 4 | Functions: 2 | MI: 49 | Avg CC: 0.0
 | 169 | 🟡 MEDIUM | Duplicate Code | Function 'get_theme' is 94% similar to 'load' at cli/session_manager.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 169 | 🟡 MEDIUM | Duplicate Code | Function 'get_theme' is 94% similar to 'compute_project_hash' at cli/session_manager.py:199 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 169 | 🟡 MEDIUM | Duplicate Code | Function 'get_theme' is 94% similar to 'start_task' at cli/ui_renderer.py:350 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 169 | 🟡 MEDIUM | Duplicate Code | Function 'get_theme' is 100% similar to '_should_skip_stall_check' at core/agent.py:297 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 169 | 🟡 MEDIUM | Duplicate Code | Function 'get_theme' is 100% similar to '_detect_stalling_patterns' at core/agent.py:301 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 169 | 🟡 MEDIUM | Duplicate Code | Function 'get_theme' is 94% similar to 'count_tokens' at rag/chunker.py:86 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 188 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_extensions' at extensions/manager.py:78 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 188 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -383,8 +357,10 @@ LOC: 462 | Classes: 4 | Functions: 2 | MI: 49 | Avg CC: 0.0
 | 188 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_tools' at tools/registry.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 271 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'info' at cli/console.py:280 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 271 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/console.py:289 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 271 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/console.py:298 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 280 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'warning' at cli/console.py:289 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-_... and 59 more smells._
+_... and 57 more smells._
 
 ### metrics/storage.py — ❌ F (14.6/100)
 
@@ -564,8 +540,6 @@ LOC: 303 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 0.0
 | 225 | 🟡 MEDIUM | Duplicate Code | Function 'get_rich_status_message' is 94% similar to 'compute_project_hash' at cli/session_manager.py:199 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 298 | 🟡 MEDIUM | Duplicate Code | Function 'create_status' is 100% similar to 'create_status' at cli/ui_renderer.py:183 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 332 | 🟡 MEDIUM | Duplicate Code | Function 'start_task' is 100% similar to 'start_task' at cli/ui_renderer.py:350 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 332 | 🟡 MEDIUM | Duplicate Code | Function 'start_task' is 94% similar to '_should_skip_stall_check' at core/agent.py:297 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 332 | 🟡 MEDIUM | Duplicate Code | Function 'start_task' is 94% similar to '_detect_stalling_patterns' at core/agent.py:301 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 345 | 🟡 MEDIUM | Duplicate Code | Function 'update_task' is 100% similar to 'tool_result' at cli/ui_renderer.py:310 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 345 | 🟡 MEDIUM | Duplicate Code | Function 'update_task' is 100% similar to 'tool_summary' at cli/ui_renderer.py:314 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 345 | 🟡 MEDIUM | Duplicate Code | Function 'update_task' is 100% similar to 'update_task' at cli/ui_renderer.py:363 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -575,8 +549,10 @@ LOC: 303 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 0.0
 | 61 | 🟢 LOW | Missing Type Hint | Function 'get_toolbar_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 81 | 🟢 LOW | Missing Type Hint | Function '_add_plan_mode_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 94 | 🟢 LOW | Missing Type Hint | Function '_add_provider_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 107 | 🟢 LOW | Missing Type Hint | Function '_add_token_status' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 131 | 🟢 LOW | Missing Type Hint | Function '_get_max_tokens' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 27 more smells._
+_... and 25 more smells._
 
 ### metrics/collector.py — ❌ F (15.9/100)
 
@@ -602,7 +578,31 @@ LOC: 341 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 14.0
 
 _... and 18 more smells._
 
-## ✨ Clean Files (52 files with no smells)
+### tools/builtins/kg_query.py — ❌ F (16.0/100)
+
+LOC: 209 | Classes: 1 | Functions: 1 | MI: 49 | Avg CC: 12.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 18 | 🟠 HIGH | Duplicate Code | Function '_find_git_root' is an exact duplicate of '_find_git_root' at tools/builtins/kg_update.py:48 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 44 | 🟠 HIGH | Duplicate Code | Function '__init__' is an exact duplicate of '__init__' at tools/builtins/kg_update.py:79 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 173 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 93% similar to 'parameters' at tools/builtins/kg_update.py:105 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/lint_check.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/test_gen.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 134 | 🟡 MEDIUM | Complex Function | Function 'execute' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 171 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 215 | 🟡 MEDIUM | Feature Envy | Method 'KgQueryTool._handle_relations' accesses 'rel' 7 times but 'self' only 0 times | Move Method — consider moving '_handle_relations' to the class that owns 'rel'. |
+| 44 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 55 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 60 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 69 | 🟢 LOW | Long Method | Function 'parameters' has 38 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 69 | 🟢 LOW | Missing Type Hint | Function 'parameters' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 111 | 🟢 LOW | Missing Type Hint | Function 'kind' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 13 more smells._
+
+## ✨ Clean Files (55 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -633,13 +633,16 @@ _... and 18 more smells._
 - config/__init__.py — ✅ A
 - config/settings.py — ✅ A
 - core/__init__.py — ✅ A
+- core/agent.py — 👍 B
 - core/agent_stall.py — ✅ A
 - core/events.py — ✅ A
 - core/session.py — ✅ A
 - core/session_branch.py — ✅ A
 - core/session_data.py — ✅ A
+- core/session_export.py — ✅ A
+- core/session_helpers.py — ✅ A
 - core/session_manager.py — ✅ A
-- core/session_manager_base.py — 👍 B
+- core/session_manager_base.py — ✅ A
 - core/session_merge.py — ✅ A
 - core/session_models.py — ✅ A
 - core/session_templates.py — ✅ A

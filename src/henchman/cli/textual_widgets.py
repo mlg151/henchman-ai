@@ -473,9 +473,6 @@ class ChatMessage(_BaseMessageWidget):
             self._update_renderable()
 
 
-_SUMMARY_MAX_LEN = 20  # max chars before truncation (leaves room for "...")
-
-
 class ThinkingMessage(CollapsibleMessage):
     """Collapsible display for agent thinking content in the chat pane.
 
@@ -943,19 +940,6 @@ class ChatPane(VerticalScroll):
         """
         widget = widget_class(*args, **kwargs)
         return self._add_widget(widget)
-
-    def _add_message_widget(self, widget_class: type[Static], *args: Any, **kwargs: Any) -> Static:
-        """Generic method to add a message widget to the chat pane.
-
-        Args:
-            widget_class: The widget class to instantiate.
-            *args: Positional arguments for widget constructor.
-            **kwargs: Keyword arguments for widget constructor.
-
-        Returns:
-            The created widget.
-        """
-        return self._create_and_add_widget(widget_class, *args, **kwargs)
 
     def _add_typed_message_widget(
         self,
