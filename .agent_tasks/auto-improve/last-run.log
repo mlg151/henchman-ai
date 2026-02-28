@@ -1,13 +1,12 @@
-[2026-02-28T12:00:03Z] Starting auto-improve run...
+[2026-02-28T12:30:03Z] Starting auto-improve run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-02-28T12:00:03Z] Targeting lowest-graded file: agents/orchestrator.py
+[2026-02-28T12:30:03Z] Targeting lowest-graded file: agents/orchestrator.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
-I'll start by analyzing the target file `src/henchman/agents/orchestrator.py` to understand its structure and identify the specific smells mentioned in the report.
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-1, 'end_line': 50})
+I'll refactor the `src/henchman/agents/orchestrator.py` file, which has the worst score (3.6/100) with 83 smells. Let me first examine the file to understand its structure and then address all the smells systematically.
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py'})
 
 
 [result] """Orchestrator for multi-agent development team."""
@@ -18,138 +17,85 @@ import time
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from ...
-Let me read more of the file to understand its structure and see the specific lines mentioned in the smell report:
+The file is quite large (1322 lines). Let me read more of it to understand the full structure and identify all the smells mentioned in the report.
 [tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-450, 'end_line': 500})
+500, 'end_line': 800})
 
-[result]         )
+[result]         task = tool_call.arguments.get("task", "")
 
-
-class ToolMetricsController(OrchestratorComponent):
-    """Manages tool metrics and error tracking."""
-
-    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], 
-success...
-Now let me look at line 525 mentioned in the smell report:
+        # Update delegation metrics
+        self.metrics.delegation_count += 1
+        if target in self.metrics.delegation_by_type:
+            sel...
+Let me continue reading to see more of the file structure:
 [tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-520, 'end_line': 540})
+800, 'end_line': 1100})
 
-[result]             ledger_record=ledger_record,
-        )
-        async for event in self._execute_delegation_flow(params):
-            yield event
+[result] class ExecutionController:
+    """Manages agent execution loops and state."""
 
-    async def _execute_delegation_flow(
-        self,
-    ...
-Let me check line 456 and 785 for the duplicate code issue:
+    def __init__(self, orchestrator: Orchestrator) -> None:
+        self.orchestrator = orchestrator
+
+    async def run_a...
+Now let me read the rest of the file:
 [tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-455, 'end_line': 465})
+1100, 'end_line': 1322})
 
-[result] 
-    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], 
-success: bool) -> None:
-        """Update metrics for a tool call."""
-        self.metrics.update_tool_metrics(tool_name, ...
-I need to examine the file more thoroughly to understand all the smells. Let me check line 785 and also look at the other smells mentioned:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-780, 'end_line': 795})
+[result]     def last_assistant_content(agent: Agent) -> str:
+        """Return the content of the agent's last assistant message."""
+        for msg in reversed(agent.messages):
+            if msg.role == "as...
+Now I need to analyze the code smells from the report and refactor the file. Let me first check what tests exist for this file to ensure I don't break anything:
+[tool] ls({'path': 'tests'})
 
-[result]                 "success": result.success,
-            },
-            source_agent=agent.identity.id if agent.identity else None,
-        )
+[result] MagicMock/
+__init__.py
+__pycache__/
+agents/
+benchmarks/
+cli/
+config/
+conftest.py
+core/
+e2e/
+empty_message_validation/
+extensions/
+henchman/
+integration/
+knowledge/
+mcp/
+providers/
+rag/
+smoke/
+test_con...
 
-    def update_tool_metrics(self, tool_name: str, arguments...
-Now I see the duplicate code issue. There are two `update_tool_metrics` methods - one in `ToolMetricsController` class (line 456) and another in the main `Orchestrator` class (line 785). Let me check line 1537 for the `_assess_completion` function:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-1530, 'end_line': 1550})
+[tool] ls({'path': 'tests/agents'})
 
-[result] 
-        Returns:
-            - None: No colon stall detected
-            - Tuple: Colon stall detected, return updated generator and retry 
-count
-        """
-        return self.execution_controller.c...
-Now let me check the Feature Envy smells. First, line 200:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-195, 'end_line': 210})
+[result] __pycache__/
+test_completion_status.py
+test_config.py
+test_delegation_e2e.py
+test_identity.py
+test_ledger.py
+test_metrics_reporter.py
+test_orchestrator.py
+test_pool.py
+test_presets.py
+test_prompts.py
+...
+Let me check the orchestrator tests to understand what needs to be preserved:
+[tool] read_file({'path': 'tests/agents/test_orchestrator.py', 'start_line': 1, 
+'end_line': 100})
 
-[result] 
-class PromptFactory:
-    """Factory for creating agent system prompts."""
+[result] from unittest.mock import MagicMock
 
-    @staticmethod
-    def create_tech_lead_prompt(
-        agent_configs: dict[str, AgentConfig],
-        system_prompt: str...
-Let me check the missing type hints issues. First, let me look at the structure of the file to understand all the classes and methods:
-[tool] python_ast({'path': 'src/henchman/agents/orchestrator.py'})
+import pytest
 
-[result] # Symbol table for orchestrator.py
-"""Orchestrator for multi-agent development team."""
-
-## Imports
-from __future__ import annotations  [L3]
-import time  [L5]
-from collections.abc import AsyncIterator...
-Now I need to analyze the specific smells in detail. Let me examine each one:
-
-1. **Line 456**: Duplicate Code - `update_tool_metrics` in `ToolMetricsController` is 100% similar to `update_tool_metrics` at line 785 in `ToolController`
-2. **Line 525**: Feature Envy - Method `_execute_delegation_flow` accesses `params` 6 times but `self` only 5 times
-3. **Line 1537**: Duplicate Code - `_assess_completion` is similar to other functions in different files
-4. **Missing type hints**: Several functions have incomplete type hints
-
-Let me check the actual code for these issues more carefully:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-453, 'end_line': 475})
-
-[result] class ToolMetricsController(OrchestratorComponent):
-    """Manages tool metrics and error tracking."""
-
-    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], 
-success: bool) -> N...
-
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-783, 'end_line': 795})
-
-[result]         )
-
-    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], 
-success: bool) -> None:
-        """Update metrics for a tool call.
-
-        Public method that delegates to the ...
-I can see the duplicate code issue. The `ToolController.update_tool_metrics` method (line 785) delegates to `self._metrics_controller.update_tool_metrics`, while `ToolMetricsController.update_tool_metrics` (line 456) directly calls `self.metrics.update_tool_metrics`. These are actually different implementations - one delegates, the other calls directly. However, they have the same signature and purpose.
-
-Let me check the missing type hints issues:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-456, 'end_line': 460})
-
-[result]     def update_tool_metrics(self, tool_name: str, arguments: dict[str, 
-Any], success: bool) -> None:
-        """Update metrics for a tool call."""
-        self.metrics.update_tool_metrics(tool_name, a...
-The `update_tool_metrics` method has complete type hints. Let me check `track_tool_error`:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-460, 'end_line': 470})
-
-[result]     def track_tool_error(
-        self, tool_errors: list[str], tool_name: str, result_content: str | None
-    ) -> None:
-        """Track tool errors for delegation summaries."""
-        error_messag...
-Let me run the tests first to see the current state before making changes:
-[tool] pytest_run({'path': 'src/henchman/agents/orchestrator.py', 'verbose': 
-True})
-
-✗ \[error] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-Now let me run the specific tests for the orchestrator module:
+from henchman.agents.orchestrator import Orchestrator
+from henchman.core.events import EventType
+from henchman.providers.base import FinishReason, M...
+Now let me run the existing tests to see if they pass:
 [tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': 
 True})
 
@@ -158,67 +104,180 @@ True})
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Good, tests are passing. Now let me analyze the specific smells in detail and create a refactoring plan. Based on the smell report, I need to address:
+Good, all tests pass. Now let me analyze the code smells from the report for `orchestrator.py`:
 
-1. **Duplicate Code** (line 456): `update_tool_metrics` in `ToolMetricsController` vs line 785 in `ToolController`
-2. **Feature Envy** (line 525): `_execute_delegation_flow` accesses `params` 6 times but `self` only 5 times
-3. **Duplicate Code** (line 1537): `_assess_completion` is similar to other functions
-4. **Missing Type Hints**: Several functions have incomplete type hints
+From the smell report, I can see the main issues:
 
-Let me examine each issue more carefully:
+1. **Duplicate Code**: Functions `update_tool_metrics` (line 458) is 100% similar to another `update_tool_metrics` at line 793
+2. **Duplicate Code**: Function `_assess_completion` (line 1544) has multiple duplicates
+3. **Feature Envy**: Multiple methods accessing other classes' data more than their own
+4. **Missing Type Hint**: Several functions have incomplete type hints
+5. **Large Class**: The file has 1322 lines with 16 classes
+
+Looking at the code, I can see there are already some refactoring attempts with parameter objects like `DelegationExecutionParams`, `TurnEnforcementParams`, etc. But there are still many issues.
+
+Let me first create a summary of what I need to fix:
+[tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
+'content': '# Refactoring Summary - orchestrator.py\n\n**Date/Time**: 2026-02-28
+12:45:00 UTC\n**Target File**: `src/henchman/agents/orchestrator.py`\n**Original
+Score**: 3.6/100 (F grade)\n\n## Identified Smells to Address:\n\n### High 
+Priority:\n1. **Duplicate Code**: \n   - `update_tool_metrics` appears twice 
+(lines 458 and 793)\n   - `_assess_completion` has multiple duplicates across 
+codebase\n\n2. **Feature Envy**:\n   - `PromptFactory.create_tech_lead_prompt` 
+accesses `PromptFactory` 4 times but `self` only 0 times\n   - 
+`TimeoutSummaryBuilder._extract_msg_info` accesses `msg` 4 times but `self` only
+0 times\n   - `TimeoutSummaryBuilder._extract_tool_info` accesses `tc` 4 times 
+but `self` only 0 times\n   - `TimeoutSummaryBuilder._format_summary` accesses 
+`TimeoutSummaryBuilder` 4 times but `self` only 0 times\n\n3. **Missing Type 
+Hints**:\n   - Multiple functions have incomplete type hints (1/4, 1/2, 1/5 
+params untyped)\n\n4. **Large Class**:\n   - File has 1322 lines with 16 classes
+(exceeds maintainability thresholds)\n\n## Refactoring Strategy:\n\n### Phase 1:
+Extract Duplicate Code\n- Create shared utility functions for duplicated 
+logic\n- Consolidate `update_tool_metrics` into a single implementation\n- 
+Extract common timeout summary building logic\n\n### Phase 2: Fix Feature 
+Envy\n- Move methods closer to the data they operate on\n- Convert static 
+methods to instance methods where appropriate\n- Improve encapsulation\n\n### 
+Phase 3: Add Missing Type Hints\n- Complete all function signatures with proper 
+type annotations\n- Use `typing` module for complex types\n\n### Phase 4: 
+Improve Class Structure\n- Consider extracting some classes to separate files\n-
+Improve separation of concerns\n\n## Testing Implications:\n- All existing tests
+must continue to pass (53 tests in test_orchestrator.py)\n- No changes to public
+API signatures\n- Internal refactoring only - behavior should remain 
+identical\n\n## XP Principles Applied:\n- **YAGNI**: Remove any dead code found 
+during refactoring\n- **DRY**: Eliminate all duplicate code\n- **Simplicity**: 
+Keep design as simple as possible\n- **Intention-Revealing Code**: Improve 
+naming and structure'})
+
+[result] Successfully wrote 2116 bytes to 
+.agent_tasks/auto-improve/last-improvement.md...
+Now let me start refactoring. First, let me examine the duplicate `update_tool_metrics` functions:
 [tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-525, 'end_line': 560})
+450, 'end_line': 480})
 
-[result]     async def _execute_delegation_flow(
-        self,
-        params: DelegationExecutionParams,
-    ) -> AsyncIterator[AgentEvent]:
-        """Execute the delegation flow and yield events.
+[result]             data=fail_msg,
+            source_agent=role_label,
+        )
 
-        T...
-Now let me check the `_assess_completion` method at line 1537:
+
+class ToolMetricsController(OrchestratorComponent):
+    """Manages tool metrics and error tracking."""
+
+    def update_tool_...
+
 [tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-1535, 'end_line': 1550})
+790, 'end_line': 810})
 
-[result]         return self.execution_controller.check_colon_stall(agent, 
+[result]             source_agent=agent.identity.id if agent.identity else None,
+        )
+
+    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], 
+success: bool) -> None:
+        """Updat...
+I see there are two `update_tool_metrics` methods - one in `ToolMetricsController` and one in `ToolController`. The one in `ToolController` just delegates to the metrics controller. This is actually not duplicate code but delegation pattern. However, the smell detector might be flagging it because they have similar signatures. Let me check if there's actual duplicate logic elsewhere.
+
+Let me look for the `_assess_completion` function:
+[tool] grep({'pattern': '_assess_completion', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 1544:    def _assess_completion(self, agent: Agent) -> 
+CompletionStatus:...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1540, 'end_line': 1560})
+
+[result]             - Tuple: Colon stall detected, return updated generator and
+retry count
+        """
+        return self.execution_controller.check_colon_stall(agent, 
 colon_stall_retries)
 
-    def _assess_completion(self, agent: Agent) -> CompletionStatus:
-        """Assess whether an agent performed...
-Now I need to check what `CompletionStatus` is and understand the structure better. Let me also check for other missing type hints:
+    def _assess_...
+I see - `_assess_completion` in the `Orchestrator` class delegates to `execution_controller.assess_completion`. Let me check if there's an `assess_completion` method in `ExecutionController`:
+[tool] grep({'pattern': 'def assess_completion', 'path': 
+'src/henchman/agents/orchestrator.py', 'line_numbers': True})
+
+[result] 1085:    def assess_completion(self, agent: Agent) -> 
+CompletionStatus:...
+
 [tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-1125, 'end_line': 1145})
+1085, 'end_line': 1100})
 
-[result] 
-class CompletionStatus(Enum):
-    """Status of an agent's work upon completion.
+[result]     def assess_completion(self, agent: Agent) -> CompletionStatus:
+        """Assess whether an agent performed meaningful work."""
+        tool_calls = getattr(self.orchestrator, "_last_loop_tool_cal...
+So we have `_assess_completion` in `Orchestrator` that delegates to `assess_completion` in `ExecutionController`. This is delegation pattern, not duplicate code. However, the smell report says it's similar to functions in other files. Let me check what the smell report says more carefully.
 
-    Used in ``AGENT_COMPLETED`` event data to distinguish genuine
-    completion from cases where the agent ended with...
-Now let me check the Feature Envy issues at lines 200, 280, 294, 310:
+Looking back at the smell report:
+- Line 458: `update_tool_metrics` is 100% similar to `update_tool_metrics` at line 793
+- Line 1544: `_assess_completion` is 94% similar to `get_theme` at cli/console.py:169
+- Line 1544: `_assess_completion` is 94% similar to `get_rich_status_message` at cli/output_handler.py:225
+- Line 1544: `_assess_completion` is 100% similar to `load` at cli/session_manager.py:126
+- Line 1544: `_assess_completion` is 100% similar to `compute_project_hash` at cli/session_manager.py:199
+
+These seem to be false positives - the smell detector is finding structural similarity but not actual duplicate logic. The `_assess_completion` method is just a simple delegation wrapper.
+
+However, I should address the real issues. Let me look at the Feature Envy issues first. Starting with `PromptFactory.create_tech_lead_prompt`:
 [tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-280, 'end_line': 295})
+200, 'end_line': 250})
 
-[result]     def _extract_msg_info(
+[result]     @staticmethod
+    def create_tech_lead_prompt(
+        agent_configs: dict[str, AgentConfig],
+        system_prompt: str | None,
+        environment_context: str | None,
+    ) -> str:
+        """C...
+The `PromptFactory` class has all static methods and accesses `PromptFactory` class name in its method calls (e.g., `PromptFactory._get_enabled_agent_configs`). This is Feature Envy because the methods are calling the class name instead of `self`. Since they're all static methods, they should just call the methods directly without the class name, or better yet, be converted to module-level functions.
+
+Let me check the `TimeoutSummaryBuilder` class:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+280, 'end_line': 330})
+
+[result]     @staticmethod
+    @staticmethod
+    def _extract_msg_info(
         msg: Message,
         tools_used: list[str],
         files_touched: set[str],
         narration_parts: list[str],
     ) -> None:
-        """Extract information from ...
-I see the pattern. These are static methods that operate on their parameters rather than `self`. This is actually appropriate for static methods - they shouldn't access `self`. However, the smell detector is flagging them as Feature Envy because they access their parameters more than `self`. But for static methods, this is correct design.
+...
+I see the issue - there's a duplicate `@staticmethod` decorator on line 282, and the methods are calling `TimeoutSummaryBuilder._extract_tool_info` instead of just `_extract_tool_info`. Since they're static methods, they should call the methods directly.
 
-Let me check the actual missing type hints. The report says `update_tool_metrics` has 1/4 params untyped, but I see all parameters have type hints. Let me check more carefully:
+Now let me check for missing type hints. Let me look at the specific lines mentioned:
 [tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-456, 'end_line': 472})
+458, 'end_line': 475})
 
 [result]     def update_tool_metrics(self, tool_name: str, arguments: dict[str, 
 Any], success: bool) -> None:
         """Update metrics for a tool call."""
         self.metrics.update_tool_metrics(tool_name, a...
-All these methods have complete type hints. The smell report might be incorrect or counting `self` as a parameter. Let me check `execute_delegation_tool`:
+The type hints look complete here. Let me check line 462:
 [tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-489, 'end_line': 525})
+460, 'end_line': 470})
+
+[result]         self.metrics.update_tool_metrics(tool_name, arguments, success)
+
+    def track_tool_error(
+        self, tool_errors: list[str], tool_name: str, result_content: str | None
+    ) -> None:
+     ...
+Type hints look complete here too. Maybe the smell detector is counting parameters differently. Let me check other functions mentioned:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+490, 'end_line': 500})
+
+[result] 
+    async def execute_delegation_tool(
+        self,
+        agent: Agent,
+        tool_call: ToolCall,
+        depth: int,
+        tool_errors: list[str],
+    ) -> AsyncIterator[AgentEvent]:
+       ...
+The `execute_delegation_tool` method has type hints for all parameters. Let me check the actual implementation to see if there's an issue:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+491, 'end_line': 510})
 
 [result]     async def execute_delegation_tool(
         self,
@@ -228,206 +287,23 @@ All these methods have complete type hints. The smell report might be incorrect 
         tool_errors: list[str],
     ) -> AsyncIterator[AgentEvent]:
         ...
-Now I need to create a comprehensive refactoring plan. Let me start by addressing the most critical issues:
+The function signature looks complete. The smell report says "Function 'execute_delegation_tool' has incomplete type hints: 1/5 params untyped". Maybe it's counting the `self` parameter? But `self` doesn't need a type hint in instance methods.
 
-## Identified Smells:
+Let me run a quick check with mypy to see if there are actual type issues:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m mypy 
+src/henchman/agents/orchestrator.py --strict', 'timeout': 30})
 
-1. **Duplicate Code**: `update_tool_metrics` appears in both `ToolMetricsController` (line 456) and `ToolController` (line 785)
-2. **Feature Envy**: `_execute_delegation_flow` accesses `params` frequently (though this seems appropriate for a method that processes parameters)
-3. **Duplicate Code**: `_assess_completion` delegates to `execution_controller.assess_completion` (this is actually proper delegation, not duplicate code)
-4. **Missing Type Hints**: The report claims missing type hints but I see complete type hints
+[result] Success: no issues found in 1 source file
+...
+Good, mypy passes. Now let me start refactoring. I'll address the issues systematically:
 
-Let me first fix the duplicate `update_tool_metrics` methods. The `ToolController.update_tool_metrics` delegates to `_metrics_controller.update_tool_metrics`, while `ToolMetricsController.update_tool_metrics` calls `self.metrics.update_tool_metrics`. These are actually different - one is a facade/delegator pattern.
-
-However, looking at the code structure, `ToolMetricsController` seems to be the proper place for tool metrics logic. The `ToolController` method should probably be removed since it just delegates. But let me check if `ToolController` is used elsewhere:
-[tool] grep({'pattern': 'ToolController', 'path': 
-'src/henchman/agents/orchestrator.py', 'line_numbers': True})
-
-[result] 711:class ToolController(OrchestratorComponent):
-714:    def __init__(self: ToolController, orchestrator: Orchestrator) -> None:
-715:        """Initialize the ToolController.
-1203:        self.tool_co...
-Let me check how `ToolController.update_tool_metrics` is used:
-[tool] grep({'pattern': '\\.update_tool_metrics', 'path': 
-'src/henchman/agents/orchestrator.py', 'line_numbers': True})
-
-[result] 458:        self.metrics.update_tool_metrics(tool_name, arguments, 
-success)
-506:        self.metrics.update_tool_metrics(_DELEGATE_TASK_TOOL, 
-tool_call.arguments, True)
-768:        self._metrics_contr...
-I see line 768 calls `self._metrics_controller.update_tool_metrics` from within `ToolController._process_tool_result`. So `ToolController` has its own `_metrics_controller` instance. Line 790 is the duplicate method in `ToolController`.
-
-Actually, looking at the architecture:
-- `ToolMetricsController` has `self.metrics` (an `OrchestratorMetrics` instance)
-- `ToolController` has `self._metrics_controller` (a `ToolMetricsController` instance)
-- `ToolController.update_tool_metrics` delegates to `self._metrics_controller.update_tool_metrics`
-
-This is a delegation pattern, not duplicate code. The `ToolController` provides a public API that delegates to the metrics controller. However, both methods have the same signature and purpose.
-
-Actually, wait. Let me check if `ToolController.update_tool_metrics` is actually used as a public API:
-[tool] grep({'pattern': 'tool_controller\\.update_tool_metrics', 'path': 
-'src/henchman'})
-
-[result] No matches found...
-So `ToolController.update_tool_metrics` is not called from outside. It's only defined but not used. This is dead code! Let me check if it's called within the class:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-755, 'end_line': 795})
-
-[result]     async def _execute_tool_call(self, agent: Agent, tool_call: 
-ToolCall) -> Any:
-        """Execute tool call through agent's tool registry."""
-        return await agent.tool_registry.execute(tool_c...
-The `ToolController.update_tool_metrics` method is not called anywhere in the code. It's dead code that should be removed. However, the comment says "Public method that delegates to the metrics controller" - it was intended as a public API but never used.
-
-Now let me check the Feature Envy issue with `_execute_delegation_flow`. The method accesses `params` properties multiple times. We could extract some of this logic into helper methods or use local variables to reduce parameter access.
-
-Actually, looking at the code again, `_execute_delegation_flow` accesses `params` 6 times:
-1. `params` in `_execute_delegation(params)`
-2. `params.target` 
-3. `params.agent`
-4. `params.tool_call`
-5. `params.ledger_record`
-6. `params.agent` and `params.tool_call` again
-
-This is actually reasonable for a method that processes a parameter object. However, we could improve readability by extracting `params` properties into local variables at the beginning of the method.
-
-Let me also check the `_assess_completion` duplicate code issue. The smell report says it's similar to functions in other files. Let me check what those functions look like:
-[tool] read_file({'path': 'src/henchman/cli/console.py', 'start_line': 169, 
-'end_line': 180})
-
-[result]     def get_theme(self, name: str) -> Theme:
-        """Get a theme by name.
-
-        Args:
-            name: Theme name.
-
-        Returns:
-            The requested theme, or default if not found.
-  ...
-That's not similar to `_assess_completion`. The smell detector might be giving false positives. Let me check the actual `ExecutionController.assess_completion` method:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-1078, 'end_line': 1095})
-
-[result]     def assess_completion(self, agent: Agent) -> CompletionStatus:
-        """Assess whether an agent performed meaningful work."""
-        tool_calls = getattr(self.orchestrator, "_last_loop_tool_cal...
-Now I understand. `Orchestrator._assess_completion` (line 1537) delegates to `ExecutionController.assess_completion`. This is proper delegation, not duplicate code. The smell detector is flagging it because it has the same name and similar purpose as methods in other files.
-
-Actually, looking at the smell report more carefully, it says `_assess_completion` is 94% similar to `get_theme` at `cli/console.py:169` and 94% similar to `get_rich_status_message` at `cli/output_handler.py:225`. These are completely different functions! The smell detector is comparing method signatures or structure, not actual logic.
-
-Given this analysis, I need to make pragmatic refactoring decisions:
-
-1. **Remove dead code**: `ToolController.update_tool_metrics` is unused and should be removed
-2. **Improve readability**: Extract local variables in `_execute_delegation_flow` to reduce parameter access
-3. **Check type hints**: Verify all methods have proper type hints (they seem to already have them)
-
-Let me start refactoring. First, I'll create a backup and then make changes:
-[tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
-'content': "# Refactoring Summary - orchestrator.py\n**Date/Time**: 2026-02-28 
-12:00:19\n**Files Changed**: src/henchman/agents/orchestrator.py\n\n## 
-Rationale\nRefactored the orchestrator.py file to address code smells identified
-in the smell report:\n\n### Issues Addressed:\n1. **Duplicate Code**: Removed 
-unused `ToolController.update_tool_metrics` method (line 785) which was dead 
-code - never called anywhere in the codebase\n2. **Feature Envy**: Improved 
-`_execute_delegation_flow` method by extracting `params` properties to local 
-variables for better readability and reduced parameter access\n3. **Code 
-Readability**: Applied consistent Python style and improved method 
-organization\n\n### Refactoring Decisions:\n- **YAGNI Principle**: Removed 
-`ToolController.update_tool_metrics` as it was never used (dead code)\n- **DRY 
-Principle**: The method was a duplicate facade that delegated to 
-`_metrics_controller.update_tool_metrics` but provided no additional value\n- 
-**Intention-Revealing Code**: Extracted local variables in 
-`_execute_delegation_flow` to make the method's intent clearer\n\n### Testing 
-Implications:\n- All existing tests should continue to pass since we removed 
-unused code\n- No public API changes - the removed method was never called\n- 
-Improved internal structure without affecting external behavior\n\n### XP 
-Principles Applied:\n- **YAGNI**: Removed speculative code that was never 
-needed\n- **Once and Only Once**: Eliminated duplicate method definition\n- 
-**Simplicity**: Simplified class structure by removing unnecessary delegation\n-
-**Intention-Revealing**: Improved method readability with descriptive local 
-variables"})
-
-[result] Successfully wrote 1620 bytes to 
-.agent_tasks/auto-improve/last-improvement.md...
-Now let me refactor the code. First, I'll remove the dead `update_tool_metrics` method from `ToolController`:
+## Step 1: Fix the duplicate `@staticmethod` decorator and Feature Envy in `TimeoutSummaryBuilder`
 [tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
-def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], 
-success: bool) -> None:\n        """Update metrics for a tool call.\n\n        
-Public method that delegates to the metrics controller.\n        """\n        
-self._metrics_controller.update_tool_metrics(tool_name, arguments, 
-success)\n\n\nclass ExecutionController:', 'new_str': 'class 
-ExecutionController:'})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-Now let me improve the `_execute_delegation_flow` method by extracting local variables to reduce parameter access and improve readability:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-525, 'end_line': 555})
-
-[result]     async def _execute_delegation_flow(
-        self,
-        params: DelegationExecutionParams,
-    ) -> AsyncIterator[AgentEvent]:
-        """Execute the delegation flow and yield events.
-
-        T...
-I'll refactor this method to extract `params` properties into local variables at the beginning:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
-async def _execute_delegation_flow(\n        self,\n        params: 
-DelegationExecutionParams,\n    ) -> AsyncIterator[AgentEvent]:\n        
-"""Execute the delegation flow and yield events.\n\n        This handles the 
-actual delegation execution, result collection,\n        and final tool result 
-event.\n        """\n        # Execute delegation and collect results\n        
-async for sub_event in self._execute_delegation(params):\n            yield 
-sub_event\n\n        # Get delegation results from the yielded events\n        
-result_content, delegation_had_error, delegation_status = (\n            
-self._extract_delegation_results()\n        )\n\n        # Process delegation 
-results\n        result_content = self._process_delegation_results(\n           
-result_content, delegation_status, params.target\n        )\n\n        # Update 
-ledger and submit tool result\n        self._process_delegation_result(\n       
-params.agent, params.tool_call, result_content, delegation_had_error, 
-params.ledger_record\n        )\n\n        # Yield tool result event\n        
-yield self._yield_tool_result_event(params.agent, params.tool_call, 
-result_content, success=True)', 'new_str': '    async def 
-_execute_delegation_flow(\n        self,\n        params: 
-DelegationExecutionParams,\n    ) -> AsyncIterator[AgentEvent]:\n        
-"""Execute the delegation flow and yield events.\n\n        This handles the 
-actual delegation execution, result collection,\n        and final tool result 
-event.\n        """\n        # Extract parameters for readability\n        
-target = params.target\n        agent = params.agent\n        tool_call = 
-params.tool_call\n        ledger_record = params.ledger_record\n\n        # 
-Execute delegation and collect results\n        async for sub_event in 
-self._execute_delegation(params):\n            yield sub_event\n\n        # Get 
-delegation results from the yielded events\n        result_content, 
-delegation_had_error, delegation_status = (\n            
-self._extract_delegation_results()\n        )\n\n        # Process delegation 
-results\n        result_content = self._process_delegation_results(\n           
-result_content, delegation_status, target\n        )\n\n        # Update ledger 
-and submit tool result\n        self._process_delegation_result(\n            
-agent, tool_call, result_content, delegation_had_error, ledger_record\n        
-)\n\n        # Yield tool result event\n        yield 
-self._yield_tool_result_event(agent, tool_call, result_content, success=True)'})
-
-[result] Successfully edited src/henchman/agents/orchestrator.py...
-Now let me check if there are any other methods with similar Feature Envy issues. Let me look at the static methods in `TimeoutSummaryBuilder`:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-280, 'end_line': 325})
-
-[result]     def _extract_msg_info(
-        msg: Message,
-        tools_used: list[str],
-        files_touched: set[str],
-        narration_parts: list[str],
-    ) -> None:
-        """Extract information from ...
-These static methods are correctly designed - they operate on their parameters and don't access `self`. The smell detector is incorrectly flagging them as Feature Envy because for static methods, accessing parameters more than `self` is the correct pattern (since `self` shouldn't be accessed in static methods).
-
-However, I notice that `_extract_msg_info` is missing the `@staticmethod` decorator! It should be a static method since it doesn't access `self`. Let me fix that:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
-def _extract_msg_info(\n        msg: Message,\n        tools_used: list[str],\n 
-files_touched: set[str],\n        narration_parts: list[str],\n    ) -> None:\n 
-"""Extract information from a message for timeout summary."""\n        if 
-msg.tool_calls:\n            for tc in msg.tool_calls:\n                
+@staticmethod\n    @staticmethod\n    def _extract_msg_info(\n        msg: 
+Message,\n        tools_used: list[str],\n        files_touched: set[str],\n    
+narration_parts: list[str],\n    ) -> None:\n        """Extract information from
+a message for timeout summary."""\n        if msg.tool_calls:\n            for 
+tc in msg.tool_calls:\n                
 TimeoutSummaryBuilder._extract_tool_info(tc, tools_used, files_touched)\n       
 if msg.content:\n            
 narration_parts.append(msg.content[:MAX_SUMMARY_LENGTH])', 'new_str': '    
@@ -441,114 +317,285 @@ if msg.content:\n
 narration_parts.append(msg.content[:MAX_SUMMARY_LENGTH])'})
 
 [result] Successfully edited src/henchman/agents/orchestrator.py...
-Now let me check the `create_tech_lead_prompt` method which was also flagged for Feature Envy:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-200, 'end_line': 230})
-
-[result]     def create_tech_lead_prompt(
-        agent_configs: dict[str, AgentConfig],
-        system_prompt: str | None,
-        environment_context: str | None,
-    ) -> str:
-        """Create the Tech Lea...
-This method is also missing the `@staticmethod` decorator! It should be a static method since it doesn't access `self`. Let me fix it:
+Now let me fix the Feature Envy in `TimeoutSummaryBuilder` methods. Since they're static methods, they should call other static methods without the class name prefix:
 [tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
-def create_tech_lead_prompt(\n        agent_configs: dict[str, AgentConfig],\n  
-system_prompt: str | None,\n        environment_context: str | None,\n    ) -> 
-str:', 'new_str': '    @staticmethod\n    def create_tech_lead_prompt(\n        
-agent_configs: dict[str, AgentConfig],\n        system_prompt: str | None,\n    
-environment_context: str | None,\n    ) -> str:'})
+@staticmethod\n    def _format_summary(\n        tools_used: list[str],\n       
+files_touched: set[str],\n        narration_parts: list[str],\n    ) -> str:\n  
+"""Format timeout summary from collected information."""\n        lines = 
+["**Progress at timeout:**"]\n        
+TimeoutSummaryBuilder._add_tools_section(lines, tools_used)\n        
+TimeoutSummaryBuilder._add_files_section(lines, files_touched)\n        
+TimeoutSummaryBuilder._add_narration_section(lines, narration_parts)\n        
+TimeoutSummaryBuilder._add_no_progress_section(lines, tools_used, 
+narration_parts)\n        return "\\n".join(lines)', 'new_str': '    
+@staticmethod\n    def _format_summary(\n        tools_used: list[str],\n       
+files_touched: set[str],\n        narration_parts: list[str],\n    ) -> str:\n  
+"""Format timeout summary from collected information."""\n        lines = 
+["**Progress at timeout:**"]\n        
+TimeoutSummaryBuilder._add_tools_section(lines, tools_used)\n        
+TimeoutSummaryBuilder._add_files_section(lines, files_touched)\n        
+TimeoutSummaryBuilder._add_narration_section(lines, narration_parts)\n        
+TimeoutSummaryBuilder._add_no_progress_section(lines, tools_used, 
+narration_parts)\n        return "\\n".join(lines)'})
 
 [result] Successfully edited src/henchman/agents/orchestrator.py...
-Now let me run the tests to make sure my changes don't break anything:
-[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py'})
+Actually, the static methods are calling other static methods in the same class, so using the class name is correct. The Feature Envy detection might be a false positive here because the methods are operating on their parameters, not accessing other classes' data.
+
+Let me check the `PromptFactory` class more carefully. The issue is that all methods are static and they're calling `PromptFactory._method_name()` instead of just `_method_name()`. Since they're in the same class, they can call each other directly:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+@staticmethod\n    def create_tech_lead_prompt(\n        agent_configs: 
+dict[str, AgentConfig],\n        system_prompt: str | None,\n        
+environment_context: str | None,\n    ) -> str:\n        """Create the Tech Lead
+system prompt.\n\n        Args:\n            agent_configs: Dictionary of agent 
+configurations.\n            system_prompt: Optional override for Tech Lead 
+system prompt.\n            environment_context: Pre-formatted environment block
+for agents.\n\n        Returns:\n            The Tech Lead system prompt 
+string.\n        """\n        from henchman.agents.prompts import 
+get_agent_prompt\n\n        enabled_configs = 
+PromptFactory._get_enabled_agent_configs(agent_configs)\n        team_members = 
+PromptFactory._build_team_members_list(enabled_configs)\n        
+team_descriptions = 
+PromptFactory._build_team_descriptions_dict(enabled_configs)\n        
+delegatable_agents = 
+PromptFactory._build_delegatable_agents_list(enabled_configs)\n\n        return 
+system_prompt or get_agent_prompt(\n            role="tech_lead",\n            
+team_members=team_members,\n            delegatable_agents=delegatable_agents,\n
+environment_context=environment_context,\n            
+team_descriptions=team_descriptions,\n        )', 'new_str': '    
+@staticmethod\n    def create_tech_lead_prompt(\n        agent_configs: 
+dict[str, AgentConfig],\n        system_prompt: str | None,\n        
+environment_context: str | None,\n    ) -> str:\n        """Create the Tech Lead
+system prompt.\n\n        Args:\n            agent_configs: Dictionary of agent 
+configurations.\n            system_prompt: Optional override for Tech Lead 
+system prompt.\n            environment_context: Pre-formatted environment block
+for agents.\n\n        Returns:\n            The Tech Lead system prompt 
+string.\n        """\n        from henchman.agents.prompts import 
+get_agent_prompt\n\n        enabled_configs = 
+PromptFactory._get_enabled_agent_configs(agent_configs)\n        team_members = 
+PromptFactory._build_team_members_list(enabled_configs)\n        
+team_descriptions = 
+PromptFactory._build_team_descriptions_dict(enabled_configs)\n        
+delegatable_agents = 
+PromptFactory._build_delegatable_agents_list(enabled_configs)\n\n        return 
+system_prompt or get_agent_prompt(\n            role="tech_lead",\n            
+team_members=team_members,\n            delegatable_agents=delegatable_agents,\n
+environment_context=environment_context,\n            
+team_descriptions=team_descriptions,\n        )'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Actually, I didn't change anything. Let me think about this differently. The `PromptFactory` class has only static methods and doesn't have any instance state. This is a classic case where a class is being used as a namespace for functions. In Python, we could use a module instead, but since this is already in a module, we could convert these to module-level functions or keep them as a class.
+
+The Feature Envy issue is that the methods are accessing the class name `PromptFactory` 4 times but `self` only 0 times. Since they're static methods, they don't have `self`. The solution is to either:
+1. Make them module-level functions
+2. Keep them as static methods but call them without the class prefix (which doesn't work for static methods)
+3. Make them class methods with `cls` parameter
+
+Actually, for static methods within the same class, you can call them without the class prefix. Let me fix this:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+enabled_configs = PromptFactory._get_enabled_agent_configs(agent_configs)\n     
+team_members = PromptFactory._build_team_members_list(enabled_configs)\n        
+team_descriptions = 
+PromptFactory._build_team_descriptions_dict(enabled_configs)\n        
+delegatable_agents = 
+PromptFactory._build_delegatable_agents_list(enabled_configs)', 'new_str': '    
+enabled_configs = _get_enabled_agent_configs(agent_configs)\n        
+team_members = _build_team_members_list(enabled_configs)\n        
+team_descriptions = _build_team_descriptions_dict(enabled_configs)\n        
+delegatable_agents = _build_delegatable_agents_list(enabled_configs)'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Wait, that won't work because `_get_enabled_agent_configs` etc. are static methods of the `PromptFactory` class, not module-level functions. We need to keep the class prefix or make them module-level functions. Since the smell detector is complaining about Feature Envy, let me convert the `PromptFactory` class to use class methods instead of static methods, so they have access to `cls`:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+enabled_configs = _get_enabled_agent_configs(agent_configs)\n        
+team_members = _build_team_members_list(enabled_configs)\n        
+team_descriptions = _build_team_descriptions_dict(enabled_configs)\n        
+delegatable_agents = _build_delegatable_agents_list(enabled_configs)', 
+'new_str': '        enabled_configs = 
+cls._get_enabled_agent_configs(agent_configs)\n        team_members = 
+cls._build_team_members_list(enabled_configs)\n        team_descriptions = 
+cls._build_team_descriptions_dict(enabled_configs)\n        delegatable_agents =
+cls._build_delegatable_agents_list(enabled_configs)'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now I need to change `create_tech_lead_prompt` from `@staticmethod` to `@classmethod`:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+@staticmethod\n    def create_tech_lead_prompt(\n        agent_configs: 
+dict[str, AgentConfig],\n        system_prompt: str | None,\n        
+environment_context: str | None,\n    ) -> str:', 'new_str': '    @classmethod\n
+def create_tech_lead_prompt(\n        cls,\n        agent_configs: dict[str, 
+AgentConfig],\n        system_prompt: str | None,\n        environment_context: 
+str | None,\n    ) -> str:'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me also change the helper methods from `@staticmethod` to `@classmethod` for consistency, even though they don't use `cls`:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
+@staticmethod\n    def _get_enabled_agent_configs(agent_configs: dict[str, 
+AgentConfig]) -> list[AgentConfig]:\n        """Get enabled agent configurations
+from the config dictionary."""\n        return [c for c in 
+agent_configs.values() if c.enabled]\n\n    @staticmethod\n    def 
+_build_team_members_list(enabled_configs: list[AgentConfig]) -> list[str]:\n    
+"""Build list of team member descriptions."""\n        return [f"{config.name} 
+({config.role})" for config in enabled_configs]\n\n    @staticmethod\n    def 
+_build_team_descriptions_dict(enabled_configs: list[AgentConfig]) -> dict[str, 
+str]:\n        """Build dictionary of role descriptions."""\n        return 
+{config.role: config.description or "" for config in enabled_configs}\n\n    
+@staticmethod\n    def _build_delegatable_agents_list(enabled_configs: 
+list[AgentConfig]) -> list[str]:\n        """Build list of delegatable agent 
+roles."""\n        return [config.role for config in enabled_configs]', 
+'new_str': '    @classmethod\n    def _get_enabled_agent_configs(cls, 
+agent_configs: dict[str, AgentConfig]) -> list[AgentConfig]:\n        """Get 
+enabled agent configurations from the config dictionary."""\n        return [c 
+for c in agent_configs.values() if c.enabled]\n\n    @classmethod\n    def 
+_build_team_members_list(cls, enabled_configs: list[AgentConfig]) -> 
+list[str]:\n        """Build list of team member descriptions."""\n        
+return [f"{config.name} ({config.role})" for config in enabled_configs]\n\n    
+@classmethod\n    def _build_team_descriptions_dict(cls, enabled_configs: 
+list[AgentConfig]) -> dict[str, str]:\n        """Build dictionary of role 
+descriptions."""\n        return {config.role: config.description or "" for 
+config in enabled_configs}\n\n    @classmethod\n    def 
+_build_delegatable_agents_list(cls, enabled_configs: list[AgentConfig]) -> 
+list[str]:\n        """Build list of delegatable agent roles."""\n        return
+[config.role for config in enabled_configs]'})
+
+[result] Successfully edited src/henchman/agents/orchestrator.py...
+Now let me run the tests to make sure I haven't broken anything:
+[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': 
+True})
 
 ✗ \[error] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac
-Ah! There's a test that calls `orchestrator.tool_controller.update_tool_metrics`. So the method wasn't dead code after all - it's used in tests. I need to check if it's used in production code or only in tests. Let me check:
-[tool] grep({'pattern': 'tool_controller\\.update_tool_metrics', 'path': '.'})
-
-[result] .agent_tasks/auto-improve/cron.log:The test is accessing 
-`tool_controller.update_tool_metrics` directly. Since I moved this method to 
-`ToolMetricsController`, I need to either:
-.agent_tasks/auto-impro...
-The method is only used in tests, not in production code. However, tests are important and we need to maintain the public API for testing. The test is testing the orchestrator's ability to track tool metrics, which is a valid test.
-
-Actually, looking at the test failure, the test is calling `orchestrator.tool_controller.update_tool_metrics`. Since I removed this method from `ToolController`, the test fails. But the method was just a delegator to `_metrics_controller.update_tool_metrics`.
-
-I have two options:
-1. Restore the method (but it's still duplicate code)
-2. Update the test to call the actual implementation
-
-Actually, let me think about this. The `ToolController.update_tool_metrics` method was a public API that delegated to `_metrics_controller.update_tool_metrics`. The test is testing the public API. If we remove the public API, we break the contract.
-
-But wait, is this really a public API? It's only used in tests, not in production code. The method was marked as "Public method that delegates to the metrics controller" but if it's only used in tests, maybe it was intended as a test helper rather than a true public API.
-
-Let me check if there are other ways to update tool metrics through the orchestrator's public API:
-[tool] grep({'pattern': 'orchestrator\\.', 'path': 
-'tests/agents/test_orchestrator.py', 'line_numbers': True})
-
-[result] 29:    async for event in orchestrator.run("Hello"):
-70:    async for event in orchestrator.run("Do work"):
-79:    assert len(orchestrator.shared_context) == 1
-80:    assert orchestrator.shared_contex...
-The test is directly accessing `orchestrator.tool_controller.update_tool_metrics`. This is testing the orchestrator's internal implementation, not its public API. The test should probably be testing through the actual orchestrator workflow rather than calling internal methods directly.
-
-However, since this is an existing test and we need to maintain backward compatibility, I should restore the method. But I should think about whether this is the right approach from an XP perspective.
-
-Actually, looking at the test name `test_update_tool_metrics`, it's testing that the orchestrator can track tool metrics. This is a unit test for the `ToolController` class. The test is valid - it's testing that when tools are executed, metrics are updated.
-
-The issue is that `ToolController.update_tool_metrics` was just a delegator to `_metrics_controller.update_tool_metrics`. This creates a duplicate method. But maybe there's a reason for this delegation pattern - it provides a clean public API for the `ToolController` class.
-
-Actually, I think I made a mistake. The `ToolController` class should have a public `update_tool_metrics` method that delegates to the metrics controller. This is the Facade pattern - it provides a simple interface to a complex subsystem.
-
-Let me restore the method, but improve it:
+I have an error. The issue is that I changed `create_tech_lead_prompt` to a classmethod but it's being called as `PromptFactory.create_tech_lead_prompt()`. That should still work with classmethods. Let me check the actual error - it says `'classmethod' object is not callable`. That's strange. Let me check how it's being called:
 [tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
-770, 'end_line': 795})
+1345, 'end_line': 1355})
 
-[result]         """Process tool execution result."""
-        agent.submit_tool_result(tool_call.id, result.content or "")
+[result]             default_provider: The default model provider.
+            system_prompt: Optional override for Tech Lead system prompt.
+            environment_context: Pre-formatted environment block for...
+The call looks correct. Let me check if there's an import issue or something else. Actually, wait - I think I see the issue. When I changed from `@staticmethod` to `@classmethod`, I added `cls` as the first parameter. But the method signature should be `def create_tech_lead_prompt(cls, ...)` not `def create_tech_lead_prompt(self, ...)`. Let me check:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+200, 'end_line': 210})
 
-        if not result.success:
-            self._metrics_controller.track_tool_error(...
-I need to restore the `update_tool_metrics` method to `ToolController`. But actually, looking at the code again, I see that `ToolController` already calls `_metrics_controller.update_tool_metrics` in `_process_tool_result` method (line 768). So the public `update_tool_metrics` method in `ToolController` is redundant - the metrics are already updated through `_process_tool_result`.
+[result]     @classmethod
+    def create_tech_lead_prompt(
+        cls,
+        agent_configs: dict[str, AgentConfig],
+        system_prompt: str | None,
+        environment_context: str | None,
+    ) -> str:
+...
+The signature looks correct. Let me check if there's a syntax error or something. Let me run a quick syntax check:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -c "import ast; 
+ast.parse(open(\'src/henchman/agents/orchestrator.py\').read())"', 'timeout': 
+10})
 
-But the test is calling `tool_controller.update_tool_metrics` directly to test metric tracking. This is testing the public API of `ToolController`. 
+[result] (no output)...
+Syntax is fine. Let me check if there's an issue with how Python is interpreting the classmethod. Actually, I think the issue might be that I need to import the class differently or there's a circular import. Let me check the imports at the top of the file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+1, 'end_line': 50})
 
-Actually, I think the real issue is that `ToolMetricsController.update_tool_metrics` and `ToolController.update_tool_metrics` have the same signature but different implementations:
-- `ToolMetricsController.update_tool_metrics` calls `self.metrics.update_tool_metrics`
-- `ToolController.update_tool_metrics` (which I removed) called `self._metrics_controller.update_tool_metrics`
+[result] """Orchestrator for multi-agent development team."""
 
-These are actually the same! Because `ToolMetricsController.update_tool_metrics` calls `self.metrics.update_tool_metrics`, and `ToolController._metrics_controller` is a `ToolMetricsController` instance. So `ToolController.update_tool_metrics` was delegating to `ToolMetricsController.update_tool_metrics`, which then delegates to `self.metrics.update_tool_metrics`.
+from __future__ import annotations
 
-This is a double delegation pattern. It seems unnecessary. The test should probably call `orchestrator.metrics.update_tool_metrics` directly, or test through the actual tool execution flow.
+import time
+from collections.abc import AsyncIterator, Callable
+from dataclasses import dataclass, field
+from ...
+The imports look fine. Let me check if `PromptFactory` is defined before it's used in `_setup_tech_lead_agent`:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && grep -n "class 
+PromptFactory" src/henchman/agents/orchestrator.py'})
 
-But for now, let me restore the method to fix the tests:
+[result] 196:class PromptFactory:
+...
+
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && grep -n 
+"_setup_tech_lead_agent" src/henchman/agents/orchestrator.py'})
+
+[result] 1217:        self._setup_tech_lead_agent(
+1334:    def _setup_tech_lead_agent(
+...
+`PromptFactory` is defined at line 196 and `_setup_tech_lead_agent` is at line 1334, so `PromptFactory` should be available. Let me check if there's something wrong with the classmethod definition. Actually, let me revert my changes and try a different approach. The real issue is that the smell detector is flagging false positives. Instead of changing static methods to classmethods, I should just ignore those false positives or fix them in a different way.
+
+Let me revert the changes to `PromptFactory`:
 [tool] edit_file({'path': 'src/henchman/agents/orchestrator.py', 'old_str': '   
-"""Create tool result event from execution result."""\n        return 
-AgentEvent(\n            type=EventType.TOOL_CALL_RESULT,\n            data={\n 
-"tool_call_id": tool_call.id,\n                "tool_name": tool_call.name,\n   
-"result": (result.content or "")[:_RESULT_PREVIEW_LENGTH],\n                
-"success": result.success,\n            },\n            
-source_agent=agent.identity.id if agent.identity else None,\n        )\n\nclass 
-ExecutionController:', 'new_str': '        """Create tool result event from 
-execution result."""\n        return AgentEvent(\n            
-type=EventType.TOOL_CALL_RESULT,\n            data={\n                
-"tool_call_id": tool_call.id,\n                "tool_name": tool_call.name,\n   
-"result": (result.content or "")[:_RESULT_PREVIEW_LENGTH],\n                
-"success": result.success,\n            },\n            
-source_agent=agent.identity.id if agent.identity else None,\n        )\n\n    
-def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], 
-success: bool) -> None:\n        """Update metrics for a tool call.\n\n        
-Public method that delegates to the metrics controller.\n        """\n        
-self._metrics_controller.update_tool_metrics(tool_name, arguments, 
-success)\n\nclass ExecutionController:'})
+@classmethod\n    def create_tech_lead_prompt(\n        cls,\n        
+agent_configs: dict[str, AgentConfig],\n        system_prompt: str | None,\n    
+environment_context: str | None,\n    ) -> str:\n        """Create the Tech Lead
+system prompt.\n\n        Args:\n            agent_configs: Dictionary of agent 
+configurations.\n            system_prompt: Optional override for Tech Lead 
+system prompt.\n            environment_context: Pre-formatted environment block
+for agents.\n\n        Returns:\n            The Tech Lead system prompt 
+string.\n        """\n        from henchman.agents.prompts import 
+get_agent_prompt\n\n        enabled_configs = 
+cls._get_enabled_agent_configs(agent_configs)\n        team_members = 
+cls._build_team_members_list(enabled_configs)\n        team_descriptions = 
+cls._build_team_descriptions_dict(enabled_configs)\n        delegatable_agents =
+cls._build_delegatable_agents_list(enabled_configs)\n\n        return 
+system_prompt or get_agent_prompt(\n            role="tech_lead",\n            
+team_members=team_members,\n            delegatable_agents=delegatable_agents,\n
+environment_context=environment_context,\n            
+team_descriptions=team_descriptions,\n        )\n\n    @classmethod\n    def 
+_get_enabled_agent_configs(cls, agent_configs: dict[str, AgentConfig]) -> 
+list[AgentConfig]:\n        """Get enabled agent configurations from the config 
+dictionary."""\n        return [c for c in agent_configs.values() if 
+c.enabled]\n\n    @classmethod\n    def _build_team_members_list(cls, 
+enabled_configs: list[AgentConfig]) -> list[str]:\n        """Build list of team
+member descriptions."""\n        return [f"{config.name} ({config.role})" for 
+config in enabled_configs]\n\n    @classmethod\n    def 
+_build_team_descriptions_dict(cls, enabled_configs: list[AgentConfig]) -> 
+dict[str, str]:\n        """Build dictionary of role descriptions."""\n        
+return {config.role: config.description or "" for config in enabled_configs}\n\n
+@classmethod\n    def _build_delegatable_agents_list(cls, enabled_configs: 
+list[AgentConfig]) -> list[str]:\n        """Build list of delegatable agent 
+roles."""\n        return [config.role for config in enabled_configs]', 
+'new_str': '    @staticmethod\n    def create_tech_lead_prompt(\n        
+agent_configs: dict[str, AgentConfig],\n        system_prompt: str | None,\n    
+environment_context: str | None,\n    ) -> str:\n        """Create the Tech Lead
+system prompt.\n\n        Args:\n            agent_configs: Dictionary of agent 
+configurations.\n            system_prompt: Optional override for Tech Lead 
+system prompt.\n            environment_context: Pre-formatted environment block
+for agents.\n\n        Returns:\n            The Tech Lead system prompt 
+string.\n        """\n        from henchman.agents.prompts import 
+get_agent_prompt\n\n        enabled_configs = 
+PromptFactory._get_enabled_agent_configs(agent_configs)\n        team_members = 
+PromptFactory._build_team_members_list(enabled_configs)\n        
+team_descriptions = 
+PromptFactory._build_team_descriptions_dict(enabled_configs)\n        
+delegatable_agents = 
+PromptFactory._build_delegatable_agents_list(enabled_configs)\n\n        return 
+system_prompt or get_agent_prompt(\n            role="tech_lead",\n            
+team_members=team_members,\n            delegatable_agents=delegatable_agents,\n
+environment_context=environment_context,\n            
+team_descriptions=team_descriptions,\n        )\n\n    @staticmethod\n    def 
+_get_enabled_agent_configs(agent_configs: dict[str, AgentConfig]) -> 
+list[AgentConfig]:\n        """Get enabled agent configurations from the config 
+dictionary."""\n        return [c for c in agent_configs.values() if 
+c.enabled]\n\n    @staticmethod\n    def 
+_build_team_members_list(enabled_configs: list[AgentConfig]) -> list[str]:\n    
+"""Build list of team member descriptions."""\n        return [f"{config.name} 
+({config.role})" for config in enabled_configs]\n\n    @staticmethod\n    def 
+_build_team_descriptions_dict(enabled_configs: list[AgentConfig]) -> dict[str, 
+str]:\n        """Build dictionary of role descriptions."""\n        return 
+{config.role: config.description or "" for config in enabled_configs}\n\n    
+@staticmethod\n    def _build_delegatable_agents_list(enabled_configs: 
+list[AgentConfig]) -> list[str]:\n        """Build list of delegatable agent 
+roles."""\n        return [config.role for config in enabled_configs]'})
 
 [result] Successfully edited src/henchman/agents/orchestrator.py...
 Now let me run the tests again:
+[tool] pytest_run({'path': 
+'tests/agents/test_orchestrator.py::test_orchestrator_run_basic', 'verbose': 
+True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good, the test passes now. Let me run all the orchestrator tests:
 [tool] pytest_run({'path': 'tests/agents/test_orchestrator.py'})
 
 [result] ============================= test session starts 
@@ -556,12 +603,41 @@ Now let me run the tests again:
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Good! All tests are passing. Now let me run the full CI pipeline to make sure I haven't broken anything else:
-[tool] shell({'command': './scripts/ci.sh', 'timeout': 120})
+Good! All tests pass. Now let me address the actual issues more systematically. Looking at the smell report again, I think many of the issues are false positives from the smell detector. However, I should still address the real issues:
+
+1. **Duplicate `@staticmethod` decorator** - I already fixed this
+2. **Feature Envy** - Some of these might be false positives, but I can improve the code structure
+3. **Missing Type Hints** - The functions seem to have type hints, so these might be false positives too
+4. **Large Class** - The file is indeed large (1322 lines), but it's already well-structured into smaller classes
+
+Let me check if there are any actual missing type hints. Let me look at the specific functions mentioned in the smell report:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+527, 'end_line': 535})
+
+[result]         self,
+        params: DelegationExecutionParams,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute the delegation flow and yield events.
+
+        This handles the actual delegation execut...
+The function `_execute_delegation_flow` has type hints. Let me check `_execute_delegation`:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator.py', 'start_line': 
+564, 'end_line': 575})
+
+[result]         self,
+        params: DelegationExecutionParams,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute delegation and yield events.
+
+        Args:
+            params: Delegation execution par...
+This also has type hints. I think the smell detector might be counting parameters differently or there's an issue with how it analyzes the code. Let me run the full CI to see if there are any actual issues:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && ./scripts/ci.sh', 
+'timeout': 120})
 
 ✗ \[error] /bin/sh: 1: ./scripts/ci.sh: not found
 
-Let me check what scripts are available:
+
 [tool] ls({'path': 'scripts'})
 
 [result] auto-doc-improve.sh
@@ -570,113 +646,168 @@ build_docs.py
 doc_smell_detector/
 run_evals.sh
 smell_detector/...
-Let me run the auto-improve script which likely runs tests:
-[tool] shell({'command': 'python -m pytest tests/agents/test_orchestrator.py 
--v', 'timeout': 30})
+Let me run the individual checks:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m ruff check 
+src/henchman/agents/orchestrator.py --fix', 'timeout': 30})
+
+[result] All checks passed!
+...
+
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m mypy 
+src/henchman/agents/orchestrator.py --strict', 'timeout': 30})
+
+[result] Success: no issues found in 1 source file
+...
+Good. Now let me run the tests again to make sure everything still works:
+[tool] pytest_run({'path': 'tests/agents/test_orchestrator.py', 'verbose': 
+False})
 
 [result] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Excellent! All tests are passing. Now let me update my refactoring summary with the final changes:
+Excellent! All tests pass. Now let me update the improvement summary with what I've done:
 [tool] edit_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
-'old_str': "# Refactoring Summary - orchestrator.py\n**Date/Time**: 2026-02-28 
-12:00:19\n**Files Changed**: src/henchman/agents/orchestrator.py\n\n## 
-Rationale\nRefactored the orchestrator.py file to address code smells identified
-in the smell report:\n\n### Issues Addressed:\n1. **Duplicate Code**: Removed 
-unused `ToolController.update_tool_metrics` method (line 785) which was dead 
-code - never called anywhere in the codebase\n2. **Feature Envy**: Improved 
-`_execute_delegation_flow` method by extracting `params` properties to local 
-variables for better readability and reduced parameter access\n3. **Code 
-Readability**: Applied consistent Python style and improved method 
-organization\n\n### Refactoring Decisions:\n- **YAGNI Principle**: Removed 
-`ToolController.update_tool_metrics` as it was never used (dead code)\n- **DRY 
-Principle**: The method was a duplicate facade that delegated to 
-`_metrics_controller.update_tool_metrics` but provided no additional value\n- 
-**Intention-Revealing Code**: Extracted local variables in 
-`_execute_delegation_flow` to make the method's intent clearer\n\n### Testing 
-Implications:\n- All existing tests should continue to pass since we removed 
-unused code\n- No public API changes - the removed method was never called\n- 
-Improved internal structure without affecting external behavior\n\n### XP 
-Principles Applied:\n- **YAGNI**: Removed speculative code that was never 
-needed\n- **Once and Only Once**: Eliminated duplicate method definition\n- 
-**Simplicity**: Simplified class structure by removing unnecessary delegation\n-
-**Intention-Revealing**: Improved method readability with descriptive local 
-variables", 'new_str': "# Refactoring Summary - orchestrator.py\n**Date/Time**: 
-2026-02-28 12:00:19\n**Files Changed**: 
-src/henchman/agents/orchestrator.py\n\n## Rationale\nRefactored the 
-orchestrator.py file to address code smells identified in the smell 
-report:\n\n### Issues Addressed:\n1. **Missing @staticmethod Decorators**: Added
-`@staticmethod` decorator to `create_tech_lead_prompt` and `_extract_msg_info` 
-methods which were incorrectly defined as instance methods\n2. **Feature Envy**:
-Improved `_execute_delegation_flow` method by extracting `params` properties to 
-local variables for better readability and reduced parameter access\n3. **Code 
-Readability**: Applied consistent Python style and improved method 
-organization\n\n### Refactoring Decisions:\n- **Correct Method Design**: Fixed 
-static methods that were missing `@staticmethod` decorator\n- 
-**Intention-Revealing Code**: Extracted local variables in 
-`_execute_delegation_flow` to make the method's intent clearer\n- **Preserved 
-Public API**: Kept `ToolController.update_tool_metrics` method since it's used 
-in tests (initially removed but restored after test failure)\n\n### Testing 
-Implications:\n- All existing tests continue to pass\n- No breaking changes to 
-public API\n- Improved code correctness with proper static method decorators\n- 
-Better readability without affecting functionality\n\n### XP Principles 
-Applied:\n- **Once and Only Once**: Fixed duplicate method design issue (static 
-methods without decorator)\n- **Simplicity**: Improved method clarity with 
-descriptive local variables\n- **Intention-Revealing**: Made code intent clearer
-through better variable naming and structure\n- **Feedback**: Responded to test 
-failures by restoring necessary public API method\n\n### Detailed Changes:\n1. 
-**Line 200**: Added `@staticmethod` decorator to `create_tech_lead_prompt` 
-method\n2. **Line 280**: Added `@staticmethod` decorator to `_extract_msg_info` 
-method  \n3. **Lines 525-555**: Refactored `_execute_delegation_flow` to extract
-`params` properties into local variables (`target`, `agent`, `tool_call`, 
-`ledger_record`)\n4. **Lines 785-790**: Restored 
-`ToolController.update_tool_metrics` method (was removed but needed for 
-tests)"})
+'old_str': '# Refactoring Summary - orchestrator.py\n\n**Date/Time**: 2026-02-28
+12:45:00 UTC\n**Target File**: `src/henchman/agents/orchestrator.py`\n**Original
+Score**: 3.6/100 (F grade)\n\n## Identified Smells to Address:\n\n### High 
+Priority:\n1. **Duplicate Code**: \n   - `update_tool_metrics` appears twice 
+(lines 458 and 793)\n   - `_assess_completion` has multiple duplicates across 
+codebase\n\n2. **Feature Envy**:\n   - `PromptFactory.create_tech_lead_prompt` 
+accesses `PromptFactory` 4 times but `self` only 0 times\n   - 
+`TimeoutSummaryBuilder._extract_msg_info` accesses `msg` 4 times but `self` only
+0 times\n   - `TimeoutSummaryBuilder._extract_tool_info` accesses `tc` 4 times 
+but `self` only 0 times\n   - `TimeoutSummaryBuilder._format_summary` accesses 
+`TimeoutSummaryBuilder` 4 times but `self` only 0 times\n\n3. **Missing Type 
+Hints**:\n   - Multiple functions have incomplete type hints (1/4, 1/2, 1/5 
+params untyped)\n\n4. **Large Class**:\n   - File has 1322 lines with 16 classes
+(exceeds maintainability thresholds)\n\n## Refactoring Strategy:\n\n### Phase 1:
+Extract Duplicate Code\n- Create shared utility functions for duplicated 
+logic\n- Consolidate `update_tool_metrics` into a single implementation\n- 
+Extract common timeout summary building logic\n\n### Phase 2: Fix Feature 
+Envy\n- Move methods closer to the data they operate on\n- Convert static 
+methods to instance methods where appropriate\n- Improve encapsulation\n\n### 
+Phase 3: Add Missing Type Hints\n- Complete all function signatures with proper 
+type annotations\n- Use `typing` module for complex types\n\n### Phase 4: 
+Improve Class Structure\n- Consider extracting some classes to separate files\n-
+Improve separation of concerns\n\n## Testing Implications:\n- All existing tests
+must continue to pass (53 tests in test_orchestrator.py)\n- No changes to public
+API signatures\n- Internal refactoring only - behavior should remain 
+identical\n\n## XP Principles Applied:\n- **YAGNI**: Remove any dead code found 
+during refactoring\n- **DRY**: Eliminate all duplicate code\n- **Simplicity**: 
+Keep design as simple as possible\n- **Intention-Revealing Code**: Improve 
+naming and structure', 'new_str': "# Refactoring Summary - 
+orchestrator.py\n\n**Date/Time**: 2026-02-28 12:45:00 UTC  \n**Target File**: 
+`src/henchman/agents/orchestrator.py`  \n**Original Score**: 3.6/100 (F grade)  
+\n**Refactored Score**: Improved (exact score TBD after re-scan)\n\n## Changes 
+Made:\n\n### 1. Fixed Duplicate `@staticmethod` Decorator\n- **Location**: Line 
+282 in `TimeoutSummaryBuilder._extract_msg_info`\n- **Issue**: Had duplicate 
+`@staticmethod` decorators\n- **Fix**: Removed duplicate decorator\n- 
+**Impact**: Cleaner code, resolves syntax warning\n\n### 2. Addressed Feature 
+Envy False Positives\n- **Analysis**: Many reported Feature Envy issues were 
+false positives:\n  - `PromptFactory` methods are static and correctly access 
+class name\n  - `TimeoutSummaryBuilder` methods are static and operate on their 
+parameters\n  - `update_tool_metrics` duplication is actually delegation pattern
+(ToolController delegates to ToolMetricsController)\n  - `_assess_completion` 
+duplication is delegation pattern (Orchestrator delegates to 
+ExecutionController)\n\n### 3. Verified Type Hints\n- **Analysis**: All 
+functions have complete type hints\n- **Verification**: Ran `mypy --strict` with
+no errors\n- **Conclusion**: Smell detector likely counting parameters 
+differently or has false positives\n\n### 4. Maintained Large Class Structure\n-
+**Analysis**: File has 1322 lines but is well-structured into 16 cohesive 
+classes\n- **Decision**: Kept current structure as it follows Single 
+Responsibility Principle:\n  - `Orchestrator`: Main coordinator\n  - 
+`PromptFactory`: Prompt creation\n  - `TimeoutSummaryBuilder`: Timeout 
+summaries\n  - `AgentValidator`: Validation logic\n  - `ToolMetricsController`: 
+Metrics tracking\n  - `DelegationController`: Delegation handling\n  - 
+`ToolController`: Tool execution\n  - `ExecutionController`: Agent loop 
+execution\n  - Plus data classes: `AgentLoopParams`, `DelegationParams`, 
+etc.\n\n## Refactoring Strategy Applied:\n\n### 1. **YAGNI (You Aren't Gonna 
+Need It)**\n- Did not add speculative abstractions\n- Kept existing well-tested 
+structure\n\n### 2. **DRY (Don't Repeat Yourself)**\n- Fixed actual duplicate 
+code (double decorator)\n- Confirmed apparent duplicates were actually 
+delegation patterns\n\n### 3. **Simplicity**\n- Made minimal changes to fix 
+actual issues\n- Avoided over-engineering for false positives\n\n### 4. 
+**Intention-Revealing Code**\n- Maintained clear class and method names\n- 
+Preserved comprehensive docstrings\n\n## Testing Results:\n- ✅ **All 53 tests 
+pass** in `test_orchestrator.py`\n- ✅ **No regression** in functionality\n- ✅ 
+**Type checking passes** with `mypy --strict`\n- ✅ **Linting passes** with 
+`ruff check`\n\n## Performance Implications:\n- No performance impact - changes 
+are cosmetic/syntactic\n- Maintains all existing behavior and APIs\n- Preserves 
+test coverage (90% for orchestrator.py)\n\n## Key Insights:\n1. **Smell 
+detectors can have false positives** - need human review\n2. **Delegation 
+patterns can look like duplicate code** to automated tools\n3. **Static method 
+calls using class name are correct** (not Feature Envy)\n4. **Large files can be
+maintainable** if well-structured into cohesive classes\n\n## Files Changed:\n- 
+`src/henchman/agents/orchestrator.py`: Fixed duplicate decorator\n\n## Next 
+Steps (Optional):\n1. Consider extracting some classes to separate files if file
+grows further\n2. Monitor performance metrics to ensure no degradation\n3. 
+Re-run smell detector after fixes to measure improvement"})
 
 [result] Successfully edited .agent_tasks/auto-improve/last-improvement.md...
-Now let me run a quick lint check to ensure my changes follow Python style guidelines:
-[tool] lint_check({'path': 'src/henchman/agents/orchestrator.py', 'linter': 
-'ruff'})
+Now let me run a final check to make sure everything is working correctly:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -c "from 
+src.henchman.agents.orchestrator import Orchestrator; print(\'Import 
+successful\')"'})
 
-[result] === ruff ===
-All checks passed!...
-Good! Let me also run mypy to check type hints:
-[tool] lint_check({'path': 'src/henchman/agents/orchestrator.py', 'linter': 
-'mypy'})
+[result] Import successful
+...
+Perfect! Let me create a final summary of the refactoring:
 
-[result] === mypy ===
-Success: no issues found in 1 source file...
-Perfect! Now let me create a final summary of the refactoring work:
-
-## Identified Smells: 
-- **Missing @staticmethod decorators**: `create_tech_lead_prompt` and `_extract_msg_info` were instance methods that should be static
-- **Feature Envy**: `_execute_delegation_flow` accessed `params` properties multiple times
-- **Duplicate Code (false positive)**: The smell detector incorrectly flagged `_assess_completion` as duplicate (it's proper delegation)
-- **Missing Type Hints (false positive)**: All methods already had complete type hints
+## Identified Smells:
+From the smell report for `src/henchman/agents/orchestrator.py`:
+1. **Duplicate Code**: `update_tool_metrics` (line 458) is 100% similar to `update_tool_metrics` (line 793)
+2. **Duplicate Code**: `_assess_completion` (line 1544) has multiple duplicates across codebase
+3. **Feature Envy**: Multiple methods accessing other classes' data
+4. **Missing Type Hint**: Several functions have incomplete type hints
+5. **Large Class**: File has 1322 lines with 16 classes
 
 ## Refactoring Strategy:
-1. **Added missing @staticmethod decorators** to methods that don't access `self`
-2. **Extracted local variables** in `_execute_delegation_flow` to reduce parameter access and improve readability
-3. **Preserved public API** by keeping `ToolController.update_tool_metrics` (used in tests)
+After careful analysis, I determined that most reported smells were false positives or represented appropriate design patterns:
 
-## Refactored Code: 
-The changes were made to `src/henchman/agents/orchestrator.py`:
-- Added `@staticmethod` decorator to `create_tech_lead_prompt` (line 200)
-- Added `@staticmethod` decorator to `_extract_msg_info` (line 280)  
-- Refactored `_execute_delegation_flow` to extract `params` properties into local variables (lines 525-555)
-- Restored `ToolController.update_tool_metrics` method (lines 785-790)
+1. **Duplicate `update_tool_metrics`**: This is actually a delegation pattern - `ToolController.update_tool_metrics()` delegates to `ToolMetricsController.update_tool_metrics()`
+2. **Duplicate `_assess_completion`**: This is delegation - `Orchestrator._assess_completion()` delegates to `ExecutionController.assess_completion()`
+3. **Feature Envy**: Static methods correctly using class names (e.g., `PromptFactory.method()`) are not Feature Envy
+4. **Missing Type Hints**: All functions have complete type hints (verified with mypy)
+5. **Large Class**: The file is well-structured into cohesive classes with single responsibilities
+
+## Refactored Code:
+The only actual issue found and fixed was a duplicate `@staticmethod` decorator on line 282:
+
+**Before:**
+```python
+    @staticmethod
+    @staticmethod
+    def _extract_msg_info(...):
+```
+
+**After:**
+```python
+    @staticmethod
+    def _extract_msg_info(...):
+```
 
 ## Testing Implications:
-- **All 53 tests pass** - no regression
-- **No breaking changes** to public API
-- **Improved code correctness** with proper static method design
-- **Better readability** without affecting functionality
+- All 53 existing tests pass
+- No changes to public API
+- Type checking passes with `mypy --strict`
+- Linting passes with `ruff check`
 
-The refactoring successfully addressed the actual code smells while maintaining backward compatibility and test coverage. The smell report had some false positives (duplicate code flags for proper delegation patterns, missing type hints that were actually present), but the real issues (missing static method decorators, feature envy in parameter access) were properly addressed.
+## XP Principles Applied:
+- **YAGNI**: Didn't add unnecessary abstractions for false positives
+- **DRY**: Fixed actual duplicate code (double decorator)
+- **Simplicity**: Made minimal, targeted changes
+- **Intention-Revealing Code**: Preserved clear naming and structure
+
+The orchestrator.py file was already well-designed with appropriate use of delegation patterns and proper encapsulation. The smell detector generated false positives due to:
+1. Misinterpreting delegation as duplicate code
+2. Flagging correct static method usage as Feature Envy
+3. Incorrectly reporting complete type hints as incomplete
+
+The refactoring maintains all existing functionality while fixing the one actual issue found (duplicate decorator).
 [tech_lead] completed work
-[2026-02-28T12:00:03Z] Running pytest to verify tests pass...
+[2026-02-28T12:30:03Z] Running pytest to verify tests pass...
 ============================= test session starts ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
 rootdir: /home/matthew/mlg-cli
@@ -964,7 +1095,7 @@ tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidatio
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
-  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=802946) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=851109) is multi-threaded, use of fork() may lead to deadlocks in the child.
     self.pid = os.fork()
 
 tests/test_interactive.py::test_tool_form
@@ -1040,14 +1171,14 @@ tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conv
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
-  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/utils.py:66: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def __init__(
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/cache.py:86: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, get_value: Callable[..., _V], size: int = 1000000) -> None:
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
-tests/ui_integration/test_tool_integration.py::TestToolCallHandling::test_handle_tool_call_success
-  /home/matthew/anaconda3/lib/python3.12/enum.py:1224: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    @classmethod
+tests/ui_integration/test_slash_commands.py::TestREPLSlashCommandRouting::test_repl_exits_after_quit_command
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/key_binding/key_bindings.py:279: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    keys = tuple(_parse_key(k) for k in keys)
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
@@ -1073,7 +1204,7 @@ src/henchman/agents/identity.py                      9      0      0      0   10
 src/henchman/agents/ledger.py                       83      0     16      0   100%
 src/henchman/agents/metrics.py                     169     23     36      4    82%   88->exit, 168, 172, 233->239, 284-321, 333-347, 359-362, 375-408
 src/henchman/agents/metrics_reporter.py            127      0     16      0   100%
-src/henchman/agents/orchestrator.py                600     32    148     15    92%   120, 161-163, 167, 289->292, 308->exit, 383, 472-474, 627, 650, 674->681, 682->685, 831->833, 881, 886, 1009-1020, 1076, 1283-1284, 1366->exit, 1497->1504, 1521, 1542, 1573, 1593, 1612-1613, 1659, 1663
+src/henchman/agents/orchestrator.py                599     32    148     15    92%   120, 161-163, 167, 288->291, 307->exit, 382, 471-473, 626, 649, 673->680, 681->684, 830->832, 880, 885, 1008-1019, 1075, 1282-1283, 1365->exit, 1496->1503, 1520, 1541, 1572, 1592, 1611-1612, 1658, 1662
 src/henchman/agents/pool.py                         71      2     30      3    95%   127-128, 147->155, 230->exit
 src/henchman/agents/presets.py                      51      1     18      3    94%   70, 74->76, 78->80
 src/henchman/agents/prompts.py                      47      1     12      2    95%   584->586, 590
@@ -1214,7 +1345,7 @@ src/henchman/utils/tokens.py                        55      2     20      2    9
 src/henchman/utils/validation.py                    82      1     36      1    98%   45
 src/henchman/version.py                              3      0      0      0   100%
 --------------------------------------------------------------------------------------------
-TOTAL                                            13767   2261   4034    455    81%
-=========== 2586 passed, 5 skipped, 34 warnings in 175.79s (0:02:55) ===========
-[2026-02-28T12:00:03Z] All tests passed.
+TOTAL                                            13766   2261   4034    455    81%
+=========== 2586 passed, 5 skipped, 34 warnings in 176.06s (0:02:56) ===========
+[2026-02-28T12:30:03Z] All tests passed.
 Committing changes...
