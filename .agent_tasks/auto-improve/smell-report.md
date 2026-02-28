@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-28T08:00:19.594135+00:00_
+_Generated: 2026-02-28T08:30:18.776996+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-02-28T08:00:19.594135+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 40.1/100 |
 | **Files Scanned** | 149 |
-| **Total Lines (non-blank)** | 30,580 |
-| **Total Smells** | 2601 |
+| **Total Lines (non-blank)** | 30,597 |
+| **Total Smells** | 2603 |
 | **Avg Maintainability Index** | 69.7 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-02-28T08:00:19.594135+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1839 |
+| low | 1841 |
 | medium | 637 |
 | high | 125 |
 
@@ -28,13 +28,13 @@ _Generated: 2026-02-28T08:00:19.594135+00:00_
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1271 |
+| Missing Type Hint | 1272 |
 | Feature Envy | 350 |
 | Duplicate Code | 314 |
 | Magic Number | 175 |
 | Long Method | 159 |
 | Deep Nesting | 152 |
-| Primitive Obsession | 85 |
+| Primitive Obsession | 86 |
 | Complex Function | 56 |
 | Large Class | 39 |
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/orchestrator.py | ❌ F | 3.9 | 80 | 1225 | 13 | 0.0 |
+| 1 | agents/orchestrator.py | ❌ F | 3.8 | 82 | 1242 | 13 | 0.0 |
 | 2 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
 | 3 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 4 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
@@ -122,16 +122,16 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 129 additional files omitted._
 
-### agents/orchestrator.py — ❌ F (3.9/100)
+### agents/orchestrator.py — ❌ F (3.8/100)
 
-LOC: 1225 | Classes: 13 | Functions: 0 | MI: 13 | Avg CC: 0.0
+LOC: 1242 | Classes: 13 | Functions: 0 | MI: 13 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 1412 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_theme' at cli/console.py:169 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1412 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_rich_status_message' at cli/output_handler.py:225 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1412 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'load' at cli/session_manager.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1412 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'compute_project_hash' at cli/session_manager.py:199 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1433 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_theme' at cli/console.py:169 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1433 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_rich_status_message' at cli/output_handler.py:225 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1433 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'load' at cli/session_manager.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1433 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'compute_project_hash' at cli/session_manager.py:199 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 184 | 🟢 LOW | Feature Envy | Method 'PromptFactory.create_tech_lead_prompt' accesses 'cls' 4 times but 'self' only 0 times | Move Method — consider moving 'create_tech_lead_prompt' to the class that owns 'cls'. |
 | 267 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_msg_info' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_msg_info' to the class that owns 'msg'. |
 | 282 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_tool_info' accesses 'tc' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_tool_info' to the class that owns 'tc'. |
@@ -140,11 +140,11 @@ LOC: 1225 | Classes: 13 | Functions: 0 | MI: 13 | Avg CC: 0.0
 | 382 | 🟢 LOW | Missing Type Hint | Function '_handle_valid_thinking_pattern' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 395 | 🟢 LOW | Missing Type Hint | Function '_handle_missing_thinking_pattern' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 447 | 🟢 LOW | Missing Type Hint | Function 'process_pending_tool_calls' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 465 | 🟢 LOW | Long Method | Function 'execute_delegation_tool' has 47 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 465 | 🟢 LOW | Missing Type Hint | Function 'execute_delegation_tool' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 521 | 🟢 LOW | Missing Type Hint | Function '_register_delegation_in_ledger' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 491 | 🟢 LOW | Long Method | Function '_execute_delegation_flow' has 35 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 491 | 🟢 LOW | Missing Type Hint | Function '_execute_delegation_flow' has incomplete type hints: 1/7 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 65 more smells._
+_... and 67 more smells._
 
 ### utils/intelligent_context.py — ❌ F (6.4/100)
 
