@@ -6,10 +6,10 @@ import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from henchman.agents.delegation import DelegationRunner
-from henchman.agents.identity import AgentIdentity
 from henchman.agents.ledger import TaskLedger
 from henchman.agents.metrics import (
     PERCENTAGE_MULTIPLIER as PERCENTAGE_MULTIPLIER,
@@ -51,6 +51,7 @@ from henchman.tools.registry import ToolRegistry
 @dataclass
 class AgentLoopParams:
     """Parameters for running an agent loop."""
+
     agent: Agent | None = None
     target_role: str | None = None
     input_text: str = ""
@@ -63,6 +64,7 @@ class AgentLoopParams:
 @dataclass
 class DelegationParams:
     """Parameters for delegating a task to a specialist agent."""
+
     target_role: str
     task: str
     brief: dict[str, Any] | None = None
@@ -78,6 +80,7 @@ class TurnEnforcementParams:
 
     Encapsulates parameters for turn limits to address Primitive Obsession.
     """
+
     agent: Agent
     max_turns: int
     tool_call_count: int
@@ -88,6 +91,7 @@ class TurnEnforcementParams:
 @dataclass
 class LoopState:
     """Internal state for the agent execution loop."""
+
     tool_call_count: int = 0
     tool_errors: list[str] = field(default_factory=list)
     wrapup_warned: bool = False
@@ -97,6 +101,7 @@ class LoopState:
 @dataclass
 class NoPendingToolsResult:
     """Result of handling no pending tools."""
+
     events_to_yield: list[AgentEvent] = field(default_factory=list)
     colon_stall_detected: bool = False
     colon_stall_result: tuple[AsyncIterator[AgentEvent], int] | None = None
@@ -104,6 +109,7 @@ class NoPendingToolsResult:
 
 class PromptFactory:
     """Factory for creating agent system prompts."""
+
     @staticmethod
     def create_tech_lead_prompt(
         agent_configs: dict[str, Any],
@@ -124,9 +130,7 @@ class PromptFactory:
 
         enabled_configs = [c for c in agent_configs.values() if c.enabled]
         team_members = [f"{config.name} ({config.role})" for config in enabled_configs]
-        team_descriptions = {
-            config.role: config.description or "" for config in enabled_configs
-        }
+        team_descriptions = {config.role: config.description or "" for config in enabled_configs}
         delegatable_agents = [config.role for config in enabled_configs]
 
         return system_prompt or get_agent_prompt(
@@ -140,6 +144,7 @@ class PromptFactory:
 
 class TimeoutSummaryBuilder:
     """Helper for building timeout summaries for agents."""
+
     @staticmethod
     def build_summary(agent: Agent, msg_start: int) -> str:
         """Build a progress summary from the agent's work so far.
@@ -166,7 +171,9 @@ class TimeoutSummaryBuilder:
         return TimeoutSummaryBuilder._format_summary(tools_used, files_touched, narration_parts)
 
     @staticmethod
-    def _extract_msg_info(msg: Message, tools_used: list[str], files_touched: set[str], narration_parts: list[str]) -> None:
+    def _extract_msg_info(
+        msg: Message, tools_used: list[str], files_touched: set[str], narration_parts: list[str]
+    ) -> None:
         if msg.tool_calls:
             for tc in msg.tool_calls:
                 TimeoutSummaryBuilder._extract_tool_info(tc, tools_used, files_touched)
@@ -175,15 +182,19 @@ class TimeoutSummaryBuilder:
 
     @staticmethod
     def _extract_tool_info(tc: ToolCall, tools_used: list[str], files_touched: set[str]) -> None:
-        args_str = ', '.join(f'{k}={v!r}' for k, v in list(tc.arguments.items())[:MAX_TOOL_ARGUMENTS_TO_DISPLAY])
+        args_str = ", ".join(
+            f"{k}={v!r}" for k, v in list(tc.arguments.items())[:MAX_TOOL_ARGUMENTS_TO_DISPLAY]
+        )
         tools_used.append(f"{tc.name}({args_str})")
-        
+
         path = tc.arguments.get("path") or tc.arguments.get("file_path")
         if path and isinstance(path, str):
             files_touched.add(path)
 
     @staticmethod
-    def _format_summary(tools_used: list[str], files_touched: set[str], narration_parts: list[str]) -> str:
+    def _format_summary(
+        tools_used: list[str], files_touched: set[str], narration_parts: list[str]
+    ) -> str:
         lines = ["**Progress at timeout:**"]
         if tools_used:
             lines.append(f"- Tool calls made: {len(tools_used)}")
@@ -193,7 +204,9 @@ class TimeoutSummaryBuilder:
         if files_touched:
             lines.append(f"- Files touched: {', '.join(sorted(files_touched))}")
         if narration_parts:
-            lines.append(f"- Last agent output: {narration_parts[-1][:MAX_NARRATION_DISPLAY_LENGTH]}")
+            lines.append(
+                f"- Last agent output: {narration_parts[-1][:MAX_NARRATION_DISPLAY_LENGTH]}"
+            )
         if not tools_used and not narration_parts:
             lines.append("- No significant progress was made.")
         return "\n".join(lines)
@@ -201,7 +214,8 @@ class TimeoutSummaryBuilder:
 
 class OrchestratorComponent:
     """Base class for orchestrator components with shared initialization."""
-    def __init__(self, orchestrator: "Orchestrator"):
+
+    def __init__(self, orchestrator: Orchestrator):
         self.orchestrator = orchestrator
         self.metrics = orchestrator.metrics
 
@@ -330,8 +344,7 @@ class ToolController(OrchestratorComponent):
         # Specialist doing no work is a soft failure — inform the Tech Lead
         if delegation_status == "no_work_done":
             result_content = (
-                f"⚠️ Agent {target} ended without making any tool calls.\n\n"
-                f"{result_content}"
+                f"⚠️ Agent {target} ended without making any tool calls.\n\n{result_content}"
             )
 
         # Process delegation result
@@ -389,8 +402,6 @@ class ToolController(OrchestratorComponent):
     ) -> AsyncIterator[AgentEvent]:
         """Execute a delegation to a specialist agent."""
         return self.orchestrator._delegation_runner.run_delegation(params)
-
-
 
     def update_delegation_metrics(self, target: str) -> None:
         """Update metrics for a delegation."""
@@ -453,9 +464,7 @@ class ToolController(OrchestratorComponent):
             "depends_on": tool_call.arguments.get("depends_on"),
         }
 
-    def update_tool_metrics(
-        self, tool_name: str, arguments: dict[str, Any], success: bool
-    ) -> None:
+    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
         """Update metrics for a tool call."""
         self.metrics.update_tool_metrics(tool_name, arguments, success)
 
@@ -485,7 +494,8 @@ class ToolController(OrchestratorComponent):
 
 class ExecutionController:
     """Manages agent execution loops and state."""
-    def __init__(self, orchestrator: "Orchestrator"):
+
+    def __init__(self, orchestrator: Orchestrator):
         self.orchestrator = orchestrator
 
     async def run_agent_loop(
@@ -502,7 +512,7 @@ class ExecutionController:
 
         while True:
             pending_tool_calls: list[ToolCall] = []
-            
+
             # Collect events and extract tool calls
             async for event in self.collect_events_and_tool_calls(generator, pending_tool_calls):
                 yield event
@@ -512,21 +522,23 @@ class ExecutionController:
                 if result is None:
                     # Agent finished
                     break
-                
+
                 events_to_yield, colon_stall_result = result
                 for event in events_to_yield:
                     yield event
-                
+
                 if colon_stall_result is not None:
                     # Colon stall occurred
                     generator, state.colon_stall_retries = colon_stall_result
                     continue
-                
+
                 # Agent finished (after yielding events)
                 break
 
             # Execute pending tools
-            async for event in self._execute_pending_tools(agent, pending_tool_calls, params, state):
+            async for event in self._execute_pending_tools(
+                agent, pending_tool_calls, params, state
+            ):
                 yield event
 
             # Check turn limits
@@ -549,14 +561,14 @@ class ExecutionController:
         state: LoopState,
     ) -> tuple[list[AgentEvent], tuple[AsyncIterator[AgentEvent], int] | None] | None:
         """Handle case when no tool calls are pending.
-        
+
         Returns:
             - None: Agent finished with no events to yield
             - (events, None): Agent finished with events to yield
             - (events, (generator, retries)): Colon stall occurred
         """
         events: list[AgentEvent] = []
-        
+
         # Check thinking patterns
         thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)
         if thinking_event:
@@ -646,7 +658,9 @@ class ExecutionController:
         colon_stall_retries: int,
     ) -> tuple[AsyncIterator[AgentEvent], int] | None:
         """Check for colon stall pattern and handle if detected."""
-        return self._check_colon_stall_common(agent, colon_stall_retries, self.last_assistant_content)
+        return self._check_colon_stall_common(
+            agent, colon_stall_retries, self.last_assistant_content
+        )
 
     def _check_colon_stall_common(
         self,
@@ -655,12 +669,12 @@ class ExecutionController:
         content_getter: Callable[[Agent], str],
     ) -> tuple[AsyncIterator[AgentEvent], int] | None:
         """Common logic for checking colon stall pattern.
-        
+
         Args:
             agent: The agent to check.
             colon_stall_retries: Current colon stall retry count.
             content_getter: Function to get the last assistant content.
-            
+
         Returns:
             - None: No colon stall detected
             - Tuple: Colon stall detected, return updated generator and retry count
@@ -675,9 +689,7 @@ class ExecutionController:
             and len(last_content.strip()) > _COLON_STALL_MIN_LENGTH
         ):
             colon_stall_retries += 1
-            agent.messages.append(
-                Message(role="user", content=_COLON_STALL_NUDGE)
-            )
+            agent.messages.append(Message(role="user", content=_COLON_STALL_NUDGE))
             return agent.continue_with_tool_results(), colon_stall_retries
 
         return None
@@ -708,7 +720,7 @@ class ExecutionController:
         params: TurnEnforcementParams,
     ) -> tuple[bool, bool, AgentEvent | None]:
         """Common logic for enforcing turn limits with warnings and hard stops.
-        
+
         Args:
             params: Parameters for turn limit enforcement.
 
@@ -873,16 +885,25 @@ class Orchestrator:
             environment_context: Pre-formatted environment block for agents.
         """
         self._initialize_basic_attributes(
-            default_provider, provider_registry, tool_registry, event_bus, settings, environment_context
+            default_provider,
+            provider_registry,
+            tool_registry,
+            event_bus,
+            settings,
+            environment_context,
         )
         self._initialize_metrics_and_state()
         self.validator = AgentValidator(self)
         self.tool_controller = ToolController(self)
         self.execution_controller = ExecutionController(self)
         agent_configs = self._load_agent_configs()
-        self._create_agent_pool(agent_configs, default_provider, provider_registry, environment_context)
+        self._create_agent_pool(
+            agent_configs, default_provider, provider_registry, environment_context
+        )
         self._initialize_shared_context_and_ledger()
-        self._setup_tech_lead_agent(agent_configs, default_provider, system_prompt, environment_context)
+        self._setup_tech_lead_agent(
+            agent_configs, default_provider, system_prompt, environment_context
+        )
         self._initialize_delegation_runner()
 
     def _initialize_basic_attributes(
@@ -925,7 +946,7 @@ class Orchestrator:
         # The completion status of the most recent run()/run_direct() call
         self.last_completion_status: CompletionStatus = CompletionStatus.COMPLETED
 
-    def _assess_completion(self, agent: "Agent") -> "CompletionStatus":
+    def _assess_completion(self, agent: Agent) -> CompletionStatus:
         """Proxy to ExecutionController.assess_completion for backward compatibility.
 
         Args:
@@ -937,7 +958,7 @@ class Orchestrator:
         return self.execution_controller.assess_completion(agent)
 
     @staticmethod
-    def _last_assistant_content(agent: "Agent") -> str:
+    def _last_assistant_content(agent: Agent) -> str:
         """Return the content of the agent's last assistant message.
 
         Args:
@@ -1024,7 +1045,9 @@ class Orchestrator:
             environment_context: Pre-formatted environment block for agents.
         """
         self._register_delegate_task_tool()
-        tl_prompt = PromptFactory.create_tech_lead_prompt(agent_configs, system_prompt, environment_context)
+        tl_prompt = PromptFactory.create_tech_lead_prompt(
+            agent_configs, system_prompt, environment_context
+        )
         tl_identity = self._create_tech_lead_identity()
         self._create_tech_lead_agent(default_provider, tl_prompt, tl_identity)
         self._configure_tech_lead_stall_detection()
@@ -1182,14 +1205,11 @@ class Orchestrator:
             source_agent="orchestrator",
         )
 
-
-
     def _enforce_turn_limits(
         self,
         params: TurnEnforcementParams,
     ) -> tuple[bool, bool, AgentEvent | None]:
         """Enforce turn limits with warnings and hard stops.
-
         Args:
             params: Parameters for turn limit enforcement.
 
@@ -1197,123 +1217,6 @@ class Orchestrator:
             Tuple of (should_break, new_wrapup_warned, error_event).
         """
         return self.execution_controller.enforce_turn_limits(params)
-
-    async def _run_agent_loop(
-        self,
-        params: AgentLoopParams,
-    ) -> AsyncIterator[AgentEvent]:
-        """Handle the run loop for an agent, executing tools and intercepting delegations.
-
-        This method is the core execution engine. It:
-        1. Runs the agent and collects events
-        2. Collects ALL tool calls from a single LLM response
-        3. Executes regular tools via the agent's tool registry
-        4. Intercepts ``delegate_task`` calls and runs sub-agent loops
-        5. Submits all results back to the agent and continues
-        6. Periodically re-injects role anchoring reminders (Task 5)
-        7. Enforces per-delegation turn limits with wrap-up warnings
-        8. Tracks tool errors for aggregation in delegation summaries
-
-        Args:
-            params: Agent loop parameters containing agent, input, depth, etc.
-
-        Yields:
-            AgentEvents from the agent loop.
-        """
-        # Extract parameters from the params object
-        agent = params.agent
-        if agent is None:
-            raise ValueError("Agent must be provided in AgentLoopParams")
-
-        user_input = params.input_text
-        depth = params.depth
-        max_turns = params.max_turns
-        msg_start_index = params.msg_start_index
-
-        generator: AsyncIterator[AgentEvent] = agent.run(user_input)
-        state = LoopState()
-
-        while True:
-            # Drain the current generator, collecting tool calls
-            pending_tool_calls: list[ToolCall] = []
-
-            # Collect events and extract tool calls
-            async for event in self.collect_events_and_tool_calls(generator, pending_tool_calls):
-                yield event
-
-            if not pending_tool_calls:
-                colon_stall_result = self._handle_no_pending_tools(agent, state)
-                for event in colon_stall_result.events_to_yield:
-                    yield event
-                
-                if colon_stall_result.colon_stall_detected:
-                    # Colon stall occurred, update generator and retry count
-                    generator, state.colon_stall_retries = colon_stall_result.colon_stall_result
-                    continue
-                
-                # Agent finished — exit the loop
-                break
-            should_break, state.wrapup_warned, error_event = self._enforce_turn_limits(
-                TurnEnforcementParams(
-                    agent=agent,
-                    max_turns=max_turns,
-                    tool_call_count=state.tool_call_count,
-                    msg_start_index=msg_start_index,
-                    wrapup_warned=state.wrapup_warned,
-                )
-            )
-            if error_event:
-                yield error_event
-            if should_break:
-                break
-
-            # Execute all pending tool calls (regular + delegation)
-            async for event in self.tool_controller.process_pending_tool_calls(
-                agent, pending_tool_calls, depth, state.tool_errors
-            ):
-                yield event
-
-            state.tool_call_count += len(pending_tool_calls)
-
-            # All tool results submitted — continue the agent
-            generator = agent.continue_with_tool_results()
-
-        # Store tool errors on the agent for the caller to retrieve
-        if not hasattr(agent, "_delegation_tool_errors"):
-            agent._delegation_tool_errors = []  # type: ignore[attr-defined]
-        agent._delegation_tool_errors = state.tool_errors  # type: ignore[attr-defined]
-
-        # Store final tool call count so callers can assess completion
-        self._last_loop_tool_call_count = state.tool_call_count
-
-    def _handle_no_pending_tools(
-        self,
-        agent: Agent,
-        state: LoopState,
-    ) -> NoPendingToolsResult:
-        """Handle the case when no tool calls are pending.
-        
-        Returns:
-            NoPendingToolsResult with events to yield and colon stall info.
-        """
-        result = NoPendingToolsResult()
-        
-        # Check thinking patterns and stall failures when no tools are pending
-        thinking_event = self.validator.check_thinking_pattern(agent)
-        if thinking_event:
-            result.events_to_yield.append(thinking_event)
-
-        stall_event = self.validator.check_stall_failure(agent)
-        if stall_event:
-            result.events_to_yield.append(stall_event)
-
-        # Check for colon stall
-        colon_stall_result = self._check_colon_stall(agent, state.colon_stall_retries)
-        if colon_stall_result is not None:
-            result.colon_stall_detected = True
-            result.colon_stall_result = colon_stall_result
-        
-        return result
 
     def _check_colon_stall(
         self,
@@ -1336,9 +1239,8 @@ class Orchestrator:
         """
         return self.execution_controller.check_colon_stall(agent, colon_stall_retries)
 
-
-
     def _prepare_delegation_context(
+        self,
         target_role: str,
         brief: dict[str, Any] | None,
     ) -> dict[str, Any]:
