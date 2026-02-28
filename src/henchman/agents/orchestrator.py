@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from collections.abc import Callable
 from typing import Any
 
 from henchman.agents.delegation import DelegationRunner
@@ -87,7 +86,7 @@ class TurnEnforcementParams:
     msg_start_index: int
     wrapup_warned: bool
 
-    def enforce_limits(self) -> tuple[bool, bool, AgentEvent | None]:
+    def enforce_limits(self: TurnEnforcementParams) -> tuple[bool, bool, AgentEvent | None]:
         """Enforce turn limits with warnings and hard stops.
 
         Returns:
@@ -106,7 +105,7 @@ class TurnEnforcementParams:
 
         return False, self.wrapup_warned, None
 
-    def _handle_turn_limit_reached(self) -> tuple[bool, bool, AgentEvent | None]:
+    def _handle_turn_limit_reached(self: TurnEnforcementParams) -> tuple[bool, bool, AgentEvent | None]:
         """Handle case when turn limit has been reached."""
         from .orchestrator import TimeoutSummaryBuilder
 
@@ -117,7 +116,7 @@ class TurnEnforcementParams:
         error_event = self._create_turn_limit_error_event()
         return True, self.wrapup_warned, error_event
 
-    def _create_turn_limit_message(self, progress: str) -> str:
+    def _create_turn_limit_message(self: TurnEnforcementParams, progress: str) -> str:
         """Create turn limit reached message with progress summary."""
         return (
             "[TURN LIMIT REACHED] You have used all available "
@@ -126,7 +125,7 @@ class TurnEnforcementParams:
             "The Tech Lead will decide how to proceed."
         )
 
-    def _create_turn_limit_error_event(self) -> AgentEvent:
+    def _create_turn_limit_error_event(self: TurnEnforcementParams) -> AgentEvent:
         """Create error event for turn limit reached."""
         from henchman.core.events import EventType
 
@@ -137,13 +136,13 @@ class TurnEnforcementParams:
             source_agent="orchestrator",
         )
 
-    def _handle_wrapup_warning(self, remaining: int) -> tuple[bool, bool, AgentEvent | None]:
+    def _handle_wrapup_warning(self: TurnEnforcementParams, remaining: int) -> tuple[bool, bool, AgentEvent | None]:
         """Handle wrap-up warning when turns are running low."""
         warn_msg = self._create_wrapup_warning_message(remaining)
         self.agent.messages.append(Message(role="user", content=warn_msg))
         return False, True, None
 
-    def _create_wrapup_warning_message(self, remaining: int) -> str:
+    def _create_wrapup_warning_message(self: TurnEnforcementParams, remaining: int) -> str:
         """Create wrap-up warning message."""
         return (
             f"[WRAP-UP WARNING] You have {remaining} tool-call "
@@ -179,7 +178,7 @@ class PromptFactory:
 
     @classmethod
     def create_tech_lead_prompt(
-        cls,
+        cls: type[PromptFactory],
         agent_configs: dict[str, Any],
         system_prompt: str | None,
         environment_context: str | None,
@@ -210,22 +209,22 @@ class PromptFactory:
         )
 
     @classmethod
-    def _get_enabled_agent_configs(cls, agent_configs: dict[str, Any]) -> list[Any]:
+    def _get_enabled_agent_configs(cls: type[PromptFactory], agent_configs: dict[str, Any]) -> list[Any]:
         """Get enabled agent configurations from the config dictionary."""
         return [c for c in agent_configs.values() if c.enabled]
 
     @classmethod
-    def _build_team_members_list(cls, enabled_configs: list[Any]) -> list[str]:
+    def _build_team_members_list(cls: type[PromptFactory], enabled_configs: list[Any]) -> list[str]:
         """Build list of team member descriptions."""
         return [f"{config.name} ({config.role})" for config in enabled_configs]
 
     @classmethod
-    def _build_team_descriptions_dict(cls, enabled_configs: list[Any]) -> dict[str, str]:
+    def _build_team_descriptions_dict(cls: type[PromptFactory], enabled_configs: list[Any]) -> dict[str, str]:
         """Build dictionary of role descriptions."""
         return {config.role: config.description or "" for config in enabled_configs}
 
     @classmethod
-    def _build_delegatable_agents_list(cls, enabled_configs: list[Any]) -> list[str]:
+    def _build_delegatable_agents_list(cls: type[PromptFactory], enabled_configs: list[Any]) -> list[str]:
         """Build list of delegatable agent roles."""
         return [config.role for config in enabled_configs]
 
@@ -650,7 +649,7 @@ class ExecutionController:
 
         while True:
             pending_tool_calls: list[ToolCall] = []
-            
+
             # Collect events and extract tool calls
             async for event in self.collect_events_and_tool_calls(generator, pending_tool_calls):
                 yield event
@@ -659,14 +658,14 @@ class ExecutionController:
                 should_continue, events_to_yield, colon_stall_result = await self._handle_no_pending_tools_flow(
                     agent, state
                 )
-                
+
                 # Yield any events from thinking patterns or stall failures
                 for event in events_to_yield:
                     yield event
-                
+
                 if not should_continue:
                     break
-                    
+
                 if colon_stall_result is not None:
                     # Colon stall occurred - update generator and continue
                     generator, state.colon_stall_retries = colon_stall_result
@@ -705,7 +704,7 @@ class ExecutionController:
         state: LoopState,
     ) -> tuple[bool, list[AgentEvent], tuple[AsyncIterator[AgentEvent], int] | None]:
         """Handle the flow when no tool calls are pending.
-        
+
         Returns:
             Tuple of (should_continue, events_to_yield, colon_stall_result)
             where should_continue is True if loop should continue, False to break.
@@ -725,7 +724,7 @@ class ExecutionController:
         state: LoopState,
     ) -> tuple[bool, AgentEvent | None]:
         """Check turn limits and handle if reached.
-        
+
         Returns:
             Tuple of (should_break, error_event) where should_break is True
             if turn limit reached and loop should break.
@@ -1072,7 +1071,7 @@ class Orchestrator:
         # The completion status of the most recent run()/run_direct() call
         self.last_completion_status: CompletionStatus = CompletionStatus.COMPLETED
 
-    def _assess_completion(self, agent: Agent) -> CompletionStatus:
+    def _assess_completion(self: Orchestrator, agent: Agent) -> CompletionStatus:
         """Proxy to ExecutionController.assess_completion for backward compatibility.
 
         Args:
