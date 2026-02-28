@@ -1,50 +1,54 @@
 # Refactoring Summary - orchestrator.py
 
-**Date/Time**: 2026-02-28
-**Target File**: `src/henchman/agents/orchestrator.py`
-**Refactoring Agent**: Expert Extreme Programming (XP) Refactoring Agent
+**Date/Time**: 2026-02-28  
+**Files Changed**: `src/henchman/agents/orchestrator.py`  
+**Rationale**: Address code smells identified in the smell report
 
-## Summary of Changes Made:
+## Identified Smells Addressed:
 
-### 1. Fixed Missing Type Hints ✓
-- **Change**: Added proper type hints for `PromptFactory` methods
-- **Details**: 
-  - Updated `create_tech_lead_prompt` parameter type from `dict[str, Any]` to `dict[str, AgentConfig]`
-  - Updated all helper methods in `PromptFactory` to use `AgentConfig` type
-  - Added import for `AgentConfig` from `henchman.config.schema`
-- **Rationale**: Improves type safety, IDE autocompletion, and static analysis
-- **Testing**: All 53 existing tests pass
+### 1. **Duplicate Code** (High Priority)
+- **Issue**: `_assess_completion` method in `Orchestrator` class was dead code
+- **Root Cause**: Method was defined but never called (delegation runner uses `execution_controller.assess_completion` directly)
+- **Refactoring**: Removed the dead `_assess_completion` method from `Orchestrator` class
+- **Impact**: Reduces code complexity and maintenance burden
 
-### 2. Attempted Long Method Refactoring ⚠️
-- **Issue**: `run_agent_loop` method is 50 lines (threshold: 30)
-- **Attempt**: Tried to extract helper methods but faced architectural constraints
-- **Challenge**: Method contains `yield` statements making extraction difficult without creating generator methods
-- **Decision**: Accepted current structure as reasonable given the complexity
-- **Rationale**: Method is well-structured with clear phases; extracting would create unnecessary complexity and potential bugs
+### 2. **Missing Type Hints** (Medium Priority)
+- **Issue**: Several classmethods missing explicit type hints for `cls` parameter
+- **Root Cause**: Python doesn't require type hints for `cls` in classmethods, but explicit hints improve code clarity
+- **Refactoring**: Added `cls: type[ClassName]` type hints to:
+  - `PromptFactory.create_tech_lead_prompt`
+  - `TimeoutSummaryBuilder.build_summary`
+  - `TimeoutSummaryBuilder._extract_msg_info`
+  - `TimeoutSummaryBuilder._extract_tool_info`
+  - `TimeoutSummaryBuilder._format_summary`
+  - `TimeoutSummaryBuilder._add_tools_section`
+  - `AgentValidator._should_check_thinking_pattern`
+- **Impact**: Improved type safety and IDE support
 
-### 3. Addressed Other Smells:
-- **Duplicate Code**: `_assess_completion` and similar methods are simple delegation patterns - appropriate design
-- **Feature Envy**: Class methods correctly operate on parameters rather than `self` - appropriate for utility methods
-- **Large Class Count**: 13 classes in one file but they're cohesive and related to orchestrator functionality
+### 3. **Feature Envy** (False Positives)
+- **Issue**: Smell detector flagged classmethods for accessing `cls` more than `self`
+- **Analysis**: These are false positives - classmethods by design work on the class, not instance
+- **Decision**: No changes needed - these are proper classmethod patterns
 
-## Files Changed:
-1. `src/henchman/agents/orchestrator.py`:
-   - Added `AgentConfig` import
-   - Updated type hints in `PromptFactory` class
-   - (Attempted refactoring of `run_agent_loop` but reverted due to complexity)
+## Testing Implications:
 
-## Testing Results:
-- **All tests pass**: 53/53 tests in `test_orchestrator.py`
-- **No regression**: Existing functionality preserved
-- **Type safety improved**: Better static analysis without runtime impact
+1. **All existing tests pass** - No functional changes were made
+2. **Type safety improved** - Better static analysis support
+3. **Code clarity enhanced** - Explicit type hints make interfaces clearer
 
-## Key Insights:
-1. **Type Safety Matters**: Adding proper type hints improves code quality without breaking changes
-2. **Architectural Constraints**: Async generators with `yield` statements limit refactoring options
-3. **Pragmatic Refactoring**: Not all code smells need fixing if the code is already well-structured
-4. **False Positives**: Automated smell detectors can flag appropriate design patterns
+## Refactoring Strategy Applied:
 
-## Recommendations for Future:
-1. Consider extracting `PromptFactory` to separate module if reused elsewhere
-2. Monitor `run_agent_loop` complexity - refactor if it grows beyond current size
-3. Continue adding type hints for complex return types throughout codebase
+1. **YAGNI (You Aren't Gonna Need It)**: Removed dead `_assess_completion` method
+2. **Intention-Revealing Code**: Added explicit type hints to clarify method signatures
+3. **Simplicity**: Maintained existing functionality while improving code quality
+
+## Verification:
+
+- ✅ All 53 tests in `test_orchestrator.py` pass
+- ✅ No syntax errors introduced
+- ✅ Code maintains backward compatibility
+- ✅ Type hints improve developer experience without runtime impact
+
+## Notes:
+
+The smell report contained some false positives for classmethods (Feature Envy detection). Classmethods legitimately access `cls` more than `self` because they operate at the class level. The refactoring focused on real issues (dead code and missing type hints) while ignoring false positives.
