@@ -196,8 +196,9 @@ class NoPendingToolsResult:
 class PromptFactory:
     """Factory for creating agent system prompts."""
 
-    @staticmethod
+    @classmethod
     def create_tech_lead_prompt(
+        cls,
         agent_configs: dict[str, AgentConfig],
         system_prompt: str | None,
         environment_context: str | None,
@@ -214,10 +215,10 @@ class PromptFactory:
         """
         from henchman.agents.prompts import get_agent_prompt
 
-        enabled_configs = PromptFactory._get_enabled_agent_configs(agent_configs)
-        team_members = PromptFactory._build_team_members_list(enabled_configs)
-        team_descriptions = PromptFactory._build_team_descriptions_dict(enabled_configs)
-        delegatable_agents = PromptFactory._build_delegatable_agents_list(enabled_configs)
+        enabled_configs = cls._get_enabled_agent_configs(agent_configs)
+        team_members = cls._build_team_members_list(enabled_configs)
+        team_descriptions = cls._build_team_descriptions_dict(enabled_configs)
+        delegatable_agents = cls._build_delegatable_agents_list(enabled_configs)
 
         return system_prompt or get_agent_prompt(
             role="tech_lead",
@@ -251,8 +252,8 @@ class PromptFactory:
 class TimeoutSummaryBuilder:
     """Helper for building timeout summaries for agents."""
 
-    @staticmethod
-    def build_summary(agent: Agent, msg_start: int) -> str:
+    @classmethod
+    def build_summary(cls, agent: Agent, msg_start: int) -> str:
         """Build a progress summary from the agent's work so far.
 
         Called when a specialist hits the turn limit.  Extracts tool calls
@@ -272,9 +273,9 @@ class TimeoutSummaryBuilder:
 
         assistant_messages = [m for m in agent.messages[msg_start:] if m.role == "assistant"]
         for msg in assistant_messages:
-            TimeoutSummaryBuilder._extract_msg_info(msg, tools_used, files_touched, narration_parts)
+            cls._extract_msg_info(msg, tools_used, files_touched, narration_parts)
 
-        return TimeoutSummaryBuilder._format_summary(tools_used, files_touched, narration_parts)
+        return cls._format_summary(tools_used, files_touched, narration_parts)
 
     @staticmethod
     def _extract_msg_info(
@@ -503,19 +504,20 @@ class ToolController(OrchestratorComponent):
         yield self._create_delegation_event(agent, target, task)
 
         # Execute delegation flow
-        async for event in self._execute_delegation_flow(
-            agent, tool_call, target, task, depth, ledger_record
-        ):
+        params = DelegationExecutionParams(
+            target=target,
+            task=task,
+            depth=depth,
+            tool_call=tool_call,
+            agent=agent,
+            ledger_record=ledger_record,
+        )
+        async for event in self._execute_delegation_flow(params):
             yield event
 
     async def _execute_delegation_flow(
         self,
-        agent: Agent,
-        tool_call: ToolCall,
-        target: str,
-        task: str,
-        depth: int,
-        ledger_record: DelegationRecord | None,
+        params: DelegationExecutionParams,
     ) -> AsyncIterator[AgentEvent]:
         """Execute the delegation flow and yield events.
 
@@ -523,7 +525,7 @@ class ToolController(OrchestratorComponent):
         and final tool result event.
         """
         # Execute delegation and collect results
-        async for sub_event in self._execute_delegation(target, task, tool_call, depth):
+        async for sub_event in self._execute_delegation(params):
             yield sub_event
 
         # Get delegation results from the yielded events
@@ -533,41 +535,35 @@ class ToolController(OrchestratorComponent):
 
         # Process delegation results
         result_content = self._process_delegation_results(
-            result_content, delegation_status, target
+            result_content, delegation_status, params.target
         )
 
         # Update ledger and submit tool result
         self._process_delegation_result(
-            agent, tool_call, result_content, delegation_had_error, ledger_record
+            params.agent, params.tool_call, result_content, delegation_had_error, params.ledger_record
         )
 
         # Yield tool result event
-        yield self.yield_tool_result_event(agent, tool_call, result_content, success=True)
+        yield self.yield_tool_result_event(params.agent, params.tool_call, result_content, success=True)
 
     async def _execute_delegation(
         self,
-        target: str,
-        task: str,
-        tool_call: ToolCall,
-        depth: int,
+        params: DelegationExecutionParams,
     ) -> AsyncIterator[AgentEvent]:
         """Execute delegation and yield events.
 
         Args:
-            target: Target agent role.
-            task: Task description.
-            tool_call: The delegation tool call.
-            depth: Current delegation depth.
+            params: Delegation execution parameters.
 
         Yields:
             Agent events from the delegation execution.
         """
-        delegation_brief = self.prepare_delegation_brief(tool_call)
-        params = DelegationParams(
-            target_role=target,
-            task=task,
+        delegation_brief = self.prepare_delegation_brief(params.tool_call)
+        delegation_params = DelegationParams(
+            target_role=params.target,
+            task=params.task,
             brief=delegation_brief,
-            depth=depth + 1,
+            depth=params.depth + 1,
         )
 
         # Track delegation results in instance variables
@@ -576,7 +572,7 @@ class ToolController(OrchestratorComponent):
         self._delegation_status = ""
 
         # Execute delegation and yield events
-        async for sub_event in self.run_delegation(params):
+        async for sub_event in self.run_delegation(delegation_params):
             if sub_event.type == EventType.AGENT_COMPLETED:
                 self._delegation_result_content = sub_event.data.get("summary", "Completed.")
                 self._delegation_status = sub_event.data.get("status", "completed")
