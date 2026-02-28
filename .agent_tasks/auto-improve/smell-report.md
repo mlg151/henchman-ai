@@ -1,42 +1,42 @@
-# Code Smell Report — ❌ F (Score: 42.8/100)
+# Code Smell Report — ❌ F (Score: 43.4/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-28T15:00:19.798682+00:00_
+_Generated: 2026-02-28T16:00:18.450193+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 42.8/100 |
-| **Files Scanned** | 153 |
-| **Total Lines (non-blank)** | 30,907 |
-| **Total Smells** | 2531 |
-| **Avg Maintainability Index** | 69.5 |
+| **Overall Score** | 43.4/100 |
+| **Files Scanned** | 165 |
+| **Total Lines (non-blank)** | 30,894 |
+| **Total Smells** | 2520 |
+| **Avg Maintainability Index** | 70.6 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1785 |
-| medium | 623 |
+| low | 1780 |
+| medium | 617 |
 | high | 123 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1221 |
-| Feature Envy | 350 |
-| Duplicate Code | 315 |
+| Missing Type Hint | 1228 |
+| Feature Envy | 341 |
+| Duplicate Code | 312 |
 | Magic Number | 163 |
-| Long Method | 155 |
+| Long Method | 153 |
 | Deep Nesting | 151 |
-| Primitive Obsession | 86 |
+| Primitive Obsession | 84 |
 | Complex Function | 52 |
-| Large Class | 38 |
+| Large Class | 36 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | utils/intelligent_context.py | ❌ F | 5.0 | 79 | 1121 | 17 | 0.0 |
+| 1 | utils/intelligent_context.py | ❌ F | 4.8 | 82 | 1147 | 16 | 0.0 |
 | 2 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 3 | utils/compaction.py | ❌ F | 10.3 | 58 | 546 | 34 | 14.8 |
 | 4 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
@@ -120,31 +120,31 @@ These are the highest-impact smells to address first:
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 133 additional files omitted._
+_Showing 20 worst files. 145 additional files omitted._
 
-### utils/intelligent_context.py — ❌ F (5.0/100)
+### utils/intelligent_context.py — ❌ F (4.8/100)
 
-LOC: 1121 | Classes: 5 | Functions: 0 | MI: 17 | Avg CC: 0.0
+LOC: 1147 | Classes: 6 | Functions: 0 | MI: 16 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 225 | 🟠 HIGH | Large Class | Class 'IntelligentContextManager' spans 1264 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 83 | 🟡 MEDIUM | Feature Envy | Method 'ConversationTypeDetector._count_keywords_by_type' accesses 'ConversationTypeDetector' 6 times but 'self' only 0 times | Move Method — consider moving '_count_keywords_by_type' to the class that owns 'ConversationTypeDetector'. |
-| 99 | 🟡 MEDIUM | Duplicate Code | Function '_get_coding_keywords' is 100% similar to '_get_research_keywords' at utils/intelligent_context.py:109 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 99 | 🟡 MEDIUM | Duplicate Code | Function '_get_coding_keywords' is 100% similar to '_get_debugging_keywords' at utils/intelligent_context.py:119 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 109 | 🟡 MEDIUM | Duplicate Code | Function '_get_research_keywords' is 100% similar to '_get_debugging_keywords' at utils/intelligent_context.py:119 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 225 | 🟡 MEDIUM | Large Class | Class 'IntelligentContextManager' has 45 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 236 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: max_tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), max_protected_ratio: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)), importance_threshold: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)), cluster_similarity_threshold: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)), adaptive_compression: BinOp(left=Name(id='bool', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 1173 | 🟡 MEDIUM | Duplicate Code | Function '_apply_coding_compression_strategy' is 100% similar to '_apply_debugging_compression_strategy' at utils/intelligent_context.py:1231 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1173 | 🟡 MEDIUM | Duplicate Code | Function '_apply_coding_compression_strategy' is 97% similar to '_apply_general_compression_strategy' at utils/intelligent_context.py:1261 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1231 | 🟡 MEDIUM | Duplicate Code | Function '_apply_debugging_compression_strategy' is 97% similar to '_apply_general_compression_strategy' at utils/intelligent_context.py:1261 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1285 | 🟡 MEDIUM | Primitive Obsession | Function '_apply_importance_based_compression' has 4 primitive-typed parameters: high_threshold: Name(id='float', ctx=Load()), medium_threshold: Name(id='float', ctx=Load()), preserve_tool_sequences: Name(id='bool', ctx=Load()), preserve_code_blocks: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 1357 | 🟡 MEDIUM | Feature Envy | Method 'IntelligentContextManager._summarize_cluster' accesses 'msg' 5 times but 'self' only 0 times | Move Method — consider moving '_summarize_cluster' to the class that owns 'msg'. |
-| 51 | 🟢 LOW | Feature Envy | Method 'ConversationTypeDetector.detect' accesses 'ConversationTypeDetector' 3 times but 'self' only 0 times | Move Method — consider moving 'detect' to the class that owns 'ConversationTypeDetector'. |
-| 236 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
-| 269 | 🟢 LOW | Missing Type Hint | Function 'enforce_safety_limits' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 234 | 🟠 HIGH | Large Class | Class 'IntelligentContextManager' spans 1295 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 234 | 🟡 MEDIUM | Large Class | Class 'IntelligentContextManager' has 47 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 245 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: max_tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), max_protected_ratio: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)), importance_threshold: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)), cluster_similarity_threshold: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)), adaptive_compression: BinOp(left=Name(id='bool', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 321 | 🟡 MEDIUM | Feature Envy | Method 'IntelligentContextManager._create_truncated_message' accesses 'message' 5 times but 'self' only 0 times | Move Method — consider moving '_create_truncated_message' to the class that owns 'message'. |
+| 1188 | 🟡 MEDIUM | Duplicate Code | Function '_apply_coding_compression_strategy' is 100% similar to '_apply_debugging_compression_strategy' at utils/intelligent_context.py:1248 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1188 | 🟡 MEDIUM | Duplicate Code | Function '_apply_coding_compression_strategy' is 97% similar to '_apply_general_compression_strategy' at utils/intelligent_context.py:1280 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1248 | 🟡 MEDIUM | Duplicate Code | Function '_apply_debugging_compression_strategy' is 97% similar to '_apply_general_compression_strategy' at utils/intelligent_context.py:1280 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1306 | 🟡 MEDIUM | Feature Envy | Method 'IntelligentContextManager._apply_importance_based_compression' accesses 'config' 5 times but 'self' only 4 times | Move Method — consider moving '_apply_importance_based_compression' to the class that owns 'config'. |
+| 79 | 🟢 LOW | Missing Type Hint | Function 'detect' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 96 | 🟢 LOW | Missing Type Hint | Function '_extract_all_content' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 109 | 🟢 LOW | Missing Type Hint | Function '_count_keywords_by_type' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 123 | 🟢 LOW | Missing Type Hint | Function '_count_keywords' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 135 | 🟢 LOW | Missing Type Hint | Function '_determine_conversation_type' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 245 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
+| 278 | 🟢 LOW | Missing Type Hint | Function 'enforce_safety_limits' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 64 more smells._
+_... and 67 more smells._
 
 ### cli/textual_widgets.py — ❌ F (8.2/100)
 
@@ -602,7 +602,7 @@ LOC: 327 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 16.0
 
 _... and 16 more smells._
 
-## ✨ Clean Files (29 files with no smells)
+## ✨ Clean Files (43 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -610,8 +610,22 @@ _... and 16 more smells._
 - __main__.py — ✅ A
 - agents/__init__.py — ✅ A
 - agents/config.py — ✅ A
-- agents/orchestrator_components.py — 👍 B
+- agents/orchestrator_anchoring.py — ✅ A
+- agents/orchestrator_components.py — ✅ A
+- agents/orchestrator_delegation_ctrl.py — 👍 B
+- agents/orchestrator_events.py — ✅ A
+- agents/orchestrator_execution.py — ✅ A
+- agents/orchestrator_init.py — 👍 B
+- agents/orchestrator_loop.py — 👍 B
+- agents/orchestrator_metrics_ctrl.py — ✅ A
+- agents/orchestrator_prompts.py — ✅ A
+- agents/orchestrator_run.py — ✅ A
+- agents/orchestrator_tech_lead.py — ✅ A
+- agents/orchestrator_timeout.py — ✅ A
+- agents/orchestrator_tools.py — ✅ A
+- agents/orchestrator_turns.py — ✅ A
 - agents/orchestrator_types.py — ✅ A
+- agents/orchestrator_validation.py — ✅ A
 - api/__init__.py — ✅ A
 - api/auth.py — ✅ A
 - api/endpoints/__init__.py — ✅ A
