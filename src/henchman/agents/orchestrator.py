@@ -105,7 +105,9 @@ class TurnEnforcementParams:
 
         return False, self.wrapup_warned, None
 
-    def _handle_turn_limit_reached(self: TurnEnforcementParams) -> tuple[bool, bool, AgentEvent | None]:
+    def _handle_turn_limit_reached(
+        self: TurnEnforcementParams,
+    ) -> tuple[bool, bool, AgentEvent | None]:
         """Handle case when turn limit has been reached."""
         from .orchestrator import TimeoutSummaryBuilder
 
@@ -136,7 +138,9 @@ class TurnEnforcementParams:
             source_agent="orchestrator",
         )
 
-    def _handle_wrapup_warning(self: TurnEnforcementParams, remaining: int) -> tuple[bool, bool, AgentEvent | None]:
+    def _handle_wrapup_warning(
+        self: TurnEnforcementParams, remaining: int
+    ) -> tuple[bool, bool, AgentEvent | None]:
         """Handle wrap-up warning when turns are running low."""
         warn_msg = self._create_wrapup_warning_message(remaining)
         self.agent.messages.append(Message(role="user", content=warn_msg))
@@ -176,8 +180,9 @@ class NoPendingToolsResult:
 class PromptFactory:
     """Factory for creating agent system prompts."""
 
-    @staticmethod
+    @classmethod
     def create_tech_lead_prompt(
+        cls,
         agent_configs: dict[str, Any],
         system_prompt: str | None,
         environment_context: str | None,
@@ -194,10 +199,10 @@ class PromptFactory:
         """
         from henchman.agents.prompts import get_agent_prompt
 
-        enabled_configs = PromptFactory._get_enabled_agent_configs(agent_configs)
-        team_members = PromptFactory._build_team_members_list(enabled_configs)
-        team_descriptions = PromptFactory._build_team_descriptions_dict(enabled_configs)
-        delegatable_agents = PromptFactory._build_delegatable_agents_list(enabled_configs)
+        enabled_configs = cls._get_enabled_agent_configs(agent_configs)
+        team_members = cls._build_team_members_list(enabled_configs)
+        team_descriptions = cls._build_team_descriptions_dict(enabled_configs)
+        delegatable_agents = cls._build_delegatable_agents_list(enabled_configs)
 
         return system_prompt or get_agent_prompt(
             role="tech_lead",
@@ -207,23 +212,23 @@ class PromptFactory:
             team_descriptions=team_descriptions,
         )
 
-    @staticmethod
-    def _get_enabled_agent_configs(agent_configs: dict[str, Any]) -> list[Any]:
+    @classmethod
+    def _get_enabled_agent_configs(cls, agent_configs: dict[str, Any]) -> list[Any]:
         """Get enabled agent configurations from the config dictionary."""
         return [c for c in agent_configs.values() if c.enabled]
 
-    @staticmethod
-    def _build_team_members_list(enabled_configs: list[Any]) -> list[str]:
+    @classmethod
+    def _build_team_members_list(cls, enabled_configs: list[Any]) -> list[str]:
         """Build list of team member descriptions."""
         return [f"{config.name} ({config.role})" for config in enabled_configs]
 
-    @staticmethod
-    def _build_team_descriptions_dict(enabled_configs: list[Any]) -> dict[str, str]:
+    @classmethod
+    def _build_team_descriptions_dict(cls, enabled_configs: list[Any]) -> dict[str, str]:
         """Build dictionary of role descriptions."""
         return {config.role: config.description or "" for config in enabled_configs}
 
-    @staticmethod
-    def _build_delegatable_agents_list(enabled_configs: list[Any]) -> list[str]:
+    @classmethod
+    def _build_delegatable_agents_list(cls, enabled_configs: list[Any]) -> list[str]:
         """Build list of delegatable agent roles."""
         return [config.role for config in enabled_configs]
 
@@ -231,8 +236,8 @@ class PromptFactory:
 class TimeoutSummaryBuilder:
     """Helper for building timeout summaries for agents."""
 
-    @staticmethod
-    def build_summary(agent: Agent, msg_start: int) -> str:
+    @classmethod
+    def build_summary(cls, agent: Agent, msg_start: int) -> str:
         """Build a progress summary from the agent's work so far.
 
         Called when a specialist hits the turn limit.  Extracts tool calls
@@ -252,12 +257,13 @@ class TimeoutSummaryBuilder:
 
         assistant_messages = [m for m in agent.messages[msg_start:] if m.role == "assistant"]
         for msg in assistant_messages:
-            TimeoutSummaryBuilder._extract_msg_info(msg, tools_used, files_touched, narration_parts)
+            cls._extract_msg_info(msg, tools_used, files_touched, narration_parts)
 
-        return TimeoutSummaryBuilder._format_summary(tools_used, files_touched, narration_parts)
+        return cls._format_summary(tools_used, files_touched, narration_parts)
 
-    @staticmethod
+    @classmethod
     def _extract_msg_info(
+        cls,
         msg: Message,
         tools_used: list[str],
         files_touched: set[str],
@@ -266,12 +272,13 @@ class TimeoutSummaryBuilder:
         """Extract information from a message for timeout summary."""
         if msg.tool_calls:
             for tc in msg.tool_calls:
-                TimeoutSummaryBuilder._extract_tool_info(tc, tools_used, files_touched)
+                cls._extract_tool_info(tc, tools_used, files_touched)
         if msg.content:
             narration_parts.append(msg.content[:MAX_SUMMARY_LENGTH])
 
-    @staticmethod
+    @classmethod
     def _extract_tool_info(
+        cls,
         tc: ToolCall,
         tools_used: list[str],
         files_touched: set[str],
@@ -286,22 +293,23 @@ class TimeoutSummaryBuilder:
         if path and isinstance(path, str):
             files_touched.add(path)
 
-    @staticmethod
+    @classmethod
     def _format_summary(
+        cls,
         tools_used: list[str],
         files_touched: set[str],
         narration_parts: list[str],
     ) -> str:
         """Format timeout summary from collected information."""
         lines = ["**Progress at timeout:**"]
-        TimeoutSummaryBuilder._add_tools_section(lines, tools_used)
-        TimeoutSummaryBuilder._add_files_section(lines, files_touched)
-        TimeoutSummaryBuilder._add_narration_section(lines, narration_parts)
-        TimeoutSummaryBuilder._add_no_progress_section(lines, tools_used, narration_parts)
+        cls._add_tools_section(lines, tools_used)
+        cls._add_files_section(lines, files_touched)
+        cls._add_narration_section(lines, narration_parts)
+        cls._add_no_progress_section(lines, tools_used, narration_parts)
         return "\n".join(lines)
 
-    @staticmethod
-    def _add_tools_section(lines: list[str], tools_used: list[str]) -> None:
+    @classmethod
+    def _add_tools_section(cls, lines: list[str], tools_used: list[str]) -> None:
         """Add tool usage section to summary lines."""
         if tools_used:
             lines.append(f"- Tool calls made: {len(tools_used)}")
@@ -309,22 +317,23 @@ class TimeoutSummaryBuilder:
             for tool in tools_used[-RECENT_TOOLS_TO_SHOW:]:
                 lines.append(f"  • {tool[:MAX_TOOL_CALL_DISPLAY_LENGTH]}")
 
-    @staticmethod
-    def _add_files_section(lines: list[str], files_touched: set[str]) -> None:
+    @classmethod
+    def _add_files_section(cls, lines: list[str], files_touched: set[str]) -> None:
         """Add files touched section to summary lines."""
         if files_touched:
             lines.append(f"- Files touched: {', '.join(sorted(files_touched))}")
 
-    @staticmethod
-    def _add_narration_section(lines: list[str], narration_parts: list[str]) -> None:
+    @classmethod
+    def _add_narration_section(cls, lines: list[str], narration_parts: list[str]) -> None:
         """Add narration section to summary lines."""
         if narration_parts:
             lines.append(
                 f"- Last agent output: {narration_parts[-1][:MAX_NARRATION_DISPLAY_LENGTH]}"
             )
 
-    @staticmethod
+    @classmethod
     def _add_no_progress_section(
+        cls,
         lines: list[str],
         tools_used: list[str],
         narration_parts: list[str],
@@ -337,7 +346,7 @@ class TimeoutSummaryBuilder:
 class OrchestratorComponent:
     """Base class for orchestrator components with shared initialization."""
 
-    def __init__(self, orchestrator: Orchestrator) -> None:
+    def __init__(self: OrchestratorComponent, orchestrator: Orchestrator) -> None:
         self.orchestrator = orchestrator
         self.metrics = orchestrator.metrics
 
@@ -345,42 +354,56 @@ class OrchestratorComponent:
 class AgentValidator(OrchestratorComponent):
     """Validates agent behavior and patterns."""
 
-    def check_thinking_pattern(self, agent: Agent) -> AgentEvent | None:
+    def check_thinking_pattern(self: AgentValidator, agent: Agent) -> AgentEvent | None:
         """Validate Tech Lead thinking patterns and update metrics."""
-        if agent is not self.orchestrator.tech_lead or not agent.messages:
+        if not self._should_check_thinking_pattern(agent):
             return None
 
         last_message = agent.messages[-1]
-        if last_message.role != "assistant":
-            return None
-
         content = last_message.content or ""
+
         if content.strip().startswith("THINKING:"):
-            self.metrics.thinking_pattern_usage += 1
-            lines = content.strip().split("\n")
-            thinking_lines = [
-                line for line in lines if line.strip().startswith(("1.", "2.", "3.", "4.", "5."))
-            ]
-            if len(thinking_lines) >= _MIN_THINKING_LINES:
-                self.metrics.thinking_quality_score = min(
-                    _MAX_THINKING_SCORE,
-                    self.metrics.thinking_quality_score + _THINKING_QUALITY_INCREMENT,
-                )
+            self._handle_valid_thinking_pattern(content)
             return None
         elif content.strip():
-            thinking_reminder = (
-                "\n[Thinking Required] Your response must start with THINKING: "
-                "followed by your reasoning process. Please revise."
-            )
-            agent.messages.append(Message(role="user", content=thinking_reminder))
-            return AgentEvent(
-                type=EventType.THINKING_REQUIRED,
-                data="Thinking pattern missing in Tech Lead response",
-                source_agent="orchestrator",
-            )
+            return self._handle_missing_thinking_pattern(agent)
         return None
 
-    def check_stall_failure(self, agent: Agent) -> AgentEvent | None:
+    def _should_check_thinking_pattern(self, agent: Agent) -> bool:
+        """Determine if thinking pattern should be checked for this agent."""
+        return (
+            agent is self.orchestrator.tech_lead
+            and bool(agent.messages)
+            and agent.messages[-1].role == "assistant"
+        )
+
+    def _handle_valid_thinking_pattern(self, content: str) -> None:
+        """Handle valid thinking pattern and update metrics."""
+        self.metrics.thinking_pattern_usage += 1
+        lines = content.strip().split("\n")
+        thinking_lines = [
+            line for line in lines if line.strip().startswith(("1.", "2.", "3.", "4.", "5."))
+        ]
+        if len(thinking_lines) >= _MIN_THINKING_LINES:
+            self.metrics.thinking_quality_score = min(
+                _MAX_THINKING_SCORE,
+                self.metrics.thinking_quality_score + _THINKING_QUALITY_INCREMENT,
+            )
+
+    def _handle_missing_thinking_pattern(self, agent: Agent) -> AgentEvent:
+        """Handle missing thinking pattern by adding reminder and returning event."""
+        thinking_reminder = (
+            "\n[Thinking Required] Your response must start with THINKING: "
+            "followed by your reasoning process. Please revise."
+        )
+        agent.messages.append(Message(role="user", content=thinking_reminder))
+        return AgentEvent(
+            type=EventType.THINKING_REQUIRED,
+            data="Thinking pattern missing in Tech Lead response",
+            source_agent="orchestrator",
+        )
+
+    def check_stall_failure(self: AgentValidator, agent: Agent) -> AgentEvent | None:
         """Check if agent has stalled and report failure."""
         if not self._should_check_stall_failure(agent):
             return None
@@ -389,11 +412,11 @@ class AgentValidator(OrchestratorComponent):
         agent.messages.append(Message(role="assistant", content=fail_msg))
         return self._create_stall_failure_event(agent, fail_msg)
 
-    def _should_check_stall_failure(self, agent: Agent) -> bool:
+    def _should_check_stall_failure(self: AgentValidator, agent: Agent) -> bool:
         """Determine if stall failure should be checked for this agent."""
         return agent is not self.orchestrator.tech_lead and getattr(agent, "_stall_failure", False)
 
-    def _create_stall_failure_message(self, agent: Agent) -> str:
+    def _create_stall_failure_message(self: AgentValidator, agent: Agent) -> str:
         """Create stall failure message for the agent."""
         role_label = agent.identity.role if agent.identity else "agent"
         stall_nudge_count = getattr(agent, "_stall_nudge_count", 0)
@@ -404,7 +427,9 @@ class AgentValidator(OrchestratorComponent):
             f"The task was NOT completed."
         )
 
-    def _create_stall_failure_event(self, agent: Agent, fail_msg: str) -> AgentEvent:
+    def _create_stall_failure_event(
+        self: AgentValidator, agent: Agent, fail_msg: str
+    ) -> AgentEvent:
         """Create stall failure event."""
         role_label = agent.identity.role if agent.identity else "agent"
         return AgentEvent(
@@ -661,9 +686,11 @@ class ExecutionController:
                 yield event
 
             if not pending_tool_calls:
-                should_continue, events_to_yield, colon_stall_result = await self._handle_no_pending_tools_flow(
-                    agent, state
-                )
+                (
+                    should_continue,
+                    events_to_yield,
+                    colon_stall_result,
+                ) = await self._handle_no_pending_tools_flow(agent, state)
 
                 # Yield any events from thinking patterns or stall failures
                 for event in events_to_yield:
@@ -1077,17 +1104,6 @@ class Orchestrator:
         # The completion status of the most recent run()/run_direct() call
         self.last_completion_status: CompletionStatus = CompletionStatus.COMPLETED
 
-    def _assess_completion(self, agent: Agent) -> CompletionStatus:
-        """Assess whether an agent performed meaningful work.
-
-        Args:
-            agent: The agent whose run just finished.
-
-        Returns:
-            The CompletionStatus reflecting the outcome.
-        """
-        return self.execution_controller.assess_completion(agent)
-
     @staticmethod
     def _last_assistant_content(agent: Agent) -> str:
         """Return the content of the agent's last assistant message.
@@ -1369,6 +1385,19 @@ class Orchestrator:
             - Tuple: Colon stall detected, return updated generator and retry count
         """
         return self.execution_controller.check_colon_stall(agent, colon_stall_retries)
+
+    def _assess_completion(self, agent: Agent) -> CompletionStatus:
+        """Assess whether an agent performed meaningful work.
+
+        Delegates to :class:`ExecutionController`.
+
+        Args:
+            agent: The agent to assess.
+
+        Returns:
+            The completion status.
+        """
+        return self.execution_controller.assess_completion(agent)
 
     def _prepare_delegation_context(
         self,

@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-28T04:30:19.162651+00:00_
+_Generated: 2026-02-28T05:00:35.117688+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-02-28T04:30:19.162651+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 40.2/100 |
 | **Files Scanned** | 149 |
-| **Total Lines (non-blank)** | 30,527 |
-| **Total Smells** | 2612 |
+| **Total Lines (non-blank)** | 30,533 |
+| **Total Smells** | 2603 |
 | **Avg Maintainability Index** | 69.7 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,17 +20,17 @@ _Generated: 2026-02-28T04:30:19.162651+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1848 |
-| medium | 639 |
+| low | 1841 |
+| medium | 637 |
 | high | 125 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1280 |
+| Missing Type Hint | 1273 |
 | Feature Envy | 350 |
-| Duplicate Code | 316 |
+| Duplicate Code | 314 |
 | Magic Number | 175 |
 | Long Method | 160 |
 | Deep Nesting | 152 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/orchestrator.py | ❌ F | 4.3 | 91 | 1172 | 14 | 0.0 |
+| 1 | agents/orchestrator.py | ❌ F | 4.2 | 82 | 1178 | 14 | 0.0 |
 | 2 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
 | 3 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 4 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 129 additional files omitted._
 
-### agents/orchestrator.py — ❌ F (4.3/100)
+### agents/orchestrator.py — ❌ F (4.2/100)
 
-LOC: 1172 | Classes: 13 | Functions: 0 | MI: 14 | Avg CC: 0.0
+LOC: 1178 | Classes: 13 | Functions: 0 | MI: 14 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 1074 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'get_theme' at cli/console.py:169 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1074 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'start_task' at cli/output_handler.py:332 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1074 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'load' at cli/session_manager.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1074 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'compute_project_hash' at cli/session_manager.py:199 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1074 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'start_task' at cli/ui_renderer.py:350 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1074 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'count_tokens' at rag/chunker.py:86 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 180 | 🟢 LOW | Feature Envy | Method 'PromptFactory.create_tech_lead_prompt' accesses 'cls' 4 times but 'self' only 0 times | Move Method — consider moving 'create_tech_lead_prompt' to the class that owns 'cls'. |
-| 236 | 🟢 LOW | Missing Type Hint | Function 'build_summary' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 261 | 🟢 LOW | Missing Type Hint | Function '_extract_msg_info' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 261 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_msg_info' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_msg_info' to the class that owns 'msg'. |
-| 275 | 🟢 LOW | Missing Type Hint | Function '_extract_tool_info' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 275 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_tool_info' accesses 'tc' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_tool_info' to the class that owns 'tc'. |
-| 288 | 🟢 LOW | Missing Type Hint | Function '_format_summary' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 288 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._format_summary' accesses 'cls' 4 times but 'self' only 0 times | Move Method — consider moving '_format_summary' to the class that owns 'cls'. |
-| 300 | 🟢 LOW | Missing Type Hint | Function '_add_tools_section' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 1080 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_theme' at cli/console.py:169 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1080 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_rich_status_message' at cli/output_handler.py:225 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1080 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'load' at cli/session_manager.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1080 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'compute_project_hash' at cli/session_manager.py:199 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 180 | 🟢 LOW | Feature Envy | Method 'PromptFactory.create_tech_lead_prompt' accesses 'PromptFactory' 4 times but 'self' only 0 times | Move Method — consider moving 'create_tech_lead_prompt' to the class that owns 'PromptFactory'. |
+| 260 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_msg_info' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_msg_info' to the class that owns 'msg'. |
+| 274 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_tool_info' accesses 'tc' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_tool_info' to the class that owns 'tc'. |
+| 290 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._format_summary' accesses 'TimeoutSummaryBuilder' 4 times but 'self' only 0 times | Move Method — consider moving '_format_summary' to the class that owns 'TimeoutSummaryBuilder'. |
+| 340 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 348 | 🟢 LOW | Long Method | Function 'check_thinking_pattern' has 32 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 348 | 🟢 LOW | Missing Type Hint | Function 'check_thinking_pattern' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 383 | 🟢 LOW | Missing Type Hint | Function 'check_stall_failure' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 392 | 🟢 LOW | Missing Type Hint | Function '_should_check_stall_failure' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 396 | 🟢 LOW | Missing Type Hint | Function '_create_stall_failure_message' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 407 | 🟢 LOW | Missing Type Hint | Function '_create_stall_failure_event' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 76 more smells._
+_... and 67 more smells._
 
 ### utils/intelligent_context.py — ❌ F (6.4/100)
 
