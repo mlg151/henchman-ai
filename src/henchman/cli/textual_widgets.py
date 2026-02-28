@@ -979,19 +979,6 @@ class ChatPane(VerticalScroll):
         """
         return self._create_and_add_widget(widget_class, *args, **kwargs)
 
-    def _add_message_by_type(self, widget_class: type[_T], *args: Any, **kwargs: Any) -> _T:
-        """Generic method to add a message widget of specified type.
-
-        Args:
-            widget_class: The widget class to instantiate.
-            *args: Positional arguments for widget constructor.
-            **kwargs: Keyword arguments for widget constructor.
-
-        Returns:
-            The created widget.
-        """
-        return self._add_typed_message_widget(widget_class, *args, **kwargs)
-
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
@@ -1002,7 +989,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ThinkingMessage widget.
         """
-        return self._add_message_by_type(ThinkingMessage, thought, agent_name)
+        return self._add_typed_message_widget(ThinkingMessage, thought, agent_name)
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -1013,7 +1000,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        widget = self._add_message_by_type(ThinkingMessage, "", agent_name)
+        widget = self._add_typed_message_widget(ThinkingMessage, "", agent_name)
         self._active_thinking[agent_name] = widget
         return widget
 
@@ -1040,7 +1027,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ToolMessage widget.
         """
-        return self._add_message_by_type(ToolMessage, thought, tool_call)
+        return self._add_typed_message_widget(ToolMessage, thought, tool_call)
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""
