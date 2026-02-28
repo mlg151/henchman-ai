@@ -542,14 +542,10 @@ class DelegationController(OrchestratorComponent):
             yield sub_event
 
         # Get delegation results from the yielded events
-        result_content, delegation_had_error, delegation_status = (
-            self._extract_delegation_results()
-        )
+        result_content, delegation_had_error, delegation_status = self._extract_delegation_results()
 
         # Process delegation results
-        result_content = self._process_delegation_results(
-            result_content, delegation_status, target
-        )
+        result_content = self._process_delegation_results(result_content, delegation_status, target)
 
         # Update ledger and submit tool result
         self._process_delegation_result(
@@ -745,8 +741,6 @@ class ToolController(OrchestratorComponent):
                 async for event in self.execute_regular_tool(agent, tool_call, tool_errors):
                     yield event
 
-
-
     async def execute_regular_tool(
         self,
         agent: Agent,
@@ -771,7 +765,9 @@ class ToolController(OrchestratorComponent):
         if not result.success:
             self._metrics_controller.track_tool_error(tool_errors, tool_call.name, result.content)
 
-        self._metrics_controller.update_tool_metrics(tool_call.name, tool_call.arguments, result.success)
+        self._metrics_controller.update_tool_metrics(
+            tool_call.name, tool_call.arguments, result.success
+        )
 
     def _create_tool_result_event(
         self, agent: Agent, tool_call: ToolCall, result: Any
@@ -794,6 +790,7 @@ class ToolController(OrchestratorComponent):
         Public method that delegates to the metrics controller.
         """
         self._metrics_controller.update_tool_metrics(tool_name, arguments, success)
+
 
 class ExecutionController:
     """Manages agent execution loops and state."""
@@ -818,9 +815,11 @@ class ExecutionController:
 
             # Phase 2: Handle case with no pending tools
             if not pending_tool_calls:
-                should_break, events_to_yield, new_generator = await self._process_no_pending_tools_case(
-                    agent, state, generator
-                )
+                (
+                    should_break,
+                    events_to_yield,
+                    new_generator,
+                ) = await self._process_no_pending_tools_case(agent, state, generator)
                 # Yield any events from thinking patterns or stall failures
                 for event in events_to_yield:
                     yield event
@@ -864,9 +863,11 @@ class ExecutionController:
             - events_to_yield: List of events to yield to caller
             - new_generator: Updated generator if colon stall occurred, None otherwise
         """
-        should_continue, events_to_yield, colon_stall_result = (
-            await self._handle_no_pending_tools_flow(agent, state)
-        )
+        (
+            should_continue,
+            events_to_yield,
+            colon_stall_result,
+        ) = await self._handle_no_pending_tools_flow(agent, state)
 
         if not should_continue:
             return True, events_to_yield, None
