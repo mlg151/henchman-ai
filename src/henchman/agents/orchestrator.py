@@ -85,7 +85,7 @@ class DelegationExecutionParams:
     task: str
     depth: int
     tool_call: ToolCall
-    agent: Agent | None = None
+    agent: Agent
     ledger_record: DelegationRecord | None = None
 
 
@@ -196,9 +196,8 @@ class NoPendingToolsResult:
 class PromptFactory:
     """Factory for creating agent system prompts."""
 
-    @classmethod
+    @staticmethod
     def create_tech_lead_prompt(
-        cls,
         agent_configs: dict[str, AgentConfig],
         system_prompt: str | None,
         environment_context: str | None,
@@ -215,10 +214,10 @@ class PromptFactory:
         """
         from henchman.agents.prompts import get_agent_prompt
 
-        enabled_configs = cls._get_enabled_agent_configs(agent_configs)
-        team_members = cls._build_team_members_list(enabled_configs)
-        team_descriptions = cls._build_team_descriptions_dict(enabled_configs)
-        delegatable_agents = cls._build_delegatable_agents_list(enabled_configs)
+        enabled_configs = PromptFactory._get_enabled_agent_configs(agent_configs)
+        team_members = PromptFactory._build_team_members_list(enabled_configs)
+        team_descriptions = PromptFactory._build_team_descriptions_dict(enabled_configs)
+        delegatable_agents = PromptFactory._build_delegatable_agents_list(enabled_configs)
 
         return system_prompt or get_agent_prompt(
             role="tech_lead",
@@ -234,17 +233,17 @@ class PromptFactory:
         return [c for c in agent_configs.values() if c.enabled]
 
     @staticmethod
-    def _build_team_members_list(enabled_configs: list[Any]) -> list[str]:
+    def _build_team_members_list(enabled_configs: list[AgentConfig]) -> list[str]:
         """Build list of team member descriptions."""
         return [f"{config.name} ({config.role})" for config in enabled_configs]
 
     @staticmethod
-    def _build_team_descriptions_dict(enabled_configs: list[Any]) -> dict[str, str]:
+    def _build_team_descriptions_dict(enabled_configs: list[AgentConfig]) -> dict[str, str]:
         """Build dictionary of role descriptions."""
         return {config.role: config.description or "" for config in enabled_configs}
 
     @staticmethod
-    def _build_delegatable_agents_list(enabled_configs: list[Any]) -> list[str]:
+    def _build_delegatable_agents_list(enabled_configs: list[AgentConfig]) -> list[str]:
         """Build list of delegatable agent roles."""
         return [config.role for config in enabled_configs]
 
@@ -253,7 +252,7 @@ class TimeoutSummaryBuilder:
     """Helper for building timeout summaries for agents."""
 
     @classmethod
-    def build_summary(cls, agent: Agent, msg_start: int) -> str:
+    def build_summary(cls: type[TimeoutSummaryBuilder], agent: Agent, msg_start: int) -> str:
         """Build a progress summary from the agent's work so far.
 
         Called when a specialist hits the turn limit.  Extracts tool calls
@@ -451,11 +450,33 @@ class AgentValidator(OrchestratorComponent):
         )
 
 
-class ToolController(OrchestratorComponent):
-    """Manages tool execution and result processing."""
+class ToolMetricsController(OrchestratorComponent):
+    """Manages tool metrics and error tracking."""
 
-    def __init__(self: ToolController, orchestrator: Orchestrator) -> None:
-        """Initialize the ToolController.
+    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
+        """Update metrics for a tool call."""
+        self.metrics.update_tool_metrics(tool_name, arguments, success)
+
+    def track_tool_error(
+        self, tool_errors: list[str], tool_name: str, result_content: str | None
+    ) -> None:
+        """Track tool errors for delegation summaries."""
+        error_message = result_content or "unknown error"
+        truncated_error = error_message[:_TOOL_ERROR_MAX_LENGTH]
+        tool_errors.append(f"{tool_name}: {truncated_error}")
+
+    def update_delegation_metrics(self, target: str) -> None:
+        """Update metrics for a delegation."""
+        self.metrics.delegation_count += 1
+        if target in self.metrics.delegation_by_type:
+            self.metrics.delegation_by_type[target] += 1
+
+
+class DelegationController(OrchestratorComponent):
+    """Manages delegation tool execution and result processing."""
+
+    def __init__(self: DelegationController, orchestrator: Orchestrator) -> None:
+        """Initialize the DelegationController.
 
         Args:
             orchestrator: The parent orchestrator instance.
@@ -464,24 +485,6 @@ class ToolController(OrchestratorComponent):
         self._delegation_result_content: str = ""
         self._delegation_had_error: bool = False
         self._delegation_status: str = ""
-
-    async def process_pending_tool_calls(
-        self,
-        agent: Agent,
-        pending_tool_calls: list[ToolCall],
-        depth: int,
-        tool_errors: list[str],
-    ) -> AsyncIterator[AgentEvent]:
-        """Process all pending tool calls from an agent."""
-        for tool_call in pending_tool_calls:
-            if tool_call.name == _DELEGATE_TASK_TOOL:
-                async for event in self.execute_delegation_tool(
-                    agent, tool_call, depth, tool_errors
-                ):
-                    yield event
-            else:
-                async for event in self.execute_regular_tool(agent, tool_call, tool_errors):
-                    yield event
 
     async def execute_delegation_tool(
         self,
@@ -495,8 +498,12 @@ class ToolController(OrchestratorComponent):
         task = tool_call.arguments.get("task", "")
 
         # Update delegation metrics
-        self.update_delegation_metrics(target)
-        self.update_tool_metrics(_DELEGATE_TASK_TOOL, tool_call.arguments, True)
+        self.metrics.delegation_count += 1
+        if target in self.metrics.delegation_by_type:
+            self.metrics.delegation_by_type[target] += 1
+
+        # Update tool metrics
+        self.metrics.update_tool_metrics(_DELEGATE_TASK_TOOL, tool_call.arguments, True)
 
         # Register delegation in ledger
         ledger_record = self._register_delegation_in_ledger(target, task)
@@ -544,7 +551,7 @@ class ToolController(OrchestratorComponent):
         )
 
         # Yield tool result event
-        yield self.yield_tool_result_event(params.agent, params.tool_call, result_content, success=True)
+        yield self._yield_tool_result_event(params.agent, params.tool_call, result_content, success=True)
 
     async def _execute_delegation(
         self,
@@ -558,7 +565,7 @@ class ToolController(OrchestratorComponent):
         Yields:
             Agent events from the delegation execution.
         """
-        delegation_brief = self.prepare_delegation_brief(params.tool_call)
+        delegation_brief = self._prepare_delegation_brief(params.tool_call)
         delegation_params = DelegationParams(
             target_role=params.target,
             task=params.task,
@@ -572,7 +579,7 @@ class ToolController(OrchestratorComponent):
         self._delegation_status = ""
 
         # Execute delegation and yield events
-        async for sub_event in self.run_delegation(delegation_params):
+        async for sub_event in self._run_delegation(delegation_params):
             if sub_event.type == EventType.AGENT_COMPLETED:
                 self._delegation_result_content = sub_event.data.get("summary", "Completed.")
                 self._delegation_status = sub_event.data.get("status", "completed")
@@ -669,42 +676,70 @@ class ToolController(OrchestratorComponent):
 
         agent.submit_tool_result(tool_call.id, submitted_content)
 
-    def run_delegation(
+    def _run_delegation(
         self,
         params: DelegationParams,
     ) -> AsyncIterator[AgentEvent]:
         """Execute a delegation to a specialist agent."""
         return self.orchestrator._delegation_runner.run_delegation(params)
 
-    def update_delegation_metrics(self, target: str) -> None:
-        """Update metrics for a delegation."""
-        self.metrics.delegation_count += 1
-        if target in self.metrics.delegation_by_type:
-            self.metrics.delegation_by_type[target] += 1
+    def _prepare_delegation_brief(self, tool_call: ToolCall) -> dict[str, Any]:
+        """Extract structured delegation fields from tool call."""
+        return self._extract_delegation_fields(tool_call.arguments)
 
-    def process_delegation_result(
+    def _extract_delegation_fields(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        """Extract delegation fields from tool arguments."""
+        field_names = ["done_when", "context", "files", "background", "requirements", "depends_on"]
+        return {field: arguments.get(field) for field in field_names}
+
+    def _yield_tool_result_event(
+        self, agent: Agent, tool_call: ToolCall, result_content: str, success: bool = True
+    ) -> AgentEvent:
+        """Create and yield a tool result event."""
+        return AgentEvent(
+            type=EventType.TOOL_CALL_RESULT,
+            data={
+                "tool_call_id": tool_call.id,
+                "tool_name": tool_call.name,
+                "result": (result_content or "")[:_RESULT_PREVIEW_LENGTH],
+                "success": success,
+            },
+            source_agent=agent.identity.id if agent.identity else None,
+        )
+
+
+class ToolController(OrchestratorComponent):
+    """Manages tool execution and result processing."""
+
+    def __init__(self: ToolController, orchestrator: Orchestrator) -> None:
+        """Initialize the ToolController.
+
+        Args:
+            orchestrator: The parent orchestrator instance.
+        """
+        super().__init__(orchestrator)
+        self._delegation_controller = DelegationController(orchestrator)
+        self._metrics_controller = ToolMetricsController(orchestrator)
+
+    async def process_pending_tool_calls(
         self,
         agent: Agent,
-        tool_call: ToolCall,
-        result_content: str,
-        delegation_had_error: bool,
-        ledger_record: Any | None,
-    ) -> str:
-        """Process the result of a delegation."""
-        # Update ledger with outcome
-        if self.orchestrator.ledger and ledger_record:
-            if delegation_had_error:
-                self.orchestrator.ledger.fail_delegation(ledger_record, result_content)
+        pending_tool_calls: list[ToolCall],
+        depth: int,
+        tool_errors: list[str],
+    ) -> AsyncIterator[AgentEvent]:
+        """Process all pending tool calls from an agent."""
+        for tool_call in pending_tool_calls:
+            if tool_call.name == _DELEGATE_TASK_TOOL:
+                async for event in self._delegation_controller.execute_delegation_tool(
+                    agent, tool_call, depth, tool_errors
+                ):
+                    yield event
             else:
-                self.orchestrator.ledger.complete_delegation(ledger_record, result_content)
+                async for event in self.execute_regular_tool(agent, tool_call, tool_errors):
+                    yield event
 
-        # Append ledger snapshot so Tech Lead can re-orient
-        submitted_content = result_content
-        if self.orchestrator.ledger:
-            submitted_content = f"{result_content}\n\n{self.orchestrator.ledger.render()}"
 
-        agent.submit_tool_result(tool_call.id, submitted_content)
-        return submitted_content
 
     async def execute_regular_tool(
         self,
@@ -728,51 +763,31 @@ class ToolController(OrchestratorComponent):
         agent.submit_tool_result(tool_call.id, result.content or "")
 
         if not result.success:
-            self.track_tool_error(tool_errors, tool_call.name, result.content)
+            self._metrics_controller.track_tool_error(tool_errors, tool_call.name, result.content)
 
-        self.update_tool_metrics(tool_call.name, tool_call.arguments, result.success)
+        self._metrics_controller.update_tool_metrics(tool_call.name, tool_call.arguments, result.success)
 
     def _create_tool_result_event(
         self, agent: Agent, tool_call: ToolCall, result: Any
     ) -> AgentEvent:
         """Create tool result event from execution result."""
-        return self.yield_tool_result_event(agent, tool_call, result.content or "", result.success)
-
-    def prepare_delegation_brief(self, tool_call: ToolCall) -> dict[str, Any]:
-        """Extract structured delegation fields from tool call."""
-        return self._extract_delegation_fields(tool_call.arguments)
-
-    def _extract_delegation_fields(self, arguments: dict[str, Any]) -> dict[str, Any]:
-        """Extract delegation fields from tool arguments."""
-        field_names = ["done_when", "context", "files", "background", "requirements", "depends_on"]
-        return {field: arguments.get(field) for field in field_names}
-
-    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
-        """Update metrics for a tool call."""
-        self.metrics.update_tool_metrics(tool_name, arguments, success)
-
-    def track_tool_error(
-        self, tool_errors: list[str], tool_name: str, result_content: str | None
-    ) -> None:
-        """Track tool errors for delegation summaries."""
-        error_message = result_content or "unknown error"
-        truncated_error = error_message[:_TOOL_ERROR_MAX_LENGTH]
-        tool_errors.append(f"{tool_name}: {truncated_error}")
-
-    def yield_tool_result_event(
-        self, agent: Agent, tool_call: ToolCall, result_content: str, success: bool = True
-    ) -> AgentEvent:
-        """Create and yield a tool result event."""
         return AgentEvent(
             type=EventType.TOOL_CALL_RESULT,
             data={
                 "tool_call_id": tool_call.id,
                 "tool_name": tool_call.name,
-                "result": (result_content or "")[:_RESULT_PREVIEW_LENGTH],
-                "success": success,
+                "result": (result.content or "")[:_RESULT_PREVIEW_LENGTH],
+                "success": result.success,
             },
             source_agent=agent.identity.id if agent.identity else None,
         )
+
+    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
+        """Update metrics for a tool call.
+
+        Public method that delegates to the metrics controller.
+        """
+        self._metrics_controller.update_tool_metrics(tool_name, arguments, success)
 
 
 class ExecutionController:
