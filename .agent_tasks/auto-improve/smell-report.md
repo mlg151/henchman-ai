@@ -1,42 +1,42 @@
-# Code Smell Report — ❌ F (Score: 40.0/100)
+# Code Smell Report — ❌ F (Score: 43.1/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-28T13:30:20.599863+00:00_
+_Generated: 2026-02-28T14:00:19.884013+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 40.0/100 |
-| **Files Scanned** | 149 |
-| **Total Lines (non-blank)** | 30,675 |
-| **Total Smells** | 2604 |
-| **Avg Maintainability Index** | 69.7 |
+| **Overall Score** | 43.1/100 |
+| **Files Scanned** | 153 |
+| **Total Lines (non-blank)** | 30,699 |
+| **Total Smells** | 2541 |
+| **Avg Maintainability Index** | 69.5 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1841 |
-| medium | 638 |
+| low | 1775 |
+| medium | 641 |
 | high | 125 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1273 |
-| Feature Envy | 350 |
-| Duplicate Code | 315 |
+| Missing Type Hint | 1212 |
+| Feature Envy | 348 |
+| Duplicate Code | 316 |
 | Magic Number | 175 |
 | Long Method | 158 |
 | Deep Nesting | 152 |
 | Primitive Obsession | 86 |
 | Complex Function | 56 |
-| Large Class | 39 |
+| Large Class | 38 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,44 +107,20 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/orchestrator.py | ❌ F | 3.6 | 83 | 1320 | 12 | 0.0 |
-| 2 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
-| 3 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
-| 4 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
-| 5 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
-| 6 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
-| 7 | core/agent.py | ❌ F | 11.1 | 43 | 573 | 37 | 11.0 |
-| 8 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
-| 9 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
-| 10 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
+| 1 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
+| 2 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
+| 3 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
+| 4 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
+| 5 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
+| 6 | core/agent.py | ❌ F | 11.1 | 43 | 573 | 37 | 11.0 |
+| 7 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
+| 8 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
+| 9 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
+| 10 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 129 additional files omitted._
-
-### agents/orchestrator.py — ❌ F (3.6/100)
-
-LOC: 1320 | Classes: 16 | Functions: 0 | MI: 12 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 456 | 🟡 MEDIUM | Duplicate Code | Function 'update_tool_metrics' is 100% similar to 'update_tool_metrics' at agents/orchestrator.py:791 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1542 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_theme' at cli/console.py:169 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1542 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 94% similar to 'get_rich_status_message' at cli/output_handler.py:225 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1542 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'load' at cli/session_manager.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1542 | 🟡 MEDIUM | Duplicate Code | Function '_assess_completion' is 100% similar to 'compute_project_hash' at cli/session_manager.py:199 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 200 | 🟢 LOW | Feature Envy | Method 'PromptFactory.create_tech_lead_prompt' accesses 'PromptFactory' 4 times but 'self' only 0 times | Move Method — consider moving 'create_tech_lead_prompt' to the class that owns 'PromptFactory'. |
-| 280 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_msg_info' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_msg_info' to the class that owns 'msg'. |
-| 294 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_tool_info' accesses 'tc' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_tool_info' to the class that owns 'tc'. |
-| 310 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._format_summary' accesses 'TimeoutSummaryBuilder' 4 times but 'self' only 0 times | Move Method — consider moving '_format_summary' to the class that owns 'TimeoutSummaryBuilder'. |
-| 456 | 🟢 LOW | Missing Type Hint | Function 'update_tool_metrics' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 460 | 🟢 LOW | Missing Type Hint | Function 'track_tool_error' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 468 | 🟢 LOW | Missing Type Hint | Function 'update_delegation_metrics' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 489 | 🟢 LOW | Missing Type Hint | Function 'execute_delegation_tool' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 525 | 🟢 LOW | Missing Type Hint | Function '_execute_delegation_flow' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 562 | 🟢 LOW | Missing Type Hint | Function '_execute_delegation' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 68 more smells._
+_Showing 20 worst files. 133 additional files omitted._
 
 ### utils/intelligent_context.py — ❌ F (6.4/100)
 
@@ -602,7 +578,31 @@ LOC: 335 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 11.0
 
 _... and 36 more smells._
 
-## ✨ Clean Files (27 files with no smells)
+### tools/builtins/test_gen.py — ❌ F (15.8/100)
+
+LOC: 327 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 16.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 137 | 🟠 HIGH | Feature Envy | Method 'TestGenTool._extract_symbols' accesses 'ast' 10 times but 'self' only 4 times | Move Method — consider moving '_extract_symbols' to the class that owns 'ast'. |
+| 167 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_extract_symbols' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 217 | 🟠 HIGH | Long Method | Function '_generate_class_tests' has 81 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 272 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_generate_class_tests' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 275 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in '_generate_class_tests' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 60 | 🟡 MEDIUM | Long Method | Function 'execute' has 58 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 166 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_extract_symbols' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 217 | 🟡 MEDIUM | Complex Function | Function '_generate_class_tests' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 271 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_generate_class_tests' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 10 | 🟢 LOW | Large Class | Class 'TestGenTool' spans 376 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 19 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 24 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 32 | 🟢 LOW | Missing Type Hint | Function 'parameters' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 56 | 🟢 LOW | Missing Type Hint | Function 'kind' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 60 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 16 more smells._
+
+## ✨ Clean Files (29 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -610,6 +610,8 @@ _... and 36 more smells._
 - __main__.py — ✅ A
 - agents/__init__.py — ✅ A
 - agents/config.py — ✅ A
+- agents/orchestrator_components.py — 👍 B
+- agents/orchestrator_types.py — ✅ A
 - api/__init__.py — ✅ A
 - api/auth.py — ✅ A
 - api/endpoints/__init__.py — ✅ A

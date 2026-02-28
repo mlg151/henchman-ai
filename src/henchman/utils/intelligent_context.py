@@ -7,7 +7,7 @@ and adaptive compression techniques.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from henchman.providers.base import Message
@@ -16,6 +16,41 @@ from henchman.utils.tokens import TokenCounter
 if TYPE_CHECKING:
     # For type checking only
     from henchman.providers.base import Message
+
+
+@dataclass
+class IntelligentContextConfig:
+    """Configuration for intelligent context management.
+
+    Attributes:
+        max_tokens: Maximum tokens to keep in context.
+        max_protected_ratio: Maximum ratio of context that can be protected.
+            If protected zone exceeds this, oldest protected content is truncated.
+        importance_threshold: Minimum importance score to preserve a message.
+            Messages below this threshold are candidates for compression or removal.
+        cluster_similarity_threshold: Similarity threshold for clustering messages.
+            Higher values create more specific clusters.
+        adaptive_compression: Whether to use adaptive compression techniques
+            based on conversation structure and content type.
+        safety_limit_ratio: Ratio of max_tokens to use as safety limit for individual messages.
+        minimum_word_length: Minimum word length for keyword extraction.
+        minimum_shared_words: Minimum shared words for role pattern clustering.
+        cluster_size_boost_factor: Factor for boosting cluster importance based on size.
+        compression_high_threshold: High importance threshold for compression.
+        compression_medium_threshold: Medium importance threshold for compression.
+    """
+
+    max_tokens: int = 8000
+    max_protected_ratio: float = 0.3
+    importance_threshold: float = 0.5
+    cluster_similarity_threshold: float = 0.7
+    adaptive_compression: bool = True
+    safety_limit_ratio: float = 0.75
+    minimum_word_length: int = 3
+    minimum_shared_words: int = 2
+    cluster_size_boost_factor: float = 0.1
+    compression_high_threshold: float = 0.6
+    compression_medium_threshold: float = 0.3
 
 
 @dataclass
@@ -73,12 +108,14 @@ class IntelligentContextManager:
             adaptive_compression: Whether to use adaptive compression techniques
                 based on conversation structure and content type.
         """
-        self.max_tokens = max_tokens
-        self.max_protected_ratio = max_protected_ratio
+        self.config = IntelligentContextConfig(
+            max_tokens=max_tokens,
+            max_protected_ratio=max_protected_ratio,
+            importance_threshold=importance_threshold,
+            cluster_similarity_threshold=cluster_similarity_threshold,
+            adaptive_compression=adaptive_compression,
+        )
         self.max_protected_tokens = int(max_tokens * max_protected_ratio)
-        self.importance_threshold = importance_threshold
-        self.cluster_similarity_threshold = cluster_similarity_threshold
-        self.adaptive_compression = adaptive_compression
 
     def enforce_safety_limits(self, messages: list[Message]) -> list[Message]:
         """Enforce limits on individual message size using tokens.
@@ -94,34 +131,44 @@ class IntelligentContextManager:
         """
         # TODO: Implement intelligent safety limits with semantic preservation
         safe_messages = []
-        limit = int(self.max_tokens * 0.75)
+        limit = int(self.config.max_tokens * self.config.safety_limit_ratio)
 
         for msg in messages:
-            if not msg.content:
-                safe_messages.append(msg)
-                continue
-
-            if len(msg.content) < limit:
-                safe_messages.append(msg)
-                continue
-
-            if TokenCounter.count_text(msg.content) > limit:
-                truncated_content = TokenCounter.truncate_text(msg.content, limit)
-                new_content = (
-                    truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
-                )
-
-                safe_msg = Message(
-                    role=msg.role,
-                    content=new_content,
-                    tool_calls=msg.tool_calls,
-                    tool_call_id=msg.tool_call_id,
-                )
-                safe_messages.append(safe_msg)
-            else:
-                safe_messages.append(msg)
+            safe_message = self._enforce_message_safety_limit(msg, limit)
+            safe_messages.append(safe_message)
 
         return safe_messages
+
+    def _enforce_message_safety_limit(self, message: Message, limit: int) -> Message:
+        """Enforce safety limit on a single message.
+
+        Args:
+            message: The message to check.
+            limit: Token limit for the message.
+
+        Returns:
+            Message with content truncated if necessary.
+        """
+        if not message.content:
+            return message
+
+        if len(message.content) < limit:
+            return message
+
+        if TokenCounter.count_text(message.content) > limit:
+            truncated_content = TokenCounter.truncate_text(message.content, limit)
+            new_content = (
+                truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
+            )
+
+            return Message(
+                role=message.role,
+                content=new_content,
+                tool_calls=message.tool_calls,
+                tool_call_id=message.tool_call_id,
+            )
+        else:
+            return message
 
     def compact(
         self,
@@ -550,43 +597,55 @@ class IntelligentContextManager:
             next_cluster = clusters[i + 1]
 
             # Check if clusters are adjacent in the message sequence
-            curr_max = max(curr_cluster)
-            next_min = min(next_cluster)
-
-            if next_min == curr_max + 1:
-                # Check if we should merge them
-                should_merge = False
-
-                # Get the last message of current cluster and first of next
-                last_msg_idx = curr_cluster[-1]
-                first_msg_idx = next_cluster[0]
-
-                last_msg = messages[last_msg_idx]
-                first_msg = messages[first_msg_idx]
-
-                # Merge if same role (except tool responses which are handled separately)
-                if (
-                    last_msg.role == first_msg.role
-                    and last_msg.role != "tool"
-                    or last_msg.role == "user"
-                    and first_msg.role == "assistant"
-                    or last_msg.role == "assistant"
-                    and first_msg.role == "user"
-                ):
-                    should_merge = True
-
-                if should_merge:
-                    # Merge the two clusters
-                    merged_cluster = curr_cluster + next_cluster
-                    clusters[i] = merged_cluster
-                    del clusters[i + 1]
-                    # Don't increment i since we need to check the new merged cluster
-                    # with the next one
-                    continue
+            if self._should_merge_adjacent_clusters(messages, curr_cluster, next_cluster):
+                # Merge the two clusters
+                merged_cluster = curr_cluster + next_cluster
+                clusters[i] = merged_cluster
+                del clusters[i + 1]
+                # Don't increment i since we need to check the new merged cluster
+                # with the next one
+                continue
 
             i += 1
 
         return clusters
+
+    def _should_merge_adjacent_clusters(
+        self, messages: list[Message], curr_cluster: list[int], next_cluster: list[int]
+    ) -> bool:
+        """Determine if two adjacent clusters should be merged.
+
+        Args:
+            messages: All messages.
+            curr_cluster: Current cluster indices.
+            next_cluster: Next cluster indices.
+
+        Returns:
+            True if clusters should be merged, False otherwise.
+        """
+        # Check if clusters are adjacent in the message sequence
+        curr_max = max(curr_cluster)
+        next_min = min(next_cluster)
+
+        if next_min != curr_max + 1:
+            return False
+
+        # Get the last message of current cluster and first of next
+        last_msg_idx = curr_cluster[-1]
+        first_msg_idx = next_cluster[0]
+
+        last_msg = messages[last_msg_idx]
+        first_msg = messages[first_msg_idx]
+
+        # Merge if same role (except tool responses which are handled separately)
+        return (
+            last_msg.role == first_msg.role
+            and last_msg.role != "tool"
+            or last_msg.role == "user"
+            and first_msg.role == "assistant"
+            or last_msg.role == "assistant"
+            and first_msg.role == "user"
+        )
 
     def _cluster_topic_similarity(
         self, messages: list[Message], clusters: list[list[int]]
@@ -609,18 +668,7 @@ class IntelligentContextManager:
         # Extract keywords for each cluster
         cluster_keywords = []
         for cluster in clusters:
-            keywords = set()
-            for idx in cluster:
-                msg = messages[idx]
-                if msg.content:
-                    # Simple keyword extraction: split by common delimiters
-                    # and take words longer than 3 characters
-                    words = msg.content.lower().split()
-                    for word in words:
-                        # Remove punctuation
-                        word = word.strip(".,!?;:\"'()[]{}")
-                        if len(word) > 3 and not word.startswith("http"):
-                            keywords.add(word)
+            keywords = self._extract_cluster_keywords(messages, cluster)
             cluster_keywords.append(keywords)
 
         # Try to merge clusters with similar keywords
@@ -637,7 +685,7 @@ class IntelligentContextManager:
                 union = len(cluster_keywords[i] | cluster_keywords[j])
                 similarity = intersection / union if union > 0 else 0
 
-                if similarity >= self.cluster_similarity_threshold:
+                if similarity >= self.config.cluster_similarity_threshold:
                     # Merge clusters
                     clusters[i].extend(clusters[j])
                     # Update keywords for merged cluster
@@ -652,6 +700,32 @@ class IntelligentContextManager:
             i += 1
 
         return clusters
+
+    def _extract_cluster_keywords(
+        self, messages: list[Message], cluster: list[int]
+    ) -> set[str]:
+        """Extract keywords from messages in a cluster.
+        
+        Args:
+            messages: All messages.
+            cluster: Indices of messages in the cluster.
+            
+        Returns:
+            Set of significant keywords from the cluster.
+        """
+        keywords = set()
+        for idx in cluster:
+            msg = messages[idx]
+            if msg.content:
+                # Simple keyword extraction: split by common delimiters
+                # and take words longer than minimum_word_length characters
+                words = msg.content.lower().split()
+                for word in words:
+                    # Remove punctuation
+                    word = word.strip(".,!?;:\"'()[]{}")
+                    if len(word) > self.config.minimum_word_length and not word.startswith("http"):
+                        keywords.add(word)
+        return keywords
 
     def _cluster_role_patterns(
         self, messages: list[Message], clusters: list[list[int]]
@@ -691,16 +765,18 @@ class IntelligentContextManager:
                     messages[idx].content or "" for idx in next_cluster if messages[idx].content
                 ).lower()
 
-                # Simple check: if they share at least 2 significant words
+                # Simple check: if they share at least minimum_shared_words significant words
                 curr_words = {
-                    w.strip(".,!?;:\"'()[]{}") for w in curr_content.split() if len(w) > 3
+                    w.strip(".,!?;:\"'()[]{}") for w in curr_content.split() 
+                    if len(w) > self.config.minimum_word_length
                 }
                 next_words = {
-                    w.strip(".,!?;:\"'()[]{}") for w in next_content.split() if len(w) > 3
+                    w.strip(".,!?;:\"'()[]{}") for w in next_content.split() 
+                    if len(w) > self.config.minimum_word_length
                 }
 
                 common_words = curr_words & next_words
-                if len(common_words) >= 2:
+                if len(common_words) >= self.config.minimum_shared_words:
                     # Merge the clusters
                     merged_cluster = curr_cluster + next_cluster
                     clusters[i] = merged_cluster
@@ -893,7 +969,7 @@ class IntelligentContextManager:
             avg_score = total_score / valid_scores if valid_scores > 0 else 0.0
 
             # Boost score for larger clusters (more context)
-            size_factor = min(len(cluster) / 10.0, 1.0) * 0.1  # Up to 0.1 boost
+            size_factor = min(len(cluster) / 10.0, 1.0) * self.config.cluster_size_boost_factor
             cluster_score = min(1.0, avg_score + size_factor)
 
             cluster_importance[cluster_idx] = cluster_score
@@ -952,12 +1028,10 @@ class IntelligentContextManager:
         Returns:
             Compressed messages.
         """
-        return self._apply_importance_based_compression(
-            messages, clusters, cluster_importance,
-            high_threshold=0.6,  # Lower threshold to preserve more info
-            medium_threshold=0.3,
-            preserve_tool_sequences=True,
-            preserve_code_blocks=False,
+        # Research conversations use the same compression strategy as general conversations
+        # but with different documentation to clarify intent
+        return self._apply_general_compression_strategy(
+            messages, clusters, cluster_importance
         )
 
     def _apply_debugging_compression_strategy(
@@ -1008,8 +1082,8 @@ class IntelligentContextManager:
         """
         return self._apply_importance_based_compression(
             messages, clusters, cluster_importance,
-            high_threshold=0.6,
-            medium_threshold=0.3,
+            high_threshold=self.config.compression_high_threshold,
+            medium_threshold=self.config.compression_medium_threshold,
             preserve_tool_sequences=True,
             preserve_code_blocks=False,
         )
