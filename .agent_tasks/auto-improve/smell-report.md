@@ -1,49 +1,49 @@
-# Code Smell Report — ❌ F (Score: 40.3/100)
+# Code Smell Report — ❌ F (Score: 39.9/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-27T21:00:15.681963+00:00_
+_Generated: 2026-02-28T02:00:20.777081+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 40.3/100 |
+| **Overall Score** | 39.9/100 |
 | **Files Scanned** | 149 |
-| **Total Lines (non-blank)** | 30,469 |
-| **Total Smells** | 2601 |
-| **Avg Maintainability Index** | 69.8 |
+| **Total Lines (non-blank)** | 30,716 |
+| **Total Smells** | 2634 |
+| **Avg Maintainability Index** | 69.7 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1829 |
-| medium | 646 |
+| low | 1869 |
+| medium | 639 |
 | high | 126 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1264 |
-| Feature Envy | 355 |
+| Missing Type Hint | 1297 |
+| Feature Envy | 352 |
 | Duplicate Code | 312 |
 | Magic Number | 175 |
-| Long Method | 162 |
-| Deep Nesting | 152 |
+| Long Method | 161 |
+| Deep Nesting | 155 |
 | Primitive Obsession | 85 |
 | Complex Function | 58 |
-| Large Class | 38 |
+| Large Class | 39 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **agents/orchestrator.py:691** — 🟠 HIGH — Duplicate Code  
-   Function 'enforce_turn_limits' is an exact duplicate of '_enforce_turn_limits' at agents/orchestrator.py:1179  
+1. **agents/orchestrator.py:867** — 🟠 HIGH — Duplicate Code  
+   Function 'last_assistant_content' is an exact duplicate of 'last_assistant_content' at agents/orchestrator.py:967  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 2. **cli/app.py:645** — 🟠 HIGH — Primitive Obsession  
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/orchestrator.py | ❌ F | 5.3 | 80 | 1114 | 18 | 12.0 |
+| 1 | agents/orchestrator.py | ❌ F | 2.6 | 113 | 1361 | 9 | 13.0 |
 | 2 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
 | 3 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 4 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 129 additional files omitted._
 
-### agents/orchestrator.py — ❌ F (5.3/100)
+### agents/orchestrator.py — ❌ F (2.6/100)
 
-LOC: 1114 | Classes: 12 | Functions: 0 | MI: 18 | Avg CC: 12.0
+LOC: 1361 | Classes: 16 | Functions: 0 | MI: 9 | Avg CC: 13.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 691 | 🟠 HIGH | Duplicate Code | Function 'enforce_turn_limits' is an exact duplicate of '_enforce_turn_limits' at agents/orchestrator.py:1179 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 100 | 🟡 MEDIUM | Feature Envy | Method 'PromptFactory.create_tech_lead_prompt' accesses 'config' 5 times but 'self' only 0 times | Move Method — consider moving 'create_tech_lead_prompt' to the class that owns 'config'. |
-| 178 | 🟡 MEDIUM | Feature Envy | Method 'TimeoutSummaryBuilder._format_summary' accesses 'lines' 5 times but 'self' only 0 times | Move Method — consider moving '_format_summary' to the class that owns 'lines'. |
-| 239 | 🟡 MEDIUM | Feature Envy | Method 'AgentValidator.check_stall_failure' accesses 'agent' 5 times but 'self' only 1 times | Move Method — consider moving 'check_stall_failure' to the class that owns 'agent'. |
-| 417 | 🟡 MEDIUM | Feature Envy | Method 'ToolController.execute_regular_tool' accesses 'tool_call' 6 times but 'self' only 3 times | Move Method — consider moving 'execute_regular_tool' to the class that owns 'tool_call'. |
-| 417 | 🟡 MEDIUM | Feature Envy | Method 'ToolController.execute_regular_tool' accesses 'result' 6 times but 'self' only 3 times | Move Method — consider moving 'execute_regular_tool' to the class that owns 'result'. |
-| 437 | 🟡 MEDIUM | Feature Envy | Method 'ToolController.prepare_delegation_brief' accesses 'tool_call' 6 times but 'self' only 0 times | Move Method — consider moving 'prepare_delegation_brief' to the class that owns 'tool_call'. |
-| 483 | 🟡 MEDIUM | Complex Function | Function 'run_agent_loop' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 635 | 🟡 MEDIUM | Duplicate Code | Function 'check_colon_stall' is 100% similar to '_check_colon_stall' at agents/orchestrator.py:1288 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 698 | 🟡 MEDIUM | Feature Envy | Method 'ExecutionController._enforce_turn_limits_common' accesses 'params' 5 times but 'self' only 0 times | Move Method — consider moving '_enforce_turn_limits_common' to the class that owns 'params'. |
-| 843 | 🟡 MEDIUM | Large Class | Class 'Orchestrator' spans 574 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 1193 | 🟡 MEDIUM | Long Method | Function '_run_agent_loop' has 71 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1193 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._run_agent_loop' accesses 'state' 9 times but 'self' only 7 times | Move Method — consider moving '_run_agent_loop' to the class that owns 'state'. |
-| 1193 | 🟡 MEDIUM | Complex Function | Function '_run_agent_loop' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 161 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_msg_info' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_msg_info' to the class that owns 'msg'. |
+| 867 | 🟠 HIGH | Duplicate Code | Function 'last_assistant_content' is an exact duplicate of 'last_assistant_content' at agents/orchestrator.py:967 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 117 | 🟡 MEDIUM | Feature Envy | Method 'PromptFactory.create_tech_lead_prompt' accesses 'config' 5 times but 'self' only 1 times | Move Method — consider moving 'create_tech_lead_prompt' to the class that owns 'config'. |
+| 573 | 🟡 MEDIUM | Complex Function | Function 'run_agent_loop' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 748 | 🟡 MEDIUM | Duplicate Code | Function '_finalize_loop' is 93% similar to '_finalize_loop_execution' at agents/orchestrator.py:1541 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1043 | 🟡 MEDIUM | Large Class | Class 'Orchestrator' spans 666 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 1043 | 🟡 MEDIUM | Large Class | Class 'Orchestrator' has 33 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 1393 | 🟡 MEDIUM | Complex Function | Function '_run_agent_loop' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 109 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: missing return type | Add Type Annotations for all parameters and return type. |
+| 117 | 🟢 LOW | Missing Type Hint | Function 'create_tech_lead_prompt' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 152 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: missing return type | Add Type Annotations for all parameters and return type. |
+| 166 | 🟢 LOW | Missing Type Hint | Function 'build_summary' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 184 | 🟢 LOW | Missing Type Hint | Function '_extract_agent_progress' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 190 | 🟢 LOW | Missing Type Hint | Function '_extract_msg_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 190 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_msg_info' accesses 'msg' 4 times but 'self' only 2 times | Move Method — consider moving '_extract_msg_info' to the class that owns 'msg'. |
+| 198 | 🟢 LOW | Missing Type Hint | Function '_extract_tool_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 65 more smells._
+_... and 98 more smells._
 
 ### utils/intelligent_context.py — ❌ F (6.4/100)
 

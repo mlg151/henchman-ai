@@ -1,84 +1,61 @@
-# Refactoring: src/henchman/agents/orchestrator.py
-**Date/Time**: 2026-02-27T20:45:00Z
-**Files Changed**: src/henchman/agents/orchestrator.py
+# Refactoring Summary - orchestrator.py
 
-## Working Memory
+**Date/Time**: 2026-02-28T02:00:20.777081+00:00
+**Target File**: src/henchman/agents/orchestrator.py
+**Original Score**: 2.6/100 (F grade)
 
-### Current Task: Refactor orchestrator.py to address all code smells
-**Task Objectives**:
-1. Fix Feature Envy issues (7 instances)
-2. Fix Long Method issues (2 instances)
-3. Fix Duplicate Code issues (2 instances)
-4. Fix Large Class issue (Orchestrator class too large)
-5. Fix Complex Function issues (cyclomatic complexity)
+## Identified Smells to Address:
 
-**Recent Files**:
-- `src/henchman/agents/orchestrator.py`: Full file analysis, 1089 lines, 12 classes
-- `.agent_tasks/auto-improve/smell-report.md`: Smell analysis showing 77 smells
+### HIGH Priority:
+1. **Duplicate Code (line 867)**: `last_assistant_content` method duplicated at line 967
 
-**Active Context**:
-- Project: Henchman-AI multi-agent CLI
-- Architecture: Orchestrator coordinates Tech Lead and specialist agents
-- Key patterns: Event-driven async execution, delegation system, metrics tracking
-- Constraints: Must maintain backward compatibility, all tests must pass
+### MEDIUM Priority:
+2. **Feature Envy (line 117)**: `PromptFactory.create_tech_lead_prompt` accesses `config` 5 times but `self` only 1 time
+3. **Complex Function (line 573)**: `run_agent_loop` has cyclomatic complexity 13
+4. **Duplicate Code (line 748)**: `_finalize_loop` is 93% similar to `_finalize_loop_execution` at line 1541
+5. **Large Class (line 1043)**: `Orchestrator` spans 666 lines (threshold: 300), has 33 methods (threshold: 20)
+6. **Complex Function (line 1393)**: `_run_agent_loop` has cyclomatic complexity 13
 
-**Decisions Made**:
-1. Will extract helper methods from long functions
-2. Will move Feature Envy methods to appropriate classes
-3. Will eliminate duplicate code by extracting shared logic
-4. Will consider extracting subclasses from Orchestrator
+## Refactoring Strategy:
 
-**Completed Steps**:
-1. ✅ Analyzed file structure and smell report
-2. ✅ Ran tests to establish baseline (53 tests pass)
+### 1. Duplicate Code (HIGH)
+- **Pattern**: Extract Method / Once and Only Once
+- **Solution**: Create a single `_get_last_assistant_content` helper function and use it in both places
+- **Testing Implications**: No API changes, should not affect tests
 
-**Next Actions**:
-1. Extract helper methods from `run_agent_loop` (63 lines)
-2. Extract helper methods from `_run_agent_loop` (71 lines)
-3. Merge duplicate colon stall checking logic
-4. Merge duplicate turn limit enforcement logic
-5. Address Feature Envy in static methods
-6. Consider extracting subclasses from Orchestrator
+### 2. Feature Envy (MEDIUM)
+- **Pattern**: Move Method / Extract Helper
+- **Solution**: Extract the logic that accesses `config` into a helper method or restructure to reduce external dependencies
+- **Testing Implications**: Method signature unchanged, internal implementation change only
 
-**Insights Gained**:
-- Many static methods exhibit Feature Envy because they operate on parameters rather than self
-- Duplicate code exists between ExecutionController and Orchestrator methods
-- The class is already well-structured with separate components (Validator, ToolController, ExecutionController)
+### 3. Complex Function (MEDIUM) - `run_agent_loop`
+- **Pattern**: Extract Method / Replace Conditional with Polymorphism
+- **Solution**: Break down the large while loop into smaller, intention-revealing methods
+- **Testing Implications**: Need to ensure all execution paths are preserved
 
-**Problems Encountered**: None yet
+### 4. Duplicate Code (MEDIUM) - `_finalize_loop` vs `_finalize_loop_execution`
+- **Pattern**: Extract Shared Function
+- **Solution**: Create a common `_store_loop_results` method that both can call
+- **Testing Implications**: No functional changes, just code deduplication
 
-## Refactoring Strategy
+### 5. Large Class (MEDIUM) - `Orchestrator`
+- **Pattern**: Extract Class / Split Class
+- **Solution**: Consider extracting initialization logic or delegation logic into separate classes
+- **Testing Implications**: May require refactoring of dependencies
 
-### Phase 1: Extract Helper Methods from Long Functions
-- Extract `_process_agent_events_and_tools` from `run_agent_loop`
-- Extract `_handle_no_pending_tools` from `run_agent_loop`
-- Extract `_execute_pending_tools` from `run_agent_loop`
+### 6. Complex Function (MEDIUM) - `_run_agent_loop`
+- **Pattern**: Extract Method
+- **Solution**: Similar to `run_agent_loop`, break down into smaller methods
+- **Testing Implications**: Ensure all async generator patterns are preserved
 
-### Phase 2: Address Feature Envy
-- Move `PromptFactory.create_tech_lead_prompt` logic to where `c` is owned
-- Move `TimeoutSummaryBuilder._format_summary` to work with `self`
-- Move `AgentValidator.check_stall_failure` to Agent class
-- Move `ToolController.execute_regular_tool` helper logic
-- Move `ToolController.prepare_delegation_brief` to ToolCall class
-- Move `ExecutionController.enforce_turn_limits` to TurnEnforcementParams
-- Move `Orchestrator._enforce_turn_limits` to TurnEnforcementParams
-- Move `Orchestrator._run_agent_loop` state handling to LoopState
+## XP Principles Applied:
+- **YAGNI**: Remove duplicate code, don't add unnecessary abstractions
+- **Once and Only Once**: Eliminate duplicate `last_assistant_content` and similar loop finalization logic
+- **Simplicity**: Break down complex functions into simpler, focused methods
+- **Intention-Revealing Code**: Rename extracted methods to clearly describe their purpose
 
-### Phase 3: Eliminate Duplicate Code
-- Extract shared colon stall logic to `_check_colon_stall_common`
-- Extract shared turn limit logic to `_enforce_turn_limits_common`
+## Files Changed:
+- `src/henchman/agents/orchestrator.py` - Primary refactoring target
 
-### Phase 4: Reduce Class Size
-- Extract `OrchestratorInitializer` class for initialization logic
-- Extract `OrchestratorRunner` class for execution logic
-
-### Phase 5: Improve Readability
-- Rename variables for clarity
-- Add type hints where missing
-- Extract magic numbers to constants
-
-## Testing Implications
-- Need to ensure all 53 existing tests still pass
-- May need to update tests that directly call refactored methods
-- Should add tests for new extracted helper methods
-- Edge cases: colon stall detection, turn limits, delegation handling
+## Rationale:
+The orchestrator is a critical component of the multi-agent system. Reducing complexity and eliminating duplication will improve maintainability, testability, and readability. The refactoring follows Extreme Programming principles by focusing on the simplest design that works and eliminating waste (duplicate code).
