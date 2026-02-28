@@ -167,12 +167,14 @@ class TestAgentIntelligentContextIntegration:
                 protect_from_index=4,  # Should protect from turn start index
             )
 
-    def test_apply_simple_compaction_with_intelligent_context(self, mock_provider, sample_messages):
+    @pytest.mark.asyncio
+    async def test_apply_simple_compaction_with_intelligent_context(self, mock_provider, sample_messages):
         """Test _apply_simple_compaction() uses intelligent context when enabled."""
         agent = Agent(
             provider=mock_provider,
             intelligent_context=True,
-            max_tokens=100,  # Low limit to force compaction
+            max_tokens=50,  # Low limit to force compaction
+            summarize_dropped=False,
         )
         agent.messages = sample_messages
         agent.turn.start_index = 0
@@ -184,11 +186,11 @@ class TestAgentIntelligentContextIntegration:
 
             # Mock repair_message_sequence to return same messages
             with patch('henchman.core.agent.repair_message_sequence', side_effect=lambda x: x):
-                agent._apply_simple_compaction(protected_count=0)
+                await agent._apply_simple_compaction(protected_count=0)
 
                 # Verify IntelligentContextManager was used
                 mock_manager_class.assert_called_once_with(
-                    max_tokens=100,
+                    max_tokens=50,
                     max_protected_ratio=0.3,
                     importance_threshold=0.5,
                     cluster_similarity_threshold=0.7,
@@ -200,12 +202,14 @@ class TestAgentIntelligentContextIntegration:
                 )
                 assert agent.messages == sample_messages[:3]
 
-    def test_apply_simple_compaction_without_intelligent_context(self, mock_provider, sample_messages):
+    @pytest.mark.asyncio
+    async def test_apply_simple_compaction_without_intelligent_context(self, mock_provider, sample_messages):
         """Test _apply_simple_compaction() uses ContextCompactor when intelligent context disabled."""
         agent = Agent(
             provider=mock_provider,
             intelligent_context=False,
-            max_tokens=100,  # Low limit to force compaction
+            max_tokens=50,  # Low limit to force compaction
+            summarize_dropped=False,
         )
         agent.messages = sample_messages
         agent.turn.start_index = 0
@@ -217,11 +221,11 @@ class TestAgentIntelligentContextIntegration:
 
             # Mock repair_message_sequence to return same messages
             with patch('henchman.core.agent.repair_message_sequence', side_effect=lambda x: x):
-                agent._apply_simple_compaction(protected_count=0)
+                await agent._apply_simple_compaction(protected_count=0)
 
                 # Verify ContextCompactor was used
                 mock_compactor_class.assert_called_once_with(
-                    max_tokens=100,
+                    max_tokens=50,
                     max_protected_ratio=0.3,
                 )
                 mock_compactor.compact.assert_called_once_with(

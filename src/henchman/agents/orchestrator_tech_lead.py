@@ -50,7 +50,7 @@ def setup_tech_lead(
         cluster_similarity_threshold=ctx.cluster_similarity_threshold,
         adaptive_compression=ctx.adaptive_compression,
     )
-    orch.tech_lead.stall_detection_enabled = False
+    orch.tech_lead._stall.enabled = False
 
 
 def create_tech_lead_identity() -> Any:

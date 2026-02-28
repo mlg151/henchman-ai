@@ -58,7 +58,7 @@ class TestAssessCompletion:
         orchestrator._last_loop_tool_call_count = 0
 
         agent = MagicMock()
-        agent._stall_failure = False
+        agent._stall = MagicMock(failure=False)
 
         assert orchestrator._assess_completion(agent) == CompletionStatus.NO_WORK_DONE
 
@@ -68,7 +68,7 @@ class TestAssessCompletion:
         orchestrator._last_loop_tool_call_count = 5
 
         agent = MagicMock()
-        agent._stall_failure = False
+        agent._stall = MagicMock(failure=False)
 
         assert orchestrator._assess_completion(agent) == CompletionStatus.COMPLETED
 
@@ -78,7 +78,7 @@ class TestAssessCompletion:
         orchestrator._last_loop_tool_call_count = 0
 
         agent = MagicMock()
-        agent._stall_failure = True
+        agent._stall = MagicMock(failure=True)
 
         assert orchestrator._assess_completion(agent) == CompletionStatus.STALLED
 
@@ -88,7 +88,7 @@ class TestAssessCompletion:
         orchestrator._last_loop_tool_call_count = 3
 
         agent = MagicMock()
-        agent._stall_failure = True
+        agent._stall = MagicMock(failure=True)
 
         assert orchestrator._assess_completion(agent) == CompletionStatus.STALLED
 

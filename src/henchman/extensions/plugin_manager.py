@@ -507,16 +507,39 @@ class PluginManager(ExtensionManager):
         Returns:
             True if compatible, False otherwise.
         """
-        # TODO: Implement actual compatibility checking
-        # For now, just check Henchman version
+        import sys
+        from packaging.version import Version
+        from packaging.specifiers import SpecifierSet, InvalidSpecifier
         from henchman.version import VERSION
 
-        henchman_version = VERSION
-        required_version = metadata.compatibility.henchman
+        try:
+            # Check Henchman version
+            current_henchman = Version(VERSION)
+            if not SpecifierSet(metadata.compatibility.henchman).contains(current_henchman):
+                return False
 
-        # Simple version checking (very basic)
-        # TODO: Use proper semver comparison
-        return True  # Placeholder
+            # Check Python version
+            current_python = Version(
+                f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+            )
+            if not SpecifierSet(metadata.compatibility.python).contains(current_python):
+                return False
+
+            # Check OS compatibility
+            if metadata.compatibility.os:
+                platform_map = {
+                    "linux": "linux",
+                    "win32": "windows",
+                    "darwin": "macos",
+                }
+                current_os = platform_map.get(sys.platform, sys.platform)
+                if current_os not in metadata.compatibility.os:
+                    return False
+
+            return True
+
+        except (InvalidSpecifier, ValueError):
+            return False
 
     async def _install_plugin_package(self, metadata: PluginMetadata) -> Path:
         """Install plugin package from source.

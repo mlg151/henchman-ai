@@ -63,10 +63,11 @@ def handle_missing_thinking(agent: Any) -> AgentEvent:
 
 def check_stall_failure(orchestrator: Any, agent: Any) -> AgentEvent | None:
     """Check if agent has stalled and report failure."""
-    if agent is orchestrator.tech_lead or not getattr(agent, "_stall_failure", False):
+    _stall = getattr(agent, "_stall", None)
+    if agent is orchestrator.tech_lead or not getattr(_stall, "failure", False):
         return None
     role_label = agent.identity.role if agent.identity else "agent"
-    nudges = getattr(agent, "_stall_nudge_count", 0)
+    nudges = getattr(_stall, "nudge_count", 0)
     fail_msg = (
         f"STALL FAILURE: {role_label} announced intent but never used "
         f"tools after {nudges} nudges. The task was NOT completed."

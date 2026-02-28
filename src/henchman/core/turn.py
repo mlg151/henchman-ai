@@ -13,10 +13,44 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from henchman.tools.base import ToolResult
 
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+HASH_PREFIX_LENGTH = 8
+READ_ONLY_DUPLICATE_THRESHOLD = 5
+MAX_RECENT_HASHES = 10
+MIN_HASHES_FOR_PROGRESS = 3
+RECENT_HASH_WINDOW = 5
+MIN_UNIQUE_FOR_PROGRESS = 3
+CONSECUTIVE_DUPLICATE_THRESHOLD = 3
+MIN_HASHES_FOR_SPIN_CHECK = 6
+SPIN_HASH_WINDOW = 6
+SPIN_HASH_REPEAT_THRESHOLD = 4
+IDLE_ITERATION_THRESHOLD = 7
+IDLE_TOOL_COUNT_THRESHOLD = 15
+PROGRESS_LIMIT_BONUS = 10
+SPINNING_LIMIT_PENALTY = 10
+SPINNING_LIMIT_FLOOR = 5
+PERCENT_MULTIPLIER = 100
+TOKENS_PER_K = 1000
+
+READ_ONLY_TOOLS: frozenset[str] = frozenset(
+    {"read_file", "ls", "glob", "grep", "rag_search"},
+)
+WRITE_TOOLS: frozenset[str] = frozenset({"write_file", "edit_file"})
+
 
 def _hash_content(content: str) -> str:
-    """Create a short hash of content for comparison."""
-    return hashlib.md5(content.encode()).hexdigest()[:8]
+    """Create a short hash of content for comparison.
+
+    Args:
+        content: The string content to hash.
+
+    Returns:
+        An 8-character hex digest prefix.
+    """
+    return hashlib.md5(content.encode()).hexdigest()[:HASH_PREFIX_LENGTH]
 
 
 @dataclass
@@ -38,7 +72,7 @@ class TurnState:
         recent_result_hashes: Recent tool result hashes for loop detection.
     """
 
-    start_index: int = -1  # -1 means no protection (backward compat)
+    start_index: int = -1
     tool_call_ids: set[str] = field(default_factory=set)
     tool_count: int = 0
     iteration: int = 0
@@ -50,11 +84,11 @@ class TurnState:
     _last_call_signature: str = ""
 
     def record_tool_call(
-        self,
+        self: TurnState,
         tool_call_id: str,
         tool_name: str,
         arguments: dict[str, object],
-        result: ToolResult | None = None,
+        result: "ToolResult | None" = None,
     ) -> None:
         """Record a tool call for tracking.
 
@@ -66,78 +100,73 @@ class TurnState:
         """
         self.tool_call_ids.add(tool_call_id)
         self.tool_count += 1
+        self._track_duplicates(tool_name, arguments)
+        self._track_result_hash(result)
+        if tool_name in WRITE_TOOLS and "path" in arguments:
+            self.files_modified.add(str(arguments["path"]))
+        if result and not result.success and result.error:
+            self.errors_seen.append(result.error)
 
-        # Track for duplicate detection
-        # Be more lenient with read-only operations
-        is_read_only = tool_name in ("read_file", "ls", "glob", "grep", "rag_search")
+    def _track_duplicates(
+        self: TurnState,
+        tool_name: str,
+        arguments: dict[str, object],
+    ) -> None:
+        """Track consecutive duplicate tool calls."""
+        is_read_only = tool_name in READ_ONLY_TOOLS
         call_sig = f"{tool_name}:{_hash_content(str(sorted(arguments.items())))}"
         if call_sig == self._last_call_signature:
-            # Only count as duplicate if not a read operation or if it's excessive
-            if not is_read_only or self._consecutive_duplicates >= 5:
+            if not is_read_only or self._consecutive_duplicates >= READ_ONLY_DUPLICATE_THRESHOLD:
                 self._consecutive_duplicates += 1
         else:
             self._consecutive_duplicates = 0
             self._last_call_signature = call_sig
 
-        # Track result hash for spinning detection
+    def _track_result_hash(self: TurnState, result: "ToolResult | None") -> None:
+        """Track result hash for spinning detection."""
         if result and result.content:
-            result_hash = _hash_content(result.content)
-            self.recent_result_hashes.append(result_hash)
-            # Keep only last 10
-            if len(self.recent_result_hashes) > 10:
+            self.recent_result_hashes.append(_hash_content(result.content))
+            if len(self.recent_result_hashes) > MAX_RECENT_HASHES:
                 self.recent_result_hashes.pop(0)
 
-        # Track files modified
-        if tool_name in ("write_file", "edit_file") and "path" in arguments:
-            self.files_modified.add(str(arguments["path"]))
-
-        # Track errors
-        if result and not result.success and result.error:
-            self.errors_seen.append(result.error)
-
-    def increment_iteration(self) -> None:
+    def increment_iteration(self: TurnState) -> None:
         """Increment iteration counter (called after each tool batch)."""
         self.iteration += 1
 
-    def is_making_progress(self) -> bool:
+    def is_making_progress(self: TurnState) -> bool:
         """Check if the turn is making meaningful progress.
 
         Returns:
             True if progress indicators are present.
         """
-        # Progress = new files modified recently, or diverse tool results
         if self.files_modified:
             return True
-
-        # Check for result diversity (not same results over and over)
-        if len(self.recent_result_hashes) >= 3:
-            unique_recent = len(set(self.recent_result_hashes[-5:]))
-            if unique_recent >= 3:
+        if len(self.recent_result_hashes) >= MIN_HASHES_FOR_PROGRESS:
+            unique = len(set(self.recent_result_hashes[-RECENT_HASH_WINDOW:]))
+            if unique >= MIN_UNIQUE_FOR_PROGRESS:
                 return True
-
         return False
 
-    def is_spinning(self) -> bool:
+    def is_spinning(self: TurnState) -> bool:
         """Check if the turn appears to be stuck in a loop.
 
         Returns:
             True if loop indicators are detected.
         """
-        # Same tool+args called 4+ times consecutively (increased from 3)
-        if self._consecutive_duplicates >= 3:  # 0-indexed, so 3 = 4 calls
+        if self._consecutive_duplicates >= CONSECUTIVE_DUPLICATE_THRESHOLD:
             return True
-
-        # Same result hash repeated 4+ times in last 6 results (more lenient)
-        if len(self.recent_result_hashes) >= 6:
-            recent = self.recent_result_hashes[-6:]
+        if len(self.recent_result_hashes) >= MIN_HASHES_FOR_SPIN_CHECK:
+            recent = self.recent_result_hashes[-SPIN_HASH_WINDOW:]
             for h in set(recent):
-                if recent.count(h) >= 4:
+                if recent.count(h) >= SPIN_HASH_REPEAT_THRESHOLD:
                     return True
+        return bool(
+            self.iteration >= IDLE_ITERATION_THRESHOLD
+            and not self.files_modified
+            and self.tool_count > IDLE_TOOL_COUNT_THRESHOLD,
+        )
 
-        # No new files touched in 7+ iterations with many tool calls (increased threshold)
-        return bool(self.iteration >= 7 and not self.files_modified and self.tool_count > 15)
-
-    def get_adaptive_limit(self, base_limit: int = 25) -> int:
+    def get_adaptive_limit(self: TurnState, base_limit: int = 25) -> int:
         """Get the adaptive iteration limit based on progress.
 
         Args:
@@ -147,16 +176,17 @@ class TurnState:
             Adjusted limit based on progress/spinning detection.
         """
         limit = base_limit
-
         if self.is_making_progress():
-            limit += 10  # Extend for productive work
-
+            limit += PROGRESS_LIMIT_BONUS
         if self.is_spinning():
-            limit = max(5, limit - 10)  # Reduce for spinning
-
+            limit = max(SPINNING_LIMIT_FLOOR, limit - SPINNING_LIMIT_PENALTY)
         return limit
 
-    def is_approaching_limit(self, base_limit: int = 25, threshold: float = 0.75) -> bool:
+    def is_approaching_limit(
+        self: TurnState,
+        base_limit: int = 25,
+        threshold: float = 0.75,
+    ) -> bool:
         """Check if approaching iteration limit.
 
         Args:
@@ -166,10 +196,9 @@ class TurnState:
         Returns:
             True if past threshold.
         """
-        adaptive_limit = self.get_adaptive_limit(base_limit)
-        return self.iteration >= int(adaptive_limit * threshold)
+        return self.iteration >= int(self.get_adaptive_limit(base_limit) * threshold)
 
-    def is_at_limit(self, base_limit: int = 25) -> bool:
+    def is_at_limit(self: TurnState, base_limit: int = 25) -> bool:
         """Check if at or past iteration limit.
 
         Args:
@@ -181,9 +210,9 @@ class TurnState:
         return self.iteration >= self.get_adaptive_limit(base_limit)
 
     def get_status_string(
-        self,
+        self: TurnState,
         base_limit: int = 25,
-        max_tokens: int = 100000,
+        max_tokens: int = 100_000,
     ) -> str:
         """Get a status string for display.
 
@@ -195,26 +224,23 @@ class TurnState:
             Formatted status string.
         """
         adaptive_limit = self.get_adaptive_limit(base_limit)
-
-        # Progress indicator
         if self.is_spinning():
             progress = "⚠ spinning"
         elif self.is_making_progress():
             progress = "✓ progress"
         else:
             progress = "…"
-
-        # Token percentage
-        token_pct = int(100 * self.protected_tokens / max_tokens) if max_tokens > 0 else 0
-
+        token_pct = (
+            int(PERCENT_MULTIPLIER * self.protected_tokens / max_tokens) if max_tokens > 0 else 0
+        )
         return (
             f"[Iter {self.iteration}/{adaptive_limit} | "
             f"{self.tool_count} calls | "
-            f"{self.protected_tokens // 1000}K tokens ({token_pct}% protected) | "
+            f"{self.protected_tokens // TOKENS_PER_K}K tokens ({token_pct}% protected) | "
             f"{progress}]"
         )
 
-    def reset(self, new_start_index: int = 0) -> None:
+    def reset(self: TurnState, new_start_index: int = 0) -> None:
         """Reset state for a new turn.
 
         Args:
