@@ -18,6 +18,152 @@ if TYPE_CHECKING:
     from henchman.providers.base import Message
 
 
+class IntelligentContextConstants:
+    """Constants for intelligent context management."""
+    
+    # Default configuration values
+    DEFAULT_MAX_TOKENS: int = 8000
+    DEFAULT_MAX_PROTECTED_RATIO: float = 0.3
+    DEFAULT_IMPORTANCE_THRESHOLD: float = 0.5
+    DEFAULT_CLUSTER_SIMILARITY_THRESHOLD: float = 0.7
+    DEFAULT_SAFETY_LIMIT_RATIO: float = 0.75
+    DEFAULT_MINIMUM_WORD_LENGTH: int = 3
+    DEFAULT_MINIMUM_SHARED_WORDS: int = 2
+    DEFAULT_CLUSTER_SIZE_BOOST_FACTOR: float = 0.1
+    DEFAULT_COMPRESSION_HIGH_THRESHOLD: float = 0.6
+    DEFAULT_COMPRESSION_MEDIUM_THRESHOLD: float = 0.3
+    
+    # Compression strategy thresholds
+    DEBUGGING_HIGH_THRESHOLD: float = 0.8
+    DEBUGGING_MEDIUM_THRESHOLD: float = 0.5
+    CODING_HIGH_THRESHOLD: float = 0.7
+    CODING_MEDIUM_THRESHOLD: float = 0.4
+    
+    # Cluster analysis constants
+    MAX_CLUSTER_SIZE_FOR_BOOST: int = 10
+    MINIMUM_KEYWORD_COUNT_FOR_TYPE_DETECTION: int = 2
+
+
+class ConversationTypeDetector:
+    """Detects the type of conversation based on message content."""
+    
+    @staticmethod
+    def detect(messages: list[Message]) -> str:
+        """Detect the type of conversation based on message content.
+
+        Args:
+            messages: List of messages to analyze.
+
+        Returns:
+            Conversation type: "coding", "research", "debugging", or "general".
+        """
+        if not messages:
+            return "general"
+
+        all_content = ConversationTypeDetector._extract_all_content(messages)
+        keyword_counts = ConversationTypeDetector._count_keywords_by_type(all_content)
+        
+        return ConversationTypeDetector._determine_conversation_type(keyword_counts)
+
+    @staticmethod
+    def _extract_all_content(messages: list[Message]) -> str:
+        """Extract and combine all message content.
+        
+        Args:
+            messages: List of messages.
+            
+        Returns:
+            Combined content as lowercase string.
+        """
+        return " ".join(
+            msg.content.lower() for msg in messages if msg.content
+        )
+
+    @staticmethod
+    def _count_keywords_by_type(content: str) -> dict[str, int]:
+        """Count keyword occurrences by conversation type.
+        
+        Args:
+            content: Text content to analyze.
+            
+        Returns:
+            Dictionary with counts for each conversation type.
+        """
+        return {
+            "coding": ConversationTypeDetector._count_keywords(content, ConversationTypeDetector._get_coding_keywords()),
+            "research": ConversationTypeDetector._count_keywords(content, ConversationTypeDetector._get_research_keywords()),
+            "debugging": ConversationTypeDetector._count_keywords(content, ConversationTypeDetector._get_debugging_keywords()),
+        }
+
+    @staticmethod
+    def _get_coding_keywords() -> list[str]:
+        """Get keywords for coding conversations."""
+        return [
+            "def ", "class ", "import ", "function", "code", "python", "javascript",
+            "java", "typescript", "variable", "loop", "if ", "else", "return",
+            "print(", "console.log", "git", "commit", "branch", "merge",
+            "api", "endpoint", "request", "response", "json", "xml",
+        ]
+
+    @staticmethod
+    def _get_research_keywords() -> list[str]:
+        """Get keywords for research conversations."""
+        return [
+            "research", "study", "analysis", "analyze", "investigate", "explore",
+            "find", "search", "look up", "information", "data", "statistics",
+            "report", "document", "summary", "conclusion", "findings",
+            "according to", "source", "reference", "citation", "paper",
+        ]
+
+    @staticmethod
+    def _get_debugging_keywords() -> list[str]:
+        """Get keywords for debugging conversations."""
+        return [
+            "error", "bug", "debug", "fix", "issue", "problem", "crash",
+            "exception", "traceback", "stack trace", "log", "warning",
+            "failed", "failure", "broken", "doesn't work", "not working",
+            "why is", "how to fix", "troubleshoot", "diagnose",
+        ]
+
+    @staticmethod
+    def _count_keywords(content: str, keywords: list[str]) -> int:
+        """Count how many keywords appear in content.
+        
+        Args:
+            content: Text to search in.
+            keywords: List of keywords to search for.
+            
+        Returns:
+            Number of keywords found.
+        """
+        return sum(1 for keyword in keywords if keyword in content)
+
+    @staticmethod
+    def _determine_conversation_type(keyword_counts: dict[str, int]) -> str:
+        """Determine conversation type based on keyword counts.
+        
+        Args:
+            keyword_counts: Dictionary with counts for each conversation type.
+            
+        Returns:
+            Conversation type string.
+        """
+        coding_count = keyword_counts["coding"]
+        research_count = keyword_counts["research"]
+        debugging_count = keyword_counts["debugging"]
+        
+        min_count = IntelligentContextConstants.MINIMUM_KEYWORD_COUNT_FOR_TYPE_DETECTION
+        
+        if debugging_count > max(coding_count, research_count, min_count):
+            return "debugging"
+        elif coding_count > max(research_count, debugging_count, min_count):
+            return "coding"
+        elif research_count > max(coding_count, debugging_count, min_count):
+            return "research"
+        else:
+            return "general"
+
+
 @dataclass
 class IntelligentContextConfig:
     """Configuration for intelligent context management.
@@ -40,17 +186,17 @@ class IntelligentContextConfig:
         compression_medium_threshold: Medium importance threshold for compression.
     """
 
-    max_tokens: int = 8000
-    max_protected_ratio: float = 0.3
-    importance_threshold: float = 0.5
-    cluster_similarity_threshold: float = 0.7
+    max_tokens: int = IntelligentContextConstants.DEFAULT_MAX_TOKENS
+    max_protected_ratio: float = IntelligentContextConstants.DEFAULT_MAX_PROTECTED_RATIO
+    importance_threshold: float = IntelligentContextConstants.DEFAULT_IMPORTANCE_THRESHOLD
+    cluster_similarity_threshold: float = IntelligentContextConstants.DEFAULT_CLUSTER_SIMILARITY_THRESHOLD
     adaptive_compression: bool = True
-    safety_limit_ratio: float = 0.75
-    minimum_word_length: int = 3
-    minimum_shared_words: int = 2
-    cluster_size_boost_factor: float = 0.1
-    compression_high_threshold: float = 0.6
-    compression_medium_threshold: float = 0.3
+    safety_limit_ratio: float = IntelligentContextConstants.DEFAULT_SAFETY_LIMIT_RATIO
+    minimum_word_length: int = IntelligentContextConstants.DEFAULT_MINIMUM_WORD_LENGTH
+    minimum_shared_words: int = IntelligentContextConstants.DEFAULT_MINIMUM_SHARED_WORDS
+    cluster_size_boost_factor: float = IntelligentContextConstants.DEFAULT_CLUSTER_SIZE_BOOST_FACTOR
+    compression_high_threshold: float = IntelligentContextConstants.DEFAULT_COMPRESSION_HIGH_THRESHOLD
+    compression_medium_threshold: float = IntelligentContextConstants.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD
 
 
 @dataclass
@@ -89,11 +235,11 @@ class IntelligentContextManager:
 
     def __init__(
         self,
-        max_tokens: int = 8000,
-        max_protected_ratio: float = 0.3,
-        importance_threshold: float = 0.5,
-        cluster_similarity_threshold: float = 0.7,
-        adaptive_compression: bool = True,
+        max_tokens: int | None = None,
+        max_protected_ratio: float | None = None,
+        importance_threshold: float | None = None,
+        cluster_similarity_threshold: float | None = None,
+        adaptive_compression: bool | None = None,
     ) -> None:
         """Initialize intelligent context manager.
 
@@ -108,14 +254,17 @@ class IntelligentContextManager:
             adaptive_compression: Whether to use adaptive compression techniques
                 based on conversation structure and content type.
         """
+        # Use provided values or defaults from constants
         self.config = IntelligentContextConfig(
-            max_tokens=max_tokens,
-            max_protected_ratio=max_protected_ratio,
-            importance_threshold=importance_threshold,
-            cluster_similarity_threshold=cluster_similarity_threshold,
-            adaptive_compression=adaptive_compression,
+            max_tokens=max_tokens or IntelligentContextConstants.DEFAULT_MAX_TOKENS,
+            max_protected_ratio=max_protected_ratio or IntelligentContextConstants.DEFAULT_MAX_PROTECTED_RATIO,
+            importance_threshold=importance_threshold or IntelligentContextConstants.DEFAULT_IMPORTANCE_THRESHOLD,
+            cluster_similarity_threshold=cluster_similarity_threshold or IntelligentContextConstants.DEFAULT_CLUSTER_SIMILARITY_THRESHOLD,
+            adaptive_compression=adaptive_compression if adaptive_compression is not None else True,
         )
-        self.max_protected_tokens = int(max_tokens * max_protected_ratio)
+        self.max_protected_tokens = int(
+            self.config.max_tokens * self.config.max_protected_ratio
+        )
 
     def enforce_safety_limits(self, messages: list[Message]) -> list[Message]:
         """Enforce limits on individual message size using tokens.
@@ -156,19 +305,31 @@ class IntelligentContextManager:
             return message
 
         if TokenCounter.count_text(message.content) > limit:
-            truncated_content = TokenCounter.truncate_text(message.content, limit)
-            new_content = (
-                truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
-            )
-
-            return Message(
-                role=message.role,
-                content=new_content,
-                tool_calls=message.tool_calls,
-                tool_call_id=message.tool_call_id,
-            )
+            return self._create_truncated_message(message, limit)
         else:
             return message
+
+    def _create_truncated_message(self, message: Message, limit: int) -> Message:
+        """Create a truncated version of a message.
+        
+        Args:
+            message: The original message to truncate.
+            limit: Token limit for truncation.
+            
+        Returns:
+            New Message with truncated content.
+        """
+        truncated_content = TokenCounter.truncate_text(message.content, limit)
+        new_content = (
+            truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
+        )
+        
+        return Message(
+            role=message.role,
+            content=new_content,
+            tool_calls=message.tool_calls,
+            tool_call_id=message.tool_call_id,
+        )
 
     def compact(
         self,
@@ -746,47 +907,119 @@ class IntelligentContextManager:
 
         i = 0
         while i < len(clusters) - 1:
-            curr_cluster = clusters[i]
-            next_cluster = clusters[i + 1]
-
-            # Check if clusters form a user-assistant or assistant-user pair
-            curr_roles = {messages[idx].role for idx in curr_cluster}
-            next_roles = {messages[idx].role for idx in next_cluster}
-
-            # If one cluster is mostly user and the other mostly assistant
-            if ("user" in curr_roles and "assistant" in next_roles) or (
-                "assistant" in curr_roles and "user" in next_roles
-            ):
-                # Check if they're discussing the same topic by looking at content
-                curr_content = " ".join(
-                    messages[idx].content or "" for idx in curr_cluster if messages[idx].content
-                ).lower()
-                next_content = " ".join(
-                    messages[idx].content or "" for idx in next_cluster if messages[idx].content
-                ).lower()
-
-                # Simple check: if they share at least minimum_shared_words significant words
-                curr_words = {
-                    w.strip(".,!?;:\"'()[]{}") for w in curr_content.split() 
-                    if len(w) > self.config.minimum_word_length
-                }
-                next_words = {
-                    w.strip(".,!?;:\"'()[]{}") for w in next_content.split() 
-                    if len(w) > self.config.minimum_word_length
-                }
-
-                common_words = curr_words & next_words
-                if len(common_words) >= self.config.minimum_shared_words:
-                    # Merge the clusters
-                    merged_cluster = curr_cluster + next_cluster
-                    clusters[i] = merged_cluster
-                    del clusters[i + 1]
-                    # Don't increment i since we need to check the new merged cluster
-                    continue
+            if self._should_merge_clusters_by_role_pattern(messages, clusters, i):
+                # Merge the clusters
+                merged_cluster = clusters[i] + clusters[i + 1]
+                clusters[i] = merged_cluster
+                del clusters[i + 1]
+                # Don't increment i since we need to check the new merged cluster
+                continue
 
             i += 1
 
         return clusters
+
+    def _should_merge_clusters_by_role_pattern(
+        self, messages: list[Message], clusters: list[list[int]], index: int
+    ) -> bool:
+        """Determine if two adjacent clusters should be merged based on role patterns.
+        
+        Args:
+            messages: All messages.
+            clusters: Current clusters.
+            index: Index of the first cluster to check.
+            
+        Returns:
+            True if clusters should be merged, False otherwise.
+        """
+        curr_cluster = clusters[index]
+        next_cluster = clusters[index + 1]
+        
+        # Check if clusters form a user-assistant or assistant-user pair
+        if not self._are_clusters_role_complementary(messages, curr_cluster, next_cluster):
+            return False
+            
+        # Check if they're discussing the same topic
+        return self._do_clusters_share_significant_words(messages, curr_cluster, next_cluster)
+
+    def _are_clusters_role_complementary(
+        self, messages: list[Message], cluster1: list[int], cluster2: list[int]
+    ) -> bool:
+        """Check if two clusters have complementary roles (user-assistant pair).
+        
+        Args:
+            messages: All messages.
+            cluster1: First cluster indices.
+            cluster2: Second cluster indices.
+            
+        Returns:
+            True if clusters have complementary roles.
+        """
+        cluster1_roles = {messages[idx].role for idx in cluster1}
+        cluster2_roles = {messages[idx].role for idx in cluster2}
+        
+        return ("user" in cluster1_roles and "assistant" in cluster2_roles) or (
+            "assistant" in cluster1_roles and "user" in cluster2_roles
+        )
+
+    def _do_clusters_share_significant_words(
+        self, messages: list[Message], cluster1: list[int], cluster2: list[int]
+    ) -> bool:
+        """Check if two clusters share enough significant words to be merged.
+        
+        Args:
+            messages: All messages.
+            cluster1: First cluster indices.
+            cluster2: Second cluster indices.
+            
+        Returns:
+            True if clusters share enough significant words.
+        """
+        # Extract content from clusters
+        cluster1_content = self._extract_cluster_content(messages, cluster1)
+        cluster2_content = self._extract_cluster_content(messages, cluster2)
+        
+        # Extract significant words
+        cluster1_words = self._extract_significant_words(cluster1_content)
+        cluster2_words = self._extract_significant_words(cluster2_content)
+        
+        # Check for common words
+        common_words = cluster1_words & cluster2_words
+        return len(common_words) >= self.config.minimum_shared_words
+
+    def _extract_cluster_content(self, messages: list[Message], cluster: list[int]) -> str:
+        """Extract and concatenate content from messages in a cluster.
+        
+        Args:
+            messages: All messages.
+            cluster: Cluster indices.
+            
+        Returns:
+            Concatenated content from the cluster.
+        """
+        content_parts = []
+        for idx in cluster:
+            msg = messages[idx]
+            if msg.content:
+                content_parts.append(msg.content)
+        return " ".join(content_parts).lower()
+
+    def _extract_significant_words(self, text: str) -> set[str]:
+        """Extract significant words from text.
+        
+        Args:
+            text: Text to extract words from.
+            
+        Returns:
+            Set of significant words.
+        """
+        words = set()
+        for word in text.split():
+            # Remove punctuation
+            word = word.strip(".,!?;:\"'()[]{}")
+            if len(word) > self.config.minimum_word_length and not word.startswith("http"):
+                words.add(word)
+        return words
 
     def _merge_clusters_containing_indices(
         self, clusters: list[list[int]], indices: list[int]
@@ -856,7 +1089,7 @@ class IntelligentContextManager:
             return messages
 
         # Detect conversation type
-        conversation_type = self._detect_conversation_type(messages)
+        conversation_type = ConversationTypeDetector.detect(messages)
 
         # Calculate cluster importance scores
         cluster_importance = self._calculate_cluster_importance(
@@ -886,57 +1119,18 @@ class IntelligentContextManager:
 
     def _detect_conversation_type(self, messages: list[Message]) -> str:
         """Detect the type of conversation based on message content.
-
+        
+        This method is kept for backward compatibility with tests.
+        It delegates to ConversationTypeDetector.
+        
         Args:
             messages: List of messages to analyze.
 
         Returns:
             Conversation type: "coding", "research", "debugging", or "general".
         """
-        if not messages:
-            return "general"
+        return ConversationTypeDetector.detect(messages)
 
-        # Combine all message content for analysis
-        all_content = " ".join(
-            msg.content.lower() for msg in messages if msg.content
-        )
-
-        # Keywords for different conversation types
-        coding_keywords = [
-            "def ", "class ", "import ", "function", "code", "python", "javascript",
-            "java", "typescript", "variable", "loop", "if ", "else", "return",
-            "print(", "console.log", "git", "commit", "branch", "merge",
-            "api", "endpoint", "request", "response", "json", "xml",
-        ]
-
-        research_keywords = [
-            "research", "study", "analysis", "analyze", "investigate", "explore",
-            "find", "search", "look up", "information", "data", "statistics",
-            "report", "document", "summary", "conclusion", "findings",
-            "according to", "source", "reference", "citation", "paper",
-        ]
-
-        debugging_keywords = [
-            "error", "bug", "debug", "fix", "issue", "problem", "crash",
-            "exception", "traceback", "stack trace", "log", "warning",
-            "failed", "failure", "broken", "doesn't work", "not working",
-            "why is", "how to fix", "troubleshoot", "diagnose",
-        ]
-
-        # Count keyword occurrences
-        coding_count = sum(1 for keyword in coding_keywords if keyword in all_content)
-        research_count = sum(1 for keyword in research_keywords if keyword in all_content)
-        debugging_count = sum(1 for keyword in debugging_keywords if keyword in all_content)
-
-        # Determine conversation type based on keyword counts
-        if debugging_count > max(coding_count, research_count, 2):
-            return "debugging"
-        elif coding_count > max(research_count, debugging_count, 2):
-            return "coding"
-        elif research_count > max(coding_count, debugging_count, 2):
-            return "research"
-        else:
-            return "general"
 
     def _calculate_cluster_importance(
         self,
@@ -1000,8 +1194,8 @@ class IntelligentContextManager:
         """
         return self._apply_importance_based_compression(
             messages, clusters, cluster_importance,
-            high_threshold=0.7,  # Preserve high-importance clusters
-            medium_threshold=0.4,  # Summarize medium-importance
+            high_threshold=IntelligentContextConstants.CODING_HIGH_THRESHOLD,
+            medium_threshold=IntelligentContextConstants.CODING_MEDIUM_THRESHOLD,
             preserve_tool_sequences=True,
             preserve_code_blocks=True,
         )
@@ -1058,8 +1252,8 @@ class IntelligentContextManager:
         """
         return self._apply_importance_based_compression(
             messages, clusters, cluster_importance,
-            high_threshold=0.8,  # High threshold to focus on critical info
-            medium_threshold=0.5,
+            high_threshold=IntelligentContextConstants.DEBUGGING_HIGH_THRESHOLD,
+            medium_threshold=IntelligentContextConstants.DEBUGGING_MEDIUM_THRESHOLD,
             preserve_tool_sequences=True,
             preserve_code_blocks=True,
         )
