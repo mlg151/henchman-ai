@@ -74,6 +74,22 @@ class DelegationParams:
 
 
 @dataclass
+class DelegationExecutionParams:
+    """Parameters for executing a delegation flow.
+
+    Encapsulates the repeated primitive parameter group used in
+    `_execute_delegation_flow` and `_execute_delegation` methods.
+    """
+
+    target: str
+    task: str
+    depth: int
+    tool_call: ToolCall
+    agent: Agent | None = None
+    ledger_record: DelegationRecord | None = None
+
+
+@dataclass
 class TurnEnforcementParams:
     """Parameters for enforcing turn limits.
 
