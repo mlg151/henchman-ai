@@ -8,7 +8,6 @@ re-exported here for backward compatibility.
 from __future__ import annotations
 
 import time
-from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -23,20 +22,17 @@ from henchman.core.eventbus import EventBus
 from henchman.core.events import AgentEvent, EventType
 from henchman.tools.builtins.delegate import DelegateTaskTool
 
-# Re-export sub-module symbols that external code imports from here
+# Re-export symbols that external code imports from this module
 from .orchestrator_components import (
     AgentValidator,
     OrchestratorComponent,
-    PromptFactory,
-    TimeoutSummaryBuilder,
     ToolMetricsController,
 )
-from .orchestrator_execution import (
-    ExecutionController,
-    TurnEnforcementParams,
-    _last_assistant_content,
-)
+from .orchestrator_execution import ExecutionController, _last_assistant_content
+from .orchestrator_prompts import PromptFactory
+from .orchestrator_timeout import TimeoutSummaryBuilder
 from .orchestrator_tools import ToolController
+from .orchestrator_turns import TurnEnforcementParams
 from .orchestrator_types import (
     COLON_STALL_NUDGE,
     DELEGATE_TASK_TOOL,
@@ -51,6 +47,8 @@ from .orchestrator_types import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from henchman.config.schema import Settings
     from henchman.providers.base import ModelProvider
     from henchman.providers.registry import ProviderRegistry
@@ -62,6 +60,9 @@ _MAX_COLON_STALL_RETRIES = MAX_COLON_STALL_RETRIES
 _DELEGATE_TASK_TOOL = DELEGATE_TASK_TOOL
 
 __all__ = [
+    "_COLON_STALL_NUDGE",
+    "_DELEGATE_TASK_TOOL",
+    "_MAX_COLON_STALL_RETRIES",
     "AgentLoopParams",
     "AgentValidator",
     "CompletionStatus",
@@ -78,18 +79,12 @@ __all__ = [
     "ToolController",
     "ToolMetricsController",
     "TurnEnforcementParams",
-    "_COLON_STALL_NUDGE",
-    "_DELEGATE_TASK_TOOL",
-    "_MAX_COLON_STALL_RETRIES",
 ]
 
 
 @dataclass
 class OrchestratorConfig:
-    """Optional configuration for :class:`Orchestrator` initialization.
-
-    Groups the optional parameters to keep the constructor signature short.
-    """
+    """Optional configuration for :class:`Orchestrator` initialization."""
 
     provider_registry: ProviderRegistry | None = None
     tool_registry: ToolRegistry | None = None
@@ -110,9 +105,6 @@ class Orchestrator:
     ) -> None:
         """Initialize the Orchestrator.
 
-        Accepts either an :class:`OrchestratorConfig` object or keyword
-        arguments for backward compatibility.
-
         Args:
             default_provider: The default model provider.
             config: Optional grouped configuration.
@@ -120,35 +112,15 @@ class Orchestrator:
         """
         if config is None:
             config = OrchestratorConfig(**kwargs)
-        self._init_from_config(default_provider, config)
+        self._init_core(default_provider, config)
+        self._init_agents(default_provider, config)
 
-    def _init_from_config(
+    def _init_core(
         self: Orchestrator,
         default_provider: ModelProvider,
         config: OrchestratorConfig,
     ) -> None:
-        """Perform all initialization from the resolved config."""
-        self._store_basic_attributes(default_provider, config)
-        self._init_metrics_and_state()
-        self.validator = AgentValidator(self)
-        self.tool_controller = ToolController(self)
-        self.execution_controller = ExecutionController(self)
-        agent_configs = self._load_agent_configs()
-        self._create_agent_pool(agent_configs, default_provider, config)
-        self._init_shared_context_and_ledger()
-        self._setup_tech_lead(agent_configs, default_provider, config)
-        self._init_delegation_runner()
-
-    # ------------------------------------------------------------------
-    # Initialization helpers
-    # ------------------------------------------------------------------
-
-    def _store_basic_attributes(
-        self: Orchestrator,
-        default_provider: ModelProvider,
-        config: OrchestratorConfig,
-    ) -> None:
-        """Store basic orchestrator attributes from config."""
+        """Initialize core attributes, metrics, and controllers."""
         from henchman.config.schema import Settings  # noqa: PLC0415
         from henchman.tools.registry import ToolRegistry  # noqa: PLC0415
 
@@ -158,29 +130,21 @@ class Orchestrator:
         self.event_bus = config.event_bus or EventBus()
         self.settings: Settings = config.settings or Settings()
         self.environment_context = config.environment_context
-
-    def _init_metrics_and_state(self: Orchestrator) -> None:
-        """Initialize metrics and internal state tracking."""
         self.metrics = OrchestratorMetrics()
         self._reporter = MetricsReporter(self.metrics)
         self._last_loop_tool_call_count: int = 0
         self.last_completion_status: CompletionStatus = CompletionStatus.COMPLETED
+        self.validator = AgentValidator(self)
+        self.tool_controller = ToolController(self)
+        self.execution_controller = ExecutionController(self)
 
-    def _load_agent_configs(self: Orchestrator) -> dict[str, Any]:
-        """Load and merge agent configurations."""
-        agent_configs = get_default_team()
-        if self.settings.agents.agents:
-            for role, cfg in self.settings.agents.agents.items():
-                agent_configs[role] = cfg
-        return agent_configs
-
-    def _create_agent_pool(
+    def _init_agents(
         self: Orchestrator,
-        agent_configs: dict[str, Any],
         default_provider: ModelProvider,
         config: OrchestratorConfig,
     ) -> None:
-        """Create the agent pool with loaded configurations."""
+        """Initialize agent pool, tech lead, and delegation runner."""
+        agent_configs = self._load_agent_configs()
         ctx = self.settings.context
         self.pool = AgentPool(
             configs=agent_configs,
@@ -194,14 +158,9 @@ class Orchestrator:
             cluster_similarity_threshold=ctx.cluster_similarity_threshold,
             adaptive_compression=ctx.adaptive_compression,
         )
-
-    def _init_shared_context_and_ledger(self: Orchestrator) -> None:
-        """Initialize shared context history and task ledger."""
         self.shared_context: list[dict[str, Any]] = []
         self.ledger: TaskLedger | None = None
-
-    def _init_delegation_runner(self: Orchestrator) -> None:
-        """Initialize the delegation runner with shared state and callbacks."""
+        self._setup_tech_lead(agent_configs, default_provider, config)
         self.delegation_runner = DelegationRunner(
             pool=self.pool,
             settings=self.settings,
@@ -211,44 +170,38 @@ class Orchestrator:
             assess_completion=self.execution_controller.assess_completion,
         )
 
+    def _load_agent_configs(self: Orchestrator) -> dict[str, Any]:
+        """Load and merge agent configurations."""
+        agent_configs = get_default_team()
+        if self.settings.agents.agents:
+            for role, cfg in self.settings.agents.agents.items():
+                agent_configs[role] = cfg
+        return agent_configs
+
     def _setup_tech_lead(
         self: Orchestrator,
         agent_configs: dict[str, Any],
         default_provider: ModelProvider,
         config: OrchestratorConfig,
     ) -> None:
-        """Set up the Tech Lead agent with prompt, identity, and config."""
-        self._register_delegate_task_tool()
+        """Set up the Tech Lead agent."""
+        if not self.tool_registry.get("delegate_task"):
+            self.tool_registry.register(DelegateTaskTool())
         tl_prompt = PromptFactory.create_tech_lead_prompt(
             agent_configs, config.system_prompt, config.environment_context,
         )
-        tl_identity = _create_tech_lead_identity()
-        self._create_tech_lead_agent(default_provider, tl_prompt, tl_identity)
-        self.tech_lead.stall_detection_enabled = False
-
-    def _register_delegate_task_tool(self: Orchestrator) -> None:
-        """Register the delegate_task tool if not already present."""
-        if not self.tool_registry.get("delegate_task"):
-            self.tool_registry.register(DelegateTaskTool())
-
-    def _create_tech_lead_agent(
-        self: Orchestrator,
-        default_provider: ModelProvider,
-        tl_prompt: str,
-        tl_identity: Any,
-    ) -> None:
-        """Create the Tech Lead agent instance."""
         ctx = self.settings.context
         self.tech_lead = Agent(
             provider=default_provider,
             tool_registry=self.tool_registry,
             system_prompt=tl_prompt,
-            identity=tl_identity,
+            identity=_create_tech_lead_identity(),
             intelligent_context=ctx.intelligent_context,
             importance_threshold=ctx.importance_threshold,
             cluster_similarity_threshold=ctx.cluster_similarity_threshold,
             adaptive_compression=ctx.adaptive_compression,
         )
+        self.tech_lead.stall_detection_enabled = False
 
     # ------------------------------------------------------------------
     # Public run methods
@@ -258,27 +211,17 @@ class Orchestrator:
         self: Orchestrator,
         user_input: str,
     ) -> AsyncIterator[AgentEvent]:
-        """Run the orchestrator with user input.
-
-        Args:
-            user_input: The user's request.
-
-        Yields:
-            AgentEvent stream from the orchestration.
-        """
+        """Run the orchestrator with user input."""
         self._prepare_run(user_input)
-
         yield AgentEvent(
             type=EventType.AGENT_STARTED,
             data={"agent": "tech_lead"},
             source_agent="orchestrator",
         )
-
         async for event in self.execution_controller.run_agent_loop(
             AgentLoopParams(agent=self.tech_lead, input_text=user_input),
         ):
             yield event
-
         for event in self._finalize_run(self.tech_lead, "tech_lead"):
             yield event
 
@@ -287,34 +230,19 @@ class Orchestrator:
         role: str,
         user_input: str,
     ) -> AsyncIterator[AgentEvent]:
-        """Run a specific agent directly, bypassing the Tech Lead.
-
-        Args:
-            role: The role ID of the agent to run.
-            user_input: The user's request.
-
-        Yields:
-            AgentEvent stream from the agent.
-        """
+        """Run a specific agent directly, bypassing the Tech Lead."""
         agent = self.pool.get_agent(role)
-
         yield AgentEvent(
             type=EventType.AGENT_STARTED,
             data={"agent": role},
             source_agent="orchestrator",
         )
-
         async for event in self.execution_controller.run_agent_loop(
             AgentLoopParams(agent=agent, input_text=user_input),
         ):
             yield event
-
         for event in self._finalize_run(agent, role):
             yield event
-
-    # ------------------------------------------------------------------
-    # Run lifecycle helpers
-    # ------------------------------------------------------------------
 
     def _prepare_run(self: Orchestrator, user_input: str) -> None:
         """Initialize state for a new run."""
@@ -331,26 +259,20 @@ class Orchestrator:
         """Calculate metrics and produce final events."""
         self.metrics.performance.task_end_time = time.time()
         self.metrics.calculate_final_metrics()
-
         status = self.execution_controller.assess_completion(agent)
         self.last_completion_status = status
-
         events: list[AgentEvent] = []
         if status == CompletionStatus.NO_WORK_DONE:
-            events.append(
-                AgentEvent(
-                    type=EventType.ERROR,
-                    data="Agent completed without performing any actions.",
-                    source_agent="orchestrator",
-                ),
-            )
-        events.append(
-            AgentEvent(
-                type=EventType.AGENT_COMPLETED,
-                data={"agent": role_label, "status": status.value},
+            events.append(AgentEvent(
+                type=EventType.ERROR,
+                data="Agent completed without performing any actions.",
                 source_agent="orchestrator",
-            ),
-        )
+            ))
+        events.append(AgentEvent(
+            type=EventType.AGENT_COMPLETED,
+            data={"agent": role_label, "status": status.value},
+            source_agent="orchestrator",
+        ))
         return events
 
     # ------------------------------------------------------------------
@@ -370,7 +292,7 @@ class Orchestrator:
         return self.event_bus
 
     # ------------------------------------------------------------------
-    # Backward-compat delegates (used by DelegationRunner / legacy code)
+    # Backward-compat delegates
     # ------------------------------------------------------------------
 
     @property
@@ -389,12 +311,14 @@ class Orchestrator:
         mission: str | None = None,
     ) -> str:
         """Backward-compat delegate to DelegationRunner."""
-        return DelegationRunner._assemble_delegation_input(task, brief, mission)
+        return DelegationRunner._assemble_delegation_input(  # noqa: SLF001
+            task, brief, mission,
+        )
 
     @staticmethod
     def _parse_completion_report(summary: str) -> dict[str, str]:
         """Backward-compat delegate to DelegationRunner."""
-        return DelegationRunner._parse_completion_report(summary)
+        return DelegationRunner._parse_completion_report(summary)  # noqa: SLF001
 
     @staticmethod
     def _last_assistant_content(agent: Agent) -> str:

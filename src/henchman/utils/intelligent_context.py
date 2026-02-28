@@ -7,7 +7,7 @@ and adaptive compression techniques.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from henchman.providers.base import Message
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 class IntelligentContextConstants:
     """Constants for intelligent context management."""
-    
+
     # Default configuration values
     DEFAULT_MAX_TOKENS: int = 8000
     DEFAULT_MAX_PROTECTED_RATIO: float = 0.3
@@ -32,13 +32,13 @@ class IntelligentContextConstants:
     DEFAULT_CLUSTER_SIZE_BOOST_FACTOR: float = 0.1
     DEFAULT_COMPRESSION_HIGH_THRESHOLD: float = 0.6
     DEFAULT_COMPRESSION_MEDIUM_THRESHOLD: float = 0.3
-    
+
     # Compression strategy thresholds
     DEBUGGING_HIGH_THRESHOLD: float = 0.8
     DEBUGGING_MEDIUM_THRESHOLD: float = 0.5
     CODING_HIGH_THRESHOLD: float = 0.7
     CODING_MEDIUM_THRESHOLD: float = 0.4
-    
+
     # Cluster analysis constants
     MAX_CLUSTER_SIZE_FOR_BOOST: int = 10
     MINIMUM_KEYWORD_COUNT_FOR_TYPE_DETECTION: int = 2
@@ -46,9 +46,37 @@ class IntelligentContextConstants:
 
 class ConversationTypeDetector:
     """Detects the type of conversation based on message content."""
-    
-    @staticmethod
-    def detect(messages: list[Message]) -> str:
+
+    # Define keyword sets as class constants to eliminate duplicate method structure
+    _CODING_KEYWORDS: list[str] = [
+        "def ", "class ", "import ", "function", "code", "python", "javascript",
+        "java", "typescript", "variable", "loop", "if ", "else", "return",
+        "print(", "console.log", "git", "commit", "branch", "merge",
+        "api", "endpoint", "request", "response", "json", "xml",
+    ]
+
+    _RESEARCH_KEYWORDS: list[str] = [
+        "research", "study", "analysis", "analyze", "investigate", "explore",
+        "find", "search", "look up", "information", "data", "statistics",
+        "report", "document", "summary", "conclusion", "findings",
+        "according to", "source", "reference", "citation", "paper",
+    ]
+
+    _DEBUGGING_KEYWORDS: list[str] = [
+        "error", "bug", "debug", "fix", "issue", "problem", "crash",
+        "exception", "traceback", "stack trace", "log", "warning",
+        "failed", "failure", "broken", "doesn't work", "not working",
+        "why is", "how to fix", "troubleshoot", "diagnose",
+    ]
+
+    # Map conversation types to their keyword sets
+    _KEYWORD_SETS: dict[str, list[str]] = {
+        "coding": _CODING_KEYWORDS,
+        "research": _RESEARCH_KEYWORDS,
+        "debugging": _DEBUGGING_KEYWORDS,
+    }
+
+    def detect(self, messages: list[Message]) -> str:
         """Detect the type of conversation based on message content.
 
         Args:
@@ -60,13 +88,12 @@ class ConversationTypeDetector:
         if not messages:
             return "general"
 
-        all_content = ConversationTypeDetector._extract_all_content(messages)
-        keyword_counts = ConversationTypeDetector._count_keywords_by_type(all_content)
-        
-        return ConversationTypeDetector._determine_conversation_type(keyword_counts)
+        all_content = self._extract_all_content(messages)
+        keyword_counts = self._count_keywords_by_type(all_content)
 
-    @staticmethod
-    def _extract_all_content(messages: list[Message]) -> str:
+        return self._determine_conversation_type(keyword_counts)
+
+    def _extract_all_content(self, messages: list[Message]) -> str:
         """Extract and combine all message content.
         
         Args:
@@ -79,8 +106,7 @@ class ConversationTypeDetector:
             msg.content.lower() for msg in messages if msg.content
         )
 
-    @staticmethod
-    def _count_keywords_by_type(content: str) -> dict[str, int]:
+    def _count_keywords_by_type(self, content: str) -> dict[str, int]:
         """Count keyword occurrences by conversation type.
         
         Args:
@@ -90,43 +116,11 @@ class ConversationTypeDetector:
             Dictionary with counts for each conversation type.
         """
         return {
-            "coding": ConversationTypeDetector._count_keywords(content, ConversationTypeDetector._get_coding_keywords()),
-            "research": ConversationTypeDetector._count_keywords(content, ConversationTypeDetector._get_research_keywords()),
-            "debugging": ConversationTypeDetector._count_keywords(content, ConversationTypeDetector._get_debugging_keywords()),
+            conversation_type: self._count_keywords(content, keywords)
+            for conversation_type, keywords in self._KEYWORD_SETS.items()
         }
 
-    @staticmethod
-    def _get_coding_keywords() -> list[str]:
-        """Get keywords for coding conversations."""
-        return [
-            "def ", "class ", "import ", "function", "code", "python", "javascript",
-            "java", "typescript", "variable", "loop", "if ", "else", "return",
-            "print(", "console.log", "git", "commit", "branch", "merge",
-            "api", "endpoint", "request", "response", "json", "xml",
-        ]
-
-    @staticmethod
-    def _get_research_keywords() -> list[str]:
-        """Get keywords for research conversations."""
-        return [
-            "research", "study", "analysis", "analyze", "investigate", "explore",
-            "find", "search", "look up", "information", "data", "statistics",
-            "report", "document", "summary", "conclusion", "findings",
-            "according to", "source", "reference", "citation", "paper",
-        ]
-
-    @staticmethod
-    def _get_debugging_keywords() -> list[str]:
-        """Get keywords for debugging conversations."""
-        return [
-            "error", "bug", "debug", "fix", "issue", "problem", "crash",
-            "exception", "traceback", "stack trace", "log", "warning",
-            "failed", "failure", "broken", "doesn't work", "not working",
-            "why is", "how to fix", "troubleshoot", "diagnose",
-        ]
-
-    @staticmethod
-    def _count_keywords(content: str, keywords: list[str]) -> int:
+    def _count_keywords(self, content: str, keywords: list[str]) -> int:
         """Count how many keywords appear in content.
         
         Args:
@@ -138,8 +132,7 @@ class ConversationTypeDetector:
         """
         return sum(1 for keyword in keywords if keyword in content)
 
-    @staticmethod
-    def _determine_conversation_type(keyword_counts: dict[str, int]) -> str:
+    def _determine_conversation_type(self, keyword_counts: dict[str, int]) -> str:
         """Determine conversation type based on keyword counts.
         
         Args:
@@ -151,9 +144,9 @@ class ConversationTypeDetector:
         coding_count = keyword_counts["coding"]
         research_count = keyword_counts["research"]
         debugging_count = keyword_counts["debugging"]
-        
+
         min_count = IntelligentContextConstants.MINIMUM_KEYWORD_COUNT_FOR_TYPE_DETECTION
-        
+
         if debugging_count > max(coding_count, research_count, min_count):
             return "debugging"
         elif coding_count > max(research_count, debugging_count, min_count):
@@ -197,6 +190,22 @@ class IntelligentContextConfig:
     cluster_size_boost_factor: float = IntelligentContextConstants.DEFAULT_CLUSTER_SIZE_BOOST_FACTOR
     compression_high_threshold: float = IntelligentContextConstants.DEFAULT_COMPRESSION_HIGH_THRESHOLD
     compression_medium_threshold: float = IntelligentContextConstants.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD
+
+
+@dataclass
+class CompressionConfig:
+    """Configuration for compression strategies.
+
+    Attributes:
+        high_threshold: Threshold for high-importance clusters.
+        medium_threshold: Threshold for medium-importance clusters.
+        preserve_tool_sequences: Whether to preserve tool call sequences.
+        preserve_code_blocks: Whether to preserve code blocks.
+    """
+    high_threshold: float
+    medium_threshold: float
+    preserve_tool_sequences: bool
+    preserve_code_blocks: bool
 
 
 @dataclass
@@ -319,11 +328,15 @@ class IntelligentContextManager:
         Returns:
             New Message with truncated content.
         """
+        # Handle None content case
+        if not message.content:
+            return message
+            
         truncated_content = TokenCounter.truncate_text(message.content, limit)
         new_content = (
             truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
         )
-        
+
         return Message(
             role=message.role,
             content=new_content,
@@ -934,11 +947,11 @@ class IntelligentContextManager:
         """
         curr_cluster = clusters[index]
         next_cluster = clusters[index + 1]
-        
+
         # Check if clusters form a user-assistant or assistant-user pair
         if not self._are_clusters_role_complementary(messages, curr_cluster, next_cluster):
             return False
-            
+
         # Check if they're discussing the same topic
         return self._do_clusters_share_significant_words(messages, curr_cluster, next_cluster)
 
@@ -957,7 +970,7 @@ class IntelligentContextManager:
         """
         cluster1_roles = {messages[idx].role for idx in cluster1}
         cluster2_roles = {messages[idx].role for idx in cluster2}
-        
+
         return ("user" in cluster1_roles and "assistant" in cluster2_roles) or (
             "assistant" in cluster1_roles and "user" in cluster2_roles
         )
@@ -978,11 +991,11 @@ class IntelligentContextManager:
         # Extract content from clusters
         cluster1_content = self._extract_cluster_content(messages, cluster1)
         cluster2_content = self._extract_cluster_content(messages, cluster2)
-        
+
         # Extract significant words
         cluster1_words = self._extract_significant_words(cluster1_content)
         cluster2_words = self._extract_significant_words(cluster2_content)
-        
+
         # Check for common words
         common_words = cluster1_words & cluster2_words
         return len(common_words) >= self.config.minimum_shared_words
@@ -1089,7 +1102,8 @@ class IntelligentContextManager:
             return messages
 
         # Detect conversation type
-        conversation_type = ConversationTypeDetector.detect(messages)
+        detector = ConversationTypeDetector()
+        conversation_type = detector.detect(messages)
 
         # Calculate cluster importance scores
         cluster_importance = self._calculate_cluster_importance(
@@ -1129,7 +1143,8 @@ class IntelligentContextManager:
         Returns:
             Conversation type: "coding", "research", "debugging", or "general".
         """
-        return ConversationTypeDetector.detect(messages)
+        detector = ConversationTypeDetector()
+        return detector.detect(messages)
 
 
     def _calculate_cluster_importance(
@@ -1192,12 +1207,14 @@ class IntelligentContextManager:
         Returns:
             Compressed messages.
         """
-        return self._apply_importance_based_compression(
-            messages, clusters, cluster_importance,
+        config = CompressionConfig(
             high_threshold=IntelligentContextConstants.CODING_HIGH_THRESHOLD,
             medium_threshold=IntelligentContextConstants.CODING_MEDIUM_THRESHOLD,
             preserve_tool_sequences=True,
             preserve_code_blocks=True,
+        )
+        return self._apply_importance_based_compression(
+            messages, clusters, cluster_importance, config
         )
 
     def _apply_research_compression_strategy(
@@ -1250,12 +1267,14 @@ class IntelligentContextManager:
         Returns:
             Compressed messages.
         """
-        return self._apply_importance_based_compression(
-            messages, clusters, cluster_importance,
+        config = CompressionConfig(
             high_threshold=IntelligentContextConstants.DEBUGGING_HIGH_THRESHOLD,
             medium_threshold=IntelligentContextConstants.DEBUGGING_MEDIUM_THRESHOLD,
             preserve_tool_sequences=True,
             preserve_code_blocks=True,
+        )
+        return self._apply_importance_based_compression(
+            messages, clusters, cluster_importance, config
         )
 
     def _apply_general_compression_strategy(
@@ -1274,12 +1293,14 @@ class IntelligentContextManager:
         Returns:
             Compressed messages.
         """
-        return self._apply_importance_based_compression(
-            messages, clusters, cluster_importance,
+        config = CompressionConfig(
             high_threshold=self.config.compression_high_threshold,
             medium_threshold=self.config.compression_medium_threshold,
             preserve_tool_sequences=True,
             preserve_code_blocks=False,
+        )
+        return self._apply_importance_based_compression(
+            messages, clusters, cluster_importance, config
         )
 
     def _apply_importance_based_compression(
@@ -1287,10 +1308,7 @@ class IntelligentContextManager:
         messages: list[Message],
         clusters: list[list[int]],
         cluster_importance: dict[int, float],
-        high_threshold: float,
-        medium_threshold: float,
-        preserve_tool_sequences: bool,
-        preserve_code_blocks: bool,
+        config: CompressionConfig,
     ) -> list[Message]:
         """Apply compression based on cluster importance thresholds.
 
@@ -1303,10 +1321,7 @@ class IntelligentContextManager:
             messages: Original messages.
             clusters: Message clusters.
             cluster_importance: Importance scores for each cluster.
-            high_threshold: Threshold for high-importance clusters.
-            medium_threshold: Threshold for medium-importance clusters.
-            preserve_tool_sequences: Whether to preserve tool call sequences.
-            preserve_code_blocks: Whether to preserve code blocks.
+            config: Compression configuration.
 
         Returns:
             Compressed messages.
@@ -1316,13 +1331,13 @@ class IntelligentContextManager:
         for cluster_idx, cluster in enumerate(clusters):
             importance = cluster_importance.get(cluster_idx, 0.0)
 
-            if importance >= high_threshold:
+            if importance >= config.high_threshold:
                 # Preserve high-importance clusters fully
                 for msg_idx in cluster:
                     if msg_idx < len(messages):
                         compressed_messages.append(messages[msg_idx])
 
-            elif importance >= medium_threshold:
+            elif importance >= config.medium_threshold:
                 # Summarize medium-importance clusters
                 summary = self._summarize_cluster(messages, cluster)
                 if summary:
@@ -1334,7 +1349,7 @@ class IntelligentContextManager:
                     compressed_messages.append(summary_msg)
 
                 # Also preserve tool sequences if requested
-                if preserve_tool_sequences:
+                if config.preserve_tool_sequences:
                     self._preserve_tool_sequences_in_cluster(
                         messages, cluster, compressed_messages
                     )
@@ -1342,12 +1357,12 @@ class IntelligentContextManager:
             else:
                 # Low-importance clusters: drop or minimal preservation
                 # Only preserve if they contain critical elements
-                if preserve_tool_sequences:
+                if config.preserve_tool_sequences:
                     self._preserve_tool_sequences_in_cluster(
                         messages, cluster, compressed_messages
                     )
 
-                if preserve_code_blocks:
+                if config.preserve_code_blocks:
                     self._preserve_code_blocks_in_cluster(
                         messages, cluster, compressed_messages
                     )
@@ -1374,22 +1389,47 @@ class IntelligentContextManager:
         if not cluster_messages:
             return None
 
-        # Simple summarization based on message roles and content
+        # Generate summary from cluster messages
+        return self._generate_cluster_summary(cluster_messages)
+
+    def _generate_cluster_summary(self, cluster_messages: list[Message]) -> str:
+        """Generate summary text from a list of messages.
+        
+        Args:
+            cluster_messages: Messages in the cluster.
+            
+        Returns:
+            Summary string.
+        """
         roles = [msg.role for msg in cluster_messages]
         content_parts = []
 
         for msg in cluster_messages:
             if msg.content:
-                # Take first 100 chars as summary
-                preview = msg.content[:100].strip()
-                if len(msg.content) > 100:
-                    preview += "..."
+                preview = self._create_message_preview(msg)
                 content_parts.append(f"{msg.role}: {preview}")
 
         if content_parts:
             return " | ".join(content_parts)
         else:
             return f"Cluster with roles: {', '.join(set(roles))}"
+
+    def _create_message_preview(self, message: Message) -> str:
+        """Create a preview of a message's content.
+        
+        Args:
+            message: The message to create a preview for.
+            
+        Returns:
+            Preview string (first 100 characters with ellipsis if truncated).
+        """
+        if not message.content:
+            return ""
+
+        preview = message.content[:100].strip()
+        if len(message.content) > 100:
+            preview += "..."
+        return preview
 
     def _preserve_tool_sequences_in_cluster(
         self,
