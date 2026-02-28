@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import contextlib
 import json
-import logging
 import re
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
 
 from rich.markdown import Markdown as RichMarkdown
 from rich.markup import escape as markup_escape
@@ -25,6 +24,7 @@ from textual.widgets import RichLog, Static, TextArea
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
     from textual import events
 
 _T = TypeVar("_T", bound=Static)
@@ -299,9 +299,7 @@ def _looks_like_markdown(text: str) -> bool:
 class HenchmanTextArea(TextArea):
     """Custom TextArea with Enter/Shift-Enter and history navigation."""
 
-    from typing import ClassVar
-    
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("ctrl+f", "app.search", "Search", show=False),
         Binding(
             "enter",
@@ -649,7 +647,6 @@ class ToolMessage(CollapsibleMessage):
         """
         if not self._tool_call or not getattr(self._tool_call, "arguments", None):
             return None
-        import json
 
         args = self._tool_call.arguments
         if isinstance(args, str):
@@ -681,7 +678,6 @@ class ToolMessage(CollapsibleMessage):
         args = self._parse_tool_arguments()
         if args is None:
             return ""
-        import json
 
         try:
             return json.dumps(args, indent=2)
@@ -1075,6 +1071,34 @@ class ChatPane(VerticalScroll):
             **kwargs,
         )
 
+    def _add_message_factory(
+        self,
+        widget_class: type[_T],
+        *args: Any,
+        tracking_dict: dict[str, _T] | None = None,
+        tracking_key: str = "",
+        **kwargs: Any,
+    ) -> _T:
+        """Factory method to add a message widget with optional tracking.
+
+        Args:
+            widget_class: The widget class to instantiate.
+            *args: Positional arguments for widget constructor.
+            tracking_dict: Optional dictionary to track the widget.
+            tracking_key: Key to use for tracking if tracking_dict is provided.
+            **kwargs: Keyword arguments for widget constructor.
+
+        Returns:
+            The created widget.
+        """
+        return self._add_message_of_type(
+            widget_class,
+            *args,
+            tracking_dict=tracking_dict,
+            tracking_key=tracking_key,
+            **kwargs,
+        )
+
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
@@ -1085,7 +1109,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ThinkingMessage widget.
         """
-        return self._add_message_of_type(ThinkingMessage, thought, agent_name)
+        return self._add_message_factory(ThinkingMessage, thought, agent_name)
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -1096,7 +1120,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        return self._add_message_of_type(
+        return self._add_message_factory(
             ThinkingMessage,
             "",
             agent_name,
@@ -1127,7 +1151,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ToolMessage widget.
         """
-        return self._add_message_of_type(ToolMessage, thought, tool_call)
+        return self._add_message_factory(ToolMessage, thought, tool_call)
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""

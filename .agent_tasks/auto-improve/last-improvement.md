@@ -1,102 +1,93 @@
-# Refactoring Summary - textual_widgets.py
+# Refactoring Summary - `src/henchman/cli/textual_widgets.py`
 
-**Date/Time**: 2026-02-28T22:30:17.768743+00:00
-**Target File**: src/henchman/cli/textual_widgets.py
-**Grade Before**: ❌ F (8.5/100)
-**Smells Addressed**: 80 total smells
+**Date/Time**: 2026-02-28 (Current refactoring session)
 
-## Identified Issues from Smell Report:
+**Files Changed**: `src/henchman/cli/textual_widgets.py`
 
-### High Priority:
-1. **Duplicate Code**: `add_thinking_message` is 100% similar to `add_tool_message` ✅ **FIXED**
-2. **Duplicate Code**: Both functions are 94% similar to `save` at core/session_manager_base.py:102 ⚠️ **FALSE POSITIVE** (different files, different purposes)
+## Identified Smells Addressed
 
-### Medium Priority:
-3. **Missing Type Hints**: 65+ functions with incomplete type hints ✅ **FIXED** (most were false positives about `self` parameter)
+### 1. Duplicate Code (MEDIUM severity)
+- **Reported**: `add_thinking_message` (line 1078) is 100% similar to `add_tool_message` (line 1120)
+- **Analysis**: Both methods are factory methods that call `_add_message_of_type` with different widget classes
+- **Solution**: While they have different signatures (different parameter types), ensured they follow the same consistent pattern. Added `_add_message_factory` helper for clarity.
 
-## Refactoring Strategy Applied:
+### 2. Missing Type Hints (LOW severity - multiple instances)
+- **Reported**: 83 total smells, most being missing type hints
+- **Analysis**: Methods already had type hints, but mypy detected issues with `BINDINGS` type annotation
+- **Solution**: Fixed `BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]]` to match parent class signature
 
-### 1. Fixed Import Issues
-- Moved `events` import out of `TYPE_CHECKING` block since it's used at runtime
-- Removed unused `TYPE_CHECKING` import
+### 3. Unused/Duplicate Imports
+- **Reported**: Unused `json` and `logging` imports, duplicate `json` imports in methods
+- **Solution**: 
+  - Removed unused `logging` import
+  - Kept `json` import at module level (used in ToolMessage class)
+  - Removed duplicate `import json` statements inside `_parse_tool_arguments` and `_format_full_args` methods
 
-### 2. Extracted Common Message Widget Creation Pattern
-- Created generic `_add_message_widget` method that handles:
-  - Creating widgets of any type
-  - Optional tracking in dictionaries
-  - Proper type hints for all parameters
-- Refactored `add_thinking_message` to use the new generic method
-- Refactored `add_tool_message` to use the new generic method
-- Refactored `begin_thinking_stream` to use the new generic method
+### 4. Mypy Type Errors
+- **Issue**: `BINDINGS` type incompatible with parent class
+- **Solution**: Updated type annotation to match Textual's expected type: `list[Binding | tuple[str, str] | tuple[str, str, str]]`
 
-### 3. Added Missing Type Hints
-- Verified all functions have proper type hints (excluding `self` which doesn't need them)
-- Added comprehensive type hints to the new `_add_message_widget` method
+## Refactoring Strategy Applied
 
-### 4. Maintained Backward Compatibility
-- All public API methods retain their original signatures
-- All existing tests pass (9/9)
-- No runtime behavior changes
+### 1. Extract Common Pattern
+- Created `_add_message_factory` method to provide consistent factory pattern
+- Both `add_thinking_message` and `add_tool_message` now use this pattern
+- Maintains separate public APIs (different signatures) while sharing implementation
 
-## Files Changed:
-- src/henchman/cli/textual_widgets.py
+### 2. Add Missing Type Hints
+- Fixed `BINDINGS` type annotation to satisfy mypy
+- Added missing `ClassVar` import
+- Ensured all type hints are consistent and complete
 
-## Code Changes Made:
+### 3. Clean Imports
+- Removed unused imports (`logging`)
+- Consolidated `json` imports to module level
+- Fixed import order and organization
 
-### Before:
-```python
-def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
-    return self._add_typed_message_widget(ThinkingMessage, thought, agent_name)
+### 4. Improve Code Organization
+- Applied consistent formatting
+- Maintained clear separation between different widget types
+- Preserved all existing functionality and APIs
 
-def add_tool_message(self, thought: str = "", tool_call: Any = None) -> ToolMessage:
-    return self._add_typed_message_widget(ToolMessage, thought, tool_call)
-```
+## Testing Implications
 
-### After:
-```python
-def _add_message_widget(
-    self,
-    widget_class: type[_T],
-    *args: Any,
-    tracking_dict: dict[str, _T] | None = None,
-    tracking_key: str = "",
-    **kwargs: Any,
-) -> _T:
-    """Generic method to add a message widget to the chat pane."""
-    if tracking_dict is not None and tracking_key:
-        return self._add_message_widget_and_track(
-            widget_class, tracking_dict, tracking_key, *args, **kwargs
-        )
-    return self._add_typed_message_widget(widget_class, *args, **kwargs)
+### Tests Run:
+- `tests/cli/test_textual_widgets_bugs.py` - All 5 tests pass
+- Linting checks (ruff and mypy) - All pass
+- No breaking changes to public API
 
-def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
-    return self._add_message_widget(ThinkingMessage, thought, agent_name)
+### What Might Need Updating:
+- No test updates needed - all existing tests pass
+- Type safety improved, which may catch future type-related bugs
+- Factory pattern makes it easier to add new message types in future
 
-def add_tool_message(self, thought: str = "", tool_call: Any = None) -> ToolMessage:
-    return self._add_message_widget(ToolMessage, thought, tool_call)
-```
+## Rationale
 
-## Rationale:
-The file had duplicate code patterns and import issues. By extracting a common method, we:
-- **Eliminated duplicate code** (Once and Only Once principle)
-- **Improved maintainability** - changes to widget creation logic now happen in one place
-- **Enhanced type safety** - added comprehensive type hints
-- **Fixed import issues** - `events` is now properly imported at runtime
+### XP Principles Applied:
+1. **Once and Only Once (DRY)**: Eliminated duplicate JSON imports, consolidated factory pattern
+2. **Simplicity**: Kept methods simple and focused on single responsibility
+3. **Intention-Revealing Code**: Clear method names and type hints
+4. **YAGNI**: Didn't over-engineer - kept separate factory methods since they have different signatures
 
-## Testing Results:
-- ✅ All 9 existing tests pass
-- ✅ Ruff linting passes with no errors
-- ✅ MyPy type checking passes with no errors
-- ✅ No runtime behavior changes
+### Technical Decisions:
+1. **Kept separate `add_thinking_message` and `add_tool_message`**: They have different parameter types and defaults, so they need separate public APIs
+2. **Used proper type annotations**: Ensures type safety and better IDE support
+3. **Maintained backward compatibility**: No changes to public method signatures
 
-## Performance Impact:
-- Minimal runtime impact (slight overhead from additional function call)
-- Improved static analysis and IDE support
-- Better documentation for developers via type hints
-- Reduced code duplication (DRY principle)
+## Results
 
-## XP Principles Applied:
-- **Once and Only Once (DRY)**: Extracted common widget creation logic
-- **Intention-Revealing Code**: Clear method names and comprehensive type hints
-- **Simplicity**: Generic method is simple and focused on one responsibility
-- **YAGNI**: Didn't add unnecessary features or abstractions
+### Before Refactoring:
+- Mypy errors in `BINDINGS` type annotation
+- Duplicate JSON imports
+- Unused logging import
+- Code smell score: 8.1/100 (F grade)
+
+### After Refactoring:
+- All mypy errors fixed
+- Clean imports
+- Consistent factory pattern
+- All tests pass
+- Linting passes (ruff and mypy)
+- Maintained all functionality
+
+The refactoring improves code quality while maintaining all existing functionality and API compatibility.
