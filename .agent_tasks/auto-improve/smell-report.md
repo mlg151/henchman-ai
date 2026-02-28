@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 43.4/100)
+# Code Smell Report — ❌ F (Score: 45.2/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-28T16:00:18.450193+00:00_
+_Generated: 2026-02-28T16:30:18.294066+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 43.4/100 |
-| **Files Scanned** | 165 |
-| **Total Lines (non-blank)** | 30,894 |
-| **Total Smells** | 2520 |
+| **Overall Score** | 45.2/100 |
+| **Files Scanned** | 168 |
+| **Total Lines (non-blank)** | 30,911 |
+| **Total Smells** | 2519 |
 | **Avg Maintainability Index** | 70.6 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,22 +20,22 @@ _Generated: 2026-02-28T16:00:18.450193+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1780 |
-| medium | 617 |
-| high | 123 |
+| low | 1781 |
+| medium | 616 |
+| high | 122 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1228 |
-| Feature Envy | 341 |
-| Duplicate Code | 312 |
+| Missing Type Hint | 1226 |
+| Feature Envy | 340 |
+| Duplicate Code | 311 |
 | Magic Number | 163 |
 | Long Method | 153 |
-| Deep Nesting | 151 |
-| Primitive Obsession | 84 |
-| Complex Function | 52 |
+| Deep Nesting | 152 |
+| Primitive Obsession | 85 |
+| Complex Function | 53 |
 | Large Class | 36 |
 
 ## 🎯 Prioritised Refactoring Queue
@@ -107,44 +107,20 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | utils/intelligent_context.py | ❌ F | 4.8 | 82 | 1147 | 16 | 0.0 |
-| 2 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
-| 3 | utils/compaction.py | ❌ F | 10.3 | 58 | 546 | 34 | 14.8 |
-| 4 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
-| 5 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
-| 6 | core/agent.py | ❌ F | 11.1 | 43 | 573 | 37 | 11.0 |
-| 7 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
-| 8 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
-| 9 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
-| 10 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
+| 1 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
+| 2 | utils/compaction.py | ❌ F | 10.3 | 58 | 546 | 34 | 14.8 |
+| 3 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
+| 4 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
+| 5 | core/agent.py | ❌ F | 11.1 | 43 | 573 | 37 | 11.0 |
+| 6 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
+| 7 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
+| 8 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
+| 9 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
+| 10 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 145 additional files omitted._
-
-### utils/intelligent_context.py — ❌ F (4.8/100)
-
-LOC: 1147 | Classes: 6 | Functions: 0 | MI: 16 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 234 | 🟠 HIGH | Large Class | Class 'IntelligentContextManager' spans 1295 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 234 | 🟡 MEDIUM | Large Class | Class 'IntelligentContextManager' has 47 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 245 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: max_tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), max_protected_ratio: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)), importance_threshold: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)), cluster_similarity_threshold: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)), adaptive_compression: BinOp(left=Name(id='bool', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 321 | 🟡 MEDIUM | Feature Envy | Method 'IntelligentContextManager._create_truncated_message' accesses 'message' 5 times but 'self' only 0 times | Move Method — consider moving '_create_truncated_message' to the class that owns 'message'. |
-| 1188 | 🟡 MEDIUM | Duplicate Code | Function '_apply_coding_compression_strategy' is 100% similar to '_apply_debugging_compression_strategy' at utils/intelligent_context.py:1248 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1188 | 🟡 MEDIUM | Duplicate Code | Function '_apply_coding_compression_strategy' is 97% similar to '_apply_general_compression_strategy' at utils/intelligent_context.py:1280 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1248 | 🟡 MEDIUM | Duplicate Code | Function '_apply_debugging_compression_strategy' is 97% similar to '_apply_general_compression_strategy' at utils/intelligent_context.py:1280 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1306 | 🟡 MEDIUM | Feature Envy | Method 'IntelligentContextManager._apply_importance_based_compression' accesses 'config' 5 times but 'self' only 4 times | Move Method — consider moving '_apply_importance_based_compression' to the class that owns 'config'. |
-| 79 | 🟢 LOW | Missing Type Hint | Function 'detect' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 96 | 🟢 LOW | Missing Type Hint | Function '_extract_all_content' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 109 | 🟢 LOW | Missing Type Hint | Function '_count_keywords_by_type' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 123 | 🟢 LOW | Missing Type Hint | Function '_count_keywords' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 135 | 🟢 LOW | Missing Type Hint | Function '_determine_conversation_type' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 245 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
-| 278 | 🟢 LOW | Missing Type Hint | Function 'enforce_safety_limits' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 67 more smells._
+_Showing 20 worst files. 148 additional files omitted._
 
 ### cli/textual_widgets.py — ❌ F (8.2/100)
 
@@ -602,6 +578,30 @@ LOC: 327 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 16.0
 
 _... and 16 more smells._
 
+### cli/output_handler.py — ❌ F (15.9/100)
+
+LOC: 303 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 225 | 🟡 MEDIUM | Duplicate Code | Function 'get_rich_status_message' is 94% similar to 'load' at cli/session_manager.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 225 | 🟡 MEDIUM | Duplicate Code | Function 'get_rich_status_message' is 94% similar to 'compute_project_hash' at cli/session_manager.py:199 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 298 | 🟡 MEDIUM | Duplicate Code | Function 'create_status' is 100% similar to 'create_status' at cli/ui_renderer.py:183 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 332 | 🟡 MEDIUM | Duplicate Code | Function 'start_task' is 100% similar to 'start_task' at cli/ui_renderer.py:350 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 345 | 🟡 MEDIUM | Duplicate Code | Function 'update_task' is 100% similar to 'tool_result' at cli/ui_renderer.py:310 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 345 | 🟡 MEDIUM | Duplicate Code | Function 'update_task' is 100% similar to 'tool_summary' at cli/ui_renderer.py:314 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 345 | 🟡 MEDIUM | Duplicate Code | Function 'update_task' is 100% similar to 'update_task' at cli/ui_renderer.py:363 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 22 | 🟢 LOW | Large Class | Class 'OutputHandler' spans 362 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 22 | 🟢 LOW | Large Class | Class 'OutputHandler' has 28 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 32 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/8 params untyped | Add Type Annotations for all parameters and return type. |
+| 61 | 🟢 LOW | Missing Type Hint | Function 'get_toolbar_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 81 | 🟢 LOW | Missing Type Hint | Function '_add_plan_mode_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 94 | 🟢 LOW | Missing Type Hint | Function '_add_provider_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 107 | 🟢 LOW | Missing Type Hint | Function '_add_token_status' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 131 | 🟢 LOW | Missing Type Hint | Function '_get_max_tokens' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 25 more smells._
+
 ## ✨ Clean Files (43 files with no smells)
 
 <details><summary>Click to expand</summary>
@@ -612,11 +612,11 @@ _... and 16 more smells._
 - agents/config.py — ✅ A
 - agents/orchestrator_anchoring.py — ✅ A
 - agents/orchestrator_components.py — ✅ A
-- agents/orchestrator_delegation_ctrl.py — 👍 B
+- agents/orchestrator_delegation_ctrl.py — ✅ A
 - agents/orchestrator_events.py — ✅ A
 - agents/orchestrator_execution.py — ✅ A
-- agents/orchestrator_init.py — 👍 B
-- agents/orchestrator_loop.py — 👍 B
+- agents/orchestrator_init.py — ✅ A
+- agents/orchestrator_loop.py — ✅ A
 - agents/orchestrator_metrics_ctrl.py — ✅ A
 - agents/orchestrator_prompts.py — ✅ A
 - agents/orchestrator_run.py — ✅ A
