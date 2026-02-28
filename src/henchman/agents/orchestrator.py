@@ -197,6 +197,7 @@ class PromptFactory:
     """Factory for creating agent system prompts."""
 
     @staticmethod
+    @staticmethod
     def create_tech_lead_prompt(
         agent_configs: dict[str, AgentConfig],
         system_prompt: str | None,
@@ -276,6 +277,7 @@ class TimeoutSummaryBuilder:
 
         return cls._format_summary(tools_used, files_touched, narration_parts)
 
+    @staticmethod
     @staticmethod
     def _extract_msg_info(
         msg: Message,
@@ -531,6 +533,12 @@ class DelegationController(OrchestratorComponent):
         This handles the actual delegation execution, result collection,
         and final tool result event.
         """
+        # Extract parameters for readability
+        target = params.target
+        agent = params.agent
+        tool_call = params.tool_call
+        ledger_record = params.ledger_record
+
         # Execute delegation and collect results
         async for sub_event in self._execute_delegation(params):
             yield sub_event
@@ -542,16 +550,16 @@ class DelegationController(OrchestratorComponent):
 
         # Process delegation results
         result_content = self._process_delegation_results(
-            result_content, delegation_status, params.target
+            result_content, delegation_status, target
         )
 
         # Update ledger and submit tool result
         self._process_delegation_result(
-            params.agent, params.tool_call, result_content, delegation_had_error, params.ledger_record
+            agent, tool_call, result_content, delegation_had_error, ledger_record
         )
 
         # Yield tool result event
-        yield self._yield_tool_result_event(params.agent, params.tool_call, result_content, success=True)
+        yield self._yield_tool_result_event(agent, tool_call, result_content, success=True)
 
     async def _execute_delegation(
         self,
@@ -788,7 +796,6 @@ class ToolController(OrchestratorComponent):
         Public method that delegates to the metrics controller.
         """
         self._metrics_controller.update_tool_metrics(tool_name, arguments, success)
-
 
 class ExecutionController:
     """Manages agent execution loops and state."""
