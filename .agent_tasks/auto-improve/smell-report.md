@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-28T18:30:19.078059+00:00_
+_Generated: 2026-02-28T19:00:18.543471+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-02-28T18:30:19.078059+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 45.2/100 |
 | **Files Scanned** | 168 |
-| **Total Lines (non-blank)** | 30,919 |
+| **Total Lines (non-blank)** | 30,926 |
 | **Total Smells** | 2504 |
 | **Avg Maintainability Index** | 70.6 |
 | **Avg Cyclomatic Complexity** | 13.6 |
@@ -21,8 +21,8 @@ _Generated: 2026-02-28T18:30:19.078059+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 1783 |
-| medium | 611 |
-| high | 110 |
+| medium | 612 |
+| high | 109 |
 
 ### Smells by Category
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_widgets.py | ❌ F | 8.3 | 74 | 905 | 28 | 0.0 |
+| 1 | cli/textual_widgets.py | ❌ F | 8.3 | 74 | 912 | 28 | 0.0 |
 | 2 | utils/compaction.py | ❌ F | 10.3 | 58 | 546 | 34 | 14.8 |
 | 3 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
 | 4 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
@@ -124,12 +124,12 @@ _Showing 20 worst files. 148 additional files omitted._
 
 ### cli/textual_widgets.py — ❌ F (8.3/100)
 
-LOC: 905 | Classes: 15 | Functions: 3 | MI: 28 | Avg CC: 0.0
+LOC: 912 | Classes: 16 | Functions: 3 | MI: 28 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 1052 | 🟠 HIGH | Duplicate Code | Function '__init__' is an exact duplicate of '__init__' at cli/textual_widgets.py:1060 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 953 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 100% similar to 'add_tool_message' at cli/textual_widgets.py:992 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 942 | 🟡 MEDIUM | Duplicate Code | Function '_add_message_widget' is 100% similar to '_add_message' at cli/textual_widgets.py:955 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 959 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 100% similar to 'add_tool_message' at cli/textual_widgets.py:998 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 105 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 118 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 128 | 🟢 LOW | Missing Type Hint | Function 'append' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |

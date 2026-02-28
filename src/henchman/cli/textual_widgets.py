@@ -952,10 +952,6 @@ class ChatPane(VerticalScroll):
         """
         return self._create_and_add_widget(widget_class, *args, **kwargs)
 
-    def _add_message(self, widget_class: type[Static], *args: Any, **kwargs: Any) -> Static:
-        """Alias for _add_message_widget for backward compatibility."""
-        return self._add_message_widget(widget_class, *args, **kwargs)
-
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
