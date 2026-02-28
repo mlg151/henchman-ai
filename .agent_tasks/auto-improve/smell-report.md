@@ -1,41 +1,41 @@
-# Code Smell Report — ❌ F (Score: 43.1/100)
+# Code Smell Report — ❌ F (Score: 43.0/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-28T14:00:19.884013+00:00_
+_Generated: 2026-02-28T14:30:18.280041+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 43.1/100 |
+| **Overall Score** | 43.0/100 |
 | **Files Scanned** | 153 |
-| **Total Lines (non-blank)** | 30,699 |
-| **Total Smells** | 2541 |
+| **Total Lines (non-blank)** | 30,759 |
+| **Total Smells** | 2532 |
 | **Avg Maintainability Index** | 69.5 |
-| **Avg Cyclomatic Complexity** | 13.6 |
+| **Avg Cyclomatic Complexity** | 13.7 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1775 |
-| medium | 641 |
-| high | 125 |
+| low | 1776 |
+| medium | 633 |
+| high | 123 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1212 |
-| Feature Envy | 348 |
-| Duplicate Code | 316 |
-| Magic Number | 175 |
-| Long Method | 158 |
-| Deep Nesting | 152 |
+| Missing Type Hint | 1215 |
+| Feature Envy | 347 |
+| Duplicate Code | 310 |
+| Magic Number | 174 |
+| Long Method | 157 |
+| Deep Nesting | 151 |
 | Primitive Obsession | 86 |
-| Complex Function | 56 |
+| Complex Function | 54 |
 | Large Class | 38 |
 
 ## 🎯 Prioritised Refactoring Queue
@@ -107,9 +107,9 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
+| 1 | utils/intelligent_context.py | ❌ F | 6.1 | 80 | 973 | 20 | 16.5 |
 | 2 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
-| 3 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
+| 3 | utils/compaction.py | ❌ F | 10.3 | 58 | 546 | 34 | 14.8 |
 | 4 | extensions/plugin_manager.py | ❌ F | 10.9 | 79 | 668 | 36 | 0.0 |
 | 5 | core/session.py | ❌ F | 11.0 | 76 | 725 | 37 | 17.0 |
 | 6 | core/agent.py | ❌ F | 11.1 | 43 | 573 | 37 | 11.0 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 133 additional files omitted._
 
-### utils/intelligent_context.py — ❌ F (6.4/100)
+### utils/intelligent_context.py — ❌ F (6.1/100)
 
-LOC: 913 | Classes: 2 | Functions: 0 | MI: 21 | Avg CC: 14.5
+LOC: 973 | Classes: 3 | Functions: 0 | MI: 20 | Avg CC: 16.5
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 44 | 🟠 HIGH | Large Class | Class 'IntelligentContextManager' spans 1177 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 933 | 🟠 HIGH | Duplicate Code | Function '_apply_research_compression_strategy' is an exact duplicate of '_apply_general_compression_strategy' at utils/intelligent_context.py:993 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 44 | 🟡 MEDIUM | Large Class | Class 'IntelligentContextManager' has 36 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 55 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: max_tokens: Name(id='int', ctx=Load()), max_protected_ratio: Name(id='float', ctx=Load()), importance_threshold: Name(id='float', ctx=Load()), cluster_similarity_threshold: Name(id='float', ctx=Load()), adaptive_compression: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 83 | 🟡 MEDIUM | Feature Envy | Method 'IntelligentContextManager.enforce_safety_limits' accesses 'msg' 7 times but 'self' only 1 times | Move Method — consider moving 'enforce_safety_limits' to the class that owns 'msg'. |
-| 97 | 🟡 MEDIUM | Magic Number | Magic number 0.75 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 529 | 🟡 MEDIUM | Complex Function | Function '_cluster_temporal_proximity' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 591 | 🟡 MEDIUM | Complex Function | Function '_cluster_topic_similarity' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 622 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_cluster_topic_similarity' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 622 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 656 | 🟡 MEDIUM | Complex Function | Function '_cluster_role_patterns' has cyclomatic complexity 20 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 696 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 699 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 811 | 🟡 MEDIUM | Complex Function | Function '_detect_conversation_type' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 896 | 🟡 MEDIUM | Magic Number | Magic number 0.1 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 79 | 🟠 HIGH | Large Class | Class 'IntelligentContextManager' spans 1216 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 43 | 🟡 MEDIUM | Magic Number | Magic number 8000 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 44 | 🟡 MEDIUM | Magic Number | Magic number 0.3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 46 | 🟡 MEDIUM | Magic Number | Magic number 0.7 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 48 | 🟡 MEDIUM | Magic Number | Magic number 0.75 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 49 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 51 | 🟡 MEDIUM | Magic Number | Magic number 0.1 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 52 | 🟡 MEDIUM | Magic Number | Magic number 0.6 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 53 | 🟡 MEDIUM | Magic Number | Magic number 0.3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 79 | 🟡 MEDIUM | Large Class | Class 'IntelligentContextManager' has 39 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 90 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: max_tokens: Name(id='int', ctx=Load()), max_protected_ratio: Name(id='float', ctx=Load()), importance_threshold: Name(id='float', ctx=Load()), cluster_similarity_threshold: Name(id='float', ctx=Load()), adaptive_compression: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 142 | 🟡 MEDIUM | Feature Envy | Method 'IntelligentContextManager._enforce_message_safety_limit' accesses 'message' 7 times but 'self' only 0 times | Move Method — consider moving '_enforce_message_safety_limit' to the class that owns 'message'. |
+| 730 | 🟡 MEDIUM | Complex Function | Function '_cluster_role_patterns' has cyclomatic complexity 20 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 887 | 🟡 MEDIUM | Complex Function | Function '_detect_conversation_type' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 979 | 🟡 MEDIUM | Duplicate Code | Function '_apply_coding_compression_strategy' is 100% similar to '_apply_debugging_compression_strategy' at utils/intelligent_context.py:1037 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-_... and 73 more smells._
+_... and 65 more smells._
 
 ### cli/textual_widgets.py — ❌ F (8.2/100)
 
@@ -176,7 +176,6 @@ LOC: 546 | Classes: 4 | Functions: 1 | MI: 34 | Avg CC: 14.8
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 86 | 🟠 HIGH | Duplicate Code | Function 'enforce_safety_limits' is an exact duplicate of 'enforce_safety_limits' at utils/intelligent_context.py:83 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
 | 465 | 🟠 HIGH | Feature Envy | Method 'ContextCompactor._truncate_protected_zone' accesses 'msg' 11 times but 'self' only 0 times | Move Method — consider moving '_truncate_protected_zone' to the class that owns 'msg'. |
 | 63 | 🟡 MEDIUM | Large Class | Class 'ContextCompactor' spans 528 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
 | 86 | 🟡 MEDIUM | Feature Envy | Method 'ContextCompactor.enforce_safety_limits' accesses 'msg' 7 times but 'self' only 1 times | Move Method — consider moving 'enforce_safety_limits' to the class that owns 'msg'. |
@@ -191,8 +190,9 @@ LOC: 546 | Classes: 4 | Functions: 1 | MI: 34 | Avg CC: 14.8
 | 499 | 🟡 MEDIUM | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 503 | 🟡 MEDIUM | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 505 | 🟡 MEDIUM | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 521 | 🟡 MEDIUM | Feature Envy | Method 'ContextCompactor.validate_compacted_sequence' accesses 'msg' 5 times but 'self' only 0 times | Move Method — consider moving 'validate_compacted_sequence' to the class that owns 'msg'. |
 
-_... and 44 more smells._
+_... and 43 more smells._
 
 ### extensions/plugin_manager.py — ❌ F (10.9/100)
 
