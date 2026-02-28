@@ -1,29 +1,55 @@
 # Refactoring Summary - orchestrator.py
+**Date/Time**: 2026-02-28T10:30:00Z  
+**Target File**: src/henchman/agents/orchestrator.py  
+**Refactoring Agent**: Expert Extreme Programming (XP) Refactoring Agent  
 
-**Date/Time**: 2026-02-28 09:45:00
-**Target File**: src/henchman/agents/orchestrator.py
-**Rationale**: Address all code smells identified in the smell report for this file
+## Completed Work
 
-## Smells to Address:
+### 1. Fixed HIGH Severity Primitive Obsession (Line 495)
+**Problem**: Repeated primitive parameter group in `_execute_delegation_flow` and `_execute_delegation`.
 
-1. **Duplicate Code**: Function `_assess_completion` flagged as duplicate (likely false positive)
-2. **Feature Envy**: Multiple methods accessing external classes more than self
-3. **Missing Type Hint**: Several functions have incomplete type hints
-4. **Large Class**: Class `ToolController` has 20 methods (threshold: 20)
-5. **Long Method**: Function `_execute_delegation_flow` has 32 lines (threshold: 30)
+**Solution**: Created `DelegationExecutionParams` dataclass:
+```python
+@dataclass
+class DelegationExecutionParams:
+    target: str
+    task: str
+    tool_call: ToolCall
+    depth: int
+    agent: Agent | None = None
+    ledger_record: DelegationRecord | None = None
+```
 
-## Refactoring Strategy:
+**Changes Made**:
+- Updated `_execute_delegation_flow` signature to accept `params: DelegationExecutionParams`
+- Updated `_execute_delegation` signature to accept `params: DelegationExecutionParams`
+- Updated call site in `execute_delegation_tool` to create parameter object
+- Added type assertions for non-None agent access
 
-1. **For Feature Envy**: Convert class methods to static methods where appropriate
-2. **For Missing Type Hints**: Add complete type annotations
-3. **For Large Class**: Extract related methods into separate classes
-4. **For Long Method**: Extract helper methods to reduce complexity
-5. **For Duplicate Code**: Verify if actual duplication exists
+**Result**: All 53 tests pass. Code is more maintainable with encapsulated parameters.
 
-## Files Changed:
-- src/henchman/agents/orchestrator.py
+## Remaining Smells (Prioritized)
 
-## Testing Implications:
-- All existing tests should continue to pass
-- No changes to public API signatures
-- Internal refactoring only, behavior preserved
+### HIGH Priority:
+✅ **Primitive Obsession** - FIXED
+
+### MEDIUM Priority:
+1. **Duplicate Code**: `_assess_completion` is 94% similar to functions in other files
+2. **Large Class**: `ToolController` spans 327 lines (23 methods)
+
+### LOW Priority:
+1. **Feature Envy**: Multiple methods access `ctx`, `console`, `event` more than `self`
+2. **Missing Type Hints**: Several methods have incomplete type annotations
+3. **Primitive Obsession**: Other instances beyond the one fixed
+
+## Next Steps
+1. Extract shared logic from duplicate `_assess_completion` function
+2. Split `ToolController` class into smaller, cohesive classes
+3. Add missing type hints to public methods
+4. Address Feature Envy by moving methods closer to their data
+
+## Key Insights
+- The file has significant duplication and structural issues
+- My refactoring successfully addressed the highest-priority smell without breaking tests
+- Further refactoring should focus on extracting classes and reducing method complexity
+- The `DelegationExecutionParams` pattern can be applied to other primitive obsession smells in the codebase
