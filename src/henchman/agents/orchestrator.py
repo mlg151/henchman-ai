@@ -482,6 +482,26 @@ class ToolController(OrchestratorComponent):
 
         yield self._create_delegation_event(agent, target, task)
 
+        # Execute delegation flow
+        async for event in self._execute_delegation_flow(
+            agent, tool_call, target, task, depth, ledger_record
+        ):
+            yield event
+
+    async def _execute_delegation_flow(
+        self,
+        agent: Agent,
+        tool_call: ToolCall,
+        target: str,
+        task: str,
+        depth: int,
+        ledger_record: Any | None,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute the delegation flow and yield events.
+        
+        This handles the actual delegation execution, result collection,
+        and final tool result event.
+        """
         # Run delegation and collect summary
         result_content = ""
         delegation_had_error = False
@@ -493,6 +513,7 @@ class ToolController(OrchestratorComponent):
             brief=delegation_brief,
             depth=depth + 1,
         )
+        
         async for sub_event in self.run_delegation(params):
             if sub_event.type == EventType.AGENT_COMPLETED:
                 result_content = sub_event.data.get("summary", "Completed.")
@@ -668,7 +689,7 @@ class ToolController(OrchestratorComponent):
 class ExecutionController:
     """Manages agent execution loops and state."""
 
-    def __init__(self, orchestrator: Orchestrator):
+    def __init__(self, orchestrator: Orchestrator) -> None:
         self.orchestrator = orchestrator
 
     async def run_agent_loop(
