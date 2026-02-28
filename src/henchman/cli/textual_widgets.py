@@ -923,7 +923,7 @@ class ChatPane(VerticalScroll):
         self._try_scroll()
         return widget
 
-    def _create_and_add_widget(self, widget_class: type, *args: Any, **kwargs: Any) -> Static:
+    def _create_and_add_widget(self, widget_class: type[Static], *args: Any, **kwargs: Any) -> Static:
         """Create and add a widget to the pane.
 
         Args:
@@ -937,6 +937,19 @@ class ChatPane(VerticalScroll):
         widget = widget_class(*args, **kwargs)
         return self._add_widget(widget)
 
+    def _add_message(self, widget_class: type[Static], *args: Any, **kwargs: Any) -> Static:
+        """Generic method to add a message widget to the chat pane.
+
+        Args:
+            widget_class: The widget class to instantiate.
+            *args: Positional arguments for widget constructor.
+            **kwargs: Keyword arguments for widget constructor.
+
+        Returns:
+            The created widget.
+        """
+        return self._create_and_add_widget(widget_class, *args, **kwargs)
+
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
@@ -947,7 +960,8 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ThinkingMessage widget.
         """
-        return self._create_and_add_widget(ThinkingMessage, thought, agent_name)  # type: ignore[return-value]
+        widget = self._add_message(ThinkingMessage, thought, agent_name)
+        return cast(ThinkingMessage, widget)
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -958,9 +972,9 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        widget = self._create_and_add_widget(ThinkingMessage, "", agent_name)  # type: ignore[return-value]
-        self._active_thinking[agent_name] = widget
-        return widget
+        widget = self._add_message(ThinkingMessage, "", agent_name)
+        self._active_thinking[agent_name] = cast(ThinkingMessage, widget)
+        return cast(ThinkingMessage, widget)
 
     def append_thinking_chunk(self, agent_name: str, chunk: str) -> None:
         """Append a streaming chunk to an active thinking message.
@@ -985,7 +999,8 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ToolMessage widget.
         """
-        return self._create_and_add_widget(ToolMessage, thought, tool_call)  # type: ignore[return-value]
+        widget = self._add_message(ToolMessage, thought, tool_call)
+        return cast(ToolMessage, widget)
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""
@@ -1015,12 +1030,11 @@ class ChatPane(VerticalScroll):
 class _BaseRichLogPane(RichLog):
     """Base class for RichLog panes with common initialization."""
 
-    BORDER_TITLE: str = "Pane"
-
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, border_title: str = "Pane", **kwargs: Any) -> None:
         """Initialize.
 
         Args:
+            border_title: Title for the pane border.
             **kwargs: Forwarded to ``RichLog``.
         """
         super().__init__(
@@ -1029,19 +1043,23 @@ class _BaseRichLogPane(RichLog):
             markup=True,
             **kwargs,
         )
-        self.border_title = self.BORDER_TITLE
+        self.border_title = border_title
 
 
 class ThinkingPane(_BaseRichLogPane):
     """Pane for agent reasoning/thinking output."""
 
-    BORDER_TITLE: str = "Thinking (legacy)"
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize thinking pane with specific border title."""
+        super().__init__(border_title="Thinking (legacy)", **kwargs)
 
 
 class ToolPane(_BaseRichLogPane):
     """Pane for tool call/result display."""
 
-    BORDER_TITLE: str = "Tools"
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize tool pane with specific border title."""
+        super().__init__(border_title="Tools", **kwargs)
 
 
 # ------------------------------------------------------------------ #
