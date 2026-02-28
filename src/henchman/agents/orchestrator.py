@@ -182,7 +182,7 @@ class PromptFactory:
 
     @classmethod
     def create_tech_lead_prompt(
-        cls,
+        cls: type[PromptFactory],
         agent_configs: dict[str, AgentConfig],
         system_prompt: str | None,
         environment_context: str | None,
@@ -239,7 +239,7 @@ class TimeoutSummaryBuilder:
     """Helper for building timeout summaries for agents."""
 
     @classmethod
-    def build_summary(cls, agent: Agent, msg_start: int) -> str:
+    def build_summary(cls: type[TimeoutSummaryBuilder], agent: Agent, msg_start: int) -> str:
         """Build a progress summary from the agent's work so far.
 
         Called when a specialist hits the turn limit.  Extracts tool calls
@@ -265,7 +265,7 @@ class TimeoutSummaryBuilder:
 
     @classmethod
     def _extract_msg_info(
-        cls,
+        cls: type[TimeoutSummaryBuilder],
         msg: Message,
         tools_used: list[str],
         files_touched: set[str],
@@ -280,7 +280,7 @@ class TimeoutSummaryBuilder:
 
     @classmethod
     def _extract_tool_info(
-        cls,
+        cls: type[TimeoutSummaryBuilder],
         tc: ToolCall,
         tools_used: list[str],
         files_touched: set[str],
@@ -297,7 +297,7 @@ class TimeoutSummaryBuilder:
 
     @classmethod
     def _format_summary(
-        cls,
+        cls: type[TimeoutSummaryBuilder],
         tools_used: list[str],
         files_touched: set[str],
         narration_parts: list[str],
@@ -311,7 +311,7 @@ class TimeoutSummaryBuilder:
         return "\n".join(lines)
 
     @classmethod
-    def _add_tools_section(cls, lines: list[str], tools_used: list[str]) -> None:
+    def _add_tools_section(cls: type[TimeoutSummaryBuilder], lines: list[str], tools_used: list[str]) -> None:
         """Add tool usage section to summary lines."""
         if tools_used:
             lines.append(f"- Tool calls made: {len(tools_used)}")
