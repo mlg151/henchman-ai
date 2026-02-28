@@ -176,9 +176,8 @@ class NoPendingToolsResult:
 class PromptFactory:
     """Factory for creating agent system prompts."""
 
-    @classmethod
+    @staticmethod
     def create_tech_lead_prompt(
-        cls: type[PromptFactory],
         agent_configs: dict[str, Any],
         system_prompt: str | None,
         environment_context: str | None,
@@ -195,10 +194,10 @@ class PromptFactory:
         """
         from henchman.agents.prompts import get_agent_prompt
 
-        enabled_configs = cls._get_enabled_agent_configs(agent_configs)
-        team_members = cls._build_team_members_list(enabled_configs)
-        team_descriptions = cls._build_team_descriptions_dict(enabled_configs)
-        delegatable_agents = cls._build_delegatable_agents_list(enabled_configs)
+        enabled_configs = PromptFactory._get_enabled_agent_configs(agent_configs)
+        team_members = PromptFactory._build_team_members_list(enabled_configs)
+        team_descriptions = PromptFactory._build_team_descriptions_dict(enabled_configs)
+        delegatable_agents = PromptFactory._build_delegatable_agents_list(enabled_configs)
 
         return system_prompt or get_agent_prompt(
             role="tech_lead",
@@ -208,23 +207,23 @@ class PromptFactory:
             team_descriptions=team_descriptions,
         )
 
-    @classmethod
-    def _get_enabled_agent_configs(cls: type[PromptFactory], agent_configs: dict[str, Any]) -> list[Any]:
+    @staticmethod
+    def _get_enabled_agent_configs(agent_configs: dict[str, Any]) -> list[Any]:
         """Get enabled agent configurations from the config dictionary."""
         return [c for c in agent_configs.values() if c.enabled]
 
-    @classmethod
-    def _build_team_members_list(cls: type[PromptFactory], enabled_configs: list[Any]) -> list[str]:
+    @staticmethod
+    def _build_team_members_list(enabled_configs: list[Any]) -> list[str]:
         """Build list of team member descriptions."""
         return [f"{config.name} ({config.role})" for config in enabled_configs]
 
-    @classmethod
-    def _build_team_descriptions_dict(cls: type[PromptFactory], enabled_configs: list[Any]) -> dict[str, str]:
+    @staticmethod
+    def _build_team_descriptions_dict(enabled_configs: list[Any]) -> dict[str, str]:
         """Build dictionary of role descriptions."""
         return {config.role: config.description or "" for config in enabled_configs}
 
-    @classmethod
-    def _build_delegatable_agents_list(cls: type[PromptFactory], enabled_configs: list[Any]) -> list[str]:
+    @staticmethod
+    def _build_delegatable_agents_list(enabled_configs: list[Any]) -> list[str]:
         """Build list of delegatable agent roles."""
         return [config.role for config in enabled_configs]
 
@@ -232,8 +231,8 @@ class PromptFactory:
 class TimeoutSummaryBuilder:
     """Helper for building timeout summaries for agents."""
 
-    @classmethod
-    def build_summary(cls, agent: Agent, msg_start: int) -> str:
+    @staticmethod
+    def build_summary(agent: Agent, msg_start: int) -> str:
         """Build a progress summary from the agent's work so far.
 
         Called when a specialist hits the turn limit.  Extracts tool calls
@@ -253,28 +252,31 @@ class TimeoutSummaryBuilder:
 
         assistant_messages = [m for m in agent.messages[msg_start:] if m.role == "assistant"]
         for msg in assistant_messages:
-            cls._extract_msg_info(msg, tools_used, files_touched, narration_parts)
+            TimeoutSummaryBuilder._extract_msg_info(msg, tools_used, files_touched, narration_parts)
 
-        return cls._format_summary(tools_used, files_touched, narration_parts)
+        return TimeoutSummaryBuilder._format_summary(tools_used, files_touched, narration_parts)
 
-    @classmethod
+    @staticmethod
     def _extract_msg_info(
-        cls,
         msg: Message,
         tools_used: list[str],
         files_touched: set[str],
         narration_parts: list[str],
     ) -> None:
+        """Extract information from a message for timeout summary."""
         if msg.tool_calls:
             for tc in msg.tool_calls:
-                cls._extract_tool_info(tc, tools_used, files_touched)
+                TimeoutSummaryBuilder._extract_tool_info(tc, tools_used, files_touched)
         if msg.content:
             narration_parts.append(msg.content[:MAX_SUMMARY_LENGTH])
 
-    @classmethod
+    @staticmethod
     def _extract_tool_info(
-        cls, tc: ToolCall, tools_used: list[str], files_touched: set[str]
+        tc: ToolCall,
+        tools_used: list[str],
+        files_touched: set[str],
     ) -> None:
+        """Extract tool call information for timeout summary."""
         args_str = ", ".join(
             f"{k}={v!r}" for k, v in list(tc.arguments.items())[:MAX_TOOL_ARGUMENTS_TO_DISPLAY]
         )
@@ -284,20 +286,22 @@ class TimeoutSummaryBuilder:
         if path and isinstance(path, str):
             files_touched.add(path)
 
-    @classmethod
+    @staticmethod
     def _format_summary(
-        cls, tools_used: list[str], files_touched: set[str], narration_parts: list[str]
+        tools_used: list[str],
+        files_touched: set[str],
+        narration_parts: list[str],
     ) -> str:
         """Format timeout summary from collected information."""
         lines = ["**Progress at timeout:**"]
-        cls._add_tools_section(lines, tools_used)
-        cls._add_files_section(lines, files_touched)
-        cls._add_narration_section(lines, narration_parts)
-        cls._add_no_progress_section(lines, tools_used, narration_parts)
+        TimeoutSummaryBuilder._add_tools_section(lines, tools_used)
+        TimeoutSummaryBuilder._add_files_section(lines, files_touched)
+        TimeoutSummaryBuilder._add_narration_section(lines, narration_parts)
+        TimeoutSummaryBuilder._add_no_progress_section(lines, tools_used, narration_parts)
         return "\n".join(lines)
 
-    @classmethod
-    def _add_tools_section(cls, lines: list[str], tools_used: list[str]) -> None:
+    @staticmethod
+    def _add_tools_section(lines: list[str], tools_used: list[str]) -> None:
         """Add tool usage section to summary lines."""
         if tools_used:
             lines.append(f"- Tool calls made: {len(tools_used)}")
@@ -305,23 +309,25 @@ class TimeoutSummaryBuilder:
             for tool in tools_used[-RECENT_TOOLS_TO_SHOW:]:
                 lines.append(f"  • {tool[:MAX_TOOL_CALL_DISPLAY_LENGTH]}")
 
-    @classmethod
-    def _add_files_section(cls, lines: list[str], files_touched: set[str]) -> None:
+    @staticmethod
+    def _add_files_section(lines: list[str], files_touched: set[str]) -> None:
         """Add files touched section to summary lines."""
         if files_touched:
             lines.append(f"- Files touched: {', '.join(sorted(files_touched))}")
 
-    @classmethod
-    def _add_narration_section(cls, lines: list[str], narration_parts: list[str]) -> None:
+    @staticmethod
+    def _add_narration_section(lines: list[str], narration_parts: list[str]) -> None:
         """Add narration section to summary lines."""
         if narration_parts:
             lines.append(
                 f"- Last agent output: {narration_parts[-1][:MAX_NARRATION_DISPLAY_LENGTH]}"
             )
 
-    @classmethod
+    @staticmethod
     def _add_no_progress_section(
-        cls, lines: list[str], tools_used: list[str], narration_parts: list[str]
+        lines: list[str],
+        tools_used: list[str],
+        narration_parts: list[str],
     ) -> None:
         """Add no progress section if nothing was done."""
         if not tools_used and not narration_parts:
@@ -1071,8 +1077,8 @@ class Orchestrator:
         # The completion status of the most recent run()/run_direct() call
         self.last_completion_status: CompletionStatus = CompletionStatus.COMPLETED
 
-    def _assess_completion(self: Orchestrator, agent: Agent) -> CompletionStatus:
-        """Proxy to ExecutionController.assess_completion for backward compatibility.
+    def _assess_completion(self, agent: Agent) -> CompletionStatus:
+        """Assess whether an agent performed meaningful work.
 
         Args:
             agent: The agent whose run just finished.
