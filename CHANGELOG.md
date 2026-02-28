@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **`agent.py` refactored to A quality** — Split monolithic 705-line F-grade file (30.0/100) into 4 focused modules, all grade A.
+  - New modules: `agent_config.py` (AgentConfig dataclass, A 95.8), `agent_stall.py` (StallDetector, A 97.2), `agent_streaming.py` (StreamState/StreamContext/generate_stream_events, A 91.6).
+  - `agent.py` reduced from 705→300 lines, F (30.0) → A (93.0). Method count from 30+ to 16.
+  - Fixed: Large Class, 64 Duplicate Code smells (property getter/setter pairs), Feature Envy, Primitive Obsession, Long Methods, Missing Type Hints, PLR0913, BLE001.
+  - Key techniques: `__getattr__`/`__setattr__` delegation for backward-compat property access (eliminates duplicate code), module-level functions for feature envy, `AgentConfig` parameter object for primitive obsession, `StreamContext` for PLR0913.
+  - All 2586 tests pass unchanged.
+- **`turn.py` refactored to A quality** — Extracted 15+ magic numbers to named module-level constants (F 30.0 → A 97.2).
+  - Constants: `HASH_PREFIX_LENGTH`, `READ_ONLY_DUPLICATE_THRESHOLD`, `MAX_RECENT_HASHES`, `READ_ONLY_TOOLS`, `WRITE_TOOLS`, etc.
+  - Added `self: TurnState` type annotations to all methods.
 - **`session.py` refactored to A quality** — Split monolithic 926-line F-grade file (11.0/100, 120 smells) into 10 focused modules, all grade A (90.7/100, 0 smells).
   - New modules: `session_models`, `session_data`, `session_helpers`, `session_manager_base`, `session_manager`, `session_merge`, `session_export`, `session_templates`, `session_branch`.
   - `session.py` is now a thin facade (~27 LOC, MI=100) with full backward-compatible re-exports.

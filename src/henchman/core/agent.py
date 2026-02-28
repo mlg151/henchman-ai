@@ -244,7 +244,10 @@ class Agent:
             List of messages, potentially compacted to fit within max_tokens.
         """
         compactor = _build_compactor(self._config, self._max_tokens)
-        return compactor.compact(self.messages, protect_from_index=self.turn.start_index)
+        result: list[Message] = compactor.compact(
+            self.messages, protect_from_index=self.turn.start_index,
+        )
+        return result
 
     def submit_tool_result(self: Agent, tool_call_id: str, result: str) -> None:
         """Submit a tool result to continue the conversation."""
