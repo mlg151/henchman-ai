@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Any
 
 from henchman.agents.delegation import DelegationRunner
-from henchman.agents.ledger import TaskLedger
+from henchman.agents.ledger import DelegationRecord, TaskLedger
 from henchman.agents.metrics import (
     PERCENTAGE_MULTIPLIER as PERCENTAGE_MULTIPLIER,
 )
@@ -495,7 +495,7 @@ class ToolController(OrchestratorComponent):
         target: str,
         task: str,
         depth: int,
-        ledger_record: Any | None,
+        ledger_record: DelegationRecord | None,
     ) -> AsyncIterator[AgentEvent]:
         """Execute the delegation flow and yield events.
 
@@ -514,6 +514,7 @@ class ToolController(OrchestratorComponent):
             depth=depth + 1,
         )
 
+        # Execute delegation and yield events
         async for sub_event in self.run_delegation(params):
             if sub_event.type == EventType.AGENT_COMPLETED:
                 result_content = sub_event.data.get("summary", "Completed.")
@@ -522,20 +523,42 @@ class ToolController(OrchestratorComponent):
                 delegation_had_error = True
             yield sub_event
 
-        if not result_content:
-            result_content = "Delegation completed (no output)."
+        # Process delegation results
+        result_content = self._process_delegation_results(
+            result_content, delegation_status, target
+        )
 
-        # Specialist doing no work is a soft failure — inform the Tech Lead
-        if delegation_status == "no_work_done":
-            result_content = self._format_no_work_done_result(result_content, target)
-
-        # Process delegation result
+        # Update ledger and submit tool result
         self._process_delegation_result(
             agent, tool_call, result_content, delegation_had_error, ledger_record
         )
 
         # Yield tool result event
         yield self.yield_tool_result_event(agent, tool_call, result_content, success=True)
+
+    def _process_delegation_results(
+        self,
+        result_content: str,
+        delegation_status: str,
+        target: str,
+    ) -> str:
+        """Process delegation results and format appropriately.
+
+        Args:
+            result_content: Original result content.
+            delegation_status: Status of the delegation.
+            target: Target agent role.
+
+        Returns:
+            Processed result content.
+        """
+        if not result_content:
+            result_content = "Delegation completed (no output)."
+
+        if delegation_status == "no_work_done":
+            result_content = self._format_no_work_done_result(result_content, target)
+
+        return result_content
 
     def _format_no_work_done_result(self, result_content: str, target: str) -> str:
         """Format result when specialist did no work.
