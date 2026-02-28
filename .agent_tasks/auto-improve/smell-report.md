@@ -1,113 +1,113 @@
-# Code Smell Report — ❌ F (Score: 39.9/100)
+# Code Smell Report — ❌ F (Score: 40.3/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-02-28T02:00:20.777081+00:00_
+_Generated: 2026-02-28T02:30:18.102286+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 39.9/100 |
+| **Overall Score** | 40.3/100 |
 | **Files Scanned** | 149 |
-| **Total Lines (non-blank)** | 30,716 |
-| **Total Smells** | 2634 |
-| **Avg Maintainability Index** | 69.7 |
+| **Total Lines (non-blank)** | 30,492 |
+| **Total Smells** | 2601 |
+| **Avg Maintainability Index** | 69.8 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1869 |
-| medium | 639 |
-| high | 126 |
+| low | 1831 |
+| medium | 645 |
+| high | 125 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1297 |
-| Feature Envy | 352 |
-| Duplicate Code | 312 |
+| Missing Type Hint | 1265 |
+| Feature Envy | 356 |
+| Duplicate Code | 310 |
 | Magic Number | 175 |
-| Long Method | 161 |
-| Deep Nesting | 155 |
+| Long Method | 162 |
+| Deep Nesting | 152 |
 | Primitive Obsession | 85 |
 | Complex Function | 58 |
-| Large Class | 39 |
+| Large Class | 38 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **agents/orchestrator.py:867** — 🟠 HIGH — Duplicate Code  
-   Function 'last_assistant_content' is an exact duplicate of 'last_assistant_content' at agents/orchestrator.py:967  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
-
-2. **cli/app.py:645** — 🟠 HIGH — Primitive Obsession  
+1. **cli/app.py:645** — 🟠 HIGH — Primitive Obsession  
    Function 'chat_command' has 8 primitive-typed parameters: prompt: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), agent: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), team: Name(id='bool', ctx=Load()), output_format: Name(id='str', ctx=Load()), plan: Name(id='bool', ctx=Load()), yes: Name(id='bool', ctx=Load()), tui: Name(id='bool', ctx=Load()), debug: Name(id='bool', ctx=Load())  
    → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
 
-3. **cli/commands/agent.py:33** — 🟠 HIGH — Feature Envy  
+2. **cli/commands/agent.py:33** — 🟠 HIGH — Feature Envy  
    Method 'AgentCommand.execute' accesses 'ctx' 10 times but 'self' only 2 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-4. **cli/commands/builtins.py:52** — 🟠 HIGH — Feature Envy  
+3. **cli/commands/builtins.py:52** — 🟠 HIGH — Feature Envy  
    Method 'HelpCommand.execute' accesses 'ctx' 14 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-5. **cli/commands/chat.py:120** — 🟠 HIGH — Feature Envy  
+4. **cli/commands/chat.py:120** — 🟠 HIGH — Feature Envy  
    Method 'ChatCommand._resume' accesses 'ctx' 12 times but 'self' only 0 times  
    → _Move Method — consider moving '_resume' to the class that owns 'ctx'._
 
-6. **cli/commands/context.py:85** — 🟠 HIGH — Feature Envy  
+5. **cli/commands/context.py:85** — 🟠 HIGH — Feature Envy  
    Method 'ContextCommand._show_status' accesses 'console' 13 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_status' to the class that owns 'console'._
 
-7. **cli/commands/context.py:273** — 🟠 HIGH — Primitive Obsession  
+6. **cli/commands/context.py:273** — 🟠 HIGH — Primitive Obsession  
    Function '_handle_range_parameter' has 6 primitive-typed parameters: value: Name(id='str', ctx=Load()), param_name: Name(id='str', ctx=Load()), min_val: Name(id='float', ctx=Load()), max_val: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)), is_int: Name(id='bool', ctx=Load()), label: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None))  
    → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
 
-8. **cli/commands/context.py:304** — 🟠 HIGH — Duplicate Code  
+7. **cli/commands/context.py:304** — 🟠 HIGH — Duplicate Code  
    Function '_handle_importance_parameter' is an exact duplicate of '_handle_similarity_parameter' at cli/commands/context.py:308  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-9. **cli/commands/context.py:322** — 🟠 HIGH — Feature Envy  
+8. **cli/commands/context.py:322** — 🟠 HIGH — Feature Envy  
    Method 'ContextCommand._show_stats' accesses 'ctx' 10 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_stats' to the class that owns 'ctx'._
 
-10. **cli/commands/context.py:322** — 🟠 HIGH — Feature Envy  
+9. **cli/commands/context.py:322** — 🟠 HIGH — Feature Envy  
    Method 'ContextCommand._show_stats' accesses 'console' 12 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_stats' to the class that owns 'console'._
 
-11. **cli/commands/mcp.py:121** — 🟠 HIGH — Feature Envy  
+10. **cli/commands/mcp.py:121** — 🟠 HIGH — Feature Envy  
    Method 'McpCommand._logging' accesses 'ctx' 15 times but 'self' only 0 times  
    → _Move Method — consider moving '_logging' to the class that owns 'ctx'._
 
-12. **cli/commands/model.py:61** — 🟠 HIGH — Feature Envy  
+11. **cli/commands/model.py:61** — 🟠 HIGH — Feature Envy  
    Method 'ModelCommand._show_current' accesses 'ctx' 10 times but 'self' only 0 times  
    → _Move Method — consider moving '_show_current' to the class that owns 'ctx'._
 
-13. **cli/commands/model.py:125** — 🟠 HIGH — Feature Envy  
+12. **cli/commands/model.py:125** — 🟠 HIGH — Feature Envy  
    Method 'ModelCommand._set_provider' accesses 'ctx' 26 times but 'self' only 2 times  
    → _Move Method — consider moving '_set_provider' to the class that owns 'ctx'._
 
-14. **cli/commands/plan.py:32** — 🟠 HIGH — Feature Envy  
+13. **cli/commands/plan.py:32** — 🟠 HIGH — Feature Envy  
    Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-15. **cli/commands/session.py:149** — 🟠 HIGH — Feature Envy  
+14. **cli/commands/session.py:149** — 🟠 HIGH — Feature Envy  
    Method 'SessionCommand._merge' accesses 'ctx' 13 times but 'self' only 10 times  
    → _Move Method — consider moving '_merge' to the class that owns 'ctx'._
+
+15. **cli/commands/session.py:323** — 🟠 HIGH — Feature Envy  
+   Method 'SessionCommand._import' accesses 'ctx' 10 times but 'self' only 7 times  
+   → _Move Method — consider moving '_import' to the class that owns 'ctx'._
 
 
 ## 📊 Files Ranked by Quality
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/orchestrator.py | ❌ F | 2.6 | 113 | 1361 | 9 | 13.0 |
+| 1 | agents/orchestrator.py | ❌ F | 5.1 | 80 | 1137 | 17 | 11.5 |
 | 2 | utils/intelligent_context.py | ❌ F | 6.4 | 88 | 913 | 21 | 14.5 |
 | 3 | cli/textual_widgets.py | ❌ F | 8.2 | 89 | 897 | 27 | 12.0 |
 | 4 | utils/compaction.py | ❌ F | 10.3 | 59 | 546 | 34 | 14.8 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 129 additional files omitted._
 
-### agents/orchestrator.py — ❌ F (2.6/100)
+### agents/orchestrator.py — ❌ F (5.1/100)
 
-LOC: 1361 | Classes: 16 | Functions: 0 | MI: 9 | Avg CC: 13.0
+LOC: 1137 | Classes: 13 | Functions: 0 | MI: 17 | Avg CC: 11.5
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 867 | 🟠 HIGH | Duplicate Code | Function 'last_assistant_content' is an exact duplicate of 'last_assistant_content' at agents/orchestrator.py:967 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 117 | 🟡 MEDIUM | Feature Envy | Method 'PromptFactory.create_tech_lead_prompt' accesses 'config' 5 times but 'self' only 1 times | Move Method — consider moving 'create_tech_lead_prompt' to the class that owns 'config'. |
-| 573 | 🟡 MEDIUM | Complex Function | Function 'run_agent_loop' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 748 | 🟡 MEDIUM | Duplicate Code | Function '_finalize_loop' is 93% similar to '_finalize_loop_execution' at agents/orchestrator.py:1541 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1043 | 🟡 MEDIUM | Large Class | Class 'Orchestrator' spans 666 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 1043 | 🟡 MEDIUM | Large Class | Class 'Orchestrator' has 33 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 1393 | 🟡 MEDIUM | Complex Function | Function '_run_agent_loop' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 109 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: missing return type | Add Type Annotations for all parameters and return type. |
-| 117 | 🟢 LOW | Missing Type Hint | Function 'create_tech_lead_prompt' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 152 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: missing return type | Add Type Annotations for all parameters and return type. |
-| 166 | 🟢 LOW | Missing Type Hint | Function 'build_summary' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 184 | 🟢 LOW | Missing Type Hint | Function '_extract_agent_progress' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 190 | 🟢 LOW | Missing Type Hint | Function '_extract_msg_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 190 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_msg_info' accesses 'msg' 4 times but 'self' only 2 times | Move Method — consider moving '_extract_msg_info' to the class that owns 'msg'. |
-| 198 | 🟢 LOW | Missing Type Hint | Function '_extract_tool_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 108 | 🟡 MEDIUM | Feature Envy | Method 'PromptFactory.create_tech_lead_prompt' accesses 'config' 5 times but 'self' only 0 times | Move Method — consider moving 'create_tech_lead_prompt' to the class that owns 'config'. |
+| 186 | 🟡 MEDIUM | Feature Envy | Method 'TimeoutSummaryBuilder._format_summary' accesses 'lines' 5 times but 'self' only 0 times | Move Method — consider moving '_format_summary' to the class that owns 'lines'. |
+| 247 | 🟡 MEDIUM | Feature Envy | Method 'AgentValidator.check_stall_failure' accesses 'agent' 5 times but 'self' only 1 times | Move Method — consider moving 'check_stall_failure' to the class that owns 'agent'. |
+| 425 | 🟡 MEDIUM | Feature Envy | Method 'ToolController.execute_regular_tool' accesses 'tool_call' 6 times but 'self' only 3 times | Move Method — consider moving 'execute_regular_tool' to the class that owns 'tool_call'. |
+| 425 | 🟡 MEDIUM | Feature Envy | Method 'ToolController.execute_regular_tool' accesses 'result' 6 times but 'self' only 3 times | Move Method — consider moving 'execute_regular_tool' to the class that owns 'result'. |
+| 445 | 🟡 MEDIUM | Feature Envy | Method 'ToolController.prepare_delegation_brief' accesses 'tool_call' 6 times but 'self' only 0 times | Move Method — consider moving 'prepare_delegation_brief' to the class that owns 'tool_call'. |
+| 491 | 🟡 MEDIUM | Complex Function | Function 'run_agent_loop' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 706 | 🟡 MEDIUM | Feature Envy | Method 'ExecutionController._enforce_turn_limits_common' accesses 'params' 5 times but 'self' only 0 times | Move Method — consider moving '_enforce_turn_limits_common' to the class that owns 'params'. |
+| 851 | 🟡 MEDIUM | Large Class | Class 'Orchestrator' spans 596 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 1201 | 🟡 MEDIUM | Long Method | Function '_run_agent_loop' has 64 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 1201 | 🟡 MEDIUM | Feature Envy | Method 'Orchestrator._run_agent_loop' accesses 'state' 8 times but 'self' only 5 times | Move Method — consider moving '_run_agent_loop' to the class that owns 'state'. |
+| 1201 | 🟡 MEDIUM | Complex Function | Function '_run_agent_loop' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 169 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_msg_info' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_msg_info' to the class that owns 'msg'. |
+| 177 | 🟢 LOW | Feature Envy | Method 'TimeoutSummaryBuilder._extract_tool_info' accesses 'tc' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_tool_info' to the class that owns 'tc'. |
+| 204 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: missing return type | Add Type Annotations for all parameters and return type. |
 
-_... and 98 more smells._
+_... and 65 more smells._
 
 ### utils/intelligent_context.py — ❌ F (6.4/100)
 
