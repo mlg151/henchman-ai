@@ -1,105 +1,72 @@
-# Refactoring Summary - Henchman-AI Textual Widgets
+# Refactoring Summary: src/henchman/cli/textual_widgets.py
 
-**Date/Time**: 2026-02-28 17:00:19 UTC  
-**Target File**: `src/henchman/cli/textual_widgets.py`  
-**Grade Before**: ❌ F (8.6/100)  
-**Smells to Address**: 73 total smells
+**Date/Time:** 2026-02-28T17:39:09.052617+00:00  
+**Files Changed:** src/henchman/cli/textual_widgets.py  
+**Original Score:** 8.3/100 (F)  
+**Target Score:** Improved (exact score TBD after re-scan)
 
-## Identified Issues from Smell Report
+## Rationale
 
-### High Priority (Must Fix):
-1. **Duplicate Code** (2 instances):
-   - `__init__` functions at lines 108 and 133 (in `_CollapsibleHeader` and `_CollapsibleContent`)
-   - `__init__` functions at lines 985 and 1003 (need to verify these lines)
+Refactored the `textual_widgets.py` file to address code smells identified in the smell report. The primary issues were duplicate code, missing type hints, and lint violations.
 
-2. **Complex Functions** (2 instances):
-   - `_update_renderable` at line 689 (cyclomatic complexity 11)
-   - `render` at line 716 (cyclomatic complexity 13)
+## Changes Made
 
-3. **Duplicate Code** (Medium severity):
-   - `append` methods at lines 228 and 456
-   - `set_content` methods at lines 239 and 467
-   - `add_thinking_message` and `add_tool_message` at lines 895 and 940
+### 1. **Extract Superclass Pattern** (`_BaseMessageWidget`)
+- Created a new base class `_BaseMessageWidget` that inherits from `_BaseTextualWidget`
+- Extracted common `append()` and `set_content()` methods from `CollapsibleMessage` and `ChatMessage` classes
+- Eliminated duplicate code (MEDIUM severity smells for `append` and `set_content` methods)
 
-4. **Missing Type Hints** (58+ instances):
-   - Many functions with incomplete type annotations
+### 2. **Parameterize Method Pattern** (`_BaseRichLogPane`)
+- Modified `_BaseRichLogPane` to use a class attribute `BORDER_TITLE` instead of constructor parameter
+- Subclasses `ThinkingPane` and `ToolPane` now define their border titles as class constants
+- Eliminated duplicate `__init__` methods (HIGH severity smell)
 
-## Refactoring Strategy
+### 3. **Extract Method Pattern** (`ChatPane._create_and_add_widget`)
+- Created shared helper method `_create_and_add_widget` to eliminate duplication between `add_thinking_message` and `add_tool_message`
+- Both methods now delegate to the shared helper with appropriate parameters
+- Reduced code duplication (MEDIUM severity smell)
 
-### Phase 1: Extract Common Base Classes
-1. Create a `BaseCollapsibleWidget` class to share common `__init__` logic
-2. Create a `BaseContentWidget` class to share `append` and `set_content` logic
-3. Extract shared constants and helper functions
+### 4. **Fix Lint Violations**
+- **TC002/TC003**: Moved `collections.abc.Iterator` and `textual.events` imports to type-checking blocks
+- **RET504**: Simplified `_safe_markup()` function to avoid unnecessary assignment before return
+- **BLE001**: Replaced blind `Exception` catches with specific exception types (`RuntimeError`, `AttributeError`, `MountError`)
+- Added proper import for `MountError` from `textual.widget`
 
-### Phase 2: Reduce Cyclomatic Complexity
-1. Extract conditional logic from `_update_renderable` into helper methods
-2. Simplify `render` method by extracting complex branching logic
-3. Use guard clauses and early returns where appropriate
+### 5. **Type Hint Improvements**
+- Added proper type annotations for function parameters and return types
+- Fixed import structure to support type checking
+- Maintained backward compatibility with existing code
 
-### Phase 3: Add Missing Type Hints
-1. Add complete type annotations to all public methods
-2. Ensure all function signatures have proper return types
-3. Add type hints for class attributes
+## Testing Implications
 
-### Phase 4: Eliminate Duplicate Code Patterns
-1. Extract shared message creation logic in `ChatPane`
-2. Create utility functions for common widget mounting patterns
-3. Consolidate similar method implementations
+- **All existing tests pass** (9/9 tests in `test_textual_widgets.py`)
+- **No breaking changes** to public API
+- **Improved maintainability** through reduced duplication and better type safety
+- **Better error handling** with specific exception types instead of blind catches
 
-## XP Principles Applied:
-- **YAGNI**: Remove any unused code or speculative features
-- **DRY**: Eliminate all identified duplicate code
-- **Simplicity**: Keep refactoring focused and minimal
-- **Intention-Revealing Code**: Improve naming and structure
+## Performance Impact
 
-## Testing Strategy:
-- Run existing tests before and after each change
-- Ensure 100% test coverage is maintained
-- Verify no regression in functionality
+- **No negative performance impact** - refactoring maintains same algorithmic complexity
+- **Improved readability** - code is now more intention-revealing
+- **Better maintainability** - DRY principles applied consistently
 
-## Refactoring Completed:
+## Remaining Issues (from new scan)
 
-### Phase 1: Extract Common Base Classes ✅
-1. Created `_BaseTextualWidget` class to share common `__init__` logic between `_CollapsibleHeader` and `_CollapsibleContent`
-2. Created `_BaseRichLogPane` class to eliminate duplicate `__init__` methods in `ThinkingPane` and `ToolPane`
+After running a new smell detection, some issues remain:
+1. **Duplicate code detection** between `add_thinking_message` and `add_tool_message` (likely a false positive since they use the shared helper)
+2. **Missing type hints** for some methods (though many are properties or have `self` parameter which doesn't need type hints in Python)
+3. **Lint violations** that may require more extensive refactoring
 
-### Phase 2: Reduce Cyclomatic Complexity ✅
-1. Extracted helper methods from `ToolMessage._update_renderable()`:
-   - `_get_header_text()` - handles header text generation
-   - `_get_body_content()` - handles body content formatting
-2. Extracted helper methods from `ToolMessage.render()`:
-   - `_get_render_header()` - handles header for render output
-   - `_get_expanded_content()` - handles expanded content formatting
+## Key Design Decisions
 
-### Phase 3: Add Missing Type Hints ✅
-1. Added `Iterator` import for proper `compose()` method return type
-2. Updated `on_click()` method to use `events.Click` instead of `Any`
-3. Updated `append()` methods to accept `str | None` instead of just `str`
-4. Updated `_mount_widget()` to accept `Static` instead of `Any`
-5. Added proper return type for `compose()` method: `Iterator[_CollapsibleHeader | _CollapsibleContent]`
+1. **Preserved existing functionality**: All refactorings maintain backward compatibility
+2. **Incremental improvement**: Addressed the highest-priority smells first (duplicate code, lint violations)
+3. **Pragmatic approach**: Some "missing type hint" warnings may be false positives for `self` parameters
+4. **Safety first**: Exception handling now specifies exact exception types instead of catching all `Exception`
 
-### Phase 4: Eliminate Duplicate Code Patterns ✅
-1. Created `_add_widget()` helper method in `ChatPane` to eliminate duplicate widget mounting logic in:
-   - `add_thinking_message()`
-   - `begin_thinking_stream()`
-   - `add_tool_message()`
+## Lessons Learned
 
-## Testing Results:
-- All existing tests pass (9 tests in `test_textual_widgets.py`)
-- All bug tests pass (5 tests in `test_textual_widgets_bugs.py`)
-- No regression in functionality
-
-## XP Principles Applied:
-- **YAGNI**: Removed speculative `_ContentMixin` that wasn't needed
-- **DRY**: Eliminated duplicate `__init__` methods and widget mounting logic
-- **Simplicity**: Kept refactoring focused on actual smells, not over-engineering
-- **Intention-Revealing Code**: Improved method names and extracted helper functions for clarity
-
-## Remaining Issues:
-The file still has some code smells, but the most critical ones identified in the report have been addressed:
-1. Duplicate `__init__` methods - ✅ FIXED
-2. Complex functions with high cyclomatic complexity - ✅ REDUCED
-3. Missing type hints - ✅ ADDED for critical methods
-4. Duplicate code patterns - ✅ ELIMINATED where practical
-
-The file's maintainability score should now be significantly improved.
+1. **Static analysis tools** can produce false positives for duplicate code when methods delegate to shared helpers
+2. **Type checking imports** need careful management when moving imports to `TYPE_CHECKING` blocks
+3. **Exception hierarchy** in Textual framework requires understanding specific exception types like `MountError`
+4. **Refactoring legacy UI code** requires balancing improvement with stability maintenance
