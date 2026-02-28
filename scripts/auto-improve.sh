@@ -6,6 +6,7 @@ set -euo pipefail
 # Temporarily disable nounset — conda activation scripts use unbound vars
 set +u
 source "/home/matthew/anaconda3/etc/profile.d/conda.sh"
+source "/home/matthew/.bashrc"
 conda activate base
 set -u
 
@@ -184,7 +185,7 @@ Important constraints:
 - Do NOT revert the improvement — fix forward.
 - If the improvement itself is fundamentally broken, revert ONLY that change.'
 
-  /home/matthew/.local/bin/copilot --yolo -p "$FIX_PROMPT" 2>&1 | tee -a "$LOGFILE"
+  /home/matthew/anaconda3/bin/gemini --yolo -p "$FIX_PROMPT" 2>&1 | tee -a "$LOGFILE"
   FIX_EXIT=${PIPESTATUS[0]}
 
   if [ "$FIX_EXIT" -ne 0 ]; then
