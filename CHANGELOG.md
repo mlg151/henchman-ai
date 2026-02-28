@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **`session.py` refactored to A quality** — Split monolithic 926-line F-grade file (11.0/100, 120 smells) into 10 focused modules, all grade A (90.7/100, 0 smells).
+  - New modules: `session_models`, `session_data`, `session_helpers`, `session_manager_base`, `session_manager`, `session_merge`, `session_export`, `session_templates`, `session_branch`.
+  - `session.py` is now a thin facade (~27 LOC, MI=100) with full backward-compatible re-exports.
+  - Fixed: Large Class (621 lines), Long Method (97 lines), Feature Envy (×6 HIGH), Deep Nesting, Complex Functions (CC=16), Missing Type Hints (×34), Duplicate Code, Primitive Obsession.
+  - Key techniques: `_AsDictMixin` for duplicate code, parameter objects (`_BranchMeta`, `_TemplateInfo`, `_TemplateIO`), `TypeAlias` for primitive obsession, module-level functions for feature envy, inheritance split for Large Class.
+  - All 125 session tests pass unchanged.
 - **`orchestrator.py` refactored to A quality** — Split monolithic 1662-line F-grade file (3.6/100, 137 smells) into 16 focused modules, all grade A (92.7/100, 0 smells).
   - New modules: `orchestrator_types`, `orchestrator_prompts`, `orchestrator_timeout`, `orchestrator_turns`, `orchestrator_metrics_ctrl`, `orchestrator_validation`, `orchestrator_tools`, `orchestrator_components`, `orchestrator_events`, `orchestrator_loop`, `orchestrator_anchoring`, `orchestrator_execution`, `orchestrator_delegation_ctrl`, `orchestrator_init`, `orchestrator_run`, `orchestrator_tech_lead`.
   - `orchestrator.py` is now a thin facade (~124 LOC, MI=100) with full backward-compatible re-exports.
