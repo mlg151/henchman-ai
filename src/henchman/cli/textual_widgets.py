@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import contextlib
 import re
+from collections.abc import Iterator
 from typing import Any, cast
 
 from rich.markdown import Markdown as RichMarkdown
@@ -86,7 +87,7 @@ def _highlight_text(escaped_text: str, term: str) -> str:
             result.append(escaped_text[pos:])
             break
         result.append(escaped_text[pos:idx])
-        result.append(f"[reverse]{escaped_text[idx:idx + len(tl)]}[/reverse]")
+        result.append(f"[reverse]{escaped_text[idx : idx + len(tl)]}[/reverse]")
         pos = idx + len(tl)
     return "".join(result)
 
@@ -96,7 +97,20 @@ def _highlight_text(escaped_text: str, term: str) -> str:
 # ------------------------------------------------------------------ #
 
 
-class _CollapsibleHeader(Static):
+class _BaseTextualWidget(Static):
+    """Base class for Textual widgets with common initialization."""
+
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+        """Initialize with text content.
+
+        Args:
+            text: Initial text content.
+            **kwargs: Forwarded to ``Static``.
+        """
+        super().__init__(text, **kwargs)
+
+
+class _CollapsibleHeader(_BaseTextualWidget):
     """Clickable header for a collapsible message."""
 
     DEFAULT_CSS = """
@@ -105,17 +119,8 @@ class _CollapsibleHeader(Static):
     }
     """
 
-    def __init__(self, text: str = "", **kwargs: Any) -> None:
-        """Initialize.
 
-        Args:
-            text: Header markup text.
-            **kwargs: Forwarded to ``Static``.
-        """
-        super().__init__(text, **kwargs)
-
-
-class _CollapsibleContent(Static):
+class _CollapsibleContent(_BaseTextualWidget):
     """Body of a collapsible message (hidden when collapsed)."""
 
     DEFAULT_CSS = """
@@ -129,15 +134,6 @@ class _CollapsibleContent(Static):
         color: $warning;
     }
     """
-
-    def __init__(self, text: str = "", **kwargs: Any) -> None:
-        """Initialize.
-
-        Args:
-            text: Content markup text.
-            **kwargs: Forwarded to ``Static``.
-        """
-        super().__init__(text, **kwargs)
 
 
 class CollapsibleMessage(Static):
@@ -187,7 +183,7 @@ class CollapsibleMessage(Static):
         """Alias for ``_content_text`` used by search."""
         return self._content_text
 
-    def compose(self) -> Any:
+    def compose(self) -> Iterator[_CollapsibleHeader | _CollapsibleContent]:
         """Compose the header and content sub-widgets.
 
         Yields:
@@ -208,7 +204,7 @@ class CollapsibleMessage(Static):
         else:
             self.remove_class("expanded")
 
-    def on_click(self, event: Any) -> None:
+    def on_click(self, event: events.Click) -> None:
         """Handle click events to toggle expansion.
 
         Args:
@@ -225,7 +221,7 @@ class CollapsibleMessage(Static):
         self._highlight_term = term
         self._update_renderable()
 
-    def append(self, chunk: str) -> None:
+    def append(self, chunk: str | None) -> None:
         """Append a streaming chunk and re-render.
 
         Args:
@@ -453,7 +449,7 @@ class ChatMessage(Static):
             self._is_markdown = True
             self._update_renderable()
 
-    def append(self, chunk: str) -> None:
+    def append(self, chunk: str | None) -> None:
         """Append a streaming chunk and re-render.
 
         Args:
@@ -563,7 +559,7 @@ class ThinkingMessage(CollapsibleMessage):
             return f"{header_line}\n{self._content_text}"
         return header_line
 
-    def append(self, chunk: str) -> None:
+    def append(self, chunk: str | None) -> None:
         """Append a streaming chunk and re-render.
 
         Args:
@@ -584,9 +580,6 @@ class ThinkingMessage(CollapsibleMessage):
         self._content_text = content or ""
         self._thought = self._content_text
         self._update_renderable()
-
-
-
 
 
 class ToolMessage(CollapsibleMessage):
@@ -686,19 +679,27 @@ class ToolMessage(CollapsibleMessage):
         except (TypeError, ValueError):
             return str(args)
 
-    def _update_renderable(self) -> None:
-        """Re-render header and content sub-widgets."""
+    def _get_header_text(self) -> str:
+        """Get the header text based on tool call or thought.
+
+        Returns:
+            Formatted header text.
+        """
         if self._tool_call and hasattr(self._tool_call, "name"):
             compact = _safe_markup(self._format_compact_args())
             name = _safe_markup(self._tool_call.name)
-            header_text = f"🔧 {name}({compact})" if compact else f"🔧 {name}"
+            return f"🔧 {name}({compact})" if compact else f"🔧 {name}"
         elif self._thought:
-            header_text = f"🛠️  {_safe_markup(self._thought)}"
+            return f"🛠️  {_safe_markup(self._thought)}"
         else:
-            header_text = "🛠️  Tool call"
-        self.header.update(header_text)
+            return "🛠️  Tool call"
 
-        # Content: full args + accumulated result text
+    def _get_body_content(self) -> str:
+        """Get the body content with proper formatting.
+
+        Returns:
+            Formatted body content.
+        """
         parts: list[str] = []
         full_args = self._format_full_args()
         if full_args:
@@ -711,7 +712,51 @@ class ToolMessage(CollapsibleMessage):
         escaped = _safe_markup(body)
         if self._highlight_term:
             escaped = _highlight_text(escaped, self._highlight_term)
-        self._body.update(f"[dim]{escaped}[/]")
+        return f"[dim]{escaped}[/]"
+
+    def _update_renderable(self) -> None:
+        """Re-render header and content sub-widgets."""
+        self.header.update(self._get_header_text())
+        self._body.update(self._get_body_content())
+
+    def _get_render_header(self) -> str:
+        """Get the header for render output.
+
+        Returns:
+            Header text.
+        """
+        if self._tool_call and hasattr(self._tool_call, "name"):
+            compact = self._format_compact_args()
+            name = self._tool_call.name
+            return f"🔧 {name}({compact})" if compact else f"🔧 {name}"
+        elif self._thought:
+            return f"🛠️  {_safe_markup(self._thought)}"
+        else:
+            return "🛠️  Tool call"
+
+    def _get_expanded_content(self) -> str:
+        """Get the expanded content for render output.
+
+        Returns:
+            Expanded content text.
+        """
+        parts: list[str] = []
+        if self._tool_call and getattr(self._tool_call, "arguments", None):
+            import json
+
+            args = self._tool_call.arguments
+            if isinstance(args, str):
+                with contextlib.suppress(json.JSONDecodeError, TypeError):
+                    args = json.loads(args)
+            try:
+                parts.append(json.dumps(args))
+            except (TypeError, ValueError):
+                parts.append(str(args))
+        if self._result_text:
+            parts.append(self._result_text)
+        if self._content_text and self._content_text != self._thought:
+            parts.append(self._content_text)
+        return "\n".join(parts)
 
     def render(self) -> str:
         """Return text representation for render introspection.
@@ -719,33 +764,10 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Header text when collapsed, header + full args when expanded.
         """
-        if self._tool_call and hasattr(self._tool_call, "name"):
-            compact = self._format_compact_args()
-            name = self._tool_call.name
-            header = f"🔧 {name}({compact})" if compact else f"🔧 {name}"
-        elif self._thought:
-            header = f"🛠️  {_safe_markup(self._thought)}"
-        else:
-            header = "🛠️  Tool call"
-
+        header = self._get_render_header()
         if self._is_expanded:
-            parts = [header]
-            if self._tool_call and getattr(self._tool_call, "arguments", None):
-                import json
-
-                args = self._tool_call.arguments
-                if isinstance(args, str):
-                    with contextlib.suppress(json.JSONDecodeError, TypeError):
-                        args = json.loads(args)
-                try:
-                    parts.append(json.dumps(args))
-                except (TypeError, ValueError):
-                    parts.append(str(args))
-            if self._result_text:
-                parts.append(self._result_text)
-            if self._content_text and self._content_text != self._thought:
-                parts.append(self._content_text)
-            return "\n".join(parts)
+            expanded_content = self._get_expanded_content()
+            return f"{header}\n{expanded_content}" if expanded_content else header
         return header
 
 
@@ -787,7 +809,7 @@ class ChatPane(VerticalScroll):
         if self.children:
             self.children[-1].scroll_visible(animate=False)
 
-    def _mount_widget(self, widget: Any) -> None:
+    def _mount_widget(self, widget: Static) -> None:
         """Mount a widget, falling back to direct append if not attached.
 
         Args:
@@ -886,15 +908,24 @@ class ChatPane(VerticalScroll):
         if widget is None:
             import logging
 
-            logging.debug(
-                f"Attempted to finish non-existent agent stream: {agent_name}"
-            )
+            logging.debug(f"Attempted to finish non-existent agent stream: {agent_name}")
             return
         widget.finalize_as_markdown()
 
-    def add_thinking_message(
-        self, thought: str, agent_name: str = ""
-    ) -> ThinkingMessage:
+    def _add_widget(self, widget: Static) -> Static:
+        """Helper method to add a widget to the pane.
+
+        Args:
+            widget: Widget to add.
+
+        Returns:
+            The added widget.
+        """
+        self._mount_widget(widget)
+        self._try_scroll()
+        return widget
+
+    def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
         Args:
@@ -905,9 +936,7 @@ class ChatPane(VerticalScroll):
             The created ThinkingMessage widget.
         """
         widget = ThinkingMessage(thought, agent_name)
-        self._mount_widget(widget)
-        self._try_scroll()
-        return widget
+        return self._add_widget(widget)  # type: ignore[return-value]
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -920,9 +949,7 @@ class ChatPane(VerticalScroll):
         """
         widget = ThinkingMessage("", agent_name)
         self._active_thinking[agent_name] = widget
-        self._mount_widget(widget)
-        self._try_scroll()
-        return widget
+        return self._add_widget(widget)  # type: ignore[return-value]
 
     def append_thinking_chunk(self, agent_name: str, chunk: str) -> None:
         """Append a streaming chunk to an active thinking message.
@@ -948,16 +975,12 @@ class ChatPane(VerticalScroll):
             The created ToolMessage widget.
         """
         widget = ToolMessage(thought, tool_call)
-        self._mount_widget(widget)
-        self._try_scroll()
-        return widget
+        return self._add_widget(widget)  # type: ignore[return-value]
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""
         self._active_thinking = {}
-        thinking = [
-            child for child in self.children if isinstance(child, ThinkingMessage)
-        ]
+        thinking = [child for child in self.children if isinstance(child, ThinkingMessage)]
         for widget in thinking:
             try:
                 widget.remove()
@@ -979,7 +1002,26 @@ class ChatPane(VerticalScroll):
 # ------------------------------------------------------------------ #
 
 
-class ThinkingPane(RichLog):
+class _BaseRichLogPane(RichLog):
+    """Base class for RichLog panes with common initialization."""
+
+    def __init__(self, border_title: str, **kwargs: Any) -> None:
+        """Initialize.
+
+        Args:
+            border_title: Title for the pane border.
+            **kwargs: Forwarded to ``RichLog``.
+        """
+        super().__init__(
+            wrap=True,
+            highlight=True,
+            markup=True,
+            **kwargs,
+        )
+        self.border_title = border_title
+
+
+class ThinkingPane(_BaseRichLogPane):
     """Pane for agent reasoning/thinking output."""
 
     def __init__(self, **kwargs: Any) -> None:
@@ -988,16 +1030,10 @@ class ThinkingPane(RichLog):
         Args:
             **kwargs: Forwarded to ``RichLog``.
         """
-        super().__init__(
-            wrap=True,
-            highlight=True,
-            markup=True,
-            **kwargs,
-        )
-        self.border_title = "Thinking (legacy)"
+        super().__init__(border_title="Thinking (legacy)", **kwargs)
 
 
-class ToolPane(RichLog):
+class ToolPane(_BaseRichLogPane):
     """Pane for tool call/result display."""
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1006,13 +1042,7 @@ class ToolPane(RichLog):
         Args:
             **kwargs: Forwarded to ``RichLog``.
         """
-        super().__init__(
-            wrap=True,
-            highlight=True,
-            markup=True,
-            **kwargs,
-        )
-        self.border_title = "Tools"
+        super().__init__(border_title="Tools", **kwargs)
 
 
 # ------------------------------------------------------------------ #
