@@ -10,16 +10,20 @@ from __future__ import annotations
 
 import contextlib
 import re
-from collections.abc import Iterator
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from rich.markdown import Markdown as RichMarkdown
 from rich.markup import escape as markup_escape
-from textual import events
 from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.reactive import reactive
+from textual.widget import MountError
 from textual.widgets import RichLog, Static, TextArea
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from textual import events
 
 # ------------------------------------------------------------------ #
 # Constants                                                            #
@@ -54,12 +58,10 @@ def _safe_markup(text: object) -> str:
     """
     if text is None:
         return ""
-    s = str(text)
     # 1. Strip ANSI escape sequences
-    s = _ANSI_RE.sub("", s)
+    cleaned = _ANSI_RE.sub("", str(text))
     # 2. Escape Rich markup characters
-    s = markup_escape(s)
-    return s
+    return markup_escape(cleaned)
 
 
 def _highlight_text(escaped_text: str, term: str) -> str:
@@ -110,6 +112,49 @@ class _BaseTextualWidget(Static):
         super().__init__(text, **kwargs)
 
 
+class _BaseMessageWidget(_BaseTextualWidget):
+    """Base class for message widgets with common append and set_content logic."""
+
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+        """Initialize with text content.
+
+        Args:
+            text: Initial text content.
+            **kwargs: Forwarded to ``_BaseTextualWidget``.
+        """
+        super().__init__(text, **kwargs)
+        self._content_text: str = text
+
+    def append(self, chunk: str | None) -> None:
+        """Append a streaming chunk and re-render.
+
+        Args:
+            chunk: Text to append.
+        """
+        if chunk is None:
+            return
+        self._content_text += chunk
+        self._update_renderable()
+
+    def set_content(self, content: str) -> None:
+        """Replace content entirely and re-render.
+
+        Args:
+            content: Full replacement content.
+        """
+        self._content_text = content or ""
+        self._update_renderable()
+
+    @property
+    def _content(self) -> str:
+        """Alias for ``_content_text`` used by search."""
+        return self._content_text
+
+    def _update_renderable(self) -> None:
+        """Re-render the widget with current content. Must be implemented by subclasses."""
+        raise NotImplementedError
+
+
 class _CollapsibleHeader(_BaseTextualWidget):
     """Clickable header for a collapsible message."""
 
@@ -136,7 +181,7 @@ class _CollapsibleContent(_BaseTextualWidget):
     """
 
 
-class CollapsibleMessage(Static):
+class CollapsibleMessage(_BaseMessageWidget):
     """Base class for collapsible messages with common functionality."""
 
     DEFAULT_CSS = """
@@ -156,10 +201,9 @@ class CollapsibleMessage(Static):
         """Initialize the collapsible message.
 
         Args:
-            **kwargs: Forwarded to ``Static``.
+            **kwargs: Forwarded to ``_BaseMessageWidget``.
         """
         super().__init__(**kwargs)
-        self._content_text: str = ""
         self._is_expanded: bool = False
         self._highlight_term: str = ""
         self.header = _CollapsibleHeader()
@@ -177,11 +221,6 @@ class CollapsibleMessage(Static):
         """Allow setting content (used by Static internals)."""
         if isinstance(value, _CollapsibleContent):
             self._body = value
-
-    @property
-    def _content(self) -> str:
-        """Alias for ``_content_text`` used by search."""
-        return self._content_text
 
     def compose(self) -> Iterator[_CollapsibleHeader | _CollapsibleContent]:
         """Compose the header and content sub-widgets.
@@ -219,26 +258,6 @@ class CollapsibleMessage(Static):
             term: Search term to highlight (empty to clear).
         """
         self._highlight_term = term
-        self._update_renderable()
-
-    def append(self, chunk: str | None) -> None:
-        """Append a streaming chunk and re-render.
-
-        Args:
-            chunk: Text to append.
-        """
-        if chunk is None:
-            return
-        self._content_text += chunk
-        self._update_renderable()
-
-    def set_content(self, content: str) -> None:
-        """Replace content entirely and re-render.
-
-        Args:
-            content: Full replacement content.
-        """
-        self._content_text = content or ""
         self._update_renderable()
 
 
@@ -366,7 +385,7 @@ class HenchmanTextArea(TextArea):
 # ------------------------------------------------------------------ #
 
 
-class ChatMessage(Static):
+class ChatMessage(_BaseMessageWidget):
     """A rendered chat message that supports live-update during streaming.
 
     Content is stored as raw markdown and the widget re-renders on
@@ -391,11 +410,10 @@ class ChatMessage(Static):
         Args:
             prefix: Rich-markup prefix (e.g. ``[bold cyan]Asst:[/]``).
             content: Initial content (may be empty for streaming).
-            **kwargs: Extra kwargs forwarded to ``Static``.
+            **kwargs: Extra kwargs forwarded to ``_BaseMessageWidget``.
         """
-        super().__init__("", **kwargs)
+        super().__init__(content, **kwargs)
         self._prefix = prefix
-        self._content = content
         self._highlight_term: str = ""
         self._is_markdown: bool = False
         self._renderable_text: str = ""
@@ -408,16 +426,16 @@ class ChatMessage(Static):
 
     def _update_renderable(self) -> None:
         """Re-render the static widget with current content."""
-        if not self._content:
+        if not self._content_text:
             self._renderable_text = self._prefix
             self.update(self._prefix)
             return
         if self._is_markdown:
-            md = RichMarkdown(self._content)
+            md = RichMarkdown(self._content_text)
             self._renderable_text = md  # type: ignore[assignment]
             self.update(md)
             return
-        escaped = _safe_markup(self._content)
+        escaped = _safe_markup(self._content_text)
         if self._highlight_term:
             escaped = _highlight_text(escaped, self._highlight_term)
         text = f"{self._prefix} {escaped}"
@@ -443,31 +461,11 @@ class ChatMessage(Static):
         Only applies markdown rendering if the content appears to contain
         markdown syntax (headings, code blocks, bold, links, etc.).
         """
-        if not self._content:
+        if not self._content_text:
             return
-        if _looks_like_markdown(self._content):
+        if _looks_like_markdown(self._content_text):
             self._is_markdown = True
             self._update_renderable()
-
-    def append(self, chunk: str | None) -> None:
-        """Append a streaming chunk and re-render.
-
-        Args:
-            chunk: Text to append.
-        """
-        if chunk is None:
-            return
-        self._content += chunk
-        self._update_renderable()
-
-    def set_content(self, content: str) -> None:
-        """Replace content entirely and re-render.
-
-        Args:
-            content: Full replacement content.
-        """
-        self._content = content or ""
-        self._update_renderable()
 
 
 _SUMMARY_MAX_LEN = 20  # max chars before truncation (leaves room for "...")
@@ -817,7 +815,7 @@ class ChatPane(VerticalScroll):
         """
         try:
             self.mount(widget)
-        except Exception:
+        except (RuntimeError, AttributeError, MountError):
             # Widget not attached to an app — store as child directly
             self._nodes._append(widget)
 
@@ -925,6 +923,20 @@ class ChatPane(VerticalScroll):
         self._try_scroll()
         return widget
 
+    def _create_and_add_widget(self, widget_class: type, *args: Any, **kwargs: Any) -> Static:
+        """Create and add a widget to the pane.
+
+        Args:
+            widget_class: The widget class to instantiate.
+            *args: Positional arguments for widget constructor.
+            **kwargs: Keyword arguments for widget constructor.
+
+        Returns:
+            The created and added widget.
+        """
+        widget = widget_class(*args, **kwargs)
+        return self._add_widget(widget)
+
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
@@ -935,8 +947,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ThinkingMessage widget.
         """
-        widget = ThinkingMessage(thought, agent_name)
-        return self._add_widget(widget)  # type: ignore[return-value]
+        return self._create_and_add_widget(ThinkingMessage, thought, agent_name)  # type: ignore[return-value]
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -947,9 +958,9 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        widget = ThinkingMessage("", agent_name)
+        widget = self._create_and_add_widget(ThinkingMessage, "", agent_name)  # type: ignore[return-value]
         self._active_thinking[agent_name] = widget
-        return self._add_widget(widget)  # type: ignore[return-value]
+        return widget
 
     def append_thinking_chunk(self, agent_name: str, chunk: str) -> None:
         """Append a streaming chunk to an active thinking message.
@@ -974,8 +985,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ToolMessage widget.
         """
-        widget = ToolMessage(thought, tool_call)
-        return self._add_widget(widget)  # type: ignore[return-value]
+        return self._create_and_add_widget(ToolMessage, thought, tool_call)  # type: ignore[return-value]
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""
@@ -984,7 +994,7 @@ class ChatPane(VerticalScroll):
         for widget in thinking:
             try:
                 widget.remove()
-            except Exception:
+            except (RuntimeError, AttributeError, MountError):
                 self._nodes._remove(widget)
 
     def clear_messages(self) -> None:
@@ -993,7 +1003,7 @@ class ChatPane(VerticalScroll):
         self._active_thinking = {}
         try:
             self.remove_children()
-        except Exception:
+        except (RuntimeError, AttributeError, MountError):
             self._nodes._clear()
 
 
@@ -1005,11 +1015,12 @@ class ChatPane(VerticalScroll):
 class _BaseRichLogPane(RichLog):
     """Base class for RichLog panes with common initialization."""
 
-    def __init__(self, border_title: str, **kwargs: Any) -> None:
+    BORDER_TITLE: str = "Pane"
+
+    def __init__(self, **kwargs: Any) -> None:
         """Initialize.
 
         Args:
-            border_title: Title for the pane border.
             **kwargs: Forwarded to ``RichLog``.
         """
         super().__init__(
@@ -1018,31 +1029,19 @@ class _BaseRichLogPane(RichLog):
             markup=True,
             **kwargs,
         )
-        self.border_title = border_title
+        self.border_title = self.BORDER_TITLE
 
 
 class ThinkingPane(_BaseRichLogPane):
     """Pane for agent reasoning/thinking output."""
 
-    def __init__(self, **kwargs: Any) -> None:
-        """Initialize.
-
-        Args:
-            **kwargs: Forwarded to ``RichLog``.
-        """
-        super().__init__(border_title="Thinking (legacy)", **kwargs)
+    BORDER_TITLE: str = "Thinking (legacy)"
 
 
 class ToolPane(_BaseRichLogPane):
     """Pane for tool call/result display."""
 
-    def __init__(self, **kwargs: Any) -> None:
-        """Initialize.
-
-        Args:
-            **kwargs: Forwarded to ``RichLog``.
-        """
-        super().__init__(border_title="Tools", **kwargs)
+    BORDER_TITLE: str = "Tools"
 
 
 # ------------------------------------------------------------------ #
