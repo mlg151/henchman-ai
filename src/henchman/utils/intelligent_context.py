@@ -11,6 +11,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from henchman.providers.base import Message
+from henchman.utils.compression_strategy import CompressionStrategyFactory
+from henchman.utils.importance_scorer import ImportanceScorer
+from henchman.utils.message_clusterer import MessageClusterer
 from henchman.utils.tokens import TokenCounter
 
 if TYPE_CHECKING:
@@ -95,10 +98,10 @@ class ConversationTypeDetector:
 
     def _extract_all_content(self, messages: list[Message]) -> str:
         """Extract and combine all message content.
-        
+
         Args:
             messages: List of messages.
-            
+
         Returns:
             Combined content as lowercase string.
         """
@@ -108,10 +111,10 @@ class ConversationTypeDetector:
 
     def _count_keywords_by_type(self, content: str) -> dict[str, int]:
         """Count keyword occurrences by conversation type.
-        
+
         Args:
             content: Text content to analyze.
-            
+
         Returns:
             Dictionary with counts for each conversation type.
         """
@@ -122,11 +125,11 @@ class ConversationTypeDetector:
 
     def _count_keywords(self, content: str, keywords: list[str]) -> int:
         """Count how many keywords appear in content.
-        
+
         Args:
             content: Text to search in.
             keywords: List of keywords to search for.
-            
+
         Returns:
             Number of keywords found.
         """
@@ -134,10 +137,10 @@ class ConversationTypeDetector:
 
     def _determine_conversation_type(self, keyword_counts: dict[str, int]) -> str:
         """Determine conversation type based on keyword counts.
-        
+
         Args:
             keyword_counts: Dictionary with counts for each conversation type.
-            
+
         Returns:
             Conversation type string.
         """
@@ -229,8 +232,6 @@ class IntelligentCompactionResult:
     importance_scores: dict[int, float] | None = None
     clusters: list[list[int]] | None = None
     compression_ratio: float | None = None
-
-
 class IntelligentContextManager:
     """Intelligent context manager with advanced compaction techniques.
 
@@ -273,6 +274,14 @@ class IntelligentContextManager:
         )
         self.max_protected_tokens = int(
             self.config.max_tokens * self.config.max_protected_ratio
+        )
+
+        # Initialize component classes
+        self.importance_scorer = ImportanceScorer()
+        self.message_clusterer = MessageClusterer(
+            cluster_similarity_threshold=self.config.cluster_similarity_threshold,
+            minimum_word_length=self.config.minimum_word_length,
+            minimum_shared_words=self.config.minimum_shared_words,
         )
 
     def enforce_safety_limits(self, messages: list[Message]) -> list[Message]:
@@ -318,20 +327,22 @@ class IntelligentContextManager:
         else:
             return message
 
-    def _create_truncated_message(self, message: Message, limit: int) -> Message:
+    @staticmethod
+    @staticmethod
+    def _create_truncated_message(message: Message, limit: int) -> Message:
         """Create a truncated version of a message.
-        
+
         Args:
             message: The original message to truncate.
             limit: Token limit for truncation.
-            
+
         Returns:
             New Message with truncated content.
         """
         # Handle None content case
         if not message.content:
             return message
-            
+
         truncated_content = TokenCounter.truncate_text(message.content, limit)
         new_content = (
             truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
@@ -433,249 +444,7 @@ class IntelligentContextManager:
         Returns:
             Dictionary mapping message indices to importance scores (0.0-1.0).
         """
-        if not messages:
-            return {}
-
-        importance_scores = {}
-
-        for i, message in enumerate(messages):
-            score = self._calculate_message_importance(message, i, len(messages))
-            importance_scores[i] = score
-
-        return importance_scores
-
-    def _calculate_message_importance(
-        self, message: Message, index: int, total_messages: int
-    ) -> float:
-        """Calculate importance score for a single message.
-
-        Args:
-            message: The message to score.
-            index: Position of the message in the conversation.
-            total_messages: Total number of messages in the conversation.
-
-        Returns:
-            Importance score between 0.0 and 1.0.
-        """
-        # Start with base score from role and content features
-        score = self._calculate_base_importance(message)
-
-        # Apply position-based boost (recent messages are more important)
-        score = self._apply_position_boost(score, index, total_messages)
-
-        # Apply content length boost (longer messages might be more important)
-        score = self._apply_content_length_boost(score, message)
-
-        # Ensure score is within valid range
-        score = self._clamp_score(score)
-
-        # Apply minimum score if no other factors applied
-        score = self._apply_minimum_score(score)
-
-        return score
-
-    def _calculate_base_importance(self, message: Message) -> float:
-        """Calculate base importance score based on message features.
-        
-        Considers:
-        - Tool calls (highest priority)
-        - Error keywords in content
-        - Message role
-        
-        Args:
-            message: The message to score.
-            
-        Returns:
-            Base importance score.
-        """
-        score = 0.0
-
-        # 1. Check for tool calls (high importance)
-        if self._has_tool_calls(message):
-            score = max(score, self._TOOL_CALL_IMPORTANCE)
-
-        # 2. Check for errors in content (high importance)
-        if self._contains_error_keywords(message):
-            score = max(score, self._ERROR_KEYWORD_IMPORTANCE)
-
-        # 3. Check message role
-        score = max(score, self._get_role_based_importance(message))
-
-        return score
-
-    def _has_tool_calls(self, message: Message) -> bool:
-        """Check if message has tool calls.
-        
-        Args:
-            message: The message to check.
-            
-        Returns:
-            True if message has tool calls, False otherwise.
-        """
-        return bool(message.tool_calls and len(message.tool_calls) > 0)
-
-    def _contains_error_keywords(self, message: Message) -> bool:
-        """Check if message content contains error keywords.
-        
-        Args:
-            message: The message to check.
-            
-        Returns:
-            True if message contains error keywords, False otherwise.
-        """
-        if not message.content:
-            return False
-
-        content_lower = message.content.lower()
-        error_indicators = [
-            "error",
-            "exception",
-            "failed",
-            "failure",
-            "invalid",
-            "unexpected",
-        ]
-
-        return any(indicator in content_lower for indicator in error_indicators)
-
-    def _get_role_based_importance(self, message: Message) -> float:
-        """Get importance score based on message role.
-        
-        Args:
-            message: The message to score.
-            
-        Returns:
-            Role-based importance score.
-        """
-        if message.role == "system":
-            return self._SYSTEM_ROLE_IMPORTANCE
-        elif message.role == "user":
-            return self._USER_ROLE_IMPORTANCE
-        elif message.role == "assistant":
-            return self._get_assistant_importance(message)
-        elif message.role == "tool":
-            return self._get_tool_importance(message)
-        else:
-            return 0.0
-
-    def _get_assistant_importance(self, message: Message) -> float:
-        """Get importance score for assistant messages.
-        
-        Args:
-            message: The assistant message to score.
-            
-        Returns:
-            Importance score for assistant message.
-        """
-        # Tool calls already handled with higher priority
-        if message.tool_calls:
-            return 0.0  # Already accounted for in base importance
-
-        if message.content and len(message.content) > self._LONG_CONTENT_THRESHOLD:
-            return self._ASSISTANT_LONG_CONTENT_IMPORTANCE
-        else:
-            return self._ASSISTANT_SHORT_CONTENT_IMPORTANCE
-
-    def _get_tool_importance(self, message: Message) -> float:
-        """Get importance score for tool messages.
-        
-        Args:
-            message: The tool message to score.
-            
-        Returns:
-            Importance score for tool message.
-        """
-        if message.content and len(message.content) > self._TOOL_CONTENT_THRESHOLD:
-            return self._TOOL_WITH_CONTENT_IMPORTANCE
-        else:
-            return self._TOOL_WITHOUT_CONTENT_IMPORTANCE
-
-    def _apply_position_boost(
-        self, score: float, index: int, total_messages: int
-    ) -> float:
-        """Apply position-based boost to score.
-        
-        Recent messages get higher importance.
-        
-        Args:
-            score: Current importance score.
-            index: Position of the message (0-based).
-            total_messages: Total number of messages.
-            
-        Returns:
-            Score with position boost applied.
-        """
-        if total_messages <= 1:
-            return score
-
-        position_factor = index / (total_messages - 1)  # 0.0 to 1.0
-        position_boost = position_factor * self._POSITION_BOOST_MAX
-        return min(1.0, score + position_boost)
-
-    def _apply_content_length_boost(self, score: float, message: Message) -> float:
-        """Apply content length boost to score.
-        
-        Longer messages might be more important.
-        
-        Args:
-            score: Current importance score.
-            message: The message to check.
-            
-        Returns:
-            Score with content length boost applied.
-        """
-        if not message.content:
-            return score
-
-        content_length = len(message.content)
-
-        if content_length > self._VERY_LONG_CONTENT_THRESHOLD:
-            return min(1.0, score + self._VERY_LONG_CONTENT_BOOST)
-        elif content_length > self._LONG_CONTENT_THRESHOLD:
-            return min(1.0, score + self._LONG_CONTENT_BOOST)
-        else:
-            return score
-
-    def _clamp_score(self, score: float) -> float:
-        """Clamp score to valid range [0.0, 1.0].
-        
-        Args:
-            score: The score to clamp.
-            
-        Returns:
-            Clamped score between 0.0 and 1.0.
-        """
-        return max(0.0, min(1.0, score))
-
-    def _apply_minimum_score(self, score: float) -> float:
-        """Apply minimum score if no other factors applied.
-        
-        Args:
-            score: Current importance score.
-            
-        Returns:
-            Score with minimum applied if needed.
-        """
-        if score == 0.0:
-            return self._MINIMUM_IMPORTANCE
-        return score
-
-    # Importance scoring constants
-    _TOOL_CALL_IMPORTANCE: float = 0.9
-    _ERROR_KEYWORD_IMPORTANCE: float = 0.8
-    _SYSTEM_ROLE_IMPORTANCE: float = 0.7
-    _USER_ROLE_IMPORTANCE: float = 0.6
-    _ASSISTANT_LONG_CONTENT_IMPORTANCE: float = 0.5
-    _ASSISTANT_SHORT_CONTENT_IMPORTANCE: float = 0.3
-    _TOOL_WITH_CONTENT_IMPORTANCE: float = 0.7
-    _TOOL_WITHOUT_CONTENT_IMPORTANCE: float = 0.4
-    _POSITION_BOOST_MAX: float = 0.2
-    _VERY_LONG_CONTENT_THRESHOLD: int = 500
-    _VERY_LONG_CONTENT_BOOST: float = 0.1
-    _LONG_CONTENT_THRESHOLD: int = 100
-    _LONG_CONTENT_BOOST: float = 0.05
-    _TOOL_CONTENT_THRESHOLD: int = 20
-    _MINIMUM_IMPORTANCE: float = 0.1
+        return self.importance_scorer.calculate_importance_scores(messages)
 
     def _cluster_messages(self, messages: list[Message]) -> list[list[int]]:
         """Cluster related messages based on semantic similarity.
@@ -689,392 +458,7 @@ class IntelligentContextManager:
         Returns:
             List of clusters, where each cluster is a list of message indices.
         """
-        if not messages:
-            return []
-
-        # Start with each message in its own cluster
-        clusters: list[list[int]] = [[i] for i in range(len(messages))]
-
-        # Step 1: Group tool call sequences as atomic clusters
-        clusters = self._cluster_tool_call_sequences(messages, clusters)
-
-        # Step 2: Merge adjacent messages with temporal proximity
-        clusters = self._cluster_temporal_proximity(messages, clusters)
-
-        # Step 3: Merge clusters by topic similarity
-        clusters = self._cluster_topic_similarity(messages, clusters)
-
-        # Step 4: Merge by role patterns (user-assistant pairs)
-        clusters = self._cluster_role_patterns(messages, clusters)
-
-        return clusters
-
-    def _cluster_tool_call_sequences(
-        self, messages: list[Message], clusters: list[list[int]]
-    ) -> list[list[int]]:
-        """Group tool call sequences as atomic clusters.
-
-        A tool call sequence is: assistant message with tool_calls -> tool response.
-        These should stay together as they represent a single atomic operation.
-
-        Args:
-            messages: All messages.
-            clusters: Current clusters.
-
-        Returns:
-            Updated clusters with tool sequences merged.
-        """
-        if len(messages) < 2:
-            return clusters
-
-        # Find assistant messages with tool calls
-        for i in range(len(messages) - 1):
-            curr_msg = messages[i]
-            next_msg = messages[i + 1]
-
-            # Check if current is assistant with tool calls and next is tool response
-            if (
-                curr_msg.role == "assistant"
-                and curr_msg.tool_calls
-                and next_msg.role == "tool"
-                and next_msg.tool_call_id
-            ):
-                # Verify tool_call_id matches one of the tool calls
-                tool_call_ids = {tc.id for tc in curr_msg.tool_calls}
-                if next_msg.tool_call_id in tool_call_ids:
-                    # Merge clusters containing i and i+1
-                    clusters = self._merge_clusters_containing_indices(clusters, [i, i + 1])
-
-        return clusters
-
-    def _cluster_temporal_proximity(
-        self, messages: list[Message], clusters: list[list[int]]
-    ) -> list[list[int]]:
-        """Merge adjacent messages that are temporally close.
-
-        Messages that are adjacent in the conversation and share similar
-        characteristics should be clustered together.
-
-        Args:
-            messages: All messages.
-            clusters: Current clusters.
-
-        Returns:
-            Updated clusters with temporally adjacent messages merged.
-        """
-        if len(clusters) < 2:
-            return clusters
-
-        i = 0
-        while i < len(clusters) - 1:
-            curr_cluster = clusters[i]
-            next_cluster = clusters[i + 1]
-
-            # Check if clusters are adjacent in the message sequence
-            if self._should_merge_adjacent_clusters(messages, curr_cluster, next_cluster):
-                # Merge the two clusters
-                merged_cluster = curr_cluster + next_cluster
-                clusters[i] = merged_cluster
-                del clusters[i + 1]
-                # Don't increment i since we need to check the new merged cluster
-                # with the next one
-                continue
-
-            i += 1
-
-        return clusters
-
-    def _should_merge_adjacent_clusters(
-        self, messages: list[Message], curr_cluster: list[int], next_cluster: list[int]
-    ) -> bool:
-        """Determine if two adjacent clusters should be merged.
-
-        Args:
-            messages: All messages.
-            curr_cluster: Current cluster indices.
-            next_cluster: Next cluster indices.
-
-        Returns:
-            True if clusters should be merged, False otherwise.
-        """
-        # Check if clusters are adjacent in the message sequence
-        curr_max = max(curr_cluster)
-        next_min = min(next_cluster)
-
-        if next_min != curr_max + 1:
-            return False
-
-        # Get the last message of current cluster and first of next
-        last_msg_idx = curr_cluster[-1]
-        first_msg_idx = next_cluster[0]
-
-        last_msg = messages[last_msg_idx]
-        first_msg = messages[first_msg_idx]
-
-        # Merge if same role (except tool responses which are handled separately)
-        return (
-            last_msg.role == first_msg.role
-            and last_msg.role != "tool"
-            or last_msg.role == "user"
-            and first_msg.role == "assistant"
-            or last_msg.role == "assistant"
-            and first_msg.role == "user"
-        )
-
-    def _cluster_topic_similarity(
-        self, messages: list[Message], clusters: list[list[int]]
-    ) -> list[list[int]]:
-        """Merge clusters that discuss similar topics.
-
-        Uses simple keyword extraction and Jaccard similarity to identify
-        clusters discussing the same topic.
-
-        Args:
-            messages: All messages.
-            clusters: Current clusters.
-
-        Returns:
-            Updated clusters with similar topics merged.
-        """
-        if len(clusters) < 2:
-            return clusters
-
-        # Extract keywords for each cluster
-        cluster_keywords = []
-        for cluster in clusters:
-            keywords = self._extract_cluster_keywords(messages, cluster)
-            cluster_keywords.append(keywords)
-
-        # Try to merge clusters with similar keywords
-        i = 0
-        while i < len(clusters):
-            j = i + 1
-            while j < len(clusters):
-                if not cluster_keywords[i] or not cluster_keywords[j]:
-                    j += 1
-                    continue
-
-                # Calculate Jaccard similarity
-                intersection = len(cluster_keywords[i] & cluster_keywords[j])
-                union = len(cluster_keywords[i] | cluster_keywords[j])
-                similarity = intersection / union if union > 0 else 0
-
-                if similarity >= self.config.cluster_similarity_threshold:
-                    # Merge clusters
-                    clusters[i].extend(clusters[j])
-                    # Update keywords for merged cluster
-                    cluster_keywords[i] = cluster_keywords[i] | cluster_keywords[j]
-                    # Remove merged cluster
-                    del clusters[j]
-                    del cluster_keywords[j]
-                    # Continue checking against remaining clusters
-                    continue
-
-                j += 1
-            i += 1
-
-        return clusters
-
-    def _extract_cluster_keywords(
-        self, messages: list[Message], cluster: list[int]
-    ) -> set[str]:
-        """Extract keywords from messages in a cluster.
-        
-        Args:
-            messages: All messages.
-            cluster: Indices of messages in the cluster.
-            
-        Returns:
-            Set of significant keywords from the cluster.
-        """
-        keywords = set()
-        for idx in cluster:
-            msg = messages[idx]
-            if msg.content:
-                # Simple keyword extraction: split by common delimiters
-                # and take words longer than minimum_word_length characters
-                words = msg.content.lower().split()
-                for word in words:
-                    # Remove punctuation
-                    word = word.strip(".,!?;:\"'()[]{}")
-                    if len(word) > self.config.minimum_word_length and not word.startswith("http"):
-                        keywords.add(word)
-        return keywords
-
-    def _cluster_role_patterns(
-        self, messages: list[Message], clusters: list[list[int]]
-    ) -> list[list[int]]:
-        """Merge clusters based on role patterns.
-
-        Specifically looks for user-assistant pairs that should be kept together.
-
-        Args:
-            messages: All messages.
-            clusters: Current clusters.
-
-        Returns:
-            Updated clusters with role patterns merged.
-        """
-        if len(clusters) < 2:
-            return clusters
-
-        i = 0
-        while i < len(clusters) - 1:
-            if self._should_merge_clusters_by_role_pattern(messages, clusters, i):
-                # Merge the clusters
-                merged_cluster = clusters[i] + clusters[i + 1]
-                clusters[i] = merged_cluster
-                del clusters[i + 1]
-                # Don't increment i since we need to check the new merged cluster
-                continue
-
-            i += 1
-
-        return clusters
-
-    def _should_merge_clusters_by_role_pattern(
-        self, messages: list[Message], clusters: list[list[int]], index: int
-    ) -> bool:
-        """Determine if two adjacent clusters should be merged based on role patterns.
-        
-        Args:
-            messages: All messages.
-            clusters: Current clusters.
-            index: Index of the first cluster to check.
-            
-        Returns:
-            True if clusters should be merged, False otherwise.
-        """
-        curr_cluster = clusters[index]
-        next_cluster = clusters[index + 1]
-
-        # Check if clusters form a user-assistant or assistant-user pair
-        if not self._are_clusters_role_complementary(messages, curr_cluster, next_cluster):
-            return False
-
-        # Check if they're discussing the same topic
-        return self._do_clusters_share_significant_words(messages, curr_cluster, next_cluster)
-
-    def _are_clusters_role_complementary(
-        self, messages: list[Message], cluster1: list[int], cluster2: list[int]
-    ) -> bool:
-        """Check if two clusters have complementary roles (user-assistant pair).
-        
-        Args:
-            messages: All messages.
-            cluster1: First cluster indices.
-            cluster2: Second cluster indices.
-            
-        Returns:
-            True if clusters have complementary roles.
-        """
-        cluster1_roles = {messages[idx].role for idx in cluster1}
-        cluster2_roles = {messages[idx].role for idx in cluster2}
-
-        return ("user" in cluster1_roles and "assistant" in cluster2_roles) or (
-            "assistant" in cluster1_roles and "user" in cluster2_roles
-        )
-
-    def _do_clusters_share_significant_words(
-        self, messages: list[Message], cluster1: list[int], cluster2: list[int]
-    ) -> bool:
-        """Check if two clusters share enough significant words to be merged.
-        
-        Args:
-            messages: All messages.
-            cluster1: First cluster indices.
-            cluster2: Second cluster indices.
-            
-        Returns:
-            True if clusters share enough significant words.
-        """
-        # Extract content from clusters
-        cluster1_content = self._extract_cluster_content(messages, cluster1)
-        cluster2_content = self._extract_cluster_content(messages, cluster2)
-
-        # Extract significant words
-        cluster1_words = self._extract_significant_words(cluster1_content)
-        cluster2_words = self._extract_significant_words(cluster2_content)
-
-        # Check for common words
-        common_words = cluster1_words & cluster2_words
-        return len(common_words) >= self.config.minimum_shared_words
-
-    def _extract_cluster_content(self, messages: list[Message], cluster: list[int]) -> str:
-        """Extract and concatenate content from messages in a cluster.
-        
-        Args:
-            messages: All messages.
-            cluster: Cluster indices.
-            
-        Returns:
-            Concatenated content from the cluster.
-        """
-        content_parts = []
-        for idx in cluster:
-            msg = messages[idx]
-            if msg.content:
-                content_parts.append(msg.content)
-        return " ".join(content_parts).lower()
-
-    def _extract_significant_words(self, text: str) -> set[str]:
-        """Extract significant words from text.
-        
-        Args:
-            text: Text to extract words from.
-            
-        Returns:
-            Set of significant words.
-        """
-        words = set()
-        for word in text.split():
-            # Remove punctuation
-            word = word.strip(".,!?;:\"'()[]{}")
-            if len(word) > self.config.minimum_word_length and not word.startswith("http"):
-                words.add(word)
-        return words
-
-    def _merge_clusters_containing_indices(
-        self, clusters: list[list[int]], indices: list[int]
-    ) -> list[list[int]]:
-        """Merge clusters that contain any of the given indices.
-
-        Args:
-            clusters: Current clusters.
-            indices: Indices that should be in the same cluster.
-
-        Returns:
-            Updated clusters with specified indices merged into one cluster.
-        """
-        # Find which clusters contain the indices
-        clusters_to_merge = []
-        for idx in indices:
-            for cluster_idx, cluster in enumerate(clusters):
-                if idx in cluster and cluster_idx not in clusters_to_merge:
-                    clusters_to_merge.append(cluster_idx)
-
-        if len(clusters_to_merge) <= 1:
-            return clusters  # Nothing to merge
-
-        # Sort in descending order so we can delete safely
-        clusters_to_merge.sort(reverse=True)
-
-        # Create merged cluster
-        merged_cluster = []
-        for cluster_idx in clusters_to_merge:
-            merged_cluster.extend(clusters[cluster_idx])
-
-        # Remove duplicates and sort
-        merged_cluster = sorted(set(merged_cluster))
-
-        # Remove old clusters and add merged one
-        first_idx = clusters_to_merge[-1]  # Smallest index
-        for cluster_idx in clusters_to_merge:
-            del clusters[cluster_idx]
-
-        clusters.insert(first_idx, merged_cluster)
-
-        return clusters
+        return self.message_clusterer.cluster_messages(messages)
 
     def _apply_adaptive_compression(
         self,
@@ -1111,32 +495,15 @@ class IntelligentContextManager:
         )
 
         # Apply compression strategy based on conversation type
-        if conversation_type == "coding":
-            compressed_messages = self._apply_coding_compression_strategy(
-                messages, clusters, cluster_importance
-            )
-        elif conversation_type == "research":
-            compressed_messages = self._apply_research_compression_strategy(
-                messages, clusters, cluster_importance
-            )
-        elif conversation_type == "debugging":
-            compressed_messages = self._apply_debugging_compression_strategy(
-                messages, clusters, cluster_importance
-            )
-        else:
-            # Default strategy for general conversations
-            compressed_messages = self._apply_general_compression_strategy(
-                messages, clusters, cluster_importance
-            )
-
-        return compressed_messages
+        strategy = CompressionStrategyFactory.create_for_conversation_type(conversation_type)
+        return strategy.compress(messages, clusters, cluster_importance)
 
     def _detect_conversation_type(self, messages: list[Message]) -> str:
         """Detect the type of conversation based on message content.
-        
+
         This method is kept for backward compatibility with tests.
         It delegates to ConversationTypeDetector.
-        
+
         Args:
             messages: List of messages to analyze.
 
@@ -1145,7 +512,6 @@ class IntelligentContextManager:
         """
         detector = ConversationTypeDetector()
         return detector.detect(messages)
-
 
     def _calculate_cluster_importance(
         self,
@@ -1185,344 +551,35 @@ class IntelligentContextManager:
 
         return cluster_importance
 
-    def _apply_coding_compression_strategy(
-        self,
-        messages: list[Message],
-        clusters: list[list[int]],
-        cluster_importance: dict[int, float],
-    ) -> list[Message]:
-        """Apply compression strategy optimized for coding conversations.
-
-        For coding conversations, preserve:
-        - Tool call sequences (critical for execution flow)
-        - Code snippets and function definitions
-        - Error messages and stack traces
-        - Recent user requirements
-
-        Args:
-            messages: Original messages.
-            clusters: Message clusters.
-            cluster_importance: Importance scores for each cluster.
-
-        Returns:
-            Compressed messages.
-        """
-        config = CompressionConfig(
-            high_threshold=IntelligentContextConstants.CODING_HIGH_THRESHOLD,
-            medium_threshold=IntelligentContextConstants.CODING_MEDIUM_THRESHOLD,
-            preserve_tool_sequences=True,
-            preserve_code_blocks=True,
-        )
-        return self._apply_importance_based_compression(
-            messages, clusters, cluster_importance, config
-        )
-
-    def _apply_research_compression_strategy(
-        self,
-        messages: list[Message],
-        clusters: list[list[int]],
-        cluster_importance: dict[int, float],
-    ) -> list[Message]:
-        """Apply compression strategy optimized for research conversations.
-
-        For research conversations, preserve:
-        - Key findings and conclusions
-        - Important data points and statistics
-        - Source references and citations
-        - Research questions and hypotheses
-
-        Args:
-            messages: Original messages.
-            clusters: Message clusters.
-            cluster_importance: Importance scores for each cluster.
-
-        Returns:
-            Compressed messages.
-        """
-        # Research conversations use the same compression strategy as general conversations
-        # but with different documentation to clarify intent
-        return self._apply_general_compression_strategy(
-            messages, clusters, cluster_importance
-        )
-
-    def _apply_debugging_compression_strategy(
-        self,
-        messages: list[Message],
-        clusters: list[list[int]],
-        cluster_importance: dict[int, float],
-    ) -> list[Message]:
-        """Apply compression strategy optimized for debugging conversations.
-
-        For debugging conversations, preserve:
-        - Error messages and stack traces
-        - Problem descriptions and symptoms
-        - Debugging steps and attempts
-        - Solutions and fixes
-
-        Args:
-            messages: Original messages.
-            clusters: Message clusters.
-            cluster_importance: Importance scores for each cluster.
-
-        Returns:
-            Compressed messages.
-        """
-        config = CompressionConfig(
-            high_threshold=IntelligentContextConstants.DEBUGGING_HIGH_THRESHOLD,
-            medium_threshold=IntelligentContextConstants.DEBUGGING_MEDIUM_THRESHOLD,
-            preserve_tool_sequences=True,
-            preserve_code_blocks=True,
-        )
-        return self._apply_importance_based_compression(
-            messages, clusters, cluster_importance, config
-        )
-
-    def _apply_general_compression_strategy(
-        self,
-        messages: list[Message],
-        clusters: list[list[int]],
-        cluster_importance: dict[int, float],
-    ) -> list[Message]:
-        """Apply compression strategy for general conversations.
-
-        Args:
-            messages: Original messages.
-            clusters: Message clusters.
-            cluster_importance: Importance scores for each cluster.
-
-        Returns:
-            Compressed messages.
-        """
-        config = CompressionConfig(
-            high_threshold=self.config.compression_high_threshold,
-            medium_threshold=self.config.compression_medium_threshold,
-            preserve_tool_sequences=True,
-            preserve_code_blocks=False,
-        )
-        return self._apply_importance_based_compression(
-            messages, clusters, cluster_importance, config
-        )
-
-    def _apply_importance_based_compression(
-        self,
-        messages: list[Message],
-        clusters: list[list[int]],
-        cluster_importance: dict[int, float],
-        config: CompressionConfig,
-    ) -> list[Message]:
-        """Apply compression based on cluster importance thresholds.
-
-        Strategy:
-        - High-importance clusters (>= high_threshold): Preserve fully
-        - Medium-importance clusters (>= medium_threshold): Summarize
-        - Low-importance clusters (< medium_threshold): Drop or heavily compress
-
-        Args:
-            messages: Original messages.
-            clusters: Message clusters.
-            cluster_importance: Importance scores for each cluster.
-            config: Compression configuration.
-
-        Returns:
-            Compressed messages.
-        """
-        compressed_messages = []
-
-        for cluster_idx, cluster in enumerate(clusters):
-            importance = cluster_importance.get(cluster_idx, 0.0)
-
-            if importance >= config.high_threshold:
-                # Preserve high-importance clusters fully
-                for msg_idx in cluster:
-                    if msg_idx < len(messages):
-                        compressed_messages.append(messages[msg_idx])
-
-            elif importance >= config.medium_threshold:
-                # Summarize medium-importance clusters
-                summary = self._summarize_cluster(messages, cluster)
-                if summary:
-                    # Create a summary message
-                    summary_msg = Message(
-                        role="system",
-                        content=f"[Summarized cluster {cluster_idx}]: {summary}",
-                    )
-                    compressed_messages.append(summary_msg)
-
-                # Also preserve tool sequences if requested
-                if config.preserve_tool_sequences:
-                    self._preserve_tool_sequences_in_cluster(
-                        messages, cluster, compressed_messages
-                    )
-
-            else:
-                # Low-importance clusters: drop or minimal preservation
-                # Only preserve if they contain critical elements
-                if config.preserve_tool_sequences:
-                    self._preserve_tool_sequences_in_cluster(
-                        messages, cluster, compressed_messages
-                    )
-
-                if config.preserve_code_blocks:
-                    self._preserve_code_blocks_in_cluster(
-                        messages, cluster, compressed_messages
-                    )
-
-        return compressed_messages
-
-    def _summarize_cluster(
-        self, messages: list[Message], cluster: list[int]
-    ) -> str | None:
-        """Generate a summary of a message cluster.
-
-        Args:
-            messages: All messages.
-            cluster: Indices of messages in the cluster.
-
-        Returns:
-            Summary string, or None if cluster cannot be summarized.
-        """
-        if not cluster:
-            return None
-
-        # Extract key information from the cluster
-        cluster_messages = [messages[idx] for idx in cluster if idx < len(messages)]
-        if not cluster_messages:
-            return None
-
-        # Generate summary from cluster messages
-        return self._generate_cluster_summary(cluster_messages)
-
-    def _generate_cluster_summary(self, cluster_messages: list[Message]) -> str:
-        """Generate summary text from a list of messages.
-        
-        Args:
-            cluster_messages: Messages in the cluster.
-            
-        Returns:
-            Summary string.
-        """
-        roles = [msg.role for msg in cluster_messages]
-        content_parts = []
-
-        for msg in cluster_messages:
-            if msg.content:
-                preview = self._create_message_preview(msg)
-                content_parts.append(f"{msg.role}: {preview}")
-
-        if content_parts:
-            return " | ".join(content_parts)
-        else:
-            return f"Cluster with roles: {', '.join(set(roles))}"
-
-    def _create_message_preview(self, message: Message) -> str:
-        """Create a preview of a message's content.
-        
-        Args:
-            message: The message to create a preview for.
-            
-        Returns:
-            Preview string (first 100 characters with ellipsis if truncated).
-        """
-        if not message.content:
-            return ""
-
-        preview = message.content[:100].strip()
-        if len(message.content) > 100:
-            preview += "..."
-        return preview
-
-    def _preserve_tool_sequences_in_cluster(
-        self,
-        messages: list[Message],
-        cluster: list[int],
-        compressed_messages: list[Message],
-    ) -> None:
-        """Preserve tool call sequences within a cluster.
-
-        Args:
-            messages: All messages.
-            cluster: Indices of messages in the cluster.
-            compressed_messages: List to append preserved messages to.
-        """
-        for idx in cluster:
-            if idx >= len(messages):
-                continue
-
-            msg = messages[idx]
-            # Check if this is part of a tool call sequence
-            if msg.role == "assistant" and msg.tool_calls:
-                # Preserve assistant message with tool calls
-                compressed_messages.append(msg)
-                # Also preserve the corresponding tool response if it exists
-                if idx + 1 < len(messages) and messages[idx + 1].role == "tool":
-                    compressed_messages.append(messages[idx + 1])
-
-    def _preserve_code_blocks_in_cluster(
-        self,
-        messages: list[Message],
-        cluster: list[int],
-        compressed_messages: list[Message],
-    ) -> None:
-        """Preserve code blocks within a cluster.
-
-        Args:
-            messages: All messages.
-            cluster: Indices of messages in the cluster.
-            compressed_messages: List to append preserved messages to.
-        """
-        for idx in cluster:
-            if idx >= len(messages):
-                continue
-
-            msg = messages[idx]
-            if msg.content and ("```" in msg.content or "def " in msg.content or "class " in msg.content):
-                # This message contains code, preserve it
-                compressed_messages.append(msg)
-
     def _generate_intelligent_summary(
-        self,
-        messages: list[Message],
-        importance_scores: dict[int, float],
-        clusters: list[list[int]],
+        self, messages: list[Message], importance_scores: dict[int, float], clusters: list[list[int]]
     ) -> str | None:
         """Generate intelligent summary of compressed/dropped content.
 
-        Focuses on preserving:
-        - Key decisions and conclusions
-        - Important facts and data
-        - Action items and next steps
-        - Critical context for future turns
-
         Args:
-            messages: Messages being summarized.
+            messages: Original messages.
             importance_scores: Importance scores for each message.
             clusters: Detected message clusters.
 
         Returns:
-            Concise summary string, or None if summarization not needed.
+            Summary string, or None if no summary needed.
         """
         # TODO: Implement intelligent summary generation
         return None
 
     def _preserve_critical_context(
-        self,
-        messages: list[Message],
-        importance_scores: dict[int, float],
+        self, messages: list[Message], importance_scores: dict[int, float]
     ) -> list[Message]:
         """Ensure critical context is preserved regardless of token limits.
 
-        Critical context includes:
-        - System prompts and instructions
-        - Recent user queries
-        - Tool call sequences
-        - Important decisions and conclusions
-
         Args:
-            messages: Messages to filter.
+            messages: Original messages.
             importance_scores: Importance scores for each message.
 
+        Returns:
         Returns:
             Messages with critical context preserved.
         """
         # TODO: Implement critical context preservation
         return messages
+
