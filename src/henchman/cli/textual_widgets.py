@@ -11,20 +11,17 @@ from __future__ import annotations
 import contextlib
 import re
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from collections.abc import Iterator
+from typing import Any, TypeVar, cast
 
 from rich.markdown import Markdown as RichMarkdown
 from rich.markup import escape as markup_escape
+from textual import events
 from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.reactive import reactive
 from textual.widget import MountError
 from textual.widgets import RichLog, Static, TextArea
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-    from textual import events
 
 _T = TypeVar("_T", bound=Static)
 
@@ -1009,6 +1006,32 @@ class ChatPane(VerticalScroll):
         tracking_dict[key] = widget
         return widget
 
+    def _add_message_widget(
+        self,
+        widget_class: type[_T],
+        *args: Any,
+        tracking_dict: dict[str, _T] | None = None,
+        tracking_key: str = "",
+        **kwargs: Any,
+    ) -> _T:
+        """Generic method to add a message widget to the chat pane.
+
+        Args:
+            widget_class: The widget class to instantiate.
+            *args: Positional arguments for widget constructor.
+            tracking_dict: Optional dictionary to track the widget.
+            tracking_key: Key to use for tracking if tracking_dict is provided.
+            **kwargs: Keyword arguments for widget constructor.
+
+        Returns:
+            The created widget.
+        """
+        if tracking_dict is not None:
+            return self._add_message_widget_and_track(
+                widget_class, tracking_dict, tracking_key, *args, **kwargs
+            )
+        return self._add_typed_message_widget(widget_class, *args, **kwargs)
+
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
@@ -1019,7 +1042,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ThinkingMessage widget.
         """
-        return self._add_typed_message_widget(ThinkingMessage, thought, agent_name)
+        return self._add_message_widget(ThinkingMessage, thought, agent_name)
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -1030,8 +1053,12 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        return self._add_message_widget_and_track(
-            ThinkingMessage, self._active_thinking, agent_name, "", agent_name
+        return self._add_message_widget(
+            ThinkingMessage,
+            "",
+            agent_name,
+            tracking_dict=self._active_thinking,
+            tracking_key=agent_name,
         )
 
     def append_thinking_chunk(self, agent_name: str, chunk: str) -> None:
@@ -1057,7 +1084,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ToolMessage widget.
         """
-        return self._add_typed_message_widget(ToolMessage, thought, tool_call)
+        return self._add_message_widget(ToolMessage, thought, tool_call)
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""
