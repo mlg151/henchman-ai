@@ -2,53 +2,68 @@
 
 **Date/Time**: 2026-02-28  
 **Files Changed**: `src/henchman/agents/orchestrator.py`  
-**Rationale**: Address code smells identified in the smell report
+**Test Status**: ✅ All 53 tests pass
 
-## Identified Smells Addressed:
+## Identified Smells Addressed
 
-### 1. **Duplicate Code** (High Priority)
-- **Issue**: `_assess_completion` method in `Orchestrator` class was dead code
-- **Root Cause**: Method was defined but never called (delegation runner uses `execution_controller.assess_completion` directly)
-- **Refactoring**: Removed the dead `_assess_completion` method from `Orchestrator` class
-- **Impact**: Reduces code complexity and maintenance burden
+### 1. Missing Type Hints (Fixed)
+- Added missing type hints for `cls` parameters in class methods:
+  - `PromptFactory.create_tech_lead_prompt(cls: type[PromptFactory], ...)`
+  - `TimeoutSummaryBuilder.build_summary(cls: type[TimeoutSummaryBuilder], ...)`
+  - `TimeoutSummaryBuilder._extract_msg_info(cls: type[TimeoutSummaryBuilder], ...)`
+  - `TimeoutSummaryBuilder._extract_tool_info(cls: type[TimeoutSummaryBuilder], ...)`
+  - `TimeoutSummaryBuilder._format_summary(cls: type[TimeoutSummaryBuilder], ...)`
+  - `TimeoutSummaryBuilder._add_tools_section(cls: type[TimeoutSummaryBuilder], ...)`
 
-### 2. **Missing Type Hints** (Medium Priority)
-- **Issue**: Several classmethods missing explicit type hints for `cls` parameter
-- **Root Cause**: Python doesn't require type hints for `cls` in classmethods, but explicit hints improve code clarity
-- **Refactoring**: Added `cls: type[ClassName]` type hints to:
-  - `PromptFactory.create_tech_lead_prompt`
-  - `TimeoutSummaryBuilder.build_summary`
-  - `TimeoutSummaryBuilder._extract_msg_info`
-  - `TimeoutSummaryBuilder._extract_tool_info`
-  - `TimeoutSummaryBuilder._format_summary`
-  - `TimeoutSummaryBuilder._add_tools_section`
-  - `AgentValidator._should_check_thinking_pattern`
-- **Impact**: Improved type safety and IDE support
+### 2. Feature Envy (Analyzed)
+- Many methods were flagged for "feature envy" but analysis showed these were mostly false positives:
+  - Class methods naturally access `cls` more than `self`
+  - Helper methods that process data parameters are appropriately designed
+  - The architecture uses composition with components (AgentValidator, ToolController, ExecutionController) that legitimately access orchestrator state
 
-### 3. **Feature Envy** (False Positives)
-- **Issue**: Smell detector flagged classmethods for accessing `cls` more than `self`
-- **Analysis**: These are false positives - classmethods by design work on the class, not instance
-- **Decision**: No changes needed - these are proper classmethod patterns
+### 3. Duplicate Code (Analyzed)
+- Report indicated `_assess_completion` is 94% similar to other functions, but analysis shows:
+  - `_assess_completion` is a simple delegator to `execution_controller.assess_completion`
+  - The similarity detection appears to be a false positive
+  - No actual duplicate logic found that needs extraction
 
-## Testing Implications:
+### 4. Large Class (Not Addressed - Requires Major Refactor)
+- File contains 13 classes spanning 1225 lines
+- This violates Single Responsibility Principle but would require major architectural changes
+- Suggested split (for future work):
+  1. `orchestrator.py` - Main Orchestrator class
+  2. `orchestrator_components.py` - AgentValidator, ToolController, ExecutionController
+  3. `orchestrator_models.py` - Data classes: AgentLoopParams, DelegationParams, etc.
+  4. `orchestrator_helpers.py` - PromptFactory, TimeoutSummaryBuilder
 
-1. **All existing tests pass** - No functional changes were made
-2. **Type safety improved** - Better static analysis support
-3. **Code clarity enhanced** - Explicit type hints make interfaces clearer
+## Refactoring Strategy Applied
 
-## Refactoring Strategy Applied:
+1. **Added Missing Type Annotations**: Improved type safety by adding explicit type hints for class method `cls` parameters
+2. **Preserved Existing Architecture**: Maintained the component-based design which is appropriate for the orchestrator pattern
+3. **Validated Test Coverage**: Ensured all existing tests continue to pass (53/53)
 
-1. **YAGNI (You Aren't Gonna Need It)**: Removed dead `_assess_completion` method
-2. **Intention-Revealing Code**: Added explicit type hints to clarify method signatures
-3. **Simplicity**: Maintained existing functionality while improving code quality
+## Testing Implications
 
-## Verification:
+- No test changes required
+- Type hints improve static analysis but don't affect runtime behavior
+- All existing functionality preserved
 
-- ✅ All 53 tests in `test_orchestrator.py` pass
-- ✅ No syntax errors introduced
-- ✅ Code maintains backward compatibility
-- ✅ Type hints improve developer experience without runtime impact
+## Remaining Issues (For Future Work)
 
-## Notes:
+1. **File Size**: 1225 lines is large but the code is well-structured with clear separation of concerns
+2. **Class Count**: 13 classes in one file is high but they are logically related
+3. **Method Complexity**: Some methods like `run_agent_loop` are long but already well-commented with clear phases
 
-The smell report contained some false positives for classmethods (Feature Envy detection). Classmethods legitimately access `cls` more than `self` because they operate at the class level. The refactoring focused on real issues (dead code and missing type hints) while ignoring false positives.
+## XP Principles Applied
+
+- **YAGNI**: Didn't add speculative abstractions or split files unnecessarily
+- **Once and Only Once**: No actual duplicate code found to eliminate
+- **Simplicity**: Made minimal changes to address the most critical issues (type safety)
+- **Intention-Revealing Code**: Type hints make interfaces clearer
+
+## Recommendations for Future Refactoring
+
+1. Consider splitting the file when adding new features
+2. Monitor method length - extract helpers if methods grow beyond 50 lines
+3. Continue adding type hints for any remaining untyped parameters
+4. Consider using `@dataclass` for more data containers if they grow complex
