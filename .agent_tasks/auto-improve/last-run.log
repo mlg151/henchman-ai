@@ -1,11 +1,11 @@
-[2026-02-28T20:30:02Z] Starting auto-improve run...
+[2026-02-28T21:00:03Z] Starting auto-improve run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-02-28T20:30:02Z] Targeting lowest-graded file: cli/textual_widgets.py
+[2026-02-28T21:00:03Z] Targeting lowest-graded file: cli/textual_widgets.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
-I'll start by examining the target file to understand its structure and identify all the code smells mentioned in the report.
+I'll analyze the target file `src/henchman/cli/textual_widgets.py` and address all the code smells listed in the report. Let me first read the file to understand its structure and issues.
 [tool] read_file({'path': 'src/henchman/cli/textual_widgets.py'})
 
 
@@ -15,7 +15,95 @@ Includes the chat pane, custom text input, message display widgets,
 and the status bar.
 
 Note: Extracted from ``textual_app.py`` to keep modules u...
-Now let me check the smell report more carefully to see all the specific smells for this file. The report shows 77 smells total, but only shows the first 15. Let me get a more complete view by examining the file structure and understanding the main issues.
+Now let me check the test file to understand the current test coverage:
+[tool] ls({'path': 'tests'})
+
+[result] MagicMock/
+__init__.py
+__pycache__/
+agents/
+benchmarks/
+cli/
+config/
+conftest.py
+core/
+e2e/
+empty_message_validation/
+extensions/
+henchman/
+integration/
+knowledge/
+mcp/
+providers/
+rag/
+smoke/
+test_con...
+
+[tool] ls({'path': 'tests/cli'})
+
+[result] __init__.py
+__pycache__/
+commands/
+test_agent_command.py
+test_app.py
+test_app_extended.py
+test_builtins.py
+test_chat_command.py
+test_cli_smoke.py
+test_command_processor.py
+test_commands.py
+test_comman...
+Let me check if there's a test file for textual_widgets:
+[tool] glob({'pattern': '**/test_textual_widgets*.py'})
+
+[result] tests/cli/test_textual_widgets_bugs.py
+tests/henchman/cli/test_textual_widgets.py...
+Let me check the test file to understand the current test coverage:
+[tool] read_file({'path': 'tests/henchman/cli/test_textual_widgets.py'})
+
+[result] """tests/henchman/cli/test_textual_widgets.py
+TDD tests for ThinkingMessage fix and ToolMessage."""
+
+from unittest.mock import MagicMock
+
+from henchman.cli.textual_app import ChatPane, ThinkingMessage...
+Now let me run the existing tests to see if they pass:
+[tool] pytest_run({'path': 'tests/henchman/cli/test_textual_widgets.py', 
+'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good, the tests pass. Now let me analyze the code smells from the report. Looking at the report, I can see the main issues for `textual_widgets.py`:
+
+1. **Duplicate Code**: Functions `add_thinking_message` and `add_tool_message` are very similar (100% similar according to the report)
+2. **Missing Type Hints**: Many functions have incomplete type hints
+3. **Other issues**: Various other smells but the main ones are duplicate code and missing type hints
+
+Let me examine the specific duplicate code issue more closely. Looking at the file, I can see that `add_thinking_message` and `add_tool_message` both use the same pattern with `_add_message_by_type`. Let me check if there are other similar patterns:
+[tool] grep({'pattern': 'def add_.*_message', 'path': 
+'src/henchman/cli/textual_widgets.py', 'line_numbers': True})
+
+[result] 842:    def add_user_message(self, text: str) -> None:
+850:    def add_system_message(self, text: str) -> None:
+858:    def add_error_message(self, text: str) -> None:
+981:    def add_thinking_message...
+Let me look at the implementation of these methods:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+840, 'end_line': 1030})
+
+[result]         self._try_scroll()
+
+    def add_user_message(self, text: str) -> None:
+        """Append a user message block.
+
+        Args:
+            text: User input text.
+        """
+        self._add_m...
+I need to analyze the code smells more systematically. Let me check the full list of smells for this file from the report. The report shows 75 smells total, but I need to focus on the key ones. Let me examine the structure and identify the main issues:
 [tool] python_ast({'path': 'src/henchman/cli/textual_widgets.py'})
 
 [result] # Symbol table for textual_widgets.py
@@ -26,100 +114,337 @@ from __future__ import annotations  [L9]
 import contextlib  [L11]
 import re  [L12]
 from abc im...
-Now let me run the tests to see the current state before refactoring:
-[tool] pytest_run({'path': 'tests/cli/test_textual_widgets.py', 'verbose': 
-True})
+Now let me check the specific lines mentioned in the smell report for missing type hints:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+105, 'end_line': 115})
 
-✗ \[error] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-Let me check if there are any tests for this file:
-[tool] glob({'pattern': '**/test*textual*.py'})
+[result] class _BaseTextualWidget(Static):
+    """Base class for Textual widgets with common initialization."""
 
-[result] .agent_tasks/debug-scripts/test_minimal_textual.py
-.agent_tasks/debug-scripts/test_textual_debug.py
-.agent_tasks/debug-scripts/test_textual_flow.py
-.agent_tasks/debug-scripts/test_textual_message.py
-....
-Let me check the actual test file:
-[tool] read_file({'path': 'tests/henchman/cli/test_textual_widgets.py'})
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+        """Initialize with text c...
+The report says line 108 has incomplete type hints: 1/3 params untyped. Let me check what parameters are actually there:
 
-[result] """tests/henchman/cli/test_textual_widgets.py
-TDD tests for ThinkingMessage fix and ToolMessage."""
+1. `self` (implicit)
+2. `text: str = ""` (typed)
+3. `**kwargs: Any` (typed)
 
-from unittest.mock import MagicMock
+Actually, that looks fully typed. Let me check line 121:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+118, 'end_line': 129})
 
-from henchman.cli.textual_app import ChatPane, ThinkingMessage...
-Now let me run the tests to see if they pass:
-[tool] pytest_run({'path': 'tests/henchman/cli/test_textual_widgets.py', 
-'verbose': True})
+[result] class _BaseMessageWidget(_BaseTextualWidget):
+    """Base class for message widgets with common append and set_content 
+logic."""
+
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+       ...
+This also looks fully typed. Let me check the actual issues. Looking at the AST output and the smell report, I need to address:
+
+1. **Duplicate Code**: `add_thinking_message` and `add_tool_message` are very similar
+2. **Missing Type Hints**: Many methods have incomplete type hints
+
+Let me run a more detailed analysis to see all the type hint issues:
+[tool] lint_check({'path': 'src/henchman/cli/textual_widgets.py', 'linter': 
+'mypy'})
+
+[result] === mypy ===
+Success: no issues found in 1 source file...
+Interesting, mypy passes. Let me check with ruff for type hints:
+[tool] lint_check({'path': 'src/henchman/cli/textual_widgets.py', 'linter': 
+'ruff'})
+
+[result] === ruff ===
+All checks passed!...
+The linters pass. The smell report might be using a different tool or stricter rules. Let me focus on the actual refactoring needed. Based on the XP principles and the smell report, I should:
+
+1. **Address duplicate code**: `add_thinking_message` and `add_tool_message` are very similar
+2. **Add missing type hints**: The report says many functions have incomplete type hints
+3. **Follow YAGNI and DRY principles**
+
+Let me create a comprehensive refactoring plan. First, let me check what the actual duplicate code issue is. Looking at the two methods:
+
+```python
+def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
+    """Add a thinking message to the chat pane.
+
+    Args:
+        thought: The thinking content.
+        agent_name: Name of the thinking agent.
+
+    Returns:
+        The created ThinkingMessage widget.
+    """
+    return self._add_message_by_type(ThinkingMessage, thought, agent_name)
+
+def add_tool_message(self, thought: str = "", tool_call: Any = None) -> ToolMessage:
+    """Add a tool message to the chat pane.
+
+    Args:
+        thought: Tool thought/description.
+        tool_call: Tool call object.
+
+    Returns:
+        The created ToolMessage widget.
+    """
+    return self._add_message_by_type(ToolMessage, thought, tool_call)
+```
+
+These are actually NOT duplicate code - they call different widget classes with different parameters. The smell report might be wrong about this being 100% similar. They're similar in structure but not identical.
+
+However, looking at the broader picture, I see there's a pattern of helper methods that could be simplified. Let me examine the whole `ChatPane` class more carefully for refactoring opportunities.
+
+Actually, looking at the XP principles and the actual code, I think the main issue is that we have too many layers of abstraction. We have:
+- `_add_widget`
+- `_create_and_add_widget` 
+- `_add_typed_message_widget`
+- `_add_message_by_type`
+
+And then `add_thinking_message` and `add_tool_message` just call `_add_message_by_type`. This is actually good design - it's not duplicate code, it's proper abstraction.
+
+However, I should check if there are actual missing type hints. Let me look at specific methods that might have issues:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+928, 'end_line': 942})
+
+[result]     def _create_and_add_widget(
+        self, widget_class: type[Static], *args: Any, **kwargs: Any
+    ) -> Static:
+        """Create and add a widget to the pane.
+
+        Args:
+            widget_c...
+This has type hints. Let me check `_add_typed_message_widget`:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+944, 'end_line': 961})
+
+[result]     def _add_typed_message_widget(
+        self,
+        widget_class: type[_T],
+        *args: Any,
+        **kwargs: Any
+    ) -> _T:
+        """Type-safe method to add a message widget with proper ...
+This also has type hints. Wait, I think I see the issue - the smell report might be complaining about the `# type: ignore[return-value]` comment. But that's necessary because `_create_and_add_widget` returns `Static` but we need to return `_T`.
+
+Actually, looking more carefully at the smell report, it says "Function '__init__' has incomplete type hints: 1/3 params untyped" for line 108. But I see `def __init__(self, text: str = "", **kwargs: Any) -> None:` which has all parameters typed. Maybe the tool counts `self` as a parameter?
+
+Let me think about this differently. As an XP Refactoring Agent, I should focus on improving the code based on principles, not just fixing what the tool says. Let me look for real opportunities:
+
+1. **Simplify the abstraction chain**: We have 4 levels of helper methods. Could we reduce this?
+2. **Check for actual missing type hints**: Let me look for methods without return type annotations
+3. **Improve naming**: Some names could be more intention-revealing
+4. **Remove dead code if any**: YAGNI principle
+
+Let me check for methods without return type annotations:
+[tool] grep({'pattern': 'def .*\\(.*\\):"', 'path': 
+'src/henchman/cli/textual_widgets.py', 'line_numbers': True})
+
+[result] No matches found...
+Let me run the actual tests to make sure everything works before refactoring:
+[tool] pytest_run({'path': 'tests/henchman/cli/test_textual_widgets.py'})
 
 [result] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Good! The tests pass. Now let me analyze the code smells from the report more carefully. Looking at the report, I can see the main issues for `textual_widgets.py`:
+Good, tests pass. Now let me think about the actual refactoring. As an XP Refactoring Agent, I should focus on improving code quality based on principles. Looking at the code:
 
-1. **Duplicate Code**: Functions `_add_message_widget` and `_add_message_by_type` are 100% similar (line 947 and 979)
-2. **Duplicate Code**: Functions `add_thinking_message` and `add_tool_message` are 100% similar (line 997 and 1035)
-3. **Missing Type Hints**: Many functions have incomplete type hints (77 total smells, many are missing type hints)
+1. **The abstraction chain is reasonable**: `_add_widget` → `_create_and_add_widget` → `_add_typed_message_widget` → `_add_message_by_type` → specific methods. This is actually good design - each layer adds value.
 
-Let me examine the specific duplicate code issues:
+2. **The "duplicate code" claim seems wrong**: `add_thinking_message` and `add_tool_message` are NOT duplicate - they call different widget classes with different parameters.
+
+3. **Type hints look complete**: All methods have type hints.
+
+However, I notice one issue: the `_add_typed_message_widget` method has a `# type: ignore[return-value]` comment. This is a code smell because we're suppressing type checking. The issue is that `_create_and_add_widget` returns `Static` but we need to return `_T` (which is a subclass of `Static`).
+
+Let me fix this by improving the type safety:
 [tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
-940, 'end_line': 1060})
+944, 'end_line': 961})
 
-[result] 
-        Returns:
-            The created and added widget.
-        """
-        widget = widget_class(*args, **kwargs)
-        return self._add_widget(widget)
+[result]     def _add_typed_message_widget(
+        self,
+        widget_class: type[_T],
+        *args: Any,
+        **kwargs: Any
+    ) -> _T:
+        """Type-safe method to add a message widget with proper ...
+The issue is that `_create_and_add_widget` returns `Static`, not `_T`. We need to fix the type signature of `_create_and_add_widget` to be generic:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+928, 'end_line': 942})
 
-    def _add_message_widget(self, widget...
-Now let me check the missing type hints issue. Looking at the AST output and the smell report, I can see many functions have incomplete type hints. Let me create a comprehensive refactoring plan:
+[result]     def _create_and_add_widget(
+        self, widget_class: type[Static], *args: Any, **kwargs: Any
+    ) -> Static:
+        """Create and add a widget to the pane.
 
-**Identified Smells:**
-1. **Duplicate Code**: `_add_message_widget` and `_add_message_by_type` are identical
-2. **Duplicate Code**: `add_thinking_message` and `add_tool_message` have similar patterns but different widget classes
-3. **Missing Type Hints**: 62+ functions/methods have incomplete type annotations
-4. **Magic Number**: `_SUMMARY_MAX_LEN` defined twice (lines 45 and 476)
-5. **Large Class**: The file has 942 LOC with 16 classes (potentially too large)
+        Args:
+            widget_c...
+Actually, looking more carefully, I think the real issue is that we have too many layers. Let me trace through the call chain:
+- `add_thinking_message` calls `_add_message_by_type(ThinkingMessage, thought, agent_name)`
+- `_add_message_by_type` calls `_add_typed_message_widget(widget_class, *args, **kwargs)`
+- `_add_typed_message_widget` calls `_create_and_add_widget(widget_class, *args, **kwargs)`
+- `_create_and_add_widget` calls `widget_class(*args, **kwargs)` then `_add_widget(widget)`
 
-**Refactoring Strategy:**
-1. **Eliminate duplicate methods**: Remove `_add_message_widget` and keep `_add_message_by_type` (or vice versa)
-2. **Extract common pattern**: Create a generic `_add_widget_by_type` method that both thinking and tool methods can use
-3. **Add missing type hints**: Add complete type annotations to all functions
-4. **Remove duplicate constant**: Keep only one `_SUMMARY_MAX_LEN` definition
-5. **Apply YAGNI**: Remove unused or redundant code
+We could simplify this. But actually, this is good design - separation of concerns. Each method has a single responsibility.
 
-Let me start by fixing the duplicate code and adding type hints:
+However, I think we can improve the type safety. Let me check if there are other issues. Looking at the smell report again, it mentions "Function 'add_thinking_message' is 100% similar to 'add_tool_message'". Let me compare them more carefully:
+
+```python
+def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
+    return self._add_message_by_type(ThinkingMessage, thought, agent_name)
+
+def add_tool_message(self, thought: str = "", tool_call: Any = None) -> ToolMessage:
+    return self._add_message_by_type(ToolMessage, thought, tool_call)
+```
+
+They ARE structurally identical - both call `_add_message_by_type` with a widget class and arguments. The only difference is the widget class and parameter names. This IS duplicate code according to the DRY principle.
+
+We could create a generic method and use it for both. But actually, having separate methods with descriptive names is better for the API. The duplication is minimal and intentional for clarity.
+
+However, let me check if there are other actual issues. Let me look for methods that might be missing return type annotations or have other issues:
+[tool] grep({'pattern': 'def .*\\(.*\\):"', 'path': 
+'src/henchman/cli/textual_widgets.py', 'line_numbers': True, 'context_before': 
+2, 'context_after': 2})
+
+[result] No matches found...
+All methods have return type annotations. Let me check for `-> None` vs no return annotation:
+[tool] grep({'pattern': 'def .*\\(.*\\):"', 'path': 
+'src/henchman/cli/textual_widgets.py'})
+
+[result] No matches found...
+Good, all methods have proper return type annotations.
+
+Now, as an XP Refactoring Agent, I should focus on actual improvements. Let me think about what refactoring would actually improve the code:
+
+1. **Simplify the type hierarchy**: The `# type: ignore[return-value]` is a code smell. We should fix the type signatures.
+2. **Consider if we need all these abstraction layers**: Could we reduce from 4 layers to 3 or 2?
+3. **Check for other code smells**: Long methods, complex functions, etc.
+
+Let me check the length of methods:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+585, 'end_line': 771})
+
+[result] class ToolMessage(CollapsibleMessage):
+    """Collapsible display for tool call/result content in the chat pane.
+
+    Starts collapsed — only a one-line summary header with tool name and
+    compact a...
+The `ToolMessage` class has some issues:
+1. **Duplicate logic**: `_get_header_text` and `_get_render_header` are very similar
+2. **Duplicate logic**: `_get_body_content` and `_get_expanded_content` are very similar
+3. **Complex `__init__` method**: Handles special case where `thought` might actually be a `tool_call`
+
+These are actual code smells! Let me also check `ThinkingMessage`:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+476, 'end_line': 582})
+
+[result] class ThinkingMessage(CollapsibleMessage):
+    """Collapsible display for agent thinking content in the chat pane.
+
+    Starts collapsed — only a one-line summary is visible.  Clicking the
+    widget ...
+`ThinkingMessage` looks better, but it has `_header_text` and `_body_text` instance variables that are only used in `_update_renderable`. These could be local variables instead.
+
+Now I have identified real code smells to fix:
+
+1. **`ToolMessage` has duplicate logic** between `_get_header_text`/`_get_render_header` and `_get_body_content`/`_get_expanded_content`
+2. **`ToolMessage.__init__` is complex** with special case handling
+3. **Type safety issue** with `# type: ignore[return-value]` in `_add_typed_message_widget`
+4. **Unnecessary instance variables** in `ThinkingMessage`
+
+Let me start refactoring. First, let me create a backup and then refactor step by step:
+[tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
+'content': "# Refactoring Summary for textual_widgets.py\n\n**Date/Time**: 
+2026-02-28 21:15:00 UTC  \n**Files Changed**: 
+`src/henchman/cli/textual_widgets.py`  \n**Rationale**: Address code smells 
+identified in the smell report, focusing on duplicate code, type safety, and 
+code complexity.\n\n## Identified Issues:\n\n1. **Duplicate Code in 
+ToolMessage**: `_get_header_text` and `_get_render_header` are nearly identical.
+`_get_body_content` and `_get_expanded_content` are also very similar.\n2. 
+**Complex `ToolMessage.__init__`**: Handles special case where `thought` 
+parameter might actually be a `tool_call` object.\n3. **Type Safety Issue**: 
+`_add_typed_message_widget` uses `# type: ignore[return-value]` to suppress type
+checking.\n4. **Unnecessary Instance Variables**: `ThinkingMessage` has 
+`_header_text` and `_body_text` instance variables that are only used 
+locally.\n\n## Refactoring Strategy:\n\n1. **Extract Common Logic in 
+ToolMessage**: Create shared helper methods to avoid duplication between header 
+and body rendering methods.\n2. **Simplify `ToolMessage.__init__`**: Make the 
+API clearer or extract the special case logic into a factory method.\n3. **Fix 
+Type Safety**: Make `_create_and_add_widget` generic to avoid the type 
+ignore.\n4. **Remove Unnecessary Instance Variables**: Convert `_header_text` 
+and `_body_text` to local variables in 
+`ThinkingMessage._update_renderable()`.\n\n## Testing Implications:\n- All 
+existing tests should continue to pass.\n- Need to verify that the special case 
+handling in `ToolMessage.__init__` still works correctly.\n- Ensure type safety 
+improvements don't break any functionality."})
+
+[result] Successfully wrote 1608 bytes to 
+.agent_tasks/auto-improve/last-improvement.md...
+Now let me start the refactoring. I'll begin by fixing the type safety issue in `_add_typed_message_widget`:
 [tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
-def _add_message_widget(self, widget_class: type[Static], *args: Any, **kwargs: 
-Any) -> Static:\n        """Generic method to add a message widget to the chat 
+def _create_and_add_widget(\n        self, widget_class: type[Static], *args: 
+Any, **kwargs: Any\n    ) -> Static:\n        """Create and add a widget to the 
 pane.\n\n        Args:\n            widget_class: The widget class to 
 instantiate.\n            *args: Positional arguments for widget constructor.\n 
 **kwargs: Keyword arguments for widget constructor.\n\n        Returns:\n       
-The created widget.\n        """\n        return 
-self._create_and_add_widget(widget_class, *args, **kwargs)\n\n    def 
-_add_typed_message_widget(\n        self,\n        widget_class: type[_T],\n    
-*args: Any,\n        **kwargs: Any\n    ) -> _T:\n        """Type-safe method to
-add a message widget with proper return type.\n\n        Args:\n            
+The created and added widget.\n        """\n        widget = widget_class(*args,
+**kwargs)\n        return self._add_widget(widget)', 'new_str': '    def 
+_create_and_add_widget(\n        self, widget_class: type[_T], *args: Any, 
+**kwargs: Any\n    ) -> _T:\n        """Create and add a widget to the pane.\n\n
+Args:\n            widget_class: The widget class to instantiate.\n            
+*args: Positional arguments for widget constructor.\n            **kwargs: 
+Keyword arguments for widget constructor.\n\n        Returns:\n            The 
+created and added widget.\n        """\n        widget = widget_class(*args, 
+**kwargs)\n        return self._add_widget(widget)  # type: 
+ignore[return-value]'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Wait, that just moves the type ignore. The real issue is that `_add_widget` returns `Static`, not `_T`. Let me check `_add_widget`:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+915, 'end_line': 926})
+
+[result]     def _add_widget(self, widget: Static) -> Static:
+        """Helper method to add a widget to the pane.
+
+        Args:
+            widget: Widget to add.
+
+        Returns:
+            The added wid...
+Actually, we need to make `_add_widget` generic too:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def _add_widget(self, widget: Static) -> Static:\n        """Helper method to 
+add a widget to the pane.\n\n        Args:\n            widget: Widget to 
+add.\n\n        Returns:\n            The added widget.\n        """\n        
+self._mount_widget(widget)\n        self._try_scroll()\n        return widget', 
+'new_str': '    def _add_widget(self, widget: _T) -> _T:\n        """Helper 
+method to add a widget to the pane.\n\n        Args:\n            widget: Widget
+to add.\n\n        Returns:\n            The added widget.\n        """\n       
+self._mount_widget(widget)\n        self._try_scroll()\n        return widget'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Now I can remove the type ignore from `_create_and_add_widget`:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def _create_and_add_widget(\n        self, widget_class: type[_T], *args: Any, 
+**kwargs: Any\n    ) -> _T:\n        """Create and add a widget to the pane.\n\n
+Args:\n            widget_class: The widget class to instantiate.\n            
+*args: Positional arguments for widget constructor.\n            **kwargs: 
+Keyword arguments for widget constructor.\n\n        Returns:\n            The 
+created and added widget.\n        """\n        widget = widget_class(*args, 
+**kwargs)\n        return self._add_widget(widget)  # type: 
+ignore[return-value]', 'new_str': '    def _create_and_add_widget(\n        
+self, widget_class: type[_T], *args: Any, **kwargs: Any\n    ) -> _T:\n        
+"""Create and add a widget to the pane.\n\n        Args:\n            
 widget_class: The widget class to instantiate.\n            *args: Positional 
 arguments for widget constructor.\n            **kwargs: Keyword arguments for 
-widget constructor.\n\n        Returns:\n            The created widget with 
-correct type.\n        """\n        widget = 
-self._create_and_add_widget(widget_class, *args, **kwargs)\n        return 
-widget  # type: ignore[return-value]\n\n    def _add_message_by_type(\n        
-self,\n        widget_class: type[_T],\n        *args: Any,\n        **kwargs: 
-Any\n    ) -> _T:\n        """Generic method to add a message widget of 
-specified type.\n\n        Args:\n            widget_class: The widget class to 
-instantiate.\n            *args: Positional arguments for widget constructor.\n 
-**kwargs: Keyword arguments for widget constructor.\n\n        Returns:\n       
-The created widget.\n        """\n        return 
-self._add_typed_message_widget(widget_class, *args, **kwargs)', 'new_str': '    
+widget constructor.\n\n        Returns:\n            The created and added 
+widget.\n        """\n        widget = widget_class(*args, **kwargs)\n        
+return self._add_widget(widget)'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+And now I can remove the type ignore from `_add_typed_message_widget`:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
 def _add_typed_message_widget(\n        self,\n        widget_class: type[_T],\n
 *args: Any,\n        **kwargs: Any\n    ) -> _T:\n        """Type-safe method to
 add a message widget with proper return type.\n\n        Args:\n            
@@ -128,17 +453,415 @@ arguments for widget constructor.\n            **kwargs: Keyword arguments for
 widget constructor.\n\n        Returns:\n            The created widget with 
 correct type.\n        """\n        widget = 
 self._create_and_add_widget(widget_class, *args, **kwargs)\n        return 
-widget  # type: ignore[return-value]\n\n    def _add_message_by_type(\n        
-self,\n        widget_class: type[_T],\n        *args: Any,\n        **kwargs: 
-Any\n    ) -> _T:\n        """Generic method to add a message widget of 
-specified type.\n\n        Args:\n            widget_class: The widget class to 
-instantiate.\n            *args: Positional arguments for widget constructor.\n 
-**kwargs: Keyword arguments for widget constructor.\n\n        Returns:\n       
-The created widget.\n        """\n        return 
-self._add_typed_message_widget(widget_class, *args, **kwargs)'})
+widget  # type: ignore[return-value]', 'new_str': '    def 
+_add_typed_message_widget(\n        self,\n        widget_class: type[_T],\n    
+*args: Any,\n        **kwargs: Any\n    ) -> _T:\n        """Type-safe method to
+add a message widget with proper return type.\n\n        Args:\n            
+widget_class: The widget class to instantiate.\n            *args: Positional 
+arguments for widget constructor.\n            **kwargs: Keyword arguments for 
+widget constructor.\n\n        Returns:\n            The created widget with 
+correct type.\n        """\n        return 
+self._create_and_add_widget(widget_class, *args, **kwargs)'})
 
 [result] Successfully edited src/henchman/cli/textual_widgets.py...
-Now let me run the tests to make sure the refactoring didn't break anything:
+Good! Now let me fix the duplicate code in `ToolMessage`. First, let me look at the duplicate methods more carefully. `_get_header_text` and `_get_render_header` are very similar but not identical:
+
+1. `_get_header_text` uses `_safe_markup()` on the text
+2. `_get_render_header` doesn't use `_safe_markup()` on the tool name (but does on thought)
+
+Actually, looking more carefully:
+- `_get_header_text`: Returns formatted text with emoji and markup for display in the UI
+- `_get_render_header`: Returns plain text for the `render()` method
+
+These serve different purposes. However, they share common logic. Let me extract the common logic:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+682, 'end_line': 735})
+
+[result]     def _get_header_text(self) -> str:
+        """Get the header text based on tool call or thought.
+
+        Returns:
+            Formatted header text.
+        """
+        if self._tool_call and has...
+I see the pattern. Both `_get_header_text` and `_get_render_header` have the same structure but apply `_safe_markup()` differently. Let me create a helper method that takes a parameter to control whether to apply markup:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def _get_header_text(self) -> str:\n        """Get the header text based on tool
+call or thought.\n\n        Returns:\n            Formatted header text.\n      
+"""\n        if self._tool_call and hasattr(self._tool_call, "name"):\n         
+compact = _safe_markup(self._format_compact_args())\n            name = 
+_safe_markup(self._tool_call.name)\n            return f"🔧 {name}({compact})" 
+if compact else f"🔧 {name}"\n        elif self._thought:\n            return 
+f"🛠️  {_safe_markup(self._thought)}"\n        else:\n            return "🛠️  
+Tool call"\n\n    def _get_body_content(self) -> str:\n        """Get the body 
+content with proper formatting.\n\n        Returns:\n            Formatted body 
+content.\n        """\n        parts: list[str] = []\n        full_args = 
+self._format_full_args()\n        if full_args:\n            
+parts.append(full_args)\n        if self._result_text:\n            
+parts.append(self._result_text)\n        if self._content_text and 
+self._content_text != self._thought:\n            
+parts.append(self._content_text)\n        body = "\\n".join(parts) if parts else
+""\n        escaped = _safe_markup(body)\n        if self._highlight_term:\n    
+escaped = _highlight_text(escaped, self._highlight_term)\n        return 
+f"[dim]{escaped}[/]"\n\n    def _update_renderable(self) -> None:\n        
+"""Re-render header and content sub-widgets."""\n        
+self.header.update(self._get_header_text())\n        
+self._body.update(self._get_body_content())\n\n    def _get_render_header(self) 
+-> str:\n        """Get the header for render output.\n\n        Returns:\n     
+Header text.\n        """\n        if self._tool_call and 
+hasattr(self._tool_call, "name"):\n            compact = 
+self._format_compact_args()\n            name = self._tool_call.name\n          
+return f"🔧 {name}({compact})" if compact else f"🔧 {name}"\n        elif 
+self._thought:\n            return f"🛠️  {_safe_markup(self._thought)}"\n       
+else:\n            return "🛠️  Tool call"', 'new_str': '    def 
+_build_header_text(self, apply_markup: bool = True) -> str:\n        """Build 
+header text for tool call or thought.\n\n        Args:\n            
+apply_markup: Whether to apply safe markup to text.\n\n        Returns:\n       
+Formatted header text.\n        """\n        if self._tool_call and 
+hasattr(self._tool_call, "name"):\n            compact = 
+self._format_compact_args()\n            name = self._tool_call.name\n          
+if apply_markup:\n                compact = _safe_markup(compact) if compact 
+else ""\n                name = _safe_markup(name)\n            return f"🔧 
+{name}({compact})" if compact else f"🔧 {name}"\n        elif self._thought:\n  
+thought_text = _safe_markup(self._thought) if apply_markup else self._thought\n 
+return f"🛠️  {thought_text}"\n        else:\n            return "🛠️  Tool 
+call"\n\n    def _get_header_text(self) -> str:\n        """Get the header text 
+based on tool call or thought.\n\n        Returns:\n            Formatted header
+text with markup for UI display.\n        """\n        return 
+self._build_header_text(apply_markup=True)\n\n    def _get_body_content(self) ->
+str:\n        """Get the body content with proper formatting.\n\n        
+Returns:\n            Formatted body content.\n        """\n        parts: 
+list[str] = []\n        full_args = self._format_full_args()\n        if 
+full_args:\n            parts.append(full_args)\n        if self._result_text:\n
+parts.append(self._result_text)\n        if self._content_text and 
+self._content_text != self._thought:\n            
+parts.append(self._content_text)\n        body = "\\n".join(parts) if parts else
+""\n        escaped = _safe_markup(body)\n        if self._highlight_term:\n    
+escaped = _highlight_text(escaped, self._highlight_term)\n        return 
+f"[dim]{escaped}[/]"\n\n    def _update_renderable(self) -> None:\n        
+"""Re-render header and content sub-widgets."""\n        
+self.header.update(self._get_header_text())\n        
+self._body.update(self._get_body_content())\n\n    def _get_render_header(self) 
+-> str:\n        """Get the header for render output.\n\n        Returns:\n     
+Header text without markup for render introspection.\n        """\n        
+return self._build_header_text(apply_markup=False)'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Wait, there's an issue. For `_get_render_header`, when `apply_markup=False`, we still apply `_safe_markup` to `self._thought` in the `elif self._thought:` branch. That's inconsistent. Actually, looking at the original code again:
+
+In `_get_render_header`:
+```python
+elif self._thought:
+    return f"🛠️  {_safe_markup(self._thought)}"  # Still applies markup!
+```
+
+So `_get_render_header` DOES apply markup to `self._thought` but not to tool call name/args. That's weird. Let me check if this is intentional or a bug. Actually, looking at the original `_get_header_text`:
+
+```python
+elif self._thought:
+    return f"🛠️  {_safe_markup(self._thought)}"  # Also applies markup
+```
+
+Both methods apply markup to `self._thought`. So the difference is only for tool calls. Let me fix my implementation:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def _build_header_text(self, apply_markup: bool = True) -> str:\n        
+"""Build header text for tool call or thought.\n\n        Args:\n            
+apply_markup: Whether to apply safe markup to text.\n\n        Returns:\n       
+Formatted header text.\n        """\n        if self._tool_call and 
+hasattr(self._tool_call, "name"):\n            compact = 
+self._format_compact_args()\n            name = self._tool_call.name\n          
+if apply_markup:\n                compact = _safe_markup(compact) if compact 
+else ""\n                name = _safe_markup(name)\n            return f"🔧 
+{name}({compact})" if compact else f"🔧 {name}"\n        elif self._thought:\n  
+thought_text = _safe_markup(self._thought) if apply_markup else self._thought\n 
+return f"🛠️  {thought_text}"\n        else:\n            return "🛠️  Tool 
+call"', 'new_str': '    def _build_header_text(self, apply_markup_to_tool: bool 
+= True) -> str:\n        """Build header text for tool call or thought.\n\n     
+Args:\n            apply_markup_to_tool: Whether to apply safe markup to tool 
+name and args.\n                                  Thought text always gets 
+markup for consistency.\n\n        Returns:\n            Formatted header 
+text.\n        """\n        if self._tool_call and hasattr(self._tool_call, 
+"name"):\n            compact = self._format_compact_args()\n            name = 
+self._tool_call.name\n            if apply_markup_to_tool:\n                
+compact = _safe_markup(compact) if compact else ""\n                name = 
+_safe_markup(name)\n            return f"🔧 {name}({compact})" if compact else 
+f"🔧 {name}"\n        elif self._thought:\n            # Thought text always 
+gets markup for consistency with UI display\n            return f"🛠️  
+{_safe_markup(self._thought)}"\n        else:\n            return "🛠️  Tool 
+call"'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Now let me update the calls to use the new parameter name:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def _get_header_text(self) -> str:\n        """Get the header text based on tool
+call or thought.\n\n        Returns:\n            Formatted header text with 
+markup for UI display.\n        """\n        return 
+self._build_header_text(apply_markup=True)', 'new_str': '    def 
+_get_header_text(self) -> str:\n        """Get the header text based on tool 
+call or thought.\n\n        Returns:\n            Formatted header text with 
+markup for UI display.\n        """\n        return 
+self._build_header_text(apply_markup_to_tool=True)'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def _get_render_header(self) -> str:\n        """Get the header for render 
+output.\n\n        Returns:\n            Header text without markup for render 
+introspection.\n        """\n        return 
+self._build_header_text(apply_markup=False)', 'new_str': '    def 
+_get_render_header(self) -> str:\n        """Get the header for render 
+output.\n\n        Returns:\n            Header text without markup for render 
+introspection.\n        """\n        return 
+self._build_header_text(apply_markup_to_tool=False)'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Now let me check the duplicate logic in `_get_body_content` and `_get_expanded_content`:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+697, 'end_line': 759})
+
+[result]                 name = _safe_markup(name)
+            return f"🔧 {name}({compact})" if compact else f"🔧 {name}"
+        elif self._thought:
+            # Thought text always gets markup for consistenc...
+
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+737, 'end_line': 771})
+
+[result] 
+    def _get_render_header(self) -> str:
+        """Get the header for render output.
+
+        Returns:
+            Header text without markup for render introspection.
+        """
+        return sel...
+I see the differences:
+1. `_get_body_content`: Uses `_format_full_args()` which returns pretty-printed JSON
+2. `_get_expanded_content`: Manually formats JSON with `json.dumps(args)` (not pretty-printed)
+3. `_get_body_content`: Applies `_safe_markup()` and `_highlight_text()` and wraps in `[dim]...[/]`
+4. `_get_expanded_content`: Returns plain text
+
+These are actually quite different. `_get_body_content` is for UI display (with markup), `_get_expanded_content` is for the `render()` method (plain text). They're not duplicate code - they serve different purposes.
+
+However, they do share the logic for building the parts list. Let me extract that common logic:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def _get_body_content(self) -> str:\n        """Get the body content with proper
+formatting.\n\n        Returns:\n            Formatted body content.\n        
+"""\n        parts: list[str] = []\n        full_args = 
+self._format_full_args()\n        if full_args:\n            
+parts.append(full_args)\n        if self._result_text:\n            
+parts.append(self._result_text)\n        if self._content_text and 
+self._content_text != self._thought:\n            
+parts.append(self._content_text)\n        body = "\\n".join(parts) if parts else
+""\n        escaped = _safe_markup(body)\n        if self._highlight_term:\n    
+escaped = _highlight_text(escaped, self._highlight_term)\n        return 
+f"[dim]{escaped}[/]"\n\n    def _update_renderable(self) -> None:\n        
+"""Re-render header and content sub-widgets."""\n        
+self.header.update(self._get_header_text())\n        
+self._body.update(self._get_body_content())\n\n    def _get_render_header(self) 
+-> str:\n        """Get the header for render output.\n\n        Returns:\n     
+Header text without markup for render introspection.\n        """\n        
+return self._build_header_text(apply_markup_to_tool=False)\n\n    def 
+_get_expanded_content(self) -> str:\n        """Get the expanded content for 
+render output.\n\n        Returns:\n            Expanded content text.\n        
+"""\n        parts: list[str] = []\n        if self._tool_call and 
+getattr(self._tool_call, "arguments", None):\n            import json\n\n       
+args = self._tool_call.arguments\n            if isinstance(args, str):\n       
+with contextlib.suppress(json.JSONDecodeError, TypeError):\n                    
+args = json.loads(args)\n            try:\n                
+parts.append(json.dumps(args))\n            except (TypeError, ValueError):\n   
+parts.append(str(args))\n        if self._result_text:\n            
+parts.append(self._result_text)\n        if self._content_text and 
+self._content_text != self._thought:\n            
+parts.append(self._content_text)\n        return "\\n".join(parts)', 'new_str': 
+'    def _build_body_parts(self, pretty_format_args: bool = True) -> 
+list[str]:\n        """Build the parts that make up the body content.\n\n       
+Args:\n            pretty_format_args: Whether to pretty-format JSON 
+arguments.\n\n        Returns:\n            List of body content parts.\n       
+"""\n        parts: list[str] = []\n        \n        # Add tool arguments if 
+available\n        if self._tool_call and getattr(self._tool_call, "arguments", 
+None):\n            import json\n            \n            args = 
+self._tool_call.arguments\n            if isinstance(args, str):\n              
+with contextlib.suppress(json.JSONDecodeError, TypeError):\n                    
+args = json.loads(args)\n            \n            if pretty_format_args:\n     
+# Use the existing pretty formatting\n                
+parts.append(self._format_full_args())\n            else:\n                # 
+Simple JSON dump for render output\n                try:\n                    
+parts.append(json.dumps(args))\n                except (TypeError, 
+ValueError):\n                    parts.append(str(args))\n        \n        # 
+Add result text if available\n        if self._result_text:\n            
+parts.append(self._result_text)\n        \n        # Add additional content if 
+different from thought\n        if self._content_text and self._content_text != 
+self._thought:\n            parts.append(self._content_text)\n        \n        
+return parts\n\n    def _get_body_content(self) -> str:\n        """Get the body
+content with proper formatting for UI display.\n\n        Returns:\n            
+Formatted body content with markup.\n        """\n        parts = 
+self._build_body_parts(pretty_format_args=True)\n        body = 
+"\\n".join(parts) if parts else ""\n        escaped = _safe_markup(body)\n      
+if self._highlight_term:\n            escaped = _highlight_text(escaped, 
+self._highlight_term)\n        return f"[dim]{escaped}[/]"\n\n    def 
+_update_renderable(self) -> None:\n        """Re-render header and content 
+sub-widgets."""\n        self.header.update(self._get_header_text())\n        
+self._body.update(self._get_body_content())\n\n    def _get_render_header(self) 
+-> str:\n        """Get the header for render output.\n\n        Returns:\n     
+Header text without markup for render introspection.\n        """\n        
+return self._build_header_text(apply_markup_to_tool=False)\n\n    def 
+_get_expanded_content(self) -> str:\n        """Get the expanded content for 
+render output.\n\n        Returns:\n            Expanded content text.\n        
+"""\n        parts = self._build_body_parts(pretty_format_args=False)\n        
+return "\\n".join(parts)'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Now let me fix the `ThinkingMessage` class to remove unnecessary instance variables. Looking at the code, `_header_text` and `_body_text` are only used in `_update_renderable`:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+532, 'end_line': 544})
+
+[result]     def _update_renderable(self) -> None:
+        """Re-render header and content sub-widgets."""
+        agent = f"{self._agent_name} " if self._agent_name else ""
+        # Header sub-widget: never ...
+These instance variables (`_header_text` and `_body_text`) are only used locally in this method. They should be local variables:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def _update_renderable(self) -> None:\n        """Re-render header and content 
+sub-widgets."""\n        agent = f"{self._agent_name} " if self._agent_name else
+""\n        # Header sub-widget: never includes content, just "thinking: (click 
+to expand)"\n        self._header_text = f"🤔 {agent}thinking: (click to 
+expand)"\n        self.header.update(self._header_text)\n\n        full = 
+self._content_text\n        escaped = _safe_markup(full)\n        if 
+self._highlight_term:\n            escaped = _highlight_text(escaped, 
+self._highlight_term)\n        self._body_text = f"[dim]{escaped}[/]"\n        
+self._body.update(self._body_text)', 'new_str': '    def 
+_update_renderable(self) -> None:\n        """Re-render header and content 
+sub-widgets."""\n        agent = f"{self._agent_name} " if self._agent_name else
+""\n        # Header sub-widget: never includes content, just "thinking: (click 
+to expand)"\n        header_text = f"🤔 {agent}thinking: (click to expand)"\n   
+self.header.update(header_text)\n\n        full = self._content_text\n        
+escaped = _safe_markup(full)\n        if self._highlight_term:\n            
+escaped = _highlight_text(escaped, self._highlight_term)\n        body_text = 
+f"[dim]{escaped}[/]"\n        self._body.update(body_text)'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Now I need to remove the instance variable declarations. Let me check where they're declared:
+[tool] grep({'pattern': 'self\\._header_text|self\\._body_text', 'path': 
+'src/henchman/cli/textual_widgets.py', 'line_numbers': True})
+
+[result] No matches found...
+Good, they're not used elsewhere. Now let me check the `ToolMessage.__init__` method for complexity. It has special handling for when `thought` might actually be a `tool_call`:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+607, 'end_line': 639})
+
+[result]     def __init__(
+        self,
+        thought: str = "",
+        tool_call: Any = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize.
+
+        Accepts either a positional ``thought`` ...
+This is a bit complex. The constructor supports `ToolMessage(tool_call_obj)` where the first argument is actually a tool call, not a thought string. This is confusing API design. However, changing this might break existing code. 
+
+As an XP Refactoring Agent following YAGNI, I should question if this feature is actually needed. But since it's already there and tests might depend on it, I should keep it but maybe make it clearer. Let me add a type check and comment:
+
+Actually, looking at the code again, the issue is that `thought` parameter has type `str` but the code handles when it's not a string. This is a type violation. We should fix the type hint or the logic. Since the method says it accepts a `ToolCall` as the first positional argument, the type hint should reflect that:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def __init__(\n        self,\n        thought: str = "",\n        tool_call: Any
+= None,\n        **kwargs: Any,\n    ) -> None:', 'new_str': '    def 
+__init__(\n        self,\n        thought: str | Any = "",  # Can be ToolCall 
+when used as positional arg\n        tool_call: Any = None,\n        **kwargs: 
+Any,\n    ) -> None:'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Actually, that's not ideal either. A better approach would be to use `@overload` to define the two possible signatures. But that's more complex. Let me check if there are imports for `ToolCall`:
+[tool] grep({'pattern': 'ToolCall|from.*ToolCall|import.*ToolCall', 'path': 
+'src/henchman/cli/textual_widgets.py'})
+
+[result]         thought: str | Any = "",  # Can be ToolCall when used as 
+positional arg
+        ``ToolCall`` is supplied as the first positional argument it is...
+The file doesn't import `ToolCall`. It uses `Any` for the type. Actually, looking at the test file:
+[tool] read_file({'path': 'tests/henchman/cli/test_textual_widgets.py', 
+'start_line': 1, 'end_line': 30})
+
+[result] """tests/henchman/cli/test_textual_widgets.py
+TDD tests for ThinkingMessage fix and ToolMessage."""
+
+from unittest.mock import MagicMock
+
+from henchman.cli.textual_app import ChatPane, ThinkingMessage...
+
+[tool] read_file({'path': 'tests/henchman/cli/test_textual_widgets.py', 
+'start_line': 30, 'end_line': 60})
+
+[result]     def test_header_click_toggle(self):
+        msg = ThinkingMessage("test")
+        msg.on_click(MagicMock())
+        assert msg._is_expanded is True
+
+
+class TestChatPaneThinking:
+    def test_begin...
+So the tests use `ToolMessage(tc)` where `tc` is a `ToolCall`. The API does support this pattern. The issue is the type hints. Let me use `@overload` to properly define the two signatures:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': 
+'from __future__ import annotations\n\nimport contextlib\nimport re\nfrom abc 
+import abstractmethod\nfrom typing import TYPE_CHECKING, Any, TypeVar, 
+cast\n\nfrom rich.markdown import Markdown as RichMarkdown\nfrom rich.markup 
+import escape as markup_escape\nfrom textual.binding import Binding\nfrom 
+textual.containers import VerticalScroll\nfrom textual.reactive import 
+reactive\nfrom textual.widget import MountError\nfrom textual.widgets import 
+RichLog, Static, TextArea', 'new_str': 'from __future__ import 
+annotations\n\nimport contextlib\nimport re\nfrom abc import 
+abstractmethod\nfrom typing import TYPE_CHECKING, Any, TypeVar, cast, 
+overload\n\nfrom rich.markdown import Markdown as RichMarkdown\nfrom rich.markup
+import escape as markup_escape\nfrom textual.binding import Binding\nfrom 
+textual.containers import VerticalScroll\nfrom textual.reactive import 
+reactive\nfrom textual.widget import MountError\nfrom textual.widgets import 
+RichLog, Static, TextArea'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Now let me add the overload signatures before the `__init__` method:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+def __init__(\n        self,\n        thought: str | Any = "",  # Can be 
+ToolCall when used as positional arg\n        tool_call: Any = None,\n        
+**kwargs: Any,\n    ) -> None:\n        """Initialize.\n\n        Accepts either
+a positional ``thought`` string or a ``tool_call``\n        object (with 
+``.name`` and ``.arguments``).  When *only* a\n        ``ToolCall`` is supplied 
+as the first positional argument it is\n        detected automatically.\n\n     
+Args:\n            thought: Tool thought/description.\n            tool_call: 
+Tool call object with ``name`` and ``arguments``.\n            **kwargs: 
+Forwarded to ``Static``.\n        """\n        # Support 
+ToolMessage(tool_call_obj) as positional arg\n        if tool_call is None and 
+thought and not isinstance(thought, str):\n            tool_call = thought\n    
+thought = ""\n        super().__init__(**kwargs)\n        
+self.add_class("tool-message")\n        self._thought = thought if 
+isinstance(thought, str) else ""\n        self._tool_call = tool_call\n        
+self._content_text = self._thought\n        self._result_text: str = ""\n       
+# Override header and body with custom CSS\n        self.header = 
+_CollapsibleHeader()\n        self._body = _CollapsibleContent()\n        
+self._body.add_class("tool")\n        self._update_renderable()', 'new_str': '  
+@overload\n    def __init__(self, tool_call: Any, **kwargs: Any) -> None: ...\n 
+\n    @overload\n    def __init__(self, thought: str = "", tool_call: Any = 
+None, **kwargs: Any) -> None: ...\n    \n    def __init__(\n        self,\n     
+thought: str | Any = "",\n        tool_call: Any = None,\n        **kwargs: 
+Any,\n    ) -> None:\n        """Initialize.\n\n        Accepts either a 
+positional ``thought`` string or a ``tool_call``\n        object (with ``.name``
+and ``.arguments``).  When *only* a\n        ``ToolCall`` is supplied as the 
+first positional argument it is\n        detected automatically.\n\n        
+Args:\n            thought: Tool thought/description.\n            tool_call: 
+Tool call object with ``name`` and ``arguments``.\n            **kwargs: 
+Forwarded to ``Static``.\n        """\n        # Support 
+ToolMessage(tool_call_obj) as positional arg\n        if tool_call is None and 
+thought and not isinstance(thought, str):\n            tool_call = thought\n    
+thought = ""\n        super().__init__(**kwargs)\n        
+self.add_class("tool-message")\n        self._thought = thought if 
+isinstance(thought, str) else ""\n        self._tool_call = tool_call\n        
+self._content_text = self._thought\n        self._result_text: str = ""\n       
+# Override header and body with custom CSS\n        self.header = 
+_CollapsibleHeader()\n        self._body = _CollapsibleContent()\n        
+self._body.add_class("tool")\n        self._update_renderable()'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Now let me run the tests to make sure everything still works:
 [tool] pytest_run({'path': 'tests/henchman/cli/test_textual_widgets.py'})
 
 [result] ============================= test session starts 
@@ -146,110 +869,74 @@ Now let me run the tests to make sure the refactoring didn't break anything:
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Good! Tests still pass. Now let me address the missing type hints. Looking at the smell report, there are many functions with incomplete type hints. Let me check a few specific examples from the report:
-
-From the smell report lines:
-- Line 108: `__init__` has incomplete type hints: 1/3 params untyped
-- Line 121: `__init__` has incomplete type hints: 1/3 params untyped  
-- Line 131: `append` has incomplete type hints: 1/2 params untyped
-- Line 142: `set_content` has incomplete type hints: 1/2 params untyped
-
-Let me examine these lines:
-[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
-105, 'end_line': 160})
-
-[result] class _BaseTextualWidget(Static):
-    """Base class for Textual widgets with common initialization."""
-
-    def __init__(self, text: str = "", **kwargs: Any) -> None:
-        """Initialize with text c...
-I see the issue. The type hints look complete here. Let me check if there are other methods with missing type hints. Let me look at the `_CollapsibleHeader` and `_CollapsibleContent` classes:
-[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
-162, 'end_line': 190})
-
-[result] class _CollapsibleHeader(_BaseTextualWidget):
-    """Clickable header for a collapsible message."""
-
-    DEFAULT_CSS = """
-    _CollapsibleHeader {
-        padding: 0 1;
-    }
-    """
-
-
-class _Collaps...
-These classes don't have explicit `__init__` methods, so they inherit from parent. The smell detector might be counting inherited methods. Let me check the `CollapsibleMessage` class:
-[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
-188, 'end_line': 270})
-
-[result] class CollapsibleMessage(_BaseMessageWidget):
-    """Base class for collapsible messages with common functionality."""
-
-    DEFAULT_CSS = """
-    CollapsibleMessage {
-        padding: 0;
-        margi...
-I see the `on_click` method has `event: events.Click` but `events` is not imported in the type checking block. Let me check the imports:
-[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
-1, 'end_line': 30})
-
-[result] """Reusable Textual widgets for the Henchman-AI TUI.
-
-Includes the chat pane, custom text input, message display widgets,
-and the status bar.
-
-Note: Extracted from ``textual_app.py`` to keep modules u...
-Good, `events` is imported in the TYPE_CHECKING block. The type hints should be fine. Let me run a type checker to see what issues it finds:
+Great! All tests pass. Now let me run the linters to check for any issues:
 [tool] lint_check({'path': 'src/henchman/cli/textual_widgets.py', 'linter': 
-'mypy'})
+'both'})
 
-[result] === mypy ===
-Success: no issues found in 1 source file...
-Good! No mypy issues. Let me run ruff to see if it finds any issues:
-[tool] lint_check({'path': 'src/henchman/cli/textual_widgets.py', 'linter': 
-'ruff'})
-
-[result] === ruff ===
-All checks passed!...
-Good! The code passes both linters. The smell detector might be overly sensitive or counting inherited methods. Let me check for the duplicate constant issue (`_SUMMARY_MAX_LEN` defined twice):
-[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
-40, 'end_line': 50})
-
-[result] 
-# Regex matching ANSI escape sequences (CSI codes, OSC, etc.)
-_ANSI_RE = re.compile(r"\x1b[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[^[\]()]")
-
-# Maximum characters before truncation for summaries
-_SU...
-Let me search for the second definition of `_SUMMARY_MAX_LEN`:
-[tool] grep({'pattern': '_SUMMARY_MAX_LEN', 'path': 
-'src/henchman/cli/textual_widgets.py', 'line_numbers': True})
-
-[result] 45:_SUMMARY_MAX_LEN = 20
-476:_SUMMARY_MAX_LEN = 20  # max chars before truncation (leaves room for "...")
-528:            Truncated text, at most ``_SUMMARY_MAX_LEN`` chars + ``...``.
-531:        if l...
-Found it! There's a duplicate definition at line 476. Let me remove it:
-[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
-470, 'end_line': 485})
-
-[result]             return
-        if _looks_like_markdown(self._content_text):
-            self._is_markdown = True
-            self._update_renderable()
-
-
-_SUMMARY_MAX_LEN = 20  # max chars before truncatio...
-
+✗ \[error] === ruff ===
+W293 [*] Blank line contains whitespace
+   --> src/henchman/cli/textual_widgets.py:609:1
+    |
+607 |     @overload
+608 |     def __init__(self, tool_call: Any, **kwargs: Any) -> None: ...
+I need to fix the mypy error. The issue is with the `@overload` decorators. The first overload signature `def __init__(self, tool_call: Any, **kwargs: Any) -> None` doesn't match the implementation. The implementation has `thought` as the first parameter. Let me fix this:
 [tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
-return\n        if _looks_like_markdown(self._content_text):\n            
-self._is_markdown = True\n            
-self._update_renderable()\n\n\n_SUMMARY_MAX_LEN = 20  # max chars before 
-truncation (leaves room for "...")\n\n\nclass 
-ThinkingMessage(CollapsibleMessage):', 'new_str': '            return\n        
-if _looks_like_markdown(self._content_text):\n            self._is_markdown = 
-True\n            self._update_renderable()\n\n\nclass 
-ThinkingMessage(CollapsibleMessage):'})
+@overload\n    def __init__(self, tool_call: Any, **kwargs: Any) -> None: ...\n 
+\n    @overload\n    def __init__(self, thought: str = "", tool_call: Any = 
+None, **kwargs: Any) -> None: ...\n    \n    def __init__(\n        self,\n     
+thought: str | Any = "",\n        tool_call: Any = None,\n        **kwargs: 
+Any,\n    ) -> None:', 'new_str': '    @overload\n    def __init__(self, 
+tool_call: Any, **kwargs: Any) -> None: ...\n    \n    @overload\n    def 
+__init__(self, thought: str = "", tool_call: Any = None, **kwargs: Any) -> None:
+...\n    \n    def __init__(\n        self,\n        thought: str | Any = "",\n 
+tool_call: Any = None,\n        **kwargs: Any,\n    ) -> None:'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Wait, that didn't change anything. The issue is that the first overload has only one positional argument (`tool_call`), but the implementation has `thought` as the first parameter. Actually, the implementation handles the case where `thought` might be a `tool_call`. So the overload is correct - it says you can call `ToolMessage(tool_call_obj)`. The implementation handles this by checking if `thought` is not a string.
+
+But mypy doesn't understand this pattern. Let me check if there's a better way. Actually, the issue might be that `thought` has type `str | Any` but the overload says it's `Any` (tool_call) in the first signature. Let me be more explicit:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+@overload\n    def __init__(self, tool_call: Any, **kwargs: Any) -> None: ...\n 
+\n    @overload\n    def __init__(self, thought: str = "", tool_call: Any = 
+None, **kwargs: Any) -> None: ...\n    \n    def __init__(\n        self,\n     
+thought: str | Any = "",\n        tool_call: Any = None,\n        **kwargs: 
+Any,\n    ) -> None:', 'new_str': '    @overload\n    def __init__(self, 
+tool_call: Any, **kwargs: Any) -> None: ...\n    \n    @overload  \n    def 
+__init__(self, thought: str = "", tool_call: Any = None, **kwargs: Any) -> None:
+...\n    \n    def __init__(\n        self,\n        thought: str | Any = "",\n 
+tool_call: Any = None,\n        **kwargs: Any,\n    ) -> None:'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Actually, let me remove the `@overload` decorators since they're causing issues and not strictly necessary. The current type hints with `str | Any` are already descriptive enough:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': '   
+@overload\n    def __init__(self, tool_call: Any, **kwargs: Any) -> None: ...\n 
+\n    @overload  \n    def __init__(self, thought: str = "", tool_call: Any = 
+None, **kwargs: Any) -> None: ...\n    \n    def __init__(\n        self,\n     
+thought: str | Any = "",\n        tool_call: Any = None,\n        **kwargs: 
+Any,\n    ) -> None:', 'new_str': '    def __init__(\n        self,\n        
+thought: str | Any = "",  # Can be ToolCall when used as positional arg\n       
+tool_call: Any = None,\n        **kwargs: Any,\n    ) -> None:'})
+
+[result] Successfully edited src/henchman/cli/textual_widgets.py...
+Now let me fix the ruff whitespace issues:
+[tool] code_format({'path': 'src/henchman/cli/textual_widgets.py'})
+
+[result] Formatted: src/henchman/cli/textual_widgets.py...
+Now let me run the linters again:
+[tool] lint_check({'path': 'src/henchman/cli/textual_widgets.py', 'linter': 
+'both'})
+
+✗ \[error] === ruff ===
+F401 [*] `typing.overload` imported but unused
+  --> src/henchman/cli/textual_widgets.py:14:55
+   |
+12 | import re
+13 | from abc import abstractmethod
+14 | from typing import TYPE_CHECKIN
+Good, mypy passes. Let me fix the unused import:
+[tool] edit_file({'path': 'src/henchman/cli/textual_widgets.py', 'old_str': 
+'from typing import TYPE_CHECKING, Any, TypeVar, cast, overload', 'new_str': 
+'from typing import TYPE_CHECKING, Any, TypeVar, cast'})
 
 [result] Successfully edited src/henchman/cli/textual_widgets.py...
 Now let me run the tests again to make sure everything still works:
@@ -260,167 +947,9 @@ Now let me run the tests again to make sure everything still works:
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Good! Tests still pass. Now let me check for any other issues. The smell report mentioned "Duplicate Code: Function 'add_thinking_message' is 100% similar to 'add_tool_message'". Let me examine these methods:
-[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
-990, 'end_line': 1050})
-
-[result]         """
-        return self._add_message_by_type(ThinkingMessage, thought, agent_name)
-
-    def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
-        """Start a new streami...
-I see the issue. The smell detector is saying `add_thinking_message` and `add_tool_message` are 100% similar. Looking at them:
-- `add_thinking_message(thought: str, agent_name: str = "") -> ThinkingMessage`
-- `add_tool_message(thought: str = "", tool_call: Any = None) -> ToolMessage`
-
-They both call `_add_message_by_type` with different widget classes. This is actually a good pattern - they're using a shared helper method. The similarity is intentional and good design (DRY). However, the smell detector sees them as duplicate because they have the same structure. 
-
-Actually, looking more carefully, the report says `add_thinking_message` is 100% similar to `add_tool_message` AND also 94% similar to `save` at `core/session_manager_base.py:102`. That seems like a false positive or the similarity metric is too sensitive.
-
-Let me check if there are any other actual issues. Let me run the full CI to see if there are any problems:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && ./scripts/ci.sh', 
-'timeout': 120})
-
-✗ \[error] /bin/sh: 1: ./scripts/ci.sh: not found
-
-Let me check if there's a CI script:
-[tool] ls({'path': '/home/matthew/mlg-cli'})
-
-[result] CHANGELOG.md
-CONTRIBUTING.md
-LICENSE
-MagicMock/
-README.md
-RELEASE_CHECKLIST.md
-__pycache__/
-coverage.json
-dist/
-docs/
-evals/
-htmlcov/
-mkdocs.yml
-pyproject.toml
-scripts/
-site/
-src/
-test_compatibility.p...
-
-[tool] ls({'path': '/home/matthew/mlg-cli/scripts'})
-
-[result] auto-doc-improve.sh
-auto-improve.sh
-build_docs.py
-doc_smell_detector/
-run_evals.sh
-smell_detector/...
-Let me run the tests and linters manually:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
-tests/henchman/cli/test_textual_widgets.py -v'})
-
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Good! Tests pass. Now let me run ruff and mypy on the entire codebase to check for any issues:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m ruff check 
-src/henchman/cli/textual_widgets.py --fix'})
-
-[result] All checks passed!
-...
-
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m mypy 
-src/henchman/cli/textual_widgets.py --strict'})
-
-[result] Success: no issues found in 1 source file
-...
-Excellent! Now let me create a summary of the refactoring changes I made:
-[tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
-'content': '# Refactoring Summary - textual_widgets.py\n\n**Date/Time**: 
-2026-02-28 (Current)\n**Files Changed**: 
-`src/henchman/cli/textual_widgets.py`\n**Rationale**: Address code smells 
-identified in the smell report for the TARGET FILE\n\n## Identified Smells 
-Addressed:\n\n1. **Duplicate Code**: Removed duplicate method 
-`_add_message_widget` (line 947) which was 100% identical to 
-`_add_message_by_type` (line 979). Kept `_add_message_by_type` as it\'s more 
-descriptive.\n\n2. **Magic Number / Duplicate Constant**: Removed duplicate 
-definition of `_SUMMARY_MAX_LEN` constant (was defined at lines 45 and 476). 
-Kept the first definition at line 45.\n\n3. **Missing Type Hints**: Verified all
-functions have complete type hints. The smell detector reported 62+ missing type
-hints, but upon inspection:\n   - All `__init__` methods have proper type hints 
-for parameters\n   - All methods have return type annotations\n   - The 
-`on_click` method correctly uses `events.Click` type (imported in TYPE_CHECKING 
-block)\n   - Both ruff and mypy pass with no issues\n\n## Refactoring Strategy 
-Applied:\n\n1. **Extract Method / Remove Duplication**: Eliminated redundant 
-`_add_message_widget` method that was identical to `_add_message_by_type`.\n\n2.
-**Once and Only Once (DRY)**: Removed duplicate constant definition to maintain 
-single source of truth.\n\n3. **YAGNI (You Aren\'t Gonna Need It)**: Removed 
-unused duplicate method rather than trying to find a use for it.\n\n4. 
-**Intention-Revealing Code**: Kept `_add_message_by_type` as it clearly 
-communicates its purpose compared to the more generic 
-`_add_message_widget`.\n\n## Testing Implications:\n\n- All existing tests pass 
-(9 tests in `test_textual_widgets.py`)\n- No changes to public API signatures\n-
-No behavioral changes - only structural improvements\n- Type checking (mypy) 
-passes with strict mode\n- Linting (ruff) passes with no issues\n\n## Remaining 
-Smells (False Positives or Intentional Design):\n\nThe smell detector 
-reported:\n- `add_thinking_message` and `add_tool_message` as 100% similar - 
-This is intentional DRY design using a shared helper method\n- Many "missing 
-type hint" warnings - These appear to be false positives as the code passes mypy
-strict checking\n- Similarity to methods in other files (e.g., `save` in 
-`session_manager_base.py`) - Likely coincidental structural similarity\n\n## 
-Code Quality Improvements:\n\n1. **Reduced LOC**: Removed ~10 lines of duplicate
-code\n2. **Improved Maintainability**: Single source of truth for constants\n3. 
-**Better Adherence to DRY**: No duplicate method implementations\n4. **Preserved
-Test Coverage**: 100% test pass rate maintained\n\n## Verification:\n\n- ✅ All 
-tests pass\n- ✅ No linting errors\n- ✅ No type checking errors  \n- ✅ Public 
-API unchanged\n- ✅ Behavioral equivalence maintained'})
-
-[result] Successfully wrote 2754 bytes to 
-.agent_tasks/auto-improve/last-improvement.md...
-Now let me run a broader set of tests to ensure I didn't break anything else:
-[tool] pytest_run({'path': 'tests/henchman/cli', 'verbose': False})
-
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Perfect! All 24 tests in the CLI tests pass. Now let me provide the final refactoring summary:
-
-## Refactoring Complete
-
-**Identified Smells:**
-1. **Duplicate Code**: `_add_message_widget` was 100% identical to `_add_message_by_type`
-2. **Magic Number / Duplicate Constant**: `_SUMMARY_MAX_LEN` was defined twice (lines 45 and 476)
-3. **Missing Type Hints**: Reported but verified to be false positives (code passes mypy strict checking)
-
-**Refactoring Strategy:**
-1. **Removed duplicate method** `_add_message_widget` - kept `_add_message_by_type` as it's more descriptive
-2. **Removed duplicate constant definition** - kept single source of truth at line 45
-3. **Verified type hints** - all methods have proper type annotations, passes mypy strict mode
-
-**Refactored Code Summary:**
-- Removed ~10 lines of duplicate code
-- Maintained single source of truth for constants
-- Preserved all functionality and public API
-- Improved adherence to DRY principle
-
-**Testing Implications:**
-- ✅ All 24 CLI tests pass
-- ✅ No changes to public API signatures
-- ✅ No behavioral changes
-- ✅ Type checking passes (mypy strict)
-- ✅ Linting passes (ruff)
-
-**Code Quality Improvements:**
-1. **Reduced code duplication** - eliminated identical method
-2. **Improved maintainability** - single constant definition
-3. **Better adherence to XP principles** - YAGNI (removed unused code), DRY (no duplication)
-4. **Preserved test coverage** - 100% test pass rate maintained
-
-The refactoring successfully addressed the most critical code smells while maintaining all existing functionality and test coverage.
-[tech_lead] completed work
-[2026-02-28T20:30:02Z] Running pytest to verify tests pass...
+✗ Error: ToolExecutor._handle_context_compacted_event() takes 1 positional 
+argument but 2 were given
+[2026-02-28T21:00:03Z] Running pytest to verify tests pass...
 ============================= test session starts ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
 rootdir: /home/matthew/mlg-cli
@@ -708,7 +1237,7 @@ tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidatio
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
-  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=1676031) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=1732986) is multi-threaded, use of fork() may lead to deadlocks in the child.
     self.pid = os.fork()
 
 tests/test_interactive.py::test_tool_form
@@ -878,7 +1407,7 @@ src/henchman/cli/textual_driver.py                       17     17      2      0
 src/henchman/cli/textual_messages.py                     46      5      0      0    89%   109-111, 170-171
 src/henchman/cli/textual_mixins.py                      836    186    162     36    74%   111-114, 119, 128, 137, 142, 161-170, 187->189, 190->192, 212-213, 241-242, 247, 256, 265, 274, 283, 328, 432->exit, 444-470, 475-477, 484-485, 513-519, 550-556, 600, 603, 617-629, 640-641, 656-657, 725-726, 767->exit, 784-785, 810, 817-818, 834, 848-849, 864-865, 880-890, 932, 944->946, 957-958, 963, 970, 981->exit, 991-1007, 1019-1020, 1026, 1052, 1263, 1267-1268, 1282, 1286-1287, 1310-1311, 1328, 1334, 1364-1365, 1391-1398, 1409, 1492->1494, 1509-1510, 1515, 1529, 1545, 1559-1560, 1576-1584, 1599-1600, 1615-1621, 1630, 1634-1635, 1646->1645, 1665-1667, 1675-1685, 1691-1692, 1694, 1698, 1724-1730, 1750-1751, 1766->1768, 1768->exit
 src/henchman/cli/textual_screens.py                     123     42     30      4    59%   101-108, 146, 160, 164, 168, 234-235, 321-324, 327, 341, 349-357, 413-417, 456-466, 470
-src/henchman/cli/textual_widgets.py                     460     37     96     13    90%   84, 138, 226-227, 265-266, 362, 366-373, 377-385, 542, 569, 580-582, 648, 655-656, 675-676, 695, 708, 714, 735, 744->755, 749-750, 756, 809->exit, 1047-1048
+src/henchman/cli/textual_widgets.py                     456     34     90     10    91%   84, 138, 226-227, 265-266, 362, 366-373, 377-385, 542, 569, 580-582, 648, 655-656, 668, 675-676, 703, 745, 763, 836->exit, 1061-1062
 src/henchman/cli/tool_executor.py                       247     45    104     17    80%   82, 98-102, 107, 135->exit, 154->160, 166, 217, 233->238, 312, 367-370, 418-420, 437-438, 451, 487-491, 502->510, 514, 596-599, 625, 693->exit, 807, 814, 840-873
 src/henchman/cli/tool_manager.py                         28      4      8      2    78%   118-123, 133->135, 151
 src/henchman/cli/ui_renderer.py                         132      4     16      3    95%   77->exit, 81, 90->exit, 213-215
@@ -988,7 +1517,7 @@ src/henchman/utils/tokens.py                             55      2     20      2
 src/henchman/utils/validation.py                         82      1     36      1    98%   45
 src/henchman/version.py                                   3      0      0      0   100%
 -------------------------------------------------------------------------------------------------
-TOTAL                                                 14046   2256   4026    456    82%
-=========== 2586 passed, 5 skipped, 34 warnings in 179.04s (0:02:59) ===========
-[2026-02-28T20:30:02Z] All tests passed.
+TOTAL                                                 14042   2253   4020    453    82%
+=========== 2586 passed, 5 skipped, 34 warnings in 186.74s (0:03:06) ===========
+[2026-02-28T21:00:03Z] All tests passed.
 Committing changes...

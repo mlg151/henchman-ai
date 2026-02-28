@@ -533,15 +533,15 @@ class ThinkingMessage(CollapsibleMessage):
         """Re-render header and content sub-widgets."""
         agent = f"{self._agent_name} " if self._agent_name else ""
         # Header sub-widget: never includes content, just "thinking: (click to expand)"
-        self._header_text = f"🤔 {agent}thinking: (click to expand)"
-        self.header.update(self._header_text)
+        header_text = f"🤔 {agent}thinking: (click to expand)"
+        self.header.update(header_text)
 
         full = self._content_text
         escaped = _safe_markup(full)
         if self._highlight_term:
             escaped = _highlight_text(escaped, self._highlight_term)
-        self._body_text = f"[dim]{escaped}[/]"
-        self._body.update(self._body_text)
+        body_text = f"[dim]{escaped}[/]"
+        self._body.update(body_text)
 
     def render(self) -> str:
         """Return text for render introspection.
@@ -606,7 +606,7 @@ class ToolMessage(CollapsibleMessage):
 
     def __init__(
         self,
-        thought: str = "",
+        thought: str | Any = "",  # Can be ToolCall when used as positional arg
         tool_call: Any = None,
         **kwargs: Any,
     ) -> None:
@@ -679,35 +679,84 @@ class ToolMessage(CollapsibleMessage):
         except (TypeError, ValueError):
             return str(args)
 
-    def _get_header_text(self) -> str:
-        """Get the header text based on tool call or thought.
+    def _build_header_text(self, apply_markup_to_tool: bool = True) -> str:
+        """Build header text for tool call or thought.
+
+        Args:
+            apply_markup_to_tool: Whether to apply safe markup to tool name and args.
+                                  Thought text always gets markup for consistency.
 
         Returns:
             Formatted header text.
         """
         if self._tool_call and hasattr(self._tool_call, "name"):
-            compact = _safe_markup(self._format_compact_args())
-            name = _safe_markup(self._tool_call.name)
+            compact = self._format_compact_args()
+            name = self._tool_call.name
+            if apply_markup_to_tool:
+                compact = _safe_markup(compact) if compact else ""
+                name = _safe_markup(name)
             return f"🔧 {name}({compact})" if compact else f"🔧 {name}"
         elif self._thought:
+            # Thought text always gets markup for consistency with UI display
             return f"🛠️  {_safe_markup(self._thought)}"
         else:
             return "🛠️  Tool call"
 
-    def _get_body_content(self) -> str:
-        """Get the body content with proper formatting.
+    def _get_header_text(self) -> str:
+        """Get the header text based on tool call or thought.
 
         Returns:
-            Formatted body content.
+            Formatted header text with markup for UI display.
+        """
+        return self._build_header_text(apply_markup_to_tool=True)
+
+    def _build_body_parts(self, pretty_format_args: bool = True) -> list[str]:
+        """Build the parts that make up the body content.
+
+        Args:
+            pretty_format_args: Whether to pretty-format JSON arguments.
+
+        Returns:
+            List of body content parts.
         """
         parts: list[str] = []
-        full_args = self._format_full_args()
-        if full_args:
-            parts.append(full_args)
+
+        # Add tool arguments if available
+        if self._tool_call and getattr(self._tool_call, "arguments", None):
+            import json
+
+            args = self._tool_call.arguments
+            if isinstance(args, str):
+                with contextlib.suppress(json.JSONDecodeError, TypeError):
+                    args = json.loads(args)
+
+            if pretty_format_args:
+                # Use the existing pretty formatting
+                parts.append(self._format_full_args())
+            else:
+                # Simple JSON dump for render output
+                try:
+                    parts.append(json.dumps(args))
+                except (TypeError, ValueError):
+                    parts.append(str(args))
+
+        # Add result text if available
         if self._result_text:
             parts.append(self._result_text)
+
+        # Add additional content if different from thought
         if self._content_text and self._content_text != self._thought:
             parts.append(self._content_text)
+
+        return parts
+
+    def _get_body_content(self) -> str:
+        """Get the body content with proper formatting for UI display.
+
+        Returns:
+            Formatted body content with markup.
+        """
+        parts = self._build_body_parts(pretty_format_args=True)
         body = "\n".join(parts) if parts else ""
         escaped = _safe_markup(body)
         if self._highlight_term:
@@ -723,16 +772,9 @@ class ToolMessage(CollapsibleMessage):
         """Get the header for render output.
 
         Returns:
-            Header text.
+            Header text without markup for render introspection.
         """
-        if self._tool_call and hasattr(self._tool_call, "name"):
-            compact = self._format_compact_args()
-            name = self._tool_call.name
-            return f"🔧 {name}({compact})" if compact else f"🔧 {name}"
-        elif self._thought:
-            return f"🛠️  {_safe_markup(self._thought)}"
-        else:
-            return "🛠️  Tool call"
+        return self._build_header_text(apply_markup_to_tool=False)
 
     def _get_expanded_content(self) -> str:
         """Get the expanded content for render output.
@@ -740,22 +782,7 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Expanded content text.
         """
-        parts: list[str] = []
-        if self._tool_call and getattr(self._tool_call, "arguments", None):
-            import json
-
-            args = self._tool_call.arguments
-            if isinstance(args, str):
-                with contextlib.suppress(json.JSONDecodeError, TypeError):
-                    args = json.loads(args)
-            try:
-                parts.append(json.dumps(args))
-            except (TypeError, ValueError):
-                parts.append(str(args))
-        if self._result_text:
-            parts.append(self._result_text)
-        if self._content_text and self._content_text != self._thought:
-            parts.append(self._content_text)
+        parts = self._build_body_parts(pretty_format_args=False)
         return "\n".join(parts)
 
     def render(self) -> str:
@@ -912,7 +939,7 @@ class ChatPane(VerticalScroll):
             return
         widget.finalize_as_markdown()
 
-    def _add_widget(self, widget: Static) -> Static:
+    def _add_widget(self, widget: _T) -> _T:
         """Helper method to add a widget to the pane.
 
         Args:
@@ -925,9 +952,7 @@ class ChatPane(VerticalScroll):
         self._try_scroll()
         return widget
 
-    def _create_and_add_widget(
-        self, widget_class: type[Static], *args: Any, **kwargs: Any
-    ) -> Static:
+    def _create_and_add_widget(self, widget_class: type[_T], *args: Any, **kwargs: Any) -> _T:
         """Create and add a widget to the pane.
 
         Args:
@@ -941,12 +966,7 @@ class ChatPane(VerticalScroll):
         widget = widget_class(*args, **kwargs)
         return self._add_widget(widget)
 
-    def _add_typed_message_widget(
-        self,
-        widget_class: type[_T],
-        *args: Any,
-        **kwargs: Any
-    ) -> _T:
+    def _add_typed_message_widget(self, widget_class: type[_T], *args: Any, **kwargs: Any) -> _T:
         """Type-safe method to add a message widget with proper return type.
 
         Args:
@@ -957,15 +977,9 @@ class ChatPane(VerticalScroll):
         Returns:
             The created widget with correct type.
         """
-        widget = self._create_and_add_widget(widget_class, *args, **kwargs)
-        return widget  # type: ignore[return-value]
+        return self._create_and_add_widget(widget_class, *args, **kwargs)
 
-    def _add_message_by_type(
-        self,
-        widget_class: type[_T],
-        *args: Any,
-        **kwargs: Any
-    ) -> _T:
+    def _add_message_by_type(self, widget_class: type[_T], *args: Any, **kwargs: Any) -> _T:
         """Generic method to add a message widget of specified type.
 
         Args:
