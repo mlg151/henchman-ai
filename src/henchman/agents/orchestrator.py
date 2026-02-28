@@ -37,7 +37,7 @@ from henchman.agents.metrics import (
 from henchman.agents.metrics_reporter import MetricsReporter
 from henchman.agents.pool import AgentPool
 from henchman.agents.presets import get_default_team
-from henchman.config.schema import Settings
+from henchman.config.schema import AgentConfig, Settings
 from henchman.core.agent import Agent
 from henchman.core.eventbus import EventBus
 from henchman.core.events import AgentEvent, EventType
@@ -183,7 +183,7 @@ class PromptFactory:
     @classmethod
     def create_tech_lead_prompt(
         cls,
-        agent_configs: dict[str, Any],
+        agent_configs: dict[str, AgentConfig],
         system_prompt: str | None,
         environment_context: str | None,
     ) -> str:
@@ -213,22 +213,22 @@ class PromptFactory:
         )
 
     @classmethod
-    def _get_enabled_agent_configs(cls, agent_configs: dict[str, Any]) -> list[Any]:
+    def _get_enabled_agent_configs(cls: type[PromptFactory], agent_configs: dict[str, Any]) -> list[Any]:
         """Get enabled agent configurations from the config dictionary."""
         return [c for c in agent_configs.values() if c.enabled]
 
     @classmethod
-    def _build_team_members_list(cls, enabled_configs: list[Any]) -> list[str]:
+    def _build_team_members_list(cls: type[PromptFactory], enabled_configs: list[Any]) -> list[str]:
         """Build list of team member descriptions."""
         return [f"{config.name} ({config.role})" for config in enabled_configs]
 
     @classmethod
-    def _build_team_descriptions_dict(cls, enabled_configs: list[Any]) -> dict[str, str]:
+    def _build_team_descriptions_dict(cls: type[PromptFactory], enabled_configs: list[Any]) -> dict[str, str]:
         """Build dictionary of role descriptions."""
         return {config.role: config.description or "" for config in enabled_configs}
 
     @classmethod
-    def _build_delegatable_agents_list(cls, enabled_configs: list[Any]) -> list[str]:
+    def _build_delegatable_agents_list(cls: type[PromptFactory], enabled_configs: list[Any]) -> list[str]:
         """Build list of delegatable agent roles."""
         return [config.role for config in enabled_configs]
 
@@ -318,13 +318,13 @@ class TimeoutSummaryBuilder:
                 lines.append(f"  • {tool[:MAX_TOOL_CALL_DISPLAY_LENGTH]}")
 
     @classmethod
-    def _add_files_section(cls, lines: list[str], files_touched: set[str]) -> None:
+    def _add_files_section(cls: type[TimeoutSummaryBuilder], lines: list[str], files_touched: set[str]) -> None:
         """Add files touched section to summary lines."""
         if files_touched:
             lines.append(f"- Files touched: {', '.join(sorted(files_touched))}")
 
     @classmethod
-    def _add_narration_section(cls, lines: list[str], narration_parts: list[str]) -> None:
+    def _add_narration_section(cls: type[TimeoutSummaryBuilder], lines: list[str], narration_parts: list[str]) -> None:
         """Add narration section to summary lines."""
         if narration_parts:
             lines.append(
@@ -333,7 +333,7 @@ class TimeoutSummaryBuilder:
 
     @classmethod
     def _add_no_progress_section(
-        cls,
+        cls: type[TimeoutSummaryBuilder],
         lines: list[str],
         tools_used: list[str],
         narration_parts: list[str],
@@ -679,51 +679,72 @@ class ExecutionController:
         state = LoopState()
 
         while True:
+            # Phase 1: Collect events and extract pending tool calls
             pending_tool_calls: list[ToolCall] = []
-
-            # Collect events and extract tool calls
             async for event in self.collect_events_and_tool_calls(generator, pending_tool_calls):
                 yield event
 
+            # Phase 2: Handle case with no pending tools
             if not pending_tool_calls:
-                (
-                    should_continue,
-                    events_to_yield,
-                    colon_stall_result,
-                ) = await self._handle_no_pending_tools_flow(agent, state)
-
+                should_break, events_to_yield, new_generator = await self._process_no_pending_tools_case(
+                    agent, state, generator
+                )
                 # Yield any events from thinking patterns or stall failures
                 for event in events_to_yield:
                     yield event
-
-                if not should_continue:
+                if should_break:
                     break
+                if new_generator is not None:
+                    generator = new_generator
+                continue
 
-                if colon_stall_result is not None:
-                    # Colon stall occurred - update generator and continue
-                    generator, state.colon_stall_retries = colon_stall_result
-                    continue
-
-            # Execute pending tools
+            # Phase 3: Execute pending tools and update state
             async for event in self._execute_pending_tools(
                 agent, pending_tool_calls, params, state
             ):
                 yield event
-
             state.tool_call_count += len(pending_tool_calls)
             self.inject_role_anchor(agent, state.tool_call_count)
 
-            # Check turn limits
+            # Phase 4: Check turn limits
             should_break, error_event = self._check_and_handle_turn_limits(agent, params, state)
             if error_event:
                 yield error_event
             if should_break:
                 break
 
-            # Continue with tool results
+            # Phase 5: Continue with tool results for next iteration
             generator = agent.continue_with_tool_results()
 
         self._finalize_agent_loop(agent, state)
+
+    async def _process_no_pending_tools_case(
+        self,
+        agent: Agent,
+        state: LoopState,
+        generator: AsyncIterator[AgentEvent],
+    ) -> tuple[bool, list[AgentEvent], AsyncIterator[AgentEvent] | None]:
+        """Process the case when no tool calls are pending.
+
+        Returns:
+            Tuple of (should_break, events_to_yield, new_generator) where:
+            - should_break: True if loop should break, False otherwise
+            - events_to_yield: List of events to yield to caller
+            - new_generator: Updated generator if colon stall occurred, None otherwise
+        """
+        should_continue, events_to_yield, colon_stall_result = (
+            await self._handle_no_pending_tools_flow(agent, state)
+        )
+
+        if not should_continue:
+            return True, events_to_yield, None
+
+        if colon_stall_result is not None:
+            # Colon stall occurred - update generator and continue
+            new_generator, state.colon_stall_retries = colon_stall_result
+            return False, events_to_yield, new_generator
+
+        return False, events_to_yield, None
 
     def _validate_agent(self, params: AgentLoopParams) -> Agent:
         """Validate that an agent is provided in the parameters."""
