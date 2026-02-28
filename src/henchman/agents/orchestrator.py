@@ -87,6 +87,73 @@ class TurnEnforcementParams:
     msg_start_index: int
     wrapup_warned: bool
 
+    def enforce_limits(self) -> tuple[bool, bool, AgentEvent | None]:
+        """Enforce turn limits with warnings and hard stops.
+
+        Returns:
+            Tuple of (should_break, new_wrapup_warned, error_event).
+        """
+        if self.max_turns <= 0:
+            return False, self.wrapup_warned, None
+
+        remaining = self.max_turns - self.tool_call_count
+
+        if remaining <= 0:
+            return self._handle_turn_limit_reached()
+
+        if not self.wrapup_warned and remaining <= _WRAPUP_WARNING_OFFSET:
+            return self._handle_wrapup_warning(remaining)
+
+        return False, self.wrapup_warned, None
+
+    def _handle_turn_limit_reached(self) -> tuple[bool, bool, AgentEvent | None]:
+        """Handle case when turn limit has been reached."""
+        from .orchestrator import TimeoutSummaryBuilder
+
+        progress = TimeoutSummaryBuilder.build_summary(self.agent, self.msg_start_index)
+        timeout_msg = self._create_turn_limit_message(progress)
+        self.agent.messages.append(Message(role="assistant", content=timeout_msg))
+
+        error_event = self._create_turn_limit_error_event()
+        return True, self.wrapup_warned, error_event
+
+    def _create_turn_limit_message(self, progress: str) -> str:
+        """Create turn limit reached message with progress summary."""
+        return (
+            "[TURN LIMIT REACHED] You have used all available "
+            "turns. Here is a summary of your progress so far:\n\n"
+            f"{progress}\n\n"
+            "The Tech Lead will decide how to proceed."
+        )
+
+    def _create_turn_limit_error_event(self) -> AgentEvent:
+        """Create error event for turn limit reached."""
+        from henchman.core.events import EventType
+
+        role_label = self.agent.identity.role if self.agent.identity else "agent"
+        return AgentEvent(
+            type=EventType.ERROR,
+            data=f"Turn limit ({self.max_turns}) reached for {role_label}",
+            source_agent="orchestrator",
+        )
+
+    def _handle_wrapup_warning(self, remaining: int) -> tuple[bool, bool, AgentEvent | None]:
+        """Handle wrap-up warning when turns are running low."""
+        warn_msg = self._create_wrapup_warning_message(remaining)
+        self.agent.messages.append(Message(role="user", content=warn_msg))
+        return False, True, None
+
+    def _create_wrapup_warning_message(self, remaining: int) -> str:
+        """Create wrap-up warning message."""
+        return (
+            f"[WRAP-UP WARNING] You have {remaining} tool-call "
+            f"turn(s) remaining. Prioritise:\n"
+            f"1. Run any final verification (tests, lint).\n"
+            f"2. Write a completion report using the "
+            f"DELEGATION_SUMMARY_SCHEMA format.\n"
+            f"3. List BLOCKERS if you cannot finish in time."
+        )
+
 
 @dataclass
 class LoopState:
@@ -110,8 +177,9 @@ class NoPendingToolsResult:
 class PromptFactory:
     """Factory for creating agent system prompts."""
 
-    @staticmethod
+    @classmethod
     def create_tech_lead_prompt(
+        cls,
         agent_configs: dict[str, Any],
         system_prompt: str | None,
         environment_context: str | None,
@@ -128,10 +196,10 @@ class PromptFactory:
         """
         from henchman.agents.prompts import get_agent_prompt
 
-        enabled_configs = PromptFactory._get_enabled_agent_configs(agent_configs)
-        team_members = PromptFactory._build_team_members_list(enabled_configs)
-        team_descriptions = PromptFactory._build_team_descriptions_dict(enabled_configs)
-        delegatable_agents = PromptFactory._build_delegatable_agents_list(enabled_configs)
+        enabled_configs = cls._get_enabled_agent_configs(agent_configs)
+        team_members = cls._build_team_members_list(enabled_configs)
+        team_descriptions = cls._build_team_descriptions_dict(enabled_configs)
+        delegatable_agents = cls._build_delegatable_agents_list(enabled_configs)
 
         return system_prompt or get_agent_prompt(
             role="tech_lead",
@@ -141,23 +209,23 @@ class PromptFactory:
             team_descriptions=team_descriptions,
         )
 
-    @staticmethod
-    def _get_enabled_agent_configs(agent_configs: dict[str, Any]) -> list[Any]:
+    @classmethod
+    def _get_enabled_agent_configs(cls, agent_configs: dict[str, Any]) -> list[Any]:
         """Get enabled agent configurations from the config dictionary."""
         return [c for c in agent_configs.values() if c.enabled]
 
-    @staticmethod
-    def _build_team_members_list(enabled_configs: list[Any]) -> list[str]:
+    @classmethod
+    def _build_team_members_list(cls, enabled_configs: list[Any]) -> list[str]:
         """Build list of team member descriptions."""
         return [f"{config.name} ({config.role})" for config in enabled_configs]
 
-    @staticmethod
-    def _build_team_descriptions_dict(enabled_configs: list[Any]) -> dict[str, str]:
+    @classmethod
+    def _build_team_descriptions_dict(cls, enabled_configs: list[Any]) -> dict[str, str]:
         """Build dictionary of role descriptions."""
         return {config.role: config.description or "" for config in enabled_configs}
 
-    @staticmethod
-    def _build_delegatable_agents_list(enabled_configs: list[Any]) -> list[str]:
+    @classmethod
+    def _build_delegatable_agents_list(cls, enabled_configs: list[Any]) -> list[str]:
         """Build list of delegatable agent roles."""
         return [config.role for config in enabled_configs]
 
@@ -165,8 +233,8 @@ class PromptFactory:
 class TimeoutSummaryBuilder:
     """Helper for building timeout summaries for agents."""
 
-    @staticmethod
-    def build_summary(agent: Agent, msg_start: int) -> str:
+    @classmethod
+    def build_summary(cls, agent: Agent, msg_start: int) -> str:
         """Build a progress summary from the agent's work so far.
 
         Called when a specialist hits the turn limit.  Extracts tool calls
@@ -186,22 +254,28 @@ class TimeoutSummaryBuilder:
 
         assistant_messages = [m for m in agent.messages[msg_start:] if m.role == "assistant"]
         for msg in assistant_messages:
-            TimeoutSummaryBuilder._extract_msg_info(msg, tools_used, files_touched, narration_parts)
+            cls._extract_msg_info(msg, tools_used, files_touched, narration_parts)
 
-        return TimeoutSummaryBuilder._format_summary(tools_used, files_touched, narration_parts)
+        return cls._format_summary(tools_used, files_touched, narration_parts)
 
-    @staticmethod
+    @classmethod
     def _extract_msg_info(
-        msg: Message, tools_used: list[str], files_touched: set[str], narration_parts: list[str]
+        cls,
+        msg: Message,
+        tools_used: list[str],
+        files_touched: set[str],
+        narration_parts: list[str],
     ) -> None:
         if msg.tool_calls:
             for tc in msg.tool_calls:
-                TimeoutSummaryBuilder._extract_tool_info(tc, tools_used, files_touched)
+                cls._extract_tool_info(tc, tools_used, files_touched)
         if msg.content:
             narration_parts.append(msg.content[:MAX_SUMMARY_LENGTH])
 
-    @staticmethod
-    def _extract_tool_info(tc: ToolCall, tools_used: list[str], files_touched: set[str]) -> None:
+    @classmethod
+    def _extract_tool_info(
+        cls, tc: ToolCall, tools_used: list[str], files_touched: set[str]
+    ) -> None:
         args_str = ", ".join(
             f"{k}={v!r}" for k, v in list(tc.arguments.items())[:MAX_TOOL_ARGUMENTS_TO_DISPLAY]
         )
@@ -211,20 +285,20 @@ class TimeoutSummaryBuilder:
         if path and isinstance(path, str):
             files_touched.add(path)
 
-    @staticmethod
+    @classmethod
     def _format_summary(
-        tools_used: list[str], files_touched: set[str], narration_parts: list[str]
+        cls, tools_used: list[str], files_touched: set[str], narration_parts: list[str]
     ) -> str:
         """Format timeout summary from collected information."""
         lines = ["**Progress at timeout:**"]
-        TimeoutSummaryBuilder._add_tools_section(lines, tools_used)
-        TimeoutSummaryBuilder._add_files_section(lines, files_touched)
-        TimeoutSummaryBuilder._add_narration_section(lines, narration_parts)
-        TimeoutSummaryBuilder._add_no_progress_section(lines, tools_used, narration_parts)
+        cls._add_tools_section(lines, tools_used)
+        cls._add_files_section(lines, files_touched)
+        cls._add_narration_section(lines, narration_parts)
+        cls._add_no_progress_section(lines, tools_used, narration_parts)
         return "\n".join(lines)
 
-    @staticmethod
-    def _add_tools_section(lines: list[str], tools_used: list[str]) -> None:
+    @classmethod
+    def _add_tools_section(cls, lines: list[str], tools_used: list[str]) -> None:
         """Add tool usage section to summary lines."""
         if tools_used:
             lines.append(f"- Tool calls made: {len(tools_used)}")
@@ -232,23 +306,23 @@ class TimeoutSummaryBuilder:
             for tool in tools_used[-RECENT_TOOLS_TO_SHOW:]:
                 lines.append(f"  • {tool[:MAX_TOOL_CALL_DISPLAY_LENGTH]}")
 
-    @staticmethod
-    def _add_files_section(lines: list[str], files_touched: set[str]) -> None:
+    @classmethod
+    def _add_files_section(cls, lines: list[str], files_touched: set[str]) -> None:
         """Add files touched section to summary lines."""
         if files_touched:
             lines.append(f"- Files touched: {', '.join(sorted(files_touched))}")
 
-    @staticmethod
-    def _add_narration_section(lines: list[str], narration_parts: list[str]) -> None:
+    @classmethod
+    def _add_narration_section(cls, lines: list[str], narration_parts: list[str]) -> None:
         """Add narration section to summary lines."""
         if narration_parts:
             lines.append(
                 f"- Last agent output: {narration_parts[-1][:MAX_NARRATION_DISPLAY_LENGTH]}"
             )
 
-    @staticmethod
+    @classmethod
     def _add_no_progress_section(
-        lines: list[str], tools_used: list[str], narration_parts: list[str]
+        cls, lines: list[str], tools_used: list[str], narration_parts: list[str]
     ) -> None:
         """Add no progress section if nothing was done."""
         if not tools_used and not narration_parts:
@@ -258,7 +332,7 @@ class TimeoutSummaryBuilder:
 class OrchestratorComponent:
     """Base class for orchestrator components with shared initialization."""
 
-    def __init__(self, orchestrator: Orchestrator):
+    def __init__(self, orchestrator: Orchestrator) -> None:
         self.orchestrator = orchestrator
         self.metrics = orchestrator.metrics
 
@@ -570,37 +644,33 @@ class ExecutionController:
         params: AgentLoopParams,
     ) -> AsyncIterator[AgentEvent]:
         """Handle the run loop for an agent, executing tools and intercepting delegations."""
-        agent = params.agent
-        if agent is None:
-            raise ValueError("Agent must be provided in AgentLoopParams")
-
+        agent = self._validate_agent(params)
         generator: AsyncIterator[AgentEvent] = agent.run(params.input_text)
         state = LoopState()
 
         while True:
             pending_tool_calls: list[ToolCall] = []
-
+            
             # Collect events and extract tool calls
             async for event in self.collect_events_and_tool_calls(generator, pending_tool_calls):
                 yield event
 
             if not pending_tool_calls:
-                result = await self._handle_no_pending_tools(agent, state)
-                if result is None:
-                    # Agent finished
-                    break
-
-                events_to_yield, colon_stall_result = result
+                should_continue, events_to_yield, colon_stall_result = await self._handle_no_pending_tools_flow(
+                    agent, state
+                )
+                
+                # Yield any events from thinking patterns or stall failures
                 for event in events_to_yield:
                     yield event
-
+                
+                if not should_continue:
+                    break
+                    
                 if colon_stall_result is not None:
-                    # Colon stall occurred
+                    # Colon stall occurred - update generator and continue
                     generator, state.colon_stall_retries = colon_stall_result
                     continue
-
-                # Agent finished (after yielding events)
-                break
 
             # Execute pending tools
             async for event in self._execute_pending_tools(
@@ -612,18 +682,58 @@ class ExecutionController:
             self.inject_role_anchor(agent, state.tool_call_count)
 
             # Check turn limits
-            turn_limit_result = self._check_turn_limits(agent, params, state)
-            if turn_limit_result is not None:
-                should_break, error_event = turn_limit_result
-                if error_event:
-                    yield error_event
-                if should_break:
-                    break
+            should_break, error_event = self._check_and_handle_turn_limits(agent, params, state)
+            if error_event:
+                yield error_event
+            if should_break:
+                break
 
             # Continue with tool results
             generator = agent.continue_with_tool_results()
 
         self._finalize_agent_loop(agent, state)
+
+    def _validate_agent(self, params: AgentLoopParams) -> Agent:
+        """Validate that an agent is provided in the parameters."""
+        if params.agent is None:
+            raise ValueError("Agent must be provided in AgentLoopParams")
+        return params.agent
+
+    async def _handle_no_pending_tools_flow(
+        self,
+        agent: Agent,
+        state: LoopState,
+    ) -> tuple[bool, list[AgentEvent], tuple[AsyncIterator[AgentEvent], int] | None]:
+        """Handle the flow when no tool calls are pending.
+        
+        Returns:
+            Tuple of (should_continue, events_to_yield, colon_stall_result)
+            where should_continue is True if loop should continue, False to break.
+        """
+        result = await self._handle_no_pending_tools(agent, state)
+        if result is None:
+            # Agent finished with no events
+            return False, [], None
+
+        events_to_yield, colon_stall_result = result
+        return colon_stall_result is not None, events_to_yield, colon_stall_result
+
+    def _check_and_handle_turn_limits(
+        self,
+        agent: Agent,
+        params: AgentLoopParams,
+        state: LoopState,
+    ) -> tuple[bool, AgentEvent | None]:
+        """Check turn limits and handle if reached.
+        
+        Returns:
+            Tuple of (should_break, error_event) where should_break is True
+            if turn limit reached and loop should break.
+        """
+        turn_limit_result = self._check_turn_limits(agent, params, state)
+        if turn_limit_result is not None:
+            return turn_limit_result
+        return False, None
 
     def _finalize_agent_loop(self, agent: Agent, state: LoopState) -> None:
         """Finalize agent loop by storing state and metrics."""
@@ -783,80 +893,7 @@ class ExecutionController:
         params: TurnEnforcementParams,
     ) -> tuple[bool, bool, AgentEvent | None]:
         """Enforce turn limits with warnings and hard stops."""
-        return self._enforce_turn_limits_common(params)
-
-    def _enforce_turn_limits_common(
-        self,
-        params: TurnEnforcementParams,
-    ) -> tuple[bool, bool, AgentEvent | None]:
-        """Common logic for enforcing turn limits with warnings and hard stops.
-
-        Args:
-            params: Parameters for turn limit enforcement.
-
-        Returns:
-            Tuple of (should_break, new_wrapup_warned, error_event).
-        """
-        if params.max_turns <= 0:
-            return False, params.wrapup_warned, None
-
-        remaining = params.max_turns - params.tool_call_count
-
-        if remaining <= 0:
-            return self._handle_turn_limit_reached(params)
-
-        if not params.wrapup_warned and remaining <= _WRAPUP_WARNING_OFFSET:
-            return self._handle_wrapup_warning(params, remaining)
-
-        return False, params.wrapup_warned, None
-
-    def _handle_turn_limit_reached(
-        self, params: TurnEnforcementParams
-    ) -> tuple[bool, bool, AgentEvent | None]:
-        """Handle case when turn limit has been reached."""
-        progress = TimeoutSummaryBuilder.build_summary(params.agent, params.msg_start_index)
-        timeout_msg = self._create_turn_limit_message(progress)
-        params.agent.messages.append(Message(role="assistant", content=timeout_msg))
-
-        error_event = self._create_turn_limit_error_event(params)
-        return True, params.wrapup_warned, error_event
-
-    def _create_turn_limit_message(self, progress: str) -> str:
-        """Create turn limit reached message with progress summary."""
-        return (
-            "[TURN LIMIT REACHED] You have used all available "
-            "turns. Here is a summary of your progress so far:\n\n"
-            f"{progress}\n\n"
-            "The Tech Lead will decide how to proceed."
-        )
-
-    def _create_turn_limit_error_event(self, params: TurnEnforcementParams) -> AgentEvent:
-        """Create error event for turn limit reached."""
-        role_label = params.agent.identity.role if params.agent.identity else "agent"
-        return AgentEvent(
-            type=EventType.ERROR,
-            data=f"Turn limit ({params.max_turns}) reached for {role_label}",
-            source_agent="orchestrator",
-        )
-
-    def _handle_wrapup_warning(
-        self, params: TurnEnforcementParams, remaining: int
-    ) -> tuple[bool, bool, AgentEvent | None]:
-        """Handle wrap-up warning when turns are running low."""
-        warn_msg = self._create_wrapup_warning_message(remaining)
-        params.agent.messages.append(Message(role="user", content=warn_msg))
-        return False, True, None
-
-    def _create_wrapup_warning_message(self, remaining: int) -> str:
-        """Create wrap-up warning message."""
-        return (
-            f"[WRAP-UP WARNING] You have {remaining} tool-call "
-            f"turn(s) remaining. Prioritise:\n"
-            f"1. Run any final verification (tests, lint).\n"
-            f"2. Write a completion report using the "
-            f"DELEGATION_SUMMARY_SCHEMA format.\n"
-            f"3. List BLOCKERS if you cannot finish in time."
-        )
+        return params.enforce_limits()
 
     def assess_completion(self, agent: Agent) -> CompletionStatus:
         """Assess whether an agent performed meaningful work."""
