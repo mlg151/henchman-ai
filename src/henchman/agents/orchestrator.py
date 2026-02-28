@@ -278,7 +278,6 @@ class TimeoutSummaryBuilder:
         return cls._format_summary(tools_used, files_touched, narration_parts)
 
     @staticmethod
-    @staticmethod
     def _extract_msg_info(
         msg: Message,
         tools_used: list[str],
