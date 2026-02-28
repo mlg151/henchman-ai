@@ -1,25 +1,23 @@
 """Base component and validation classes for the orchestrator module.
 
-Provides the shared base class for orchestrator components,
-agent behavior validation, and tool metrics tracking.
+Provides the shared base class for orchestrator components
+and agent behavior validation.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from henchman.core.events import AgentEvent, EventType
-from henchman.providers.base import Message
-
-from .orchestrator_types import (
-    MAX_THINKING_SCORE,
-    MIN_THINKING_LINES,
-    THINKING_QUALITY_INCREMENT,
-    TOOL_ERROR_MAX_LENGTH,
+from .orchestrator_validation import (
+    check_stall_failure,
+    handle_missing_thinking,
+    handle_valid_thinking,
+    should_check_thinking,
 )
 
 if TYPE_CHECKING:
     from henchman.agents.metrics import OrchestratorMetrics
+    from henchman.core.events import AgentEvent
 
 
 class OrchestratorComponent:
@@ -43,17 +41,17 @@ class AgentValidator(OrchestratorComponent):
         agent: Any,
     ) -> AgentEvent | None:
         """Validate Tech Lead thinking patterns and update metrics."""
-        if not _should_check_thinking(self.orchestrator, agent):
+        if not should_check_thinking(self.orchestrator, agent):
             return None
 
         content = agent.messages[-1].content or ""
         stripped = content.strip()
 
         if stripped.startswith("THINKING:"):
-            _handle_valid_thinking(self.metrics, content)
+            handle_valid_thinking(self.metrics, content)
             return None
         if stripped:
-            return _handle_missing_thinking(agent)
+            return handle_missing_thinking(agent)
         return None
 
     def check_stall_failure(
@@ -61,104 +59,4 @@ class AgentValidator(OrchestratorComponent):
         agent: Any,
     ) -> AgentEvent | None:
         """Check if agent has stalled and report failure."""
-        return _check_stall_failure(self.orchestrator, agent)
-
-
-class ToolMetricsController(OrchestratorComponent):
-    """Manages tool metrics and error tracking."""
-
-    def update_tool_metrics(
-        self: ToolMetricsController,
-        tool_name: str,
-        arguments: dict[str, Any],
-        *,
-        success: bool,
-    ) -> None:
-        """Update metrics for a tool call."""
-        self.metrics.update_tool_metrics(tool_name, arguments, success)
-
-    def track_tool_error(
-        self: ToolMetricsController,
-        tool_errors: list[str],
-        tool_name: str,
-        result_content: str | None,
-    ) -> None:
-        """Track tool errors for delegation summaries."""
-        error_message = result_content or "unknown error"
-        tool_errors.append(
-            f"{tool_name}: {error_message[:TOOL_ERROR_MAX_LENGTH]}",
-        )
-
-    def update_delegation_metrics(
-        self: ToolMetricsController,
-        target: str,
-    ) -> None:
-        """Update metrics for a delegation."""
-        self.metrics.delegation_count += 1
-        if target in self.metrics.delegation_by_type:
-            self.metrics.delegation_by_type[target] += 1
-
-
-# ---------------------------------------------------------------------------
-# Module-level helpers (extracted to reduce class size / feature envy)
-# ---------------------------------------------------------------------------
-
-
-def _should_check_thinking(orchestrator: Any, agent: Any) -> bool:
-    """Determine if thinking pattern should be checked for this agent."""
-    return (
-        agent is orchestrator.tech_lead
-        and bool(agent.messages)
-        and agent.messages[-1].role == "assistant"
-    )
-
-
-def _handle_valid_thinking(metrics: Any, content: str) -> None:
-    """Handle valid thinking pattern and update metrics."""
-    metrics.thinking_pattern_usage += 1
-    lines = content.strip().split("\n")
-    numbered = [
-        ln for ln in lines
-        if ln.strip().startswith(("1.", "2.", "3.", "4.", "5."))
-    ]
-    if len(numbered) >= MIN_THINKING_LINES:
-        metrics.thinking_quality_score = min(
-            MAX_THINKING_SCORE,
-            metrics.thinking_quality_score + THINKING_QUALITY_INCREMENT,
-        )
-
-
-def _handle_missing_thinking(agent: Any) -> AgentEvent:
-    """Handle missing thinking pattern by adding reminder."""
-    reminder = (
-        "\n[Thinking Required] Your response must start with THINKING: "
-        "followed by your reasoning process. Please revise."
-    )
-    agent.messages.append(Message(role="user", content=reminder))
-    return AgentEvent(
-        type=EventType.THINKING_REQUIRED,
-        data="Thinking pattern missing in Tech Lead response",
-        source_agent="orchestrator",
-    )
-
-
-def _check_stall_failure(orchestrator: Any, agent: Any) -> AgentEvent | None:
-    """Check if agent has stalled and report failure."""
-    if agent is orchestrator.tech_lead:
-        return None
-    if not getattr(agent, "_stall_failure", False):
-        return None
-
-    role_label = agent.identity.role if agent.identity else "agent"
-    nudge_count = getattr(agent, "_stall_nudge_count", 0)
-    fail_msg = (
-        f"STALL FAILURE: {role_label} announced intent but "
-        f"never used tools after {nudge_count} nudges. "
-        f"The task was NOT completed."
-    )
-    agent.messages.append(Message(role="assistant", content=fail_msg))
-    return AgentEvent(
-        type=EventType.ERROR,
-        data=fail_msg,
-        source_agent=role_label,
-    )
+        return check_stall_failure(self.orchestrator, agent)

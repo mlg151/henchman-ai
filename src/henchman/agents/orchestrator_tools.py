@@ -10,8 +10,9 @@ from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
 
-from .orchestrator_components import OrchestratorComponent, ToolMetricsController
+from .orchestrator_components import OrchestratorComponent
 from .orchestrator_delegation_ctrl import DelegationController
+from .orchestrator_metrics_ctrl import ToolMetricsController
 from .orchestrator_types import DELEGATE_TASK_TOOL, RESULT_PREVIEW_LENGTH
 
 if TYPE_CHECKING:
@@ -38,6 +39,7 @@ class ToolController(OrchestratorComponent):
         self: ToolController,
         tool_name: str,
         args: dict[str, Any],
+        *,
         success: bool = True,
     ) -> None:
         """Delegate to metrics controller for backward compat."""

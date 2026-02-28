@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **`orchestrator.py` refactored to A quality** — Split monolithic 1662-line F-grade file (3.6/100, 137 smells) into 16 focused modules, all grade A (92.7/100, 0 smells).
+  - New modules: `orchestrator_types`, `orchestrator_prompts`, `orchestrator_timeout`, `orchestrator_turns`, `orchestrator_metrics_ctrl`, `orchestrator_validation`, `orchestrator_tools`, `orchestrator_components`, `orchestrator_events`, `orchestrator_loop`, `orchestrator_anchoring`, `orchestrator_execution`, `orchestrator_delegation_ctrl`, `orchestrator_init`, `orchestrator_run`, `orchestrator_tech_lead`.
+  - `orchestrator.py` is now a thin facade (~124 LOC, MI=100) with full backward-compatible re-exports.
+  - Fixed: Long Methods, Large Class, Feature Envy, Primitive Obsession, FBT001/FBT002, TC001/TC003, SLF001, PERF401, RUF022, and all other detected smells.
+  - All 221 agent tests pass with no changes (3 test lines updated for keyword-only `success=` arg).
 - **`textual_app.py` code smell refactoring** — Raised grade from F (30/100) to A (94.4/100).
   - Extracted 12 mixin classes into new `src/henchman/cli/textual_mixins.py` (also grade A, 98.6/100).
   - Resolved Large Class HIGH smell (1760 → ~300 lines), Long Method HIGH, and Duplicate Code HIGH.
