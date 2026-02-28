@@ -213,7 +213,9 @@ class PromptFactory:
         )
 
     @classmethod
-    def _get_enabled_agent_configs(cls: type[PromptFactory], agent_configs: dict[str, Any]) -> list[Any]:
+    def _get_enabled_agent_configs(
+        cls: type[PromptFactory], agent_configs: dict[str, AgentConfig]
+    ) -> list[AgentConfig]:
         """Get enabled agent configurations from the config dictionary."""
         return [c for c in agent_configs.values() if c.enabled]
 
