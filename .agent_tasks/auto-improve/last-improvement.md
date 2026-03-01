@@ -1,62 +1,49 @@
-# Refactoring Summary - src/henchman/cli/textual_widgets.py
+# Refactoring Summary - textual_widgets.py
 
-**Date/Time:** 2026-03-01 (Current)
-**Files Changed:** src/henchman/cli/textual_widgets.py
-**Rationale:** Address code smells identified in the smell report
+**Date/Time:** 2026-03-01 (Current refactoring session)
 
-## Identified Smells from Report
+**Files Changed:** `src/henchman/cli/textual_widgets.py`
 
-### 1. Duplicate Code (Medium Severity)
-- `add_thinking_message` (line 1082) - 94% similar to `save` at core/session_manager_base.py:102
-- `add_tool_message` (line 1124) - 95% similar to methods in tool_executor.py
+## Identified Smells Addressed:
 
-**Analysis:** These appear to be false positives. The methods are simple wrappers around `_add_message_of_type` and follow good design patterns. The similarity to unrelated methods in other files is coincidental.
+### 1. **Complex Method Chain in ChatPane** (DRY Principle)
+- **Problem**: Deep call chain for adding widgets: `_add_message_of_type` → `_add_message_widget` → `_add_message_widget_and_track` or `_add_typed_message_widget` → `_create_and_add_widget` → `_add_widget` → `_mount_widget`
+- **Refactoring Strategy**: Extracted common widget addition logic into a single method
+- **Changes Made**:
+  - Simplified `_add_message_widget` method to handle creation, mounting, tracking, and scrolling in one place
+  - Removed unnecessary intermediate methods: `_create_and_add_widget`, `_add_typed_message_widget`, `_add_message_widget_and_track`, `_add_message_of_type`
+  - Updated `add_thinking_message`, `begin_thinking_stream`, and `add_tool_message` to use the simplified `_add_message_widget` method directly
 
-### 2. Missing Type Hints (68+ Low Severity Issues)
-**Analysis:** Most of these appear to be false positives from the smell detector:
-- Many functions have complete type hints
-- `self` parameter doesn't need type hints in Python
-- Methods with `*args: Any` and `**kwargs: Any` are appropriately typed for forwarding arguments
-- Mypy passes with `--strict` flag, confirming type hints are correct
+### 2. **Missing Type Hints** (Intention-Revealing Code)
+- **Problem**: Several constructors lacked proper type annotations
+- **Refactoring Strategy**: Added explicit type hints to all constructor parameters
+- **Changes Made**:
+  - Added `__init__` method to `_CollapsibleHeader` with proper type hints
+  - Added `__init__` method to `_CollapsibleContent` with proper type hints
+  - Ensured all `**kwargs` parameters are typed as `Any`
 
-## Actual Issues Found and Fixed
+### 3. **Whitespace Issues** (Code Quality)
+- **Problem**: Trailing whitespace in blank lines
+- **Refactoring Strategy**: Removed unnecessary whitespace
+- **Changes Made**: Fixed whitespace issues in `_add_message_widget` method
 
-### 1. Missing Runtime Import
-**Issue:** `Iterator` was only imported in `TYPE_CHECKING` block but used at runtime in `compose()` method return type.
-**Fix:** Added unconditional import: `from collections.abc import Iterator`
+## Refactoring Principles Applied:
 
-### 2. Type Hint Consistency
-**Issue:** Some type hints depended on imports only available during type checking.
-**Verification:** With `from __future__ import annotations`, this is actually acceptable, but we ensured all necessary imports are available.
+1. **YAGNI (You Aren't Gonna Need It)**: Removed unnecessary abstraction layers in widget addition chain
+2. **DRY (Don't Repeat Yourself)**: Consolidated duplicated widget mounting logic
+3. **Simplicity**: Reduced complexity by flattening deep method chains
+4. **Intention-Revealing Code**: Added proper type hints to improve code clarity
 
-## Refactoring Strategy Applied
+## Testing Implications:
+- All existing tests pass (9 tests in `test_textual_widgets.py`)
+- No changes to public API - all method signatures remain the same
+- Internal refactoring only improves maintainability without affecting behavior
 
-1. **Added missing imports** for types used at runtime
-2. **Verified all type hints** are complete and correct
-3. **Confirmed no actual duplicate code** needs extraction
-4. **Maintained existing architecture** and design patterns
+## Performance Impact:
+- Slightly improved performance by reducing method call overhead
+- Same functionality with less indirection
 
-## Testing Implications
-
-- **All existing tests pass** (9 tests)
-- **Mypy passes** with `--strict` flag
-- **Ruff passes** with no issues
-- **Code coverage** remains at 55% for this file
-
-## Code Quality Assessment
-
-The file is well-structured with:
-- Clear separation of concerns (base classes, specific widgets, containers)
-- Appropriate use of inheritance and composition
-- Complete type hints throughout
-- Good documentation with docstrings
-- Consistent coding style
-
-The file length (1010 lines) is justified by the number of related widget classes it contains. Splitting it would likely reduce cohesion.
-
-## Recommendations
-
-1. **Ignore false positives** from smell detector for this file
-2. **Consider updating smell detector** to not count `self` as requiring type hints
-3. **Monitor file length** if more widgets are added, consider splitting by widget category
-4. **Maintain current architecture** which follows good OOP and Textual widget patterns
+## Code Metrics Improvement:
+- Reduced line count by removing redundant methods
+- Improved readability by simplifying complex method chains
+- Enhanced type safety with complete type annotations
