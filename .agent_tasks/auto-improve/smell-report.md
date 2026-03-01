@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T05:30:19.217671+00:00_
+_Generated: 2026-03-01T06:30:19.474058+00:00_
 
 ## Executive Summary
 
@@ -11,32 +11,32 @@ _Generated: 2026-03-01T05:30:19.217671+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 50.2/100 |
 | **Files Scanned** | 180 |
-| **Total Lines (non-blank)** | 31,419 |
-| **Total Smells** | 2303 |
+| **Total Lines (non-blank)** | 31,637 |
+| **Total Smells** | 2283 |
 | **Avg Maintainability Index** | 71.3 |
-| **Avg Cyclomatic Complexity** | 13.6 |
+| **Avg Cyclomatic Complexity** | 13.5 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
 | low | 1623 |
-| medium | 591 |
-| high | 89 |
+| medium | 572 |
+| high | 88 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1089 |
-| Feature Envy | 322 |
+| Missing Type Hint | 1093 |
+| Feature Envy | 317 |
 | Duplicate Code | 300 |
-| Magic Number | 149 |
-| Long Method | 145 |
-| Deep Nesting | 139 |
+| Magic Number | 144 |
+| Long Method | 139 |
+| Deep Nesting | 135 |
 | Primitive Obsession | 80 |
-| Complex Function | 47 |
-| Large Class | 32 |
+| Complex Function | 44 |
+| Large Class | 31 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,44 +107,20 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | utils/compaction.py | ❌ F | 10.3 | 58 | 546 | 34 | 14.8 |
-| 2 | extensions/plugin_manager.py | ❌ F | 10.5 | 82 | 689 | 35 | 0.0 |
-| 3 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
-| 4 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
-| 5 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
-| 6 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
-| 7 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
-| 8 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
-| 9 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
-| 10 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
+| 1 | extensions/plugin_manager.py | ❌ F | 10.5 | 82 | 689 | 35 | 0.0 |
+| 2 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
+| 3 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
+| 4 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
+| 5 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
+| 6 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
+| 7 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
+| 8 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
+| 9 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
+| 10 | tools/builtins/dead_code.py | ❌ F | 15.0 | 49 | 301 | 50 | 15.5 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 160 additional files omitted._
-
-### utils/compaction.py — ❌ F (10.3/100)
-
-LOC: 546 | Classes: 4 | Functions: 1 | MI: 34 | Avg CC: 14.8
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 465 | 🟠 HIGH | Feature Envy | Method 'ContextCompactor._truncate_protected_zone' accesses 'msg' 11 times but 'self' only 0 times | Move Method — consider moving '_truncate_protected_zone' to the class that owns 'msg'. |
-| 63 | 🟡 MEDIUM | Large Class | Class 'ContextCompactor' spans 528 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 86 | 🟡 MEDIUM | Feature Envy | Method 'ContextCompactor.enforce_safety_limits' accesses 'msg' 7 times but 'self' only 1 times | Move Method — consider moving 'enforce_safety_limits' to the class that owns 'msg'. |
-| 102 | 🟡 MEDIUM | Magic Number | Magic number 0.75 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 142 | 🟡 MEDIUM | Long Method | Function '_group_into_sequences' has 51 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 142 | 🟡 MEDIUM | Complex Function | Function '_group_into_sequences' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 186 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_group_into_sequences' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 189 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_group_into_sequences' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 191 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_group_into_sequences' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 496 | 🟡 MEDIUM | Magic Number | Magic number 500 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 498 | 🟡 MEDIUM | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 499 | 🟡 MEDIUM | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 503 | 🟡 MEDIUM | Magic Number | Magic number 200 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 505 | 🟡 MEDIUM | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 521 | 🟡 MEDIUM | Feature Envy | Method 'ContextCompactor.validate_compacted_sequence' accesses 'msg' 5 times but 'self' only 0 times | Move Method — consider moving 'validate_compacted_sequence' to the class that owns 'msg'. |
-
-_... and 43 more smells._
 
 ### extensions/plugin_manager.py — ❌ F (10.5/100)
 
@@ -601,6 +577,30 @@ LOC: 273 | Classes: 1 | Functions: 0 | MI: 55 | Avg CC: 0.0
 | 41 | 🟢 LOW | Missing Type Hint | Function 'parameters' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 16 more smells._
+
+### metrics/dashboard.py — ❌ F (16.9/100)
+
+LOC: 265 | Classes: 1 | Functions: 0 | MI: 56 | Avg CC: 14.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 74 | 🟡 MEDIUM | Long Method | Function 'get_summary_stats' has 77 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 74 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard.get_summary_stats' accesses 'stat' 6 times but 'self' only 4 times | Move Method — consider moving 'get_summary_stats' to the class that owns 'stat'. |
+| 74 | 🟡 MEDIUM | Complex Function | Function 'get_summary_stats' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 158 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard.export_data' accesses 'writer' 7 times but 'self' only 1 times | Move Method — consider moving 'export_data' to the class that owns 'writer'. |
+| 259 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard._create_token_panel' accesses 'table' 5 times but 'self' only 1 times | Move Method — consider moving '_create_token_panel' to the class that owns 'table'. |
+| 259 | 🟡 MEDIUM | Duplicate Code | Function '_create_token_panel' is 96% similar to '_create_cost_panel' at metrics/dashboard.py:281 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 259 | 🟡 MEDIUM | Duplicate Code | Function '_create_token_panel' is 98% similar to '_create_tool_panel' at metrics/dashboard.py:303 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 259 | 🟡 MEDIUM | Duplicate Code | Function '_create_token_panel' is 98% similar to '_create_usage_panel' at metrics/dashboard.py:325 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 281 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard._create_cost_panel' accesses 'table' 5 times but 'self' only 1 times | Move Method — consider moving '_create_cost_panel' to the class that owns 'table'. |
+| 281 | 🟡 MEDIUM | Duplicate Code | Function '_create_cost_panel' is 94% similar to '_create_tool_panel' at metrics/dashboard.py:303 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 281 | 🟡 MEDIUM | Duplicate Code | Function '_create_cost_panel' is 94% similar to '_create_usage_panel' at metrics/dashboard.py:325 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 303 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard._create_tool_panel' accesses 'table' 5 times but 'self' only 1 times | Move Method — consider moving '_create_tool_panel' to the class that owns 'table'. |
+| 303 | 🟡 MEDIUM | Duplicate Code | Function '_create_tool_panel' is 96% similar to '_create_usage_panel' at metrics/dashboard.py:325 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 325 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard._create_usage_panel' accesses 'table' 5 times but 'self' only 1 times | Move Method — consider moving '_create_usage_panel' to the class that owns 'table'. |
+| 22 | 🟢 LOW | Large Class | Class 'Dashboard' spans 324 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+
+_... and 25 more smells._
 
 ## ✨ Clean Files (55 files with no smells)
 
