@@ -189,6 +189,16 @@ class SessionDisplayContext:
 
 
 @dataclass
+class SessionFieldDisplayParams:
+    """Parameters for formatting session field information to reduce primitive obsession."""
+
+    field_name: str
+    icon: str
+    label: str
+    max_id_len: int
+
+
+@dataclass
 class SessionAttributeParams:
     """Parameters for formatting session attributes to reduce primitive obsession."""
 
@@ -546,50 +556,26 @@ class SessionDisplayFormatter:
         return f"  {tag_display} - {meta.message_count} messages, updated {truncated_date}"
 
     @staticmethod
-    def _format_session_info_by_field(
-        session: Session,
-        field_name: str,
-        icon: str,
-        label: str,
-        max_id_len: int,
-    ) -> str:
-        """Format session information based on a field.
-
-        Args:
-            session: The session object.
-            field_name: Name of the field to check (e.g., 'parent_id', 'template_id').
-            icon: The icon to display.
-            label: The label text.
-            max_id_len: Maximum ID display length.
-
-        Returns:
-            Formatted info string or empty string.
-        """
-        condition = getattr(session, field_name, None)
-        attr_info = AttributeDisplayInfo(
-            condition=condition, icon=icon, label=label, max_id_len=max_id_len
-        )
-        return attr_info.format_attribute_info()
-
-    @staticmethod
     def _format_session_field_info(
-        session: Session, field_name: str, icon: str, label: str, max_id_len: int
+        session: Session, params: SessionFieldDisplayParams
     ) -> str:
         """Format session field information for display.
 
         Args:
             session: The session object.
-            field_name: Name of the field to check (e.g., 'parent_id', 'template_id').
-            icon: The icon to display.
-            label: The label text.
-            max_id_len: Maximum ID display length.
+            params: Display parameters for the field.
 
         Returns:
-            Formatted field info string.
+            Formatted field info string or empty string.
         """
-        return SessionDisplayFormatter._format_session_info_by_field(
-            session=session, field_name=field_name, icon=icon, label=label, max_id_len=max_id_len
+        condition = getattr(session, params.field_name, None)
+        attr_info = AttributeDisplayInfo(
+            condition=condition,
+            icon=params.icon,
+            label=params.label,
+            max_id_len=params.max_id_len
         )
+        return attr_info.format_attribute_info()
 
     @staticmethod
     def _format_branch_info(session: Session, max_id_len: int) -> str:
@@ -602,13 +588,13 @@ class SessionDisplayFormatter:
         Returns:
             Formatted branch info string.
         """
-        return SessionDisplayFormatter._format_session_field_info(
-            session=session,
+        params = SessionFieldDisplayParams(
             field_name="parent_id",
             icon="[yellow]↳[/]",
             label="branch from",
             max_id_len=max_id_len,
         )
+        return SessionDisplayFormatter._format_session_field_info(session, params)
 
     @staticmethod
     def _format_template_info(session: Session, max_id_len: int) -> str:
@@ -621,31 +607,29 @@ class SessionDisplayFormatter:
         Returns:
             Formatted template info string.
         """
-        return SessionDisplayFormatter._format_session_field_info(
-            session=session,
+        params = SessionFieldDisplayParams(
             field_name="template_id",
             icon="[magenta]ⓣ[/]",
             label="template:",
             max_id_len=max_id_len,
         )
+        return SessionDisplayFormatter._format_session_field_info(session, params)
 
     @staticmethod
-    def _format_session_attribute_info(
-        condition: str | None, icon: str, label: str, max_id_len: int
-    ) -> str:
+    def _format_session_attribute_info(params: SessionAttributeParams) -> str:
         """Format a session attribute for display.
 
         Args:
-            condition: The condition to check (e.g., parent_id, template_id).
-            icon: The icon to display.
-            label: The label text.
-            max_id_len: Maximum ID display length.
+            params: Display parameters for the attribute.
 
         Returns:
             Formatted attribute info string or empty string.
         """
         attr_info = AttributeDisplayInfo(
-            condition=condition, icon=icon, label=label, max_id_len=max_id_len
+            condition=params.condition,
+            icon=params.icon,
+            label=params.label,
+            max_id_len=params.max_id_len
         )
         return attr_info.format_attribute_info()
 
