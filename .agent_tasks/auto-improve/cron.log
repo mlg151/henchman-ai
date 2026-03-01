@@ -208811,3 +208811,1110 @@ TOTAL                                                  14547   2411   4086    46
 =========== 2586 passed, 5 skipped, 32 warnings in 163.44s (0:02:43) ===========
 [2026-03-01T22:00:03Z] All tests passed.
 Committing changes...
+[main 5735c07] chore(auto-improve): automated codebase improvement
+ 5 files changed, 2536 insertions(+), 460 deletions(-)
+ create mode 100644 src/henchman/cli/commands/session.py.backup
+[2026-03-01T22:00:03Z] Auto-improve complete.
+[2026-03-01T22:30:02Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-01T22:30:02Z] Targeting lowest-graded file: cli/commands/session.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll analyze the target file `src/henchman/cli/commands/session.py` and refactor it according to the XP principles. Let me first read the file to understand its structure and identify the specific smells mentioned in the report.
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py'})
+
+
+[result] """Enhanced session management command.
+
+This module provides the /session command for advanced session operations
+including branching, merging, templates, and export/import.
+"""
+
+from __future__ impo...
+Now let me check the smell report to see which specific smells are mentioned for this file:
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md', 
+'start_line': 1, 'end_line': 100})
+
+[result] # Code Smell Report — ❌ F (Score: 50.5/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-01T22:30:16.215725+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:|...
+Let me see the specific smells for the session.py file:
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md', 
+'start_line': 120, 'end_line': 180})
+
+[result] 
+## 📁 Per-File Details
+
+_Showing 20 worst files. 166 additional files omitted._
+
+### cli/commands/session.py — ❌ F (9.4/100)
+
+LOC: 710 | Classes: 19 | Functions: 0 | MI: 31 | Avg CC: 0.0
+
+| Line | Sev...
+Now let me run the tests to see the current state before refactoring:
+[tool] pytest_run({'path': 'tests/cli/commands/test_session.py'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good, tests are passing. Now let me analyze the code smells in detail. Looking at the smell report, I can see that `session.py` has 55 smells, mostly "Missing Type Hint" issues. Let me examine the file more carefully to understand the structure and identify all the issues:
+
+**Identified Smells from the report:**
+1. **Missing Type Hints** (55 instances) - Functions missing parameter and return type annotations
+2. **Large Class** - 19 classes in the file (though not flagged as high severity in the report)
+3. **Feature Envy** - Some methods access external objects more than self
+
+Let me refactor the file systematically. First, I'll create a backup and then apply the refactoring:
+[tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
+'content': '# Session Command Refactoring - 2026-03-01\n\n## Summary\nRefactored
+`src/henchman/cli/commands/session.py` to address 55 code smells identified in 
+the smell report. The primary issues were missing type hints across the entire 
+file.\n\n## Files Changed\n- `src/henchman/cli/commands/session.py` - Complete 
+refactoring with type hints added\n\n## Changes Made\n\n### 1. Fixed Missing 
+Type Hints (55 instances)\n- Added proper type annotations to all function 
+parameters and return types\n- Used `from __future__ import annotations` for 
+forward references\n- Added proper imports for type checking 
+(`TYPE_CHECKING`)\n\n### 2. Improved Code Structure\n- Maintained existing class
+hierarchy and design patterns\n- Preserved all functionality while adding type 
+safety\n- Enhanced readability with consistent type annotations\n\n### 3. Key 
+Refactoring Patterns Applied\n- **Add Type Annotations**: All public and private
+methods now have complete type hints\n- **Extract Constant**: Magic numbers 
+extracted to named constants at module level\n- **Preserve Interface**: No 
+changes to public API signatures\n- **Maintain Test Compatibility**: All 
+existing tests continue to pass\n\n### 4. Testing Implications\n- All existing 
+tests pass without modification\n- Type checking (mypy) will now catch 
+type-related errors\n- Improved IDE support and code completion\n- Better 
+documentation through type annotations\n\n## Rationale\nThe file had a 
+maintainability index of 31 (very low) primarily due to missing type hints. 
+Adding type annotations:\n1. Improves code readability and maintainability\n2. 
+Enables static type checking to catch errors early\n3. Provides better IDE 
+support and documentation\n4. Follows Python best practices (PEP 484, PEP 
+526)\n5. Maintains 100% backward compatibility\n\n## Verification\n- ✅ All 5 
+existing tests pass\n- ✅ No changes to public API\n- ✅ All type hints added\n-
+✅ Code functionality preserved\n- ✅ Follows PEP 8 and project conventions'})
+
+[result] Successfully wrote 1922 bytes to 
+.agent_tasks/auto-improve/last-improvement.md...
+Now let me refactor the file by adding all the missing type hints. I'll go through the file method by method:
+[tool] edit_file({'path': 'src/henchman/cli/commands/session.py', 'old_str': '  
+def format_optional_info(self) -> str:\n        """Format optional session 
+information for display.\n\n        Returns:\n            Formatted info string 
+or empty string.\n        """\n        if self.condition and self.value:\n      
+truncated_value = self.value[: self.max_id_len] if self.max_id_len > 0 else 
+self.value\n            return f" {self.icon} {self.label}{truncated_value}"\n  
+return ""', 'new_str': '    def format_optional_info(self) -> str:\n        
+"""Format optional session information for display.\n\n        Returns:\n       
+Formatted info string or empty string.\n        """\n        if self.condition 
+and self.value:\n            truncated_value = self.value[: self.max_id_len] if 
+self.max_id_len > 0 else self.value\n            return f" {self.icon} 
+{self.label}{truncated_value}"\n        return ""'})
+
+[result] Successfully edited src/henchman/cli/commands/session.py...
+Actually, that method already has proper type hints. Let me check the specific lines mentioned in the smell report. Looking at line 56, it says the function `format_optional_info` has 1/1 params untyped. But I see it's a method with `self` parameter. Let me check the actual issue - it might be that the method signature needs the return type explicitly (which it already has). Let me look at the actual file structure more carefully.
+
+Actually, looking at the smell report again, it says "Function 'format_optional_info' has incomplete type hints: 1/1 params untyped". This is confusing because `self` doesn't need a type annotation. Let me check if there are other methods without proper annotations. Let me examine the file more systematically:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+50, 'end_line': 80})
+
+[result]     condition: str | None
+    icon: str
+    label: str
+    value: str | None
+    max_id_len: int
+
+    def format_optional_info(self) -> str:
+        """Format optional session information for display....
+I see - the smell detector might be counting `self` as a parameter that needs type annotation (which is incorrect for Python). However, let me check if there are actual missing type hints. Let me look at the `CommandOperationContext` class methods:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+110, 'end_line': 150})
+
+[result]     """Context for command operations to reduce feature envy."""
+
+    console: Console
+    args: list[str]
+    session_manager: SessionManager | None = None
+    project_hash: str | None = None
+
+    de...
+I need to refactor this file systematically. Let me run a type check to see what mypy says about the current file:
+[tool] lint_check({'path': 'src/henchman/cli/commands/session.py', 'linter': 
+'mypy'})
+
+[result] === mypy ===
+Success: no issues found in 1 source file...
+Interesting, mypy passes. Let me check if there are actual missing type hints by looking at the raw smell report data. The issue might be with the smell detector being overly strict about `self` parameters. However, let me check the actual methods that might have missing return types or parameter types.
+
+Let me look at the `get_arg`, `get_arg_or_empty`, and `has_min_args` methods:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+150, 'end_line': 190})
+
+[result] 
+    def get_arg(self, index: int, default: str | None = None) -> str | None:
+        """Get argument at index or default if out of bounds.
+
+        Args:
+            index: Argument index.
+          ...
+These methods already have proper type hints. Let me check the abstract base class and its methods:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+210, 'end_line': 230})
+
+[result]     """Abstract base class for session command executors."""
+
+    def __init__(self, op_context: CommandOperationContext) -> None:
+        self.op_context = op_context
+
+    @abstractmethod
+    async d...
+These also have proper type hints. Let me check if the issue is with the TYPE_CHECKING imports. Actually, I think I need to understand what the smell detector is actually complaining about. Let me run ruff to see if it shows any issues:
+[tool] lint_check({'path': 'src/henchman/cli/commands/session.py', 'linter': 
+'ruff'})
+
+[result] === ruff ===
+All checks passed!...
+Both mypy and ruff pass. This suggests the smell detector might be using different rules or there might be a false positive. However, as an XP Refactoring Agent, I should address the reported smells regardless. Let me check if there are any methods without proper return type annotations by scanning the file more thoroughly.
+
+Actually, looking at the smell report again, it says "55 smells" for this file. The report shows 15 specific lines with "Missing Type Hint" issues, and says "... and 40 more smells." This suggests there are indeed many missing type hints.
+
+Let me check if the issue is with methods that don't have explicit return type annotations. In Python, if a function doesn't have a `->` return type annotation, it's considered untyped. Let me search for methods without return type annotations:
+
+Actually, I think the issue might be that the smell detector is looking at the code differently. Let me create a comprehensive refactoring by ensuring every single function and method has explicit type annotations. Let me write a completely refactored version:
+Repair: assistant at index 27 missing tool responses for ['call_00_AyRwYDs1i3o6kHbwBRJobRew'] — stripping tool_calls
+Message sequence repaired: 30 → 30 messages
+THINKING: I need to actually refactor the file, not just analyze it. The smell report shows 55 missing type hint issues in session.py. I should systematically add type hints to all functions and methods. Let me first check the current state of type hints in the file by looking for methods that might be missing them. The issue might be that some methods don't have explicit return type annotations or parameter type annotations. Let me check the end of the file where the SessionCommand class is defined:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+600, 'end_line': 650})
+
+[result]             field_key: Key identifying which field to format (e.g., 
+"parent_id", "template_id").
+            max_id_len: Maximum ID display length.
+
+        Returns:
+            Formatted field info s...
+Let me check the SessionCommandHelper methods:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+650, 'end_line': 700})
+
+[result]         Args:
+            command: The parent session command.
+        """
+        self.command = command
+        self.formatter = SessionDisplayFormatter()
+
+    def _get_manager(self, op_context: Com...
+Now let me check the SessionCommand methods:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+700, 'end_line': 750})
+
+[result]         "[dim]Strategies: union, intersection, smart[/]",
+        "[dim]Formats: json (default), markdown[/]",
+    ]
+
+    def __init__(self) -> None:
+        """Initialize session command with helper....
+I need to see the rest of the execute method and other methods. Let me check if there are any methods without proper type annotations. Actually, I think I need to approach this differently. The smell detector is reporting missing type hints, so I should add explicit type annotations to EVERY function and method, even if Python can infer them. Let me check the actual end of the file to see all methods:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+750, 'end_line': 800})
+
+[result]             "branch": BranchExecutor,
+            "merge": MergeExecutor,
+            "export": ExportExecutor,
+            "import": ImportExecutor,
+        }
+
+        executor_class = executor_map.g...
+THINKING: I need to actually refactor the code, not just analyze it. Looking at the code, I can see that most methods already have type hints. However, the smell detector is reporting 55 missing type hints. Let me check if there are properties or methods without return type annotations. Actually, I notice that the `_help_command_name` and `_help_lines` class attributes don't have type annotations. Also, let me check if there are any methods in the middle of the file that I haven't seen yet. 
+
+Actually, I think the issue might be that the smell detector is looking at the raw AST and counting every function/method. Let me run a more thorough check by looking for any missing annotations. But first, let me actually make the refactoring changes. I'll add type annotations to any missing spots.
+
+Looking at the code structure, I see that `_help_command_name` and `_help_lines` are class attributes without type annotations. Also, I should check all the executor classes (BranchExecutor, MergeExecutor, etc.) to ensure their methods have proper type hints.
+
+Let me start by adding type annotations to the class attributes in SessionCommand:
+[tool] edit_file({'path': 'src/henchman/cli/commands/session.py', 'old_str': 
+'class SessionCommand(BaseCommand):\n    """/session command for enhanced 
+session management."""\n\n    _help_command_name = "Enhanced Session"\n    
+_help_lines = [\n        "  /session branch <id> <point> [tag]  - Branch from 
+session at message point",\n        "  /session merge <id1> <id2> [strategy] 
+[tag] - Merge sessions",\n        "  /session template save <id> <name>  - Save 
+session as template",\n        "  /session template create <name>     - Create 
+from template",\n        "  /session template list              - List 
+templates",\n        "  /session template delete <id>       - Delete 
+template",\n        "  /session export <id> [format]       - Export session 
+(json/markdown)",\n        "  /session import <file> [format]     - Import 
+session",\n        "  /session list                       - List sessions with 
+enhanced info",\n        "",\n        "[dim]Strategies: union, intersection, 
+smart[/]",\n        "[dim]Formats: json (default), markdown[/]",\n    ]', 
+'new_str': 'class SessionCommand(BaseCommand):\n    """/session command for 
+enhanced session management."""\n\n    _help_command_name: str = "Enhanced 
+Session"\n    _help_lines: list[str] = [\n        "  /session branch <id> 
+<point> [tag]  - Branch from session at message point",\n        "  /session 
+merge <id1> <id2> [strategy] [tag] - Merge sessions",\n        "  /session 
+template save <id> <name>  - Save session as template",\n        "  /session 
+template create <name>     - Create from template",\n        "  /session 
+template list              - List templates",\n        "  /session template 
+delete <id>       - Delete template",\n        "  /session export <id> [format] 
+- Export session (json/markdown)",\n        "  /session import <file> [format]  
+- Import session",\n        "  /session list                       - List 
+sessions with enhanced info",\n        "",\n        "[dim]Strategies: union, 
+intersection, smart[/]",\n        "[dim]Formats: json (default), markdown[/]",\n
+]'})
+
+[result] Successfully edited src/henchman/cli/commands/session.py...
+Now let me check if there are any methods in the executor classes that might be missing type hints. Let me look at the BranchExecutor's execute method:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+240, 'end_line': 280})
+
+[result]         """Execute branch operation."""
+        if not self._ensure_args(DEFAULT_MIN_ARGS_FOR_BRANCH, "/session branch 
+<id> <point> [tag]"):
+            return
+
+        session_id = self.op_context.ge...
+The BranchExecutor's execute method has the async keyword but I don't see the method signature in this snippet. Let me check the full method signature:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+235, 'end_line': 245})
+
+[result] 
+class BranchExecutor(SessionCommandExecutor):
+    """Executor for branch operations."""
+
+    async def execute(self, manager: SessionManager) -> None:
+        """Execute branch operation."""
+        ...
+That has proper type hints. Let me check the MergeExecutor's `_parse_strategy_and_tag` method:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+280, 'end_line': 310})
+
+[result] 
+        if not session_id1 or not session_id2:
+            return [], "smart", None
+
+        session_ids = [session_id1, session_id2]
+
+        # Parse optional arguments
+        strategy_arg = self.o...
+That also has proper type hints. Let me check if there are any methods without docstrings or type hints in the Template executors. Actually, I think I need to run a proper analysis. Let me write a script to check for missing type hints, but first let me check the end of the file for any other methods:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+800, 'end_line': 850})
+
+[result]             return
+
+        action_arg = op_context.get_arg(1, "")
+        action = action_arg.lower() if action_arg else ""
+        executor_map: dict[str, type[SessionCommandExecutor]] = {
+         ...
+Let me check the rest of the `_display_sessions_list` method and other methods:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+850, 'end_line': 900})
+
+[result] 
+        for meta in sessions:
+            self._display_session_entry(op_context, manager, meta, params)
+
+    def _display_session_entry(
+        self,
+        op_context: CommandOperationContext,
+  ...
+Let me see the end of the file:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+900, 'end_line': 950})
+
+[result]         op_context: CommandOperationContext,
+        meta: SessionMetadata,
+        params: SessionListParams,
+    ) -> None:
+        """Display basic session information when enhanced info fails.
+
+  ...
+Now I need to think about this differently. The smell detector is reporting 55 missing type hints. Looking at the code, most methods seem to have type hints. However, I notice that some of the methods in the middle might be missing them. Let me check the Template executors more carefully. Actually, I think the issue might be with the `__init__` methods of some classes. Let me check if they have proper type hints.
+
+Actually, wait. I just realized something. The smell report says "Functions: 0" for this file, but there are many methods. This suggests the smell detector might be counting instance methods as "functions" and complaining that `self` doesn't have a type annotation. In Python, `self` doesn't need a type annotation, but some strict type checkers might flag it.
+
+However, as an XP Refactoring Agent, I should fix the reported issues. Let me add explicit type annotations to ALL methods, including adding `-> None` return types to methods that don't return anything. Let me also check if there are any properties without type annotations.
+
+Actually, let me run a test to see what happens if I add type annotations to `self`. That's not standard Python, but let me check if that's what the detector wants. Actually, no, that would be wrong.
+
+Let me think about this more systematically. The file has 19 classes. If each class has an average of 3 methods, that's 57 methods. If the smell detector is counting each method as having missing type hints for the `self` parameter, that would explain the 55 smells.
+
+But actually, looking at the smell report examples, it says "Function 'format_optional_info' has incomplete type hints: 1/1 params untyped". This suggests it's counting `self` as a parameter that needs a type.
+
+Hmm, but mypy and ruff don't complain about this. This might be a false positive in the smell detector. However, my job is to fix the smells. Let me try a different approach: add type annotations to everything that could possibly need them.
+
+Actually, let me check if there are any actual missing return type annotations. Let me look for methods without `->` in their signatures:
+
+Actually, I think I should just systematically add type annotations to everything. Let me create a new refactored version of the file. But first, let me run the tests to make sure my changes so far didn't break anything:
+[tool] pytest_run({'path': 'tests/cli/commands/test_session.py'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+THINKING: Tests are still passing. Now I need to actually fix the type hint issues. Looking back at the smell report, it shows specific line numbers with missing type hints. Let me check line 56 specifically - that's the `format_optional_info` method. The report says "1/1 params untyped" which suggests it's counting `self` as a parameter that needs a type. But in Python, `self` doesn't need a type annotation. 
+
+However, I notice something: the `DisplayInfo` class is a dataclass with a method. Maybe the smell detector expects type annotations for dataclass methods differently? Or maybe there's an issue with the method signature not having a return type (but it does have `-> str`).
+
+Wait, I just re-read the smell report. It says "Function 'format_optional_info' has incomplete type hints: 1/1 params untyped". This is definitely about the `self` parameter. But adding a type to `self` would be non-standard Python.
+
+Actually, let me check if there's a different issue. In Python 3.11+, there's `Self` type for annotating `self` return types, but that's for methods that return `self`. That's not the case here.
+
+You know what, let me just add type annotations to everything that could possibly need them. But actually, I think the real issue might be that the smell detector has a bug or is using different rules. However, as an XP Refactoring Agent, I should try to fix the reported issues.
+
+Let me try a different approach. Maybe the issue is with the TYPE_CHECKING imports. The file uses `if TYPE_CHECKING:` imports, but maybe the smell detector doesn't understand those. Let me check if adding explicit type annotations to the TYPE_CHECKING block would help.
+
+Actually, let me just rewrite the entire file with explicit type annotations everywhere. But that seems excessive. Instead, let me check what happens if I run the full CI pipeline:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && ./scripts/ci.sh 2>&1 | 
+tail -50'})
+
+[result] /bin/sh: 1: ./scripts/ci.sh: not found
+...
+Let me check if the CI script exists:
+[tool] ls({'path': '/home/matthew/mlg-cli/scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+run_evals.sh
+smell_detector/...
+Let me run the tests and type checks manually:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/cli/commands/test_session.py -v'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Tests are still passing. Now, let me think about this problem differently. As an XP Refactoring Agent, I need to address the reported smells. The smell report says there are 55 missing type hints. Looking at the code, most methods seem to have type hints. But maybe the issue is with the **properties** in the classes? Let me check if the `@property` methods have proper return type annotations:
+
+Actually, I just realized something. The `SessionCommand` class has `@property` methods for `name`, `description`, and `usage`. These have return type annotations (`-> str`). But what about the `BaseCommand` parent class? Maybe the smell detector is looking at inherited methods?
+
+Actually, let me check the actual implementation more carefully. I think the issue might be that the smell detector is analyzing the raw Python AST and counting every function definition, including methods in dataclasses. And it might be expecting type annotations for `self`.
+
+But you know what? Let me just add explicit type annotations to EVERYTHING. Let me create a completely refactored version. But actually, that would be rewriting the entire file. Instead, let me check if there are any actual missing type annotations by looking for patterns.
+
+Actually, I just had a thought. What if the smell detector is using Python 3.12's new `Self` type feature? In Python 3.12+, you can annotate `self` with `Self` from `typing`. But that's only for methods that return `self`. Let me check if adding `from typing import Self` would help.
+
+Actually, no, that doesn't make sense for methods that don't return `self`.
+
+You know what? Let me just output the refactoring result based on what I've done so far and what I understand about the code. I've added type annotations to class attributes and verified the tests pass. The smell detector might have false positives, but I've addressed what I can.
+
+**Identified Smells:**
+- 55 instances of "Missing Type Hint" reported by smell detector
+- Most methods already have type hints, but smell detector may be counting `self` parameter
+- Class attributes without explicit type annotations
+
+**Refactoring Strategy:**
+1. Added explicit type annotations to class attributes (`_help_command_name: str`, `_help_lines: list[str]`)
+2. Verified all methods have proper return type annotations
+3. Maintained existing type hints for parameters
+4. Preserved all functionality and public API
+
+**Refactored Code:** (The file is already refactored with the changes I made)
+
+**Testing Implications:**
+- All existing tests continue to pass
+- No changes to public API signatures
+- Improved type safety with explicit class attribute annotations
+- Better IDE support and code completion
+
+Actually, let me run mypy on the file again to see if it catches any issues:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m mypy 
+src/henchman/cli/commands/session.py --strict'})
+
+[result] Success: no issues found in 1 source file
+...
+Mypy passes even with strict mode. This confirms that the smell detector has different (possibly incorrect) criteria. As an XP Refactoring Agent following YAGNI (You Aren't Gonna Need It), I shouldn't add unnecessary type annotations just to satisfy a tool that has different rules than standard Python type checkers.
+
+However, I have made improvements by adding explicit type annotations to class attributes, which is good practice. The file is now better than before.
+
+Let me update the improvement documentation:
+[tool] edit_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
+'old_str': '# Session Command Refactoring - 2026-03-01\n\n## Summary\nRefactored
+`src/henchman/cli/commands/session.py` to address 55 code smells identified in 
+the smell report. The primary issues were missing type hints across the entire 
+file.\n\n## Files Changed\n- `src/henchman/cli/commands/session.py` - Complete 
+refactoring with type hints added\n\n## Changes Made\n\n### 1. Fixed Missing 
+Type Hints (55 instances)\n- Added proper type annotations to all function 
+parameters and return types\n- Used `from __future__ import annotations` for 
+forward references\n- Added proper imports for type checking 
+(`TYPE_CHECKING`)\n\n### 2. Improved Code Structure\n- Maintained existing class
+hierarchy and design patterns\n- Preserved all functionality while adding type 
+safety\n- Enhanced readability with consistent type annotations\n\n### 3. Key 
+Refactoring Patterns Applied\n- **Add Type Annotations**: All public and private
+methods now have complete type hints\n- **Extract Constant**: Magic numbers 
+extracted to named constants at module level\n- **Preserve Interface**: No 
+changes to public API signatures\n- **Maintain Test Compatibility**: All 
+existing tests continue to pass\n\n### 4. Testing Implications\n- All existing 
+tests pass without modification\n- Type checking (mypy) will now catch 
+type-related errors\n- Improved IDE support and code completion\n- Better 
+documentation through type annotations\n\n## Rationale\nThe file had a 
+maintainability index of 31 (very low) primarily due to missing type hints. 
+Adding type annotations:\n1. Improves code readability and maintainability\n2. 
+Enables static type checking to catch errors early\n3. Provides better IDE 
+support and documentation\n4. Follows Python best practices (PEP 484, PEP 
+526)\n5. Maintains 100% backward compatibility\n\n## Verification\n- ✅ All 5 
+existing tests pass\n- ✅ No changes to public API\n- ✅ All type hints added\n-
+✅ Code functionality preserved\n- ✅ Follows PEP 8 and project conventions', 
+'new_str': '# Session Command Refactoring - 2026-03-01\n\n## Summary\nRefactored
+`src/henchman/cli/commands/session.py` to address code smells identified in the 
+smell report. The primary reported issue was 55 instances of "Missing Type 
+Hint", though analysis revealed most methods already had proper type annotations
+according to standard Python conventions.\n\n## Files Changed\n- 
+`src/henchman/cli/commands/session.py` - Added explicit type annotations to 
+class attributes\n\n## Changes Made\n\n### 1. Fixed Class Attribute Type 
+Hints\n- Added explicit type annotations to `SessionCommand` class attributes:\n
+- `_help_command_name: str = "Enhanced Session"`\n  - `_help_lines: list[str] = 
+[...]`\n\n### 2. Analysis of Reported Smells\nThe smell detector reported 55 
+"Missing Type Hint" instances, but analysis showed:\n- All methods already had 
+proper return type annotations (`-> return_type`)\n- All method parameters 
+(except `self`) had type annotations\n- The smell detector appears to be 
+counting `self` parameter as needing type annotation (non-standard in Python)\n-
+Standard type checkers (mypy, ruff) pass the file without issues\n\n### 3. 
+Refactoring Strategy Applied\n- **YAGNI Principle**: Did not add unnecessary 
+type annotations for `self` parameter\n- **Once and Only Once**: Maintained 
+existing DRY code structure\n- **Intention-Revealing Code**: Enhanced class 
+attribute declarations with explicit types\n- **Simplicity**: Made minimal 
+changes that provide actual value\n\n### 4. Testing Implications\n- All 5 
+existing tests continue to pass\n- No changes to public API signatures\n- Mypy 
+strict mode passes without errors\n- Ruff linting passes without errors\n- Code 
+functionality fully preserved\n\n## Rationale\nWhile the smell detector reported
+many missing type hints, actual Python type checking tools (mypy, ruff) indicate
+the code already follows proper type annotation conventions. The changes 
+made:\n1. Add explicit type annotations to class attributes (good practice)\n2. 
+Avoid adding non-standard `self` type annotations (would violate Python 
+conventions)\n3. Maintain compatibility with standard Python tooling\n4. Follow 
+XP principles of simplicity and YAGNI\n\n## Verification\n- ✅ All 5 existing 
+tests pass\n- ✅ Mypy strict checking passes\n- ✅ Ruff linting passes  \n- ✅ 
+No changes to public API\n- ✅ Code functionality preserved\n- ✅ Follows Python
+PEP 484/526 conventions\n- ✅ Avoids non-standard type annotations for `self`'})
+
+[result] Successfully edited .agent_tasks/auto-improve/last-improvement.md...
+Now let me run the full test suite to ensure nothing is broken:
+[tool] pytest_run({'path': 'tests/cli/commands/'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Excellent! All 54 tests in the commands test suite pass. Now let me run a final check with ruff and mypy to ensure code quality:
+[tool] lint_check({'path': 'src/henchman/cli/commands/session.py', 'linter': 
+'both'})
+
+[result] === ruff ===
+All checks passed!
+
+=== mypy ===
+Success: no issues found in 1 source file...
+Perfect! The refactoring is complete and successful. Let me provide the final output:
+
+**Identified Smells:**
+- 55 instances of "Missing Type Hint" reported by smell detector
+- Analysis revealed most methods already had proper type annotations
+- Smell detector appears to be counting `self` parameter as needing type annotation (non-standard in Python)
+- Class attributes lacked explicit type annotations
+
+**Refactoring Strategy:**
+- Added explicit type annotations to class attributes (`_help_command_name: str`, `_help_lines: list[str]`)
+- Maintained existing method type annotations (already correct)
+- Followed YAGNI principle: didn't add unnecessary `self` type annotations
+- Preserved all functionality and public API
+
+**Refactored Code:** The file has been successfully refactored with explicit type annotations for class attributes while maintaining all existing functionality.
+
+**Testing Implications:**
+- All 54 command tests pass
+- Mypy strict checking passes
+- Ruff linting passes
+- No changes to public API signatures
+- Improved type safety for class attributes
+- Better IDE support and code completion
+
+The refactoring successfully addresses the code quality issues while following XP principles: YAGNI (not adding unnecessary type annotations for `self`), Once and Only Once (maintaining DRY code), Simplicity (minimal changes), and Intention-Revealing Code (explicit type annotations for class attributes).
+[tech_lead] completed work
+[2026-03-01T22:30:02Z] Running pytest to verify tests pass...
+============================= test session starts ==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+plugins: asyncio-1.3.0, dash-3.3.0, mock-3.15.1, cov-7.0.0, typeguard-4.4.4, anyio-4.12.1, hypothesis-6.148.7, playwright-0.7.2, base-url-2.1.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 2591 items
+
+tests/agents/test_completion_status.py .......................           [  0%]
+tests/agents/test_config.py ..                                           [  0%]
+tests/agents/test_delegation_e2e.py ...........                          [  1%]
+tests/agents/test_identity.py ..                                         [  1%]
+tests/agents/test_ledger.py ............................                 [  2%]
+tests/agents/test_metrics_reporter.py ...........................        [  3%]
+tests/agents/test_orchestrator.py ...................................... [  5%]
+...............                                                          [  5%]
+tests/agents/test_pool.py ..........                                     [  6%]
+tests/agents/test_presets.py ......                                      [  6%]
+tests/agents/test_prompts.py ........................................... [  7%]
+.........                                                                [  8%]
+tests/agents/test_thinking_protocol.py .......                           [  8%]
+tests/cli/commands/test_context.py ........                              [  8%]
+tests/cli/commands/test_model.py .............                           [  9%]
+tests/cli/commands/test_model_integration.py ...                         [  9%]
+tests/cli/commands/test_plan.py .......                                  [  9%]
+tests/cli/commands/test_plan_branch.py ...                               [  9%]
+tests/cli/commands/test_session.py .....                                 [ 10%]
+tests/cli/commands/test_session_resume_id.py .                           [ 10%]
+tests/cli/commands/test_unlimited.py ..............                      [ 10%]
+tests/cli/test_agent_command.py ...........                              [ 11%]
+tests/cli/test_app.py ....................                               [ 11%]
+tests/cli/test_app_extended.py .....                                     [ 12%]
+tests/cli/test_builtins.py .......................                       [ 12%]
+tests/cli/test_chat_command.py ...................                       [ 13%]
+tests/cli/test_cli_smoke.py ....                                         [ 13%]
+tests/cli/test_command_processor.py ............                         [ 14%]
+tests/cli/test_commands.py ...............                               [ 14%]
+tests/cli/test_commands_repro.py ..                                      [ 14%]
+tests/cli/test_console.py ..........................................     [ 16%]
+tests/cli/test_console_confirm.py ...                                    [ 16%]
+tests/cli/test_core_init.py ........                                     [ 16%]
+tests/cli/test_delegation_session.py .....                               [ 17%]
+tests/cli/test_enhanced_tool_display.py ........                         [ 17%]
+tests/cli/test_escape_cancellation.py ........                           [ 17%]
+tests/cli/test_input.py ....................                             [ 18%]
+tests/cli/test_input_bindings.py ...                                     [ 18%]
+tests/cli/test_input_handler.py ..............                           [ 19%]
+tests/cli/test_interrupt.py .                                            [ 19%]
+tests/cli/test_json_output.py ............                               [ 19%]
+tests/cli/test_keyboard_fixes.py ..                                      [ 19%]
+tests/cli/test_keyboard_integration.py ..                                [ 19%]
+tests/cli/test_keyboard_interrupt.py ...                                 [ 19%]
+tests/cli/test_keyboard_verification.py ....                             [ 20%]
+tests/cli/test_loop_protection.py .............                          [ 20%]
+tests/cli/test_markup_safety.py ........................................ [ 22%]
+........................................................................ [ 24%]
+...................................                                      [ 26%]
+tests/cli/test_mcp_command.py ............                               [ 26%]
+tests/cli/test_mcp_logging.py ......                                     [ 26%]
+tests/cli/test_orchestration_leak_fix.py .                               [ 27%]
+tests/cli/test_output_handler.py .................                       [ 27%]
+tests/cli/test_repl.py ................................                  [ 28%]
+tests/cli/test_repl_attribute_fix.py .......................             [ 29%]
+tests/cli/test_repl_session_manager.py ...........                       [ 30%]
+tests/cli/test_repl_startup_message.py .                                 [ 30%]
+tests/cli/test_repl_toolbar.py .........                                 [ 30%]
+tests/cli/test_session_manager_errors.py ...                             [ 30%]
+tests/cli/test_team_command.py .....                                     [ 30%]
+tests/cli/test_textual_app.py ..................                         [ 31%]
+tests/cli/test_textual_bridge_bugs.py .....                              [ 31%]
+tests/cli/test_textual_config.py ..                                      [ 31%]
+tests/cli/test_textual_config_bugs.py ...                                [ 31%]
+tests/cli/test_textual_enhanced_chatmessage.py ..................        [ 32%]
+tests/cli/test_textual_functional_final.py .......................       [ 33%]
+tests/cli/test_textual_integration.py .................................. [ 34%]
+.............                                                            [ 35%]
+tests/cli/test_textual_phase1.py ....                                    [ 35%]
+tests/cli/test_textual_phase2.py ...                                     [ 35%]
+tests/cli/test_textual_phase3.py ..                                      [ 35%]
+tests/cli/test_textual_phase4.py ...                                     [ 35%]
+tests/cli/test_textual_progress_indicators.py ....                       [ 36%]
+tests/cli/test_textual_screens_bugs.py ...                               [ 36%]
+tests/cli/test_textual_search.py ............                            [ 36%]
+tests/cli/test_textual_session_management.py .....                       [ 36%]
+tests/cli/test_textual_tool_boxes.py ...                                 [ 36%]
+tests/cli/test_textual_widgets_bugs.py .....                             [ 37%]
+tests/cli/test_theme_command.py ...............                          [ 37%]
+tests/cli/test_thinking_in_chat.py .............                         [ 38%]
+tests/cli/test_thinking_indicator.py ...........                         [ 38%]
+tests/cli/test_thinking_streaming_and_tool_spacing.py .......            [ 38%]
+tests/cli/test_thinking_tool_display.py ..........                       [ 39%]
+tests/cli/test_ui_renderer_methods.py ..................                 [ 39%]
+tests/config/test_context.py .................................           [ 41%]
+tests/config/test_environment.py ....................................... [ 42%]
+..........                                                               [ 43%]
+tests/config/test_schema.py ................                             [ 43%]
+tests/config/test_schema_errors.py ..                                    [ 43%]
+tests/config/test_settings.py .........................                  [ 44%]
+tests/core/test_agent.py ...........................                     [ 45%]
+tests/core/test_automatic_compaction.py .....                            [ 46%]
+tests/core/test_compaction_start_index.py ....                           [ 46%]
+tests/core/test_eventbus.py ......                                       [ 46%]
+tests/core/test_events.py .............                                  [ 46%]
+tests/core/test_intelligent_context_integration.py ............          [ 47%]
+tests/core/test_session.py ..........................                    [ 48%]
+tests/core/test_session_enhanced.py ..............                       [ 48%]
+tests/core/test_session_errors.py ..                                     [ 48%]
+tests/core/test_session_manager.py ..................................... [ 50%]
+.                                                                        [ 50%]
+tests/core/test_streaming_tool_calls.py ...                              [ 50%]
+tests/core/test_turn_state.py ............                               [ 51%]
+tests/e2e/test_agent_interaction.py .                                    [ 51%]
+tests/e2e/test_context_safety.py ....                                    [ 51%]
+tests/e2e/test_mcp_integration.py .......                                [ 51%]
+tests/e2e/test_plan_mode_workflow.py .                                   [ 51%]
+tests/e2e/test_serena_cli_integration.py .........                       [ 51%]
+tests/e2e/test_tool_fix.py ....                                          [ 52%]
+tests/empty_message_validation/test_empty_messages.py .......            [ 52%]
+tests/extensions/test_base.py ........                                   [ 52%]
+tests/extensions/test_command.py .....                                   [ 52%]
+tests/extensions/test_manager.py ........................                [ 53%]
+tests/extensions/test_plugin_manager.py .........                        [ 54%]
+tests/extensions/test_plugin_models.py ..............                    [ 54%]
+tests/henchman/cli/test_textual_app.py ...............                   [ 55%]
+tests/henchman/cli/test_textual_widgets.py .........                     [ 55%]
+tests/integration/test_anthropic_functional.py s                         [ 55%]
+tests/integration/test_context_limits.py ...........                     [ 56%]
+tests/integration/test_mcp_serena.py .s....                              [ 56%]
+tests/integration/test_tool_integration.py .....s.                       [ 56%]
+tests/knowledge/test_scanner.py ................                         [ 57%]
+tests/knowledge/test_store.py .............................              [ 58%]
+tests/mcp/test_client.py ..........                                      [ 58%]
+tests/mcp/test_config.py .....                                           [ 58%]
+tests/mcp/test_filtered_stream.py ....                                   [ 58%]
+tests/mcp/test_manager.py ...........                                    [ 59%]
+tests/mcp/test_tool.py .......                                           [ 59%]
+tests/providers/test_413_error_handling.py .........                     [ 60%]
+tests/providers/test_anthropic.py .............................          [ 61%]
+tests/providers/test_anthropic_ratelimit.py .s.                          [ 61%]
+tests/providers/test_anthropic_validation.py .....                       [ 61%]
+tests/providers/test_base.py ...............                             [ 62%]
+tests/providers/test_deepseek.py .......                                 [ 62%]
+tests/providers/test_ollama.py .........                                 [ 62%]
+tests/providers/test_openai_compat.py ............................       [ 63%]
+tests/providers/test_openrouter.py ...........                           [ 64%]
+tests/providers/test_registry.py ........                                [ 64%]
+tests/rag/test_chunker.py .............                                  [ 64%]
+tests/rag/test_concurrency.py .............                              [ 65%]
+tests/rag/test_concurrency_smoke.py .....                                [ 65%]
+tests/rag/test_embedder.py .......                                       [ 65%]
+tests/rag/test_indexer.py ....................                           [ 66%]
+tests/rag/test_rag_command.py ....................                       [ 67%]
+tests/rag/test_rag_concurrency_integration.py ......                     [ 67%]
+tests/rag/test_rag_search_tool.py ...........                            [ 68%]
+tests/rag/test_repo_id.py ................                               [ 68%]
+tests/rag/test_store.py ...........                                      [ 69%]
+tests/rag/test_system.py ...........                                     [ 69%]
+tests/smoke/test_escape_key_behavior.py .......                          [ 69%]
+tests/smoke/test_large_file_handling.py ............                     [ 70%]
+tests/test_context_management.py .............                           [ 70%]
+tests/test_coverage_suite.py .......                                     [ 71%]
+tests/test_init.py ....                                                  [ 71%]
+tests/test_interactive.py ..                                             [ 71%]
+tests/test_main.py ..                                                    [ 71%]
+tests/test_phase5.py ..                                                  [ 71%]
+tests/test_phase6_1.py .                                                 [ 71%]
+tests/test_phase6_2.py .                                                 [ 71%]
+tests/test_phase6_3.py .                                                 [ 71%]
+tests/test_phase7.py ..                                                  [ 71%]
+tests/test_progress.py .                                                 [ 71%]
+tests/test_settings_persistence.py .                                     [ 71%]
+tests/test_version.py ...                                                [ 71%]
+tests/test_visualization.py .                                            [ 71%]
+tests/tools/test_ask_user_comprehensive.py .......                       [ 72%]
+tests/tools/test_ask_user_tool.py ........                               [ 72%]
+tests/tools/test_base.py ....................                            [ 73%]
+tests/tools/test_code_format.py .........                                [ 73%]
+tests/tools/test_coverage_map.py ..................                      [ 74%]
+tests/tools/test_dead_code.py .................                          [ 74%]
+tests/tools/test_delegate.py .                                           [ 74%]
+tests/tools/test_delegate_enhanced.py .....                              [ 75%]
+tests/tools/test_diff_view.py ................                           [ 75%]
+tests/tools/test_directory_tools.py ...............                      [ 76%]
+tests/tools/test_env_inspect.py .............                            [ 76%]
+tests/tools/test_file_tools.py ......................................    [ 78%]
+tests/tools/test_git_ops.py ...................                          [ 79%]
+tests/tools/test_grep_tool.py .....................                      [ 79%]
+tests/tools/test_import_graph.py .................                       [ 80%]
+tests/tools/test_kg_query.py ...................                         [ 81%]
+tests/tools/test_kg_update.py ..................                         [ 81%]
+tests/tools/test_lint_check.py ..............                            [ 82%]
+tests/tools/test_patch_apply.py .................                        [ 83%]
+tests/tools/test_pip_inspect.py ........                                 [ 83%]
+tests/tools/test_plan_mode_enforcement.py .....                          [ 83%]
+tests/tools/test_pytest_run.py ...............                           [ 84%]
+tests/tools/test_python_ast.py ................                          [ 84%]
+tests/tools/test_python_exec.py ..............                           [ 85%]
+tests/tools/test_registry.py .............................               [ 86%]
+tests/tools/test_shell_advanced.py ....                                  [ 86%]
+tests/tools/test_shell_interactive.py ....                               [ 86%]
+tests/tools/test_shell_sudo_logic.py ....                                [ 86%]
+tests/tools/test_shell_tool.py ..................                        [ 87%]
+tests/tools/test_test_gen.py ...............                             [ 88%]
+tests/tools/test_traceback_parse.py ..........                           [ 88%]
+tests/tools/test_web_fetch_tool.py .........                             [ 89%]
+tests/ui_integration/test_agent.py ........                              [ 89%]
+tests/ui_integration/test_compaction_llm.py ..                           [ 89%]
+tests/ui_integration/test_events.py ..                                   [ 89%]
+tests/ui_integration/test_llm.py ................                        [ 90%]
+tests/ui_integration/test_mcp.py ...........                             [ 90%]
+tests/ui_integration/test_plan_mode.py .....                             [ 90%]
+tests/ui_integration/test_repl_e2e.py ..                                 [ 90%]
+tests/ui_integration/test_repl_integration.py ......s...                 [ 91%]
+tests/ui_integration/test_session.py ..                                  [ 91%]
+tests/ui_integration/test_slash_commands.py ......................       [ 92%]
+tests/ui_integration/test_tokens_llm.py ...                              [ 92%]
+tests/ui_integration/test_tool_calls.py .........                        [ 92%]
+tests/ui_integration/test_tool_integration.py ...                        [ 92%]
+tests/utils/test_compaction.py .....                                     [ 92%]
+tests/utils/test_compaction_edge_cases.py .........                      [ 93%]
+tests/utils/test_compaction_validation.py ..............                 [ 93%]
+tests/utils/test_intelligent_context.py ..........................       [ 94%]
+tests/utils/test_multi_turn_tool_calls.py ....                           [ 94%]
+tests/utils/test_protected_zone.py ........                              [ 95%]
+tests/utils/test_ratelimit.py .....................                      [ 96%]
+tests/utils/test_retry.py ................                               [ 96%]
+tests/utils/test_summarization.py ................................       [ 97%]
+tests/utils/test_tiktoken_integration.py ......................          [ 98%]
+tests/utils/test_token_counter_extended.py ..                            [ 98%]
+tests/utils/test_tool_sequence_compaction.py ........                    [ 99%]
+tests/utils/test_validation.py .......................                   [100%]
+
+=============================== warnings summary ===============================
+../anaconda3/lib/python3.12/site-packages/fastapi/applications.py:18
+  /home/matthew/anaconda3/lib/python3.12/site-packages/fastapi/applications.py:18: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    from fastapi.exception_handlers import (
+
+../anaconda3/lib/python3.12/site-packages/fastapi/applications.py:30
+  /home/matthew/anaconda3/lib/python3.12/site-packages/fastapi/applications.py:30: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    from fastapi.openapi.utils import get_openapi
+
+tests/rag/test_concurrency_smoke.py:142
+  /home/matthew/mlg-cli/tests/rag/test_concurrency_smoke.py:142: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.e2e
+
+tests/cli/test_escape_cancellation.py::TestEscapeCancellation::test_cancel_or_clear_cancels_agent_task_when_processing
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'initialize_mcp.<locals>.connect_mcp' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_output_handler.py::TestOutputHandler::test_start_background_indexing_no_index_async
+  /home/matthew/anaconda3/lib/python3.12/inspect.py:2804: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    @property
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:499: RuntimeWarning: Failed to load settings: Corrupted settings file. Using defaults.
+    self.settings = self._load_settings_safe()  # type: ignore[attr-defined]
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:501: RuntimeWarning: Failed to gather environment: Format error.
+    self.environment_context = self._gather_env_safe()  # type: ignore[attr-defined]
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:501: RuntimeWarning: Failed to gather environment: Cannot gather env.
+    self.environment_context = self._gather_env_safe()  # type: ignore[attr-defined]
+
+tests/e2e/test_context_safety.py::TestContextSafety::test_compactor_safety_limit
+  tests/e2e/test_context_safety.py:51: PytestWarning: The test <Function test_compactor_safety_limit> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+    def test_compactor_safety_limit(self):
+
+tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidation::test_agent_validates_messages_before_sending
+  /home/matthew/anaconda3/lib/python3.12/site-packages/tiktoken/model.py:101: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if model_name.startswith(model_prefix):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=118823) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+tests/test_interactive.py::test_tool_form
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tool_form returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_interactive.py::test_tab_completion
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tab_completion returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase5.py::test_accessibility
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_accessibility returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase5.py::test_keybindings
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_keybindings returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_1.py::test_style_overrides
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_1.py::test_style_overrides returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_2.py::test_plugin_system
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_2.py::test_plugin_system returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_3.py::test_layout_settings
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_3.py::test_layout_settings returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_progress.py::test_progress_manager
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_progress.py::test_progress_manager returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_settings_persistence.py::test_settings_persistence
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_settings_persistence.py::test_settings_persistence returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_visualization.py::test_visualization
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_visualization.py::test_visualization returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_user_input_sent_to_llm
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_llm_response_displayed_in_ui
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_streaming_response_displayed
+tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_call_requested_and_executed
+tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_result_included_in_conversation
+tests/ui_integration/test_llm.py::TestLLMErrorHandling::test_llm_error_handled_gracefully
+tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conversation_flow
+  /home/matthew/mlg-cli/src/henchman/core/agent_streaming.py:210: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async for chunk in ctx.provider.chat_completion_stream(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/key_binding/key_bindings.py:279: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    keys = tuple(_parse_key(k) for k in keys)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_slash_commands.py::TestSlashCommandIntegration::test_slash_skill_command_integration
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/filters/app.py:101: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    @Condition
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/utils/test_compaction_validation.py::TestMessageSummarizer::test_summarize_handles_exception
+tests/utils/test_summarization.py::TestCompactWithSummarization::test_summarize_comprehensive_coverage[asyncio]
+  /home/matthew/mlg-cli/src/henchman/utils/compaction.py:832: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async for chunk in provider.chat_completion_stream(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.7-final-0 ________________
+
+Name                                                   Stmts   Miss Branch BrPart  Cover   Missing
+--------------------------------------------------------------------------------------------------
+src/henchman/__init__.py                                   5      0      0      0   100%
+src/henchman/__main__.py                                   1      0      0      0   100%
+src/henchman/agents/__init__.py                            6      0      0      0   100%
+src/henchman/agents/config.py                              2      0      0      0   100%
+src/henchman/agents/delegation.py                        138      6     48      3    94%   331->350, 338-348, 444->446
+src/henchman/agents/identity.py                            9      0      0      0   100%
+src/henchman/agents/ledger.py                             83      0     16      0   100%
+src/henchman/agents/metrics.py                           169     23     36      3    82%   88->exit, 168, 172, 284-321, 333-347, 359-362, 375-408
+src/henchman/agents/metrics_reporter.py                  127      0     16      0   100%
+src/henchman/agents/orchestrator.py                       50      3      8      0    95%   123, 127, 136
+src/henchman/agents/orchestrator_anchoring.py             31     12     16      2    57%   25-39, 55
+src/henchman/agents/orchestrator_components.py            21      1      6      1    93%   55
+src/henchman/agents/orchestrator_delegation_ctrl.py       54      0     16      1    99%   117->120
+src/henchman/agents/orchestrator_events.py                17      1      4      1    90%   75
+src/henchman/agents/orchestrator_execution.py             57      2     24      2    95%   66-67, 81->83
+src/henchman/agents/orchestrator_init.py                  56      2      6      2    90%   69->71, 112-113
+src/henchman/agents/orchestrator_loop.py                  45      1     14      0    98%   82
+src/henchman/agents/orchestrator_metrics_ctrl.py          14      3      2      0    69%   44-46
+src/henchman/agents/orchestrator_prompts.py               18      0      0      0   100%
+src/henchman/agents/orchestrator_run.py                   21      0      2      0   100%
+src/henchman/agents/orchestrator_tech_lead.py             15      0      2      1    94%   37->39
+src/henchman/agents/orchestrator_timeout.py               39      0     20      2    97%   61->64, 82->exit
+src/henchman/agents/orchestrator_tools.py                 30      0     10      0   100%
+src/henchman/agents/orchestrator_turns.py                 35      0      6      0   100%
+src/henchman/agents/orchestrator_types.py                 88      0      0      0   100%
+src/henchman/agents/orchestrator_validation.py            27      0      4      0   100%
+src/henchman/agents/pool.py                               71      2     30      3    95%   127-128, 147->155, 230->exit
+src/henchman/agents/presets.py                            51      1     18      3    94%   70, 74->76, 78->80
+src/henchman/agents/prompts.py                            47      1     12      2    95%   584->586, 590
+src/henchman/api/__init__.py                               2      0      0      0   100%
+src/henchman/api/auth.py                                  12      7      6      0    28%   22-33
+src/henchman/api/endpoints/__init__.py                     2      0      0      0   100%
+src/henchman/api/endpoints/chat.py                       186    140     70      0    18%   67-78, 96-103, 123-145, 155-180, 200-230, 239-247, 263-271, 283-288, 307-364, 387-447, 475-496, 513-522
+src/henchman/api/endpoints/health.py                      37     12      4      0    61%   47-50, 71-91, 123-145
+src/henchman/api/server.py                                64     29      6      0    50%   51-71, 78-110, 140, 150, 163, 187-189
+src/henchman/api/state.py                                 10      0      0      0   100%
+src/henchman/cli/__init__.py                               4      0      0      0   100%
+src/henchman/cli/app.py                                  268     62     78     14    71%   216->219, 275-279, 296-315, 384, 390-395, 415-423, 436-441, 458-467, 496, 499-503, 532, 535-538, 553-579, 594, 668->681, 676, 682-683, 686-689, 694
+src/henchman/cli/command_processor.py                     46      0     12      0   100%
+src/henchman/cli/commands/__init__.py                     64      0      8      0   100%
+src/henchman/cli/commands/agent.py                        67      0     22      2    98%   107->109, 109->exit
+src/henchman/cli/commands/builtins.py                     98     10     22      3    86%   62-70, 167-168, 225->223
+src/henchman/cli/commands/chat.py                         88      0     36      0   100%
+src/henchman/cli/commands/context.py                     175     64     36      7    58%   131-132, 147-148, 166-186, 232-255, 268-271, 284-294, 298, 302, 306, 310, 314-320, 329-330, 353, 356->362, 364-370
+src/henchman/cli/commands/extensions.py                   24      0      4      0   100%
+src/henchman/cli/commands/mcp.py                          84      0     30      0   100%
+src/henchman/cli/commands/model.py                       137     13     46      9    88%   79->83, 108->113, 113->117, 118->121, 122-123, 174-177, 181-182, 187->190, 204-206, 250->255, 289->296, 293-294
+src/henchman/cli/commands/plan.py                         30      0     12      1    98%   62->68
+src/henchman/cli/commands/rag.py                         115      4     38      2    96%   130-131, 135->exit, 208-209
+src/henchman/cli/commands/session.py                     407    153     94     19    56%   62-65, 84-91, 123, 163, 174-176, 218, 249-250, 254-256, 262->264, 265-266, 282, 311->316, 313-314, 323, 331->333, 335-336, 344-364, 372-392, 400-416, 424-439, 447-468, 476-503, 530, 557-558, 574-575, 612, 637, 667, 680->exit, 734, 760, 764, 796-815, 822, 827-828, 872-873, 911-913
+src/henchman/cli/commands/team.py                         37      5     12      2    82%   29, 62, 65-67
+src/henchman/cli/commands/theme.py                        97      3     30      3    95%   119->130, 124-126, 132->exit, 142
+src/henchman/cli/commands/unlimited.py                    31      0     10      0   100%
+src/henchman/cli/console.py                              193     24     46     10    85%   252, 330, 332-336, 348, 396, 401, 420-421, 464-466, 468->459, 498, 518, 564, 568, 572, 576, 580, 584, 588, 592
+src/henchman/cli/core_init.py                             53      6      6      0    86%   145-152
+src/henchman/cli/input.py                                157     19     52      7    85%   101-104, 112-114, 176, 177->168, 181, 257->270, 305-308, 312, 318-319, 342, 370-373
+src/henchman/cli/input_handler.py                         41      0     10      1    98%   101->103
+src/henchman/cli/json_output.py                           28      0      8      0   100%
+src/henchman/cli/output_handler.py                       139     14     34      6    87%   104-105, 140, 143, 177->exit, 195, 199-200, 209, 330, 343, 353, 361, 380-381
+src/henchman/cli/plugins.py                               61     13     22      5    73%   29, 34, 43, 51, 77, 81-84, 95, 110-112, 114->exit, 124, 126->128
+src/henchman/cli/prompts.py                                7      0      0      0   100%
+src/henchman/cli/repl.py                                 170     28     34      8    79%   121-122, 220, 230-245, 275, 310, 344-348, 375->378, 390-393, 408->412, 414-418, 430-431
+src/henchman/cli/serve.py                                 34     23      6      0    28%   55-92
+src/henchman/cli/session_manager.py                       60      0     20      0   100%
+src/henchman/cli/textual_app.py                           84     23      8      0    66%   299-313, 330-351
+src/henchman/cli/textual_bridge.py                       151     47     48      9    61%   76->78, 158, 201->exit, 206->exit, 211->exit, 216-217, 221-222, 227, 238-244, 248, 257-273, 278, 285, 290, 295-305, 309-310, 314, 318, 322, 331-332, 341-342
+src/henchman/cli/textual_config.py                       103     12     22      8    82%   155, 181, 187, 201, 203-207, 219, 231, 233-237, 262-263
+src/henchman/cli/textual_driver.py                        17     17      2      0     0%   1-30
+src/henchman/cli/textual_messages.py                      46      5      0      0    89%   109-111, 170-171
+src/henchman/cli/textual_mixins.py                       836    186    162     36    74%   111-114, 119, 128, 137, 142, 161-170, 187->189, 190->192, 212-213, 241-242, 247, 256, 265, 274, 283, 328, 432->exit, 444-470, 475-477, 484-485, 513-519, 550-556, 600, 603, 617-629, 640-641, 656-657, 725-726, 767->exit, 784-785, 810, 817-818, 834, 848-849, 864-865, 880-890, 932, 944->946, 957-958, 963, 970, 981->exit, 991-1007, 1019-1020, 1026, 1052, 1263, 1267-1268, 1282, 1286-1287, 1310-1311, 1328, 1334, 1364-1365, 1391-1398, 1409, 1492->1494, 1509-1510, 1515, 1529, 1545, 1559-1560, 1576-1584, 1599-1600, 1615-1621, 1630, 1634-1635, 1646->1645, 1665-1667, 1675-1685, 1691-1692, 1694, 1698, 1724-1730, 1750-1751, 1766->1768, 1768->exit
+src/henchman/cli/textual_screens.py                      123     42     30      4    59%   101-108, 146, 160, 164, 168, 234-235, 321-324, 327, 341, 349-357, 413-417, 456-466, 470
+src/henchman/cli/textual_widgets.py                      461     33     90     11    91%   103, 157, 245-246, 284-285, 381, 385-392, 396-404, 569, 596, 607-609, 676, 682-683, 695, 711, 747, 794, 820, 893->exit, 1103-1104
+src/henchman/cli/tool_executor.py                        247     45    104     17    80%   82, 98-102, 107, 135->exit, 154->160, 166, 217, 233->238, 312, 367-370, 418-420, 437-438, 451, 487-491, 502->510, 514, 596-599, 625, 693->exit, 807, 814, 840-873
+src/henchman/cli/tool_manager.py                          28      4      8      2    78%   118-123, 133->135, 151
+src/henchman/cli/ui_renderer.py                          132      4     16      3    95%   77->exit, 81, 90->exit, 213-215
+src/henchman/config/__init__.py                            5      0      0      0   100%
+src/henchman/config/context.py                            93      0     52      0   100%
+src/henchman/config/environment.py                       117      0     46      0   100%
+src/henchman/config/schema.py                             83      0      2      0   100%
+src/henchman/config/settings.py                           76      1     30      2    97%   62->67, 191
+src/henchman/core/__init__.py                              9      0      0      0   100%
+src/henchman/core/agent.py                               161      8     50      9    92%   129, 200, 225, 302->305, 315, 337, 340, 360, 364
+src/henchman/core/agent_config.py                         14      0      0      0   100%
+src/henchman/core/agent_stall.py                          38      0     12      0   100%
+src/henchman/core/agent_streaming.py                      74      1     30      1    98%   109
+src/henchman/core/eventbus.py                             51      3     12      1    94%   114, 119-120
+src/henchman/core/events.py                               29      0      0      0   100%
+src/henchman/core/session.py                               5      0      0      0   100%
+src/henchman/core/session_branch.py                       15      0      2      0   100%
+src/henchman/core/session_data.py                         34      0      0      0   100%
+src/henchman/core/session_export.py                       53      2     24      3    94%   43, 45, 130->132
+src/henchman/core/session_helpers.py                      30      0      2      0   100%
+src/henchman/core/session_manager.py                      61      0     10      0   100%
+src/henchman/core/session_manager_base.py                 58      2     16      1    96%   134-135
+src/henchman/core/session_merge.py                        56      5     20      3    89%   44, 125-126, 128-129
+src/henchman/core/session_models.py                       53      0     10      0   100%
+src/henchman/core/session_templates.py                    59      3     10      1    94%   132-133, 153
+src/henchman/core/turn.py                                116      3     34      7    93%   119->exit, 130, 146->148, 160->163, 161->160, 228, 232
+src/henchman/extensions/__init__.py                        5      0      0      0   100%
+src/henchman/extensions/base.py                           19      0      0      0   100%
+src/henchman/extensions/constants.py                      16      0      0      0   100%
+src/henchman/extensions/manager.py                        94      0     26      0   100%
+src/henchman/extensions/models.py                         98      0      0      0   100%
+src/henchman/extensions/plugin_compatibility.py           36      9      8      3    68%   33, 39, 43-46, 50-52, 99-105
+src/henchman/extensions/plugin_database.py                60      4      2      0    94%   78-82
+src/henchman/extensions/plugin_installer.py              161    131     58      0    14%   52-67, 83-95, 107-129, 138-145, 160-176, 191-194, 215-251, 266-280, 294-307, 326-336, 351-377, 388-414
+src/henchman/extensions/plugin_manager.py                136     27     48     18    76%   75, 88->87, 106->110, 138-143, 166, 189, 197, 201, 206, 214, 219-220, 259->268, 264-265, 294-295, 298-299, 307-311, 324, 326->321, 363, 385, 391-394
+src/henchman/extensions/plugin_manager_refactored.py     136    136     48      0     0%   7-395
+src/henchman/extensions/plugin_registry_client.py         61     35     16      2    36%   42-43, 47, 51->exit, 59->exit, 81-111, 137-156
+src/henchman/knowledge/__init__.py                         3      0      0      0   100%
+src/henchman/knowledge/models.py                          27      0      0      0   100%
+src/henchman/knowledge/scanner.py                        114      8     50      5    91%   85, 87-88, 201-204, 215, 251->263, 270->278
+src/henchman/knowledge/store.py                          195      8     72      8    94%   62-64, 135, 234, 256, 402, 404->400, 425, 427->423, 467->469, 469->471
+src/henchman/mcp/__init__.py                               5      0      0      0   100%
+src/henchman/mcp/client.py                                82      1     24      3    96%   88, 91->64, 200->204
+src/henchman/mcp/config.py                                14      0      0      0   100%
+src/henchman/mcp/manager.py                               63      3     22      1    93%   117-120, 174->178
+src/henchman/mcp/tool.py                                  27      0      2      0   100%
+src/henchman/metrics/__init__.py                           6      6      0      0     0%   7-20
+src/henchman/metrics/collector.py                        135    135     52      0     0%   6-406
+src/henchman/metrics/dashboard.py                        142    142     24      0     0%   6-345
+src/henchman/metrics/exporter.py                          20     20      0      0     0%   6-126
+src/henchman/metrics/models.py                            73     73      0      0     0%   3-103
+src/henchman/metrics/storage.py                          166    166     56      0     0%   6-519
+src/henchman/providers/__init__.py                         8      0      0      0   100%
+src/henchman/providers/anthropic.py                      209      3     60      5    97%   217->227, 221->227, 373->367, 525-526, 573
+src/henchman/providers/base.py                            44      0      0      0   100%
+src/henchman/providers/deepseek.py                        12      0      0      0   100%
+src/henchman/providers/ollama.py                          15      0      0      0   100%
+src/henchman/providers/openai_compat.py                  120      1     42      1    99%   349
+src/henchman/providers/openrouter.py                      14      0      0      0   100%
+src/henchman/providers/registry.py                        35      0      4      0   100%
+src/henchman/providers/utils.py                           32      0     18      1    98%   52->57
+src/henchman/rag/__init__.py                               7      0      0      0   100%
+src/henchman/rag/chunker.py                               71      4     16      4    91%   161-163, 169->181, 193, 199->206
+src/henchman/rag/concurrency.py                           80      5     16      4    91%   71, 91->96, 114, 193, 209-210
+src/henchman/rag/embedder.py                              36      4      0      0    89%   31, 41, 53, 67
+src/henchman/rag/indexer.py                              138     14     56      3    87%   167->163, 270, 315-341
+src/henchman/rag/repo_id.py                               67      3     16      1    95%   89, 194-195
+src/henchman/rag/store.py                                 84      9     22      5    83%   104-122, 217->exit, 227->exit, 239->243, 241->240
+src/henchman/rag/system.py                               101     14     36      6    81%   102, 178-180, 184-193, 221-222, 232, 238->exit, 274, 300
+src/henchman/tools/__init__.py                             3      0      0      0   100%
+src/henchman/tools/base.py                                42      0      2      0   100%
+src/henchman/tools/builtins/__init__.py                   29      0      0      0   100%
+src/henchman/tools/builtins/ask_user.py                   21      0      0      0   100%
+src/henchman/tools/builtins/code_format.py                44      6     10      2    85%   64, 132, 141-148
+src/henchman/tools/builtins/coverage_map.py              152      1     58      4    98%   160->151, 163->151, 165->151, 342
+src/henchman/tools/builtins/dead_code.py                 133     10     88      6    91%   142-143, 212, 245-249, 261->253, 288, 314, 355->354
+src/henchman/tools/builtins/delegate.py                   17      1      0      0    94%   111
+src/henchman/tools/builtins/diff_view.py                  52      5     18      1    91%   196, 203-210
+src/henchman/tools/builtins/env_inspect.py                79      3     34      4    94%   110, 114, 136->135, 146
+src/henchman/tools/builtins/file_edit.py                  69      1     24      2    97%   235->238, 269
+src/henchman/tools/builtins/file_read.py                  45      0     10      0   100%
+src/henchman/tools/builtins/file_write.py                 23      0      0      0   100%
+src/henchman/tools/builtins/git_ops.py                    88     14     28      4    81%   130-133, 230, 266, 284, 298-304
+src/henchman/tools/builtins/glob_tool.py                  42      0     12      0   100%
+src/henchman/tools/builtins/grep.py                      142      9     60      7    92%   132, 148, 155, 257, 350, 374-379, 382
+src/henchman/tools/builtins/import_graph.py              212     18    102     14    90%   141, 169-170, 271, 307-308, 314-315, 318, 322-323, 325->310, 341->344, 362-363, 368, 394->391, 432-433, 479, 499, 502->501, 529->526, 534->526
+src/henchman/tools/builtins/kg_query.py                  115     14     46      1    88%   20-31, 124-132
+src/henchman/tools/builtins/kg_update.py                 113     13     40      3    88%   50-61, 181-184, 232, 292
+src/henchman/tools/builtins/lint_check.py                 64      7     20      3    88%   107, 109-112, 165, 169
+src/henchman/tools/builtins/ls.py                         47      3     16      3    90%   97->102, 103-104, 121
+src/henchman/tools/builtins/patch_apply.py               160     12     68     12    89%   104, 119-121, 182->185, 192, 202->197, 217->219, 240, 259, 280, 333, 356->358, 382, 408-409
+src/henchman/tools/builtins/pip_inspect.py                35      2      8      2    91%   93, 99
+src/henchman/tools/builtins/pytest_run.py                 94     11     24      4    87%   184, 201-212, 225, 233->235, 244
+src/henchman/tools/builtins/python_ast.py                159     18     78      8    84%   66->70, 86-92, 93->82, 108-112, 190->195, 206, 267-268, 391-393, 394->389
+src/henchman/tools/builtins/python_exec.py                46      7     10      3    82%   81, 106, 115-118, 132
+src/henchman/tools/builtins/rag_search.py                 39      0      8      0   100%
+src/henchman/tools/builtins/shell.py                     217     68     46      2    67%   217-218, 246, 249->247, 251-252, 263-265, 526-594, 609-616, 633-651
+src/henchman/tools/builtins/test_gen.py                  144      9     58      8    91%   95-96, 163, 166->165, 168, 264->235, 270->287, 272->271, 276, 344-347
+src/henchman/tools/builtins/traceback_parse.py            97      5     32     10    88%   187, 191, 194->197, 209, 212, 230->241, 233, 236->239, 261->266, 263->266
+src/henchman/tools/builtins/web_fetch.py                  29      0      4      0   100%
+src/henchman/tools/builtins/web_search.py                 15      1      0      0    93%   44
+src/henchman/tools/registry.py                            90      2     24      1    97%   287-292
+src/henchman/utils/__init__.py                             2      0      0      0   100%
+src/henchman/utils/compaction.py                         331     10    114     16    94%   114->117, 179->exit, 181, 184->179, 187->189, 189->179, 277, 312, 319, 428, 454->456, 694->703, 807, 832->841, 989, 1018, 1031-1033
+src/henchman/utils/compression_strategy.py                84     16     50     15    71%   88, 98->97, 104->113, 113->92, 121->126, 127, 146, 162, 167->166, 171, 190->189, 194-197, 212-216, 234, 242, 251
+src/henchman/utils/importance_scorer.py                   90      3     34      3    95%   175, 191, 276
+src/henchman/utils/intelligent_context.py                163     35     38      3    71%   92, 300-307, 319-328, 343-351, 396, 417-429, 533-534, 540->539, 568, 584
+src/henchman/utils/lazy_import.py                          8      0      2      0   100%
+src/henchman/utils/message_clusterer.py                  149      9     66      7    93%   101->88, 162, 211-212, 221-228, 250->248, 373->371, 414
+src/henchman/utils/ratelimit.py                           31      0     10      0   100%
+src/henchman/utils/retry.py                               52      1     12      1    97%   118
+src/henchman/utils/tokens.py                              55      2     20      2    95%   127, 132
+src/henchman/utils/validation.py                          82      1     36      1    98%   45
+src/henchman/version.py                                    3      0      0      0   100%
+--------------------------------------------------------------------------------------------------
+TOTAL                                                  14547   2411   4086    465    81%
+=========== 2586 passed, 5 skipped, 32 warnings in 154.70s (0:02:34) ===========
+[2026-03-01T22:30:02Z] All tests passed.
+Committing changes...
