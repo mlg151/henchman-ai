@@ -18,6 +18,11 @@ from henchman.cli.commands import BaseCommand, CommandContext
 
 if TYPE_CHECKING:
     from henchman.core.session import Session, SessionManager, SessionMetadata
+else:
+    # Provide dummy types for runtime
+    Session = object
+    SessionManager = object
+    SessionMetadata = object
 
 
 # Display configuration constants
@@ -503,6 +508,13 @@ class ImportExecutor(SessionCommandExecutor):
             self.op_context.print_error(f"Error importing session: {e}")
 
 
+# Field configuration constants for session display
+SESSION_FIELD_CONFIGS: dict[str, tuple[str, str, str]] = {
+    "parent_id": ("parent_id", "[yellow]↳[/]", "branch from"),
+    "template_id": ("template_id", "[magenta]ⓣ[/]", "template:"),
+}
+
+
 class SessionDisplayFormatter:
     """Formats session information for display to reduce feature envy."""
 
@@ -603,15 +615,10 @@ class SessionDisplayFormatter:
         Returns:
             Formatted field info string.
         """
-        field_configs: dict[str, tuple[str, str, str]] = {
-            "parent_id": ("parent_id", "[yellow]↳[/]", "branch from"),
-            "template_id": ("template_id", "[magenta]ⓣ[/]", "template:"),
-        }
-
-        if field_key not in field_configs:
+        if field_key not in SESSION_FIELD_CONFIGS:
             return ""
 
-        attribute_name, icon, label = field_configs[field_key]
+        attribute_name, icon, label = SESSION_FIELD_CONFIGS[field_key]
         params = SessionFieldDisplayParams(
             field_name=attribute_name,
             icon=icon,
