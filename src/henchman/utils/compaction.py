@@ -7,7 +7,7 @@ older messages, with optional summarization of dropped content.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from henchman.providers.base import Message
 from henchman.utils.tokens import TokenCounter
@@ -37,7 +37,7 @@ class CompactionResult:
 class MessageSequence:
     """Represents an atomic sequence of messages that must be kept together."""
 
-    def __init__(self, messages: list[Message]):
+    def __init__(self, messages: list[Message]) -> None:
         """Initialize a MessageSequence.
 
         Args:
@@ -61,12 +61,21 @@ class MessageSequence:
 
 
 # Constants for compaction configuration
-SAFETY_LIMIT_RATIO: float = 0.75
+SAFETY_LIMIT_RATIO: float = 0.8
 TRUNCATION_CHAR_THRESHOLD: int = 500
 MIN_TRUNCATED_CONTENT: int = 200
 CHARS_PER_TOKEN_ESTIMATE: int = 4
 DEFAULT_MAX_TOKENS: int = 8000
 DEFAULT_MAX_PROTECTED_RATIO: float = 0.3
+
+
+@dataclass
+class SummarizationConfig:
+    """Configuration for message summarization during compaction."""
+    provider: "ModelProvider | None" = None
+    summarize: bool = True
+    protect_from_index: int = -1
+    max_protected_ratio: float = 0.3
 
 
 class MessageSequenceGrouper:
@@ -97,31 +106,56 @@ class MessageSequenceGrouper:
 
         i = 0
         while i < len(messages):
-            if i in consumed_indices:
-                i += 1
-                continue
-
-            msg = messages[i]
-            current_sequence.append(msg)
-
-            # Handle tool call sequences
-            if msg.role == "assistant" and msg.tool_calls:
-                MessageSequenceGrouper._handle_tool_call_sequence(
-                    messages, i, current_sequence, consumed_indices
-                )
-
-            i += 1
-
-            # Start a new sequence on user messages (except at the very beginning)
-            if MessageSequenceGrouper._should_start_new_sequence(msg, i, len(messages)):
-                sequences.append(MessageSequence(current_sequence))
-                current_sequence = []
+            i = MessageSequenceGrouper._process_next_message(
+                messages, i, current_sequence, sequences, consumed_indices
+            )
 
         # Add the last sequence
         if current_sequence:
-            sequences.append(MessageSequence(current_sequence))
+            sequences.append(MessageSequence(list(current_sequence)))
 
         return sequences
+
+    @staticmethod
+    def _process_next_message(
+        messages: list[Message],
+        current_index: int,
+        current_sequence: list[Message],
+        sequences: list[MessageSequence],
+        consumed_indices: set[int],
+    ) -> int:
+        """Process the next message in the sequence grouping.
+
+        Args:
+            messages: All messages to process.
+            current_index: Current index in messages.
+            current_sequence: Current sequence being built.
+            sequences: List of completed sequences.
+            consumed_indices: Set of indices already consumed.
+
+        Returns:
+            Next index to process.
+        """
+        if current_index in consumed_indices:
+            return current_index + 1
+
+        msg = messages[current_index]
+        current_sequence.append(msg)
+
+        # Handle tool call sequences
+        if msg.role == "assistant" and msg.tool_calls:
+            MessageSequenceGrouper._handle_tool_call_sequence(
+                messages, current_index, current_sequence, consumed_indices
+            )
+
+        next_index = current_index + 1
+
+        # Start a new sequence on user messages (except at the very beginning)
+        if MessageSequenceGrouper._should_start_new_sequence(msg, next_index, len(messages)):
+            sequences.append(MessageSequence(list(current_sequence)))
+            current_sequence.clear()
+
+        return next_index
 
     @staticmethod
     def _handle_tool_call_sequence(
@@ -175,7 +209,7 @@ class MessageSequenceGrouper:
 class ProtectedZoneManager:
     """Manages protected zone truncation and separation."""
 
-    def __init__(self, max_protected_tokens: int):
+    def __init__(self, max_protected_tokens: int) -> None:
         """Initialize protected zone manager.
 
         Args:
@@ -253,7 +287,7 @@ class ProtectedZoneManager:
             # Truncate tool message content
             content = msg.content
             if content and len(content) > TRUNCATION_CHAR_THRESHOLD:
-                truncated_msg = self._truncate_tool_message(msg, tokens_to_trim)
+                truncated_msg = _truncate_tool_message_content(msg, tokens_to_trim)
                 # truncated_msg.content is guaranteed to be non-None since we checked content
                 trimmed_tokens = (len(content) - len(truncated_msg.content or "")) // CHARS_PER_TOKEN_ESTIMATE
                 tokens_to_trim -= trimmed_tokens
@@ -263,38 +297,39 @@ class ProtectedZoneManager:
 
         return result
 
-    def _truncate_tool_message(self, message: Message, tokens_to_trim: int) -> Message:
-        """Truncate a single tool message.
 
-        Args:
-            message: Tool message to truncate.
-            tokens_to_trim: Number of tokens to trim.
+def _truncate_tool_message_content(message: Message, tokens_to_trim: int) -> Message:
+    """Truncate a single tool message's content.
 
-        Returns:
-            Truncated message.
-        """
-        if not message.content:
-            return message
+    Args:
+        message: Tool message to truncate.
+        tokens_to_trim: Number of tokens to trim.
 
-        chars_to_trim = tokens_to_trim * CHARS_PER_TOKEN_ESTIMATE
-        if chars_to_trim < len(message.content) - MIN_TRUNCATED_CONTENT:
-            new_content = message.content[: len(message.content) - chars_to_trim]
-            new_content += "\n[... truncated to fit context limit ...]"
-        else:
-            new_content = message.content[:MIN_TRUNCATED_CONTENT] + "\n[... heavily truncated ...]"
+    Returns:
+        Truncated message.
+    """
+    if not message.content:
+        return message
 
-        return Message(
-            role=message.role,
-            content=new_content,
-            tool_calls=message.tool_calls,
-            tool_call_id=message.tool_call_id,
-        )
+    chars_to_trim = tokens_to_trim * CHARS_PER_TOKEN_ESTIMATE
+    if chars_to_trim < len(message.content) - MIN_TRUNCATED_CONTENT:
+        new_content = message.content[: len(message.content) - chars_to_trim]
+        new_content += "\n[... truncated to fit context limit ...]"
+    else:
+        new_content = message.content[:MIN_TRUNCATED_CONTENT] + "\n[... heavily truncated ...]"
+
+    return Message(
+        role=message.role,
+        content=new_content,
+        tool_calls=message.tool_calls,
+        tool_call_id=message.tool_call_id,
+    )
 
 
 class CompactionBudgetCalculator:
     """Calculates budgets and handles edge cases for compaction."""
 
-    def __init__(self, max_tokens: int):
+    def __init__(self, max_tokens: int) -> None:
         """Initialize budget calculator.
 
         Args:
@@ -427,6 +462,39 @@ class MessageSequenceValidator:
         return True
 
 
+def _enforce_message_content_safety(message: Message, limit: int) -> Message:
+    """Enforce safety limit on a single message's content.
+
+    Args:
+        message: Message to check.
+        limit: Maximum token limit.
+
+    Returns:
+        Safe message (possibly truncated).
+    """
+    if not message.content:
+        return message
+
+    # Quick character check optimization
+    if len(message.content) < limit:
+        return message
+
+    # Check token count
+    if TokenCounter.count_text(message.content) > limit:
+        truncated_content = TokenCounter.truncate_text(message.content, limit)
+        new_content = (
+            truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
+        )
+        return Message(
+            role=message.role,
+            content=new_content,
+            tool_calls=message.tool_calls,
+            tool_call_id=message.tool_call_id,
+        )
+
+    return message
+
+
 class ContextCompactor:
     """Manages context size by pruning older messages.
 
@@ -479,27 +547,7 @@ class ContextCompactor:
         Returns:
             Safe message (possibly truncated).
         """
-        if not message.content:
-            return message
-
-        # Quick character check optimization
-        if len(message.content) < limit:
-            return message
-
-        # Check token count
-        if TokenCounter.count_text(message.content) > limit:
-            truncated_content = TokenCounter.truncate_text(message.content, limit)
-            new_content = (
-                truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
-            )
-            return Message(
-                role=message.role,
-                content=new_content,
-                tool_calls=message.tool_calls,
-                tool_call_id=message.tool_call_id,
-            )
-
-        return message
+        return _enforce_message_content_safety(message, limit)
 
     def _group_into_sequences(self, messages: list[Message]) -> list[MessageSequence]:
         """Group messages into atomic sequences that must be kept together.
@@ -737,6 +785,69 @@ class ContextCompactor:
         )
 
 
+def _format_messages_for_summary_content(messages: list[Message]) -> str:
+    """Format messages into a readable string for summarization.
+
+    Args:
+        messages: Messages to format.
+
+    Returns:
+        Formatted string representation.
+    """
+    lines = []
+    for msg in messages:
+        if msg.role == "system":
+            continue  # Skip system messages
+        prefix = msg.role.upper()
+        content = msg.content or ""
+        if msg.tool_calls:
+            tool_names = [tc.name for tc in msg.tool_calls]
+            content += f" [Called tools: {', '.join(tool_names)}]"
+        if msg.tool_call_id:
+            content = f"[Tool result] {content[:200]}..."
+        lines.append(f"{prefix}: {content[:500]}")
+    return "\n".join(lines)
+
+
+async def _generate_summary_with_provider(
+    provider: ModelProvider,
+    messages: list[Message],
+    format_func: Callable[[list[Message]], str],
+) -> str | None:
+    """Generate summary using the provider.
+
+    Args:
+        provider: Model provider for generating summaries.
+        messages: Messages to summarize.
+        format_func: Function to format messages for summarization.
+
+    Returns:
+        Summary string, or None if summarization failed.
+    """
+    formatted = format_func(messages)
+    prompt = MessageSummarizer.SUMMARY_PROMPT.format(messages=formatted)
+
+    try:
+        summary_parts: list[str] = []
+        async for chunk in provider.chat_completion_stream(
+            messages=[Message(role="user", content=prompt)],
+            tools=None,
+        ):
+            if chunk.content:
+                summary_parts.append(chunk.content)
+            if chunk.finish_reason:
+                break
+
+        summary = "".join(summary_parts).strip()
+        if summary:
+            return summary
+    except Exception:
+        # Summarization failed, return None to fall back to simple dropping
+        pass
+
+    return None
+
+
 class MessageSummarizer:
     """Summarizes dropped messages for context preservation.
 
@@ -772,19 +883,7 @@ Summary:"""
         Returns:
             Formatted string representation.
         """
-        lines = []
-        for msg in messages:
-            if msg.role == "system":
-                continue  # Skip system messages
-            prefix = msg.role.upper()
-            content = msg.content or ""
-            if msg.tool_calls:
-                tool_names = [tc.name for tc in msg.tool_calls]
-                content += f" [Called tools: {', '.join(tool_names)}]"
-            if msg.tool_call_id:
-                content = f"[Tool result] {content[:200]}..."
-            lines.append(f"{prefix}: {content[:500]}")
-        return "\n".join(lines)
+        return _format_messages_for_summary_content(messages)
 
     async def summarize(self, messages: list[Message]) -> str | None:
         """Generate a summary of the given messages.
@@ -803,29 +902,11 @@ Summary:"""
         if not msgs_to_summarize:
             return None
 
-        formatted = self._format_messages_for_summary(msgs_to_summarize)
-        prompt = self.SUMMARY_PROMPT.format(messages=formatted)
-
-        try:
-            summary_parts: list[str] = []
-            async for chunk in self.provider.chat_completion_stream(
-                messages=[Message(role="user", content=prompt)],
-                tools=None,
-            ):
-                if chunk.content:
-                    summary_parts.append(chunk.content)
-                if chunk.finish_reason:
-                    break
-
-            summary = "".join(summary_parts).strip()
-            if summary:
-                self._cached_summary = summary
-                return summary
-        except Exception:
-            # Summarization failed, return None to fall back to simple dropping
-            pass
-
-        return None
+        summary = await _generate_summary_with_provider(
+            self.provider, msgs_to_summarize, self._format_messages_for_summary
+        )
+        self._cached_summary = summary
+        return summary
 
     def create_summary_message(self, summary: str) -> Message:
         """Create a system message containing the conversation summary.
@@ -867,9 +948,33 @@ async def compact_with_summarization(
     Returns:
         CompactionResult with compacted messages and metadata.
     """
+    config = SummarizationConfig(
+        provider=provider,
+        summarize=summarize,
+        protect_from_index=protect_from_index,
+        max_protected_ratio=max_protected_ratio,
+    )
+    return await _compact_with_summarization_impl(messages, max_tokens, config)
+
+
+async def _compact_with_summarization_impl(
+    messages: list[Message],
+    max_tokens: int,
+    config: SummarizationConfig,
+) -> CompactionResult:
+    """Implementation of compact_with_summarization using SummarizationConfig.
+
+    Args:
+        messages: Messages to compact.
+        max_tokens: Maximum tokens to keep.
+        config: Summarization configuration.
+
+    Returns:
+        CompactionResult with compacted messages and metadata.
+    """
     compactor = ContextCompactor(
         max_tokens=max_tokens,
-        max_protected_ratio=max_protected_ratio,
+        max_protected_ratio=config.max_protected_ratio,
     )
 
     # Check if compaction is needed
@@ -878,30 +983,53 @@ async def compact_with_summarization(
         return CompactionResult(messages=messages, was_compacted=False)
 
     # Get the compacted result
-    result = compactor.compact_with_result(messages, protect_from_index=protect_from_index)
+    result = compactor.compact_with_result(messages, protect_from_index=config.protect_from_index)
 
     if not result.was_compacted:
         return result
 
+    # Attempt summarization if enabled
+    if config.summarize and config.provider:
+        result = await _attempt_summarization(result, messages, config.provider)
+
+    return result
+
+
+async def _attempt_summarization(
+    result: CompactionResult,
+    original_messages: list[Message],
+    provider: ModelProvider,
+) -> CompactionResult:
+    """Attempt to summarize dropped messages and update result.
+
+    Args:
+        result: Current compaction result.
+        original_messages: Original messages before compaction.
+        provider: Model provider for summarization.
+
+    Returns:
+        Updated CompactionResult with summary if successful.
+    """
     # Identify dropped messages for summarization
     kept_set = {id(m) for m in result.messages}
-    dropped_messages = [m for m in messages if id(m) not in kept_set]
+    dropped_messages = [m for m in original_messages if id(m) not in kept_set]
 
-    # Attempt summarization if enabled and we have a provider
-    if summarize and provider and dropped_messages:
-        summarizer = MessageSummarizer(provider=provider)
-        try:
-            summary = await summarizer.summarize(dropped_messages)
-            if summary:
-                # Insert summary after system messages
-                system_msgs = [m for m in result.messages if m.role == "system"]
-                non_system = [m for m in result.messages if m.role != "system"]
-                summary_msg = summarizer.create_summary_message(summary)
+    if not dropped_messages:
+        return result
 
-                result.messages = system_msgs + [summary_msg] + non_system
-                result.summary = summary
-        except Exception:
-            # Summarization failed, continue with simple dropping
-            pass
+    summarizer = MessageSummarizer(provider=provider)
+    try:
+        summary = await summarizer.summarize(dropped_messages)
+        if summary:
+            # Insert summary after system messages
+            system_msgs = [m for m in result.messages if m.role == "system"]
+            non_system = [m for m in result.messages if m.role != "system"]
+            summary_msg = summarizer.create_summary_message(summary)
+
+            result.messages = system_msgs + [summary_msg] + non_system
+            result.summary = summary
+    except Exception:
+        # Summarization failed, continue with simple dropping
+        pass
 
     return result

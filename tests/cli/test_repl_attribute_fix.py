@@ -102,7 +102,7 @@ class TestRunInteractiveInvokesReplRun:
         """_run_interactive calls repl.run via anyio.run."""
         from henchman.cli.app import RunConfig, _run_interactive
 
-        mock_repl_instance = AsyncMock()
+        mock_repl_instance = MagicMock()
         mock_repl_instance.run = AsyncMock()
         mock_loader_instance = MagicMock()
         mock_loader_instance.load.return_value = "system prompt"
@@ -131,7 +131,8 @@ class TestRunInteractiveInvokesReplRun:
         """_run_interactive passes correct Repl instance to anyio.run."""
         from henchman.cli.app import RunConfig, _run_interactive
 
-        mock_repl_instance = AsyncMock()
+        mock_repl_instance = MagicMock()
+        mock_repl_instance.run = AsyncMock()
         mock_loader_instance = MagicMock()
         mock_loader_instance.load.return_value = "system prompt"
         mock_settings = MagicMock()
