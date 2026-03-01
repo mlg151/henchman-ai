@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T18:30:16.978287+00:00_
+_Generated: 2026-03-01T19:00:16.991773+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-01T18:30:16.978287+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 50.4/100 |
 | **Files Scanned** | 186 |
-| **Total Lines (non-blank)** | 32,716 |
-| **Total Smells** | 2333 |
+| **Total Lines (non-blank)** | 32,700 |
+| **Total Smells** | 2331 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,21 +20,21 @@ _Generated: 2026-03-01T18:30:16.978287+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1680 |
-| medium | 559 |
-| high | 94 |
+| low | 1682 |
+| medium | 556 |
+| high | 93 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
 | Missing Type Hint | 1148 |
-| Feature Envy | 313 |
+| Feature Envy | 315 |
 | Duplicate Code | 309 |
 | Magic Number | 140 |
 | Long Method | 133 |
 | Deep Nesting | 130 |
-| Primitive Obsession | 85 |
+| Primitive Obsession | 81 |
 | Complex Function | 44 |
 | Large Class | 31 |
 
@@ -94,20 +94,20 @@ These are the highest-impact smells to address first:
    Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-14. **cli/commands/session.py:549** — 🟠 HIGH — Primitive Obsession  
-   Repeated primitive parameter group appears in: '_format_session_info_by_field' (line 549), '_format_session_field_info' (line 575)  
-   → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
-
-15. **cli/commands/session.py:595** — 🟠 HIGH — Duplicate Code  
-   Function '_format_branch_info' is an exact duplicate of '_format_template_info' at cli/commands/session.py:614  
+14. **cli/commands/session.py:581** — 🟠 HIGH — Duplicate Code  
+   Function '_format_branch_info' is an exact duplicate of '_format_template_info' at cli/commands/session.py:600  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+15. **cli/commands/theme.py:94** — 🟠 HIGH — Feature Envy  
+   Method 'ThemeCommand._set_theme' accesses 'ctx' 20 times but 'self' only 1 times  
+   → _Move Method — consider moving '_set_theme' to the class that owns 'ctx'._
 
 
 ## 📊 Files Ranked by Quality
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/session.py | ❌ F | 9.5 | 58 | 739 | 32 | 0.0 |
+| 1 | cli/commands/session.py | ❌ F | 9.3 | 56 | 723 | 31 | 0.0 |
 | 2 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
 | 3 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
 | 4 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
@@ -122,17 +122,13 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 166 additional files omitted._
 
-### cli/commands/session.py — ❌ F (9.5/100)
+### cli/commands/session.py — ❌ F (9.3/100)
 
-LOC: 739 | Classes: 19 | Functions: 0 | MI: 32 | Avg CC: 0.0
+LOC: 723 | Classes: 20 | Functions: 0 | MI: 31 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 549 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_format_session_info_by_field' (line 549), '_format_session_field_info' (line 575) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 595 | 🟠 HIGH | Duplicate Code | Function '_format_branch_info' is an exact duplicate of '_format_template_info' at cli/commands/session.py:614 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 549 | 🟡 MEDIUM | Primitive Obsession | Function '_format_session_info_by_field' has 4 primitive-typed parameters: field_name: Name(id='str', ctx=Load()), icon: Name(id='str', ctx=Load()), label: Name(id='str', ctx=Load()), max_id_len: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 575 | 🟡 MEDIUM | Primitive Obsession | Function '_format_session_field_info' has 4 primitive-typed parameters: field_name: Name(id='str', ctx=Load()), icon: Name(id='str', ctx=Load()), label: Name(id='str', ctx=Load()), max_id_len: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 633 | 🟡 MEDIUM | Primitive Obsession | Function '_format_session_attribute_info' has 4 primitive-typed parameters: condition: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), icon: Name(id='str', ctx=Load()), label: Name(id='str', ctx=Load()), max_id_len: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 581 | 🟠 HIGH | Duplicate Code | Function '_format_branch_info' is an exact duplicate of '_format_template_info' at cli/commands/session.py:600 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
 | 56 | 🟢 LOW | Missing Type Hint | Function 'format_optional_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 77 | 🟢 LOW | Missing Type Hint | Function 'format_attribute_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 117 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
@@ -143,8 +139,12 @@ LOC: 739 | Classes: 19 | Functions: 0 | MI: 32 | Avg CC: 0.0
 | 142 | 🟢 LOW | Missing Type Hint | Function '_print_prefixed_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 151 | 🟢 LOW | Missing Type Hint | Function 'get_arg' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 157 | 🟢 LOW | Missing Type Hint | Function 'get_arg_or_empty' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 170 | 🟢 LOW | Missing Type Hint | Function 'has_min_args' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 214 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 218 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 222 | 🟢 LOW | Missing Type Hint | Function '_ensure_args' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 43 more smells._
+_... and 41 more smells._
 
 ### cli/tool_executor.py — ❌ F (12.1/100)
 
