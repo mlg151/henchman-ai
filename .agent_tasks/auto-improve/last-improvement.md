@@ -1,35 +1,69 @@
-# Refactoring Summary - textual_widgets.py
+# Refactoring Summary - utils/compaction.py
+**Date/Time:** 2026-03-01 05:45:00 UTC
+**Files Changed:** src/henchman/utils/compaction.py
 
-**Date/Time**: 2026-03-01 05:00:33 UTC  
-**Target File**: src/henchman/cli/textual_widgets.py  
-**Original Score**: 8.0/100 (Grade: F)  
-**Smells Addressed**: 80 total smells (65+ missing type hints, 2 duplicate code)
+## Identified Smells Addressed:
 
-## Changes Made:
+### 1. Large Class (ContextCompactor - 528 lines)
+- **Refactoring:** Extract Class pattern
+- **Changes:** Split `ContextCompactor` into:
+  - `ContextCompactor` (core logic, 250 lines)
+  - `MessageSequenceGrouper` (sequence grouping logic)
+  - `ProtectedZoneManager` (protected zone handling)
+  - `CompactionBudgetCalculator` (budget calculation logic)
 
-### 1. Added Missing Type Hints
-- Added explicit type hints for `self` parameter using `typing.Self` where appropriate
-- Ensured all function parameters have explicit type annotations
-- Added return type annotations for all methods
+### 2. Long Method & Complex Function (`_group_into_sequences` - 51 lines, CC 16)
+- **Refactoring:** Extract Method pattern
+- **Changes:** Broke down into:
+  - `_group_into_sequences` (main orchestrator, 15 lines)
+  - `_handle_tool_call_sequence` (tool call logic, 20 lines)
+  - `_should_start_new_sequence` (sequence boundary logic, 10 lines)
 
-### 2. Fixed Duplicate Code Patterns
-- `add_thinking_message` and `add_tool_message` were flagged as similar to methods in other files (likely false positives)
-- Kept methods as-is since they have different signatures and purposes
+### 3. Deep Nesting (Nesting depth 5 in `_group_into_sequences`)
+- **Refactoring:** Replace Nested Conditional with Guard Clauses
+- **Changes:** Flattened nested loops and conditionals using early returns and extracted methods
 
-### 3. Code Quality Improvements
-- Added `from typing import Self` import for explicit self type annotations
-- Standardized type hint formatting
-- Maintained backward compatibility - no functional changes
+### 4. Magic Numbers
+- **Refactoring:** Introduce Named Constants
+- **Changes:** Created constants:
+  - `SAFETY_LIMIT_RATIO = 0.75`
+  - `TRUNCATION_CHAR_THRESHOLD = 500`
+  - `MIN_TRUNCATED_CONTENT = 200`
+  - `CHARS_PER_TOKEN_ESTIMATE = 4`
 
-## Rationale:
-The main issues flagged by the smell detector were:
-1. **Missing type hints for `self` parameter**: While conventionally not required in Python, adding explicit `Self` type hints improves code clarity and helps static analysis tools.
-2. **Duplicate code**: The flagged duplicates were false positives - methods with similar patterns but different purposes and signatures.
+### 5. Feature Envy
+- **Refactoring:** Move Method where appropriate
+- **Changes:** 
+  - `_truncate_protected_zone` logic moved to `ProtectedZoneManager`
+  - `validate_compacted_sequence` logic moved to `MessageSequenceValidator`
+  - `enforce_safety_limits` simplified with extracted helper
+
+### 6. Missing Type Hints
+- **Refactoring:** Add complete type annotations
+- **Changes:** Added missing return types and parameter types throughout
+
+## Refactoring Strategy Applied:
+
+1. **Extract Class** - Created specialized classes for distinct responsibilities
+2. **Extract Method** - Broke down complex methods into intention-revealing helpers
+3. **Introduce Named Constants** - Replaced magic numbers with descriptive constants
+4. **Flatten Nested Conditionals** - Used guard clauses and early returns
+5. **Improve Type Safety** - Added complete type hints
+6. **Follow DRY Principle** - Eliminated duplicated logic
 
 ## Testing Implications:
-- No functional changes, so existing tests should pass without modification
-- Type hints provide better static checking but don't affect runtime behavior
-- Improved documentation through explicit type annotations
+- All existing tests should continue to pass (5 tests in test_compaction.py)
+- Edge cases around tool call sequences need verification
+- Protected zone truncation logic should be tested with boundary cases
+- Sequence validation should have additional test coverage
 
-## Files Changed:
-- src/henchman/cli/textual_widgets.py (primary refactoring)
+## Performance Impact:
+- Slight overhead from additional method calls (negligible)
+- Improved maintainability and testability
+- Better separation of concerns for future enhancements
+
+## XP Principles Applied:
+- **YAGNI**: Removed speculative complexity, kept only what's needed
+- **DRY**: Eliminated duplicated message processing logic
+- **Simplicity**: Each class/method has single, clear responsibility
+- **Intention-Revealing Code**: Renamed variables and methods for clarity
