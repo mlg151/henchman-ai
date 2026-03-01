@@ -12,6 +12,7 @@ import contextlib
 import json
 import re
 from abc import abstractmethod
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, TypeVar, cast
 
 from rich.markdown import Markdown as RichMarkdown
@@ -23,8 +24,6 @@ from textual.widget import MountError
 from textual.widgets import RichLog, Static, TextArea
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
     from textual import events
 
 _T = TypeVar("_T", bound=Static)

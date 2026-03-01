@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T00:30:18.312371+00:00_
+_Generated: 2026-03-01T01:00:20.887780+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-01T00:30:18.312371+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 49.3/100 |
 | **Files Scanned** | 180 |
-| **Total Lines (non-blank)** | 31,461 |
-| **Total Smells** | 2378 |
+| **Total Lines (non-blank)** | 31,469 |
+| **Total Smells** | 2377 |
 | **Avg Maintainability Index** | 71.3 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -21,7 +21,7 @@ _Generated: 2026-03-01T00:30:18.312371+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 1703 |
-| medium | 589 |
+| medium | 588 |
 | high | 86 |
 
 ### Smells by Category
@@ -30,7 +30,7 @@ _Generated: 2026-03-01T00:30:18.312371+00:00_
 |:---------|------:|
 | Missing Type Hint | 1165 |
 | Feature Envy | 322 |
-| Duplicate Code | 295 |
+| Duplicate Code | 294 |
 | Magic Number | 149 |
 | Long Method | 146 |
 | Deep Nesting | 140 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_widgets.py | ❌ F | 8.1 | 83 | 1002 | 27 | 0.0 |
+| 1 | cli/textual_widgets.py | ❌ F | 8.1 | 83 | 1010 | 27 | 0.0 |
 | 2 | utils/compaction.py | ❌ F | 10.3 | 58 | 546 | 34 | 14.8 |
 | 3 | extensions/plugin_manager.py | ❌ F | 10.5 | 82 | 689 | 35 | 0.0 |
 | 4 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
@@ -124,25 +124,25 @@ _Showing 20 worst files. 160 additional files omitted._
 
 ### cli/textual_widgets.py — ❌ F (8.1/100)
 
-LOC: 1002 | Classes: 16 | Functions: 3 | MI: 27 | Avg CC: 0.0
+LOC: 1010 | Classes: 17 | Functions: 3 | MI: 27 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 1074 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 100% similar to 'add_tool_message' at cli/textual_widgets.py:1116 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1074 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 94% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1116 | 🟡 MEDIUM | Duplicate Code | Function 'add_tool_message' is 94% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 109 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 122 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 132 | 🟢 LOW | Missing Type Hint | Function 'append' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 143 | 🟢 LOW | Missing Type Hint | Function 'set_content' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 153 | 🟢 LOW | Missing Type Hint | Function '_content' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 158 | 🟢 LOW | Missing Type Hint | Function '_update_renderable' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 205 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 220 | 🟢 LOW | Missing Type Hint | Function 'content' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 225 | 🟢 LOW | Missing Type Hint | Function 'content' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 230 | 🟢 LOW | Missing Type Hint | Function 'compose' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 240 | 🟢 LOW | Missing Type Hint | Function '_update_renderable' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 244 | 🟢 LOW | Missing Type Hint | Function 'toggle_expansion' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 1082 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 94% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1124 | 🟡 MEDIUM | Duplicate Code | Function 'add_tool_message' is 95% similar to '_handle_thought_event_with_state' at cli/tool_executor.py:703 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1124 | 🟡 MEDIUM | Duplicate Code | Function 'add_tool_message' is 95% similar to '_handle_finished_event_with_state' at cli/tool_executor.py:752 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 115 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 128 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 138 | 🟢 LOW | Missing Type Hint | Function 'append' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 149 | 🟢 LOW | Missing Type Hint | Function 'set_content' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 159 | 🟢 LOW | Missing Type Hint | Function '_content' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 164 | 🟢 LOW | Missing Type Hint | Function '_update_renderable' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 211 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 226 | 🟢 LOW | Missing Type Hint | Function 'content' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 231 | 🟢 LOW | Missing Type Hint | Function 'content' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 236 | 🟢 LOW | Missing Type Hint | Function 'compose' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 246 | 🟢 LOW | Missing Type Hint | Function '_update_renderable' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 250 | 🟢 LOW | Missing Type Hint | Function 'toggle_expansion' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 68 more smells._
 
