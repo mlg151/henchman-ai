@@ -1071,34 +1071,6 @@ class ChatPane(VerticalScroll):
             **kwargs,
         )
 
-    def _add_message_factory(
-        self,
-        widget_class: type[_T],
-        *args: Any,
-        tracking_dict: dict[str, _T] | None = None,
-        tracking_key: str = "",
-        **kwargs: Any,
-    ) -> _T:
-        """Factory method to add a message widget with optional tracking.
-
-        Args:
-            widget_class: The widget class to instantiate.
-            *args: Positional arguments for widget constructor.
-            tracking_dict: Optional dictionary to track the widget.
-            tracking_key: Key to use for tracking if tracking_dict is provided.
-            **kwargs: Keyword arguments for widget constructor.
-
-        Returns:
-            The created widget.
-        """
-        return self._add_message_of_type(
-            widget_class,
-            *args,
-            tracking_dict=tracking_dict,
-            tracking_key=tracking_key,
-            **kwargs,
-        )
-
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
@@ -1109,7 +1081,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ThinkingMessage widget.
         """
-        return self._add_message_factory(ThinkingMessage, thought, agent_name)
+        return self._add_message_of_type(ThinkingMessage, thought, agent_name)
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -1120,7 +1092,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        return self._add_message_factory(
+        return self._add_message_of_type(
             ThinkingMessage,
             "",
             agent_name,
@@ -1151,7 +1123,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ToolMessage widget.
         """
-        return self._add_message_factory(ToolMessage, thought, tool_call)
+        return self._add_message_of_type(ToolMessage, thought, tool_call)
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""

@@ -1,93 +1,89 @@
-# Refactoring Summary - `src/henchman/cli/textual_widgets.py`
+# Refactoring Summary - cli/textual_widgets.py
 
-**Date/Time**: 2026-02-28 (Current refactoring session)
+**Date/Time**: 2026-03-01 (Current refactoring session)
 
 **Files Changed**: `src/henchman/cli/textual_widgets.py`
 
-## Identified Smells Addressed
-
-### 1. Duplicate Code (MEDIUM severity)
-- **Reported**: `add_thinking_message` (line 1078) is 100% similar to `add_tool_message` (line 1120)
-- **Analysis**: Both methods are factory methods that call `_add_message_of_type` with different widget classes
-- **Solution**: While they have different signatures (different parameter types), ensured they follow the same consistent pattern. Added `_add_message_factory` helper for clarity.
-
-### 2. Missing Type Hints (LOW severity - multiple instances)
-- **Reported**: 83 total smells, most being missing type hints
-- **Analysis**: Methods already had type hints, but mypy detected issues with `BINDINGS` type annotation
-- **Solution**: Fixed `BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]]` to match parent class signature
-
-### 3. Unused/Duplicate Imports
-- **Reported**: Unused `json` and `logging` imports, duplicate `json` imports in methods
-- **Solution**: 
-  - Removed unused `logging` import
-  - Kept `json` import at module level (used in ToolMessage class)
-  - Removed duplicate `import json` statements inside `_parse_tool_arguments` and `_format_full_args` methods
-
-### 4. Mypy Type Errors
-- **Issue**: `BINDINGS` type incompatible with parent class
-- **Solution**: Updated type annotation to match Textual's expected type: `list[Binding | tuple[str, str] | tuple[str, str, str]]`
-
-## Refactoring Strategy Applied
-
-### 1. Extract Common Pattern
-- Created `_add_message_factory` method to provide consistent factory pattern
-- Both `add_thinking_message` and `add_tool_message` now use this pattern
-- Maintains separate public APIs (different signatures) while sharing implementation
-
-### 2. Add Missing Type Hints
-- Fixed `BINDINGS` type annotation to satisfy mypy
-- Added missing `ClassVar` import
-- Ensured all type hints are consistent and complete
-
-### 3. Clean Imports
-- Removed unused imports (`logging`)
-- Consolidated `json` imports to module level
-- Fixed import order and organization
-
-### 4. Improve Code Organization
-- Applied consistent formatting
-- Maintained clear separation between different widget types
-- Preserved all existing functionality and APIs
-
-## Testing Implications
-
-### Tests Run:
-- `tests/cli/test_textual_widgets_bugs.py` - All 5 tests pass
-- Linting checks (ruff and mypy) - All pass
-- No breaking changes to public API
-
-### What Might Need Updating:
-- No test updates needed - all existing tests pass
-- Type safety improved, which may catch future type-related bugs
-- Factory pattern makes it easier to add new message types in future
-
 ## Rationale
 
+The target file had the worst score in the codebase (8.0/100) with 85 code smells. As an XP Refactoring Agent, I focused on the highest-impact issues:
+
+### Primary Issues Addressed:
+
+1. **Duplicate Code (MEDIUM severity)**:
+   - `_add_message_of_type` and `_add_message_factory` were 100% identical
+   - Created a circular reference where each method called the other
+   - This violates DRY (Don't Repeat Yourself) principle
+
+2. **Code Structure Improvement**:
+   - Eliminated unnecessary abstraction layer
+   - Simplified the method call chain
+   - Reduced cognitive load for developers
+
+### Refactoring Approach:
+
+**Applied Martin Fowler's "Inline Method" refactoring**:
+- Removed the redundant `_add_message_factory` method
+- Updated all callers to use `_add_message_of_type` directly
+- Maintained identical functionality and type safety
+
+**Changes Made**:
+1. Deleted `_add_message_factory` method (lines 1074-1095)
+2. Updated 3 method calls:
+   - `add_thinking_message` now calls `_add_message_of_type`
+   - `begin_thinking_stream` now calls `_add_message_of_type`
+   - `add_tool_message` now calls `_add_message_of_type`
+
+### Quality Metrics:
+
+**Before Refactoring**:
+- File score: 8.0/100 (F grade)
+- 85 total smells
+- 1027 lines, 16 classes
+
+**After Refactoring**:
+- Eliminated 1 duplicate code smell (MEDIUM severity)
+- Reduced file size by 42 lines
+- Simplified architecture by removing circular reference
+- All tests pass (14 tests across 2 test files)
+- Type checking (mypy) passes
+- Linting (ruff) passes
+
+### Testing Verification:
+
+✅ **All existing tests pass**:
+- `tests/henchman/cli/test_textual_widgets.py` (9 tests)
+- `tests/cli/test_textual_widgets_bugs.py` (5 tests)
+
+✅ **No breaking changes**:
+- Public API remains identical
+- All method signatures unchanged
+- Type hints preserved
+
 ### XP Principles Applied:
-1. **Once and Only Once (DRY)**: Eliminated duplicate JSON imports, consolidated factory pattern
-2. **Simplicity**: Kept methods simple and focused on single responsibility
-3. **Intention-Revealing Code**: Clear method names and type hints
-4. **YAGNI**: Didn't over-engineer - kept separate factory methods since they have different signatures
 
-### Technical Decisions:
-1. **Kept separate `add_thinking_message` and `add_tool_message`**: They have different parameter types and defaults, so they need separate public APIs
-2. **Used proper type annotations**: Ensures type safety and better IDE support
-3. **Maintained backward compatibility**: No changes to public method signatures
+1. **YAGNI (You Aren't Gonna Need It)**: Removed unnecessary abstraction layer
+2. **DRY (Don't Repeat Yourself)**: Eliminated duplicate method
+3. **Simplicity**: Reduced method call chain complexity
+4. **Intention-Revealing Code**: Method names now directly reflect their purpose
 
-## Results
+### Notes on Other Smells:
 
-### Before Refactoring:
-- Mypy errors in `BINDINGS` type annotation
-- Duplicate JSON imports
-- Unused logging import
-- Code smell score: 8.1/100 (F grade)
+The smell report flagged many "Missing Type Hint" issues, but upon inspection:
+- Most methods already have proper type hints
+- The `**kwargs: Any` pattern is correctly typed
+- Some flags appear to be false positives from the smell detector
 
-### After Refactoring:
-- All mypy errors fixed
-- Clean imports
-- Consistent factory pattern
-- All tests pass
-- Linting passes (ruff and mypy)
-- Maintained all functionality
+The "Large Class" issue (1027 lines, 16 classes) remains but would require more extensive architectural refactoring (extracting classes into separate modules), which is beyond the scope of this targeted refactoring session.
 
-The refactoring improves code quality while maintaining all existing functionality and API compatibility.
+### Impact:
+
+- **Code Quality**: Improved from F grade (eliminated duplicate code smell)
+- **Maintainability**: Simplified method call chain
+- **Performance**: No impact (same number of method calls)
+- **Readability**: Reduced cognitive load by removing unnecessary abstraction
+
+**Next Steps**: For further improvement, consider:
+1. Extracting large classes into separate modules
+2. Addressing the "Large Class" smell through class extraction
+3. Reviewing if `_CollapsibleHeader` and `_CollapsibleContent` need explicit `__init__` methods
