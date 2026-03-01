@@ -1,67 +1,89 @@
-# Refactoring Summary - `src/henchman/cli/textual_widgets.py`
+# Refactoring Summary: src/henchman/cli/textual_widgets.py
 
-**Date/Time**: 2026-03-01 (Current refactoring session)
+**Date/Time**: 2026-03-01 (Completed refactoring)
+**Target File**: src/henchman/cli/textual_widgets.py
+**Original Status**: ❌ F (8.1/100) - 79 smells
+**Current Status**: ✅ Improved (exact score TBD)
 
-## Files Changed
-- `src/henchman/cli/textual_widgets.py`
+## Refactoring Completed:
 
-## Rationale
-The file had several code smells identified in the smell report:
-1. **Missing Type Hints** (63+ instances) - Incomplete type annotations
-2. **Duplicate Code** - `add_thinking_message` and `add_tool_message` had similar patterns
-3. **Large File** - 942 lines with 17 classes (implicit smell)
+### 1. **Eliminated Dead Code** ✅
+- Removed `_add_widget` method (was defined but never used)
+- Removed `_create_and_track_widget` method (unnecessary wrapper around `_add_message_widget`)
 
-## Changes Made
+### 2. **Reduced Code Duplication** ✅
+- Consolidated widget creation logic into `_add_message_widget`
+- Refactored `begin_agent_stream` to use `_add_message_widget` instead of manual widget creation
+- Refactored `_add_message_with_prefix` to use `_add_message_widget`
 
-### 1. Added Explicit Type Hints
-- Added type annotations for module-level constants:
-  - `_USER_PREFIX: str = "[bold green]You:[/]"`
-  - `_SYSTEM_PREFIX: str = "[dim]»[/]"`
-  - `_ERROR_PREFIX: str = "[bold red]Error:[/]"`
-  - `_AGENT_PREFIX_TEMPLATE: str = "[bold cyan]{name}:[/]"`
-  - `_ANSI_RE: re.Pattern[str] = re.compile(...)`
-  - `_SUMMARY_MAX_LEN: int = 20`
+### 3. **Improved Method Signatures** ✅
+- Renamed `_SUMMARY_MAX_LEN` to `_THINKING_SUMMARY_MAX_LENGTH` for clarity
+- Simplified `_build_header_text` method which had confusing `apply_markup_to_tool=None` parameter
+- Split into two clear methods: `_build_header_text_for_ui()` and `_build_header_text_for_render()`
+- Simplified `_build_body_parts` method which had confusing `pretty_format_args=None` parameter
+- Split into two clear methods: `_build_body_parts_for_ui()` and `_build_body_parts_for_render()`
 
-- Added explicit type hints for local variables in helper functions:
-  - `_safe_markup()`: Added `cleaned: str` type hint
-  - `_highlight_text()`: Added `lower: str`, `tl: str`, `result: list[str]`, `pos: int`, `idx: int` type hints
+### 4. **Fixed Code Quality Issues** ✅
+- Fixed whitespace issues (blank lines with whitespace)
+- Improved method naming for intention-revealing code
+- Eliminated anti-patterns (parameters with `None` default that get set to `True`)
 
-### 2. Reduced Code Duplication
-- Created `_create_and_track_widget()` method as a typed wrapper around `_add_message_widget()`
-- Both `add_thinking_message()` and `add_tool_message()` now use this common factory method
-- Eliminated repetitive widget creation and tracking patterns
+## Refactoring Strategy Applied:
 
-### 3. Improved Type Safety
-- Added complete type signatures to helper methods
-- Maintained backward compatibility with existing API
-- Improved static type checking without breaking functionality
+1. **Extract Method** - Created focused methods with single responsibilities
+2. **Inline Method** - Removed unnecessary wrapper methods
+3. **Rename Method** - Improved clarity of method names
+4. **Remove Dead Code** - Eliminated unused methods
+5. **Replace Parameter with Explicit Methods** - Split methods with boolean flags into separate methods
 
-## Refactoring Patterns Applied
-1. **Extract Method**: Created `_create_and_track_widget()` to encapsulate common logic
-2. **Add Parameter Object**: Used typed parameters for better type safety
-3. **Introduce Type Hints**: Added explicit type annotations throughout
-4. **DRY Principle**: Eliminated duplicate widget creation patterns
+## Testing Implications:
+- ✅ All 9 existing tests continue to pass
+- ✅ No changes to public API
+- ✅ Type checking passes (mypy)
+- ✅ Linting passes (ruff)
+- ✅ Behavior remains identical from user perspective
 
-## Testing Implications
-- All existing tests pass (9 tests in `test_textual_widgets.py`)
-- No changes to public API signatures
-- Type safety improved without breaking functionality
-- Backward compatibility maintained
+## Code Metrics Improvement:
+- **Lines of Code**: Reduced from 968 to ~950 (estimated)
+- **Complexity**: Simplified complex methods with confusing parameters
+- **Readability**: Improved method names and separation of concerns
+- **Maintainability**: Eliminated dead code and duplication
 
-## Quality Improvements
-1. **Type Safety**: Better static type checking with mypy
-2. **Readability**: Clearer intent with typed variables and methods
-3. **Maintainability**: Reduced duplication makes future changes easier
-4. **Consistency**: Uniform pattern for widget creation and tracking
+## Key Changes Made:
 
-## Verification
-- ✅ All tests pass (`pytest tests/henchman/cli/test_textual_widgets.py`)
-- ✅ Linting passes (`ruff check` and `mypy`)
-- ✅ No breaking changes to public API
-- ✅ Code duplication reduced
-- ✅ Type hints improved
+### Before:
+```python
+def _build_header_text(self, apply_markup_to_tool: bool | None = None) -> str:
+    if apply_markup_to_tool is None:
+        apply_markup_to_tool = True
+    # Complex logic with conditional markup application
+```
 
-## Notes
-The smell report indicated duplicate code with methods in other files (`core/session_manager_base.py`, `cli/tool_executor.py`), but these appeared to be superficial similarities rather than actual code duplication. The refactoring focused on actual duplication within the file itself.
+### After:
+```python
+def _build_header_text_for_ui(self) -> str:
+    # Clear logic for UI display with markup
+    pass
 
-The file remains large (942 lines) but is now better organized with improved type safety and reduced duplication. Further splitting of the file could be considered in a future refactoring phase.
+def _build_header_text_for_render(self) -> str:
+    # Clear logic for render output without markup
+    pass
+```
+
+### Before:
+```python
+def _create_and_track_widget(self, widget_class, *args, **kwargs):
+    return self._add_message_widget(widget_class, *args, **kwargs)
+```
+
+### After:
+```python
+# Direct call to _add_message_widget - removed unnecessary abstraction
+```
+
+## Verification:
+- [x] All tests pass
+- [x] No linting errors
+- [x] No type errors
+- [x] Code is more readable and maintainable
+- [x] External behavior unchanged
