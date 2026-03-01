@@ -12,7 +12,7 @@ import contextlib
 import json
 import re
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, TypeVar, cast
 
 from rich.markdown import Markdown as RichMarkdown
 from rich.markup import escape as markup_escape
@@ -28,6 +28,12 @@ if TYPE_CHECKING:
     from textual import events
 
 _T = TypeVar("_T", bound=Static)
+
+
+class ToolCallProtocol(Protocol):
+    """Protocol for tool call objects."""
+    name: str
+    arguments: str | dict[str, Any]
 
 # ------------------------------------------------------------------ #
 # Constants                                                            #
@@ -607,8 +613,8 @@ class ToolMessage(CollapsibleMessage):
 
     def __init__(
         self,
-        thought: str | Any = "",  # Can be ToolCall when used as positional arg
-        tool_call: Any = None,
+        thought: str = "",
+        tool_call: ToolCallProtocol | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize.
@@ -625,11 +631,12 @@ class ToolMessage(CollapsibleMessage):
         """
         # Support ToolMessage(tool_call_obj) as positional arg
         if tool_call is None and thought and not isinstance(thought, str):
-            tool_call = thought
+            # If thought is not a string, assume it's a ToolCallProtocol
+            tool_call = cast(ToolCallProtocol, thought)
             thought = ""
         super().__init__(**kwargs)
         self.add_class("tool-message")
-        self._thought = thought if isinstance(thought, str) else ""
+        self._thought = thought
         self._tool_call = tool_call
         self._content_text = self._thought
         self._result_text: str = ""
@@ -639,7 +646,7 @@ class ToolMessage(CollapsibleMessage):
         self._body.add_class("tool")
         self._update_renderable()
 
-    def _parse_tool_arguments(self) -> Any:
+    def _parse_tool_arguments(self) -> dict[str, Any] | str | None:
         """Parse tool arguments from string to object if possible.
 
         Returns:
@@ -651,10 +658,11 @@ class ToolMessage(CollapsibleMessage):
         args = self._tool_call.arguments
         if isinstance(args, str):
             try:
-                return json.loads(args)
+                return cast(dict[str, Any], json.loads(args))
             except (json.JSONDecodeError, TypeError):
                 return args
-        return args
+        # args should be dict[str, Any] based on ToolCallProtocol
+        return cast(dict[str, Any] | str, args)
 
     def _format_compact_args(self) -> str:
         """Return a compact one-line representation of tool arguments.
@@ -1113,7 +1121,11 @@ class ChatPane(VerticalScroll):
             self.begin_thinking_stream(agent_name)
         self._active_thinking[agent_name].append(chunk)
 
-    def add_tool_message(self, thought: str = "", tool_call: Any = None) -> ToolMessage:
+    def add_tool_message(
+        self,
+        thought: str = "",
+        tool_call: ToolCallProtocol | None = None,
+    ) -> ToolMessage:
         """Add a tool message to the chat pane.
 
         Args:
