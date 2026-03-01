@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 50.5/100)
+# Code Smell Report — ❌ F (Score: 50.8/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T12:00:22.535462+00:00_
+_Generated: 2026-03-01T12:30:19.961115+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 50.5/100 |
+| **Overall Score** | 50.8/100 |
 | **Files Scanned** | 186 |
-| **Total Lines (non-blank)** | 32,578 |
-| **Total Smells** | 2345 |
+| **Total Lines (non-blank)** | 32,464 |
+| **Total Smells** | 2326 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,23 +20,23 @@ _Generated: 2026-03-01T12:00:22.535462+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1675 |
-| medium | 573 |
-| high | 97 |
+| low | 1664 |
+| medium | 569 |
+| high | 93 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1144 |
-| Feature Envy | 323 |
-| Duplicate Code | 320 |
-| Magic Number | 136 |
+| Missing Type Hint | 1138 |
+| Feature Envy | 321 |
+| Duplicate Code | 314 |
 | Long Method | 133 |
-| Deep Nesting | 131 |
+| Magic Number | 133 |
+| Deep Nesting | 130 |
 | Primitive Obsession | 81 |
 | Complex Function | 44 |
-| Large Class | 33 |
+| Large Class | 32 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,44 +107,20 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | providers/anthropic.py | ❌ F | 10.0 | 59 | 591 | 33 | 0.0 |
-| 2 | cli/commands/session.py | ❌ F | 12.1 | 51 | 487 | 40 | 0.0 |
-| 3 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
-| 4 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
-| 5 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
-| 6 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
-| 7 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
-| 8 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
-| 9 | tools/builtins/dead_code.py | ❌ F | 15.0 | 49 | 301 | 50 | 15.5 |
-| 10 | cli/commands/context.py | ❌ F | 15.3 | 41 | 303 | 51 | 11.0 |
+| 1 | cli/commands/session.py | ❌ F | 12.1 | 51 | 487 | 40 | 0.0 |
+| 2 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
+| 3 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
+| 4 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
+| 5 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
+| 6 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
+| 7 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
+| 8 | tools/builtins/dead_code.py | ❌ F | 15.0 | 49 | 301 | 50 | 15.5 |
+| 9 | cli/commands/context.py | ❌ F | 15.3 | 41 | 303 | 51 | 11.0 |
+| 10 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 166 additional files omitted._
-
-### providers/anthropic.py — ❌ F (10.0/100)
-
-LOC: 591 | Classes: 5 | Functions: 0 | MI: 33 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 156 | 🟠 HIGH | Duplicate Code | Function '_process_event' is an exact duplicate of '_process_event' at providers/anthropic.py:592 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 177 | 🟠 HIGH | Duplicate Code | Function '_handle_content_block_start' is an exact duplicate of '_handle_content_block_start' at providers/anthropic.py:613 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 228 | 🟠 HIGH | Duplicate Code | Function '_handle_content_block_stop' is an exact duplicate of '_handle_content_block_stop' at providers/anthropic.py:664 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 251 | 🟠 HIGH | Duplicate Code | Function '_build_tool_calls_from_pending' is an exact duplicate of '_build_tool_calls_from_pending' at providers/anthropic.py:687 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 115 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor.process_stream' accesses 'chunk' 9 times but 'self' only 3 times | Move Method — consider moving 'process_stream' to the class that owns 'chunk'. |
-| 177 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor._handle_content_block_start' accesses 'block' 5 times but 'self' only 0 times | Move Method — consider moving '_handle_content_block_start' to the class that owns 'block'. |
-| 196 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor._handle_content_block_delta' accesses 'delta' 7 times but 'self' only 3 times | Move Method — consider moving '_handle_content_block_delta' to the class that owns 'delta'. |
-| 196 | 🟡 MEDIUM | Duplicate Code | Function '_handle_content_block_delta' is 100% similar to '_handle_content_block_delta' at providers/anthropic.py:632 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 233 | 🟡 MEDIUM | Duplicate Code | Function '_handle_message_delta' is 100% similar to '_handle_message_delta' at providers/anthropic.py:669 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 289 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: api_key: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), model: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), tokens_per_minute: Name(id='int', ctx=Load()), max_retries: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 613 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._handle_content_block_start' accesses 'block' 5 times but 'self' only 0 times | Move Method — consider moving '_handle_content_block_start' to the class that owns 'block'. |
-| 632 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._handle_content_block_delta' accesses 'delta' 7 times but 'self' only 3 times | Move Method — consider moving '_handle_content_block_delta' to the class that owns 'delta'. |
-| 56 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 70 | 🟢 LOW | Missing Type Hint | Function '_should_yield' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 98 | 🟢 LOW | Magic Number | Magic number 8192 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-
-_... and 44 more smells._
 
 ### cli/commands/session.py — ❌ F (12.1/100)
 
@@ -601,6 +577,30 @@ LOC: 265 | Classes: 1 | Functions: 0 | MI: 56 | Avg CC: 14.0
 | 22 | 🟢 LOW | Large Class | Class 'Dashboard' spans 324 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
 
 _... and 25 more smells._
+
+### cli/ui_renderer.py — ❌ F (17.4/100)
+
+LOC: 296 | Classes: 2 | Functions: 0 | MI: 58 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 45 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: 'start_task' (line 45), 'start_task' (line 350) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 69 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: 'update_task' (line 69), 'update_task' (line 363) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 96 | 🟡 MEDIUM | Large Class | Class 'UIRenderer' has 31 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 310 | 🟡 MEDIUM | Duplicate Code | Function 'tool_result' is 100% similar to 'tool_summary' at cli/ui_renderer.py:314 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 310 | 🟡 MEDIUM | Duplicate Code | Function 'tool_result' is 100% similar to 'update_task' at cli/ui_renderer.py:363 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 314 | 🟡 MEDIUM | Duplicate Code | Function 'tool_summary' is 100% similar to 'update_task' at cli/ui_renderer.py:363 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 36 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: missing return type | Add Type Annotations for all parameters and return type. |
+| 45 | 🟢 LOW | Missing Type Hint | Function 'start_task' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 45 | 🟢 LOW | Primitive Obsession | Function 'start_task' has 3 primitive-typed parameters: task_id: Name(id='str', ctx=Load()), description: Name(id='str', ctx=Load()), total: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 69 | 🟢 LOW | Missing Type Hint | Function 'update_task' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 69 | 🟢 LOW | Primitive Obsession | Function 'update_task' has 3 primitive-typed parameters: task_id: Name(id='str', ctx=Load()), advance: Name(id='int', ctx=Load()), description: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 84 | 🟢 LOW | Missing Type Hint | Function 'complete_task' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 108 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
+| 136 | 🟢 LOW | Missing Type Hint | Function 'print_welcome' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 140 | 🟢 LOW | Missing Type Hint | Function 'print_goodbye' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 32 more smells._
 
 ## ✨ Clean Files (56 files with no smells)
 

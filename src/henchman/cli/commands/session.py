@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 from henchman.cli.commands import BaseCommand, CommandContext
 
@@ -39,84 +39,42 @@ class SessionListParams:
     max_date_display_len: int = DEFAULT_DATE_DISPLAY_LENGTH
 
 
-class SessionCommandHelper:
-    """Helper class for session command operations to reduce class size and feature envy."""
+@dataclass
+class CommandOperationContext:
+    """Context for command operations to reduce feature envy."""
+    console: Any  # Rich console object
+    args: list[str]
+    session_manager: "SessionManager | None" = None
+    project_hash: str | None = None
 
-    def __init__(self, command: SessionCommand):
-        self.command = command
 
-    def _get_manager(self, ctx: CommandContext) -> SessionManager | None:
-        """Get session manager from context with error handling.
+@dataclass
+class SessionDisplayContext:
+    """Context for session display operations."""
+    meta: "SessionMetadata"
+    session: "Session | None" = None
+    params: SessionListParams | None = None
 
-        Args:
-            ctx: Command context.
 
-        Returns:
-            SessionManager or None if not available.
-        """
-        manager: SessionManager | None = getattr(ctx, "session_manager", None)
-        if manager is None:
-            ctx.console.print("[red]Session manager not available[/]")
-        return manager
-
-    def _ensure_args(self, ctx: CommandContext, min_args: int, usage: str) -> bool:
-        """Ensure minimum number of arguments.
-
-        Args:
-            ctx: Command context.
-            min_args: Minimum number of arguments required.
-            usage: Usage string to show if validation fails.
-
-        Returns:
-            True if arguments are valid, False otherwise.
-        """
-        if len(ctx.args) < min_args:
-            ctx.console.print(f"[yellow]Usage: {usage}[/]")
-            return False
-        return True
-
-    def _parse_merge_arguments(self, ctx: CommandContext) -> tuple[list[str], str, str | None]:
-        """Parse merge command arguments.
-
-        Args:
-            ctx: Command context.
-
-        Returns:
-            Tuple of (session_ids, strategy, tag).
-        """
-        session_ids = [ctx.args[self.command._MERGE_ID1_IDX], ctx.args[self.command._MERGE_ID2_IDX]]
-        strategy = "smart"
-        tag = None
-
-        # Parse optional arguments
-        if len(ctx.args) > self.command._MERGE_STRATEGY_IDX:
-            if ctx.args[self.command._MERGE_STRATEGY_IDX] in ("union", "intersection", "smart"):
-                strategy = ctx.args[self.command._MERGE_STRATEGY_IDX]
-                if len(ctx.args) > self.command._MERGE_TAG_IDX:
-                    tag = ctx.args[self.command._MERGE_TAG_IDX]
-            else:
-                tag = ctx.args[self.command._MERGE_STRATEGY_IDX]
-
-        return session_ids, strategy, tag
-
-    def _format_session_display(
-        self,
-        meta: SessionMetadata,
-        session: Session | None = None,
-        params: SessionListParams | None = None
-    ) -> str:
+class SessionDisplayFormatter:
+    """Formats session information for display to reduce feature envy."""
+    
+    @staticmethod
+    def format_session_display(context: SessionDisplayContext) -> str:
         """Format a session for display.
 
         Args:
-            meta: Session metadata.
-            session: Optional full session object for enhanced info.
-            params: Display parameters.
+            context: Session display context.
 
         Returns:
             Formatted display string.
         """
-        if params is None:
-            params = SessionListParams()
+        if context.params is None:
+            context.params = SessionListParams()
+
+        meta = context.meta
+        session = context.session
+        params = context.params
 
         tag_display = f"[cyan]{meta.tag}[/]" if meta.tag else f"[dim]{meta.id[:params.max_id_display_len]}[/]"
 
@@ -136,11 +94,8 @@ class SessionCommandHelper:
 
         return f"  {tag_display}{branch_info}{template_info}"
 
-    def _format_session_details(
-        self,
-        meta: SessionMetadata,
-        session: Session | None = None
-    ) -> str:
+    @staticmethod
+    def format_session_details(meta: "SessionMetadata", session: "Session | None" = None) -> str:
         """Format session details for display.
 
         Args:
@@ -157,159 +112,248 @@ class SessionCommandHelper:
 
         return details
 
-    async def _execute_branch(self, ctx: CommandContext, manager: SessionManager) -> None:
+
+class SessionCommandHelper:
+    """Helper class for session command operations to reduce class size and feature envy."""
+
+    def __init__(self, command: "SessionCommand"):
+        self.command = command
+        self.formatter = SessionDisplayFormatter()
+
+    def _get_manager(self, op_context: CommandOperationContext) -> "SessionManager | None":
+        """Get session manager from context with error handling.
+
+        Args:
+            op_context: Command operation context.
+
+        Returns:
+            SessionManager or None if not available.
+        """
+        manager: SessionManager | None = op_context.session_manager
+        if manager is None:
+            op_context.console.print("[red]Session manager not available[/]")
+        return manager
+
+    def _ensure_args(self, op_context: CommandOperationContext, min_args: int, usage: str) -> bool:
+        """Ensure minimum number of arguments.
+
+        Args:
+            op_context: Command operation context.
+            min_args: Minimum number of arguments required.
+            usage: Usage string to show if validation fails.
+
+        Returns:
+            True if arguments are valid, False otherwise.
+        """
+        if len(op_context.args) < min_args:
+            op_context.console.print(f"[yellow]Usage: {usage}[/]")
+            return False
+        return True
+
+    def _parse_merge_arguments(self, op_context: CommandOperationContext) -> tuple[list[str], str, str | None]:
+        """Parse merge command arguments.
+
+        Args:
+            op_context: Command operation context.
+
+        Returns:
+            Tuple of (session_ids, strategy, tag).
+        """
+        session_ids = [
+            op_context.args[self.command._MERGE_ID1_IDX],
+            op_context.args[self.command._MERGE_ID2_IDX]
+        ]
+        strategy = "smart"
+        tag = None
+
+        # Parse optional arguments
+        if len(op_context.args) > self.command._MERGE_STRATEGY_IDX:
+            if op_context.args[self.command._MERGE_STRATEGY_IDX] in ("union", "intersection", "smart"):
+                strategy = op_context.args[self.command._MERGE_STRATEGY_IDX]
+                if len(op_context.args) > self.command._MERGE_TAG_IDX:
+                    tag = op_context.args[self.command._MERGE_TAG_IDX]
+            else:
+                tag = op_context.args[self.command._MERGE_STRATEGY_IDX]
+
+        return session_ids, strategy, tag
+
+    async def _execute_branch(self, op_context: CommandOperationContext, manager: "SessionManager") -> None:
         """Execute branch operation.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             manager: Session manager.
         """
-        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_BRANCH, "/session branch <id> <point> [tag]"):
+        if not self._ensure_args(
+            op_context, 
+            DEFAULT_MIN_ARGS_FOR_BRANCH, 
+            "/session branch <id> <point> [tag]"
+        ):
             return
 
-        session_id = ctx.args[self.command._BRANCH_ID_IDX]
+        session_id = op_context.args[self.command._BRANCH_ID_IDX]
         try:
-            branch_point = int(ctx.args[self.command._BRANCH_POINT_IDX])
+            branch_point = int(op_context.args[self.command._BRANCH_POINT_IDX])
         except ValueError:
-            ctx.console.print("[red]Branch point must be an integer[/]")
+            op_context.console.print("[red]Branch point must be an integer[/]")
             return
 
-        tag = ctx.args[self.command._BRANCH_TAG_IDX] if len(ctx.args) > self.command._BRANCH_TAG_IDX else None
+        tag = op_context.args[self.command._BRANCH_TAG_IDX] if len(op_context.args) > self.command._BRANCH_TAG_IDX else None
 
         try:
             branch = manager.branch_session(session_id, branch_point, tag)
             manager.save(branch)
-            ctx.console.print(f"[green]✓[/] Created branch: {branch.id}")
+            op_context.console.print(f"[green]✓[/] Created branch: {branch.id}")
             if branch.tag:
-                ctx.console.print(f"[dim]Tag: {branch.tag}[/]")
-            ctx.console.print(f"[dim]Branch point: {branch_point}, Parent: {session_id}[/]")
+                op_context.console.print(f"[dim]Tag: {branch.tag}[/]")
+            op_context.console.print(f"[dim]Branch point: {branch_point}, Parent: {session_id}[/]")
         except (FileNotFoundError, ValueError) as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
+            op_context.console.print(f"[red]Error: {e}[/]")
 
-    async def _execute_merge(self, ctx: CommandContext, manager: SessionManager) -> None:
+    async def _execute_merge(self, op_context: CommandOperationContext, manager: "SessionManager") -> None:
         """Execute merge operation.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             manager: Session manager.
         """
-        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_MERGE, "/session merge <id1> <id2> [strategy] [tag]"):
+        if not self._ensure_args(
+            op_context, 
+            DEFAULT_MIN_ARGS_FOR_MERGE, 
+            "/session merge <id1> <id2> [strategy] [tag]"
+        ):
             return
 
-        session_ids, strategy, tag = self._parse_merge_arguments(ctx)
+        session_ids, strategy, tag = self._parse_merge_arguments(op_context)
 
         try:
             merged = manager.merge_sessions(session_ids, strategy, tag)
             manager.save(merged)
-            ctx.console.print(f"[green]✓[/] Created merged session: {merged.id}")
+            op_context.console.print(f"[green]✓[/] Created merged session: {merged.id}")
             if merged.tag:
-                ctx.console.print(f"[dim]Tag: {merged.tag}[/]")
-            ctx.console.print(f"[dim]Strategy: {strategy}, Sources: {', '.join(session_ids)}[/]")
-            ctx.console.print(f"[dim]Messages: {len(merged.messages)}[/]")
+                op_context.console.print(f"[dim]Tag: {merged.tag}[/]")
+            op_context.console.print(f"[dim]Strategy: {strategy}, Sources: {', '.join(session_ids)}[/]")
+            op_context.console.print(f"[dim]Messages: {len(merged.messages)}[/]")
         except (FileNotFoundError, ValueError) as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
+            op_context.console.print(f"[red]Error: {e}[/]")
 
-    async def _execute_template_save(self, ctx: CommandContext, manager: SessionManager) -> None:
+    async def _execute_template_save(self, op_context: CommandOperationContext, manager: "SessionManager") -> None:
         """Execute template save operation.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             manager: Session manager.
         """
-        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_TEMPLATE_SAVE, "/session template save <id> <name>"):
+        if not self._ensure_args(
+            op_context, 
+            DEFAULT_MIN_ARGS_FOR_TEMPLATE_SAVE, 
+            "/session template save <id> <name>"
+        ):
             return
 
-        session_id = ctx.args[self.command._TEMPLATE_SESSION_ID_IDX]
-        name = ctx.args[self.command._TEMPLATE_NAME_IDX]
-        description = ctx.args[self.command._TEMPLATE_DESC_IDX] if len(ctx.args) > self.command._TEMPLATE_DESC_IDX else ""
+        session_id = op_context.args[self.command._TEMPLATE_SESSION_ID_IDX]
+        name = op_context.args[self.command._TEMPLATE_NAME_IDX]
+        description = op_context.args[self.command._TEMPLATE_DESC_IDX] if len(op_context.args) > self.command._TEMPLATE_DESC_IDX else ""
 
         try:
             template = manager.save_template(session_id, name, description)
-            ctx.console.print(f"[green]✓[/] Saved template: {template['name']}")
-            ctx.console.print(f"[dim]ID: {template['id']}[/]")
+            op_context.console.print(f"[green]✓[/] Saved template: {template['name']}")
+            op_context.console.print(f"[dim]ID: {template['id']}[/]")
             if description:
-                ctx.console.print(f"[dim]Description: {description}[/]")
+                op_context.console.print(f"[dim]Description: {description}[/]")
         except (FileNotFoundError, ValueError) as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
+            op_context.console.print(f"[red]Error: {e}[/]")
 
-    async def _execute_template_create(self, ctx: CommandContext, manager: SessionManager) -> None:
+    async def _execute_template_create(self, op_context: CommandOperationContext, manager: "SessionManager") -> None:
         """Execute template create operation.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             manager: Session manager.
         """
-        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_TEMPLATE_CREATE, "/session template create <template_id> [tag]"):
+        if not self._ensure_args(
+            op_context, 
+            DEFAULT_MIN_ARGS_FOR_TEMPLATE_CREATE, 
+            "/session template create <template_id> [tag]"
+        ):
             return
 
-        template_id = ctx.args[self.command._TEMPLATE_ID_IDX]
-        tag = ctx.args[self.command._TEMPLATE_TAG_IDX] if len(ctx.args) > self.command._TEMPLATE_TAG_IDX else None
+        template_id = op_context.args[self.command._TEMPLATE_ID_IDX]
+        tag = op_context.args[self.command._TEMPLATE_TAG_IDX] if len(op_context.args) > self.command._TEMPLATE_TAG_IDX else None
 
         try:
             session = manager.create_from_template(template_id, tag=tag)
             manager.save(session)
-            ctx.console.print(f"[green]✓[/] Created session from template: {session.id}")
+            op_context.console.print(f"[green]✓[/] Created session from template: {session.id}")
             if session.tag:
-                ctx.console.print(f"[dim]Tag: {session.tag}[/]")
-            ctx.console.print(f"[dim]Template: {template_id}[/]")
+                op_context.console.print(f"[dim]Tag: {session.tag}[/]")
+            op_context.console.print(f"[dim]Template: {template_id}[/]")
         except (FileNotFoundError, ValueError) as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
+            op_context.console.print(f"[red]Error: {e}[/]")
 
-    async def _execute_template_list(self, ctx: CommandContext, manager: SessionManager) -> None:
+    async def _execute_template_list(self, op_context: CommandOperationContext, manager: "SessionManager") -> None:
         """Execute template list operation.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             manager: Session manager.
         """
         templates = manager.list_templates()
 
         if not templates:
-            ctx.console.print("[dim]No templates available[/]")
+            op_context.console.print("[dim]No templates available[/]")
             return
 
-        ctx.console.print("\n[bold blue]Available Templates[/]\n")
+        op_context.console.print("\n[bold blue]Available Templates[/]\n")
         for template in templates:
-            ctx.console.print(f"  [cyan]{template['name']}[/]")
-            ctx.console.print(f"    ID: {template['id']}")
+            op_context.console.print(f"  [cyan]{template['name']}[/]")
+            op_context.console.print(f"    ID: {template['id']}")
             if template.get('description'):
-                ctx.console.print(f"    Description: {template['description']}")
+                op_context.console.print(f"    Description: {template['description']}")
             if template.get('parameters'):
                 params = ', '.join(template['parameters'].keys())
-                ctx.console.print(f"    Parameters: {params}")
-            ctx.console.print(f"    Created: {template.get('created_at', 'unknown')}")
-            ctx.console.print("")
+                op_context.console.print(f"    Parameters: {params}")
+            op_context.console.print(f"    Created: {template.get('created_at', 'unknown')}")
+            op_context.console.print("")
 
-    async def _execute_template_delete(self, ctx: CommandContext, manager: SessionManager) -> None:
+    async def _execute_template_delete(self, op_context: CommandOperationContext, manager: "SessionManager") -> None:
         """Execute template delete operation.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             manager: Session manager.
         """
-        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_TEMPLATE_DELETE, "/session template delete <template_id>"):
+        if not self._ensure_args(
+            op_context, 
+            DEFAULT_MIN_ARGS_FOR_TEMPLATE_DELETE, 
+            "/session template delete <template_id>"
+        ):
             return
 
-        template_id = ctx.args[self.command._TEMPLATE_ID_IDX]
+        template_id = op_context.args[self.command._TEMPLATE_ID_IDX]
 
         try:
             manager.delete_template(template_id)
-            ctx.console.print(f"[green]✓[/] Deleted template: {template_id}")
+            op_context.console.print(f"[green]✓[/] Deleted template: {template_id}")
         except FileNotFoundError as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
+            op_context.console.print(f"[red]Error: {e}[/]")
 
-    async def _execute_export(self, ctx: CommandContext, manager: SessionManager) -> None:
+    async def _execute_export(self, op_context: CommandOperationContext, manager: "SessionManager") -> None:
         """Execute export operation.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             manager: Session manager.
         """
-        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_EXPORT, "/session export <id> [format]"):
+        if not self._ensure_args(
+            op_context, 
+            DEFAULT_MIN_ARGS_FOR_EXPORT, 
+            "/session export <id> [format]"
+        ):
             return
 
-        session_id = ctx.args[self.command._EXPORT_ID_IDX]
-        format = ctx.args[self.command._EXPORT_FORMAT_IDX] if len(ctx.args) > self.command._EXPORT_FORMAT_IDX else "json"
+        session_id = op_context.args[self.command._EXPORT_ID_IDX]
+        format = op_context.args[self.command._EXPORT_FORMAT_IDX] if len(op_context.args) > self.command._EXPORT_FORMAT_IDX else "json"
 
         try:
             exported = manager.export_session(session_id, format)
@@ -318,40 +362,44 @@ class SessionCommandHelper:
             output_file = Path.cwd() / f"session_{session_id}.{ext}"
             output_file.write_text(exported)
 
-            ctx.console.print(f"[green]✓[/] Exported session to: {output_file}")
-            ctx.console.print(f"[dim]Format: {format}, Size: {len(exported)} bytes[/]")
+            op_context.console.print(f"[green]✓[/] Exported session to: {output_file}")
+            op_context.console.print(f"[dim]Format: {format}, Size: {len(exported)} bytes[/]")
         except (FileNotFoundError, ValueError) as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
+            op_context.console.print(f"[red]Error: {e}[/]")
 
-    async def _execute_import(self, ctx: CommandContext, manager: SessionManager) -> None:
+    async def _execute_import(self, op_context: CommandOperationContext, manager: "SessionManager") -> None:
         """Execute import operation.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             manager: Session manager.
         """
-        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_IMPORT, "/session import <file> [format]"):
+        if not self._ensure_args(
+            op_context, 
+            DEFAULT_MIN_ARGS_FOR_IMPORT, 
+            "/session import <file> [format]"
+        ):
             return
 
-        file_path = Path(ctx.args[self.command._IMPORT_FILE_IDX])
+        file_path = Path(op_context.args[self.command._IMPORT_FILE_IDX])
         if not file_path.exists():
-            ctx.console.print(f"[red]File not found: {file_path}[/]")
+            op_context.console.print(f"[red]File not found: {file_path}[/]")
             return
 
-        format = ctx.args[self.command._IMPORT_FORMAT_IDX] if len(ctx.args) > self.command._IMPORT_FORMAT_IDX else "json"
-        tag = ctx.args[self.command._IMPORT_TAG_IDX] if len(ctx.args) > self.command._IMPORT_TAG_IDX else None
+        format = op_context.args[self.command._IMPORT_FORMAT_IDX] if len(op_context.args) > self.command._IMPORT_FORMAT_IDX else "json"
+        tag = op_context.args[self.command._IMPORT_TAG_IDX] if len(op_context.args) > self.command._IMPORT_TAG_IDX else None
 
         try:
             data = file_path.read_text()
             session = manager.import_session(data, format, tag)
             manager.save(session)
 
-            ctx.console.print(f"[green]✓[/] Imported session: {session.id}")
+            op_context.console.print(f"[green]✓[/] Imported session: {session.id}")
             if session.tag:
-                ctx.console.print(f"[dim]Tag: {session.tag}[/]")
-            ctx.console.print(f"[dim]Format: {format}, Messages: {len(session.messages)}[/]")
+                op_context.console.print(f"[dim]Tag: {session.tag}[/]")
+            op_context.console.print(f"[dim]Format: {format}, Messages: {len(session.messages)}[/]")
         except (ValueError, json.JSONDecodeError) as e:
-            ctx.console.print(f"[red]Error importing session: {e}[/]")
+            op_context.console.print(f"[red]Error importing session: {e}[/]")
 
 
 class SessionCommand(BaseCommand):
@@ -431,17 +479,45 @@ class SessionCommand(BaseCommand):
         else:
             await self._show_help(ctx)
 
+    def _create_operation_context(self, ctx: CommandContext) -> CommandOperationContext:
+        """Create operation context from command context.
+
+        Args:
+            ctx: Command context.
+
+        Returns:
+            Command operation context.
+        """
+        return CommandOperationContext(
+            console=ctx.console,
+            args=ctx.args,
+            session_manager=getattr(ctx, "session_manager", None),
+            project_hash=getattr(ctx, "project_hash", None)
+        )
+
+    async def _execute_with_manager(
+        self, 
+        ctx: CommandContext, 
+        executor: Callable[[CommandOperationContext, "SessionManager"], Any]
+    ) -> None:
+        """Execute operation with manager validation.
+
+        Args:
+            ctx: Command context.
+            executor: Function to execute with (op_context, manager) parameters.
+        """
+        op_context = self._create_operation_context(ctx)
+        manager = self.helper._get_manager(op_context)
+        if manager is not None:
+            await executor(op_context, manager)
+
     async def _branch(self, ctx: CommandContext) -> None:
         """Branch from an existing session."""
-        manager = self.helper._get_manager(ctx)
-        if manager is not None:
-            await self.helper._execute_branch(ctx, manager)
+        await self._execute_with_manager(ctx, self.helper._execute_branch)
 
     async def _merge(self, ctx: CommandContext) -> None:
         """Merge multiple sessions."""
-        manager = self.helper._get_manager(ctx)
-        if manager is not None:
-            await self.helper._execute_merge(ctx, manager)
+        await self._execute_with_manager(ctx, self.helper._execute_merge)
 
     # Argument indexing constants
     _SUBCOMMAND_IDX = 0
@@ -470,14 +546,19 @@ class SessionCommand(BaseCommand):
 
     async def _template(self, ctx: CommandContext) -> None:
         """Template operations."""
-        manager = self.helper._get_manager(ctx)
+        op_context = self._create_operation_context(ctx)
+        manager = self.helper._get_manager(op_context)
         if manager is None:
             return
 
-        if not self.helper._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_TEMPLATE, "/session template <save|create|list|delete> [args]"):
+        if not self.helper._ensure_args(
+            op_context, 
+            DEFAULT_MIN_ARGS_FOR_TEMPLATE, 
+            "/session template <save|create|list|delete> [args]"
+        ):
             return
 
-        action = ctx.args[self._TEMPLATE_ACTION_IDX].lower()
+        action = op_context.args[self._TEMPLATE_ACTION_IDX].lower()
         dispatch = {
             "save": self.helper._execute_template_save,
             "create": self.helper._execute_template_create,
@@ -487,48 +568,44 @@ class SessionCommand(BaseCommand):
 
         handler = dispatch.get(action)
         if handler:
-            await handler(ctx, manager)
+            await handler(op_context, manager)
         else:
-            ctx.console.print("[yellow]Usage: /session template <save|create|list|delete>[/]")
+            op_context.console.print("[yellow]Usage: /session template <save|create|list|delete>[/]")
 
     async def _export(self, ctx: CommandContext) -> None:
         """Export a session."""
-        manager = self.helper._get_manager(ctx)
-        if manager is not None:
-            await self.helper._execute_export(ctx, manager)
+        await self._execute_with_manager(ctx, self.helper._execute_export)
 
     async def _import(self, ctx: CommandContext) -> None:
         """Import a session."""
-        manager = self.helper._get_manager(ctx)
-        if manager is not None:
-            await self.helper._execute_import(ctx, manager)
+        await self._execute_with_manager(ctx, self.helper._execute_import)
 
     async def _list(self, ctx: CommandContext) -> None:
         """List sessions with enhanced information."""
-        manager = self.helper._get_manager(ctx)
+        op_context = self._create_operation_context(ctx)
+        manager = self.helper._get_manager(op_context)
         if manager is None:
             return
 
-        project_hash = getattr(ctx, "project_hash", None)
-        sessions = manager.list_sessions(project_hash)
+        sessions = manager.list_sessions(op_context.project_hash)
 
         if not sessions:
-            ctx.console.print("[dim]No saved sessions[/]")
+            op_context.console.print("[dim]No saved sessions[/]")
             return
 
-        ctx.console.print("\n[bold blue]Saved Sessions[/]\n")
-        self._display_sessions_list(ctx, manager, sessions)
+        op_context.console.print("\n[bold blue]Saved Sessions[/]\n")
+        self._display_sessions_list(op_context, manager, sessions)
 
     def _display_sessions_list(
         self,
-        ctx: CommandContext,
-        manager: SessionManager,
-        sessions: list[SessionMetadata]
+        op_context: CommandOperationContext,
+        manager: "SessionManager",
+        sessions: list["SessionMetadata"]
     ) -> None:
         """Display list of sessions with enhanced information.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             manager: Session manager.
             sessions: List of session metadata.
         """
@@ -538,63 +615,65 @@ class SessionCommand(BaseCommand):
         )
 
         for meta in sessions:
-            self._display_session_entry(ctx, manager, meta, params)
+            self._display_session_entry(op_context, manager, meta, params)
 
     def _display_session_entry(
         self,
-        ctx: CommandContext,
-        manager: SessionManager,
-        meta: SessionMetadata,
+        op_context: CommandOperationContext,
+        manager: "SessionManager",
+        meta: "SessionMetadata",
         params: SessionListParams
     ) -> None:
         """Display a single session entry.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             manager: Session manager.
             meta: Session metadata.
             params: Display parameters.
         """
         try:
             session = manager.load(meta.id)
-            self._display_enhanced_session_info(ctx, meta, session, params)
+            self._display_enhanced_session_info(op_context, meta, session, params)
         except (FileNotFoundError, ValueError, json.JSONDecodeError):
-            self._display_basic_session_info(ctx, meta, params)
+            self._display_basic_session_info(op_context, meta, params)
 
     def _display_enhanced_session_info(
         self,
-        ctx: CommandContext,
-        meta: SessionMetadata,
-        session: Session,
+        op_context: CommandOperationContext,
+        meta: "SessionMetadata",
+        session: "Session",
         params: SessionListParams
     ) -> None:
         """Display enhanced session information.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             meta: Session metadata.
             session: Full session object.
             params: Display parameters.
         """
-        display_line = self.helper._format_session_display(meta, session, params)
-        ctx.console.print(display_line)
+        display_context = SessionDisplayContext(meta=meta, session=session, params=params)
+        display_line = self.helper.formatter.format_session_display(display_context)
+        op_context.console.print(display_line)
 
-        details = self.helper._format_session_details(meta, session)
-        ctx.console.print(details)
-        ctx.console.print("")
+        details = self.helper.formatter.format_session_details(meta, session)
+        op_context.console.print(details)
+        op_context.console.print("")
 
     def _display_basic_session_info(
         self,
-        ctx: CommandContext,
-        meta: SessionMetadata,
+        op_context: CommandOperationContext,
+        meta: "SessionMetadata",
         params: SessionListParams
     ) -> None:
         """Display basic session information when enhanced info fails.
 
         Args:
-            ctx: Command context.
+            op_context: Command operation context.
             meta: Session metadata.
             params: Display parameters.
         """
-        display_line = self.helper._format_session_display(meta, None, params)
-        ctx.console.print(display_line)
+        display_context = SessionDisplayContext(meta=meta, session=None, params=params)
+        display_line = self.helper.formatter.format_session_display(display_context)
+        op_context.console.print(display_line)
