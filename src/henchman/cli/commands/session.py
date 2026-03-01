@@ -524,8 +524,8 @@ class SessionDisplayFormatter:
                 tag_display, meta, max_date_len
             )
 
-        branch_info = SessionDisplayFormatter._format_branch_info(session, max_id_len)
-        template_info = SessionDisplayFormatter._format_template_info(session, max_id_len)
+        branch_info = SessionDisplayFormatter._format_session_field(session, "parent_id", max_id_len)
+        template_info = SessionDisplayFormatter._format_session_field(session, "template_id", max_id_len)
 
         return f"  {tag_display}{branch_info}{template_info}"
 
@@ -629,30 +629,18 @@ class SessionDisplayFormatter:
         return ""
 
     @staticmethod
-    def _format_branch_info(session: Session, max_id_len: int) -> str:
-        """Format branch information for display.
+    def _format_session_field(session: Session, field_name: str, max_id_len: int) -> str:
+        """Format specific session field information for display.
 
         Args:
             session: The session object.
+            field_name: Name of the field to format.
             max_id_len: Maximum ID display length.
 
         Returns:
-            Formatted branch info string.
+            Formatted field info string.
         """
-        return SessionDisplayFormatter._format_field_info(session, "parent_id", max_id_len)
-
-    @staticmethod
-    def _format_template_info(session: Session, max_id_len: int) -> str:
-        """Format template information for display.
-
-        Args:
-            session: The session object.
-            max_id_len: Maximum ID display length.
-
-        Returns:
-            Formatted template info string.
-        """
-        return SessionDisplayFormatter._format_field_info(session, "template_id", max_id_len)
+        return SessionDisplayFormatter._format_field_info(session, field_name, max_id_len)
 
     @staticmethod
     def _format_session_attribute_info(params: SessionAttributeParams) -> str:
