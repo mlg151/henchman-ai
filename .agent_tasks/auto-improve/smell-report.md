@@ -1,41 +1,41 @@
-# Code Smell Report — ❌ F (Score: 50.9/100)
+# Code Smell Report — ❌ F (Score: 50.7/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T10:30:20.584358+00:00_
+_Generated: 2026-03-01T11:00:24.527484+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 50.9/100 |
+| **Overall Score** | 50.7/100 |
 | **Files Scanned** | 186 |
-| **Total Lines (non-blank)** | 32,196 |
-| **Total Smells** | 2309 |
+| **Total Lines (non-blank)** | 32,309 |
+| **Total Smells** | 2323 |
 | **Avg Maintainability Index** | 71.6 |
-| **Avg Cyclomatic Complexity** | 13.4 |
+| **Avg Cyclomatic Complexity** | 13.5 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1645 |
-| medium | 567 |
-| high | 97 |
+| low | 1652 |
+| medium | 576 |
+| high | 95 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1117 |
-| Feature Envy | 318 |
+| Missing Type Hint | 1126 |
+| Feature Envy | 323 |
 | Duplicate Code | 310 |
-| Magic Number | 138 |
-| Long Method | 136 |
+| Magic Number | 141 |
+| Long Method | 134 |
 | Deep Nesting | 130 |
 | Primitive Obsession | 82 |
-| Complex Function | 46 |
+| Complex Function | 45 |
 | Large Class | 32 |
 
 ## 🎯 Prioritised Refactoring Queue
@@ -94,20 +94,20 @@ These are the highest-impact smells to address first:
    Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-14. **cli/commands/session.py:149** — 🟠 HIGH — Feature Envy  
-   Method 'SessionCommand._merge' accesses 'ctx' 13 times but 'self' only 10 times  
-   → _Move Method — consider moving '_merge' to the class that owns 'ctx'._
-
-15. **cli/commands/session.py:323** — 🟠 HIGH — Feature Envy  
+14. **cli/commands/session.py:416** — 🟠 HIGH — Feature Envy  
    Method 'SessionCommand._import' accesses 'ctx' 10 times but 'self' only 7 times  
    → _Move Method — consider moving '_import' to the class that owns 'ctx'._
+
+15. **cli/commands/theme.py:94** — 🟠 HIGH — Feature Envy  
+   Method 'ThemeCommand._set_theme' accesses 'ctx' 20 times but 'self' only 1 times  
+   → _Move Method — consider moving '_set_theme' to the class that owns 'ctx'._
 
 
 ## 📊 Files Ranked by Quality
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
+| 1 | cli/commands/session.py | ❌ F | 11.8 | 49 | 437 | 39 | 0.0 |
 | 2 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
 | 3 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
 | 4 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 166 additional files omitted._
 
-### cli/commands/session.py — ❌ F (11.5/100)
+### cli/commands/session.py — ❌ F (11.8/100)
 
-LOC: 324 | Classes: 1 | Functions: 0 | MI: 38 | Avg CC: 11.0
+LOC: 437 | Classes: 3 | Functions: 0 | MI: 39 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 149 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._merge' accesses 'ctx' 13 times but 'self' only 10 times | Move Method — consider moving '_merge' to the class that owns 'ctx'. |
-| 323 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._import' accesses 'ctx' 10 times but 'self' only 7 times | Move Method — consider moving '_import' to the class that owns 'ctx'. |
-| 352 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._list' accesses 'meta' 11 times but 'self' only 7 times | Move Method — consider moving '_list' to the class that owns 'meta'. |
-| 121 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._branch' accesses 'ctx' 9 times but 'self' only 6 times | Move Method — consider moving '_branch' to the class that owns 'ctx'. |
-| 230 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._template_save' accesses 'ctx' 8 times but 'self' only 5 times | Move Method — consider moving '_template_save' to the class that owns 'ctx'. |
-| 248 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._template_create' accesses 'ctx' 7 times but 'self' only 4 times | Move Method — consider moving '_template_create' to the class that owns 'ctx'. |
-| 266 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._template_list' accesses 'ctx' 8 times but 'self' only 0 times | Move Method — consider moving '_template_list' to the class that owns 'ctx'. |
-| 299 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._export' accesses 'ctx' 6 times but 'self' only 5 times | Move Method — consider moving '_export' to the class that owns 'ctx'. |
-| 352 | 🟡 MEDIUM | Complex Function | Function '_list' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 19 | 🟢 LOW | Large Class | Class 'SessionCommand' spans 380 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 39 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 48 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 57 | 🟢 LOW | Missing Type Hint | Function 'usage' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 65 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 91 | 🟢 LOW | Missing Type Hint | Function '_get_manager' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 416 | 🟠 HIGH | Feature Envy | Method 'SessionCommand._import' accesses 'ctx' 10 times but 'self' only 7 times | Move Method — consider moving '_import' to the class that owns 'ctx'. |
+| 25 | 🟡 MEDIUM | Magic Number | Magic number 8 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 26 | 🟡 MEDIUM | Magic Number | Magic number 10 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 89 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommandHelper._format_session_display' accesses 'meta' 5 times but 'self' only 0 times | Move Method — consider moving '_format_session_display' to the class that owns 'meta'. |
+| 140 | 🟡 MEDIUM | Magic Number | Magic number 10 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 225 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._branch' accesses 'ctx' 9 times but 'self' only 6 times | Move Method — consider moving '_branch' to the class that owns 'ctx'. |
+| 231 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 253 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._merge' accesses 'ctx' 5 times but 'self' only 3 times | Move Method — consider moving '_merge' to the class that owns 'ctx'. |
+| 259 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 323 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._template_save' accesses 'ctx' 8 times but 'self' only 5 times | Move Method — consider moving '_template_save' to the class that owns 'ctx'. |
+| 325 | 🟡 MEDIUM | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 341 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._template_create' accesses 'ctx' 7 times but 'self' only 4 times | Move Method — consider moving '_template_create' to the class that owns 'ctx'. |
+| 343 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 359 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommand._template_list' accesses 'ctx' 8 times but 'self' only 0 times | Move Method — consider moving '_template_list' to the class that owns 'ctx'. |
+| 381 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-_... and 20 more smells._
+_... and 34 more smells._
 
 ### providers/anthropic.py — ❌ F (11.8/100)
 
