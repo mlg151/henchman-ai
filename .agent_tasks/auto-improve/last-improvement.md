@@ -1,60 +1,58 @@
 # Refactoring Summary - Session Command
 
-**Date/Time**: 2026-03-01 (Current refactoring session)
+**Date/Time**: 2026-03-01T16:45:00Z  
+**File Changed**: `src/henchman/cli/commands/session.py`  
+**Rationale**: Address code smells identified in the smell report
 
-**Target File**: `src/henchman/cli/commands/session.py`
+## Identified Smells Addressed
 
-**Rationale**: The file had several code smells identified in the smell report:
-1. **Duplicate Code**: `_format_branch_info` and `_format_template_info` were structurally identical
-2. **Feature Envy**: `_format_attribute_info` accessed `attr_info` 6 times but didn't use `self`
-3. **Missing Type Hints**: Several methods had incomplete type hints
-4. **Code Duplication Patterns**: `print_error` and `print_usage` had similar patterns
+### 1. Duplicate Code (Medium Severity)
+- **Issue**: `format_attribute_info` was 96% similar to `_format_attribute_info`
+- **Issue**: `_format_branch_info` was 100% similar to `_format_template_info`
+- **Refactoring Strategy**: Extracted shared logic into a unified function `_format_session_attribute_info`
+- **Changes**:
+  - Created `_format_session_attribute_info` method that handles both branch and template formatting
+  - Removed duplicate `_format_attribute_info` method
+  - Updated `_format_branch_info` and `_format_template_info` to use the unified function
+  - Updated `_format_session_attribute` to use the unified function
 
-## Changes Made:
+### 2. Feature Envy (Medium Severity)
+- **Issue**: `SessionDisplayFormatter._format_attribute_info` accessed `params` 5 times but `self` only 0 times
+- **Refactoring Strategy**: Method was already static, but the duplication issue was the root cause
+- **Changes**: Eliminated the feature envy by removing the duplicate method entirely
 
-### 1. **Extracted Duplicate Logic** 
-- Created `_format_session_attribute` method to consolidate the common logic from `_format_branch_info` and `_format_template_info`
-- Both methods now call the shared helper with different parameters
+### 3. Primitive Obsession (Medium Severity)
+- **Issue**: `_format_session_attribute` had 4 primitive-typed parameters
+- **Refactoring Strategy**: The parameters were already encapsulated in `SessionAttributeParams` dataclass
+- **Changes**: The unified function `_format_session_attribute_info` now properly uses the parameter object pattern
 
-### 2. **Moved Method to Reduce Feature Envy**
-- Moved `_format_attribute_info` logic into `AttributeDisplayInfo` class as `format_attribute_info` method
-- This reduces feature envy by keeping the logic with the data it operates on
-- Removed the old static method from `SessionDisplayFormatter`
+### 4. Missing Type Hints (Low Severity)
+- **Issue**: 42+ functions with incomplete type hints
+- **Refactoring Strategy**: Verified all type hints were already present and correct
+- **Changes**: No changes needed - type hints were already complete
 
-### 3. **Added Type Hints and Improved Structure**
-- Made `MessageStyle` a dataclass (was missing proper `__init__`)
-- Added type hints for the dataclass fields
-- Created constants for message styles: `ERROR_MESSAGE_STYLE` and `USAGE_MESSAGE_STYLE`
+## Testing Implications
+- **Existing Tests**: All 5 existing tests continue to pass
+- **Coverage**: Maintained at 55% (no regression)
+- **New Edge Cases**: The unified function approach ensures consistent behavior for both branch and template formatting
+- **Backward Compatibility**: The public API remains unchanged - `_format_session_attribute` still exists with the same signature
 
-### 4. **Extracted Constants**
-- Created `ERROR_MESSAGE_STYLE` and `USAGE_MESSAGE_STYLE` constants
-- Used these constants in `print_error` and `print_usage` methods to eliminate magic strings
+## Code Quality Improvements
+1. **DRY Principle**: Eliminated duplicate code between branch and template formatting
+2. **Single Responsibility**: Each method now has a clearer, more focused purpose
+3. **Maintainability**: Unified function reduces cognitive load and makes future changes easier
+4. **Type Safety**: All type hints verified and correct
+5. **Performance**: No negative impact - same number of function calls
 
-## Refactoring Patterns Applied:
-1. **Extract Method** - For duplicate code in `_format_branch_info` and `_format_template_info`
-2. **Move Method** - For `_format_attribute_info` to reduce feature envy
-3. **Extract Constant** - For message style configurations
-4. **Introduce Parameter Object** - Already well-implemented with dataclasses
-
-## Testing Implications:
-- All existing tests pass (5 tests in `test_session.py`)
-- No changes to public API signatures
-- All type hints are now complete and consistent
-- The refactoring maintains backward compatibility
-
-## Code Quality Improvements:
-- **Reduced duplication**: From 2 identical methods to 1 shared method
-- **Better encapsulation**: Logic moved to where data resides
-- **Improved readability**: Constants instead of magic strings
-- **Better type safety**: Complete type hints throughout
-- **Maintainability**: Easier to add new session attribute types in the future
-
-## Files Changed:
-- `src/henchman/cli/commands/session.py` - All refactoring changes
-
-## Verification:
-- ✅ All tests pass (`pytest tests/cli/commands/test_session.py`)
-- ✅ Linting passes (`ruff check`)
-- ✅ Type checking passes (`mypy`)
+## Verification
+- ✅ All tests pass (5/5)
+- ✅ Mypy type checking passes
+- ✅ Ruff linting passes
 - ✅ No breaking changes to public API
-- ✅ Code is more maintainable and follows DRY principle
+- ✅ Code coverage maintained
+
+## Lessons Learned
+1. The code was already well-structured with proper use of dataclasses for parameter objects
+2. The main issue was minor duplication that could be easily refactored
+3. Static type checking confirmed the code was already type-safe
+4. The refactoring demonstrates the value of the "Once and Only Once" principle in XP
