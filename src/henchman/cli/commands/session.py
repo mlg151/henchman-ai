@@ -149,7 +149,15 @@ class CommandOperationContext:
         self._print_formatted_message(f"{msg_style.prefix} {message}", msg_style.style)
 
     def get_arg(self, index: int, default: str | None = None) -> str | None:
-        """Get argument at index or default if out of bounds."""
+        """Get argument at index or default if out of bounds.
+
+        Args:
+            index: Argument index.
+            default: Default value if index is out of bounds.
+
+        Returns:
+            Argument value or default.
+        """
         if index < len(self.args):
             return self.args[index]
         return default
@@ -596,6 +604,31 @@ class SessionDisplayFormatter:
         return SessionDisplayFormatter._format_session_field_info(session, params)
 
     @staticmethod
+    def _format_field_info(session: Session, field_name: str, max_id_len: int) -> str:
+        """Format field information for display based on field type.
+
+        Args:
+            session: The session object.
+            field_name: Name of the field to format.
+            max_id_len: Maximum ID display length.
+
+        Returns:
+            Formatted field info string.
+        """
+        field_configs: dict[str, tuple[str, str, str]] = {
+            "parent_id": ("parent_id", "[yellow]↳[/]", "branch from"),
+            "template_id": ("template_id", "[magenta]ⓣ[/]", "template:"),
+        }
+
+        if field_name in field_configs:
+            return SessionDisplayFormatter._format_field_with_params(
+                session=session,
+                field_config=field_configs[field_name],
+                max_id_len=max_id_len,
+            )
+        return ""
+
+    @staticmethod
     def _format_branch_info(session: Session, max_id_len: int) -> str:
         """Format branch information for display.
 
@@ -606,11 +639,7 @@ class SessionDisplayFormatter:
         Returns:
             Formatted branch info string.
         """
-        return SessionDisplayFormatter._format_field_with_params(
-            session=session,
-            field_config=("parent_id", "[yellow]↳[/]", "branch from"),
-            max_id_len=max_id_len,
-        )
+        return SessionDisplayFormatter._format_field_info(session, "parent_id", max_id_len)
 
     @staticmethod
     def _format_template_info(session: Session, max_id_len: int) -> str:
@@ -623,11 +652,7 @@ class SessionDisplayFormatter:
         Returns:
             Formatted template info string.
         """
-        return SessionDisplayFormatter._format_field_with_params(
-            session=session,
-            field_config=("template_id", "[magenta]ⓣ[/]", "template:"),
-            max_id_len=max_id_len,
-        )
+        return SessionDisplayFormatter._format_field_info(session, "template_id", max_id_len)
 
     @staticmethod
     def _format_session_attribute_info(params: SessionAttributeParams) -> str:
