@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **`tool_executor.py` refactored to A quality** — Split monolithic 873-line F-grade file (30.0/100, 111 smells) into 2 focused modules, both grade A (100.0/100, 0 smells).
+  - New module: `stream_event_handlers.py` (StreamState dataclass + module-level event handler functions, A 100.0).
+  - `tool_executor.py` reduced from 873→243 lines, F (30.0) → A (100.0). Method count from 30 to 9.
+  - Fixed: Large Class (838 lines, 30 methods), Feature Envy (×4 HIGH/MEDIUM), Deep Nesting (depth 6–7), Primitive Obsession, Duplicate Code (×2), Long Methods, PLR0913, COM812, FBT001, E501, ARG002, N806, PIE790, PLC0415, SLF001, TC001/TC003/TC004, TRY300, UP035, Missing Type Hints (×27).
+  - Key techniques: `StreamState` parameter object for primitive obsession/PLR0913, module-level functions for feature envy, `match/case` dispatch for deep nesting, merged duplicate event handlers.
+  - All 126 tests pass unchanged.
 - **`agent.py` refactored to A quality** — Split monolithic 705-line F-grade file (30.0/100) into 4 focused modules, all grade A.
   - New modules: `agent_config.py` (AgentConfig dataclass, A 95.8), `agent_stall.py` (StallDetector, A 97.2), `agent_streaming.py` (StreamState/StreamContext/generate_stream_events, A 91.6).
   - `agent.py` reduced from 705→300 lines, F (30.0) → A (93.0). Method count from 30+ to 16.

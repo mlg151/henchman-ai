@@ -1,42 +1,42 @@
-# Code Smell Report — ❌ F (Score: 50.5/100)
+# Code Smell Report — ❌ F (Score: 52.0/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T23:00:18.401460+00:00_
+_Generated: 2026-03-01T23:30:15.843405+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 50.5/100 |
-| **Files Scanned** | 186 |
-| **Total Lines (non-blank)** | 32,687 |
-| **Total Smells** | 2330 |
-| **Avg Maintainability Index** | 71.5 |
+| **Overall Score** | 52.0/100 |
+| **Files Scanned** | 187 |
+| **Total Lines (non-blank)** | 32,517 |
+| **Total Smells** | 2268 |
+| **Avg Maintainability Index** | 71.4 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1682 |
-| medium | 556 |
-| high | 92 |
+| low | 1637 |
+| medium | 547 |
+| high | 84 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1149 |
-| Feature Envy | 314 |
-| Duplicate Code | 308 |
+| Missing Type Hint | 1119 |
+| Feature Envy | 305 |
+| Duplicate Code | 304 |
 | Magic Number | 140 |
-| Long Method | 133 |
-| Deep Nesting | 130 |
-| Primitive Obsession | 81 |
-| Complex Function | 44 |
-| Large Class | 31 |
+| Long Method | 128 |
+| Deep Nesting | 122 |
+| Primitive Obsession | 78 |
+| Complex Function | 43 |
+| Large Class | 29 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,68 +107,44 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/session.py | ❌ F | 9.4 | 55 | 710 | 31 | 0.0 |
-| 2 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
-| 3 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
-| 4 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
-| 5 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
-| 6 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
-| 7 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
-| 8 | tools/builtins/dead_code.py | ❌ F | 15.0 | 49 | 301 | 50 | 15.5 |
-| 9 | cli/commands/context.py | ❌ F | 15.3 | 41 | 303 | 51 | 11.0 |
-| 10 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
+| 1 | cli/commands/session.py | ❌ F | 9.4 | 55 | 714 | 31 | 0.0 |
+| 2 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
+| 3 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
+| 4 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
+| 5 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
+| 6 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
+| 7 | tools/builtins/dead_code.py | ❌ F | 15.0 | 49 | 301 | 50 | 15.5 |
+| 8 | cli/commands/context.py | ❌ F | 15.3 | 41 | 303 | 51 | 11.0 |
+| 9 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
+| 10 | tools/builtins/grep.py | ❌ F | 15.7 | 34 | 436 | 52 | 0.0 |
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 166 additional files omitted._
+_Showing 20 worst files. 167 additional files omitted._
 
 ### cli/commands/session.py — ❌ F (9.4/100)
 
-LOC: 710 | Classes: 19 | Functions: 0 | MI: 31 | Avg CC: 0.0
+LOC: 714 | Classes: 19 | Functions: 0 | MI: 31 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 56 | 🟢 LOW | Missing Type Hint | Function 'format_optional_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 77 | 🟢 LOW | Missing Type Hint | Function 'format_attribute_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 117 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 121 | 🟢 LOW | Missing Type Hint | Function 'print_error' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 125 | 🟢 LOW | Missing Type Hint | Function 'print_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 129 | 🟢 LOW | Missing Type Hint | Function 'print_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 133 | 🟢 LOW | Missing Type Hint | Function '_print_formatted_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 142 | 🟢 LOW | Missing Type Hint | Function '_print_prefixed_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 151 | 🟢 LOW | Missing Type Hint | Function 'get_arg' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 165 | 🟢 LOW | Missing Type Hint | Function 'get_arg_or_empty' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 178 | 🟢 LOW | Missing Type Hint | Function 'has_min_args' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 212 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 216 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 220 | 🟢 LOW | Missing Type Hint | Function '_ensure_args' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 239 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 61 | 🟢 LOW | Missing Type Hint | Function 'format_optional_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 82 | 🟢 LOW | Missing Type Hint | Function 'format_attribute_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 122 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 126 | 🟢 LOW | Missing Type Hint | Function 'print_error' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 130 | 🟢 LOW | Missing Type Hint | Function 'print_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 134 | 🟢 LOW | Missing Type Hint | Function 'print_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 138 | 🟢 LOW | Missing Type Hint | Function '_print_formatted_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 147 | 🟢 LOW | Missing Type Hint | Function '_print_prefixed_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 156 | 🟢 LOW | Missing Type Hint | Function 'get_arg' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 170 | 🟢 LOW | Missing Type Hint | Function 'get_arg_or_empty' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 183 | 🟢 LOW | Missing Type Hint | Function 'has_min_args' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 217 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 221 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 225 | 🟢 LOW | Missing Type Hint | Function '_ensure_args' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 244 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 40 more smells._
-
-### cli/tool_executor.py — ❌ F (12.1/100)
-
-LOC: 688 | Classes: 1 | Functions: 0 | MI: 40 | Avg CC: 11.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 36 | 🟠 HIGH | Large Class | Class 'ToolExecutor' spans 838 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 190 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_handle_tool_call_result_event' (line 190), '_handle_tool_call_result_event_with_state' (line 718) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 281 | 🟠 HIGH | Feature Envy | Method 'ToolExecutor._execute_and_record_tool_call' accesses 'tc' 10 times but 'self' only 5 times | Move Method — consider moving '_execute_and_record_tool_call' to the class that owns 'tc'. |
-| 630 | 🟠 HIGH | Feature Envy | Method 'ToolExecutor._process_event_by_type' accesses 'EventType' 24 times but 'self' only 12 times | Move Method — consider moving '_process_event_by_type' to the class that owns 'EventType'. |
-| 689 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_process_event_by_type' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 693 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_process_event_by_type' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 697 | 🟠 HIGH | Deep Nesting | Nesting depth 7 in '_process_event_by_type' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 829 | 🟠 HIGH | Feature Envy | Method 'ToolExecutor.handle_confirmation' accesses 'request' 13 times but 'self' only 1 times | Move Method — consider moving 'handle_confirmation' to the class that owns 'request'. |
-| 36 | 🟡 MEDIUM | Large Class | Class 'ToolExecutor' has 30 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 114 | 🟡 MEDIUM | Feature Envy | Method 'ToolExecutor._handle_content_event' accesses 'event' 5 times but 'self' only 1 times | Move Method — consider moving '_handle_content_event' to the class that owns 'event'. |
-| 361 | 🟡 MEDIUM | Duplicate Code | Function '_handle_agent_delegated_event' is 100% similar to '_handle_agent_message_event' at cli/tool_executor.py:412 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 461 | 🟡 MEDIUM | Complex Function | Function '_handle_post_stream_processing' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 630 | 🟡 MEDIUM | Long Method | Function '_process_event_by_type' has 54 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 687 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_process_event_by_type' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 703 | 🟡 MEDIUM | Duplicate Code | Function '_handle_thought_event_with_state' is 100% similar to '_handle_finished_event_with_state' at cli/tool_executor.py:752 | Extract Shared Function — identify the common logic and parameterise the differences. |
-
-_... and 45 more smells._
 
 ### tools/builtins/import_graph.py — ❌ F (12.9/100)
 
@@ -602,7 +578,31 @@ LOC: 296 | Classes: 2 | Functions: 0 | MI: 58 | Avg CC: 0.0
 
 _... and 32 more smells._
 
-## ✨ Clean Files (56 files with no smells)
+### providers/anthropic.py — ❌ F (17.9/100)
+
+LOC: 477 | Classes: 5 | Functions: 0 | MI: 41 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 121 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor.process_stream' accesses 'chunk' 9 times but 'self' only 3 times | Move Method — consider moving 'process_stream' to the class that owns 'chunk'. |
+| 183 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor._handle_content_block_start' accesses 'block' 5 times but 'self' only 0 times | Move Method — consider moving '_handle_content_block_start' to the class that owns 'block'. |
+| 202 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor._handle_content_block_delta' accesses 'delta' 7 times but 'self' only 3 times | Move Method — consider moving '_handle_content_block_delta' to the class that owns 'delta'. |
+| 291 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: api_key: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), model: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), tokens_per_minute: Name(id='int', ctx=Load()), max_retries: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 61 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 75 | 🟢 LOW | Missing Type Hint | Function '_should_yield' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 112 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 121 | 🟢 LOW | Missing Type Hint | Function 'process_stream' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 162 | 🟢 LOW | Missing Type Hint | Function '_process_event' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 178 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_process_event' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 183 | 🟢 LOW | Missing Type Hint | Function '_handle_content_block_start' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 202 | 🟢 LOW | Missing Type Hint | Function '_handle_content_block_delta' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 234 | 🟢 LOW | Missing Type Hint | Function '_handle_content_block_stop' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 239 | 🟢 LOW | Missing Type Hint | Function '_handle_message_delta' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 257 | 🟢 LOW | Missing Type Hint | Function '_build_tool_calls_from_pending' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 25 more smells._
+
+## ✨ Clean Files (58 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -630,6 +630,8 @@ _... and 32 more smells._
 - api/endpoints/__init__.py — ✅ A
 - cli/__init__.py — ✅ A
 - cli/prompts.py — ✅ A
+- cli/stream_event_handlers.py — 👍 B
+- cli/tool_executor.py — 👍 B
 - config/__init__.py — ✅ A
 - config/settings.py — ✅ A
 - core/__init__.py — ✅ A

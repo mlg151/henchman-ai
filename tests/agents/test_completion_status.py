@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from henchman.agents.orchestrator import CompletionStatus, Orchestrator
+from henchman.cli.stream_event_handlers import _handle_agent_completed
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import FinishReason, ModelProvider, StreamChunk, ToolCall
 
@@ -341,89 +342,76 @@ class TestOrchestratorInit:
 # ---------------------------------------------------------------------------
 
 
-class TestToolExecutorCompletionRendering:
-    """Tests for ToolExecutor rendering different completion statuses."""
+class TestAgentCompletionRendering:
+    """Tests for rendering different completion statuses."""
 
-    def _make_executor(self):
-        """Create a ToolExecutor with mocked dependencies."""
+    def _make_output_handler(self):
+        """Create a mocked OutputHandler."""
         from henchman.cli.output_handler import OutputHandler
-        from henchman.cli.tool_executor import ToolExecutor
-        from henchman.cli.tool_manager import ToolManager
-
-        output_handler = MagicMock(spec=OutputHandler)
-        tool_manager = MagicMock(spec=ToolManager)
-        tool_manager.registry = MagicMock()
-        provider = MagicMock(spec=ModelProvider)
-
-        executor = ToolExecutor(
-            output_handler=output_handler,
-            tool_manager=tool_manager,
-            provider=provider,
-        )
-        return executor, output_handler
+        return MagicMock(spec=OutputHandler)
 
     def test_completed_renders_muted(self):
         """Status 'completed' renders the standard muted message."""
-        executor, output_handler = self._make_executor()
+        output_handler = self._make_output_handler()
         event = AgentEvent(
             type=EventType.AGENT_COMPLETED,
             data={"agent": "tech_lead", "status": "completed"},
         )
-        executor._handle_agent_completed_event(event)
+        _handle_agent_completed(output_handler, event)
         output_handler.muted.assert_called_once()
         assert "completed work" in output_handler.muted.call_args[0][0]
 
     def test_no_work_done_renders_warning(self):
         """Status 'no_work_done' renders a warning message."""
-        executor, output_handler = self._make_executor()
+        output_handler = self._make_output_handler()
         event = AgentEvent(
             type=EventType.AGENT_COMPLETED,
             data={"agent": "tech_lead", "status": "no_work_done"},
         )
-        executor._handle_agent_completed_event(event)
+        _handle_agent_completed(output_handler, event)
         output_handler.warning.assert_called_once()
         assert "without making changes" in output_handler.warning.call_args[0][0]
 
     def test_stalled_renders_error(self):
         """Status 'stalled' renders an error message."""
-        executor, output_handler = self._make_executor()
+        output_handler = self._make_output_handler()
         event = AgentEvent(
             type=EventType.AGENT_COMPLETED,
             data={"agent": "explorer", "status": "stalled"},
         )
-        executor._handle_agent_completed_event(event)
+        _handle_agent_completed(output_handler, event)
         output_handler.error.assert_called_once()
         assert "stalled" in output_handler.error.call_args[0][0]
 
     def test_timed_out_renders_warning(self):
         """Status 'timed_out' renders a warning message."""
-        executor, output_handler = self._make_executor()
+        output_handler = self._make_output_handler()
         event = AgentEvent(
             type=EventType.AGENT_COMPLETED,
             data={"agent": "engineer", "status": "timed_out"},
         )
-        executor._handle_agent_completed_event(event)
+        _handle_agent_completed(output_handler, event)
         output_handler.warning.assert_called_once()
         assert "turn limit" in output_handler.warning.call_args[0][0]
 
     def test_missing_status_defaults_to_completed(self):
         """Events without a status field render as completed (backward compat)."""
-        executor, output_handler = self._make_executor()
+        output_handler = self._make_output_handler()
         event = AgentEvent(
             type=EventType.AGENT_COMPLETED,
             data={"agent": "tech_lead"},
         )
-        executor._handle_agent_completed_event(event)
+        _handle_agent_completed(output_handler, event)
         output_handler.muted.assert_called_once()
         assert "completed work" in output_handler.muted.call_args[0][0]
 
     def test_unknown_status_defaults_to_completed(self):
         """Unknown status values fall through to the completed message."""
-        executor, output_handler = self._make_executor()
+        output_handler = self._make_output_handler()
         event = AgentEvent(
             type=EventType.AGENT_COMPLETED,
             data={"agent": "tech_lead", "status": "some_future_value"},
         )
-        executor._handle_agent_completed_event(event)
+        _handle_agent_completed(output_handler, event)
         output_handler.muted.assert_called_once()
         assert "completed work" in output_handler.muted.call_args[0][0]
