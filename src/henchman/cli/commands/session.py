@@ -17,13 +17,26 @@ if TYPE_CHECKING:
     from henchman.core.session import Session, SessionManager, SessionMetadata
 
 
+# Display configuration constants
+DEFAULT_ID_DISPLAY_LENGTH: int = 8
+DEFAULT_DATE_DISPLAY_LENGTH: int = 10
+DEFAULT_MIN_ARGS_FOR_TEMPLATE: int = 2
+DEFAULT_MIN_ARGS_FOR_BRANCH: int = 3
+DEFAULT_MIN_ARGS_FOR_MERGE: int = 3
+DEFAULT_MIN_ARGS_FOR_EXPORT: int = 2
+DEFAULT_MIN_ARGS_FOR_IMPORT: int = 2
+DEFAULT_MIN_ARGS_FOR_TEMPLATE_SAVE: int = 4
+DEFAULT_MIN_ARGS_FOR_TEMPLATE_CREATE: int = 3
+DEFAULT_MIN_ARGS_FOR_TEMPLATE_DELETE: int = 3
+
+
 @dataclass
 class SessionListParams:
     """Parameters for session listing operations."""
     project_hash: str | None = None
     show_enhanced_info: bool = True
-    max_id_display_len: int = 8
-    max_date_display_len: int = 10
+    max_id_display_len: int = DEFAULT_ID_DISPLAY_LENGTH
+    max_date_display_len: int = DEFAULT_DATE_DISPLAY_LENGTH
 
 
 class SessionCommandHelper:
@@ -137,12 +150,208 @@ class SessionCommandHelper:
         Returns:
             Formatted details string.
         """
-        details = f"    Messages: {meta.message_count}, Updated: {meta.last_updated[:10]}"
+        details = f"    Messages: {meta.message_count}, Updated: {meta.last_updated[:DEFAULT_DATE_DISPLAY_LENGTH]}"
 
         if session and session.export_metadata and "merged_from" in session.export_metadata:
             details += f"\n    [dim]Merged from {len(session.export_metadata['merged_from'])} sessions[/]"
 
         return details
+
+    async def _execute_branch(self, ctx: CommandContext, manager: SessionManager) -> None:
+        """Execute branch operation.
+
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+        """
+        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_BRANCH, "/session branch <id> <point> [tag]"):
+            return
+
+        session_id = ctx.args[self.command._BRANCH_ID_IDX]
+        try:
+            branch_point = int(ctx.args[self.command._BRANCH_POINT_IDX])
+        except ValueError:
+            ctx.console.print("[red]Branch point must be an integer[/]")
+            return
+
+        tag = ctx.args[self.command._BRANCH_TAG_IDX] if len(ctx.args) > self.command._BRANCH_TAG_IDX else None
+
+        try:
+            branch = manager.branch_session(session_id, branch_point, tag)
+            manager.save(branch)
+            ctx.console.print(f"[green]✓[/] Created branch: {branch.id}")
+            if branch.tag:
+                ctx.console.print(f"[dim]Tag: {branch.tag}[/]")
+            ctx.console.print(f"[dim]Branch point: {branch_point}, Parent: {session_id}[/]")
+        except (FileNotFoundError, ValueError) as e:
+            ctx.console.print(f"[red]Error: {e}[/]")
+
+    async def _execute_merge(self, ctx: CommandContext, manager: SessionManager) -> None:
+        """Execute merge operation.
+
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+        """
+        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_MERGE, "/session merge <id1> <id2> [strategy] [tag]"):
+            return
+
+        session_ids, strategy, tag = self._parse_merge_arguments(ctx)
+
+        try:
+            merged = manager.merge_sessions(session_ids, strategy, tag)
+            manager.save(merged)
+            ctx.console.print(f"[green]✓[/] Created merged session: {merged.id}")
+            if merged.tag:
+                ctx.console.print(f"[dim]Tag: {merged.tag}[/]")
+            ctx.console.print(f"[dim]Strategy: {strategy}, Sources: {', '.join(session_ids)}[/]")
+            ctx.console.print(f"[dim]Messages: {len(merged.messages)}[/]")
+        except (FileNotFoundError, ValueError) as e:
+            ctx.console.print(f"[red]Error: {e}[/]")
+
+    async def _execute_template_save(self, ctx: CommandContext, manager: SessionManager) -> None:
+        """Execute template save operation.
+
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+        """
+        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_TEMPLATE_SAVE, "/session template save <id> <name>"):
+            return
+
+        session_id = ctx.args[self.command._TEMPLATE_SESSION_ID_IDX]
+        name = ctx.args[self.command._TEMPLATE_NAME_IDX]
+        description = ctx.args[self.command._TEMPLATE_DESC_IDX] if len(ctx.args) > self.command._TEMPLATE_DESC_IDX else ""
+
+        try:
+            template = manager.save_template(session_id, name, description)
+            ctx.console.print(f"[green]✓[/] Saved template: {template['name']}")
+            ctx.console.print(f"[dim]ID: {template['id']}[/]")
+            if description:
+                ctx.console.print(f"[dim]Description: {description}[/]")
+        except (FileNotFoundError, ValueError) as e:
+            ctx.console.print(f"[red]Error: {e}[/]")
+
+    async def _execute_template_create(self, ctx: CommandContext, manager: SessionManager) -> None:
+        """Execute template create operation.
+
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+        """
+        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_TEMPLATE_CREATE, "/session template create <template_id> [tag]"):
+            return
+
+        template_id = ctx.args[self.command._TEMPLATE_ID_IDX]
+        tag = ctx.args[self.command._TEMPLATE_TAG_IDX] if len(ctx.args) > self.command._TEMPLATE_TAG_IDX else None
+
+        try:
+            session = manager.create_from_template(template_id, tag=tag)
+            manager.save(session)
+            ctx.console.print(f"[green]✓[/] Created session from template: {session.id}")
+            if session.tag:
+                ctx.console.print(f"[dim]Tag: {session.tag}[/]")
+            ctx.console.print(f"[dim]Template: {template_id}[/]")
+        except (FileNotFoundError, ValueError) as e:
+            ctx.console.print(f"[red]Error: {e}[/]")
+
+    async def _execute_template_list(self, ctx: CommandContext, manager: SessionManager) -> None:
+        """Execute template list operation.
+
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+        """
+        templates = manager.list_templates()
+
+        if not templates:
+            ctx.console.print("[dim]No templates available[/]")
+            return
+
+        ctx.console.print("\n[bold blue]Available Templates[/]\n")
+        for template in templates:
+            ctx.console.print(f"  [cyan]{template['name']}[/]")
+            ctx.console.print(f"    ID: {template['id']}")
+            if template.get('description'):
+                ctx.console.print(f"    Description: {template['description']}")
+            if template.get('parameters'):
+                params = ', '.join(template['parameters'].keys())
+                ctx.console.print(f"    Parameters: {params}")
+            ctx.console.print(f"    Created: {template.get('created_at', 'unknown')}")
+            ctx.console.print("")
+
+    async def _execute_template_delete(self, ctx: CommandContext, manager: SessionManager) -> None:
+        """Execute template delete operation.
+
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+        """
+        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_TEMPLATE_DELETE, "/session template delete <template_id>"):
+            return
+
+        template_id = ctx.args[self.command._TEMPLATE_ID_IDX]
+
+        try:
+            manager.delete_template(template_id)
+            ctx.console.print(f"[green]✓[/] Deleted template: {template_id}")
+        except FileNotFoundError as e:
+            ctx.console.print(f"[red]Error: {e}[/]")
+
+    async def _execute_export(self, ctx: CommandContext, manager: SessionManager) -> None:
+        """Execute export operation.
+
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+        """
+        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_EXPORT, "/session export <id> [format]"):
+            return
+
+        session_id = ctx.args[self.command._EXPORT_ID_IDX]
+        format = ctx.args[self.command._EXPORT_FORMAT_IDX] if len(ctx.args) > self.command._EXPORT_FORMAT_IDX else "json"
+
+        try:
+            exported = manager.export_session(session_id, format)
+
+            ext = "json" if format == "json" else "md"
+            output_file = Path.cwd() / f"session_{session_id}.{ext}"
+            output_file.write_text(exported)
+
+            ctx.console.print(f"[green]✓[/] Exported session to: {output_file}")
+            ctx.console.print(f"[dim]Format: {format}, Size: {len(exported)} bytes[/]")
+        except (FileNotFoundError, ValueError) as e:
+            ctx.console.print(f"[red]Error: {e}[/]")
+
+    async def _execute_import(self, ctx: CommandContext, manager: SessionManager) -> None:
+        """Execute import operation.
+
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+        """
+        if not self._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_IMPORT, "/session import <file> [format]"):
+            return
+
+        file_path = Path(ctx.args[self.command._IMPORT_FILE_IDX])
+        if not file_path.exists():
+            ctx.console.print(f"[red]File not found: {file_path}[/]")
+            return
+
+        format = ctx.args[self.command._IMPORT_FORMAT_IDX] if len(ctx.args) > self.command._IMPORT_FORMAT_IDX else "json"
+        tag = ctx.args[self.command._IMPORT_TAG_IDX] if len(ctx.args) > self.command._IMPORT_TAG_IDX else None
+
+        try:
+            data = file_path.read_text()
+            session = manager.import_session(data, format, tag)
+            manager.save(session)
+
+            ctx.console.print(f"[green]✓[/] Imported session: {session.id}")
+            if session.tag:
+                ctx.console.print(f"[dim]Tag: {session.tag}[/]")
+            ctx.console.print(f"[dim]Format: {format}, Messages: {len(session.messages)}[/]")
+        except (ValueError, json.JSONDecodeError) as e:
+            ctx.console.print(f"[red]Error importing session: {e}[/]")
 
 
 class SessionCommand(BaseCommand):
@@ -225,52 +434,14 @@ class SessionCommand(BaseCommand):
     async def _branch(self, ctx: CommandContext) -> None:
         """Branch from an existing session."""
         manager = self.helper._get_manager(ctx)
-        if manager is None:
-            return
-
-        if not self.helper._ensure_args(ctx, 3, "/session branch <id> <point> [tag]"):
-            return
-
-        session_id = ctx.args[self._BRANCH_ID_IDX]
-        try:
-            branch_point = int(ctx.args[self._BRANCH_POINT_IDX])
-        except ValueError:
-            ctx.console.print("[red]Branch point must be an integer[/]")
-            return
-
-        tag = ctx.args[self._BRANCH_TAG_IDX] if len(ctx.args) > self._BRANCH_TAG_IDX else None
-
-        try:
-            branch = manager.branch_session(session_id, branch_point, tag)
-            manager.save(branch)
-            ctx.console.print(f"[green]✓[/] Created branch: {branch.id}")
-            if branch.tag:
-                ctx.console.print(f"[dim]Tag: {branch.tag}[/]")
-            ctx.console.print(f"[dim]Branch point: {branch_point}, Parent: {session_id}[/]")
-        except (FileNotFoundError, ValueError) as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
+        if manager is not None:
+            await self.helper._execute_branch(ctx, manager)
 
     async def _merge(self, ctx: CommandContext) -> None:
         """Merge multiple sessions."""
         manager = self.helper._get_manager(ctx)
-        if manager is None:
-            return
-
-        if not self.helper._ensure_args(ctx, 3, "/session merge <id1> <id2> [strategy] [tag]"):
-            return
-
-        session_ids, strategy, tag = self.helper._parse_merge_arguments(ctx)
-
-        try:
-            merged = manager.merge_sessions(session_ids, strategy, tag)
-            manager.save(merged)
-            ctx.console.print(f"[green]✓[/] Created merged session: {merged.id}")
-            if merged.tag:
-                ctx.console.print(f"[dim]Tag: {merged.tag}[/]")
-            ctx.console.print(f"[dim]Strategy: {strategy}, Sources: {', '.join(session_ids)}[/]")
-            ctx.console.print(f"[dim]Messages: {len(merged.messages)}[/]")
-        except (FileNotFoundError, ValueError) as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
+        if manager is not None:
+            await self.helper._execute_merge(ctx, manager)
 
     # Argument indexing constants
     _SUBCOMMAND_IDX = 0
@@ -294,8 +465,8 @@ class SessionCommand(BaseCommand):
     _IMPORT_FORMAT_IDX = 2
     _IMPORT_TAG_IDX = 3
     _TEMPLATE_TAG_IDX = 3
-    _ID_DISPLAY_LEN = 8
-    _DATE_DISPLAY_LEN = 10
+    _ID_DISPLAY_LEN = DEFAULT_ID_DISPLAY_LENGTH
+    _DATE_DISPLAY_LEN = DEFAULT_DATE_DISPLAY_LENGTH
 
     async def _template(self, ctx: CommandContext) -> None:
         """Template operations."""
@@ -303,15 +474,15 @@ class SessionCommand(BaseCommand):
         if manager is None:
             return
 
-        if not self.helper._ensure_args(ctx, 2, "/session template <save|create|list|delete> [args]"):
+        if not self.helper._ensure_args(ctx, DEFAULT_MIN_ARGS_FOR_TEMPLATE, "/session template <save|create|list|delete> [args]"):
             return
 
         action = ctx.args[self._TEMPLATE_ACTION_IDX].lower()
         dispatch = {
-            "save": self._template_save,
-            "create": self._template_create,
-            "list": self._template_list,
-            "delete": self._template_delete,
+            "save": self.helper._execute_template_save,
+            "create": self.helper._execute_template_create,
+            "list": self.helper._execute_template_list,
+            "delete": self.helper._execute_template_delete,
         }
 
         handler = dispatch.get(action)
@@ -320,127 +491,17 @@ class SessionCommand(BaseCommand):
         else:
             ctx.console.print("[yellow]Usage: /session template <save|create|list|delete>[/]")
 
-    async def _template_save(self, ctx: CommandContext, manager: SessionManager) -> None:
-        """Save a session as template."""
-        if not self.helper._ensure_args(ctx, 4, "/session template save <id> <name>"):
-            return
-
-        session_id = ctx.args[self._TEMPLATE_SESSION_ID_IDX]
-        name = ctx.args[self._TEMPLATE_NAME_IDX]
-        description = ctx.args[self._TEMPLATE_DESC_IDX] if len(ctx.args) > self._TEMPLATE_DESC_IDX else ""
-
-        try:
-            template = manager.save_template(session_id, name, description)
-            ctx.console.print(f"[green]✓[/] Saved template: {template['name']}")
-            ctx.console.print(f"[dim]ID: {template['id']}[/]")
-            if description:
-                ctx.console.print(f"[dim]Description: {description}[/]")
-        except (FileNotFoundError, ValueError) as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
-
-    async def _template_create(self, ctx: CommandContext, manager: SessionManager) -> None:
-        """Create session from template."""
-        if not self.helper._ensure_args(ctx, 3, "/session template create <template_id> [tag]"):
-            return
-
-        template_id = ctx.args[self._TEMPLATE_ID_IDX]
-        tag = ctx.args[self._TEMPLATE_TAG_IDX] if len(ctx.args) > self._TEMPLATE_TAG_IDX else None
-
-        try:
-            session = manager.create_from_template(template_id, tag=tag)
-            manager.save(session)
-            ctx.console.print(f"[green]✓[/] Created session from template: {session.id}")
-            if session.tag:
-                ctx.console.print(f"[dim]Tag: {session.tag}[/]")
-            ctx.console.print(f"[dim]Template: {template_id}[/]")
-        except (FileNotFoundError, ValueError) as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
-
-    async def _template_list(self, ctx: CommandContext, manager: SessionManager) -> None:
-        """List available templates."""
-        templates = manager.list_templates()
-
-        if not templates:
-            ctx.console.print("[dim]No templates available[/]")
-            return
-
-        ctx.console.print("\n[bold blue]Available Templates[/]\n")
-        for template in templates:
-            ctx.console.print(f"  [cyan]{template['name']}[/]")
-            ctx.console.print(f"    ID: {template['id']}")
-            if template.get('description'):
-                ctx.console.print(f"    Description: {template['description']}")
-            if template.get('parameters'):
-                params = ', '.join(template['parameters'].keys())
-                ctx.console.print(f"    Parameters: {params}")
-            ctx.console.print(f"    Created: {template.get('created_at', 'unknown')}")
-            ctx.console.print("")
-
-    async def _template_delete(self, ctx: CommandContext, manager: SessionManager) -> None:
-        """Delete a template."""
-        if not self.helper._ensure_args(ctx, 3, "/session template delete <template_id>"):
-            return
-
-        template_id = ctx.args[self._TEMPLATE_ID_IDX]
-
-        try:
-            manager.delete_template(template_id)
-            ctx.console.print(f"[green]✓[/] Deleted template: {template_id}")
-        except FileNotFoundError as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
-
     async def _export(self, ctx: CommandContext) -> None:
         """Export a session."""
         manager = self.helper._get_manager(ctx)
-        if manager is None:
-            return
-
-        if not self.helper._ensure_args(ctx, 2, "/session export <id> [format]"):
-            return
-
-        session_id = ctx.args[self._EXPORT_ID_IDX]
-        format = ctx.args[self._EXPORT_FORMAT_IDX] if len(ctx.args) > self._EXPORT_FORMAT_IDX else "json"
-
-        try:
-            exported = manager.export_session(session_id, format)
-
-            ext = "json" if format == "json" else "md"
-            output_file = Path.cwd() / f"session_{session_id}.{ext}"
-            output_file.write_text(exported)
-
-            ctx.console.print(f"[green]✓[/] Exported session to: {output_file}")
-            ctx.console.print(f"[dim]Format: {format}, Size: {len(exported)} bytes[/]")
-        except (FileNotFoundError, ValueError) as e:
-            ctx.console.print(f"[red]Error: {e}[/]")
+        if manager is not None:
+            await self.helper._execute_export(ctx, manager)
 
     async def _import(self, ctx: CommandContext) -> None:
         """Import a session."""
         manager = self.helper._get_manager(ctx)
-        if manager is None:
-            return
-
-        if not self.helper._ensure_args(ctx, 2, "/session import <file> [format]"):
-            return
-
-        file_path = Path(ctx.args[self._IMPORT_FILE_IDX])
-        if not file_path.exists():
-            ctx.console.print(f"[red]File not found: {file_path}[/]")
-            return
-
-        format = ctx.args[self._IMPORT_FORMAT_IDX] if len(ctx.args) > self._IMPORT_FORMAT_IDX else "json"
-        tag = ctx.args[self._IMPORT_TAG_IDX] if len(ctx.args) > self._IMPORT_TAG_IDX else None
-
-        try:
-            data = file_path.read_text()
-            session = manager.import_session(data, format, tag)
-            manager.save(session)
-
-            ctx.console.print(f"[green]✓[/] Imported session: {session.id}")
-            if session.tag:
-                ctx.console.print(f"[dim]Tag: {session.tag}[/]")
-            ctx.console.print(f"[dim]Format: {format}, Messages: {len(session.messages)}[/]")
-        except (ValueError, json.JSONDecodeError) as e:
-            ctx.console.print(f"[red]Error importing session: {e}[/]")
+        if manager is not None:
+            await self.helper._execute_import(ctx, manager)
 
     async def _list(self, ctx: CommandContext) -> None:
         """List sessions with enhanced information."""
