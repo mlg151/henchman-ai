@@ -174,6 +174,15 @@ class _CollapsibleHeader(_BaseTextualWidget):
     }
     """
 
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+        """Initialize with text content.
+
+        Args:
+            text: Initial text content.
+            **kwargs: Forwarded to ``_BaseTextualWidget``.
+        """
+        super().__init__(text, **kwargs)
+
 
 class _CollapsibleContent(_BaseTextualWidget):
     """Body of a collapsible message (hidden when collapsed)."""
@@ -189,6 +198,15 @@ class _CollapsibleContent(_BaseTextualWidget):
         color: $warning;
     }
     """
+
+    def __init__(self, text: str = "", **kwargs: Any) -> None:
+        """Initialize with text content.
+
+        Args:
+            text: Initial text content.
+            **kwargs: Forwarded to ``_BaseTextualWidget``.
+        """
+        super().__init__(text, **kwargs)
 
 
 class CollapsibleMessage(_BaseMessageWidget):
@@ -970,66 +988,15 @@ class ChatPane(VerticalScroll):
         self._try_scroll()
         return widget
 
-    def _create_and_add_widget(self, widget_class: type[_T], *args: Any, **kwargs: Any) -> _T:
-        """Create and add a widget to the pane.
-
-        Args:
-            widget_class: The widget class to instantiate.
-            *args: Positional arguments for widget constructor.
-            **kwargs: Keyword arguments for widget constructor.
-
-        Returns:
-            The created and added widget.
-        """
-        widget = widget_class(*args, **kwargs)
-        return self._add_widget(widget)
-
-    def _add_typed_message_widget(self, widget_class: type[_T], *args: Any, **kwargs: Any) -> _T:
-        """Type-safe method to add a message widget with proper return type.
-
-        Args:
-            widget_class: The widget class to instantiate.
-            *args: Positional arguments for widget constructor.
-            **kwargs: Keyword arguments for widget constructor.
-
-        Returns:
-            The created widget with correct type.
-        """
-        return self._create_and_add_widget(widget_class, *args, **kwargs)
-
-    def _add_message_widget_and_track(
-        self,
-        widget_class: type[_T],
-        tracking_dict: dict[str, _T],
-        key: str,
-        *args: Any,
-        **kwargs: Any,
-    ) -> _T:
-        """Add a message widget and track it in a dictionary.
-
-        Args:
-            widget_class: The widget class to instantiate.
-            tracking_dict: Dictionary to track the widget.
-            key: Key to use for tracking.
-            *args: Positional arguments for widget constructor.
-            **kwargs: Keyword arguments for widget constructor.
-
-        Returns:
-            The created widget with correct type.
-        """
-        widget = self._add_typed_message_widget(widget_class, *args, **kwargs)
-        tracking_dict[key] = widget
-        return widget
-
     def _add_message_widget(
         self,
         widget_class: type[_T],
         *args: Any,
         tracking_dict: dict[str, _T] | None = None,
-        tracking_key: str = "",
+        tracking_key: str | None = None,
         **kwargs: Any,
     ) -> _T:
-        """Generic method to add a message widget to the chat pane.
+        """Add a message widget to the chat pane.
 
         Args:
             widget_class: The widget class to instantiate.
@@ -1041,42 +1008,14 @@ class ChatPane(VerticalScroll):
         Returns:
             The created widget.
         """
-        if tracking_dict is not None:
-            return self._add_message_widget_and_track(
-                widget_class, tracking_dict, tracking_key, *args, **kwargs
-            )
-        return self._add_typed_message_widget(widget_class, *args, **kwargs)
+        widget = widget_class(*args, **kwargs)
+        self._mount_widget(widget)
+        self._try_scroll()
 
-    def _add_message_of_type(
-        self,
-        widget_class: type[_T],
-        *args: Any,
-        tracking_dict: dict[str, _T] | None = None,
-        tracking_key: str = "",
-        **kwargs: Any,
-    ) -> _T:
-        """Add a message widget of specified type to the chat pane.
+        if tracking_dict is not None and tracking_key is not None:
+            tracking_dict[tracking_key] = widget
 
-        This is a wrapper around _add_message_widget that provides a more
-        explicit API for adding specific message types.
-
-        Args:
-            widget_class: The widget class to instantiate.
-            *args: Positional arguments for widget constructor.
-            tracking_dict: Optional dictionary to track the widget.
-            tracking_key: Key to use for tracking if tracking_dict is provided.
-            **kwargs: Keyword arguments for widget constructor.
-
-        Returns:
-            The created widget.
-        """
-        return self._add_message_widget(
-            widget_class,
-            *args,
-            tracking_dict=tracking_dict,
-            tracking_key=tracking_key,
-            **kwargs,
-        )
+        return widget
 
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
@@ -1088,7 +1027,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ThinkingMessage widget.
         """
-        return self._add_message_of_type(ThinkingMessage, thought, agent_name)
+        return self._add_message_widget(ThinkingMessage, thought, agent_name)
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -1099,7 +1038,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        return self._add_message_of_type(
+        return self._add_message_widget(
             ThinkingMessage,
             "",
             agent_name,
@@ -1134,7 +1073,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ToolMessage widget.
         """
-        return self._add_message_of_type(ToolMessage, thought, tool_call)
+        return self._add_message_widget(ToolMessage, thought, tool_call)
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""
