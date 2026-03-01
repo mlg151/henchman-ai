@@ -31,8 +31,10 @@ _T = TypeVar("_T", bound=Static)
 
 class ToolCallProtocol(Protocol):
     """Protocol for tool call objects."""
+
     name: str
     arguments: str | dict[str, Any]
+
 
 # ------------------------------------------------------------------ #
 # Constants                                                            #
@@ -740,39 +742,24 @@ class ToolMessage(CollapsibleMessage):
         """
         return self._build_header_text_for_ui()
 
-    def _build_body_parts_for_ui(self) -> list[str]:
-        """Build the parts that make up the body content for UI display.
+    def _build_body_parts(self, for_ui: bool = True) -> list[str]:
+        """Build the parts that make up the body content.
+
+        Args:
+            for_ui: If True, use pretty formatting for UI display.
+                    If False, use plain formatting for render output.
 
         Returns:
-            List of body content parts with pretty formatting.
+            List of body content parts.
         """
         parts: list[str] = []
 
         # Add tool arguments if available
         if self._tool_call and getattr(self._tool_call, "arguments", None):
-            parts.append(self._format_full_args())
-
-        # Add result text if available
-        if self._result_text:
-            parts.append(self._result_text)
-
-        # Add additional content if different from thought
-        if self._content_text and self._content_text != self._thought:
-            parts.append(self._content_text)
-
-        return parts
-
-    def _build_body_parts_for_render(self) -> list[str]:
-        """Build the parts that make up the body content for render output.
-
-        Returns:
-            List of body content parts without pretty formatting.
-        """
-        parts: list[str] = []
-
-        # Add tool arguments if available
-        if self._tool_call and getattr(self._tool_call, "arguments", None):
-            parts.append(self._format_tool_arguments_for_render())
+            if for_ui:
+                parts.append(self._format_full_args())
+            else:
+                parts.append(self._format_tool_arguments_for_render())
 
         # Add result text if available
         if self._result_text:
@@ -811,7 +798,7 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Formatted body content with markup.
         """
-        parts = self._build_body_parts_for_ui()
+        parts = self._build_body_parts(for_ui=True)
         body = "\n".join(parts) if parts else ""
         escaped = _safe_markup(body)
         if self._highlight_term:
@@ -837,7 +824,7 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Expanded content text.
         """
-        parts = self._build_body_parts_for_render()
+        parts = self._build_body_parts(for_ui=False)
         return "\n".join(parts)
 
     def render(self) -> str:
