@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T22:00:17.856157+00:00_
+_Generated: 2026-03-01T22:30:16.215725+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-01T22:00:17.856157+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 50.5/100 |
 | **Files Scanned** | 186 |
-| **Total Lines (non-blank)** | 32,671 |
-| **Total Smells** | 2329 |
+| **Total Lines (non-blank)** | 32,687 |
+| **Total Smells** | 2330 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-01T22:00:17.856157+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1681 |
+| low | 1682 |
 | medium | 556 |
 | high | 92 |
 
@@ -28,7 +28,7 @@ _Generated: 2026-03-01T22:00:17.856157+00:00_
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1148 |
+| Missing Type Hint | 1149 |
 | Feature Envy | 314 |
 | Duplicate Code | 308 |
 | Magic Number | 140 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/session.py | ❌ F | 9.5 | 54 | 694 | 32 | 0.0 |
+| 1 | cli/commands/session.py | ❌ F | 9.4 | 55 | 710 | 31 | 0.0 |
 | 2 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
 | 3 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
 | 4 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
@@ -122,9 +122,9 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 166 additional files omitted._
 
-### cli/commands/session.py — ❌ F (9.5/100)
+### cli/commands/session.py — ❌ F (9.4/100)
 
-LOC: 694 | Classes: 19 | Functions: 0 | MI: 32 | Avg CC: 0.0
+LOC: 710 | Classes: 19 | Functions: 0 | MI: 31 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
@@ -144,7 +144,7 @@ LOC: 694 | Classes: 19 | Functions: 0 | MI: 32 | Avg CC: 0.0
 | 220 | 🟢 LOW | Missing Type Hint | Function '_ensure_args' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 239 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 39 more smells._
+_... and 40 more smells._
 
 ### cli/tool_executor.py — ❌ F (12.1/100)
 

@@ -685,8 +685,8 @@ class SessionCommandHelper:
 class SessionCommand(BaseCommand):
     """/session command for enhanced session management."""
 
-    _help_command_name = "Enhanced Session"
-    _help_lines = [
+    _help_command_name: str = "Enhanced Session"
+    _help_lines: list[str] = [
         "  /session branch <id> <point> [tag]  - Branch from session at message point",
         "  /session merge <id1> <id2> [strategy] [tag] - Merge sessions",
         "  /session template save <id> <name>  - Save session as template",
