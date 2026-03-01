@@ -7,11 +7,8 @@ discovery, installation, and management capabilities.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import sqlite3
 import tempfile
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
@@ -19,15 +16,18 @@ from urllib.parse import urljoin
 import aiohttp
 from pydantic import ValidationError
 
+from henchman.extensions.constants import PluginConstants
 from henchman.extensions.manager import ExtensionManager
 from henchman.extensions.models import (
     PluginInstallation,
     PluginMetadata,
+    PluginSearchParams,
     PluginSearchResult,
     PluginSource,
     PluginUpdateInfo,
     SecurityReport,
 )
+from henchman.extensions.plugin_database import PluginDatabase
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,7 @@ class PluginManager(ExtensionManager):
         self.registry_url = registry_url
         self.data_dir = data_dir or Path.home() / ".henchman" / "plugins"
         self.db_path = self.data_dir / "plugins.db"
+        self.database = PluginDatabase(self.db_path)
         self.installed_plugins: dict[str, PluginInstallation] = {}
         self._session: aiohttp.ClientSession | None = None
         self._initialized = False
@@ -81,14 +82,19 @@ class PluginManager(ExtensionManager):
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize database
-        await self._init_database()
+        await self.database.initialize()
 
         # Load installed plugins
-        await self._load_installed_plugins()
+        self.installed_plugins = await self.database.load_installations()
+        
+        # Load extensions for enabled plugins
+        for installation in self.installed_plugins.values():
+            if installation.enabled:
+                await self._load_plugin_extension(installation)
 
         # Create HTTP session for registry API
         self._session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=30),
+            timeout=aiohttp.ClientTimeout(total=PluginConstants.REGISTRY_TIMEOUT),
             headers={"User-Agent": f"Henchman-AI/{__version__}"},
         )
 
@@ -123,15 +129,41 @@ class PluginManager(ExtensionManager):
         Raises:
             aiohttp.ClientError: If registry request fails.
         """
+        search_params = PluginSearchParams(
+            query=query,
+            page=page,
+            page_size=page_size,
+        )
+        # Note: category is not part of PluginSearchParams model
+        # We'll handle it separately
+        return await self._search_plugins_with_params(search_params, category)
+
+    async def _search_plugins_with_params(
+        self,
+        search_params: PluginSearchParams,
+        category: str | None = None,
+    ) -> PluginSearchResult:
+        """Search for plugins using PluginSearchParams object.
+
+        Args:
+            search_params: Search parameters.
+            category: Filter by category (not in PluginSearchParams model).
+
+        Returns:
+            PluginSearchResult with matching plugins.
+
+        Raises:
+            aiohttp.ClientError: If registry request fails.
+        """
         if not self._session:
             raise RuntimeError("Plugin manager not initialized")
 
         params: dict[str, Any] = {
-            "page": page,
-            "page_size": page_size,
+            "page": search_params.page,
+            "page_size": search_params.page_size,
         }
-        if query:
-            params["q"] = query
+        if search_params.query:
+            params["q"] = search_params.query
         if category:
             params["category"] = category
 
@@ -147,8 +179,8 @@ class PluginManager(ExtensionManager):
                 plugins=plugins,
                 total=data.get("total", 0),
                 page=data.get("page", 1),
-                page_size=data.get("page_size", 20),
-                query=query,
+                page_size=data.get("page_size", PluginConstants.DEFAULT_PAGE_SIZE),
+                query=search_params.query,
             )
         except ValidationError as e:
             logger.error("Invalid plugin data from registry: %s", e)
@@ -156,9 +188,9 @@ class PluginManager(ExtensionManager):
             return PluginSearchResult(
                 plugins=[],
                 total=0,
-                page=page,
-                page_size=page_size,
-                query=query,
+                page=search_params.page,
+                page_size=search_params.page_size,
+                query=search_params.query,
             )
 
     async def get_plugin_info(self, plugin_name: str, version: str | None = None) -> PluginMetadata | None:
@@ -184,7 +216,7 @@ class PluginManager(ExtensionManager):
             url = urljoin(self.registry_url, f"/api/v1/plugins/{plugin_name}")
 
         async with self._session.get(url) as response:
-            if response.status == 404:
+            if response.status == PluginConstants.HTTP_NOT_FOUND:
                 return None
             response.raise_for_status()
             data = await response.json()
@@ -254,7 +286,7 @@ class PluginManager(ExtensionManager):
         )
 
         # Save to database
-        await self._save_installation(installation)
+        await self.database.save_installation(installation)
 
         # Load extension
         await self._load_plugin_extension(installation)
@@ -292,7 +324,7 @@ class PluginManager(ExtensionManager):
                 logger.warning("Failed to remove plugin files: %s", e)
 
         # Remove from database
-        await self._delete_installation(plugin_name)
+        await self.database.delete_installation(plugin_name)
 
         # Remove from cache
         del self.installed_plugins[plugin_name]
@@ -389,7 +421,7 @@ class PluginManager(ExtensionManager):
         if installation.metadata.security.requires_sandbox:
             warnings.append("Plugin requires sandboxed execution")
 
-        risk_level = "medium" if warnings else "low"
+        risk_level = PluginConstants.DEFAULT_RISK_LEVEL if warnings else PluginConstants.LOW_RISK_LEVEL
 
         return SecurityReport(
             plugin_name=plugin_name,
@@ -401,102 +433,6 @@ class PluginManager(ExtensionManager):
         )
 
     # Private methods
-
-    async def _init_database(self) -> None:
-        """Initialize the plugin database."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.cursor()
-
-            # Create installations table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS plugin_installations (
-                    name TEXT PRIMARY KEY,
-                    metadata_json TEXT NOT NULL,
-                    installed_at TEXT NOT NULL,
-                    installed_version TEXT NOT NULL,
-                    enabled INTEGER NOT NULL,
-                    installation_path TEXT,
-                    last_used TEXT
-                )
-            """)
-
-            # Create indexes
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_installed_at ON plugin_installations(installed_at)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_enabled ON plugin_installations(enabled)")
-
-            conn.commit()
-        finally:
-            conn.close()
-
-    async def _load_installed_plugins(self) -> None:
-        """Load installed plugins from database."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM plugin_installations")
-
-            for row in cursor.fetchall():
-                try:
-                    metadata_json = row[1]
-                    metadata_dict = json.loads(metadata_json)
-                    metadata = PluginMetadata(**metadata_dict)
-
-                    installation = PluginInstallation(
-                        metadata=metadata,
-                        installed_at=datetime.fromisoformat(row[2]),
-                        installed_version=row[3],
-                        enabled=bool(row[4]),
-                        installation_path=row[5],
-                        last_used=datetime.fromisoformat(row[6]) if row[6] else None,
-                    )
-
-                    self.installed_plugins[metadata.name] = installation
-
-                    # Load extension if enabled
-                    if installation.enabled:
-                        await self._load_plugin_extension(installation)
-
-                except (json.JSONDecodeError, ValidationError) as e:
-                    logger.warning("Failed to load plugin installation from database: %s", e)
-        finally:
-            conn.close()
-
-    async def _save_installation(self, installation: PluginInstallation) -> None:
-        """Save plugin installation to database."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.cursor()
-
-            metadata_json = installation.metadata.model_dump_json()
-
-            cursor.execute("""
-                INSERT OR REPLACE INTO plugin_installations
-                (name, metadata_json, installed_at, installed_version, enabled, installation_path, last_used)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                installation.metadata.name,
-                metadata_json,
-                installation.installed_at.isoformat(),
-                installation.installed_version,
-                int(installation.enabled),
-                installation.installation_path,
-                installation.last_used.isoformat() if installation.last_used else None,
-            ))
-
-            conn.commit()
-        finally:
-            conn.close()
-
-    async def _delete_installation(self, plugin_name: str) -> None:
-        """Delete plugin installation from database."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM plugin_installations WHERE name = ?", (plugin_name,))
-            conn.commit()
-        finally:
-            conn.close()
 
     async def _check_compatibility(self, metadata: PluginMetadata) -> bool:
         """Check if plugin is compatible with current system.
@@ -514,32 +450,74 @@ class PluginManager(ExtensionManager):
 
         try:
             # Check Henchman version
-            current_henchman = Version(VERSION)
-            if not SpecifierSet(metadata.compatibility.henchman).contains(current_henchman):
+            if not self._check_henchman_compatibility(metadata.compatibility.henchman, VERSION):
                 return False
 
             # Check Python version
-            current_python = Version(
-                f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-            )
-            if not SpecifierSet(metadata.compatibility.python).contains(current_python):
+            if not self._check_python_compatibility(metadata.compatibility.python, sys):
                 return False
 
             # Check OS compatibility
             if metadata.compatibility.os:
-                platform_map = {
-                    "linux": "linux",
-                    "win32": "windows",
-                    "darwin": "macos",
-                }
-                current_os = platform_map.get(sys.platform, sys.platform)
-                if current_os not in metadata.compatibility.os:
+                if not self._check_os_compatibility(metadata.compatibility.os, sys.platform):
                     return False
 
             return True
 
         except (InvalidSpecifier, ValueError):
             return False
+
+    def _check_henchman_compatibility(self, henchman_spec: str, current_version: str) -> bool:
+        """Check Henchman version compatibility.
+        
+        Args:
+            henchman_spec: Version specifier for Henchman.
+            current_version: Current Henchman version.
+            
+        Returns:
+            True if compatible, False otherwise.
+        """
+        from packaging.version import Version
+        from packaging.specifiers import SpecifierSet
+        
+        current_henchman = Version(current_version)
+        return SpecifierSet(henchman_spec).contains(current_henchman)
+
+    def _check_python_compatibility(self, python_spec: str, sys_module) -> bool:
+        """Check Python version compatibility.
+        
+        Args:
+            python_spec: Version specifier for Python.
+            sys_module: The sys module (passed as parameter for testability).
+            
+        Returns:
+            True if compatible, False otherwise.
+        """
+        from packaging.version import Version
+        from packaging.specifiers import SpecifierSet
+        
+        current_python = Version(
+            f"{sys_module.version_info.major}.{sys_module.version_info.minor}.{sys_module.version_info.micro}"
+        )
+        return SpecifierSet(python_spec).contains(current_python)
+
+    def _check_os_compatibility(self, supported_os_list: list[str], current_platform: str) -> bool:
+        """Check OS compatibility.
+        
+        Args:
+            supported_os_list: List of supported operating systems.
+            current_platform: Current platform identifier.
+            
+        Returns:
+            True if compatible, False otherwise.
+        """
+        platform_map = {
+            "linux": "linux",
+            "win32": "windows",
+            "darwin": "macos",
+        }
+        current_os = platform_map.get(current_platform, current_platform)
+        return current_os in supported_os_list
 
     async def _install_plugin_package(self, metadata: PluginMetadata) -> Path:
         """Install plugin package from source.
@@ -593,48 +571,66 @@ class PluginManager(ExtensionManager):
         # We install to a temporary directory first, then copy to target
         with tempfile.TemporaryDirectory() as temp_dir:
             try:
-                # Install package using pip
-                cmd = [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    package_spec,
-                    "--target",
-                    temp_dir,
-                    "--no-deps",  # We'll handle dependencies separately
-                ]
-
-                logger.info("Installing package from PyPI: %s", package_spec)
-                result = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-
-                stdout, stderr = await result.communicate()
-
-                if result.returncode != 0:
-                    error_msg = stderr.decode() if stderr else "Unknown error"
-                    raise RuntimeError(f"Failed to install package: {error_msg}")
-
-                # Copy installed files to target directory
-                import shutil
-                temp_path = Path(temp_dir)
-                for item in temp_path.iterdir():
-                    if item.is_file() or item.is_dir():
-                        dest = target_dir / item.name
-                        if item.is_dir():
-                            shutil.copytree(item, dest, dirs_exist_ok=True)
-                        else:
-                            shutil.copy2(item, dest)
-
+                await self._install_package_with_pip(package_spec, temp_dir)
+                self._copy_installed_files(temp_dir, target_dir)
                 logger.info("Successfully installed package to: %s", target_dir)
-
             except Exception as e:
                 raise RuntimeError(f"Failed to install from PyPI: {e}") from e
 
         return target_dir
+
+    async def _install_package_with_pip(self, package_spec: str, target_dir: str) -> None:
+        """Install package using pip.
+        
+        Args:
+            package_spec: Package specification (e.g., "package==1.0.0").
+            target_dir: Directory to install into.
+            
+        Raises:
+            RuntimeError: If pip installation fails.
+        """
+        import sys
+        
+        cmd = [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            package_spec,
+            "--target",
+            target_dir,
+            "--no-deps",  # We'll handle dependencies separately
+        ]
+
+        logger.info("Installing package from PyPI: %s", package_spec)
+        result = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        stdout, stderr = await result.communicate()
+
+        if result.returncode != 0:
+            error_msg = stderr.decode() if stderr else "Unknown error"
+            raise RuntimeError(f"Failed to install package: {error_msg}")
+
+    def _copy_installed_files(self, source_dir: str, target_dir: Path) -> None:
+        """Copy installed files from source to target directory.
+        
+        Args:
+            source_dir: Source directory with installed files.
+            target_dir: Target directory to copy to.
+        """
+        import shutil
+        temp_path = Path(source_dir)
+        for item in temp_path.iterdir():
+            if item.is_file() or item.is_dir():
+                dest = target_dir / item.name
+                if item.is_dir():
+                    shutil.copytree(item, dest, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(item, dest)
 
     async def _install_from_github(self, metadata: PluginMetadata, target_dir: Path) -> Path:
         """Install plugin from GitHub repository.
@@ -662,7 +658,7 @@ class PluginManager(ExtensionManager):
             raise RuntimeError(f"Invalid GitHub URL: {metadata.source_url}")
 
         user, repo, branch = match.groups()
-        branch = branch or "main"
+        branch = branch or PluginConstants.DEFAULT_GITHUB_BRANCH
 
         # Clone repository
 
@@ -672,7 +668,7 @@ class PluginManager(ExtensionManager):
             with tempfile.TemporaryDirectory() as temp_dir:
                 # Clone repository
                 clone_url = f"https://github.com/{user}/{repo}.git"
-                cmd = ["git", "clone", "--branch", branch, "--depth", "1", clone_url, temp_dir]
+                cmd = ["git", "clone", "--branch", branch, "--depth", str(PluginConstants.GIT_CLONE_DEPTH), clone_url, temp_dir]
 
                 logger.info("Cloning repository: %s (branch: %s)", clone_url, branch)
                 result = await asyncio.create_subprocess_exec(
@@ -727,7 +723,7 @@ class PluginManager(ExtensionManager):
             import tempfile
             with tempfile.TemporaryDirectory() as temp_dir:
                 # Clone repository
-                cmd = ["git", "clone", "--depth", "1", metadata.source_url, temp_dir]
+                cmd = ["git", "clone", "--depth", str(PluginConstants.GIT_CLONE_DEPTH), metadata.source_url, temp_dir]
 
                 logger.info("Cloning git repository: %s", metadata.source_url)
                 result = await asyncio.create_subprocess_exec(
