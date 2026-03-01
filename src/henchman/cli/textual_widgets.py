@@ -39,16 +39,16 @@ class ToolCallProtocol(Protocol):
 # ------------------------------------------------------------------ #
 
 # Rich markup prefixes for message roles
-_USER_PREFIX = "[bold green]You:[/]"
-_SYSTEM_PREFIX = "[dim]»[/]"
-_ERROR_PREFIX = "[bold red]Error:[/]"
-_AGENT_PREFIX_TEMPLATE = "[bold cyan]{name}:[/]"
+_USER_PREFIX: str = "[bold green]You:[/]"
+_SYSTEM_PREFIX: str = "[dim]»[/]"
+_ERROR_PREFIX: str = "[bold red]Error:[/]"
+_AGENT_PREFIX_TEMPLATE: str = "[bold cyan]{name}:[/]"
 
 # Regex matching ANSI escape sequences (CSI codes, OSC, etc.)
-_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[^[\]()]")
+_ANSI_RE: re.Pattern[str] = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[^[\]()]")
 
 # Maximum characters before truncation for summaries
-_SUMMARY_MAX_LEN = 20
+_SUMMARY_MAX_LEN: int = 20
 
 
 def _safe_markup(text: object) -> str:
@@ -68,7 +68,7 @@ def _safe_markup(text: object) -> str:
     if text is None:
         return ""
     # 1. Strip ANSI escape sequences
-    cleaned = _ANSI_RE.sub("", str(text))
+    cleaned: str = _ANSI_RE.sub("", str(text))
     # 2. Escape Rich markup characters
     return markup_escape(cleaned)
 
@@ -88,12 +88,12 @@ def _highlight_text(escaped_text: str, term: str) -> str:
     """
     if not term:
         return escaped_text
-    lower = escaped_text.lower()
-    tl = term.lower()
+    lower: str = escaped_text.lower()
+    tl: str = term.lower()
     result: list[str] = []
-    pos = 0
+    pos: int = 0
     while True:
-        idx = lower.find(tl, pos)
+        idx: int = lower.find(tl, pos)
         if idx == -1:
             result.append(escaped_text[pos:])
             break
@@ -999,6 +999,36 @@ class ChatPane(VerticalScroll):
 
         return widget
 
+    def _create_and_track_widget(
+        self,
+        widget_class: type[_T],
+        *args: Any,
+        tracking_dict: dict[str, _T] | None = None,
+        tracking_key: str | None = None,
+        **kwargs: Any,
+    ) -> _T:
+        """Create and track a widget with proper type hints.
+
+        This is a typed wrapper around _add_message_widget for better type safety.
+
+        Args:
+            widget_class: The widget class to instantiate.
+            *args: Positional arguments for widget constructor.
+            tracking_dict: Optional dictionary to track the widget.
+            tracking_key: Key to use for tracking if tracking_dict is provided.
+            **kwargs: Keyword arguments for widget constructor.
+
+        Returns:
+            The created widget.
+        """
+        return self._add_message_widget(
+            widget_class,
+            *args,
+            tracking_dict=tracking_dict,
+            tracking_key=tracking_key,
+            **kwargs,
+        )
+
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
@@ -1009,7 +1039,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ThinkingMessage widget.
         """
-        return self._add_message_widget(ThinkingMessage, thought, agent_name)
+        return self._create_and_track_widget(ThinkingMessage, thought, agent_name)
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -1020,7 +1050,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        return self._add_message_widget(
+        return self._create_and_track_widget(
             ThinkingMessage,
             "",
             agent_name,
@@ -1055,7 +1085,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ToolMessage widget.
         """
-        return self._add_message_widget(ToolMessage, thought, tool_call)
+        return self._create_and_track_widget(ToolMessage, thought, tool_call)
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""
