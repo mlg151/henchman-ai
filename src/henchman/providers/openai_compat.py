@@ -20,6 +20,7 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
+from henchman.providers.utils import validate_messages, parse_finish_reason
 
 __all__ = ["OpenAICompatibleProvider"]
 
@@ -93,15 +94,8 @@ class OpenAICompatibleProvider(ModelProvider):
 
     def _parse_finish_reason(self, reason: str | None) -> FinishReason | None:
         """Parse OpenAI finish reason to our enum."""
-        if reason is None:
-            return None
-        mapping = {
-            "stop": FinishReason.STOP,
-            "tool_calls": FinishReason.TOOL_CALLS,
-            "length": FinishReason.LENGTH,
-            "content_filter": FinishReason.CONTENT_FILTER,
-        }
-        return mapping.get(reason, FinishReason.STOP)
+        # OpenAI uses standard mapping, so we can use the default
+        return parse_finish_reason(reason)
 
     def _parse_tool_calls(self, tool_calls: list[Any] | None) -> list[ToolCall] | None:
         """Parse tool calls from the API response."""
@@ -166,21 +160,7 @@ class OpenAICompatibleProvider(ModelProvider):
         Raises:
             ValueError: If messages are empty or have invalid content.
         """
-        if not messages:
-            raise ValueError("Messages list cannot be empty")
-
-        for message in messages:
-            # Tool/function messages can have empty content
-            if message.role in ["tool", "function"]:
-                continue
-
-            # Assistant messages can have empty content (e.g., when only tool calls are made)
-            if message.role == "assistant":
-                continue
-
-            # All other messages must have non-empty content
-            if not (message.content or "").strip():
-                raise ValueError(f"Message with role '{message.role}' cannot have empty content")
+        validate_messages(messages)
 
     def _repair_message_sequence_if_needed(self, messages: list[Message]) -> list[Message]:
         """Repair message sequence if it's invalid to prevent API errors.

@@ -3,6 +3,8 @@
 import os
 from typing import Final
 
+from henchman.providers.base import FinishReason, Message
+
 
 def get_env_var_for_provider(provider_name: str) -> str:
     """Get the environment variable name for a provider's API key.
@@ -53,3 +55,58 @@ def get_api_key_for_provider(provider_name: str) -> str | None:
             return api_key
 
     return None
+
+
+def validate_messages(messages: list[Message]) -> None:
+    """Validate that messages are not empty and have content where required.
+
+    Args:
+        messages: The conversation history to validate.
+
+    Raises:
+        ValueError: If messages are empty or have invalid content.
+    """
+    if not messages:
+        raise ValueError("Messages list cannot be empty")
+
+    for message in messages:
+        # Tool/function messages can have empty content
+        if message.role in ["tool", "function"]:
+            continue
+
+        # Assistant messages can have empty content (e.g., when only tool calls are made)
+        if message.role == "assistant":
+            continue
+
+        # All other messages must have non-empty content
+        if not (message.content or "").strip():
+            raise ValueError(f"Message with role '{message.role}' cannot have empty content")
+
+
+def parse_finish_reason(
+    reason: str | None, 
+    provider_mapping: dict[str, FinishReason] | None = None
+) -> FinishReason | None:
+    """Parse finish reason from provider-specific format to our enum.
+    
+    Args:
+        reason: The provider-specific finish reason string.
+        provider_mapping: Optional custom mapping for provider-specific reasons.
+            If None, uses a default mapping.
+            
+    Returns:
+        Mapped FinishReason or None if reason is None.
+    """
+    if reason is None:
+        return None
+    
+    # Default mapping for providers that don't specify one
+    default_mapping: Final[dict[str, FinishReason]] = {
+        "stop": FinishReason.STOP,
+        "tool_calls": FinishReason.TOOL_CALLS,
+        "length": FinishReason.LENGTH,
+        "content_filter": FinishReason.CONTENT_FILTER,
+    }
+    
+    mapping = provider_mapping or default_mapping
+    return mapping.get(reason, FinishReason.STOP)
