@@ -195,12 +195,12 @@ class {plugin_name.title().replace("-", "").replace("_", "")}Extension(Extension
             "get_plugin_info",
             return_value=sample_plugin_metadata,
         ), patch.object(
-            plugin_manager,
-            "_install_plugin_package",
+            plugin_manager.installer,
+            "install_plugin_package",
             return_value=plugin_dir,
         ), patch.object(
-            plugin_manager,
-            "_install_dependencies",
+            plugin_manager.installer,
+            "install_dependencies",
             return_value=None,
         ):
             # Install plugin
@@ -245,12 +245,12 @@ class {plugin_name.title().replace("-", "").replace("_", "")}Extension(Extension
             "get_plugin_info",
             return_value=sample_plugin_metadata,
         ), patch.object(
-            plugin_manager,
-            "_install_plugin_package",
+            plugin_manager.installer,
+            "install_plugin_package",
             return_value=plugin_dir,
         ), patch.object(
-            plugin_manager,
-            "_install_dependencies",
+            plugin_manager.installer,
+            "install_dependencies",
             return_value=None,
         ):
             await plugin_manager.install_plugin(
@@ -300,12 +300,12 @@ class {plugin_name.title().replace("-", "").replace("_", "")}Extension(Extension
             "get_plugin_info",
             return_value=sample_plugin_metadata,
         ), patch.object(
-            manager1,
-            "_install_plugin_package",
+            manager1.installer,
+            "install_plugin_package",
             return_value=plugin_dir,
         ), patch.object(
-            manager1,
-            "_install_dependencies",
+            manager1.installer,
+            "install_dependencies",
             return_value=None,
         ):
             await manager1.install_plugin(
@@ -342,12 +342,12 @@ class {plugin_name.title().replace("-", "").replace("_", "")}Extension(Extension
             "get_plugin_info",
             return_value=sample_plugin_metadata,
         ), patch.object(
-            plugin_manager,
-            "_install_plugin_package",
+            plugin_manager.installer,
+            "install_plugin_package",
             return_value=plugin_dir,
         ), patch.object(
-            plugin_manager,
-            "_install_dependencies",
+            plugin_manager.installer,
+            "install_dependencies",
             return_value=None,
         ):
             await plugin_manager.install_plugin(
@@ -393,12 +393,12 @@ class {plugin_name.title().replace("-", "").replace("_", "")}Extension(Extension
             "get_plugin_info",
             return_value=sample_plugin_metadata,
         ), patch.object(
-            plugin_manager,
-            "_install_plugin_package",
+            plugin_manager.installer,
+            "install_plugin_package",
             return_value=plugin_dir,
         ), patch.object(
-            plugin_manager,
-            "_install_dependencies",
+            plugin_manager.installer,
+            "install_dependencies",
             return_value=None,
         ):
             await plugin_manager.install_plugin(
@@ -423,12 +423,12 @@ class {plugin_name.title().replace("-", "").replace("_", "")}Extension(Extension
             "get_plugin_info",
             return_value=updated_metadata,
         ), patch.object(
-            plugin_manager,
-            "_install_plugin_package",
+            plugin_manager.installer,
+            "install_plugin_package",
             return_value=plugin_dir,
         ), patch.object(
-            plugin_manager,
-            "_install_dependencies",
+            plugin_manager.installer,
+            "install_dependencies",
             return_value=None,
         ):
             # Update plugin
