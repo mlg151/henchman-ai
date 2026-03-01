@@ -10,7 +10,9 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+
+from rich.console import Console
 
 from henchman.cli.commands import BaseCommand, CommandContext
 
@@ -51,12 +53,45 @@ class DisplayInfo:
     value: str | None
     max_id_len: int
 
+    def format_optional_info(self) -> str:
+        """Format optional session information for display.
+
+        Returns:
+            Formatted info string or empty string.
+        """
+        if self.condition and self.value:
+            truncated_value = (
+                self.value[:self.max_id_len]
+                if self.max_id_len > 0
+                else self.value
+            )
+            return f" {self.icon} {self.label}{truncated_value}"
+        return ""
+
+
+@dataclass
+class AttributeDisplayInfo:
+    """Parameters for formatting session attribute information."""
+
+    condition: str | None
+    icon: str
+    label: str
+    max_id_len: int
+
+
+@dataclass
+class MessageStyle:
+    """Style configuration for formatted messages."""
+
+    prefix: str
+    style: str
+
 
 @dataclass
 class CommandOperationContext:
     """Context for command operations to reduce feature envy."""
 
-    console: Any  # Rich console object
+    console: Console
     args: list[str]
     session_manager: SessionManager | None = None
     project_hash: str | None = None
@@ -67,7 +102,7 @@ class CommandOperationContext:
 
     def print_error(self, message: str) -> None:
         """Print an error message."""
-        self._print_prefixed_message(message, "Error:", "red")
+        self._print_prefixed_message(message, MessageStyle(prefix="Error:", style="red"))
 
     def print_info(self, message: str) -> None:
         """Print an info message."""
@@ -75,7 +110,7 @@ class CommandOperationContext:
 
     def print_usage(self, usage: str) -> None:
         """Print usage information."""
-        self._print_prefixed_message(usage, "Usage:", "yellow")
+        self._print_prefixed_message(usage, MessageStyle(prefix="Usage:", style="yellow"))
 
     def _print_formatted_message(self, message: str, style: str) -> None:
         """Print a message with the given style.
@@ -86,15 +121,14 @@ class CommandOperationContext:
         """
         self.console.print(f"[{style}]{message}[/]")
 
-    def _print_prefixed_message(self, message: str, prefix: str, style: str) -> None:
+    def _print_prefixed_message(self, message: str, msg_style: MessageStyle) -> None:
         """Print a message with a prefix and style.
 
         Args:
             message: The message to print.
-            prefix: The prefix to add before the message.
-            style: The Rich style to apply.
+            msg_style: Message style configuration.
         """
-        self._print_formatted_message(f"{prefix} {message}", style)
+        self._print_formatted_message(f"{msg_style.prefix} {message}", msg_style.style)
 
     def get_arg(self, index: int, default: str | None = None) -> str | None:
         """Get argument at index or default if out of bounds."""
@@ -496,12 +530,13 @@ class SessionDisplayFormatter:
         Returns:
             Formatted branch info string.
         """
-        return SessionDisplayFormatter._format_session_attribute_info(
+        attr_info = AttributeDisplayInfo(
             condition=session.parent_id,
             icon="[yellow]↳[/]",
             label="branch from",
             max_id_len=max_id_len
         )
+        return SessionDisplayFormatter._format_attribute_info(attr_info)
 
     @staticmethod
     def _format_template_info(session: Session, max_id_len: int) -> str:
@@ -514,59 +549,33 @@ class SessionDisplayFormatter:
         Returns:
             Formatted template info string.
         """
-        return SessionDisplayFormatter._format_session_attribute_info(
+        attr_info = AttributeDisplayInfo(
             condition=session.template_id,
             icon="[magenta]ⓣ[/]",
             label="template:",
             max_id_len=max_id_len
         )
+        return SessionDisplayFormatter._format_attribute_info(attr_info)
 
     @staticmethod
-    def _format_session_attribute_info(
-        condition: str | None,
-        icon: str,
-        label: str,
-        max_id_len: int
-    ) -> str:
+    def _format_attribute_info(attr_info: AttributeDisplayInfo) -> str:
         """Format session attribute information for display.
 
         Args:
-            condition: Condition to check (truthy value means show info).
-            icon: Icon to display.
-            label: Label text.
-            max_id_len: Maximum ID display length.
+            attr_info: Attribute display information.
 
         Returns:
             Formatted info string or empty string.
         """
-        if condition:
+        if attr_info.condition:
             display_info = DisplayInfo(
-                condition=condition,
-                icon=icon,
-                label=label,
-                value=condition,
-                max_id_len=max_id_len
+                condition=attr_info.condition,
+                icon=attr_info.icon,
+                label=attr_info.label,
+                value=attr_info.condition,
+                max_id_len=attr_info.max_id_len
             )
-            return SessionDisplayFormatter._format_optional_info(display_info)
-        return ""
-
-    @staticmethod
-    def _format_optional_info(display_info: DisplayInfo) -> str:
-        """Format optional session information for display.
-
-        Args:
-            display_info: Display information parameters.
-
-        Returns:
-            Formatted info string or empty string.
-        """
-        if display_info.condition and display_info.value:
-            truncated_value = (
-                display_info.value[:display_info.max_id_len]
-                if display_info.max_id_len > 0
-                else display_info.value
-            )
-            return f" {display_info.icon} {display_info.label}{truncated_value}"
+            return display_info.format_optional_info()
         return ""
 
     @staticmethod
