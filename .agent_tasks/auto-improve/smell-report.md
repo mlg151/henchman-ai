@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 49.3/100)
+# Code Smell Report — ❌ F (Score: 49.4/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T03:00:19.480785+00:00_
+_Generated: 2026-03-01T03:30:19.305114+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 49.3/100 |
+| **Overall Score** | 49.4/100 |
 | **Files Scanned** | 180 |
-| **Total Lines (non-blank)** | 31,427 |
-| **Total Smells** | 2373 |
+| **Total Lines (non-blank)** | 31,403 |
+| **Total Smells** | 2370 |
 | **Avg Maintainability Index** | 71.3 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-01T03:00:19.480785+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1699 |
+| low | 1696 |
 | medium | 588 |
 | high | 86 |
 
@@ -32,11 +32,11 @@ _Generated: 2026-03-01T03:00:19.480785+00:00_
 | Feature Envy | 322 |
 | Duplicate Code | 294 |
 | Magic Number | 149 |
-| Long Method | 146 |
-| Deep Nesting | 140 |
+| Long Method | 145 |
+| Deep Nesting | 139 |
 | Primitive Obsession | 80 |
 | Complex Function | 47 |
-| Large Class | 33 |
+| Large Class | 32 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_widgets.py | ❌ F | 8.1 | 79 | 968 | 27 | 0.0 |
+| 1 | cli/textual_widgets.py | ❌ F | 7.9 | 76 | 944 | 26 | 0.0 |
 | 2 | utils/compaction.py | ❌ F | 10.3 | 58 | 546 | 34 | 14.8 |
 | 3 | extensions/plugin_manager.py | ❌ F | 10.5 | 82 | 689 | 35 | 0.0 |
 | 4 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
@@ -122,15 +122,15 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 160 additional files omitted._
 
-### cli/textual_widgets.py — ❌ F (8.1/100)
+### cli/textual_widgets.py — ❌ F (7.9/100)
 
-LOC: 968 | Classes: 17 | Functions: 3 | MI: 27 | Avg CC: 0.0
+LOC: 944 | Classes: 17 | Functions: 3 | MI: 26 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 1032 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 94% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1074 | 🟡 MEDIUM | Duplicate Code | Function 'add_tool_message' is 95% similar to '_handle_thought_event_with_state' at cli/tool_executor.py:703 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1074 | 🟡 MEDIUM | Duplicate Code | Function 'add_tool_message' is 95% similar to '_handle_finished_event_with_state' at cli/tool_executor.py:752 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1008 | 🟡 MEDIUM | Duplicate Code | Function 'add_thinking_message' is 94% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1050 | 🟡 MEDIUM | Duplicate Code | Function 'add_tool_message' is 95% similar to '_handle_thought_event_with_state' at cli/tool_executor.py:703 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1050 | 🟡 MEDIUM | Duplicate Code | Function 'add_tool_message' is 95% similar to '_handle_finished_event_with_state' at cli/tool_executor.py:752 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 114 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 127 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 137 | 🟢 LOW | Missing Type Hint | Function 'append' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
@@ -144,7 +144,7 @@ LOC: 968 | Classes: 17 | Functions: 3 | MI: 27 | Avg CC: 0.0
 | 245 | 🟢 LOW | Missing Type Hint | Function '_update_renderable' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 249 | 🟢 LOW | Missing Type Hint | Function 'toggle_expansion' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 64 more smells._
+_... and 61 more smells._
 
 ### utils/compaction.py — ❌ F (10.3/100)
 

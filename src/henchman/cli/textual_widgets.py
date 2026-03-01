@@ -442,10 +442,18 @@ class ChatMessage(_BaseMessageWidget):
             self.update(self._prefix)
             return
         if self._is_markdown:
-            md = RichMarkdown(self._content_text)
-            self._renderable_text = md  # type: ignore[assignment]
-            self.update(md)
+            self._render_markdown()
             return
+        self._render_plain_text()
+
+    def _render_markdown(self) -> None:
+        """Render content as markdown."""
+        md = RichMarkdown(self._content_text)
+        self._renderable_text = md  # type: ignore[assignment]
+        self.update(md)
+
+    def _render_plain_text(self) -> None:
+        """Render content as plain text with optional highlighting."""
         escaped = _safe_markup(self._content_text)
         if self._highlight_term:
             escaped = _highlight_text(escaped, self._highlight_term)
@@ -764,17 +772,7 @@ class ToolMessage(CollapsibleMessage):
 
         # Add tool arguments if available
         if self._tool_call and getattr(self._tool_call, "arguments", None):
-            import json
-
-            args = self._tool_call.arguments
-            if isinstance(args, str):
-                with contextlib.suppress(json.JSONDecodeError, TypeError):
-                    args = json.loads(args)
-
-            try:
-                parts.append(json.dumps(args))
-            except (TypeError, ValueError):
-                parts.append(str(args))
+            parts.append(self._format_tool_arguments_for_render())
 
         # Add result text if available
         if self._result_text:
@@ -785,6 +783,27 @@ class ToolMessage(CollapsibleMessage):
             parts.append(self._content_text)
 
         return parts
+
+    def _format_tool_arguments_for_render(self) -> str:
+        """Format tool arguments for render output.
+
+        Returns:
+            JSON string representation of tool arguments.
+        """
+        import json
+
+        if not self._tool_call or not getattr(self._tool_call, "arguments", None):
+            return ""
+
+        args = self._tool_call.arguments
+        if isinstance(args, str):
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
+                args = json.loads(args)
+
+        try:
+            return json.dumps(args)
+        except (TypeError, ValueError):
+            return str(args)
 
     def _get_body_content(self) -> str:
         """Get the body content with proper formatting for UI display.
