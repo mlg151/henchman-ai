@@ -260,6 +260,30 @@ class PluginMetadata(BaseModel):
     )
 
 
+class PluginSearchParams(BaseModel):
+    """Parameters for plugin search."""
+
+    query: str | None = Field(
+        default=None,
+        description="Search query string",
+    )
+    page: int = Field(
+        default=1,
+        description="Page number (1-indexed)",
+        ge=1,
+    )
+    page_size: int = Field(
+        default=20,
+        description="Results per page",
+        ge=1,
+        le=100,
+    )
+    category: str | None = Field(
+        default=None,
+        description="Filter by category",
+    )
+
+
 class PluginSearchResult(BaseModel):
     """Search result from plugin registry."""
 

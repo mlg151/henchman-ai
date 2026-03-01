@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T07:00:19.908406+00:00_
+_Generated: 2026-03-01T07:30:18.445140+00:00_
 
 ## Executive Summary
 
