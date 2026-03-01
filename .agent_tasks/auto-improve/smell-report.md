@@ -1,19 +1,19 @@
-# Code Smell Report — ❌ F (Score: 50.2/100)
+# Code Smell Report — ❌ F (Score: 50.1/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T07:30:18.445140+00:00_
+_Generated: 2026-03-01T08:00:20.189564+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 50.2/100 |
-| **Files Scanned** | 180 |
-| **Total Lines (non-blank)** | 31,639 |
-| **Total Smells** | 2283 |
-| **Avg Maintainability Index** | 71.3 |
+| **Overall Score** | 50.1/100 |
+| **Files Scanned** | 181 |
+| **Total Lines (non-blank)** | 31,678 |
+| **Total Smells** | 2285 |
+| **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.5 |
 
 ### Smells by Severity
@@ -21,7 +21,7 @@ _Generated: 2026-03-01T07:30:18.445140+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 1623 |
-| medium | 572 |
+| medium | 574 |
 | high | 88 |
 
 ### Smells by Category
@@ -31,7 +31,7 @@ _Generated: 2026-03-01T07:30:18.445140+00:00_
 | Missing Type Hint | 1093 |
 | Feature Envy | 317 |
 | Duplicate Code | 300 |
-| Magic Number | 144 |
+| Magic Number | 146 |
 | Long Method | 139 |
 | Deep Nesting | 135 |
 | Primitive Obsession | 80 |
@@ -120,7 +120,7 @@ These are the highest-impact smells to address first:
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 160 additional files omitted._
+_Showing 20 worst files. 161 additional files omitted._
 
 ### extensions/plugin_manager.py — ❌ F (10.5/100)
 
@@ -602,7 +602,7 @@ LOC: 265 | Classes: 1 | Functions: 0 | MI: 56 | Avg CC: 14.0
 
 _... and 25 more smells._
 
-## ✨ Clean Files (55 files with no smells)
+## ✨ Clean Files (56 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -648,6 +648,7 @@ _... and 25 more smells._
 - core/session_templates.py — ✅ A
 - core/turn.py — 👍 B
 - extensions/__init__.py — ✅ A
+- extensions/constants.py — ✅ A
 - knowledge/__init__.py — ✅ A
 - knowledge/models.py — ✅ A
 - mcp/__init__.py — ✅ A
