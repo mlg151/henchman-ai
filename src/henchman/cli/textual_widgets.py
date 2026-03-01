@@ -13,7 +13,7 @@ import json
 import re
 from abc import abstractmethod
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, Self, TypeVar, cast
 
 from rich.markdown import Markdown as RichMarkdown
 from rich.markup import escape as markup_escape
@@ -124,7 +124,7 @@ def _highlight_text(escaped_text: str, term: str) -> str:
 class _BaseTextualWidget(Static):
     """Base class for Textual widgets with common initialization."""
 
-    def __init__(self, text: str = "", **kwargs: Any) -> None:
+    def __init__(self: Self, text: str = "", **kwargs: Any) -> None:
         """Initialize with text content.
 
         Args:
@@ -137,7 +137,7 @@ class _BaseTextualWidget(Static):
 class _BaseMessageWidget(_BaseTextualWidget):
     """Base class for message widgets with common append and set_content logic."""
 
-    def __init__(self, text: str = "", **kwargs: Any) -> None:
+    def __init__(self: Self, text: str = "", **kwargs: Any) -> None:
         """Initialize with text content.
 
         Args:
@@ -147,7 +147,7 @@ class _BaseMessageWidget(_BaseTextualWidget):
         super().__init__(text, **kwargs)
         self._content_text: str = text
 
-    def append(self, chunk: str | None) -> None:
+    def append(self: Self, chunk: str | None) -> None:
         """Append a streaming chunk and re-render.
 
         Args:
@@ -158,7 +158,7 @@ class _BaseMessageWidget(_BaseTextualWidget):
         self._content_text += chunk
         self._update_renderable()
 
-    def set_content(self, content: str) -> None:
+    def set_content(self: Self, content: str) -> None:
         """Replace content entirely and re-render.
 
         Args:
@@ -168,12 +168,12 @@ class _BaseMessageWidget(_BaseTextualWidget):
         self._update_renderable()
 
     @property
-    def _content(self) -> str:
+    def _content(self: Self) -> str:
         """Alias for ``_content_text`` used by search."""
         return self._content_text
 
     @abstractmethod
-    def _update_renderable(self) -> None:
+    def _update_renderable(self: Self) -> None:
         """Re-render the widget with current content. Must be implemented by subclasses."""
         raise NotImplementedError
 
@@ -220,7 +220,7 @@ class CollapsibleMessage(_BaseMessageWidget):
     }
     """
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self: Self, **kwargs: Any) -> None:
         """Initialize the collapsible message.
 
         Args:
@@ -235,17 +235,17 @@ class CollapsibleMessage(_BaseMessageWidget):
         # after they've set up their specific attributes
 
     @property  # type: ignore[override]
-    def content(self) -> _CollapsibleContent:
+    def content(self: Self) -> _CollapsibleContent:
         """Return the body sub-widget for expansion display."""
         return self._body
 
     @content.setter
-    def content(self, value: object) -> None:
+    def content(self: Self, value: object) -> None:
         """Allow setting content (used by Static internals)."""
         if isinstance(value, _CollapsibleContent):
             self._body = value
 
-    def compose(self) -> Iterator[_CollapsibleHeader | _CollapsibleContent]:
+    def compose(self: Self) -> Iterator[_CollapsibleHeader | _CollapsibleContent]:
         """Compose the header and content sub-widgets.
 
         Yields:
@@ -255,11 +255,11 @@ class CollapsibleMessage(_BaseMessageWidget):
         yield self._body
 
     @abstractmethod
-    def _update_renderable(self) -> None:
+    def _update_renderable(self: Self) -> None:
         """Re-render header and content sub-widgets. Must be implemented by subclasses."""
         raise NotImplementedError
 
-    def toggle_expansion(self) -> None:
+    def toggle_expansion(self: Self) -> None:
         """Toggle between collapsed and expanded states."""
         self._is_expanded = not self._is_expanded
         if self._is_expanded:
@@ -267,7 +267,7 @@ class CollapsibleMessage(_BaseMessageWidget):
         else:
             self.remove_class("expanded")
 
-    def on_click(self, _event: events.Click) -> None:
+    def on_click(self: Self, _event: events.Click) -> None:
         """Handle click events to toggle expansion.
 
         Args:
@@ -275,7 +275,7 @@ class CollapsibleMessage(_BaseMessageWidget):
         """
         self.toggle_expansion()
 
-    def set_highlight(self, term: str) -> None:
+    def set_highlight(self: Self, term: str) -> None:
         """Set or clear the search highlight term and re-render.
 
         Args:
@@ -341,7 +341,7 @@ class HenchmanTextArea(TextArea):
         ),
     ]
 
-    async def on_key(self, event: events.Key) -> None:
+    async def on_key(self: Self, event: events.Key) -> None:
         """Handle key events for submit and newline.
 
         Args:
@@ -352,7 +352,7 @@ class HenchmanTextArea(TextArea):
         elif event.key == "shift+enter":
             self._handle_shift_enter_key(event)
 
-    def _handle_enter_key(self, event: events.Key) -> None:
+    def _handle_enter_key(self: Self, event: events.Key) -> None:
         """Handle the Enter key press.
 
         Args:
@@ -366,7 +366,7 @@ class HenchmanTextArea(TextArea):
         app = cast(HenchmanTextualApp, self.app)
         app.action_submit_message()
 
-    def _handle_shift_enter_key(self, event: events.Key) -> None:
+    def _handle_shift_enter_key(self: Self, event: events.Key) -> None:
         """Handle the Shift+Enter key press.
 
         Args:
@@ -376,11 +376,11 @@ class HenchmanTextArea(TextArea):
         event.prevent_default()
         self.insert("\n")
 
-    def action_newline(self) -> None:
+    def action_newline(self: Self) -> None:
         """Insert a newline character."""
         self.insert("\n")
 
-    def action_history_up(self) -> None:
+    def action_history_up(self: Self) -> None:
         """Move up in history when cursor is at the first row."""
         if self.cursor_location[0] == 0:
             # Cast app to HenchmanTextualApp to access its methods
@@ -391,7 +391,7 @@ class HenchmanTextArea(TextArea):
         else:
             self.action_cursor_up()
 
-    def action_history_down(self) -> None:
+    def action_history_down(self: Self) -> None:
         """Move down in history when cursor is at the last row."""
         last_row = self.document.line_count - 1
         if self.cursor_location[0] >= last_row:
@@ -424,7 +424,7 @@ class ChatMessage(_BaseMessageWidget):
     """
 
     def __init__(
-        self,
+        self: Self,
         prefix: str,
         content: str = "",
         **kwargs: Any,
@@ -444,11 +444,11 @@ class ChatMessage(_BaseMessageWidget):
         self._update_renderable()
 
     @property
-    def renderable(self) -> str | RichMarkdown:
+    def renderable(self: Self) -> str | RichMarkdown:
         """Return the last computed renderable for testing introspection."""
         return self._renderable_text
 
-    def _update_renderable(self) -> None:
+    def _update_renderable(self: Self) -> None:
         """Re-render the static widget with current content."""
         if not self._content_text:
             self._renderable_text = self._prefix
@@ -459,13 +459,13 @@ class ChatMessage(_BaseMessageWidget):
             return
         self._render_plain_text()
 
-    def _render_markdown(self) -> None:
+    def _render_markdown(self: Self) -> None:
         """Render content as markdown."""
         md = RichMarkdown(self._content_text)
         self._renderable_text = md  # type: ignore[assignment]
         self.update(md)
 
-    def _render_plain_text(self) -> None:
+    def _render_plain_text(self: Self) -> None:
         """Render content as plain text with optional highlighting."""
         escaped = _safe_markup(self._content_text)
         if self._highlight_term:
@@ -474,7 +474,7 @@ class ChatMessage(_BaseMessageWidget):
         self._renderable_text = text
         self.update(text)
 
-    def set_highlight(self, term: str) -> None:
+    def set_highlight(self: Self, term: str) -> None:
         """Set or clear the search highlight term and re-render.
 
         Temporarily disables markdown rendering so highlights are visible.
@@ -487,7 +487,7 @@ class ChatMessage(_BaseMessageWidget):
             self._is_markdown = False
         self._update_renderable()
 
-    def finalize_as_markdown(self) -> None:
+    def finalize_as_markdown(self: Self) -> None:
         """Switch rendering to Rich Markdown after streaming completes.
 
         Only applies markdown rendering if the content appears to contain
@@ -522,7 +522,7 @@ class ThinkingMessage(CollapsibleMessage):
     """
 
     def __init__(
-        self,
+        self: Self,
         thought: str = "",
         agent_name: str = "",
         **kwargs: Any,
@@ -545,7 +545,7 @@ class ThinkingMessage(CollapsibleMessage):
         self._body.add_class("thinking")
         self._update_renderable()
 
-    def _get_summary(self) -> str:
+    def _get_summary(self: Self) -> str:
         """Return a truncated one-line summary of the thinking content.
 
         Returns:
@@ -556,7 +556,7 @@ class ThinkingMessage(CollapsibleMessage):
             return text[:_THINKING_SUMMARY_MAX_LENGTH] + "..."
         return text
 
-    def _update_renderable(self) -> None:
+    def _update_renderable(self: Self) -> None:
         """Re-render header and content sub-widgets."""
         agent = f"{self._agent_name} " if self._agent_name else ""
         # Header sub-widget: never includes content, just "thinking: (click to expand)"
@@ -570,7 +570,7 @@ class ThinkingMessage(CollapsibleMessage):
         body_text = f"[dim]{escaped}[/]"
         self._body.update(body_text)
 
-    def render(self) -> str:
+    def render(self: Self) -> str:
         """Return text for render introspection.
 
         The top-level render includes a summary in the header line for
@@ -586,7 +586,7 @@ class ThinkingMessage(CollapsibleMessage):
             return f"{header_line}\n{self._content_text}"
         return header_line
 
-    def append(self, chunk: str | None) -> None:
+    def append(self: Self, chunk: str | None) -> None:
         """Append a streaming chunk and re-render.
 
         Args:
@@ -598,7 +598,7 @@ class ThinkingMessage(CollapsibleMessage):
         self._thought = self._content_text
         self._update_renderable()
 
-    def set_content(self, content: str) -> None:
+    def set_content(self: Self, content: str) -> None:
         """Replace content entirely and re-render.
 
         Args:
@@ -632,7 +632,7 @@ class ToolMessage(CollapsibleMessage):
     """
 
     def __init__(
-        self,
+        self: Self,
         thought: str = "",
         tool_call: ToolCallProtocol | None = None,
         **kwargs: Any,
@@ -666,7 +666,7 @@ class ToolMessage(CollapsibleMessage):
         self._body.add_class("tool")
         self._update_renderable()
 
-    def _parse_tool_arguments(self) -> dict[str, Any] | str | None:
+    def _parse_tool_arguments(self: Self) -> dict[str, Any] | str | None:
         """Parse tool arguments from string to object if possible.
 
         Returns:
@@ -684,7 +684,7 @@ class ToolMessage(CollapsibleMessage):
         # args should be dict[str, Any] based on ToolCallProtocol
         return cast(dict[str, Any] | str, args)
 
-    def _format_compact_args(self) -> str:
+    def _format_compact_args(self: Self) -> str:
         """Return a compact one-line representation of tool arguments.
 
         Returns:
@@ -697,7 +697,7 @@ class ToolMessage(CollapsibleMessage):
             return ",".join(f"{k}={v}" for k, v in args.items())
         return str(args)
 
-    def _format_tool_arguments(self, pretty: bool = True) -> str:
+    def _format_tool_arguments(self: Self, pretty: bool = True) -> str:
         """Format tool arguments as JSON.
 
         Args:
@@ -716,7 +716,7 @@ class ToolMessage(CollapsibleMessage):
         except (TypeError, ValueError):
             return str(args)
 
-    def _format_full_args(self) -> str:
+    def _format_full_args(self: Self) -> str:
         """Return indented JSON of tool arguments.
 
         Returns:
@@ -724,7 +724,7 @@ class ToolMessage(CollapsibleMessage):
         """
         return self._format_tool_arguments(pretty=True)
 
-    def _build_header_text(self, apply_markup: bool = True) -> str:
+    def _build_header_text(self: Self, apply_markup: bool = True) -> str:
         """Build header text for display.
 
         Args:
@@ -746,7 +746,7 @@ class ToolMessage(CollapsibleMessage):
         else:
             return f"{_GENERIC_TOOL_EMOJI}  {_DEFAULT_TOOL_CALL_TEXT}"
 
-    def _build_header_text_for_ui(self) -> str:
+    def _build_header_text_for_ui(self: Self) -> str:
         """Build header text for UI display with markup applied.
 
         Returns:
@@ -754,7 +754,7 @@ class ToolMessage(CollapsibleMessage):
         """
         return self._build_header_text(apply_markup=True)
 
-    def _build_header_text_for_render(self) -> str:
+    def _build_header_text_for_render(self: Self) -> str:
         """Build header text for render output without markup.
 
         Returns:
@@ -762,7 +762,7 @@ class ToolMessage(CollapsibleMessage):
         """
         return self._build_header_text(apply_markup=False)
 
-    def _get_header_text(self) -> str:
+    def _get_header_text(self: Self) -> str:
         """Get the header text based on tool call or thought.
 
         Returns:
@@ -770,7 +770,7 @@ class ToolMessage(CollapsibleMessage):
         """
         return self._build_header_text_for_ui()
 
-    def _build_body_parts(self, for_ui: bool = True) -> list[str]:
+    def _build_body_parts(self: Self, for_ui: bool = True) -> list[str]:
         """Build the parts that make up the body content.
 
         Args:
@@ -799,7 +799,7 @@ class ToolMessage(CollapsibleMessage):
 
         return parts
 
-    def _format_tool_arguments_for_render(self) -> str:
+    def _format_tool_arguments_for_render(self: Self) -> str:
         """Format tool arguments for render output.
 
         Returns:
@@ -807,7 +807,7 @@ class ToolMessage(CollapsibleMessage):
         """
         return self._format_tool_arguments(pretty=False)
 
-    def _get_body_content(self) -> str:
+    def _get_body_content(self: Self) -> str:
         """Get the body content with proper formatting for UI display.
 
         Returns:
@@ -820,12 +820,12 @@ class ToolMessage(CollapsibleMessage):
             escaped = _highlight_text(escaped, self._highlight_term)
         return f"[dim]{escaped}[/]"
 
-    def _update_renderable(self) -> None:
+    def _update_renderable(self: Self) -> None:
         """Re-render header and content sub-widgets."""
         self.header.update(self._get_header_text())
         self._body.update(self._get_body_content())
 
-    def _get_render_header(self) -> str:
+    def _get_render_header(self: Self) -> str:
         """Get the header for render output.
 
         Returns:
@@ -833,7 +833,7 @@ class ToolMessage(CollapsibleMessage):
         """
         return self._build_header_text_for_render()
 
-    def _get_expanded_content(self) -> str:
+    def _get_expanded_content(self: Self) -> str:
         """Get the expanded content for render output.
 
         Returns:
@@ -842,7 +842,7 @@ class ToolMessage(CollapsibleMessage):
         parts = self._build_body_parts(for_ui=False)
         return "\n".join(parts)
 
-    def render(self) -> str:
+    def render(self: Self) -> str:
         """Return text representation for render introspection.
 
         Returns:
@@ -868,7 +868,7 @@ class ChatPane(VerticalScroll):
     _active: dict[str, ChatMessage]
     _active_thinking: dict[str, ThinkingMessage]
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self: Self, **kwargs: Any) -> None:
         """Initialize the chat pane.
 
         Args:
@@ -882,18 +882,18 @@ class ChatPane(VerticalScroll):
         self._active: dict[str, ChatMessage] = {}
         self._active_thinking: dict[str, ThinkingMessage] = {}
 
-    def on_mount(self) -> None:
+    def on_mount(self: Self) -> None:
         """Re-initialize the active message maps on mount."""
         self._active = {}
         self._active_thinking = {}
 
-    def _scroll_to_bottom(self) -> None:
+    def _scroll_to_bottom(self: Self) -> None:
         """Scroll to the latest message."""
         self.scroll_end(animate=False)
         if self.children:
             self.children[-1].scroll_visible(animate=False)
 
-    def _mount_widget(self, widget: Static) -> None:
+    def _mount_widget(self: Self, widget: Static) -> None:
         """Mount a widget, falling back to direct append if not attached.
 
         Args:
@@ -905,14 +905,14 @@ class ChatPane(VerticalScroll):
             # Widget not attached to an app — store as child directly
             self._nodes._append(widget)
 
-    def _try_scroll(self) -> None:
+    def _try_scroll(self: Self) -> None:
         """Scroll to bottom, ignoring errors when not mounted."""
         with contextlib.suppress(Exception):
             self._scroll_to_bottom()
 
     # -- public API for adding messages --
 
-    def _add_message_with_prefix(self, prefix: str, text: str) -> None:
+    def _add_message_with_prefix(self: Self, prefix: str, text: str) -> None:
         """Add a message with the given prefix.
 
         Args:
@@ -921,7 +921,7 @@ class ChatPane(VerticalScroll):
         """
         self._add_message_widget(ChatMessage, prefix, text)
 
-    def add_user_message(self, text: str) -> None:
+    def add_user_message(self: Self, text: str) -> None:
         """Append a user message block.
 
         Args:
@@ -929,7 +929,7 @@ class ChatPane(VerticalScroll):
         """
         self._add_message_with_prefix(_USER_PREFIX, text)
 
-    def add_system_message(self, text: str) -> None:
+    def add_system_message(self: Self, text: str) -> None:
         """Append a dim system/info message.
 
         Args:
@@ -937,7 +937,7 @@ class ChatPane(VerticalScroll):
         """
         self._add_message_with_prefix(_SYSTEM_PREFIX, text)
 
-    def add_error_message(self, text: str) -> None:
+    def add_error_message(self: Self, text: str) -> None:
         """Append a red error message.
 
         Args:
@@ -945,7 +945,7 @@ class ChatPane(VerticalScroll):
         """
         self._add_message_with_prefix(_ERROR_PREFIX, text)
 
-    def begin_agent_stream(self, agent_name: str) -> ChatMessage:
+    def begin_agent_stream(self: Self, agent_name: str) -> ChatMessage:
         """Start a new streaming message for *agent_name*.
 
         Args:
@@ -964,7 +964,7 @@ class ChatPane(VerticalScroll):
         )
         return widget
 
-    def append_agent_chunk(self, agent_name: str, chunk: str) -> None:
+    def append_agent_chunk(self: Self, agent_name: str, chunk: str) -> None:
         """Append a streaming chunk to an active agent message.
 
         Creates a new stream widget if none exists yet.
@@ -981,7 +981,7 @@ class ChatPane(VerticalScroll):
         if not newly_created:
             self._scroll_to_bottom()
 
-    def finish_agent_stream(self, agent_name: str) -> None:
+    def finish_agent_stream(self: Self, agent_name: str) -> None:
         """Mark an agent's streaming message as complete.
 
         Finalizes the message widget with markdown rendering if applicable.
@@ -998,7 +998,7 @@ class ChatPane(VerticalScroll):
         widget.finalize_as_markdown()
 
     def _add_message_widget(
-        self,
+        self: Self,
         widget_class: type[_T],
         *args: Any,
         tracking_dict: dict[str, _T] | None = None,
@@ -1026,7 +1026,7 @@ class ChatPane(VerticalScroll):
 
         return widget
 
-    def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
+    def add_thinking_message(self: Self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
         Args:
@@ -1038,7 +1038,7 @@ class ChatPane(VerticalScroll):
         """
         return self._add_message_widget(ThinkingMessage, thought, agent_name)
 
-    def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
+    def begin_thinking_stream(self: Self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
 
         Args:
@@ -1055,7 +1055,7 @@ class ChatPane(VerticalScroll):
             tracking_key=agent_name,
         )
 
-    def append_thinking_chunk(self, agent_name: str, chunk: str) -> None:
+    def append_thinking_chunk(self: Self, agent_name: str, chunk: str) -> None:
         """Append a streaming chunk to an active thinking message.
 
         Creates a new stream widget if none exists yet.
@@ -1069,7 +1069,7 @@ class ChatPane(VerticalScroll):
         self._active_thinking[agent_name].append(chunk)
 
     def add_tool_message(
-        self,
+        self: Self,
         thought: str = "",
         tool_call: ToolCallProtocol | None = None,
     ) -> ToolMessage:
@@ -1084,7 +1084,7 @@ class ChatPane(VerticalScroll):
         """
         return self._add_message_widget(ToolMessage, thought, tool_call)
 
-    def clear_thinking_messages(self) -> None:
+    def clear_thinking_messages(self: Self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""
         self._active_thinking = {}
         thinking = [child for child in self.children if isinstance(child, ThinkingMessage)]
@@ -1094,7 +1094,7 @@ class ChatPane(VerticalScroll):
             except (RuntimeError, AttributeError, MountError):
                 self._nodes._remove(widget)
 
-    def clear_messages(self) -> None:
+    def clear_messages(self: Self) -> None:
         """Remove all messages from the pane."""
         self._active = {}
         self._active_thinking = {}
@@ -1112,7 +1112,7 @@ class ChatPane(VerticalScroll):
 class _BaseRichLogPane(RichLog):
     """Base class for RichLog panes with common initialization."""
 
-    def __init__(self, border_title: str = "Pane", **kwargs: Any) -> None:
+    def __init__(self: Self, border_title: str = "Pane", **kwargs: Any) -> None:
         """Initialize.
 
         Args:
@@ -1133,7 +1133,7 @@ class _TitledPane(_BaseRichLogPane):
 
     _DEFAULT_BORDER_TITLE: str = "Pane"
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self: Self, **kwargs: Any) -> None:
         """Initialize pane with default border title."""
         super().__init__(border_title=self._DEFAULT_BORDER_TITLE, **kwargs)
 
@@ -1162,7 +1162,7 @@ class StatusBar(Static):
     tokens: reactive[int] = reactive(0)
     cost: reactive[float] = reactive(0.0)
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self: Self, **kwargs: Any) -> None:
         """Initialize.
 
         Args:
@@ -1171,7 +1171,7 @@ class StatusBar(Static):
         super().__init__(**kwargs)
         self.border_title = "Status"
 
-    def render(self) -> str:
+    def render(self: Self) -> str:
         """Render the status bar.
 
         Returns:
@@ -1212,7 +1212,7 @@ class ProgressIndicator(Static):
     _message: str = ""
     _kind: str = ""
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self: Self, **kwargs: Any) -> None:
         """Initialize the progress indicator.
 
         Args:
@@ -1222,7 +1222,7 @@ class ProgressIndicator(Static):
         self._message = ""
         self._kind = ""
 
-    def show(self, message: str = "Working...", kind: str = "agent") -> None:
+    def show(self: Self, message: str = "Working...", kind: str = "agent") -> None:
         """Show the progress indicator with a message.
 
         Args:
@@ -1234,7 +1234,7 @@ class ProgressIndicator(Static):
         self.add_class("visible")
         self.update(self.render())
 
-    def hide(self) -> None:
+    def hide(self: Self) -> None:
         """Hide the progress indicator."""
         self._message = ""
         self._kind = ""
@@ -1242,7 +1242,7 @@ class ProgressIndicator(Static):
         self.update("")
 
     @property
-    def is_visible(self) -> bool:
+    def is_visible(self: Self) -> bool:
         """Whether the indicator is currently displayed.
 
         Returns:
@@ -1250,7 +1250,7 @@ class ProgressIndicator(Static):
         """
         return "visible" in self.classes
 
-    def render(self) -> str:
+    def render(self: Self) -> str:
         """Render the progress line.
 
         Returns:
