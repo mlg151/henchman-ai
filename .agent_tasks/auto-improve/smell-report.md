@@ -1,42 +1,42 @@
-# Code Smell Report — ❌ F (Score: 50.7/100)
+# Code Smell Report — ❌ F (Score: 50.5/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T11:30:19.531043+00:00_
+_Generated: 2026-03-01T12:00:22.535462+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 50.7/100 |
+| **Overall Score** | 50.5/100 |
 | **Files Scanned** | 186 |
-| **Total Lines (non-blank)** | 32,359 |
-| **Total Smells** | 2325 |
-| **Avg Maintainability Index** | 71.6 |
-| **Avg Cyclomatic Complexity** | 13.5 |
+| **Total Lines (non-blank)** | 32,578 |
+| **Total Smells** | 2345 |
+| **Avg Maintainability Index** | 71.5 |
+| **Avg Cyclomatic Complexity** | 13.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1656 |
-| medium | 574 |
-| high | 95 |
+| low | 1675 |
+| medium | 573 |
+| high | 97 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1130 |
+| Missing Type Hint | 1144 |
 | Feature Envy | 323 |
-| Duplicate Code | 316 |
-| Long Method | 134 |
-| Magic Number | 133 |
-| Deep Nesting | 130 |
-| Primitive Obsession | 82 |
-| Complex Function | 45 |
-| Large Class | 32 |
+| Duplicate Code | 320 |
+| Magic Number | 136 |
+| Long Method | 133 |
+| Deep Nesting | 131 |
+| Primitive Obsession | 81 |
+| Complex Function | 44 |
+| Large Class | 33 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
+| 1 | providers/anthropic.py | ❌ F | 10.0 | 59 | 591 | 33 | 0.0 |
 | 2 | cli/commands/session.py | ❌ F | 12.1 | 51 | 487 | 40 | 0.0 |
 | 3 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
 | 4 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 166 additional files omitted._
 
-### providers/anthropic.py — ❌ F (11.8/100)
+### providers/anthropic.py — ❌ F (10.0/100)
 
-LOC: 396 | Classes: 2 | Functions: 0 | MI: 39 | Avg CC: 11.0
+LOC: 591 | Classes: 5 | Functions: 0 | MI: 33 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 138 | 🟠 HIGH | Feature Envy | Method 'AnthropicProvider._format_messages' accesses 'msg' 13 times but 'self' only 0 times | Move Method — consider moving '_format_messages' to the class that owns 'msg'. |
-| 241 | 🟠 HIGH | Duplicate Code | Function '_validate_messages' is an exact duplicate of '_validate_messages' at providers/openai_compat.py:160 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 42 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 4 primitive-typed parameters: content: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), thinking: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), current_tool_id: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), total_output_tokens_delta: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 92 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: api_key: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), model: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), tokens_per_minute: Name(id='int', ctx=Load()), max_retries: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 138 | 🟡 MEDIUM | Complex Function | Function '_format_messages' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 199 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._parse_finish_reason' accesses 'FinishReason' 5 times but 'self' only 0 times | Move Method — consider moving '_parse_finish_reason' to the class that owns 'FinishReason'. |
-| 199 | 🟡 MEDIUM | Duplicate Code | Function '_parse_finish_reason' is 100% similar to '_parse_finish_reason' at providers/openai_compat.py:94 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 332 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._process_stream' accesses 'chunk' 9 times but 'self' only 3 times | Move Method — consider moving '_process_stream' to the class that owns 'chunk'. |
-| 386 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._handle_content_block_start' accesses 'block' 5 times but 'self' only 0 times | Move Method — consider moving '_handle_content_block_start' to the class that owns 'block'. |
-| 404 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._handle_content_block_delta' accesses 'delta' 7 times but 'self' only 3 times | Move Method — consider moving '_handle_content_block_delta' to the class that owns 'delta'. |
-| 42 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/7 params untyped | Add Type Annotations for all parameters and return type. |
-| 59 | 🟢 LOW | Missing Type Hint | Function '_should_yield' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 81 | 🟢 LOW | Large Class | Class 'AnthropicProvider' spans 400 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 92 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
-| 117 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 156 | 🟠 HIGH | Duplicate Code | Function '_process_event' is an exact duplicate of '_process_event' at providers/anthropic.py:592 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 177 | 🟠 HIGH | Duplicate Code | Function '_handle_content_block_start' is an exact duplicate of '_handle_content_block_start' at providers/anthropic.py:613 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 228 | 🟠 HIGH | Duplicate Code | Function '_handle_content_block_stop' is an exact duplicate of '_handle_content_block_stop' at providers/anthropic.py:664 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 251 | 🟠 HIGH | Duplicate Code | Function '_build_tool_calls_from_pending' is an exact duplicate of '_build_tool_calls_from_pending' at providers/anthropic.py:687 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 115 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor.process_stream' accesses 'chunk' 9 times but 'self' only 3 times | Move Method — consider moving 'process_stream' to the class that owns 'chunk'. |
+| 177 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor._handle_content_block_start' accesses 'block' 5 times but 'self' only 0 times | Move Method — consider moving '_handle_content_block_start' to the class that owns 'block'. |
+| 196 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor._handle_content_block_delta' accesses 'delta' 7 times but 'self' only 3 times | Move Method — consider moving '_handle_content_block_delta' to the class that owns 'delta'. |
+| 196 | 🟡 MEDIUM | Duplicate Code | Function '_handle_content_block_delta' is 100% similar to '_handle_content_block_delta' at providers/anthropic.py:632 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 233 | 🟡 MEDIUM | Duplicate Code | Function '_handle_message_delta' is 100% similar to '_handle_message_delta' at providers/anthropic.py:669 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 289 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: api_key: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), model: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), tokens_per_minute: Name(id='int', ctx=Load()), max_retries: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 613 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._handle_content_block_start' accesses 'block' 5 times but 'self' only 0 times | Move Method — consider moving '_handle_content_block_start' to the class that owns 'block'. |
+| 632 | 🟡 MEDIUM | Feature Envy | Method 'AnthropicProvider._handle_content_block_delta' accesses 'delta' 7 times but 'self' only 3 times | Move Method — consider moving '_handle_content_block_delta' to the class that owns 'delta'. |
+| 56 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 70 | 🟢 LOW | Missing Type Hint | Function '_should_yield' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 98 | 🟢 LOW | Magic Number | Magic number 8192 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-_... and 22 more smells._
+_... and 44 more smells._
 
 ### cli/commands/session.py — ❌ F (12.1/100)
 

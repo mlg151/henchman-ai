@@ -27,6 +27,11 @@ from henchman.utils.tokens import TokenCounter
 
 __all__ = ["AnthropicProvider"]
 
+# Constants
+DEFAULT_MAX_TOKENS: Final[int] = 8192
+DEFAULT_TOKENS_PER_MINUTE: Final[int] = 30000
+DEFAULT_MAX_RETRIES: Final[int] = 3
+
 
 @dataclass
 class EventProcessingResultParams:
@@ -55,7 +60,7 @@ class _EventProcessingResult:
 
     def __init__(self, params: EventProcessingResultParams) -> None:
         """Initialize the event processing result.
-        
+
         Args:
             params: Configuration parameters for the result.
         """
@@ -76,6 +81,7 @@ class _EventProcessingResult:
             or self.finish_reason is not None
         )
 
+
 # Available Claude models
 ANTHROPIC_MODELS: Final[list[str]] = [
     "claude-opus-4-6",
@@ -95,9 +101,9 @@ class AnthropicProviderConfig:
 
     api_key: str | None = None
     model: str = "claude-sonnet-4-20250514"
-    max_tokens: int = 8192
-    tokens_per_minute: int = 30000
-    max_retries: int = 3
+    max_tokens: int = DEFAULT_MAX_TOKENS
+    tokens_per_minute: int = DEFAULT_TOKENS_PER_MINUTE
+    max_retries: int = DEFAULT_MAX_RETRIES
 
 
 class _AnthropicStreamProcessor:
@@ -105,7 +111,7 @@ class _AnthropicStreamProcessor:
 
     def __init__(self, provider: "AnthropicProvider") -> None:
         """Initialize the stream processor.
-        
+
         Args:
             provider: The parent AnthropicProvider instance.
         """
@@ -118,11 +124,11 @@ class _AnthropicStreamProcessor:
         input_tokens: int,
     ) -> AsyncIterator[StreamChunk]:
         """Process the stream from Anthropic API.
-        
+
         Args:
             params: Request parameters for the Anthropic API.
             input_tokens: Number of input tokens for rate limiting.
-            
+
         Yields:
             StreamChunk objects as the response is generated.
         """
@@ -256,11 +262,7 @@ class _AnthropicStreamProcessor:
         tool_calls = []
         for tc_data in pending_tool_calls.values():
             try:
-                arguments = (
-                    json.loads(tc_data["arguments"])
-                    if tc_data["arguments"]
-                    else {}
-                )
+                arguments = json.loads(tc_data["arguments"]) if tc_data["arguments"] else {}
             except json.JSONDecodeError:
                 arguments = {}
 
@@ -290,9 +292,9 @@ class AnthropicProvider(ModelProvider):
         self,
         api_key: str | None = None,
         model: str = "claude-sonnet-4-20250514",
-        max_tokens: int = 8192,
-        tokens_per_minute: int = 30000,
-        max_retries: int = 3,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
+        tokens_per_minute: int = DEFAULT_TOKENS_PER_MINUTE,
+        max_retries: int = DEFAULT_MAX_RETRIES,
     ) -> None:
         """Initialize the Anthropic provider.
 
@@ -314,7 +316,7 @@ class AnthropicProvider(ModelProvider):
 
     def _initialize_from_config(self, config: AnthropicProviderConfig) -> None:
         """Initialize provider from configuration object.
-        
+
         Args:
             config: Configuration parameters.
         """
@@ -375,10 +377,10 @@ class AnthropicProvider(ModelProvider):
 
     def _extract_system_prompt(self, message: Message) -> str | None:
         """Extract system prompt from a system message.
-        
+
         Args:
             message: The system message.
-            
+
         Returns:
             The system prompt content or None.
         """
@@ -386,10 +388,10 @@ class AnthropicProvider(ModelProvider):
 
     def _format_message_based_on_type(self, message: Message) -> dict[str, Any] | None:
         """Format a message based on its role and content.
-        
+
         Args:
             message: The message to format.
-            
+
         Returns:
             Formatted message dictionary or None if message should be skipped.
         """
@@ -402,10 +404,10 @@ class AnthropicProvider(ModelProvider):
 
     def _format_tool_result_message(self, message: Message) -> dict[str, Any]:
         """Format a tool result message for Anthropic API.
-        
+
         Args:
             message: The tool result message.
-            
+
         Returns:
             Formatted message dictionary.
         """
@@ -422,10 +424,10 @@ class AnthropicProvider(ModelProvider):
 
     def _format_assistant_message_with_tool_calls(self, message: Message) -> dict[str, Any]:
         """Format an assistant message with tool calls for Anthropic API.
-        
+
         Args:
             message: The assistant message with tool calls.
-            
+
         Returns:
             Formatted message dictionary.
         """
@@ -451,10 +453,10 @@ class AnthropicProvider(ModelProvider):
 
     def _format_regular_message(self, message: Message) -> dict[str, Any]:
         """Format a regular message (user or assistant without tool calls).
-        
+
         Args:
             message: The message to format.
-            
+
         Returns:
             Formatted message dictionary.
         """
@@ -492,11 +494,11 @@ class AnthropicProvider(ModelProvider):
         self._validate_messages(messages)
 
         system_prompt, formatted_messages = self._format_messages(messages)
-        messages = self._validate_and_repair_message_sequence(messages, system_prompt, formatted_messages)
-
-        params = self._prepare_request_params(
-            system_prompt, formatted_messages, tools, kwargs
+        messages = self._validate_and_repair_message_sequence(
+            messages, system_prompt, formatted_messages
         )
+
+        params = self._prepare_request_params(system_prompt, formatted_messages, tools, kwargs)
 
         input_tokens = TokenCounter.count_messages(messages, model=self.default_model)
 
@@ -572,12 +574,6 @@ class AnthropicProvider(ModelProvider):
 
                 wait_time = 5.0 * (2 ** (retries - 1))  # Default backoff
 
-                from rich.console import Console
-                Console().print(
-                    f"[yellow]Rate limit reached (429). Retrying in {wait_time:.1f}s... "
-                    f"(Attempt {retries}/{self.max_retries})[/yellow]"
-                )
-
                 await asyncio.sleep(wait_time)
 
     async def _process_stream(
@@ -588,124 +584,3 @@ class AnthropicProvider(ModelProvider):
         """Process the stream from Anthropic API."""
         async for chunk in self._stream_processor.process_stream(params, input_tokens):
             yield chunk
-
-    async def _process_event(
-        self,
-        event: Any,
-        pending_tool_calls: dict[str, dict[str, Any]],
-        current_tool_id: str | None,
-        total_output_tokens: int,
-    ) -> "_EventProcessingResult":
-        """Process a single event from the Anthropic stream."""
-        if event.type == "content_block_start":
-            return self._handle_content_block_start(event, pending_tool_calls)
-        elif event.type == "content_block_delta":
-            return self._handle_content_block_delta(
-                event, current_tool_id, pending_tool_calls, total_output_tokens
-            )
-        elif event.type == "content_block_stop":
-            return self._handle_content_block_stop()
-        elif event.type == "message_delta":
-            return self._handle_message_delta(event, pending_tool_calls)
-        else:
-            return _EventProcessingResult(EventProcessingResultParams())
-
-    def _handle_content_block_start(
-        self,
-        event: Any,
-        pending_tool_calls: dict[str, dict[str, Any]],
-    ) -> "_EventProcessingResult":
-        """Handle content_block_start event."""
-        block = event.content_block
-        if block.type == "tool_use":
-            current_tool_id = block.id
-            pending_tool_calls[block.id] = {
-                "id": block.id,
-                "name": block.name,
-                "arguments": "",
-            }
-            params = EventProcessingResultParams(current_tool_id=current_tool_id)
-            return _EventProcessingResult(params)
-
-        return _EventProcessingResult(EventProcessingResultParams())
-
-    def _handle_content_block_delta(
-        self,
-        event: Any,
-        current_tool_id: str | None,
-        pending_tool_calls: dict[str, dict[str, Any]],
-        total_output_tokens: int,
-    ) -> "_EventProcessingResult":
-        """Handle content_block_delta event."""
-        delta = event.delta
-        content: str | None = None
-        thinking: str | None = None
-        tokens_delta = 0
-
-        if delta.type == "text_delta":
-            content = delta.text
-            if content:  # Only count if content is not None/empty
-                tokens_delta = TokenCounter.count_text(content, model=self.default_model)
-        elif delta.type == "thinking_delta":
-            thinking = delta.thinking
-            if thinking:  # Only count if thinking is not None/empty
-                tokens_delta = TokenCounter.count_text(thinking, model=self.default_model)
-        elif delta.type == "input_json_delta" and current_tool_id:
-            pending_tool_calls[current_tool_id]["arguments"] += delta.partial_json
-            tokens_delta = TokenCounter.count_text(delta.partial_json, model=self.default_model)
-
-        params = EventProcessingResultParams(
-            content=content,
-            thinking=thinking,
-            total_output_tokens_delta=tokens_delta,
-        )
-        return _EventProcessingResult(params)
-
-    def _handle_content_block_stop(self) -> "_EventProcessingResult":
-        """Handle content_block_stop event."""
-        params = EventProcessingResultParams(current_tool_id=None)
-        return _EventProcessingResult(params)
-
-    def _handle_message_delta(
-        self,
-        event: Any,
-        pending_tool_calls: dict[str, dict[str, Any]],
-    ) -> "_EventProcessingResult":
-        """Handle message_delta event."""
-        finish_reason = self._parse_finish_reason(event.delta.stop_reason)
-        tool_calls: list[ToolCall] | None = None
-
-        if finish_reason == FinishReason.TOOL_CALLS and pending_tool_calls:
-            tool_calls = self._build_tool_calls_from_pending(pending_tool_calls)
-
-        params = EventProcessingResultParams(
-            finish_reason=finish_reason,
-            tool_calls=tool_calls,
-        )
-        return _EventProcessingResult(params)
-
-    def _build_tool_calls_from_pending(
-        self,
-        pending_tool_calls: dict[str, dict[str, Any]],
-    ) -> list[ToolCall]:
-        """Build ToolCall objects from pending tool call data."""
-        tool_calls = []
-        for tc_data in pending_tool_calls.values():
-            try:
-                arguments = (
-                    json.loads(tc_data["arguments"])
-                    if tc_data["arguments"]
-                    else {}
-                )
-            except json.JSONDecodeError:
-                arguments = {}
-
-            tool_calls.append(
-                ToolCall(
-                    id=tc_data["id"],
-                    name=tc_data["name"],
-                    arguments=arguments,
-                )
-            )
-
-        return tool_calls
