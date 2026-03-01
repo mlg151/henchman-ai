@@ -282,12 +282,29 @@ class MergeExecutor(SessionCommandExecutor):
             return [], "smart", None
 
         session_ids = [session_id1, session_id2]
-        strategy = "smart"
-        tag = None
 
         # Parse optional arguments
         strategy_arg = self.op_context.get_arg(3)
         tag_arg = self.op_context.get_arg(4)
+
+        strategy, tag = self._parse_strategy_and_tag(strategy_arg, tag_arg)
+
+        return session_ids, strategy, tag
+
+    def _parse_strategy_and_tag(
+        self, strategy_arg: str | None, tag_arg: str | None
+    ) -> tuple[str, str | None]:
+        """Parse strategy and tag from optional arguments.
+
+        Args:
+            strategy_arg: Optional strategy argument.
+            tag_arg: Optional tag argument.
+
+        Returns:
+            Tuple of (strategy, tag).
+        """
+        strategy = "smart"
+        tag = None
 
         if strategy_arg in ("union", "intersection", "smart"):
             strategy = strategy_arg
@@ -296,7 +313,7 @@ class MergeExecutor(SessionCommandExecutor):
         elif strategy_arg:
             tag = strategy_arg
 
-        return session_ids, strategy, tag
+        return strategy, tag
 
     async def execute(self, manager: SessionManager) -> None:
         """Execute merge operation."""
@@ -514,8 +531,12 @@ class SessionDisplayFormatter:
                 tag_display, meta, max_date_len
             )
 
-        branch_info = SessionDisplayFormatter._format_session_field(session, "parent_id", max_id_len)
-        template_info = SessionDisplayFormatter._format_session_field(session, "template_id", max_id_len)
+        branch_info = SessionDisplayFormatter._format_session_field(
+            session, "parent_id", max_id_len
+        )
+        template_info = SessionDisplayFormatter._format_session_field(
+            session, "template_id", max_id_len
+        )
 
         return f"  {tag_display}{branch_info}{template_info}"
 
@@ -571,12 +592,12 @@ class SessionDisplayFormatter:
         return attr_info.format_attribute_info()
 
     @staticmethod
-    def _format_session_field(session: Session, field_name: str, max_id_len: int) -> str:
+    def _format_session_field(session: Session, field_key: str, max_id_len: int) -> str:
         """Format specific session field information for display.
 
         Args:
             session: The session object.
-            field_name: Name of the field to format.
+            field_key: Key identifying which field to format (e.g., "parent_id", "template_id").
             max_id_len: Maximum ID display length.
 
         Returns:
@@ -587,12 +608,12 @@ class SessionDisplayFormatter:
             "template_id": ("template_id", "[magenta]ⓣ[/]", "template:"),
         }
 
-        if field_name not in field_configs:
+        if field_key not in field_configs:
             return ""
 
-        field_name, icon, label = field_configs[field_name]
+        attribute_name, icon, label = field_configs[field_key]
         params = SessionFieldDisplayParams(
-            field_name=field_name,
+            field_name=attribute_name,
             icon=icon,
             label=label,
             max_id_len=max_id_len,

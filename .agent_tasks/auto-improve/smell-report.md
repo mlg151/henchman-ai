@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 50.4/100)
+# Code Smell Report — ❌ F (Score: 50.5/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T21:30:16.079585+00:00_
+_Generated: 2026-03-01T22:00:17.856157+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 50.4/100 |
+| **Overall Score** | 50.5/100 |
 | **Files Scanned** | 186 |
-| **Total Lines (non-blank)** | 32,721 |
-| **Total Smells** | 2333 |
+| **Total Lines (non-blank)** | 32,671 |
+| **Total Smells** | 2329 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,8 +20,8 @@ _Generated: 2026-03-01T21:30:16.079585+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1682 |
-| medium | 559 |
+| low | 1681 |
+| medium | 556 |
 | high | 92 |
 
 ### Smells by Category
@@ -29,8 +29,8 @@ _Generated: 2026-03-01T21:30:16.079585+00:00_
 | Category | Count |
 |:---------|------:|
 | Missing Type Hint | 1148 |
-| Feature Envy | 315 |
-| Duplicate Code | 311 |
+| Feature Envy | 314 |
+| Duplicate Code | 308 |
 | Magic Number | 140 |
 | Long Method | 133 |
 | Deep Nesting | 130 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/session.py | ❌ F | 9.3 | 57 | 744 | 31 | 0.0 |
+| 1 | cli/commands/session.py | ❌ F | 9.5 | 54 | 694 | 32 | 0.0 |
 | 2 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
 | 3 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
 | 4 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
@@ -122,14 +122,12 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 166 additional files omitted._
 
-### cli/commands/session.py — ❌ F (9.3/100)
+### cli/commands/session.py — ❌ F (9.5/100)
 
-LOC: 744 | Classes: 20 | Functions: 0 | MI: 31 | Avg CC: 0.0
+LOC: 694 | Classes: 19 | Functions: 0 | MI: 32 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 632 | 🟡 MEDIUM | Duplicate Code | Function '_format_session_field' is 94% similar to 'add_thinking_message' at cli/textual_widgets.py:1029 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 632 | 🟡 MEDIUM | Duplicate Code | Function '_format_session_field' is 100% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 56 | 🟢 LOW | Missing Type Hint | Function 'format_optional_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 77 | 🟢 LOW | Missing Type Hint | Function 'format_attribute_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 117 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
@@ -141,10 +139,12 @@ LOC: 744 | Classes: 20 | Functions: 0 | MI: 31 | Avg CC: 0.0
 | 151 | 🟢 LOW | Missing Type Hint | Function 'get_arg' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 165 | 🟢 LOW | Missing Type Hint | Function 'get_arg_or_empty' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 178 | 🟢 LOW | Missing Type Hint | Function 'has_min_args' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 222 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 226 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 212 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 216 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 220 | 🟢 LOW | Missing Type Hint | Function '_ensure_args' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 239 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 42 more smells._
+_... and 39 more smells._
 
 ### cli/tool_executor.py — ❌ F (12.1/100)
 
