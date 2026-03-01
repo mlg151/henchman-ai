@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T13:00:23.770751+00:00_
+_Generated: 2026-03-01T13:30:20.155278+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-01T13:00:23.770751+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 50.7/100 |
 | **Files Scanned** | 186 |
-| **Total Lines (non-blank)** | 32,531 |
-| **Total Smells** | 2346 |
+| **Total Lines (non-blank)** | 32,534 |
+| **Total Smells** | 2337 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,19 +20,19 @@ _Generated: 2026-03-01T13:00:23.770751+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1663 |
-| medium | 590 |
-| high | 93 |
+| low | 1678 |
+| medium | 558 |
+| high | 101 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1138 |
-| Duplicate Code | 334 |
-| Feature Envy | 322 |
-| Long Method | 133 |
-| Magic Number | 133 |
+| Missing Type Hint | 1147 |
+| Duplicate Code | 317 |
+| Feature Envy | 313 |
+| Magic Number | 140 |
+| Long Method | 134 |
 | Deep Nesting | 130 |
 | Primitive Obsession | 81 |
 | Complex Function | 44 |
@@ -94,20 +94,20 @@ These are the highest-impact smells to address first:
    Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-14. **cli/commands/session.py:370** — 🟠 HIGH — Feature Envy  
-   Method 'SessionCommandHelper._execute_import' accesses 'op_context' 10 times but 'self' only 6 times  
-   → _Move Method — consider moving '_execute_import' to the class that owns 'op_context'._
+14. **cli/commands/session.py:57** — 🟠 HIGH — Duplicate Code  
+   Function 'print_error' is an exact duplicate of 'print_info' at cli/commands/session.py:61  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-15. **cli/commands/theme.py:94** — 🟠 HIGH — Feature Envy  
-   Method 'ThemeCommand._set_theme' accesses 'ctx' 20 times but 'self' only 1 times  
-   → _Move Method — consider moving '_set_theme' to the class that owns 'ctx'._
+15. **cli/commands/session.py:57** — 🟠 HIGH — Duplicate Code  
+   Function 'print_error' is an exact duplicate of 'print_usage' at cli/commands/session.py:65  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 
 ## 📊 Files Ranked by Quality
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/session.py | ❌ F | 11.9 | 71 | 554 | 40 | 0.0 |
+| 1 | cli/commands/session.py | ❌ F | 9.6 | 62 | 557 | 32 | 0.0 |
 | 2 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
 | 3 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
 | 4 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 166 additional files omitted._
 
-### cli/commands/session.py — ❌ F (11.9/100)
+### cli/commands/session.py — ❌ F (9.6/100)
 
-LOC: 554 | Classes: 6 | Functions: 0 | MI: 40 | Avg CC: 0.0
+LOC: 557 | Classes: 15 | Functions: 0 | MI: 32 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 370 | 🟠 HIGH | Feature Envy | Method 'SessionCommandHelper._execute_import' accesses 'op_context' 10 times but 'self' only 6 times | Move Method — consider moving '_execute_import' to the class that owns 'op_context'. |
-| 63 | 🟡 MEDIUM | Feature Envy | Method 'SessionDisplayFormatter.format_session_display' accesses 'context' 5 times but 'self' only 0 times | Move Method — consider moving 'format_session_display' to the class that owns 'context'. |
-| 63 | 🟡 MEDIUM | Feature Envy | Method 'SessionDisplayFormatter.format_session_display' accesses 'meta' 5 times but 'self' only 0 times | Move Method — consider moving 'format_session_display' to the class that owns 'meta'. |
-| 180 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommandHelper._execute_branch' accesses 'op_context' 9 times but 'self' only 5 times | Move Method — consider moving '_execute_branch' to the class that owns 'op_context'. |
-| 213 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommandHelper._execute_merge' accesses 'op_context' 5 times but 'self' only 2 times | Move Method — consider moving '_execute_merge' to the class that owns 'op_context'. |
-| 240 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommandHelper._execute_template_save' accesses 'op_context' 8 times but 'self' only 5 times | Move Method — consider moving '_execute_template_save' to the class that owns 'op_context'. |
-| 267 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommandHelper._execute_template_create' accesses 'op_context' 7 times but 'self' only 4 times | Move Method — consider moving '_execute_template_create' to the class that owns 'op_context'. |
-| 294 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommandHelper._execute_template_list' accesses 'op_context' 8 times but 'self' only 0 times | Move Method — consider moving '_execute_template_list' to the class that owns 'op_context'. |
-| 341 | 🟡 MEDIUM | Feature Envy | Method 'SessionCommandHelper._execute_export' accesses 'op_context' 6 times but 'self' only 4 times | Move Method — consider moving '_execute_export' to the class that owns 'op_context'. |
-| 514 | 🟡 MEDIUM | Duplicate Code | Function '_branch' is 100% similar to '_merge' at cli/commands/session.py:518 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 514 | 🟡 MEDIUM | Duplicate Code | Function '_branch' is 100% similar to '_export' at cli/commands/session.py:575 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 514 | 🟡 MEDIUM | Duplicate Code | Function '_branch' is 100% similar to '_import' at cli/commands/session.py:579 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 514 | 🟡 MEDIUM | Duplicate Code | Function '_branch' is 95% similar to 'success' at cli/console.py:562 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 514 | 🟡 MEDIUM | Duplicate Code | Function '_branch' is 95% similar to 'info' at cli/console.py:566 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 514 | 🟡 MEDIUM | Duplicate Code | Function '_branch' is 95% similar to 'warning' at cli/console.py:570 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 57 | 🟠 HIGH | Duplicate Code | Function 'print_error' is an exact duplicate of 'print_info' at cli/commands/session.py:61 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 57 | 🟠 HIGH | Duplicate Code | Function 'print_error' is an exact duplicate of 'print_usage' at cli/commands/session.py:65 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 61 | 🟠 HIGH | Duplicate Code | Function 'print_info' is an exact duplicate of 'print_usage' at cli/commands/session.py:65 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 571 | 🟠 HIGH | Duplicate Code | Function '_branch' is an exact duplicate of '_merge' at cli/commands/session.py:576 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 571 | 🟠 HIGH | Duplicate Code | Function '_branch' is an exact duplicate of '_export' at cli/commands/session.py:604 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 571 | 🟠 HIGH | Duplicate Code | Function '_branch' is an exact duplicate of '_import' at cli/commands/session.py:609 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 576 | 🟠 HIGH | Duplicate Code | Function '_merge' is an exact duplicate of '_export' at cli/commands/session.py:604 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 576 | 🟠 HIGH | Duplicate Code | Function '_merge' is an exact duplicate of '_import' at cli/commands/session.py:609 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 604 | 🟠 HIGH | Duplicate Code | Function '_export' is an exact duplicate of '_import' at cli/commands/session.py:609 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 379 | 🟡 MEDIUM | Feature Envy | Method 'SessionDisplayFormatter.format_session_display' accesses 'context' 5 times but 'self' only 0 times | Move Method — consider moving 'format_session_display' to the class that owns 'context'. |
+| 379 | 🟡 MEDIUM | Feature Envy | Method 'SessionDisplayFormatter.format_session_display' accesses 'meta' 5 times but 'self' only 0 times | Move Method — consider moving 'format_session_display' to the class that owns 'meta'. |
+| 53 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 57 | 🟢 LOW | Missing Type Hint | Function 'print_error' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 61 | 🟢 LOW | Missing Type Hint | Function 'print_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 65 | 🟢 LOW | Missing Type Hint | Function 'print_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 56 more smells._
+_... and 47 more smells._
 
 ### cli/tool_executor.py — ❌ F (12.1/100)
 
