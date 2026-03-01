@@ -206,16 +206,6 @@ class SessionFieldDisplayParams:
     max_id_len: int
 
 
-@dataclass
-class SessionAttributeParams:
-    """Parameters for formatting session attributes to reduce primitive obsession."""
-
-    condition: str | None
-    icon: str
-    label: str
-    max_id_len: int
-
-
 class SessionCommandExecutor(ABC):
     """Abstract base class for session command executors."""
 
@@ -581,31 +571,8 @@ class SessionDisplayFormatter:
         return attr_info.format_attribute_info()
 
     @staticmethod
-    def _format_field_with_params(
-        session: Session, field_config: tuple[str, str, str], max_id_len: int
-    ) -> str:
-        """Format field information with configuration.
-
-        Args:
-            session: The session object.
-            field_config: Tuple of (field_name, icon, label).
-            max_id_len: Maximum ID display length.
-
-        Returns:
-            Formatted field info string.
-        """
-        field_name, icon, label = field_config
-        params = SessionFieldDisplayParams(
-            field_name=field_name,
-            icon=icon,
-            label=label,
-            max_id_len=max_id_len,
-        )
-        return SessionDisplayFormatter._format_session_field_info(session, params)
-
-    @staticmethod
-    def _format_field_info(session: Session, field_name: str, max_id_len: int) -> str:
-        """Format field information for display based on field type.
+    def _format_session_field(session: Session, field_name: str, max_id_len: int) -> str:
+        """Format specific session field information for display.
 
         Args:
             session: The session object.
@@ -620,45 +587,17 @@ class SessionDisplayFormatter:
             "template_id": ("template_id", "[magenta]ⓣ[/]", "template:"),
         }
 
-        if field_name in field_configs:
-            return SessionDisplayFormatter._format_field_with_params(
-                session=session,
-                field_config=field_configs[field_name],
-                max_id_len=max_id_len,
-            )
-        return ""
+        if field_name not in field_configs:
+            return ""
 
-    @staticmethod
-    def _format_session_field(session: Session, field_name: str, max_id_len: int) -> str:
-        """Format specific session field information for display.
-
-        Args:
-            session: The session object.
-            field_name: Name of the field to format.
-            max_id_len: Maximum ID display length.
-
-        Returns:
-            Formatted field info string.
-        """
-        return SessionDisplayFormatter._format_field_info(session, field_name, max_id_len)
-
-    @staticmethod
-    def _format_session_attribute_info(params: SessionAttributeParams) -> str:
-        """Format a session attribute for display.
-
-        Args:
-            params: Display parameters for the attribute.
-
-        Returns:
-            Formatted attribute info string or empty string.
-        """
-        attr_info = AttributeDisplayInfo(
-            condition=params.condition,
-            icon=params.icon,
-            label=params.label,
-            max_id_len=params.max_id_len,
+        field_name, icon, label = field_configs[field_name]
+        params = SessionFieldDisplayParams(
+            field_name=field_name,
+            icon=icon,
+            label=label,
+            max_id_len=max_id_len,
         )
-        return attr_info.format_attribute_info()
+        return SessionDisplayFormatter._format_session_field_info(session, params)
 
     @staticmethod
     def format_session_details(meta: SessionMetadata, session: Session | None = None) -> str:
