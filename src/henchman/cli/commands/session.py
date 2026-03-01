@@ -12,18 +12,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from rich.console import Console
-
-from henchman.cli.commands import BaseCommand, CommandContext
-
 if TYPE_CHECKING:
+    from rich.console import Console
+
     from henchman.core.session import Session, SessionManager, SessionMetadata
 else:
     # Provide dummy types for runtime
     Session = object
     SessionManager = object
     SessionMetadata = object
+    Console = object
 
+from henchman.cli.commands import BaseCommand, CommandContext
 
 # Display configuration constants
 DEFAULT_ID_DISPLAY_LENGTH: int = 8
@@ -63,6 +63,7 @@ class DisplayInfo:
 
         Returns:
             Formatted info string or empty string.
+
         """
         if self.condition and self.value:
             truncated_value = self.value[: self.max_id_len] if self.max_id_len > 0 else self.value
