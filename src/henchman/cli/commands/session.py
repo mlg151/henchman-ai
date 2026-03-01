@@ -97,7 +97,6 @@ class AttributeDisplayInfo:
 
 
 @dataclass
-@dataclass
 class MessageStyle:
     """Style configuration for formatted messages."""
 
@@ -191,6 +190,16 @@ class SessionDisplayContext:
     meta: SessionMetadata
     session: Session | None = None
     params: SessionListParams | None = None
+
+
+@dataclass
+class SessionAttributeParams:
+    """Parameters for formatting session attributes to reduce primitive obsession."""
+
+    condition: str | None
+    icon: str
+    label: str
+    max_id_len: int
 
 
 class SessionCommandExecutor(ABC):
@@ -553,12 +562,13 @@ class SessionDisplayFormatter:
         Returns:
             Formatted branch info string.
         """
-        return SessionDisplayFormatter._format_session_attribute(
+        params = SessionAttributeParams(
             condition=session.parent_id,
             icon="[yellow]↳[/]",
             label="branch from",
             max_id_len=max_id_len
         )
+        return SessionDisplayFormatter._format_attribute_info(params)
 
     @staticmethod
     def _format_template_info(session: Session, max_id_len: int) -> str:
@@ -571,18 +581,39 @@ class SessionDisplayFormatter:
         Returns:
             Formatted template info string.
         """
-        return SessionDisplayFormatter._format_session_attribute(
+        params = SessionAttributeParams(
             condition=session.template_id,
             icon="[magenta]ⓣ[/]",
             label="template:",
             max_id_len=max_id_len
         )
+        return SessionDisplayFormatter._format_attribute_info(params)
+
+    @staticmethod
+    def _format_attribute_info(params: SessionAttributeParams) -> str:
+        """Format session attribute information using parameter object.
+
+        Args:
+            params: Session attribute parameters.
+
+        Returns:
+            Formatted attribute info string or empty string.
+        """
+        if params.condition:
+            attr_info = AttributeDisplayInfo(
+                condition=params.condition,
+                icon=params.icon,
+                label=params.label,
+                max_id_len=params.max_id_len
+            )
+            return attr_info.format_attribute_info()
+        return ""
 
     @staticmethod
     def _format_session_attribute(
         condition: str | None, icon: str, label: str, max_id_len: int
     ) -> str:
-        """Format a session attribute for display.
+        """Format a session attribute for display (legacy method for backward compatibility).
 
         Args:
             condition: The condition to check (e.g., parent_id, template_id).
@@ -593,15 +624,13 @@ class SessionDisplayFormatter:
         Returns:
             Formatted attribute info string or empty string.
         """
-        if condition:
-            attr_info = AttributeDisplayInfo(
-                condition=condition,
-                icon=icon,
-                label=label,
-                max_id_len=max_id_len
-            )
-            return attr_info.format_attribute_info()
-        return ""
+        params = SessionAttributeParams(
+            condition=condition,
+            icon=icon,
+            label=label,
+            max_id_len=max_id_len
+        )
+        return SessionDisplayFormatter._format_attribute_info(params)
 
     @staticmethod
     def format_session_details(meta: SessionMetadata, session: Session | None = None) -> str:

@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T15:30:15.568821+00:00_
+_Generated: 2026-03-01T16:00:16.671511+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-01T15:30:15.568821+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 50.5/100 |
 | **Files Scanned** | 186 |
-| **Total Lines (non-blank)** | 32,659 |
+| **Total Lines (non-blank)** | 32,679 |
 | **Total Smells** | 2330 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.6 |
@@ -20,21 +20,21 @@ _Generated: 2026-03-01T15:30:15.568821+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1679 |
+| low | 1680 |
 | medium | 558 |
-| high | 93 |
+| high | 92 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1147 |
-| Feature Envy | 314 |
-| Duplicate Code | 310 |
+| Missing Type Hint | 1148 |
+| Feature Envy | 313 |
+| Duplicate Code | 309 |
 | Magic Number | 140 |
 | Long Method | 133 |
 | Deep Nesting | 130 |
-| Primitive Obsession | 81 |
+| Primitive Obsession | 82 |
 | Complex Function | 44 |
 | Large Class | 31 |
 
@@ -94,20 +94,20 @@ These are the highest-impact smells to address first:
    Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-14. **cli/commands/session.py:103** — 🟠 HIGH — Duplicate Code  
-   Function 'print_error' is an exact duplicate of 'print_usage' at cli/commands/session.py:111  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
-
-15. **cli/commands/theme.py:94** — 🟠 HIGH — Feature Envy  
+14. **cli/commands/theme.py:94** — 🟠 HIGH — Feature Envy  
    Method 'ThemeCommand._set_theme' accesses 'ctx' 20 times but 'self' only 1 times  
    → _Move Method — consider moving '_set_theme' to the class that owns 'ctx'._
+
+15. **cli/console.py:476** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: 'diff' (line 476), 'diff' (line 590)  
+   → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
 
 ## 📊 Files Ranked by Quality
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/session.py | ❌ F | 9.6 | 55 | 682 | 32 | 0.0 |
+| 1 | cli/commands/session.py | ❌ F | 9.5 | 55 | 702 | 32 | 0.0 |
 | 2 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
 | 3 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
 | 4 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
@@ -122,27 +122,27 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 166 additional files omitted._
 
-### cli/commands/session.py — ❌ F (9.6/100)
+### cli/commands/session.py — ❌ F (9.5/100)
 
-LOC: 682 | Classes: 18 | Functions: 0 | MI: 32 | Avg CC: 0.0
+LOC: 702 | Classes: 18 | Functions: 0 | MI: 32 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 103 | 🟠 HIGH | Duplicate Code | Function 'print_error' is an exact duplicate of 'print_usage' at cli/commands/session.py:111 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 523 | 🟡 MEDIUM | Duplicate Code | Function '_format_branch_info' is 100% similar to '_format_template_info' at cli/commands/session.py:542 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 561 | 🟡 MEDIUM | Feature Envy | Method 'SessionDisplayFormatter._format_attribute_info' accesses 'attr_info' 6 times but 'self' only 0 times | Move Method — consider moving '_format_attribute_info' to the class that owns 'attr_info'. |
+| 546 | 🟡 MEDIUM | Duplicate Code | Function '_format_branch_info' is 100% similar to '_format_template_info' at cli/commands/session.py:564 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 582 | 🟡 MEDIUM | Primitive Obsession | Function '_format_session_attribute' has 4 primitive-typed parameters: condition: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), icon: Name(id='str', ctx=Load()), label: Name(id='str', ctx=Load()), max_id_len: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 | 56 | 🟢 LOW | Missing Type Hint | Function 'format_optional_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 99 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 103 | 🟢 LOW | Missing Type Hint | Function 'print_error' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 107 | 🟢 LOW | Missing Type Hint | Function 'print_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 111 | 🟢 LOW | Missing Type Hint | Function 'print_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 115 | 🟢 LOW | Missing Type Hint | Function '_print_formatted_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 124 | 🟢 LOW | Missing Type Hint | Function '_print_prefixed_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 133 | 🟢 LOW | Missing Type Hint | Function 'get_arg' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 139 | 🟢 LOW | Missing Type Hint | Function 'get_arg_or_empty' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 152 | 🟢 LOW | Missing Type Hint | Function 'has_min_args' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 176 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 180 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 81 | 🟢 LOW | Missing Type Hint | Function 'format_attribute_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 122 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 126 | 🟢 LOW | Missing Type Hint | Function 'print_error' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 130 | 🟢 LOW | Missing Type Hint | Function 'print_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 134 | 🟢 LOW | Missing Type Hint | Function 'print_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 138 | 🟢 LOW | Missing Type Hint | Function '_print_formatted_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 147 | 🟢 LOW | Missing Type Hint | Function '_print_prefixed_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 156 | 🟢 LOW | Missing Type Hint | Function 'get_arg' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 162 | 🟢 LOW | Missing Type Hint | Function 'get_arg_or_empty' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 175 | 🟢 LOW | Missing Type Hint | Function 'has_min_args' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 199 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 203 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 40 more smells._
 
