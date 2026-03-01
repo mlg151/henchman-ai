@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T19:00:16.991773+00:00_
+_Generated: 2026-03-01T19:30:16.930194+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-01T19:00:16.991773+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 50.4/100 |
 | **Files Scanned** | 186 |
-| **Total Lines (non-blank)** | 32,700 |
-| **Total Smells** | 2331 |
+| **Total Lines (non-blank)** | 32,725 |
+| **Total Smells** | 2332 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -21,7 +21,7 @@ _Generated: 2026-03-01T19:00:16.991773+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 1682 |
-| medium | 556 |
+| medium | 557 |
 | high | 93 |
 
 ### Smells by Category
@@ -34,7 +34,7 @@ _Generated: 2026-03-01T19:00:16.991773+00:00_
 | Magic Number | 140 |
 | Long Method | 133 |
 | Deep Nesting | 130 |
-| Primitive Obsession | 81 |
+| Primitive Obsession | 82 |
 | Complex Function | 44 |
 | Large Class | 31 |
 
@@ -94,8 +94,8 @@ These are the highest-impact smells to address first:
    Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-14. **cli/commands/session.py:581** — 🟠 HIGH — Duplicate Code  
-   Function '_format_branch_info' is an exact duplicate of '_format_template_info' at cli/commands/session.py:600  
+14. **cli/commands/session.py:609** — 🟠 HIGH — Duplicate Code  
+   Function '_format_branch_info' is an exact duplicate of '_format_template_info' at cli/commands/session.py:628  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 15. **cli/commands/theme.py:94** — 🟠 HIGH — Feature Envy  
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/session.py | ❌ F | 9.3 | 56 | 723 | 31 | 0.0 |
+| 1 | cli/commands/session.py | ❌ F | 9.3 | 57 | 748 | 31 | 0.0 |
 | 2 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
 | 3 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
 | 4 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
@@ -124,11 +124,12 @@ _Showing 20 worst files. 166 additional files omitted._
 
 ### cli/commands/session.py — ❌ F (9.3/100)
 
-LOC: 723 | Classes: 20 | Functions: 0 | MI: 31 | Avg CC: 0.0
+LOC: 748 | Classes: 20 | Functions: 0 | MI: 31 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 581 | 🟠 HIGH | Duplicate Code | Function '_format_branch_info' is an exact duplicate of '_format_template_info' at cli/commands/session.py:600 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 609 | 🟠 HIGH | Duplicate Code | Function '_format_branch_info' is an exact duplicate of '_format_template_info' at cli/commands/session.py:628 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 581 | 🟡 MEDIUM | Primitive Obsession | Function '_format_field_info' has 4 primitive-typed parameters: field_name: Name(id='str', ctx=Load()), icon: Name(id='str', ctx=Load()), label: Name(id='str', ctx=Load()), max_id_len: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 | 56 | 🟢 LOW | Missing Type Hint | Function 'format_optional_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 77 | 🟢 LOW | Missing Type Hint | Function 'format_attribute_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 117 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
@@ -142,9 +143,8 @@ LOC: 723 | Classes: 20 | Functions: 0 | MI: 31 | Avg CC: 0.0
 | 170 | 🟢 LOW | Missing Type Hint | Function 'has_min_args' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 214 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 218 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 222 | 🟢 LOW | Missing Type Hint | Function '_ensure_args' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 41 more smells._
+_... and 42 more smells._
 
 ### cli/tool_executor.py — ❌ F (12.1/100)
 
