@@ -7,13 +7,142 @@ including branching, merging, templates, and export/import.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from henchman.cli.commands import BaseCommand, CommandContext
 
 if TYPE_CHECKING:
-    from henchman.core.session import SessionManager
+    from henchman.core.session import Session, SessionManager, SessionMetadata
+
+
+@dataclass
+class SessionListParams:
+    """Parameters for session listing operations."""
+    project_hash: str | None = None
+    show_enhanced_info: bool = True
+    max_id_display_len: int = 8
+    max_date_display_len: int = 10
+
+
+class SessionCommandHelper:
+    """Helper class for session command operations to reduce class size and feature envy."""
+
+    def __init__(self, command: SessionCommand):
+        self.command = command
+
+    def _get_manager(self, ctx: CommandContext) -> SessionManager | None:
+        """Get session manager from context with error handling.
+
+        Args:
+            ctx: Command context.
+
+        Returns:
+            SessionManager or None if not available.
+        """
+        manager: SessionManager | None = getattr(ctx, "session_manager", None)
+        if manager is None:
+            ctx.console.print("[red]Session manager not available[/]")
+        return manager
+
+    def _ensure_args(self, ctx: CommandContext, min_args: int, usage: str) -> bool:
+        """Ensure minimum number of arguments.
+
+        Args:
+            ctx: Command context.
+            min_args: Minimum number of arguments required.
+            usage: Usage string to show if validation fails.
+
+        Returns:
+            True if arguments are valid, False otherwise.
+        """
+        if len(ctx.args) < min_args:
+            ctx.console.print(f"[yellow]Usage: {usage}[/]")
+            return False
+        return True
+
+    def _parse_merge_arguments(self, ctx: CommandContext) -> tuple[list[str], str, str | None]:
+        """Parse merge command arguments.
+
+        Args:
+            ctx: Command context.
+
+        Returns:
+            Tuple of (session_ids, strategy, tag).
+        """
+        session_ids = [ctx.args[self.command._MERGE_ID1_IDX], ctx.args[self.command._MERGE_ID2_IDX]]
+        strategy = "smart"
+        tag = None
+
+        # Parse optional arguments
+        if len(ctx.args) > self.command._MERGE_STRATEGY_IDX:
+            if ctx.args[self.command._MERGE_STRATEGY_IDX] in ("union", "intersection", "smart"):
+                strategy = ctx.args[self.command._MERGE_STRATEGY_IDX]
+                if len(ctx.args) > self.command._MERGE_TAG_IDX:
+                    tag = ctx.args[self.command._MERGE_TAG_IDX]
+            else:
+                tag = ctx.args[self.command._MERGE_STRATEGY_IDX]
+
+        return session_ids, strategy, tag
+
+    def _format_session_display(
+        self,
+        meta: SessionMetadata,
+        session: Session | None = None,
+        params: SessionListParams | None = None
+    ) -> str:
+        """Format a session for display.
+
+        Args:
+            meta: Session metadata.
+            session: Optional full session object for enhanced info.
+            params: Display parameters.
+
+        Returns:
+            Formatted display string.
+        """
+        if params is None:
+            params = SessionListParams()
+
+        tag_display = f"[cyan]{meta.tag}[/]" if meta.tag else f"[dim]{meta.id[:params.max_id_display_len]}[/]"
+
+        if session is None:
+            return (
+                f"  {tag_display} - {meta.message_count} messages, "
+                f"updated {meta.last_updated[:params.max_date_display_len]}"
+            )
+
+        branch_info = ""
+        template_info = ""
+
+        if session.parent_id:
+            branch_info = f" [yellow]↳[/] branch from {session.parent_id[:params.max_id_display_len]}"
+        if session.template_id:
+            template_info = f" [magenta]ⓣ[/] template:{session.template_id[:params.max_id_display_len]}"
+
+        return f"  {tag_display}{branch_info}{template_info}"
+
+    def _format_session_details(
+        self,
+        meta: SessionMetadata,
+        session: Session | None = None
+    ) -> str:
+        """Format session details for display.
+
+        Args:
+            meta: Session metadata.
+            session: Optional full session object for enhanced info.
+
+        Returns:
+            Formatted details string.
+        """
+        details = f"    Messages: {meta.message_count}, Updated: {meta.last_updated[:10]}"
+
+        if session and session.export_metadata and "merged_from" in session.export_metadata:
+            details += f"\n    [dim]Merged from {len(session.export_metadata['merged_from'])} sessions[/]"
+
+        return details
 
 
 class SessionCommand(BaseCommand):
@@ -34,6 +163,11 @@ class SessionCommand(BaseCommand):
         "[dim]Strategies: union, intersection, smart[/]",
         "[dim]Formats: json (default), markdown[/]",
     ]
+
+    def __init__(self) -> None:
+        """Initialize session command with helper."""
+        super().__init__()
+        self.helper = SessionCommandHelper(self)
 
     @property
     def name(self) -> str:
@@ -88,43 +222,13 @@ class SessionCommand(BaseCommand):
         else:
             await self._show_help(ctx)
 
-    def _get_manager(self, ctx: CommandContext) -> SessionManager | None:
-        """Get session manager from context with error handling.
-
-        Args:
-            ctx: Command context.
-
-        Returns:
-            SessionManager or None if not available.
-        """
-        manager: SessionManager | None = getattr(ctx, "session_manager", None)
-        if manager is None:
-            ctx.console.print("[red]Session manager not available[/]")
-        return manager
-
-    def _ensure_args(self, ctx: CommandContext, min_args: int, usage: str) -> bool:
-        """Ensure minimum number of arguments.
-
-        Args:
-            ctx: Command context.
-            min_args: Minimum number of arguments required.
-            usage: Usage string to show if validation fails.
-
-        Returns:
-            True if arguments are valid, False otherwise.
-        """
-        if len(ctx.args) < min_args:
-            ctx.console.print(f"[yellow]Usage: {usage}[/]")
-            return False
-        return True
-
     async def _branch(self, ctx: CommandContext) -> None:
         """Branch from an existing session."""
-        manager = self._get_manager(ctx)
+        manager = self.helper._get_manager(ctx)
         if manager is None:
             return
 
-        if not self._ensure_args(ctx, 3, "/session branch <id> <point> [tag]"):
+        if not self.helper._ensure_args(ctx, 3, "/session branch <id> <point> [tag]"):
             return
 
         session_id = ctx.args[self._BRANCH_ID_IDX]
@@ -148,25 +252,14 @@ class SessionCommand(BaseCommand):
 
     async def _merge(self, ctx: CommandContext) -> None:
         """Merge multiple sessions."""
-        manager = self._get_manager(ctx)
+        manager = self.helper._get_manager(ctx)
         if manager is None:
             return
 
-        if not self._ensure_args(ctx, 3, "/session merge <id1> <id2> [strategy] [tag]"):
+        if not self.helper._ensure_args(ctx, 3, "/session merge <id1> <id2> [strategy] [tag]"):
             return
 
-        session_ids = [ctx.args[self._MERGE_ID1_IDX], ctx.args[self._MERGE_ID2_IDX]]
-        strategy = "smart"
-        tag = None
-
-        # Parse optional arguments
-        if len(ctx.args) > self._MERGE_STRATEGY_IDX:
-            if ctx.args[self._MERGE_STRATEGY_IDX] in ("union", "intersection", "smart"):
-                strategy = ctx.args[self._MERGE_STRATEGY_IDX]
-                if len(ctx.args) > self._MERGE_TAG_IDX:
-                    tag = ctx.args[self._MERGE_TAG_IDX]
-            else:
-                tag = ctx.args[self._MERGE_STRATEGY_IDX]
+        session_ids, strategy, tag = self.helper._parse_merge_arguments(ctx)
 
         try:
             merged = manager.merge_sessions(session_ids, strategy, tag)
@@ -206,11 +299,11 @@ class SessionCommand(BaseCommand):
 
     async def _template(self, ctx: CommandContext) -> None:
         """Template operations."""
-        manager = self._get_manager(ctx)
+        manager = self.helper._get_manager(ctx)
         if manager is None:
             return
 
-        if not self._ensure_args(ctx, 2, "/session template <save|create|list|delete> [args]"):
+        if not self.helper._ensure_args(ctx, 2, "/session template <save|create|list|delete> [args]"):
             return
 
         action = ctx.args[self._TEMPLATE_ACTION_IDX].lower()
@@ -229,7 +322,7 @@ class SessionCommand(BaseCommand):
 
     async def _template_save(self, ctx: CommandContext, manager: SessionManager) -> None:
         """Save a session as template."""
-        if not self._ensure_args(ctx, 4, "/session template save <id> <name>"):
+        if not self.helper._ensure_args(ctx, 4, "/session template save <id> <name>"):
             return
 
         session_id = ctx.args[self._TEMPLATE_SESSION_ID_IDX]
@@ -247,7 +340,7 @@ class SessionCommand(BaseCommand):
 
     async def _template_create(self, ctx: CommandContext, manager: SessionManager) -> None:
         """Create session from template."""
-        if not self._ensure_args(ctx, 3, "/session template create <template_id> [tag]"):
+        if not self.helper._ensure_args(ctx, 3, "/session template create <template_id> [tag]"):
             return
 
         template_id = ctx.args[self._TEMPLATE_ID_IDX]
@@ -285,7 +378,7 @@ class SessionCommand(BaseCommand):
 
     async def _template_delete(self, ctx: CommandContext, manager: SessionManager) -> None:
         """Delete a template."""
-        if not self._ensure_args(ctx, 3, "/session template delete <template_id>"):
+        if not self.helper._ensure_args(ctx, 3, "/session template delete <template_id>"):
             return
 
         template_id = ctx.args[self._TEMPLATE_ID_IDX]
@@ -298,11 +391,11 @@ class SessionCommand(BaseCommand):
 
     async def _export(self, ctx: CommandContext) -> None:
         """Export a session."""
-        manager = self._get_manager(ctx)
+        manager = self.helper._get_manager(ctx)
         if manager is None:
             return
 
-        if not self._ensure_args(ctx, 2, "/session export <id> [format]"):
+        if not self.helper._ensure_args(ctx, 2, "/session export <id> [format]"):
             return
 
         session_id = ctx.args[self._EXPORT_ID_IDX]
@@ -314,7 +407,7 @@ class SessionCommand(BaseCommand):
             ext = "json" if format == "json" else "md"
             output_file = Path.cwd() / f"session_{session_id}.{ext}"
             output_file.write_text(exported)
-            
+
             ctx.console.print(f"[green]✓[/] Exported session to: {output_file}")
             ctx.console.print(f"[dim]Format: {format}, Size: {len(exported)} bytes[/]")
         except (FileNotFoundError, ValueError) as e:
@@ -322,11 +415,11 @@ class SessionCommand(BaseCommand):
 
     async def _import(self, ctx: CommandContext) -> None:
         """Import a session."""
-        manager = self._get_manager(ctx)
+        manager = self.helper._get_manager(ctx)
         if manager is None:
             return
 
-        if not self._ensure_args(ctx, 2, "/session import <file> [format]"):
+        if not self.helper._ensure_args(ctx, 2, "/session import <file> [format]"):
             return
 
         file_path = Path(ctx.args[self._IMPORT_FILE_IDX])
@@ -351,7 +444,7 @@ class SessionCommand(BaseCommand):
 
     async def _list(self, ctx: CommandContext) -> None:
         """List sessions with enhanced information."""
-        manager = self._get_manager(ctx)
+        manager = self.helper._get_manager(ctx)
         if manager is None:
             return
 
@@ -363,36 +456,84 @@ class SessionCommand(BaseCommand):
             return
 
         ctx.console.print("\n[bold blue]Saved Sessions[/]\n")
+        self._display_sessions_list(ctx, manager, sessions)
+
+    def _display_sessions_list(
+        self,
+        ctx: CommandContext,
+        manager: SessionManager,
+        sessions: list[SessionMetadata]
+    ) -> None:
+        """Display list of sessions with enhanced information.
+
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+            sessions: List of session metadata.
+        """
+        params = SessionListParams(
+            max_id_display_len=self._ID_DISPLAY_LEN,
+            max_date_display_len=self._DATE_DISPLAY_LEN
+        )
+
         for meta in sessions:
-            # Load full session for enhanced info
-            try:
-                session = manager.load(meta.id)
+            self._display_session_entry(ctx, manager, meta, params)
 
-                tag_display = f"[cyan]{meta.tag}[/]" if meta.tag else f"[dim]{meta.id[:self._ID_DISPLAY_LEN]}[/]"
-                branch_info = ""
-                template_info = ""
+    def _display_session_entry(
+        self,
+        ctx: CommandContext,
+        manager: SessionManager,
+        meta: SessionMetadata,
+        params: SessionListParams
+    ) -> None:
+        """Display a single session entry.
 
-                if session.parent_id:
-                    branch_info = f" [yellow]↳[/] branch from {session.parent_id[:self._ID_DISPLAY_LEN]}"
-                if session.template_id:
-                    template_info = f" [magenta]ⓣ[/] template:{session.template_id[:self._ID_DISPLAY_LEN]}"
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+            meta: Session metadata.
+            params: Display parameters.
+        """
+        try:
+            session = manager.load(meta.id)
+            self._display_enhanced_session_info(ctx, meta, session, params)
+        except (FileNotFoundError, ValueError, json.JSONDecodeError):
+            self._display_basic_session_info(ctx, meta, params)
 
-                ctx.console.print(
-                    f"  {tag_display}{branch_info}{template_info}"
-                )
-                ctx.console.print(
-                    f"    Messages: {meta.message_count}, "
-                    f"Updated: {meta.last_updated[:self._DATE_DISPLAY_LEN]}"
-                )
-                if session.export_metadata and "merged_from" in session.export_metadata:
-                    ctx.console.print(
-                        f"    [dim]Merged from {len(session.export_metadata['merged_from'])} sessions[/]"
-                    )
-                ctx.console.print("")
-            except (FileNotFoundError, ValueError, json.JSONDecodeError):
-                # Fallback to basic info if session can't be loaded
-                tag_display = f"[cyan]{meta.tag}[/]" if meta.tag else f"[dim]{meta.id[:self._ID_DISPLAY_LEN]}[/]"
-                ctx.console.print(
-                    f"  {tag_display} - {meta.message_count} messages, "
-                    f"updated {meta.last_updated[:self._DATE_DISPLAY_LEN]}"
-                )
+    def _display_enhanced_session_info(
+        self,
+        ctx: CommandContext,
+        meta: SessionMetadata,
+        session: Session,
+        params: SessionListParams
+    ) -> None:
+        """Display enhanced session information.
+
+        Args:
+            ctx: Command context.
+            meta: Session metadata.
+            session: Full session object.
+            params: Display parameters.
+        """
+        display_line = self.helper._format_session_display(meta, session, params)
+        ctx.console.print(display_line)
+
+        details = self.helper._format_session_details(meta, session)
+        ctx.console.print(details)
+        ctx.console.print("")
+
+    def _display_basic_session_info(
+        self,
+        ctx: CommandContext,
+        meta: SessionMetadata,
+        params: SessionListParams
+    ) -> None:
+        """Display basic session information when enhanced info fails.
+
+        Args:
+            ctx: Command context.
+            meta: Session metadata.
+            params: Display parameters.
+        """
+        display_line = self.helper._format_session_display(meta, None, params)
+        ctx.console.print(display_line)
