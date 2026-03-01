@@ -52,6 +52,17 @@ _ANSI_RE: re.Pattern[str] = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x0
 # Maximum characters before truncation for summaries
 _THINKING_SUMMARY_MAX_LENGTH: int = 20
 
+# Emoji and icon constants
+_THINKING_EMOJI: str = "🤔"
+_TOOL_EMOJI: str = "🔧"
+_GENERIC_TOOL_EMOJI: str = "🛠️"
+_PROGRESS_ICON: str = "⏳"
+_TOOL_PROGRESS_ICON: str = "🔧"
+
+# Default text constants
+_DEFAULT_TOOL_CALL_TEXT: str = "Tool call"
+_THINKING_TEXT: str = "thinking: (click to expand)"
+
 
 def _safe_markup(text: object) -> str:
     """Strip ANSI codes and escape Rich markup from arbitrary text.
@@ -549,7 +560,7 @@ class ThinkingMessage(CollapsibleMessage):
         """Re-render header and content sub-widgets."""
         agent = f"{self._agent_name} " if self._agent_name else ""
         # Header sub-widget: never includes content, just "thinking: (click to expand)"
-        header_text = f"🤔 {agent}thinking: (click to expand)"
+        header_text = f"{_THINKING_EMOJI} {agent}{_THINKING_TEXT}"
         self.header.update(header_text)
 
         full = self._content_text
@@ -570,7 +581,7 @@ class ThinkingMessage(CollapsibleMessage):
         """
         agent = f"{self._agent_name} " if self._agent_name else ""
         summary = self._get_summary()
-        header_line = f"🤔 {agent}thinking: {summary} (click to expand)"
+        header_line = f"{_THINKING_EMOJI} {agent}thinking: {summary} (click to expand)"
         if self._is_expanded:
             return f"{header_line}\n{self._content_text}"
         return header_line
@@ -686,20 +697,54 @@ class ToolMessage(CollapsibleMessage):
             return ",".join(f"{k}={v}" for k, v in args.items())
         return str(args)
 
-    def _format_full_args(self) -> str:
-        """Return indented JSON of tool arguments.
+    def _format_tool_arguments(self, pretty: bool = True) -> str:
+        """Format tool arguments as JSON.
+
+        Args:
+            pretty: If True, use indented formatting. If False, use compact.
 
         Returns:
-            Pretty-printed JSON or string representation.
+            JSON string representation of tool arguments.
         """
         args = self._parse_tool_arguments()
         if args is None:
             return ""
 
         try:
-            return json.dumps(args, indent=2)
+            indent = 2 if pretty else None
+            return json.dumps(args, indent=indent)
         except (TypeError, ValueError):
             return str(args)
+
+    def _format_full_args(self) -> str:
+        """Return indented JSON of tool arguments.
+
+        Returns:
+            Pretty-printed JSON or string representation.
+        """
+        return self._format_tool_arguments(pretty=True)
+
+    def _build_header_text(self, apply_markup: bool = True) -> str:
+        """Build header text for display.
+
+        Args:
+            apply_markup: If True, apply safe markup to text.
+
+        Returns:
+            Formatted header text.
+        """
+        if self._tool_call and hasattr(self._tool_call, "name"):
+            compact = self._format_compact_args()
+            name = self._tool_call.name
+            if apply_markup:
+                compact = _safe_markup(compact) if compact else ""
+                name = _safe_markup(name)
+            return f"{_TOOL_EMOJI} {name}({compact})" if compact else f"{_TOOL_EMOJI} {name}"
+        if self._thought:
+            thought_text = _safe_markup(self._thought) if apply_markup else self._thought
+            return f"{_GENERIC_TOOL_EMOJI}  {thought_text}"
+        else:
+            return f"{_GENERIC_TOOL_EMOJI}  {_DEFAULT_TOOL_CALL_TEXT}"
 
     def _build_header_text_for_ui(self) -> str:
         """Build header text for UI display with markup applied.
@@ -707,17 +752,7 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Formatted header text with safe markup.
         """
-        if self._tool_call and hasattr(self._tool_call, "name"):
-            compact = self._format_compact_args()
-            name = self._tool_call.name
-            compact = _safe_markup(compact) if compact else ""
-            name = _safe_markup(name)
-            return f"🔧 {name}({compact})" if compact else f"🔧 {name}"
-        if self._thought:
-            # Thought text always gets markup for consistency with UI display
-            return f"🛠️  {_safe_markup(self._thought)}"
-        else:
-            return "🛠️  Tool call"
+        return self._build_header_text(apply_markup=True)
 
     def _build_header_text_for_render(self) -> str:
         """Build header text for render output without markup.
@@ -725,14 +760,7 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Formatted header text without markup.
         """
-        if self._tool_call and hasattr(self._tool_call, "name"):
-            compact = self._format_compact_args()
-            name = self._tool_call.name
-            return f"🔧 {name}({compact})" if compact else f"🔧 {name}"
-        if self._thought:
-            return f"🛠️  {self._thought}"
-        else:
-            return "🛠️  Tool call"
+        return self._build_header_text(apply_markup=False)
 
     def _get_header_text(self) -> str:
         """Get the header text based on tool call or thought.
@@ -777,20 +805,7 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             JSON string representation of tool arguments.
         """
-        import json
-
-        if not self._tool_call or not getattr(self._tool_call, "arguments", None):
-            return ""
-
-        args = self._tool_call.arguments
-        if isinstance(args, str):
-            with contextlib.suppress(json.JSONDecodeError, TypeError):
-                args = json.loads(args)
-
-        try:
-            return json.dumps(args)
-        except (TypeError, ValueError):
-            return str(args)
+        return self._format_tool_arguments(pretty=False)
 
     def _get_body_content(self) -> str:
         """Get the body content with proper formatting for UI display.
@@ -1243,5 +1258,5 @@ class ProgressIndicator(Static):
         """
         if not self._message:
             return ""
-        icon = "🔧" if self._kind == "tool" else "⏳"
+        icon = _TOOL_PROGRESS_ICON if self._kind == "tool" else _PROGRESS_ICON
         return f"[dim]{icon} {self._message}[/]"
