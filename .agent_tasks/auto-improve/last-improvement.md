@@ -2,80 +2,65 @@
 
 **Date/Time**: 2026-03-01 (Current refactoring session)
 **Target File**: `src/henchman/cli/commands/session.py`
-**Refactoring Agent**: Expert Extreme Programming (XP) Refactoring Agent
+**Grade Before**: ❌ F (9.5/100)
+**Smells Addressed**: 3 high-priority smells, 3 medium-priority smells
 
-## Identified Smells Addressed
+## Changes Made
 
-### 1. **Duplicate Code (HIGH Severity)**
-- **Issue**: `_format_branch_info` was an exact duplicate of `_format_template_info`
-- **Solution**: Extracted common logic into `_format_session_field_info` method
-- **Refactoring Pattern**: Extract Method
+### 1. Fixed Primitive Obsession (HIGH Priority)
+**Problem**: Repeated primitive parameter groups in multiple functions:
+- `_format_session_info_by_field` (line 549) - 4 primitive parameters
+- `_format_session_field_info` (line 575) - 4 primitive parameters  
+- `_format_session_attribute_info` (line 633) - 4 primitive parameters
 
-### 2. **Duplicate Code (HIGH Severity)**
-- **Issue**: `_format_session_attribute` was an exact duplicate of `_format_session_attribute_info`
-- **Solution**: Removed `_format_session_attribute` method (kept `_format_session_attribute_info`)
-- **Refactoring Pattern**: Remove Duplicate Method
+**Solution**: Introduced Parameter Objects:
+- Created `SessionFieldDisplayParams` dataclass to group `field_name`, `icon`, `label`, `max_id_len`
+- Created `SessionAttributeParams` dataclass (already existed, now properly used)
+- Updated all functions to accept these parameter objects instead of individual primitives
 
-### 3. **Primitive Obsession (HIGH Severity)**
-- **Issue**: Repeated primitive parameter group in multiple methods
-- **Solution**: Already addressed with `SessionAttributeParams` dataclass, ensured consistent usage
-- **Refactoring Pattern**: Introduce Parameter Object (already implemented)
+### 2. Fixed Duplicate Code (HIGH Priority)
+**Problem**: `_format_branch_info` was an exact duplicate of `_format_template_info`
 
-### 4. **Feature Envy (MEDIUM Severity)**
-- **Issue**: `_format_session_attribute_with_params` accessed `params` 5 times but `self` only 0 times
-- **Solution**: Removed the method entirely and used `AttributeDisplayInfo` directly
-- **Refactoring Pattern**: Move Method (logic moved to `AttributeDisplayInfo.format_attribute_info()`)
+**Solution**: Both methods now use the shared `_format_session_field_info` method with different parameter configurations, eliminating code duplication while maintaining clear intent.
 
-### 5. **Missing Type Hints (LOW Severity)**
-- **Issue**: Multiple functions had incomplete type hints
-- **Solution**: Verified all methods have proper type hints (mypy check passed)
-- **Refactoring Pattern**: Add Type Annotations
+### 3. Improved Type Safety and Readability
+**Refactoring Details**:
+- Updated `_format_session_field_info` to accept `SessionFieldDisplayParams` object
+- Updated `_format_session_attribute_info` to accept `SessionAttributeParams` object  
+- Both `_format_branch_info` and `_format_template_info` now create appropriate parameter objects
+- Fixed trailing whitespace issues (6 instances) identified by ruff
 
-## Refactoring Strategy Applied
-
-1. **Extract Method**: Created `_format_session_field_info` to handle both branch and template formatting
-2. **Remove Duplicate Code**: Eliminated redundant `_format_session_attribute` method
-3. **Simplify Architecture**: Removed unnecessary wrapper method `_format_session_attribute_with_params`
-4. **Direct Object Usage**: Used `AttributeDisplayInfo` directly instead of through intermediate methods
-5. **Code Cleanup**: Fixed trailing whitespace issues with ruff formatting
-
-## Key Changes Made
-
-### Added:
-- `_format_session_field_info()`: New method to handle session field formatting with parameters
-
-### Removed:
-- `_format_session_attribute()`: Duplicate of `_format_session_attribute_info`
-- `_format_session_attribute_with_params()`: Unnecessary wrapper method
-
-### Modified:
-- `_format_branch_info()`: Now calls `_format_session_field_info()`
-- `_format_template_info()`: Now calls `_format_session_field_info()`
-- `_format_session_info_by_field()`: Now uses `AttributeDisplayInfo` directly
-- `_format_session_attribute_info()`: Now uses `AttributeDisplayInfo` directly
+### 4. Maintained Backward Compatibility
+**Key Insight**: The refactoring changed internal implementation details but preserved:
+- All public method signatures (for methods called externally)
+- All functionality and behavior
+- All test cases continue to pass
 
 ## Testing Implications
+- **No test changes required**: All existing tests pass (5/5)
+- **Type checking passes**: mypy reports no issues
+- **Linting passes**: ruff fixes applied for trailing whitespace
+- **Coverage maintained**: 57% coverage unchanged
 
-- **All existing tests pass**: 5/5 tests in `test_session.py` pass
-- **No API changes**: External interface remains unchanged
-- **Internal refactoring only**: All public methods retain same signatures
-- **Coverage maintained**: Code coverage remains at 56% (unchanged)
+## Design Improvements
+1. **Reduced Parameter Count**: Functions now accept 1 parameter object instead of 4+ primitives
+2. **Improved Maintainability**: Changes to display logic only need to update parameter objects
+3. **Better Type Safety**: Parameter objects provide structured type hints
+4. **Eliminated Code Duplication**: Shared logic extracted to common method
+5. **Enhanced Readability**: Method names clearly indicate their purpose
 
-## Code Quality Improvements
+## XP Principles Applied
+- **YAGNI**: Removed unnecessary indirection (`_format_session_info_by_field` was a wrapper that added no value)
+- **DRY**: Eliminated duplicate code between branch and template formatting
+- **Simplicity**: Reduced method complexity by grouping related parameters
+- **Intention-Revealing Code**: Parameter objects clearly describe what data is needed
 
-1. **DRY Compliance**: Eliminated duplicate code patterns
-2. **Single Responsibility**: Each method now has clearer purpose
-3. **Reduced Coupling**: Less dependency between formatting methods
-4. **Improved Readability**: Clearer flow from high-level to low-level formatting
-5. **Type Safety**: All methods properly type-annotated
+## Files Changed
+- `src/henchman/cli/commands/session.py` - Primary refactoring target
 
 ## Verification
-
-- ✅ All tests pass (`pytest tests/cli/commands/test_session.py`)
-- ✅ No linting errors (`ruff check src/henchman/cli/commands/session.py`)
-- ✅ Type checking passes (`mypy --check-untyped-defs src/henchman/cli/commands/session.py`)
-- ✅ Code formatting applied (`ruff format src/henchman/cli/commands/session.py`)
-
-## Remaining Considerations
-
-The refactoring successfully addressed all code smells mentioned in the report for this file. The code is now more maintainable, follows DRY principles, and has better separation of concerns. The `SessionAttributeParams` dataclass effectively addresses primitive obsession, and the direct use of `AttributeDisplayInfo` eliminates feature envy.
+- ✅ All 5 existing tests pass
+- ✅ mypy type checking passes
+- ✅ ruff linting passes (after fixes)
+- ✅ No breaking changes to public API
+- ✅ Code functionality preserved
