@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 50.7/100)
+# Code Smell Report — ❌ F (Score: 50.6/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T13:30:20.155278+00:00_
+_Generated: 2026-03-01T14:00:19.182331+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 50.7/100 |
+| **Overall Score** | 50.6/100 |
 | **Files Scanned** | 186 |
-| **Total Lines (non-blank)** | 32,534 |
-| **Total Smells** | 2337 |
+| **Total Lines (non-blank)** | 32,563 |
+| **Total Smells** | 2335 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -22,17 +22,17 @@ _Generated: 2026-03-01T13:30:20.155278+00:00_
 |:---------|------:|
 | low | 1678 |
 | medium | 558 |
-| high | 101 |
+| high | 99 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1147 |
-| Duplicate Code | 317 |
-| Feature Envy | 313 |
+| Missing Type Hint | 1149 |
+| Duplicate Code | 316 |
+| Feature Envy | 311 |
 | Magic Number | 140 |
-| Long Method | 134 |
+| Long Method | 133 |
 | Deep Nesting | 130 |
 | Primitive Obsession | 81 |
 | Complex Function | 44 |
@@ -95,11 +95,11 @@ These are the highest-impact smells to address first:
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
 14. **cli/commands/session.py:57** — 🟠 HIGH — Duplicate Code  
-   Function 'print_error' is an exact duplicate of 'print_info' at cli/commands/session.py:61  
+   Function 'print_error' is an exact duplicate of 'print_usage' at cli/commands/session.py:65  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-15. **cli/commands/session.py:57** — 🟠 HIGH — Duplicate Code  
-   Function 'print_error' is an exact duplicate of 'print_usage' at cli/commands/session.py:65  
+15. **cli/commands/session.py:615** — 🟠 HIGH — Duplicate Code  
+   Function '_branch' is an exact duplicate of '_merge' at cli/commands/session.py:619  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/session.py | ❌ F | 9.6 | 62 | 557 | 32 | 0.0 |
+| 1 | cli/commands/session.py | ❌ F | 10.0 | 60 | 586 | 33 | 0.0 |
 | 2 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
 | 3 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
 | 4 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 166 additional files omitted._
 
-### cli/commands/session.py — ❌ F (9.6/100)
+### cli/commands/session.py — ❌ F (10.0/100)
 
-LOC: 557 | Classes: 15 | Functions: 0 | MI: 32 | Avg CC: 0.0
+LOC: 586 | Classes: 15 | Functions: 0 | MI: 33 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 57 | 🟠 HIGH | Duplicate Code | Function 'print_error' is an exact duplicate of 'print_info' at cli/commands/session.py:61 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
 | 57 | 🟠 HIGH | Duplicate Code | Function 'print_error' is an exact duplicate of 'print_usage' at cli/commands/session.py:65 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 61 | 🟠 HIGH | Duplicate Code | Function 'print_info' is an exact duplicate of 'print_usage' at cli/commands/session.py:65 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 571 | 🟠 HIGH | Duplicate Code | Function '_branch' is an exact duplicate of '_merge' at cli/commands/session.py:576 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 571 | 🟠 HIGH | Duplicate Code | Function '_branch' is an exact duplicate of '_export' at cli/commands/session.py:604 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 571 | 🟠 HIGH | Duplicate Code | Function '_branch' is an exact duplicate of '_import' at cli/commands/session.py:609 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 576 | 🟠 HIGH | Duplicate Code | Function '_merge' is an exact duplicate of '_export' at cli/commands/session.py:604 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 576 | 🟠 HIGH | Duplicate Code | Function '_merge' is an exact duplicate of '_import' at cli/commands/session.py:609 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 604 | 🟠 HIGH | Duplicate Code | Function '_export' is an exact duplicate of '_import' at cli/commands/session.py:609 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 379 | 🟡 MEDIUM | Feature Envy | Method 'SessionDisplayFormatter.format_session_display' accesses 'context' 5 times but 'self' only 0 times | Move Method — consider moving 'format_session_display' to the class that owns 'context'. |
-| 379 | 🟡 MEDIUM | Feature Envy | Method 'SessionDisplayFormatter.format_session_display' accesses 'meta' 5 times but 'self' only 0 times | Move Method — consider moving 'format_session_display' to the class that owns 'meta'. |
+| 615 | 🟠 HIGH | Duplicate Code | Function '_branch' is an exact duplicate of '_merge' at cli/commands/session.py:619 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 615 | 🟠 HIGH | Duplicate Code | Function '_branch' is an exact duplicate of '_export' at cli/commands/session.py:646 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 615 | 🟠 HIGH | Duplicate Code | Function '_branch' is an exact duplicate of '_import' at cli/commands/session.py:650 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 619 | 🟠 HIGH | Duplicate Code | Function '_merge' is an exact duplicate of '_export' at cli/commands/session.py:646 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 619 | 🟠 HIGH | Duplicate Code | Function '_merge' is an exact duplicate of '_import' at cli/commands/session.py:650 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 646 | 🟠 HIGH | Duplicate Code | Function '_export' is an exact duplicate of '_import' at cli/commands/session.py:650 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 388 | 🟡 MEDIUM | Feature Envy | Method 'SessionDisplayFormatter.format_session_display' accesses 'meta' 5 times but 'self' only 0 times | Move Method — consider moving 'format_session_display' to the class that owns 'meta'. |
+| 419 | 🟡 MEDIUM | Duplicate Code | Function '_format_branch_info' is 100% similar to '_format_template_info' at cli/commands/session.py:434 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 53 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 57 | 🟢 LOW | Missing Type Hint | Function 'print_error' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 61 | 🟢 LOW | Missing Type Hint | Function 'print_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 65 | 🟢 LOW | Missing Type Hint | Function 'print_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 69 | 🟢 LOW | Missing Type Hint | Function '_print_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 78 | 🟢 LOW | Missing Type Hint | Function 'get_arg' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 47 more smells._
+_... and 45 more smells._
 
 ### cli/tool_executor.py — ❌ F (12.1/100)
 
