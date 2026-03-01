@@ -1,94 +1,106 @@
-# Anthropic Provider Refactoring Summary
+# Refactoring Summary - Session Command
 
-**Date/Time**: 2026-03-01  
-**Files Changed**: `src/henchman/providers/anthropic.py`  
-**Refactoring Agent**: Expert Extreme Programming (XP) Refactoring Agent
+**Date/Time**: 2026-03-01 (refactored as part of XP Refactoring Agent task)
+**Files Changed**: `src/henchman/cli/commands/session.py`
+**Rationale**: Address code smells identified in the smell report for the target file
 
-## Rationale
+## Identified Smells Addressed
 
-The Anthropic provider had significant code quality issues identified in the smell report:
-- **Duplicate Code (HIGH severity)**: 6 methods were exact duplicates between `_AnthropicStreamProcessor` and `AnthropicProvider` classes
-- **Magic Numbers (LOW severity)**: Hardcoded values like 8192, 30000, 3 without named constants
-- **Primitive Obsession (MEDIUM severity)**: Multiple primitive parameters in constructor
-- **Feature Envy (MEDIUM severity)**: Methods accessing external objects excessively
+### 1. Feature Envy (HIGH Severity - Line 326)
+- **Problem**: Method `SessionCommandHelper._execute_import` accessed 'ctx' 10 times but 'self' only 6 times
+- **Solution**: Introduced `CommandOperationContext` parameter object to encapsulate context data
 
-## Changes Made
+### 2. Feature Envy (MEDIUM Severity - Multiple Methods)
+- **Problem**: Multiple methods excessively accessed external objects (`ctx`, `meta`, etc.)
+- **Solution**: 
+  - Created `SessionDisplayContext` for display operations
+  - Created `CommandOperationContext` for command operations
+  - Extracted `SessionDisplayFormatter` class to handle display logic
 
-### 1. Eliminated Duplicate Code (DRY Principle)
-**Problem**: The following methods were exact duplicates in both classes:
-- `_process_event`
-- `_handle_content_block_start` 
-- `_handle_content_block_delta`
-- `_handle_content_block_stop`
-- `_handle_message_delta`
-- `_build_tool_calls_from_pending`
+### 3. Duplicate Code (MEDIUM Severity)
+- **Problem**: Functions `_branch`, `_merge`, `_export`, `_import` were 100% similar
+- **Solution**: Extracted shared pattern into `_execute_with_manager` method
 
-**Solution**: Removed all 6 duplicate methods from `AnthropicProvider` class (lines 592-711). These were **dead code** - not called anywhere in the codebase. The `_AnthropicStreamProcessor` versions handle all stream processing.
+### 4. Large Class (LOW Severity)
+- **Problem**: `SessionCommandHelper` spanned 313 lines (threshold: 300)
+- **Solution**: Extracted `SessionDisplayFormatter` class to reduce size and improve cohesion
 
-**Impact**: Reduced file size by ~120 lines (20% reduction).
+## Refactoring Strategy Applied
 
-### 2. Extracted Magic Numbers to Named Constants
-**Problem**: Hardcoded values scattered throughout the code:
-- `8192` (default max tokens)
-- `30000` (default tokens per minute)
-- `3` (default max retries)
+### 1. Extract Parameter Objects
+- **CommandOperationContext**: Encapsulates console, args, session_manager, project_hash
+- **SessionDisplayContext**: Encapsulates metadata, session, and display parameters
 
-**Solution**: Created named constants:
-```python
-DEFAULT_MAX_TOKENS: Final[int] = 8192
-DEFAULT_TOKENS_PER_MINUTE: Final[int] = 30000
-DEFAULT_MAX_RETRIES: Final[int] = 3
-```
+### 2. Extract Class
+- **SessionDisplayFormatter**: Handles all session display formatting logic
+- **Benefits**: Reduces feature envy, improves single responsibility, reduces class size
 
-**Impact**: Improved code readability and maintainability.
+### 3. Extract Shared Function
+- **`_execute_with_manager`**: Handles the common pattern of getting manager and executing operation
+- **Benefits**: Eliminates duplicate code in `_branch`, `_merge`, `_export`, `_import` methods
 
-### 3. Enhanced Parameter Object Usage
-**Problem**: Constructor had 5 primitive parameters.
+### 4. Move Methods
+- Display formatting logic moved from `SessionCommandHelper` to `SessionDisplayFormatter`
+- Methods updated to work with context objects instead of directly accessing external data
 
-**Solution**: The code already used `AnthropicProviderConfig` dataclass appropriately. Updated it to use the new named constants.
+## Code Changes Summary
 
-### 4. Fixed Formatting Issues
-**Problem**: Ruff reported whitespace and newline issues.
+### New Classes Added:
+1. `CommandOperationContext` - Data class for command operations
+2. `SessionDisplayContext` - Data class for display operations  
+3. `SessionDisplayFormatter` - Formatter class for session display logic
 
-**Solution**: Applied `ruff format` to fix all formatting issues.
+### Methods Refactored:
+1. `SessionCommandHelper._format_session_display` → `SessionDisplayFormatter.format_session_display`
+2. `SessionCommandHelper._format_session_details` → `SessionDisplayFormatter.format_session_details`
+3. All execution methods (`_execute_branch`, `_execute_merge`, etc.) updated to use `CommandOperationContext`
+4. `SessionCommand` methods updated to use new context objects and shared execution pattern
 
-## Testing Results
+### Duplicate Code Eliminated:
+- `_branch`, `_merge`, `_export`, `_import` now use shared `_execute_with_manager` method
+- Reduced from 4 similar methods to 1 shared method + 4 simple delegations
 
-**All 29 existing tests pass** ✅
-- No test modifications needed (removed code was dead/unused)
-- Coverage remains high (95% for anthropic.py)
-- Full test suite passes
+## Testing Implications
 
-## Quality Metrics Improvement
+### Existing Tests:
+- All 5 existing tests in `tests/cli/commands/test_session.py` pass
+- All 54 tests in the commands test suite pass
+- No changes to public API signatures
+- Behavior preserved through refactoring
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Lines of Code | ~591 | ~470 | -121 lines (-20%) |
-| Duplicate Methods | 6 | 0 | -6 methods |
-| Magic Numbers | 3 | 0 | -3 instances |
-| Ruff Issues | 16 | 0 | -16 issues |
-| Mypy Issues | 0 | 0 | No change |
+### Edge Cases Covered:
+- Manager not available scenarios
+- Argument validation failures
+- File operations (export/import)
+- Template operations
+- Session listing with enhanced info
+
+## Quality Improvements
+
+### Maintainability:
+- Reduced class sizes (SessionCommandHelper from 313+ lines to more manageable size)
+- Improved cohesion (display logic separated from command logic)
+- Reduced coupling (methods work with context objects instead of direct dependencies)
+
+### Readability:
+- Clearer parameter grouping with context objects
+- Intention-revealing method names
+- Reduced duplication makes logic easier to follow
+
+### Testability:
+- Context objects make testing easier (can mock/fake context)
+- Formatter class can be tested independently
+- Shared execution pattern reduces test duplication
 
 ## XP Principles Applied
 
-1. **YAGNI (You Aren't Gonna Need It)**: Removed dead duplicate code that wasn't being used.
-2. **DRY (Don't Repeat Yourself)**: Eliminated exact method duplicates.
-3. **Simplicity**: Reduced complexity by removing unused code.
-4. **Intention-Revealing Code**: Named constants make magic numbers self-documenting.
+1. **Once and Only Once (DRY)**: Eliminated duplicate code patterns
+2. **YAGNI**: Removed unnecessary complexity, kept interfaces simple
+3. **Simplicity**: Used simple data classes instead of complex abstractions
+4. **Intention-Revealing Code**: Clear method names and parameter objects
 
-## Safety Considerations
-
-- **No API changes**: External interface remains identical
-- **No behavior changes**: Only dead code removal and constant extraction
-- **All tests pass**: Verification of correctness
-- **Linting passes**: Code quality maintained
-
-## Files Changed
-
-1. `src/henchman/providers/anthropic.py` - Primary refactoring target
-   - Added named constants
-   - Removed duplicate methods (lines 592-711)
-   - Updated config dataclass to use constants
-   - Applied formatting fixes
-
-The refactoring successfully addresses all code smells identified in the report while maintaining full functionality and test coverage.
+## Verification
+- ✅ All tests pass (5 session tests, 54 command tests total)
+- ✅ No breaking changes to public API
+- ✅ Code smells addressed as per report
+- ✅ Maintainability improved while preserving functionality
