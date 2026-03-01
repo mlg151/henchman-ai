@@ -48,7 +48,7 @@ _AGENT_PREFIX_TEMPLATE: str = "[bold cyan]{name}:[/]"
 _ANSI_RE: re.Pattern[str] = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[^[\]()]")
 
 # Maximum characters before truncation for summaries
-_SUMMARY_MAX_LEN: int = 20
+_THINKING_SUMMARY_MAX_LENGTH: int = 20
 
 
 def _safe_markup(text: object) -> str:
@@ -528,11 +528,11 @@ class ThinkingMessage(CollapsibleMessage):
         """Return a truncated one-line summary of the thinking content.
 
         Returns:
-            Truncated text, at most ``_SUMMARY_MAX_LEN`` chars + ``...``.
+            Truncated text, at most ``_THINKING_SUMMARY_MAX_LENGTH`` chars + ``...``.
         """
         text = self._content_text.replace("\n", " ").strip()
-        if len(text) > _SUMMARY_MAX_LEN:
-            return text[:_SUMMARY_MAX_LEN] + "..."
+        if len(text) > _THINKING_SUMMARY_MAX_LENGTH:
+            return text[:_THINKING_SUMMARY_MAX_LENGTH] + "..."
         return text
 
     def _update_renderable(self) -> None:
@@ -691,29 +691,36 @@ class ToolMessage(CollapsibleMessage):
         except (TypeError, ValueError):
             return str(args)
 
-    def _build_header_text(self, apply_markup_to_tool: bool | None = None) -> str:
-        """Build header text for tool call or thought.
-
-        Args:
-            apply_markup_to_tool: Whether to apply safe markup to tool name and args.
-                                  Thought text always gets markup for consistency.
-                                  Defaults to True.
+    def _build_header_text_for_ui(self) -> str:
+        """Build header text for UI display with markup applied.
 
         Returns:
-            Formatted header text.
+            Formatted header text with safe markup.
         """
-        if apply_markup_to_tool is None:
-            apply_markup_to_tool = True
         if self._tool_call and hasattr(self._tool_call, "name"):
             compact = self._format_compact_args()
             name = self._tool_call.name
-            if apply_markup_to_tool:
-                compact = _safe_markup(compact) if compact else ""
-                name = _safe_markup(name)
+            compact = _safe_markup(compact) if compact else ""
+            name = _safe_markup(name)
             return f"🔧 {name}({compact})" if compact else f"🔧 {name}"
         if self._thought:
             # Thought text always gets markup for consistency with UI display
             return f"🛠️  {_safe_markup(self._thought)}"
+        else:
+            return "🛠️  Tool call"
+
+    def _build_header_text_for_render(self) -> str:
+        """Build header text for render output without markup.
+
+        Returns:
+            Formatted header text without markup.
+        """
+        if self._tool_call and hasattr(self._tool_call, "name"):
+            compact = self._format_compact_args()
+            name = self._tool_call.name
+            return f"🔧 {name}({compact})" if compact else f"🔧 {name}"
+        if self._thought:
+            return f"🛠️  {self._thought}"
         else:
             return "🛠️  Tool call"
 
@@ -723,20 +730,36 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Formatted header text with markup for UI display.
         """
-        return self._build_header_text(apply_markup_to_tool=True)
+        return self._build_header_text_for_ui()
 
-    def _build_body_parts(self, pretty_format_args: bool | None = None) -> list[str]:
-        """Build the parts that make up the body content.
-
-        Args:
-            pretty_format_args: Whether to pretty-format JSON arguments.
-                                Defaults to True.
+    def _build_body_parts_for_ui(self) -> list[str]:
+        """Build the parts that make up the body content for UI display.
 
         Returns:
-            List of body content parts.
+            List of body content parts with pretty formatting.
         """
-        if pretty_format_args is None:
-            pretty_format_args = True
+        parts: list[str] = []
+
+        # Add tool arguments if available
+        if self._tool_call and getattr(self._tool_call, "arguments", None):
+            parts.append(self._format_full_args())
+
+        # Add result text if available
+        if self._result_text:
+            parts.append(self._result_text)
+
+        # Add additional content if different from thought
+        if self._content_text and self._content_text != self._thought:
+            parts.append(self._content_text)
+
+        return parts
+
+    def _build_body_parts_for_render(self) -> list[str]:
+        """Build the parts that make up the body content for render output.
+
+        Returns:
+            List of body content parts without pretty formatting.
+        """
         parts: list[str] = []
 
         # Add tool arguments if available
@@ -748,15 +771,10 @@ class ToolMessage(CollapsibleMessage):
                 with contextlib.suppress(json.JSONDecodeError, TypeError):
                     args = json.loads(args)
 
-            if pretty_format_args:
-                # Use the existing pretty formatting
-                parts.append(self._format_full_args())
-            else:
-                # Simple JSON dump for render output
-                try:
-                    parts.append(json.dumps(args))
-                except (TypeError, ValueError):
-                    parts.append(str(args))
+            try:
+                parts.append(json.dumps(args))
+            except (TypeError, ValueError):
+                parts.append(str(args))
 
         # Add result text if available
         if self._result_text:
@@ -774,7 +792,7 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Formatted body content with markup.
         """
-        parts = self._build_body_parts(pretty_format_args=True)
+        parts = self._build_body_parts_for_ui()
         body = "\n".join(parts) if parts else ""
         escaped = _safe_markup(body)
         if self._highlight_term:
@@ -792,7 +810,7 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Header text without markup for render introspection.
         """
-        return self._build_header_text(apply_markup_to_tool=False)
+        return self._build_header_text_for_render()
 
     def _get_expanded_content(self) -> str:
         """Get the expanded content for render output.
@@ -800,7 +818,7 @@ class ToolMessage(CollapsibleMessage):
         Returns:
             Expanded content text.
         """
-        parts = self._build_body_parts(pretty_format_args=False)
+        parts = self._build_body_parts_for_render()
         return "\n".join(parts)
 
     def render(self) -> str:
@@ -880,9 +898,7 @@ class ChatPane(VerticalScroll):
             prefix: Rich markup prefix for the message.
             text: Message content.
         """
-        msg = ChatMessage(prefix, text)
-        self._mount_widget(msg)
-        self._try_scroll()
+        self._add_message_widget(ChatMessage, prefix, text)
 
     def add_user_message(self, text: str) -> None:
         """Append a user message block.
@@ -918,10 +934,13 @@ class ChatPane(VerticalScroll):
             The newly mounted ChatMessage widget.
         """
         prefix = _AGENT_PREFIX_TEMPLATE.format(name=agent_name)
-        widget = ChatMessage(prefix, "")
-        self._active[agent_name] = widget
-        self._mount_widget(widget)
-        self._try_scroll()
+        widget = self._add_message_widget(
+            ChatMessage,
+            prefix,
+            "",
+            tracking_dict=self._active,
+            tracking_key=agent_name,
+        )
         return widget
 
     def append_agent_chunk(self, agent_name: str, chunk: str) -> None:
@@ -957,19 +976,6 @@ class ChatPane(VerticalScroll):
             return
         widget.finalize_as_markdown()
 
-    def _add_widget(self, widget: _T) -> _T:
-        """Helper method to add a widget to the pane.
-
-        Args:
-            widget: Widget to add.
-
-        Returns:
-            The added widget.
-        """
-        self._mount_widget(widget)
-        self._try_scroll()
-        return widget
-
     def _add_message_widget(
         self,
         widget_class: type[_T],
@@ -999,36 +1005,6 @@ class ChatPane(VerticalScroll):
 
         return widget
 
-    def _create_and_track_widget(
-        self,
-        widget_class: type[_T],
-        *args: Any,
-        tracking_dict: dict[str, _T] | None = None,
-        tracking_key: str | None = None,
-        **kwargs: Any,
-    ) -> _T:
-        """Create and track a widget with proper type hints.
-
-        This is a typed wrapper around _add_message_widget for better type safety.
-
-        Args:
-            widget_class: The widget class to instantiate.
-            *args: Positional arguments for widget constructor.
-            tracking_dict: Optional dictionary to track the widget.
-            tracking_key: Key to use for tracking if tracking_dict is provided.
-            **kwargs: Keyword arguments for widget constructor.
-
-        Returns:
-            The created widget.
-        """
-        return self._add_message_widget(
-            widget_class,
-            *args,
-            tracking_dict=tracking_dict,
-            tracking_key=tracking_key,
-            **kwargs,
-        )
-
     def add_thinking_message(self, thought: str, agent_name: str = "") -> ThinkingMessage:
         """Add a thinking message to the chat pane.
 
@@ -1039,7 +1015,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ThinkingMessage widget.
         """
-        return self._create_and_track_widget(ThinkingMessage, thought, agent_name)
+        return self._add_message_widget(ThinkingMessage, thought, agent_name)
 
     def begin_thinking_stream(self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -1050,7 +1026,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The newly mounted ThinkingMessage widget.
         """
-        return self._create_and_track_widget(
+        return self._add_message_widget(
             ThinkingMessage,
             "",
             agent_name,
@@ -1085,7 +1061,7 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ToolMessage widget.
         """
-        return self._create_and_track_widget(ToolMessage, thought, tool_call)
+        return self._add_message_widget(ToolMessage, thought, tool_call)
 
     def clear_thinking_messages(self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane."""
