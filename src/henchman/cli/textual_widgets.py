@@ -174,15 +174,6 @@ class _CollapsibleHeader(_BaseTextualWidget):
     }
     """
 
-    def __init__(self, text: str = "", **kwargs: Any) -> None:
-        """Initialize with text content.
-
-        Args:
-            text: Initial text content.
-            **kwargs: Forwarded to ``_BaseTextualWidget``.
-        """
-        super().__init__(text, **kwargs)
-
 
 class _CollapsibleContent(_BaseTextualWidget):
     """Body of a collapsible message (hidden when collapsed)."""
@@ -198,15 +189,6 @@ class _CollapsibleContent(_BaseTextualWidget):
         color: $warning;
     }
     """
-
-    def __init__(self, text: str = "", **kwargs: Any) -> None:
-        """Initialize with text content.
-
-        Args:
-            text: Initial text content.
-            **kwargs: Forwarded to ``_BaseTextualWidget``.
-        """
-        super().__init__(text, **kwargs)
 
 
 class CollapsibleMessage(_BaseMessageWidget):

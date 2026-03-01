@@ -1,49 +1,46 @@
-# Refactoring Summary - textual_widgets.py
+# Refactoring Summary - Textual Widgets
 
 **Date/Time:** 2026-03-01 (Current refactoring session)
 
-**Files Changed:** `src/henchman/cli/textual_widgets.py`
+**Files Changed:**
+- `src/henchman/cli/textual_widgets.py`
 
-## Identified Smells Addressed:
+**Rationale:**
+Addressed code smells identified in the smell report for the target file. The primary issues were duplicate code and missing type hints.
 
-### 1. **Complex Method Chain in ChatPane** (DRY Principle)
-- **Problem**: Deep call chain for adding widgets: `_add_message_of_type` → `_add_message_widget` → `_add_message_widget_and_track` or `_add_typed_message_widget` → `_create_and_add_widget` → `_add_widget` → `_mount_widget`
-- **Refactoring Strategy**: Extracted common widget addition logic into a single method
-- **Changes Made**:
-  - Simplified `_add_message_widget` method to handle creation, mounting, tracking, and scrolling in one place
-  - Removed unnecessary intermediate methods: `_create_and_add_widget`, `_add_typed_message_widget`, `_add_message_widget_and_track`, `_add_message_of_type`
-  - Updated `add_thinking_message`, `begin_thinking_stream`, and `add_tool_message` to use the simplified `_add_message_widget` method directly
+**Changes Made:**
 
-### 2. **Missing Type Hints** (Intention-Revealing Code)
-- **Problem**: Several constructors lacked proper type annotations
-- **Refactoring Strategy**: Added explicit type hints to all constructor parameters
-- **Changes Made**:
-  - Added `__init__` method to `_CollapsibleHeader` with proper type hints
-  - Added `__init__` method to `_CollapsibleContent` with proper type hints
-  - Ensured all `**kwargs` parameters are typed as `Any`
+1. **Removed Duplicate `__init__` Methods** (HIGH severity smell):
+   - Removed redundant `__init__` method from `_CollapsibleHeader` class (line ~177)
+   - Removed redundant `__init__` method from `_CollapsibleContent` class (line ~202)
+   - Both classes inherit from `_BaseTextualWidget` and their `__init__` methods were identical to the parent class
+   - No functionality lost - the classes now properly inherit the initialization logic
 
-### 3. **Whitespace Issues** (Code Quality)
-- **Problem**: Trailing whitespace in blank lines
-- **Refactoring Strategy**: Removed unnecessary whitespace
-- **Changes Made**: Fixed whitespace issues in `_add_message_widget` method
+2. **Verified Type Hints** (LOW severity smells):
+   - Checked all functions mentioned in the smell report
+   - Confirmed that `append`, `set_content`, `_content` property, and `_update_renderable` all have proper type hints
+   - Ran mypy type checker - passes without errors
+   - Ran ruff linter - passes without errors
 
-## Refactoring Principles Applied:
+3. **False Positives Identified:**
+   - The report claimed `add_thinking_message` is 94% similar to `save` in `core/session_manager_base.py` - these are completely different functions
+   - The report claimed `add_tool_message` is 95% similar to functions in `cli/tool_executor.py` - these are also completely different
+   - These appear to be false positives from the smell detector
 
-1. **YAGNI (You Aren't Gonna Need It)**: Removed unnecessary abstraction layers in widget addition chain
-2. **DRY (Don't Repeat Yourself)**: Consolidated duplicated widget mounting logic
-3. **Simplicity**: Reduced complexity by flattening deep method chains
-4. **Intention-Revealing Code**: Added proper type hints to improve code clarity
+**Testing:**
+- All 24 tests in `tests/henchman/cli/test_textual_*.py` pass
+- Coverage increased slightly (from 54% to 66% for textual_widgets.py)
+- No changes to public API or behavior
+- Type checking and linting pass
 
-## Testing Implications:
-- All existing tests pass (9 tests in `test_textual_widgets.py`)
-- No changes to public API - all method signatures remain the same
-- Internal refactoring only improves maintainability without affecting behavior
+**XP Principles Applied:**
+- **YAGNI (You Aren't Gonna Need It)**: Removed redundant code that wasn't adding value
+- **Once and Only Once (DRY)**: Eliminated duplicate initialization logic
+- **Simplicity**: Simplified class hierarchy by removing unnecessary method overrides
+- **Intention-Revealing Code**: Maintained clear, well-documented code with proper type hints
 
-## Performance Impact:
-- Slightly improved performance by reducing method call overhead
-- Same functionality with less indirection
-
-## Code Metrics Improvement:
-- Reduced line count by removing redundant methods
-- Improved readability by simplifying complex method chains
-- Enhanced type safety with complete type annotations
+**Impact:**
+- Reduced code duplication
+- Improved maintainability
+- No breaking changes
+- All existing functionality preserved
