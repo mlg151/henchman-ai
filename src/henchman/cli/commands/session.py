@@ -556,9 +556,7 @@ class SessionDisplayFormatter:
         return f"  {tag_display} - {meta.message_count} messages, updated {truncated_date}"
 
     @staticmethod
-    def _format_session_field_info(
-        session: Session, params: SessionFieldDisplayParams
-    ) -> str:
+    def _format_session_field_info(session: Session, params: SessionFieldDisplayParams) -> str:
         """Format session field information for display.
 
         Args:
@@ -570,33 +568,25 @@ class SessionDisplayFormatter:
         """
         condition = getattr(session, params.field_name, None)
         attr_info = AttributeDisplayInfo(
-            condition=condition,
-            icon=params.icon,
-            label=params.label,
-            max_id_len=params.max_id_len
+            condition=condition, icon=params.icon, label=params.label, max_id_len=params.max_id_len
         )
         return attr_info.format_attribute_info()
 
     @staticmethod
-    def _format_field_info(
-        session: Session,
-        field_name: str,
-        icon: str,
-        label: str,
-        max_id_len: int
+    def _format_field_with_params(
+        session: Session, field_config: tuple[str, str, str], max_id_len: int
     ) -> str:
-        """Format field information for display.
+        """Format field information with configuration.
 
         Args:
             session: The session object.
-            field_name: Name of the field to check.
-            icon: Icon to display.
-            label: Label text.
+            field_config: Tuple of (field_name, icon, label).
             max_id_len: Maximum ID display length.
 
         Returns:
             Formatted field info string.
         """
+        field_name, icon, label = field_config
         params = SessionFieldDisplayParams(
             field_name=field_name,
             icon=icon,
@@ -616,11 +606,9 @@ class SessionDisplayFormatter:
         Returns:
             Formatted branch info string.
         """
-        return SessionDisplayFormatter._format_field_info(
+        return SessionDisplayFormatter._format_field_with_params(
             session=session,
-            field_name="parent_id",
-            icon="[yellow]↳[/]",
-            label="branch from",
+            field_config=("parent_id", "[yellow]↳[/]", "branch from"),
             max_id_len=max_id_len,
         )
 
@@ -635,11 +623,9 @@ class SessionDisplayFormatter:
         Returns:
             Formatted template info string.
         """
-        return SessionDisplayFormatter._format_field_info(
+        return SessionDisplayFormatter._format_field_with_params(
             session=session,
-            field_name="template_id",
-            icon="[magenta]ⓣ[/]",
-            label="template:",
+            field_config=("template_id", "[magenta]ⓣ[/]", "template:"),
             max_id_len=max_id_len,
         )
 
@@ -657,7 +643,7 @@ class SessionDisplayFormatter:
             condition=params.condition,
             icon=params.icon,
             label=params.label,
-            max_id_len=params.max_id_len
+            max_id_len=params.max_id_len,
         )
         return attr_info.format_attribute_info()
 
