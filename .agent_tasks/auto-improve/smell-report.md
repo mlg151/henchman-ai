@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-01T08:00:20.189564+00:00_
+_Generated: 2026-03-01T09:00:22.079023+00:00_
 
 ## Executive Summary
 
@@ -10,33 +10,33 @@ _Generated: 2026-03-01T08:00:20.189564+00:00_
 |:-------|------:|
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 50.1/100 |
-| **Files Scanned** | 181 |
-| **Total Lines (non-blank)** | 31,678 |
-| **Total Smells** | 2285 |
+| **Files Scanned** | 186 |
+| **Total Lines (non-blank)** | 32,684 |
+| **Total Smells** | 2371 |
 | **Avg Maintainability Index** | 71.5 |
-| **Avg Cyclomatic Complexity** | 13.5 |
+| **Avg Cyclomatic Complexity** | 13.4 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1623 |
-| medium | 574 |
-| high | 88 |
+| low | 1689 |
+| medium | 575 |
+| high | 107 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1093 |
-| Feature Envy | 317 |
-| Duplicate Code | 300 |
-| Magic Number | 146 |
-| Long Method | 139 |
-| Deep Nesting | 135 |
-| Primitive Obsession | 80 |
-| Complex Function | 44 |
-| Large Class | 31 |
+| Missing Type Hint | 1137 |
+| Feature Envy | 336 |
+| Duplicate Code | 324 |
+| Magic Number | 139 |
+| Long Method | 138 |
+| Deep Nesting | 136 |
+| Primitive Obsession | 82 |
+| Complex Function | 46 |
+| Large Class | 33 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | extensions/plugin_manager.py | ❌ F | 10.5 | 82 | 689 | 35 | 0.0 |
+| 1 | extensions/plugin_manager.py | ❌ F | 9.8 | 80 | 770 | 33 | 12.0 |
 | 2 | cli/commands/session.py | ❌ F | 11.5 | 35 | 324 | 38 | 11.0 |
 | 3 | providers/anthropic.py | ❌ F | 11.8 | 37 | 396 | 39 | 11.0 |
 | 4 | cli/tool_executor.py | ❌ F | 12.1 | 60 | 688 | 40 | 11.0 |
@@ -120,31 +120,31 @@ These are the highest-impact smells to address first:
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 161 additional files omitted._
+_Showing 20 worst files. 166 additional files omitted._
 
-### extensions/plugin_manager.py — ❌ F (10.5/100)
+### extensions/plugin_manager.py — ❌ F (9.8/100)
 
-LOC: 689 | Classes: 1 | Functions: 0 | MI: 35 | Avg CC: 0.0
+LOC: 770 | Classes: 4 | Functions: 0 | MI: 33 | Avg CC: 12.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 35 | 🟠 HIGH | Large Class | Class 'PluginManager' spans 912 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 91 | 🟡 MEDIUM | Magic Number | Magic number 30 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 105 | 🟡 MEDIUM | Primitive Obsession | Function 'search_plugins' has 4 primitive-typed parameters: query: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), page: Name(id='int', ctx=Load()), page_size: Name(id='int', ctx=Load()), category: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 150 | 🟡 MEDIUM | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 187 | 🟡 MEDIUM | Magic Number | Magic number 404 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 448 | 🟡 MEDIUM | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 449 | 🟡 MEDIUM | Magic Number | Magic number 4 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 450 | 🟡 MEDIUM | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 451 | 🟡 MEDIUM | Magic Number | Magic number 6 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 451 | 🟡 MEDIUM | Magic Number | Magic number 6 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 465 | 🟡 MEDIUM | Feature Envy | Method 'PluginManager._save_installation' accesses 'installation' 8 times but 'self' only 1 times | Move Method — consider moving '_save_installation' to the class that owns 'installation'. |
-| 501 | 🟡 MEDIUM | Feature Envy | Method 'PluginManager._check_compatibility' accesses 'sys' 5 times but 'self' only 0 times | Move Method — consider moving '_check_compatibility' to the class that owns 'sys'. |
-| 544 | 🟡 MEDIUM | Feature Envy | Method 'PluginManager._install_plugin_package' accesses 'metadata' 7 times but 'self' only 6 times | Move Method — consider moving '_install_plugin_package' to the class that owns 'metadata'. |
-| 569 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_install_plugin_package' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 574 | 🟡 MEDIUM | Long Method | Function '_install_from_pypi' has 51 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 39 | 🟠 HIGH | Duplicate Code | Function '__init__' is an exact duplicate of '__init__' at extensions/plugin_registry_client.py:25 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 68 | 🟠 HIGH | Duplicate Code | Function 'initialize' is an exact duplicate of 'initialize' at extensions/plugin_registry_client.py:49 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 76 | 🟠 HIGH | Duplicate Code | Function 'close' is an exact duplicate of 'close' at extensions/plugin_registry_client.py:57 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 82 | 🟠 HIGH | Duplicate Code | Function 'search_plugins' is an exact duplicate of 'search_plugins' at extensions/plugin_registry_client.py:63 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 138 | 🟠 HIGH | Duplicate Code | Function 'get_plugin_info' is an exact duplicate of 'get_plugin_info' at extensions/plugin_registry_client.py:119 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 689 | 🟠 HIGH | Duplicate Code | Function '__init__' is an exact duplicate of '__init__' at extensions/plugin_manager_refactored.py:48 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 710 | 🟠 HIGH | Duplicate Code | Function 'initialize' is an exact duplicate of 'initialize' at extensions/plugin_manager_refactored.py:69 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 746 | 🟠 HIGH | Duplicate Code | Function 'close' is an exact duplicate of 'close' at extensions/plugin_manager_refactored.py:105 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 755 | 🟠 HIGH | Duplicate Code | Function 'search_plugins' is an exact duplicate of 'search_plugins' at extensions/plugin_manager_refactored.py:114 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 789 | 🟠 HIGH | Duplicate Code | Function 'get_plugin_info' is an exact duplicate of 'get_plugin_info' at extensions/plugin_manager_refactored.py:146 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 812 | 🟠 HIGH | Duplicate Code | Function 'install_plugin' is an exact duplicate of 'install_plugin' at extensions/plugin_manager_refactored.py:169 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 885 | 🟠 HIGH | Duplicate Code | Function 'uninstall_plugin' is an exact duplicate of 'uninstall_plugin' at extensions/plugin_manager_refactored.py:242 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 919 | 🟠 HIGH | Duplicate Code | Function 'update_plugin' is an exact duplicate of 'update_plugin' at extensions/plugin_manager_refactored.py:276 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 957 | 🟠 HIGH | Duplicate Code | Function 'check_updates' is an exact duplicate of 'check_updates' at extensions/plugin_manager_refactored.py:314 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 1022 | 🟠 HIGH | Duplicate Code | Function '_load_plugin_extension' is an exact duplicate of '_load_plugin_extension' at extensions/plugin_manager_refactored.py:379 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
 
-_... and 67 more smells._
+_... and 65 more smells._
 
 ### cli/commands/session.py — ❌ F (11.5/100)
 
@@ -554,6 +554,30 @@ LOC: 209 | Classes: 1 | Functions: 1 | MI: 49 | Avg CC: 12.0
 
 _... and 13 more smells._
 
+### extensions/plugin_installer.py — ❌ F (16.1/100)
+
+LOC: 306 | Classes: 1 | Functions: 0 | MI: 54 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 39 | 🟠 HIGH | Duplicate Code | Function 'install_plugin_package' is an exact duplicate of 'install_plugin_package' at extensions/plugin_manager.py:285 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 69 | 🟠 HIGH | Duplicate Code | Function '_install_from_pypi' is an exact duplicate of '_install_from_pypi' at extensions/plugin_manager.py:315 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 178 | 🟠 HIGH | Duplicate Code | Function '_install_from_git' is an exact duplicate of '_install_from_git' at extensions/plugin_manager.py:427 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 253 | 🟠 HIGH | Duplicate Code | Function '_install_from_url' is an exact duplicate of '_install_from_url' at extensions/plugin_manager.py:503 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 282 | 🟠 HIGH | Duplicate Code | Function '_download_archive_from_url' is an exact duplicate of '_download_archive_from_url' at extensions/plugin_manager.py:532 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 39 | 🟡 MEDIUM | Feature Envy | Method 'PluginInstaller.install_plugin_package' accesses 'metadata' 7 times but 'self' only 6 times | Move Method — consider moving 'install_plugin_package' to the class that owns 'metadata'. |
+| 64 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'install_plugin_package' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 97 | 🟡 MEDIUM | Duplicate Code | Function '_install_package_with_pip' is 93% similar to '_install_package_with_pip' at extensions/plugin_manager.py:343 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 196 | 🟡 MEDIUM | Duplicate Code | Function '_clone_and_copy_git_repo' is 94% similar to '_clone_and_copy_git_repo' at extensions/plugin_manager.py:445 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 241 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_clone_and_copy_git_repo' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 338 | 🟡 MEDIUM | Duplicate Code | Function '_install_from_local' is 93% similar to '_install_from_local' at extensions/plugin_manager.py:590 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 28 | 🟢 LOW | Large Class | Class 'PluginInstaller' spans 387 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 31 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 39 | 🟢 LOW | Missing Type Hint | Function 'install_plugin_package' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 62 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'install_plugin_package' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+
+_... and 28 more smells._
+
 ### tools/builtins/git_ops.py — ❌ F (16.5/100)
 
 LOC: 273 | Classes: 1 | Functions: 0 | MI: 55 | Avg CC: 0.0
@@ -577,30 +601,6 @@ LOC: 273 | Classes: 1 | Functions: 0 | MI: 55 | Avg CC: 0.0
 | 41 | 🟢 LOW | Missing Type Hint | Function 'parameters' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 16 more smells._
-
-### metrics/dashboard.py — ❌ F (16.9/100)
-
-LOC: 265 | Classes: 1 | Functions: 0 | MI: 56 | Avg CC: 14.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 74 | 🟡 MEDIUM | Long Method | Function 'get_summary_stats' has 77 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 74 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard.get_summary_stats' accesses 'stat' 6 times but 'self' only 4 times | Move Method — consider moving 'get_summary_stats' to the class that owns 'stat'. |
-| 74 | 🟡 MEDIUM | Complex Function | Function 'get_summary_stats' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 158 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard.export_data' accesses 'writer' 7 times but 'self' only 1 times | Move Method — consider moving 'export_data' to the class that owns 'writer'. |
-| 259 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard._create_token_panel' accesses 'table' 5 times but 'self' only 1 times | Move Method — consider moving '_create_token_panel' to the class that owns 'table'. |
-| 259 | 🟡 MEDIUM | Duplicate Code | Function '_create_token_panel' is 96% similar to '_create_cost_panel' at metrics/dashboard.py:281 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 259 | 🟡 MEDIUM | Duplicate Code | Function '_create_token_panel' is 98% similar to '_create_tool_panel' at metrics/dashboard.py:303 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 259 | 🟡 MEDIUM | Duplicate Code | Function '_create_token_panel' is 98% similar to '_create_usage_panel' at metrics/dashboard.py:325 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 281 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard._create_cost_panel' accesses 'table' 5 times but 'self' only 1 times | Move Method — consider moving '_create_cost_panel' to the class that owns 'table'. |
-| 281 | 🟡 MEDIUM | Duplicate Code | Function '_create_cost_panel' is 94% similar to '_create_tool_panel' at metrics/dashboard.py:303 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 281 | 🟡 MEDIUM | Duplicate Code | Function '_create_cost_panel' is 94% similar to '_create_usage_panel' at metrics/dashboard.py:325 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 303 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard._create_tool_panel' accesses 'table' 5 times but 'self' only 1 times | Move Method — consider moving '_create_tool_panel' to the class that owns 'table'. |
-| 303 | 🟡 MEDIUM | Duplicate Code | Function '_create_tool_panel' is 96% similar to '_create_usage_panel' at metrics/dashboard.py:325 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 325 | 🟡 MEDIUM | Feature Envy | Method 'Dashboard._create_usage_panel' accesses 'table' 5 times but 'self' only 1 times | Move Method — consider moving '_create_usage_panel' to the class that owns 'table'. |
-| 22 | 🟢 LOW | Large Class | Class 'Dashboard' spans 324 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-
-_... and 25 more smells._
 
 ## ✨ Clean Files (56 files with no smells)
 
