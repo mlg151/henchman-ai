@@ -7,6 +7,10 @@ from typing import Any
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
+# Constants
+DEFAULT_FUZZ_LINES = 2
+MAX_FUZZ_SEARCH_RANGE = 50
+
 
 @dataclass
 class PatchApplyParameters:
@@ -15,7 +19,18 @@ class PatchApplyParameters:
     patch: str
     path: str | None = None
     dry_run: bool = False
-    fuzz: int = 2
+    fuzz: int = DEFAULT_FUZZ_LINES
+
+
+@dataclass
+class HunkApplicationContext:
+    """Context for applying a single hunk."""
+
+    lines: list[str]
+    hunk: dict[str, Any]
+    hunk_idx: int
+    offset: int
+    fuzz: int
 
 
 class HunkApplier:
@@ -25,7 +40,7 @@ class HunkApplier:
         self,
         original: str,
         hunks: list[dict[str, Any]],
-        fuzz: int = 2,
+        fuzz: int = DEFAULT_FUZZ_LINES,
     ) -> str:
         """Apply hunks to file content.
 
@@ -49,7 +64,14 @@ class HunkApplier:
         return self._reconstruct_content(lines, original)
 
     def _split_original_content(self, original: str) -> list[str]:
-        """Split original content into lines, handling trailing newline."""
+        """Split original content into lines, handling trailing newline.
+
+        Args:
+            original: Original file content.
+
+        Returns:
+            List of lines without trailing empty line if original had newline.
+        """
         lines = original.split("\n")
         # Track if original ended with newline
         trailing_newline = original.endswith("\n")
@@ -58,7 +80,15 @@ class HunkApplier:
         return lines
 
     def _reconstruct_content(self, lines: list[str], original: str) -> str:
-        """Reconstruct content from lines, preserving trailing newline."""
+        """Reconstruct content from lines, preserving trailing newline.
+
+        Args:
+            lines: List of content lines.
+            original: Original file content for newline reference.
+
+        Returns:
+            Reconstructed content with appropriate newline.
+        """
         result = "\n".join(lines)
         if original.endswith("\n"):
             result += "\n"
@@ -87,18 +117,39 @@ class HunkApplier:
         Raises:
             ValueError: If hunk fails to apply.
         """
-        old_start = int(str(hunk["old_start"])) - 1 + offset
-        hunk_lines = self._extract_hunk_lines(hunk)
+        hunk_context = HunkApplicationContext(
+            lines=lines,
+            hunk=hunk,
+            hunk_idx=hunk_idx,
+            offset=offset,
+            fuzz=fuzz,
+        )
+        return self._apply_hunk_with_context(hunk_context)
+
+    def _apply_hunk_with_context(self, context: "HunkApplicationContext") -> int:
+        """Apply hunk using structured context.
+
+        Args:
+            context: Hunk application context.
+
+        Returns:
+            New offset after applying hunk.
+
+        Raises:
+            ValueError: If hunk fails to apply.
+        """
+        old_start = int(str(context.hunk["old_start"])) - 1 + context.offset
+        hunk_lines = self._extract_hunk_lines(context.hunk)
         old_lines, new_lines = self._extract_old_and_new_lines(hunk_lines)
 
-        matched_start = self._find_match(lines, old_lines, old_start, fuzz)
+        matched_start = self._find_match(context.lines, old_lines, old_start, context.fuzz)
         if matched_start is None:
-            msg = f"Hunk {hunk_idx + 1} failed to apply at line {old_start + 1}"
+            msg = f"Hunk {context.hunk_idx + 1} failed to apply at line {old_start + 1}"
             raise ValueError(msg)
 
         # Replace the old lines with new lines
-        lines[matched_start : matched_start + len(old_lines)] = new_lines
-        return offset + len(new_lines) - len(old_lines)
+        context.lines[matched_start : matched_start + len(old_lines)] = new_lines
+        return context.offset + len(new_lines) - len(old_lines)
 
     def _extract_hunk_lines(self, hunk: dict[str, Any]) -> list[str]:
         """Extract lines from hunk dictionary."""
@@ -157,7 +208,11 @@ class HunkApplier:
                     return candidate
 
         # Wider search
-        for start in range(max(0, expected_start - 50), min(len(lines), expected_start + 50)):
+        search_range = MAX_FUZZ_SEARCH_RANGE
+        for start in range(
+            max(0, expected_start - search_range),
+            min(len(lines), expected_start + search_range),
+        ):
             if self._lines_match(lines, old_lines, start):
                 return start
 
@@ -386,8 +441,8 @@ class PatchApplyTool(Tool):
                 },
                 "fuzz": {
                     "type": "integer",
-                    "description": "Lines of fuzz for context matching (default 2)",
-                    "default": 2,
+                    "description": f"Lines of fuzz for context matching (default {DEFAULT_FUZZ_LINES})",
+                    "default": DEFAULT_FUZZ_LINES,
                 },
             },
             "required": ["patch"],
@@ -403,7 +458,7 @@ class PatchApplyTool(Tool):
         patch: str = "",
         path: str | None = None,
         dry_run: bool = False,
-        fuzz: int = 2,
+        fuzz: int = DEFAULT_FUZZ_LINES,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
         """Apply a unified diff patch.
