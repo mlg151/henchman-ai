@@ -260,7 +260,15 @@ class UIRenderer:
         Args:
             content: Content to print.
         """
-        self.console.print(content, end="")
+        self.renderer.print_agent_content(content)
+
+    def agent_content(self, content: str) -> None:
+        """Display content from the agent.
+
+        Args:
+            content: Content string.
+        """
+        self.renderer.agent_content(content)
 
     # Delegate methods to underlying renderer
     def success(self, message: str) -> None:
@@ -315,9 +323,7 @@ class UIRenderer:
         """Display a summary of tool execution."""
         self.renderer.tool_summary(name, duration)
 
-    def agent_content(self, content: str) -> None:
-        """Display content from the agent."""
-        self.renderer.agent_content(content)
+
 
     def thinking(self, content: str) -> None:
         """Display thinking process content.

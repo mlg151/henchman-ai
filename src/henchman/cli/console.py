@@ -6,6 +6,7 @@ This module provides Rich-based console output with theming support.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import NamedTuple
 
 import anyio
 from rich import box
@@ -19,6 +20,19 @@ from rich.tree import Tree
 # Safety limit: truncate content before Rich parses it to prevent
 # excessive memory / CPU usage on pathologically large payloads.
 _MAX_MARKDOWN_LEN = 200_000
+
+
+class DiffParams(NamedTuple):
+    """Parameters for diff rendering.
+
+    Attributes:
+        old: Old content string.
+        new: New content string.
+        filename: Filename for context.
+    """
+    old: str
+    new: str
+    filename: str = ""
 
 
 @dataclass
@@ -274,8 +288,7 @@ class OutputRenderer:
         Args:
             message: Success message text.
         """
-        prefix = "[OK]" if self.accessible_mode else "✓"
-        self.console.print(f"[{self.theme.success}]{prefix}[/] {escape(message)}")
+        self._print_status_message(message, "success", "✓", "[OK]")
 
     def info(self, message: str) -> None:
         """Print an info message.
@@ -283,8 +296,7 @@ class OutputRenderer:
         Args:
             message: Info message text.
         """
-        prefix = "[INFO]" if self.accessible_mode else "ℹ"
-        self.console.print(f"[{self.theme.primary}]{prefix}[/] {escape(message)}")
+        self._print_status_message(message, "primary", "ℹ", "[INFO]")
 
     def warning(self, message: str) -> None:
         """Print a warning message.
@@ -292,8 +304,7 @@ class OutputRenderer:
         Args:
             message: Warning message text.
         """
-        prefix = "[WARN]" if self.accessible_mode else "⚠"
-        self.console.print(f"[{self.theme.warning}]{prefix}[/] {escape(message)}")
+        self._print_status_message(message, "warning", "⚠", "[WARN]")
 
     def error(self, message: str) -> None:
         """Print an error message.
@@ -301,8 +312,20 @@ class OutputRenderer:
         Args:
             message: Error message text.
         """
-        prefix = "[ERR]" if self.accessible_mode else "✗"
-        self.console.print(f"[{self.theme.error}]{prefix}[/] {escape(message)}")
+        self._print_status_message(message, "error", "✗", "[ERR]")
+
+    def _print_status_message(self, message: str, style: str, icon: str, accessible_icon: str) -> None:
+        """Print a status message with consistent formatting.
+
+        Args:
+            message: Message text.
+            style: Theme style name (success, primary, warning, error).
+            icon: Unicode icon for normal mode.
+            accessible_icon: Text icon for accessible mode.
+        """
+        prefix = accessible_icon if self.accessible_mode else icon
+        color = getattr(self.theme, style)
+        self.console.print(f"[{color}]{prefix}[/] {escape(message)}")
 
     def muted(self, text: str) -> None:
         """Print muted/dim text.
@@ -481,13 +504,22 @@ class OutputRenderer:
             new: New content string.
             filename: Filename for context.
         """
+        params = DiffParams(old, new, filename)
+        self._render_diff(params)
+
+    def _render_diff(self, params: DiffParams) -> None:
+        """Render diff using DiffParams object.
+
+        Args:
+            params: Diff parameters.
+        """
         import difflib
 
         diff_lines = difflib.unified_diff(
-            old.splitlines(keepends=True),
-            new.splitlines(keepends=True),
-            fromfile=f"a/{filename}",
-            tofile=f"b/{filename}",
+            params.old.splitlines(keepends=True),
+            params.new.splitlines(keepends=True),
+            fromfile=f"a/{params.filename}",
+            tofile=f"b/{params.filename}",
         )
         diff_text = "".join(diff_lines)
 
@@ -509,13 +541,21 @@ class OutputRenderer:
             msg += f" ({duration:.2f}s)"
         self.console.print(msg)
 
-    def agent_content(self, content: str) -> None:
+    def print_agent_content(self, content: str) -> None:
         """Display content from the agent.
 
         Args:
             content: Content string.
         """
         self.console.print(content, end="")
+
+    def agent_content(self, content: str) -> None:
+        """Display content from the agent (alias for print_agent_content).
+
+        Args:
+            content: Content string.
+        """
+        self.print_agent_content(content)
 
     def thinking(self, content: str) -> None:
         """Display thinking process.
@@ -589,4 +629,5 @@ class AsyncOutputRenderer:
 
     async def diff(self, old: str, new: str, filename: str = "") -> None:
         """Async diff rendering."""
-        await anyio.to_thread.run_sync(self.renderer.diff, old, new, filename)
+        params = DiffParams(old, new, filename)
+        await anyio.to_thread.run_sync(self.renderer._render_diff, params)
