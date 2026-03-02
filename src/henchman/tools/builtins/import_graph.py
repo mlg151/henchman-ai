@@ -11,10 +11,81 @@ from henchman.tools.utils import validate_directory_path, validate_file_path
 STDLIB_MODULES: frozenset[str] = frozenset(sys.stdlib_module_names)
 
 
+def _extract_top_level_module(import_str: str) -> str:
+    """Extract the top-level module name from an import statement.
+
+    Args:
+        import_str: The import statement string (e.g. 'import os').
+
+    Returns:
+        Top-level module name or empty string.
+    """
+    if import_str.startswith("from "):
+        # "from X.Y import Z" -> extract X
+        parts = import_str.split()
+        return parts[1].split(".")[0] if len(parts) > 1 else ""
+    elif import_str.startswith("import "):
+        parts = import_str.split()
+        return parts[1].split(".")[0] if len(parts) > 1 else ""
+    return ""
+
+
+def _classify_import(import_str: str, local_modules: set[str]) -> str:
+    """Classify an import as stdlib, local, or third-party.
+
+    Args:
+        import_str: The import statement string (e.g. 'import os').
+        local_modules: Set of local module names.
+
+    Returns:
+        One of 'stdlib', 'local', or 'third-party'.
+    """
+    # Extract the top-level module name
+    if import_str.startswith("from .") or import_str.startswith("from .."):
+        return "local"
+
+    module = _extract_top_level_module(import_str)
+    if not module:
+        return "third-party"
+
+    if module in STDLIB_MODULES:
+        return "stdlib"
+    if module in local_modules:
+        return "local"
+    return "third-party"
+
+
+def _extract_imports_from_ast(tree: ast.AST) -> list[str]:
+    """Extract import statements from AST.
+
+    Args:
+        tree: Parsed AST.
+
+    Returns:
+        List of import strings.
+    """
+    imports: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                name = alias.name
+                if alias.asname:
+                    name += f" as {alias.asname}"
+                imports.append(f"import {name}")
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            level = "." * (node.level or 0)
+            names = ", ".join(
+                a.name + (f" as {a.asname}" if a.asname else "") for a in node.names
+            )
+            imports.append(f"from {level}{module} import {names}")
+    return imports
+
+
 class ImportAnalyzer:
     """Analyzes imports in Python files."""
 
-    def __init__(self, local_modules: set[str]):
+    def __init__(self, local_modules: set[str]) -> None:
         """Initialize analyzer with local module context.
 
         Args:
@@ -31,22 +102,7 @@ class ImportAnalyzer:
         Returns:
             List of import strings.
         """
-        imports: list[str] = []
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    name = alias.name
-                    if alias.asname:
-                        name += f" as {alias.asname}"
-                    imports.append(f"import {name}")
-            elif isinstance(node, ast.ImportFrom):
-                module = node.module or ""
-                level = "." * (node.level or 0)
-                names = ", ".join(
-                    a.name + (f" as {a.asname}" if a.asname else "") for a in node.names
-                )
-                imports.append(f"from {level}{module} import {names}")
-        return imports
+        return _extract_imports_from_ast(tree)
 
     def classify_import(self, import_str: str) -> str:
         """Classify an import as stdlib, local, or third-party.
@@ -57,31 +113,13 @@ class ImportAnalyzer:
         Returns:
             One of 'stdlib', 'local', or 'third-party'.
         """
-        # Extract the top-level module name
-        if import_str.startswith("from .") or import_str.startswith("from .."):
-            return "local"
-
-        if import_str.startswith("from "):
-            # "from X.Y import Z" -> extract X
-            parts = import_str.split()
-            module = parts[1].split(".")[0] if len(parts) > 1 else ""
-        elif import_str.startswith("import "):
-            parts = import_str.split()
-            module = parts[1].split(".")[0] if len(parts) > 1 else ""
-        else:
-            return "third-party"
-
-        if module in STDLIB_MODULES:
-            return "stdlib"
-        if module in self.local_modules:
-            return "local"
-        return "third-party"
+        return _classify_import(import_str, self.local_modules)
 
 
 class ImportGraphBuilder:
     """Builds and analyzes import graphs."""
 
-    def __init__(self, scan_dir: Path):
+    def __init__(self, scan_dir: Path) -> None:
         """Initialize graph builder.
 
         Args:
@@ -281,6 +319,42 @@ class ImportGraphParameters:
         return None
 
 
+@dataclass
+class ImportAnalysisRequest:
+    """Request object for import analysis to replace primitive parameters."""
+
+    path: str
+    scan_dir: str = ""
+    detect_cycles: bool = False
+    classify: bool = False
+
+    @classmethod
+    def from_primitives(
+        cls,
+        path: str = "",
+        scan_dir: str = "",
+        detect_cycles: bool = False,
+        classify: bool = False,
+    ) -> "ImportAnalysisRequest":
+        """Create request from primitive parameters.
+
+        Args:
+            path: Target Python file to analyze.
+            scan_dir: Optional directory for reverse-import scan.
+            detect_cycles: Detect circular import chains in scan_dir.
+            classify: Classify imports as stdlib/local/third-party.
+
+        Returns:
+            ImportAnalysisRequest instance.
+        """
+        return cls(
+            path=path,
+            scan_dir=scan_dir,
+            detect_cycles=detect_cycles,
+            classify=classify,
+        )
+
+
 class ImportGraphTool(Tool):
     """Analyze Python import dependencies.
 
@@ -361,39 +435,47 @@ class ImportGraphTool(Tool):
         Returns:
             ToolResult with import analysis.
         """
-        # Create and validate parameters
-        params = ImportGraphParameters(
+        # Create request object from primitives
+        request = ImportAnalysisRequest.from_primitives(
             path=path,
             scan_dir=scan_dir,
             detect_cycles=detect_cycles,
             classify=classify,
         )
 
+        # Create and validate parameters
+        params = ImportGraphParameters(
+            path=request.path,
+            scan_dir=request.scan_dir,
+            detect_cycles=request.detect_cycles,
+            classify=request.classify,
+        )
+
         validation_result = params.validate()
         if validation_result is not None:
             return validation_result
 
-        return await self._execute_with_params(params)
+        return await self._execute_with_request(request)
 
-    async def _execute_with_params(self, params: ImportGraphParameters) -> ToolResult:
-        """Execute import analysis with validated parameters.
+    async def _execute_with_request(self, request: ImportAnalysisRequest) -> ToolResult:
+        """Execute import analysis with validated request.
 
         Args:
-            params: Validated import graph parameters.
+            request: Validated import analysis request.
 
         Returns:
             ToolResult with import analysis.
         """
-        target = Path(params.path)
+        target = Path(request.path)
 
         # Parse file and extract AST
-        parse_result = self._parse_file(target, params.path)
+        parse_result = self._parse_file(target, request.path)
         if isinstance(parse_result, ToolResult):
             return parse_result
-        tree, source = parse_result
+        tree, _ = parse_result
 
         # Analyze imports
-        scan_path = Path(params.scan_dir) if params.scan_dir else None
+        scan_path = Path(request.scan_dir) if request.scan_dir else None
         local_modules = self._collect_local_modules(scan_path) if scan_path else set()
 
         analyzer = ImportAnalyzer(local_modules)
@@ -403,14 +485,14 @@ class ImportGraphTool(Tool):
         parts: list[str] = []
 
         # Add imports analysis
-        self._add_imports_analysis(parts, target.name, imports, params.classify, analyzer)
+        self._add_imports_analysis(parts, target.name, imports, request.classify, analyzer)
 
         # Add reverse imports analysis if scan_dir provided
         if scan_path:
             self._add_reverse_imports_analysis(parts, scan_path, target)
 
         # Add circular import detection if requested
-        if params.detect_cycles and scan_path:
+        if request.detect_cycles and scan_path:
             self._add_circular_imports_analysis(parts, scan_path)
 
         return ToolResult(
