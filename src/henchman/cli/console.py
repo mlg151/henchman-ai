@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from enum import Enum
 from typing import NamedTuple
 
 import anyio
@@ -37,21 +38,31 @@ class DiffParams(NamedTuple):
     filename: str = ""
 
 
+class StatusType(Enum):
+    """Status message types with their styling configuration."""
+
+    SUCCESS = ("success", "✓", "[OK]")
+    INFO = ("primary", "ℹ", "[INFO]")
+    WARNING = ("warning", "⚠", "[WARN]")
+    ERROR = ("error", "✗", "[ERR]")
+
+    def __init__(self, style: str, icon: str, accessible_icon: str) -> None:
+        self.style = style
+        self.icon = icon
+        self.accessible_icon = accessible_icon
+
+
 @dataclass
 class StatusMessageParams:
     """Parameters for status message rendering.
 
     Attributes:
         message: Message text.
-        style: Theme style name (success, primary, warning, error).
-        icon: Unicode icon for normal mode.
-        accessible_icon: Text icon for accessible mode.
+        status_type: Type of status message.
     """
 
     message: str
-    style: str
-    icon: str
-    accessible_icon: str
+    status_type: StatusType
 
 
 @dataclass
@@ -325,7 +336,7 @@ class OutputRenderer:
         Args:
             message: Success message text.
         """
-        self._print_status("success", message, "✓", "[OK]")
+        self._print_status(StatusType.SUCCESS, message)
 
     def info(self, message: str) -> None:
         """Print an info message.
@@ -333,7 +344,7 @@ class OutputRenderer:
         Args:
             message: Info message text.
         """
-        self._print_status("primary", message, "ℹ", "[INFO]")
+        self._print_status(StatusType.INFO, message)
 
     def warning(self, message: str) -> None:
         """Print a warning message.
@@ -341,7 +352,7 @@ class OutputRenderer:
         Args:
             message: Warning message text.
         """
-        self._print_status("warning", message, "⚠", "[WARN]")
+        self._print_status(StatusType.WARNING, message)
 
     def error(self, message: str) -> None:
         """Print an error message.
@@ -349,22 +360,16 @@ class OutputRenderer:
         Args:
             message: Error message text.
         """
-        self._print_status("error", message, "✗", "[ERR]")
+        self._print_status(StatusType.ERROR, message)
 
-    def _print_status(self, style: str, message: str, icon: str, accessible_icon: str) -> None:
+    def _print_status(self, status_type: StatusType, message: str) -> None:
         """Print a status message with consistent formatting.
 
         Args:
-            style: Theme style name (success, primary, warning, error).
+            status_type: Type of status message.
             message: Message text.
-            icon: Unicode icon for normal mode.
-            accessible_icon: Text icon for accessible mode.
         """
-        self._print_status_message(
-            StatusMessageParams(
-                message=message, style=style, icon=icon, accessible_icon=accessible_icon
-            )
-        )
+        self._print_status_message(StatusMessageParams(message=message, status_type=status_type))
 
     def _print_status_message(self, params: StatusMessageParams) -> None:
         """Print a status message with consistent formatting.
@@ -372,8 +377,8 @@ class OutputRenderer:
         Args:
             params: Status message parameters.
         """
-        prefix = params.accessible_icon if self.accessible_mode else params.icon
-        color = getattr(self.theme, params.style)
+        prefix = params.status_type.accessible_icon if self.accessible_mode else params.status_type.icon
+        color = getattr(self.theme, params.status_type.style)
         self.console.print(f"[{color}]{prefix}[/] {escape(params.message)}")
 
     def muted(self, text: str) -> None:
