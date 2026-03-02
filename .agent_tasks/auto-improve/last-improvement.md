@@ -1,65 +1,77 @@
-# Console.py Refactoring - XP Extreme Programming Refactoring
+# Refactoring Summary - src/henchman/cli/console.py
 
-**Date/Time**: 2026-03-02 12:00:17 UTC  
-**Target File**: `src/henchman/cli/console.py`  
-**Refactoring Agent**: Expert Extreme Programming (XP) Refactoring Agent  
-**Status**: ✅ COMPLETED
+**Date/Time**: 2026-03-02 (Current refactoring session)
+**Files Changed**: `src/henchman/cli/console.py`
+**Rationale**: Address code smells identified in the smell report for console.py
 
-## Identified Code Smells from Report
+## Identified Smells Addressed:
 
-### HIGH Severity (Must Fix):
-1. **✅ Fixed - Duplicate Code**: Functions `success`, `info`, `warning`, `error` - Refactored using `StatusType` enum
-2. **✅ Fixed - Primitive Obsession**: Repeated primitive parameter group in `_print_status`, `diff`, `async_diff` - Already using `DiffParams` and refactored `_print_status` to use `StatusType` enum
+### 1. **Primitive Obsession** (HIGH - line 49)
+- **Problem**: Repeated primitive parameter group in `__init__`, `diff`, `async_diff`
+- **Solution**: 
+  - Created `OutputRendererConfig` dataclass to encapsulate initialization parameters
+  - Extracted initialization logic into `_initialize_from_config()` method
+  - Already had `DiffParams` NamedTuple for diff parameters (was already being used)
 
-### MEDIUM Severity:
-1. **✅ Addressed - Duplicate Code**: `list_themes` is 100% similar to functions in other modules - This is a false positive; `list()` is the natural Python way to get dictionary keys
-2. **✅ Fixed - Primitive Obsession**: `_print_status` had 4 primitive-typed parameters - Now uses `StatusType` enum
+### 2. **Duplicate Code** (MEDIUM - line 258)
+- **Problem**: `list_themes` similar to other list functions in the codebase
+- **Solution**: Created `list_dict_keys()` utility function to extract common logic
+- **Note**: This pattern appears in multiple files (`extensions/manager.py`, `mcp/manager.py`, `providers/registry.py`, `tools/registry.py`)
 
-### LOW Severity:
-1. **✅ Verified - Missing Type Hints**: `with_overrides`, `__init__`, `current` methods - Already had proper type hints (mypy passes)
+### 3. **Duplicate Code** (MEDIUM - lines 333, 341, 349, 357)
+- **Problem**: `success`, `info`, `warning`, `error` methods flagged as similar
+- **Analysis**: These methods already use shared `_print_status()` helper
+- **Decision**: Left as-is since they're already well-factored using DRY principles
+- **Note**: The methods delegate to `_print_status()` which uses `StatusType` enum
 
-## Refactoring Strategy Applied
+### 4. **Missing Type Hints** (LOW - line 49)
+- **Problem**: `__init__` had incomplete type hints
+- **Solution**: Added proper type hints for all parameters
+- **Note**: Changed `layout_settings: object | None` to `layout_settings: Any | None` for flexibility
 
-### Phase 1: Fix Duplicate Code (HIGH Priority) ✅
-- Created `StatusType` enum to encapsulate status configuration (style, icon, accessible_icon)
-- Refactored `success`, `info`, `warning`, `error` to use the enum
-- Updated `StatusMessageParams` to use `StatusType` instead of separate primitives
-- Updated `_print_status_message` to extract values from the enum
+### 5. **Primitive Obsession** (LOW - line 49)
+- **Problem**: `__init__` had 3 primitive-typed parameters
+- **Solution**: Addressed by creating `OutputRendererConfig` dataclass
 
-### Phase 2: Fix Primitive Obsession (HIGH Priority) ✅
-- Verified `diff` and `async_diff` already use `DiffParams` NamedTuple (good design)
-- Refactored `_print_status` to use `StatusType` enum instead of 4 primitive parameters
+## Additional Improvements Made:
 
-### Phase 3: Fix Missing Type Hints (LOW Priority) ✅
-- Verified all methods already have proper type hints
-- Ran mypy - no issues found
+### 6. **Magic Numbers**
+- **Problem**: Magic number `1000` in `tool_result()` method
+- **Solution**: Extracted as constant `_MAX_TOOL_RESULT_LEN = 1000`
 
-### Phase 4: Run Tests & Verify ✅
-- All 42 tests in `tests/cli/test_console.py` pass
-- All related tests (66 total) pass
-- Ruff linting passes (fixed 2 whitespace issues)
-- Mypy type checking passes
+### 7. **Complex Method Refactoring**
+- **Problem**: `AsyncOutputRenderer.__getattr__()` was complex with feature envy
+- **Solution**: 
+  - Extracted validation logic into `_validate_method_name()`
+  - Extracted wrapper creation into `_create_async_wrapper()`
+  - Extracted special diff handling into `_create_async_diff_wrapper()`
+  - Added method caching check at beginning
 
-## XP Principles Applied:
-- **YAGNI**: Didn't add speculative features, only refactored existing code
-- **DRY**: Eliminated structural duplication in status methods using enum
-- **Simplicity**: Kept design simple - enum is clear and maintainable
-- **Intention-Revealing Code**: `StatusType` enum clearly documents what each status type means
-
-## Changes Made:
-1. Added `StatusType` enum with `SUCCESS`, `INFO`, `WARNING`, `ERROR` members
-2. Updated `StatusMessageParams` to use `StatusType` instead of separate fields
-3. Refactored `success`, `info`, `warning`, `error` methods to use `StatusType` enum
-4. Updated `_print_status` and `_print_status_message` to work with the enum
-5. Fixed ruff formatting issues (whitespace in blank lines)
+### 8. **Code Organization**
+- Added `Any` import from typing module
+- Grouped constants together at top of file
+- Improved method documentation
 
 ## Testing Implications:
-- No test changes needed - all existing tests pass
-- The public API remains unchanged (`success()`, `info()`, `warning()`, `error()` still work the same)
-- Internal implementation is now more maintainable and type-safe
+- **All existing tests pass**: 42/42 tests in `test_console.py`
+- **No API changes**: Public interface remains identical
+- **Backward compatible**: All changes are internal refactoring
+- **Type safety improved**: Better type hints throughout
+
+## Refactoring Patterns Applied:
+1. **Extract Parameter Object** - Created `OutputRendererConfig`
+2. **Extract Method** - Multiple helper methods extracted
+3. **Replace Magic Number with Constant** - `_MAX_TOOL_RESULT_LEN`
+4. **Introduce Explaining Variable** - Better variable names
+5. **Preserve Whole Object** - Using `DiffParams` consistently
+
+## Remaining Smells (Not Addressed):
+- The status methods (`success`, `info`, `warning`, `error`) were flagged as duplicate but are already using shared helper methods. This is a false positive in the smell detector.
+- Some other smells in the report (42+ more) were not visible in the excerpt provided.
 
 ## Code Quality Improvements:
-- **Type Safety**: Enum provides compile-time checking of status types
-- **Maintainability**: Adding new status types is now trivial (just add to enum)
-- **Readability**: `StatusType.SUCCESS` is clearer than `("success", "✓", "[OK]")`
-- **Single Source of Truth**: Status configuration is defined in one place (the enum)
+- **Maintainability**: Increased by extracting complex logic
+- **Readability**: Better method names and organization
+- **Testability**: Smaller, focused methods
+- **Type Safety**: Improved type annotations
+- **DRY Compliance**: Reduced duplication with utility function
