@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.utils import create_path_parameter_schema
 
 
 @dataclass
@@ -405,7 +406,6 @@ class XmlCoverageParser(BaseCoverageParser):
 
 class JsonCoverageParser(BaseCoverageParser):
     """Parser for coverage.py JSON format."""
-    """Parser for coverage.py JSON format."""
 
     def parse(self, target: Path, config: CoverageConfig) -> ToolResult:
         """Parse coverage.py JSON format.
@@ -437,7 +437,7 @@ class JsonCoverageParser(BaseCoverageParser):
             if entry:
                 results.append(entry)
 
-        return self._format_results(results, config)
+        return self.formatter.format_results(results, config)
 
     def _parse_file(
         self,
@@ -478,7 +478,7 @@ class JsonCoverageParser(BaseCoverageParser):
             self._add_branch_coverage(entry, summary)
 
         if config.per_function:
-            entry["functions"] = self._parse_functions(file_data)
+            entry["functions"] = self._parse_functions_from_json(file_data)
 
         return entry
 
@@ -499,172 +499,6 @@ class JsonCoverageParser(BaseCoverageParser):
         entry["branch_rate"] = str(b_rate)
         entry["total_branches"] = total_b
         entry["missed_branches"] = missed_b
-
-    def _parse_functions(
-        self,
-        file_data: dict[str, Any],
-    ) -> list[dict[str, str]]:
-        """Parse function data from JSON file coverage.
-
-        Args:
-            file_data: File coverage data dictionary.
-
-        Returns:
-            List of function dictionaries with name and line_rate.
-        """
-        functions: list[dict[str, str]] = []
-        for func_name, func_data in file_data.get("functions", {}).items():
-            f_summary = func_data.get("summary", {})
-            f_total = f_summary.get("num_statements", 0)
-            f_missing = f_summary.get("missing_lines", 0)
-            f_rate = (f_total - f_missing) / f_total if f_total > 0 else 1.0
-            functions.append({"name": func_name, "line_rate": str(f_rate)})
-        return functions
-
-    def _format_results(
-        self,
-        results: list[dict[str, Any]],
-        config: CoverageConfig,
-    ) -> ToolResult:
-        """Format coverage results into readable output.
-
-        Args:
-            results: List of per-file coverage data.
-            config: Coverage parsing configuration.
-
-        Returns:
-            ToolResult with formatted output.
-        """
-        if not results:
-            return ToolResult(
-                content="No coverage data found"
-                + (f" matching '{config.file_filter}'" if config.has_filter() else ""),
-                success=True,
-            )
-
-        parts: list[str] = [f"Coverage report ({len(results)} files):"]
-        for entry in sorted(results, key=lambda e: str(e["file"])):
-            self._format_file_entry(entry, parts, config)
-
-        return ToolResult(
-            content="\n".join(parts),
-            success=True,
-        )
-
-    def _format_file_entry(
-        self,
-        entry: dict[str, Any],
-        parts: list[str],
-        config: CoverageConfig,
-    ) -> None:
-        """Format a single file entry for output.
-
-        Args:
-            entry: File coverage data dictionary.
-            parts: List to append formatted lines to.
-            config: Coverage parsing configuration.
-        """
-        filename = cast(str, entry["file"])
-        line_rate_str = cast(str, entry["line_rate"])
-        rate = float(line_rate_str) * 100
-        uncovered = cast(list[int], entry["uncovered_lines"])
-        total = cast(int, entry["total_lines"])
-
-        line_info = self._format_coverage_line(rate, total, uncovered)
-
-        if config.show_branches and "branch_rate" in entry:
-            line_info += self._format_branch_info(entry)
-
-        parts.append(f"  {filename}: {line_info}")
-
-        if config.per_function and "functions" in entry:
-            self._format_function_info(entry, parts)
-
-    def _format_coverage_line(
-        self,
-        rate: float,
-        total: int,
-        uncovered: list[int],
-    ) -> str:
-        """Format the main coverage line.
-
-        Args:
-            rate: Coverage percentage (0-100).
-            total: Total number of lines.
-            uncovered: List of uncovered line numbers.
-
-        Returns:
-            Formatted coverage line string.
-        """
-        if uncovered:
-            line_ranges = self._compress_ranges(uncovered)
-            return f"{rate:.0f}% ({total} lines, {len(uncovered)} uncovered: {line_ranges})"
-        else:
-            return f"{rate:.0f}% ({total} lines, fully covered)"
-
-    def _format_branch_info(
-        self,
-        entry: dict[str, Any],
-    ) -> str:
-        """Format branch coverage information.
-
-        Args:
-            entry: File coverage data dictionary.
-
-        Returns:
-            Formatted branch info string.
-        """
-        b_rate = float(cast(str, entry["branch_rate"])) * 100
-        total_b = cast(int, entry["total_branches"])
-        missed_b = cast(int, entry["missed_branches"])
-
-        if total_b > 0:
-            return f" [branches: {b_rate:.0f}%, {missed_b}/{total_b} missed]"
-        return ""
-
-    def _format_function_info(
-        self,
-        entry: dict[str, Any],
-        parts: list[str],
-    ) -> None:
-        """Format per-function coverage information.
-
-        Args:
-            entry: File coverage data dictionary.
-            parts: List to append formatted lines to.
-        """
-        functions = cast(list[dict[str, Any]], entry["functions"])
-        for func in sorted(functions, key=lambda f: str(f["name"])):
-            f_rate = float(cast(str, func["line_rate"])) * 100
-            parts.append(f"    {func['name']}: {f_rate:.0f}%")
-
-    def _compress_ranges(self, lines: list[int]) -> str:
-        """Compress line numbers into ranges.
-
-        Args:
-            lines: Sorted list of line numbers.
-
-        Returns:
-            String like "1-3, 5, 7-10".
-        """
-        if not lines:
-            return ""
-
-        sorted_lines = sorted(lines)
-        ranges: list[str] = []
-        start = sorted_lines[0]
-        end = start
-
-        for line in sorted_lines[1:]:
-            if line == end + 1:
-                end = line
-            else:
-                ranges.append(f"{start}-{end}" if start != end else str(start))
-                start = line
-                end = line
-
-        ranges.append(f"{start}-{end}" if start != end else str(start))
-        return ", ".join(ranges)
 
 
 class CoverageMapTool(Tool):
@@ -692,16 +526,11 @@ class CoverageMapTool(Tool):
     @property
     def parameters(self) -> dict[str, object]:
         """JSON Schema for parameters."""
-        return {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to coverage.xml or coverage.json file",
-                },
+        return create_path_parameter_schema(
+            additional_params={
                 "file_filter": {
                     "type": "string",
-                    "description": ("Optional substring filter to show only matching files"),
+                    "description": "Optional substring filter to show only matching files",
                 },
                 "show_branches": {
                     "type": "boolean",
@@ -714,8 +543,7 @@ class CoverageMapTool(Tool):
                     "default": False,
                 },
             },
-            "required": ["path"],
-        }
+        )
 
     @property
     def kind(self) -> ToolKind:
@@ -767,6 +595,7 @@ class CoverageMapTool(Tool):
         config = request.to_config()
 
         # Detect format and use appropriate parser
+        parser: BaseCoverageParser
         if target.suffix == ".json" or target.name.endswith(".json"):
             parser = JsonCoverageParser()
         else:
