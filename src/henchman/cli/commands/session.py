@@ -63,7 +63,6 @@ class DisplayInfo:
 
         Returns:
             Formatted info string or empty string.
-
         """
         if self.condition and self.value:
             truncated_value = self.value[: self.max_id_len] if self.max_id_len > 0 else self.value
@@ -111,7 +110,6 @@ ERROR_MESSAGE_STYLE: MessageStyle = MessageStyle(prefix="Error:", style="red")
 USAGE_MESSAGE_STYLE: MessageStyle = MessageStyle(prefix="Usage:", style="yellow")
 
 
-@dataclass
 @dataclass
 class CommandOperationContext:
     """Context for command operations to reduce feature envy."""
@@ -194,7 +192,6 @@ class CommandOperationContext:
         return len(self.args) >= min_args
 
 
-@dataclass
 @dataclass
 class SessionDisplayContext:
     """Context for session display operations."""

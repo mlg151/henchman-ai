@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T00:00:16.368573+00:00_
+_Generated: 2026-03-02T00:30:15.475494+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-02T00:00:16.368573+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 52.0/100 |
 | **Files Scanned** | 187 |
-| **Total Lines (non-blank)** | 32,518 |
-| **Total Smells** | 2268 |
+| **Total Lines (non-blank)** | 32,519 |
+| **Total Smells** | 2265 |
 | **Avg Maintainability Index** | 71.4 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-02T00:00:16.368573+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1637 |
+| low | 1634 |
 | medium | 547 |
 | high | 84 |
 
@@ -28,8 +28,8 @@ _Generated: 2026-03-02T00:00:16.368573+00:00_
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1119 |
-| Feature Envy | 305 |
+| Missing Type Hint | 1115 |
+| Feature Envy | 306 |
 | Duplicate Code | 304 |
 | Magic Number | 140 |
 | Long Method | 128 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/session.py | ❌ F | 9.4 | 55 | 715 | 31 | 0.0 |
+| 1 | cli/commands/session.py | ❌ F | 9.4 | 52 | 716 | 31 | 0.0 |
 | 2 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
 | 3 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
 | 4 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
@@ -124,27 +124,27 @@ _Showing 20 worst files. 167 additional files omitted._
 
 ### cli/commands/session.py — ❌ F (9.4/100)
 
-LOC: 715 | Classes: 19 | Functions: 0 | MI: 31 | Avg CC: 0.0
+LOC: 716 | Classes: 19 | Functions: 0 | MI: 31 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 61 | 🟢 LOW | Missing Type Hint | Function 'format_optional_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 83 | 🟢 LOW | Missing Type Hint | Function 'format_attribute_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 123 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 127 | 🟢 LOW | Missing Type Hint | Function 'print_error' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 131 | 🟢 LOW | Missing Type Hint | Function 'print_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 135 | 🟢 LOW | Missing Type Hint | Function 'print_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 139 | 🟢 LOW | Missing Type Hint | Function '_print_formatted_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 148 | 🟢 LOW | Missing Type Hint | Function '_print_prefixed_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 157 | 🟢 LOW | Missing Type Hint | Function 'get_arg' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 171 | 🟢 LOW | Missing Type Hint | Function 'get_arg_or_empty' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 184 | 🟢 LOW | Missing Type Hint | Function 'has_min_args' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 218 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 222 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 226 | 🟢 LOW | Missing Type Hint | Function '_ensure_args' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 245 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 124 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 128 | 🟢 LOW | Missing Type Hint | Function 'print_error' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 132 | 🟢 LOW | Missing Type Hint | Function 'print_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 136 | 🟢 LOW | Missing Type Hint | Function 'print_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 140 | 🟢 LOW | Missing Type Hint | Function '_print_formatted_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 149 | 🟢 LOW | Missing Type Hint | Function '_print_prefixed_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 158 | 🟢 LOW | Missing Type Hint | Function 'get_arg' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 172 | 🟢 LOW | Missing Type Hint | Function 'get_arg_or_empty' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 185 | 🟢 LOW | Missing Type Hint | Function 'has_min_args' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 220 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 224 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 228 | 🟢 LOW | Missing Type Hint | Function '_ensure_args' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 247 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 40 more smells._
+_... and 37 more smells._
 
 ### tools/builtins/import_graph.py — ❌ F (12.9/100)
 
