@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 @dataclass
 class RangeParameterConfig:
     """Configuration for range-validated parameters.
-    
+
     Attributes:
         param_name: Name of the parameter.
         min_val: Minimum allowed value.
@@ -24,26 +24,27 @@ class RangeParameterConfig:
         is_int: Whether the value should be an integer.
         label: Display label for the parameter.
     """
+
     param_name: str
     min_val: float
     max_val: float | None = None
     is_int: bool = False
     label: str | None = None
-    
+
     def get_display_label(self) -> str:
         """Get display label for the parameter.
-        
+
         Returns:
             Display label.
         """
-        return self.label or self.param_name.replace('_', ' ').capitalize()
-    
+        return self.label or self.param_name.replace("_", " ").capitalize()
+
     def validate_value(self, value: float | int) -> None:
         """Validate value against range constraints.
-        
+
         Args:
             value: Value to validate.
-            
+
         Raises:
             ValueError: If value is outside valid range.
         """
@@ -56,13 +57,13 @@ class RangeParameterConfig:
         else:
             if value < self.min_val:
                 raise ValueError(f"{display_label} must be at least {self.min_val}")
-    
+
     def parse_value(self, value_str: str) -> float | int:
         """Parse string value to appropriate type.
-        
+
         Args:
             value_str: String value to parse.
-            
+
         Returns:
             Parsed value as float or int.
         """
@@ -151,12 +152,30 @@ class ContextCommand(Command):
 
     def _print_status_info(self, console: Any, context_settings: Any) -> None:
         """Print intelligent context status information.
-        
+
         Args:
             console: Console for output.
             context_settings: Context settings to display.
         """
+        self._print_status_header(console)
+        self._print_status_values(console, context_settings)
+        self._print_status_commands(console)
+
+    def _print_status_header(self, console: Any) -> None:
+        """Print status header.
+
+        Args:
+            console: Console for output.
+        """
         console.print("\n[bold blue]Intelligent Context Management[/]\n")
+
+    def _print_status_values(self, console: Any, context_settings: Any) -> None:
+        """Print status values.
+
+        Args:
+            console: Console for output.
+            context_settings: Context settings to display.
+        """
         console.print(
             f"  Status: [{'green' if context_settings.intelligent_context else 'red'}]"
             f"{'Enabled' if context_settings.intelligent_context else 'Disabled'}[/]"
@@ -169,12 +188,17 @@ class ContextCommand(Command):
         console.print(
             f"  Compaction threshold: [cyan]{context_settings.compaction_threshold * 100:.0f}%[/]"
         )
-        console.print(
-            f"  Importance threshold: [cyan]{context_settings.importance_threshold}[/]"
-        )
+        console.print(f"  Importance threshold: [cyan]{context_settings.importance_threshold}[/]")
         console.print(
             f"  Cluster similarity: [cyan]{context_settings.cluster_similarity_threshold}[/]"
         )
+
+    def _print_status_commands(self, console: Any) -> None:
+        """Print available commands.
+
+        Args:
+            console: Console for output.
+        """
         console.print("")
         console.print("  Use [cyan]/context enable[/] to enable intelligent context")
         console.print("  Use [cyan]/context disable[/] to disable intelligent context")
@@ -240,7 +264,7 @@ class ContextCommand(Command):
                     "  adaptive <on|off>         - Enable/disable adaptive compression"
                 )
                 return
-            
+
             param = args[self._STRATEGY_PARAM_IDX]
             value = args[self._STRATEGY_VALUE_IDX]
             await self._set_strategy_parameter(ctx, param, value)
@@ -259,12 +283,8 @@ class ContextCommand(Command):
 
         console.print("\n[bold blue]Compression Strategy Settings[/]\n")
         console.print(f"  Max tokens: [cyan]{context_settings.max_tokens}[/]")
-        console.print(
-            f"  Compaction threshold: [cyan]{context_settings.compaction_threshold}[/]"
-        )
-        console.print(
-            f"  Importance threshold: [cyan]{context_settings.importance_threshold}[/]"
-        )
+        console.print(f"  Compaction threshold: [cyan]{context_settings.compaction_threshold}[/]")
+        console.print(f"  Importance threshold: [cyan]{context_settings.importance_threshold}[/]")
         console.print(
             f"  Cluster similarity: [cyan]{context_settings.cluster_similarity_threshold}[/]"
         )
@@ -273,9 +293,7 @@ class ContextCommand(Command):
             f"{'Enabled' if context_settings.adaptive_compression else 'Disabled'}[/]"
         )
         console.print("")
-        console.print(
-            "  Use [cyan]/context strategy set <parameter> <value>[/] to change settings"
-        )
+        console.print("  Use [cyan]/context strategy set <parameter> <value>[/] to change settings")
         console.print("")
 
     async def _set_strategy_parameter(
@@ -330,13 +348,12 @@ class ContextCommand(Command):
         settings = load_settings()
         setattr(settings.context, param_name, value)
         save_settings(settings)
-        ctx.console.print(f"[green]✓ {param_name.replace('_', ' ').capitalize()} set to {display_value}[/]")
+        ctx.console.print(
+            f"[green]✓ {param_name.replace('_', ' ').capitalize()} set to {display_value}[/]"
+        )
 
     async def _handle_range_parameter(
-        self,
-        ctx: CommandContext,
-        value: str,
-        config: RangeParameterConfig
+        self, ctx: CommandContext, value: str, config: RangeParameterConfig
     ) -> None:
         """Generic handler for range-validated parameters (DRY)."""
         val = config.parse_value(value)
@@ -345,20 +362,13 @@ class ContextCommand(Command):
 
     async def _handle_max_tokens_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle max_tokens parameter setting."""
-        config = RangeParameterConfig(
-            param_name="max_tokens",
-            min_val=1000,
-            is_int=True
-        )
+        config = RangeParameterConfig(param_name="max_tokens", min_val=1000, is_int=True)
         await self._handle_range_parameter(ctx, value, config)
 
     async def _handle_threshold_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle threshold parameter setting."""
         config = RangeParameterConfig(
-            param_name="compaction_threshold",
-            min_val=0.1,
-            max_val=1.0,
-            label="Threshold"
+            param_name="compaction_threshold", min_val=0.1, max_val=1.0, label="Threshold"
         )
         await self._handle_range_parameter(ctx, value, config)
 
@@ -374,17 +384,13 @@ class ContextCommand(Command):
         self, ctx: CommandContext, value: str, param_name: str
     ) -> None:
         """Handle parameter with range 0.0 to 1.0.
-        
+
         Args:
             ctx: Command context.
             value: Parameter value as string.
             param_name: Name of the parameter.
         """
-        config = RangeParameterConfig(
-            param_name=param_name,
-            min_val=0.0,
-            max_val=1.0
-        )
+        config = RangeParameterConfig(param_name=param_name, min_val=0.0, max_val=1.0)
         await self._handle_range_parameter(ctx, value, config)
 
     async def _handle_adaptive_parameter(self, ctx: CommandContext, value: str) -> None:
@@ -411,7 +417,7 @@ class ContextCommand(Command):
 
     def _print_stats_info(self, console: Any, agent: Any) -> None:
         """Print context usage statistics.
-        
+
         Args:
             console: Console for output.
             agent: Agent to get statistics from.
@@ -425,30 +431,63 @@ class ContextCommand(Command):
             ):
                 compactor = agent.compactor
                 stats = compactor.get_statistics() if hasattr(compactor, "get_statistics") else {}
-
-                console.print("\n[bold blue]Context Usage Statistics[/]\n")
-
-                if stats:
-                    console.print(f"  Total messages: [cyan]{stats.get('total_messages', 'N/A')}[/]")
-                    console.print(f"  Clusters created: [cyan]{stats.get('clusters_created', 'N/A')}[/]")
-                    console.print(f"  Compression ratio: [cyan]{stats.get('compression_ratio', 'N/A')}[/]")
-                    console.print(f"  Tokens saved: [cyan]{stats.get('tokens_saved', 'N/A')}[/]")
-                else:
-                    console.print("  [dim]No statistics available.[/]")
-
-                # Show current context size if available
-                if hasattr(agent, "session") and agent.session:
-                    messages = (
-                        agent.session.messages if hasattr(agent.session, "messages") else []
-                    )
-                    console.print(f"  Current messages in session: [cyan]{len(messages)}[/]")
-
-                console.print("")
+                self._print_stats_with_compactor(console, agent, stats)
             else:
-                console.print("[yellow]Intelligent context manager not active.[/]")
-                console.print("[dim]Enable intelligent context with /context enable[/]")
+                self._print_no_compactor_message(console)
 
         except ImportError:
             console.print("[yellow]Intelligent context module not available.[/]")
         except Exception as e:
             console.print(f"[yellow]Could not retrieve statistics: {e}[/]")
+
+    def _print_stats_with_compactor(self, console: Any, agent: Any, stats: dict) -> None:
+        """Print statistics when compactor is available.
+
+        Args:
+            console: Console for output.
+            agent: Agent to get statistics from.
+            stats: Statistics dictionary.
+        """
+        console.print("\n[bold blue]Context Usage Statistics[/]\n")
+
+        if stats:
+            self._print_statistics_values(console, stats)
+        else:
+            console.print("  [dim]No statistics available.[/]")
+
+        # Show current context size if available
+        self._print_current_context_size(console, agent)
+
+        console.print("")
+
+    def _print_statistics_values(self, console: Any, stats: dict) -> None:
+        """Print statistics values.
+
+        Args:
+            console: Console for output.
+            stats: Statistics dictionary.
+        """
+        console.print(f"  Total messages: [cyan]{stats.get('total_messages', 'N/A')}[/]")
+        console.print(f"  Clusters created: [cyan]{stats.get('clusters_created', 'N/A')}[/]")
+        console.print(f"  Compression ratio: [cyan]{stats.get('compression_ratio', 'N/A')}[/]")
+        console.print(f"  Tokens saved: [cyan]{stats.get('tokens_saved', 'N/A')}[/]")
+
+    def _print_current_context_size(self, console: Any, agent: Any) -> None:
+        """Print current context size.
+
+        Args:
+            console: Console for output.
+            agent: Agent to get session from.
+        """
+        if hasattr(agent, "session") and agent.session:
+            messages = agent.session.messages if hasattr(agent.session, "messages") else []
+            console.print(f"  Current messages in session: [cyan]{len(messages)}[/]")
+
+    def _print_no_compactor_message(self, console: Any) -> None:
+        """Print message when no compactor is active.
+
+        Args:
+            console: Console for output.
+        """
+        console.print("[yellow]Intelligent context manager not active.[/]")
+        console.print("[dim]Enable intelligent context with /context enable[/]")

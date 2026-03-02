@@ -91,9 +91,7 @@ class AgentCommand(Command):
         """
         ctx.console.print(f"[red]{message}[/]")
 
-    async def _talk_to_agent_directly(
-        self, ctx: CommandContext, role: str, message: str
-    ) -> None:
+    async def _talk_to_agent_directly(self, ctx: CommandContext, role: str, message: str) -> None:
         """Talk to agent directly.
 
         Args:

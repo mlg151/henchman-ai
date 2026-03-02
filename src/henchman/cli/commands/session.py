@@ -140,7 +140,9 @@ class CommandOperationContext:
         self._print_prefixed_message(usage, USAGE_MESSAGE_STYLE)
 
     def _print_formatted_message(
-        self: CommandOperationContext, message: str, style: str,
+        self: CommandOperationContext,
+        message: str,
+        style: str,
     ) -> None:
         """Print a message with the given style.
 
@@ -151,7 +153,9 @@ class CommandOperationContext:
         self.console.print(f"[{style}]{message}[/]")
 
     def _print_prefixed_message(
-        self: CommandOperationContext, message: str, msg_style: MessageStyle,
+        self: CommandOperationContext,
+        message: str,
+        msg_style: MessageStyle,
     ) -> None:
         """Print a message with a prefix and style.
 
@@ -162,7 +166,9 @@ class CommandOperationContext:
         self._print_formatted_message(f"{msg_style.prefix} {message}", msg_style.style)
 
     def get_arg(
-        self: CommandOperationContext, index: int, default: str | None = None,
+        self: CommandOperationContext,
+        index: int,
+        default: str | None = None,
     ) -> str | None:
         """Get argument at index or default if out of bounds.
 
@@ -332,7 +338,8 @@ class MergeExecutor(SessionCommandExecutor):
     async def execute(self: MergeExecutor, manager: SessionManager) -> None:
         """Execute merge operation."""
         if not self._ensure_args(
-            DEFAULT_MIN_ARGS_FOR_MERGE, "/session merge <id1> <id2> [strategy] [tag]",
+            DEFAULT_MIN_ARGS_FOR_MERGE,
+            "/session merge <id1> <id2> [strategy] [tag]",
         ):
             return
 
@@ -356,7 +363,8 @@ class TemplateSaveExecutor(SessionCommandExecutor):
     async def execute(self: TemplateSaveExecutor, manager: SessionManager) -> None:
         """Execute template save operation."""
         if not self._ensure_args(
-            DEFAULT_MIN_ARGS_FOR_TEMPLATE_SAVE, "/session template save <id> <name>",
+            DEFAULT_MIN_ARGS_FOR_TEMPLATE_SAVE,
+            "/session template save <id> <name>",
         ):
             return
 
@@ -384,7 +392,8 @@ class TemplateCreateExecutor(SessionCommandExecutor):
     async def execute(self: TemplateCreateExecutor, manager: SessionManager) -> None:
         """Execute template create operation."""
         if not self._ensure_args(
-            DEFAULT_MIN_ARGS_FOR_TEMPLATE_CREATE, "/session template create <template_id> [tag]",
+            DEFAULT_MIN_ARGS_FOR_TEMPLATE_CREATE,
+            "/session template create <template_id> [tag]",
         ):
             return
 
@@ -436,7 +445,8 @@ class TemplateDeleteExecutor(SessionCommandExecutor):
     async def execute(self: TemplateDeleteExecutor, manager: SessionManager) -> None:
         """Execute template delete operation."""
         if not self._ensure_args(
-            DEFAULT_MIN_ARGS_FOR_TEMPLATE_DELETE, "/session template delete <template_id>",
+            DEFAULT_MIN_ARGS_FOR_TEMPLATE_DELETE,
+            "/session template delete <template_id>",
         ):
             return
 
@@ -883,7 +893,8 @@ class SessionCommand(BaseCommand):
             await self._show_help(ctx)
 
     def _create_operation_context(
-        self: SessionCommand, ctx: CommandContext,
+        self: SessionCommand,
+        ctx: CommandContext,
     ) -> CommandOperationContext:
         """Create operation context from command context.
 
@@ -933,7 +944,8 @@ class SessionCommand(BaseCommand):
         return _validate_args(op_context, min_args, usage)
 
     def _get_manager(
-        self: SessionCommand, op_context: CommandOperationContext,
+        self: SessionCommand,
+        op_context: CommandOperationContext,
     ) -> SessionManager | None:
         """Get session manager with error handling.
 
@@ -946,7 +958,8 @@ class SessionCommand(BaseCommand):
         return _get_manager(op_context)
 
     def _get_template_action(
-        self: SessionCommand, op_context: CommandOperationContext,
+        self: SessionCommand,
+        op_context: CommandOperationContext,
     ) -> str:
         """Get the template subcommand action from args.
 

@@ -75,7 +75,9 @@ class ModelCommand(Command):
 
         self._print_current_configuration(ctx.console, provider, available)
 
-    def _print_current_configuration(self, console: Any, provider: Any, available: list[str]) -> None:
+    def _print_current_configuration(
+        self, console: Any, provider: Any, available: list[str]
+    ) -> None:
         """Print current provider and model configuration.
 
         Args:
@@ -229,9 +231,7 @@ class ModelCommand(Command):
                 if model_name:
                     ctx.console.print(f"[green]✓ Using model: {model_name}[/]")
                 else:
-                    ctx.console.print(
-                        f"[green]✓ Using default model: {provider.default_model}[/]"
-                    )
+                    ctx.console.print(f"[green]✓ Using default model: {provider.default_model}[/]")
             else:
                 ctx.console.print(f"[green]✓ Connected to {provider_name}[/]")
         except Exception as e:
@@ -323,10 +323,16 @@ class ModelCommand(Command):
         if env_var == "HENCHMAN_API_KEY":
             # Known providers that use HENCHMAN_API_KEY
             known_henchman_providers = {
-                "openai_compat", "together", "groq", "fireworks", "openrouter"
+                "openai_compat",
+                "together",
+                "groq",
+                "fireworks",
+                "openrouter",
             }
             if provider_name not in known_henchman_providers and provider_name not in {
-                "deepseek", "openai", "anthropic"  # These have their own env vars
+                "deepseek",
+                "openai",
+                "anthropic",  # These have their own env vars
             }:
                 return "Check provider documentation"
 
@@ -342,6 +348,7 @@ class ModelCommand(Command):
             Environment variable name.
         """
         from henchman.providers.utils import get_env_var_for_provider
+
         return get_env_var_for_provider(provider_name)
 
     def _get_api_key_for_provider(self, provider_name: str) -> str | None:

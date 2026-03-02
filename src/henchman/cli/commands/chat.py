@@ -72,8 +72,6 @@ class ChatCommand(BaseCommand):
         else:
             await self._show_help(ctx)
 
-
-
     async def _save(self, ctx: CommandContext) -> None:
         """Save the current session."""
         manager: SessionManager | None = getattr(ctx, "session_manager", None)
@@ -128,7 +126,7 @@ class ChatCommand(BaseCommand):
 
         tag_or_id = ctx.args[1]
         session = self._load_session(ctx, manager, tag_or_id)
-        
+
         if session is None:
             ctx.console.print(f"[red]Session not found: {tag_or_id}[/]")
             return
@@ -137,10 +135,10 @@ class ChatCommand(BaseCommand):
 
     def _get_session_manager(self, ctx: CommandContext) -> SessionManager | None:
         """Get session manager from context.
-        
+
         Args:
             ctx: Command context.
-            
+
         Returns:
             SessionManager instance or None if not available.
         """
@@ -151,10 +149,10 @@ class ChatCommand(BaseCommand):
 
     def _validate_resume_args(self, ctx: CommandContext) -> bool:
         """Validate resume command arguments.
-        
+
         Args:
             ctx: Command context.
-            
+
         Returns:
             True if arguments are valid, False otherwise.
         """
@@ -167,17 +165,17 @@ class ChatCommand(BaseCommand):
         self, ctx: CommandContext, manager: SessionManager, tag_or_id: str
     ) -> Session | None:
         """Load session by tag or ID.
-        
+
         Args:
             ctx: Command context.
             manager: Session manager.
             tag_or_id: Session tag or ID.
-            
+
         Returns:
             Session instance or None if not found.
         """
         project_hash = getattr(ctx, "project_hash", None)
-        
+
         # Try loading by tag first
         session = manager.load_by_tag(tag_or_id, project_hash)
 
@@ -185,14 +183,14 @@ class ChatCommand(BaseCommand):
         if session is None:
             with contextlib.suppress(ValueError, FileNotFoundError):
                 session = manager.load(tag_or_id)
-        
+
         return session
 
     def _restore_session(
         self, ctx: CommandContext, manager: SessionManager, session: Session, tag_or_id: str
     ) -> None:
         """Restore session to context.
-        
+
         Args:
             ctx: Command context.
             manager: Session manager.
@@ -213,14 +211,14 @@ class ChatCommand(BaseCommand):
 
     def _restore_agent_history(self, ctx: CommandContext, session: Session) -> None:
         """Restore session messages to agent history.
-        
+
         Args:
             ctx: Command context.
             session: Session containing messages.
         """
         if ctx.agent is None:
             return
-            
+
         # Clear agent history (keeping system prompt)
         ctx.agent.clear_history()
 
