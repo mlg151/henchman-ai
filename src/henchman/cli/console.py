@@ -31,9 +31,27 @@ class DiffParams(NamedTuple):
         new: New content string.
         filename: Filename for context.
     """
+
     old: str
     new: str
     filename: str = ""
+
+
+@dataclass
+class StatusMessageParams:
+    """Parameters for status message rendering.
+
+    Attributes:
+        message: Message text.
+        style: Theme style name (success, primary, warning, error).
+        icon: Unicode icon for normal mode.
+        accessible_icon: Text icon for accessible mode.
+    """
+
+    message: str
+    style: str
+    icon: str
+    accessible_icon: str
 
 
 @dataclass
@@ -57,6 +75,28 @@ class Theme:
     warning: str = "yellow"
     error: str = "red"
     muted: str = "dim"
+
+    def with_overrides(self, overrides: dict[str, str] | None = None) -> Theme:
+        """Create a new theme with style overrides applied.
+
+        Args:
+            overrides: Optional style overrides.
+
+        Returns:
+            New Theme instance with overrides applied.
+        """
+        if not overrides:
+            return self
+
+        return Theme(
+            name=self.name,
+            primary=overrides.get("primary", self.primary),
+            secondary=overrides.get("secondary", self.secondary),
+            success=overrides.get("success", self.success),
+            warning=overrides.get("warning", self.warning),
+            error=overrides.get("error", self.error),
+            muted=overrides.get("muted", self.muted),
+        )
 
 
 # Pre-defined themes
@@ -148,20 +188,7 @@ def get_theme(name: str = "dark", overrides: dict[str, str] | None = None) -> Th
         Theme object.
     """
     base_theme = THEMES.get(name, DARK_THEME)
-
-    if not overrides:
-        return base_theme
-
-    # Apply overrides
-    return Theme(
-        name=base_theme.name,
-        primary=overrides.get("primary", base_theme.primary),
-        secondary=overrides.get("secondary", base_theme.secondary),
-        success=overrides.get("success", base_theme.success),
-        warning=overrides.get("warning", base_theme.warning),
-        error=overrides.get("error", base_theme.error),
-        muted=overrides.get("muted", base_theme.muted),
-    )
+    return base_theme.with_overrides(overrides)
 
 
 class ThemeManager:
@@ -192,20 +219,7 @@ class ThemeManager:
             The requested theme with overrides applied, or default if not found.
         """
         base_theme = self._themes.get(name, DARK_THEME)
-
-        if not overrides:
-            return base_theme
-
-        # Apply overrides
-        return Theme(
-            name=base_theme.name,
-            primary=overrides.get("primary", base_theme.primary),
-            secondary=overrides.get("secondary", base_theme.secondary),
-            success=overrides.get("success", base_theme.success),
-            warning=overrides.get("warning", base_theme.warning),
-            error=overrides.get("error", base_theme.error),
-            muted=overrides.get("muted", base_theme.muted),
-        )
+        return base_theme.with_overrides(overrides)
 
     def set_theme(self, name: str) -> None:
         """Set the current theme by name.
@@ -279,15 +293,7 @@ class OutputRenderer:
             pass
         elif style_overrides:
             # If theme provided, apply overrides to it
-            self.theme = Theme(
-                name=self.theme.name,
-                primary=style_overrides.get("primary", self.theme.primary),
-                secondary=style_overrides.get("secondary", self.theme.secondary),
-                success=style_overrides.get("success", self.theme.success),
-                warning=style_overrides.get("warning", self.theme.warning),
-                error=style_overrides.get("error", self.theme.error),
-                muted=style_overrides.get("muted", self.theme.muted),
-            )
+            self.theme = self.theme.with_overrides(style_overrides)
 
     def print(self, text: str, style: str | None = None) -> None:
         """Print text with optional styling.
@@ -304,7 +310,9 @@ class OutputRenderer:
         Args:
             message: Success message text.
         """
-        self._print_status_message(message, "success", "✓", "[OK]")
+        self._print_status_message(
+            StatusMessageParams(message=message, style="success", icon="✓", accessible_icon="[OK]")
+        )
 
     def info(self, message: str) -> None:
         """Print an info message.
@@ -312,7 +320,11 @@ class OutputRenderer:
         Args:
             message: Info message text.
         """
-        self._print_status_message(message, "primary", "ℹ", "[INFO]")
+        self._print_status_message(
+            StatusMessageParams(
+                message=message, style="primary", icon="ℹ", accessible_icon="[INFO]"
+            )
+        )
 
     def warning(self, message: str) -> None:
         """Print a warning message.
@@ -320,7 +332,11 @@ class OutputRenderer:
         Args:
             message: Warning message text.
         """
-        self._print_status_message(message, "warning", "⚠", "[WARN]")
+        self._print_status_message(
+            StatusMessageParams(
+                message=message, style="warning", icon="⚠", accessible_icon="[WARN]"
+            )
+        )
 
     def error(self, message: str) -> None:
         """Print an error message.
@@ -328,20 +344,19 @@ class OutputRenderer:
         Args:
             message: Error message text.
         """
-        self._print_status_message(message, "error", "✗", "[ERR]")
+        self._print_status_message(
+            StatusMessageParams(message=message, style="error", icon="✗", accessible_icon="[ERR]")
+        )
 
-    def _print_status_message(self, message: str, style: str, icon: str, accessible_icon: str) -> None:
+    def _print_status_message(self, params: StatusMessageParams) -> None:
         """Print a status message with consistent formatting.
 
         Args:
-            message: Message text.
-            style: Theme style name (success, primary, warning, error).
-            icon: Unicode icon for normal mode.
-            accessible_icon: Text icon for accessible mode.
+            params: Status message parameters.
         """
-        prefix = accessible_icon if self.accessible_mode else icon
-        color = getattr(self.theme, style)
-        self.console.print(f"[{color}]{prefix}[/] {escape(message)}")
+        prefix = params.accessible_icon if self.accessible_mode else params.icon
+        color = getattr(self.theme, params.style)
+        self.console.print(f"[{color}]{prefix}[/] {escape(params.message)}")
 
     def muted(self, text: str) -> None:
         """Print muted/dim text.
@@ -614,13 +629,13 @@ class AsyncOutputRenderer:
 
     def __getattr__(self, name: str) -> Callable[..., object]:
         """Dynamically create async wrappers for OutputRenderer methods.
-        
+
         Args:
             name: Method name to look up.
-            
+
         Returns:
             Async wrapper function for the method.
-            
+
         Raises:
             AttributeError: If the method doesn't exist on OutputRenderer.
         """
@@ -632,14 +647,16 @@ class AsyncOutputRenderer:
         sync_method = getattr(self.renderer, name)
 
         # Skip private methods
-        if name.startswith('_'):
+        if name.startswith("_"):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
         # Special handling for diff method
-        if name == 'diff':
+        if name == "diff":
+
             async def async_diff(old: str, new: str, filename: str = "") -> None:
                 params = DiffParams(old, new, filename)
                 await anyio.to_thread.run_sync(self.renderer._render_diff, params)
+
             self._async_methods[name] = async_diff
             return async_diff
 
@@ -648,6 +665,7 @@ class AsyncOutputRenderer:
             # Create a wrapper function that captures args and kwargs
             def sync_wrapper() -> object:
                 return sync_method(*args, **kwargs)
+
             return await anyio.to_thread.run_sync(sync_wrapper)
 
         # Cache the wrapper
