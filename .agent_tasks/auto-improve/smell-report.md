@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T14:30:20.237598+00:00_
+_Generated: 2026-03-02T15:30:21.303802+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-02T14:30:20.237598+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 52.8/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 33,687 |
-| **Total Smells** | 2202 |
+| **Total Lines (non-blank)** | 33,710 |
+| **Total Smells** | 2198 |
 | **Avg Maintainability Index** | 71.4 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,21 +20,21 @@ _Generated: 2026-03-02T14:30:20.237598+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1648 |
-| medium | 485 |
-| high | 69 |
+| low | 1647 |
+| medium | 483 |
+| high | 68 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1155 |
+| Missing Type Hint | 1156 |
 | Feature Envy | 304 |
-| Duplicate Code | 254 |
-| Magic Number | 131 |
+| Duplicate Code | 252 |
+| Magic Number | 132 |
 | Long Method | 114 |
 | Deep Nesting | 107 |
-| Primitive Obsession | 75 |
+| Primitive Obsession | 71 |
 | Complex Function | 33 |
 | Large Class | 29 |
 
@@ -58,48 +58,48 @@ These are the highest-impact smells to address first:
    Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-5. **cli/console.py:55** — 🟠 HIGH — Primitive Obsession  
-   Repeated primitive parameter group appears in: 'create_diff_params' (line 55), 'diff' (line 648), 'async_diff' (line 817)  
-   → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
-
-6. **cli/json_output.py:37** — 🟠 HIGH — Duplicate Code  
+5. **cli/json_output.py:37** — 🟠 HIGH — Duplicate Code  
    Function 'render' is an exact duplicate of 'render_stream_json' at cli/json_output.py:71  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-7. **cli/repl.py:78** — 🟠 HIGH — Long Method  
+6. **cli/repl.py:78** — 🟠 HIGH — Long Method  
    Function '__init__' has 105 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-8. **cli/textual_bridge.py:199** — 🟠 HIGH — Duplicate Code  
+7. **cli/textual_bridge.py:199** — 🟠 HIGH — Duplicate Code  
    Function '_on_content' is an exact duplicate of '_on_thought' at cli/textual_bridge.py:204  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-9. **cli/textual_bridge.py:209** — 🟠 HIGH — Duplicate Code  
+8. **cli/textual_bridge.py:209** — 🟠 HIGH — Duplicate Code  
    Function '_on_tool_req' is an exact duplicate of '_on_tool_res' at cli/textual_bridge.py:214  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-10. **cli/textual_bridge.py:209** — 🟠 HIGH — Duplicate Code  
+9. **cli/textual_bridge.py:209** — 🟠 HIGH — Duplicate Code  
    Function '_on_tool_req' is an exact duplicate of '_on_tool_confirm' at cli/textual_bridge.py:219  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-11. **cli/textual_bridge.py:214** — 🟠 HIGH — Duplicate Code  
+10. **cli/textual_bridge.py:214** — 🟠 HIGH — Duplicate Code  
    Function '_on_tool_res' is an exact duplicate of '_on_tool_confirm' at cli/textual_bridge.py:219  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-12. **cli/textual_bridge.py:246** — 🟠 HIGH — Duplicate Code  
+11. **cli/textual_bridge.py:246** — 🟠 HIGH — Duplicate Code  
    Function '_on_turn_summary' is an exact duplicate of '_on_think_start' at cli/textual_bridge.py:312  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-13. **cli/textual_bridge.py:246** — 🟠 HIGH — Duplicate Code  
+12. **cli/textual_bridge.py:246** — 🟠 HIGH — Duplicate Code  
    Function '_on_turn_summary' is an exact duplicate of '_on_think_done' at cli/textual_bridge.py:316  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-14. **cli/textual_bridge.py:246** — 🟠 HIGH — Duplicate Code  
+13. **cli/textual_bridge.py:246** — 🟠 HIGH — Duplicate Code  
    Function '_on_turn_summary' is an exact duplicate of '_on_think_req' at cli/textual_bridge.py:320  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-15. **cli/textual_bridge.py:312** — 🟠 HIGH — Duplicate Code  
+14. **cli/textual_bridge.py:312** — 🟠 HIGH — Duplicate Code  
    Function '_on_think_start' is an exact duplicate of '_on_think_done' at cli/textual_bridge.py:316  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+15. **cli/textual_bridge.py:312** — 🟠 HIGH — Duplicate Code  
+   Function '_on_think_start' is an exact duplicate of '_on_think_req' at cli/textual_bridge.py:320  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/console.py | ❌ F | 13.0 | 59 | 630 | 43 | 0.0 |
+| 1 | cli/console.py | ❌ F | 12.6 | 56 | 653 | 42 | 0.0 |
 | 2 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
 | 3 | cli/commands/context.py | ❌ F | 15.0 | 63 | 402 | 50 | 0.0 |
 | 4 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 168 additional files omitted._
 
-### cli/console.py — ❌ F (13.0/100)
+### cli/console.py — ❌ F (12.6/100)
 
-LOC: 630 | Classes: 9 | Functions: 5 | MI: 43 | Avg CC: 0.0
+LOC: 653 | Classes: 9 | Functions: 4 | MI: 42 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 55 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: 'create_diff_params' (line 55), 'diff' (line 648), 'async_diff' (line 817) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 55 | 🟡 MEDIUM | Duplicate Code | Function 'create_diff_params' is 93% similar to '_enforce_message_safety' at utils/compaction.py:540 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 427 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'info' at cli/console.py:435 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 427 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/console.py:443 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 427 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/console.py:451 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 435 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'warning' at cli/console.py:443 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 435 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'error' at cli/console.py:451 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 443 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 100% similar to 'error' at cli/console.py:451 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 55 | 🟢 LOW | Primitive Obsession | Function 'create_diff_params' has 3 primitive-typed parameters: old: Name(id='str', ctx=Load()), new: Name(id='str', ctx=Load()), filename: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 93 | 🟢 LOW | Missing Type Hint | Function 'style' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 98 | 🟢 LOW | Missing Type Hint | Function 'icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 103 | 🟢 LOW | Missing Type Hint | Function 'accessible_icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 139 | 🟢 LOW | Missing Type Hint | Function 'get_resolved_theme' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 175 | 🟢 LOW | Missing Type Hint | Function 'with_overrides' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 313 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 413 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'info' at cli/console.py:421 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 413 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/console.py:429 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 413 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/console.py:437 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 421 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'warning' at cli/console.py:429 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 421 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'error' at cli/console.py:437 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 429 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 100% similar to 'error' at cli/console.py:437 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 79 | 🟢 LOW | Missing Type Hint | Function 'style' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 84 | 🟢 LOW | Missing Type Hint | Function 'icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 89 | 🟢 LOW | Missing Type Hint | Function 'accessible_icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 125 | 🟢 LOW | Missing Type Hint | Function 'get_resolved_theme' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 161 | 🟢 LOW | Missing Type Hint | Function 'with_overrides' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 299 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 305 | 🟢 LOW | Missing Type Hint | Function 'current' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 309 | 🟢 LOW | Missing Type Hint | Function 'get_theme' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 321 | 🟢 LOW | Missing Type Hint | Function 'set_theme' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 44 more smells._
+_... and 41 more smells._
 
 ### metrics/storage.py — ❌ F (14.6/100)
 

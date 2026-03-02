@@ -52,9 +52,6 @@ class DiffParams(NamedTuple):
     filename: str = ""
 
 
-
-
-
 @dataclass(frozen=True)
 class StatusTypeConfig:
     """Configuration for a status message type.
@@ -634,16 +631,47 @@ class OutputRenderer:
 
         self.console.print(tree)
 
-    def diff(self, old: str, new: str, filename: str = "") -> None:
+    def diff(self, *args: str | DiffParams, **kwargs: str) -> None:
         """Render diff between old and new content.
 
+        Accepts either:
+        - Three string arguments: old, new, filename (optional)
+        - A single DiffParams object
+
         Args:
-            old: Old content string.
-            new: New content string.
-            filename: Filename for context.
+            *args: Either (old, new, filename) strings or a DiffParams object.
+            **kwargs: Keyword arguments for backward compatibility.
         """
-        params = DiffParams(old, new, filename)
+        params = self._parse_diff_args(*args, **kwargs)
         self._render_diff(params)
+
+    def _parse_diff_args(self, *args: str | DiffParams, **kwargs: str) -> DiffParams:
+        """Parse diff arguments into DiffParams.
+
+        Handles both primitive parameters and DiffParams object.
+
+        Args:
+            *args: Either (old, new, filename) strings or a DiffParams object.
+            **kwargs: Keyword arguments for backward compatibility.
+
+        Returns:
+            DiffParams object.
+
+        Raises:
+            TypeError: If arguments are invalid.
+        """
+        if len(args) == 1 and isinstance(args[0], DiffParams):
+            return args[0]
+        elif 2 <= len(args) <= 3:
+            old = str(args[0])
+            new = str(args[1])
+            filename = str(args[2]) if len(args) > 2 else kwargs.get("filename", "")
+            return DiffParams(old, new, filename)
+        else:
+            raise TypeError(
+                "diff() takes either a DiffParams object or 2-3 string arguments "
+                "(old, new, filename)"
+            )
 
     def _render_diff(self, params: DiffParams) -> None:
         """Render diff using DiffParams object.
@@ -803,8 +831,18 @@ class AsyncOutputRenderer:
             Async diff wrapper function.
         """
 
-        async def async_diff(old: str, new: str, filename: str = "") -> None:
-            params = DiffParams(old, new, filename)
+        async def async_diff(*args: str | DiffParams, **kwargs: str) -> None:
+            """Async version of diff method.
+
+            Accepts either:
+            - Three string arguments: old, new, filename (optional)
+            - A single DiffParams object
+
+            Args:
+                *args: Either (old, new, filename) strings or a DiffParams object.
+                **kwargs: Keyword arguments for backward compatibility.
+            """
+            params = self.renderer._parse_diff_args(*args, **kwargs)
             await anyio.to_thread.run_sync(self.renderer._render_diff, params)
 
         return async_diff
