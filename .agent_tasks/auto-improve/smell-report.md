@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T15:30:21.303802+00:00_
+_Generated: 2026-03-02T16:00:16.660057+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-02T15:30:21.303802+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 52.8/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 33,710 |
-| **Total Smells** | 2198 |
+| **Total Lines (non-blank)** | 33,715 |
+| **Total Smells** | 2197 |
 | **Avg Maintainability Index** | 71.4 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-02T15:30:21.303802+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1647 |
+| low | 1646 |
 | medium | 483 |
 | high | 68 |
 
@@ -28,7 +28,7 @@ _Generated: 2026-03-02T15:30:21.303802+00:00_
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1156 |
+| Missing Type Hint | 1155 |
 | Feature Envy | 304 |
 | Duplicate Code | 252 |
 | Magic Number | 132 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/console.py | ❌ F | 12.6 | 56 | 653 | 42 | 0.0 |
+| 1 | cli/console.py | ❌ F | 12.7 | 55 | 658 | 42 | 0.0 |
 | 2 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
 | 3 | cli/commands/context.py | ❌ F | 15.0 | 63 | 402 | 50 | 0.0 |
 | 4 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 168 additional files omitted._
 
-### cli/console.py — ❌ F (12.6/100)
+### cli/console.py — ❌ F (12.7/100)
 
-LOC: 653 | Classes: 9 | Functions: 4 | MI: 42 | Avg CC: 0.0
+LOC: 658 | Classes: 9 | Functions: 4 | MI: 42 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 413 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'info' at cli/console.py:421 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 413 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/console.py:429 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 413 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/console.py:437 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 421 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'warning' at cli/console.py:429 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 421 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'error' at cli/console.py:437 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 429 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 100% similar to 'error' at cli/console.py:437 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 79 | 🟢 LOW | Missing Type Hint | Function 'style' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 84 | 🟢 LOW | Missing Type Hint | Function 'icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 89 | 🟢 LOW | Missing Type Hint | Function 'accessible_icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 125 | 🟢 LOW | Missing Type Hint | Function 'get_resolved_theme' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 161 | 🟢 LOW | Missing Type Hint | Function 'with_overrides' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 299 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 305 | 🟢 LOW | Missing Type Hint | Function 'current' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 309 | 🟢 LOW | Missing Type Hint | Function 'get_theme' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 321 | 🟢 LOW | Missing Type Hint | Function 'set_theme' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 419 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'info' at cli/console.py:429 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 419 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/console.py:439 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 419 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/console.py:449 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 429 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'warning' at cli/console.py:439 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 429 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'error' at cli/console.py:449 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 439 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 100% similar to 'error' at cli/console.py:449 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 85 | 🟢 LOW | Missing Type Hint | Function 'style' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 90 | 🟢 LOW | Missing Type Hint | Function 'icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 95 | 🟢 LOW | Missing Type Hint | Function 'accessible_icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 131 | 🟢 LOW | Missing Type Hint | Function 'get_resolved_theme' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 167 | 🟢 LOW | Missing Type Hint | Function 'with_overrides' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 305 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 311 | 🟢 LOW | Missing Type Hint | Function 'current' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 315 | 🟢 LOW | Missing Type Hint | Function 'get_theme' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 327 | 🟢 LOW | Missing Type Hint | Function 'set_theme' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 41 more smells._
+_... and 40 more smells._
 
 ### metrics/storage.py — ❌ F (14.6/100)
 

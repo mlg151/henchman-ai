@@ -422,9 +422,7 @@ class OutputRenderer:
         Args:
             message: Success message text.
         """
-        self._print_status_message(
-            StatusMessageParams(message=message, status_type=StatusType.SUCCESS)
-        )
+        self._print_status(StatusType.SUCCESS, message)
 
     def info(self, message: str) -> None:
         """Print an info message.
@@ -432,9 +430,7 @@ class OutputRenderer:
         Args:
             message: Info message text.
         """
-        self._print_status_message(
-            StatusMessageParams(message=message, status_type=StatusType.INFO)
-        )
+        self._print_status(StatusType.INFO, message)
 
     def warning(self, message: str) -> None:
         """Print a warning message.
@@ -442,9 +438,7 @@ class OutputRenderer:
         Args:
             message: Warning message text.
         """
-        self._print_status_message(
-            StatusMessageParams(message=message, status_type=StatusType.WARNING)
-        )
+        self._print_status(StatusType.WARNING, message)
 
     def error(self, message: str) -> None:
         """Print an error message.
@@ -452,8 +446,17 @@ class OutputRenderer:
         Args:
             message: Error message text.
         """
+        self._print_status(StatusType.ERROR, message)
+
+    def _print_status(self, status_type: StatusType, message: str) -> None:
+        """Print a status message with the given type.
+
+        Args:
+            status_type: Type of status message.
+            message: Message text.
+        """
         self._print_status_message(
-            StatusMessageParams(message=message, status_type=StatusType.ERROR)
+            StatusMessageParams(message=message, status_type=status_type)
         )
 
     def _print_status_message(self, params: StatusMessageParams) -> None:
