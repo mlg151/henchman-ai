@@ -112,6 +112,7 @@ USAGE_MESSAGE_STYLE: MessageStyle = MessageStyle(prefix="Usage:", style="yellow"
 
 
 @dataclass
+@dataclass
 class CommandOperationContext:
     """Context for command operations to reduce feature envy."""
 
@@ -193,6 +194,7 @@ class CommandOperationContext:
         return len(self.args) >= min_args
 
 
+@dataclass
 @dataclass
 class SessionDisplayContext:
     """Context for session display operations."""
@@ -648,6 +650,88 @@ class SessionDisplayFormatter:
 
         return details
 
+    @staticmethod
+    def display_sessions_list(
+        op_context: CommandOperationContext,
+        manager: SessionManager,
+        sessions: list[SessionMetadata],
+    ) -> None:
+        """Display list of sessions with enhanced information.
+
+        Args:
+            op_context: Command operation context.
+            manager: Session manager.
+            sessions: List of session metadata.
+        """
+        params = SessionListParams(
+            max_id_display_len=DEFAULT_ID_DISPLAY_LENGTH,
+            max_date_display_len=DEFAULT_DATE_DISPLAY_LENGTH,
+        )
+
+        for meta in sessions:
+            SessionDisplayFormatter.display_session_entry(op_context, manager, meta, params)
+
+    @staticmethod
+    def display_session_entry(
+        op_context: CommandOperationContext,
+        manager: SessionManager,
+        meta: SessionMetadata,
+        params: SessionListParams,
+    ) -> None:
+        """Display a single session entry.
+
+        Args:
+            op_context: Command operation context.
+            manager: Session manager.
+            meta: Session metadata.
+            params: Display parameters.
+        """
+        try:
+            session = manager.load(meta.id)
+            SessionDisplayFormatter.display_enhanced_session_info(op_context, meta, session, params)
+        except (FileNotFoundError, ValueError, json.JSONDecodeError):
+            SessionDisplayFormatter.display_basic_session_info(op_context, meta, params)
+
+    @staticmethod
+    def display_enhanced_session_info(
+        op_context: CommandOperationContext,
+        meta: SessionMetadata,
+        session: Session,
+        params: SessionListParams,
+    ) -> None:
+        """Display enhanced session information.
+
+        Args:
+            op_context: Command operation context.
+            meta: Session metadata.
+            session: Full session object.
+            params: Display parameters.
+        """
+        display_context = SessionDisplayContext(meta=meta, session=session, params=params)
+        display_line = SessionDisplayFormatter.format_session_display(display_context)
+        op_context.console.print(display_line)
+
+        details = SessionDisplayFormatter.format_session_details(meta, session)
+        op_context.console.print(details)
+        op_context.console.print("")
+
+    @staticmethod
+    def display_basic_session_info(
+        op_context: CommandOperationContext,
+        meta: SessionMetadata,
+        params: SessionListParams,
+    ) -> None:
+        """Display basic session information when enhanced info fails.
+
+        Args:
+            op_context: Command operation context.
+            meta: Session metadata.
+            params: Display parameters.
+        """
+        display_context = SessionDisplayContext(meta=meta, session=None, params=params)
+        display_line = SessionDisplayFormatter.format_session_display(display_context)
+        op_context.console.print(display_line)
+
 
 class SessionCommandHelper:
     """Helper class for session command operations to reduce class size and feature envy."""
@@ -659,7 +743,6 @@ class SessionCommandHelper:
             command: The parent session command.
         """
         self.command = command
-        self.formatter = SessionDisplayFormatter()
 
     def _get_manager(self, op_context: CommandOperationContext) -> SessionManager | None:
         """Get session manager from context with error handling.
@@ -836,86 +919,4 @@ class SessionCommand(BaseCommand):
             return
 
         op_context.console.print("\n[bold blue]Saved Sessions[/]\n")
-        self._display_sessions_list(op_context, manager, sessions)
-
-    def _display_sessions_list(
-        self,
-        op_context: CommandOperationContext,
-        manager: SessionManager,
-        sessions: list[SessionMetadata],
-    ) -> None:
-        """Display list of sessions with enhanced information.
-
-        Args:
-            op_context: Command operation context.
-            manager: Session manager.
-            sessions: List of session metadata.
-        """
-        params = SessionListParams(
-            max_id_display_len=DEFAULT_ID_DISPLAY_LENGTH,
-            max_date_display_len=DEFAULT_DATE_DISPLAY_LENGTH,
-        )
-
-        for meta in sessions:
-            self._display_session_entry(op_context, manager, meta, params)
-
-    def _display_session_entry(
-        self,
-        op_context: CommandOperationContext,
-        manager: SessionManager,
-        meta: SessionMetadata,
-        params: SessionListParams,
-    ) -> None:
-        """Display a single session entry.
-
-        Args:
-            op_context: Command operation context.
-            manager: Session manager.
-            meta: Session metadata.
-            params: Display parameters.
-        """
-        try:
-            session = manager.load(meta.id)
-            self._display_enhanced_session_info(op_context, meta, session, params)
-        except (FileNotFoundError, ValueError, json.JSONDecodeError):
-            self._display_basic_session_info(op_context, meta, params)
-
-    def _display_enhanced_session_info(
-        self,
-        op_context: CommandOperationContext,
-        meta: SessionMetadata,
-        session: Session,
-        params: SessionListParams,
-    ) -> None:
-        """Display enhanced session information.
-
-        Args:
-            op_context: Command operation context.
-            meta: Session metadata.
-            session: Full session object.
-            params: Display parameters.
-        """
-        display_context = SessionDisplayContext(meta=meta, session=session, params=params)
-        display_line = self.helper.formatter.format_session_display(display_context)
-        op_context.console.print(display_line)
-
-        details = self.helper.formatter.format_session_details(meta, session)
-        op_context.console.print(details)
-        op_context.console.print("")
-
-    def _display_basic_session_info(
-        self,
-        op_context: CommandOperationContext,
-        meta: SessionMetadata,
-        params: SessionListParams,
-    ) -> None:
-        """Display basic session information when enhanced info fails.
-
-        Args:
-            op_context: Command operation context.
-            meta: Session metadata.
-            params: Display parameters.
-        """
-        display_context = SessionDisplayContext(meta=meta, session=None, params=params)
-        display_line = self.helper.formatter.format_session_display(display_context)
-        op_context.console.print(display_line)
+        SessionDisplayFormatter.display_sessions_list(op_context, manager, sessions)
