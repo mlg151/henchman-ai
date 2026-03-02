@@ -10,7 +10,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -37,6 +37,10 @@ DEFAULT_MIN_ARGS_FOR_TEMPLATE_SAVE: int = 4
 DEFAULT_MIN_ARGS_FOR_TEMPLATE_CREATE: int = 3
 DEFAULT_MIN_ARGS_FOR_TEMPLATE_DELETE: int = 3
 
+# Argument position indices used in executor subcommands
+_ARG_IDX_3: int = 3  # Third positional argument index
+_ARG_IDX_4: int = 4  # Fourth positional argument index
+
 
 @dataclass
 class SessionListParams:
@@ -58,7 +62,7 @@ class DisplayInfo:
     value: str | None
     max_id_len: int
 
-    def format_optional_info(self) -> str:
+    def format_optional_info(self: DisplayInfo) -> str:
         """Format optional session information for display.
 
         Returns:
@@ -79,7 +83,7 @@ class AttributeDisplayInfo:
     label: str
     max_id_len: int
 
-    def format_attribute_info(self) -> str:
+    def format_attribute_info(self: AttributeDisplayInfo) -> str:
         """Format session attribute information for display.
 
         Returns:
@@ -119,23 +123,25 @@ class CommandOperationContext:
     session_manager: SessionManager | None = None
     project_hash: str | None = None
 
-    def print_success(self, message: str) -> None:
+    def print_success(self: CommandOperationContext, message: str) -> None:
         """Print a success message."""
         self.console.print(f"[green]✓[/] {message}")
 
-    def print_error(self, message: str) -> None:
+    def print_error(self: CommandOperationContext, message: str) -> None:
         """Print an error message."""
-        self._print_prefixed_message(message, ERROR_MESSAGE_STYLE)
+        self._print_formatted_message(f"Error: {message}", "red")
 
-    def print_info(self, message: str) -> None:
+    def print_info(self: CommandOperationContext, message: str) -> None:
         """Print an info message."""
         self._print_formatted_message(message, "dim")
 
-    def print_usage(self, usage: str) -> None:
+    def print_usage(self: CommandOperationContext, usage: str) -> None:
         """Print usage information."""
         self._print_prefixed_message(usage, USAGE_MESSAGE_STYLE)
 
-    def _print_formatted_message(self, message: str, style: str) -> None:
+    def _print_formatted_message(
+        self: CommandOperationContext, message: str, style: str,
+    ) -> None:
         """Print a message with the given style.
 
         Args:
@@ -144,7 +150,9 @@ class CommandOperationContext:
         """
         self.console.print(f"[{style}]{message}[/]")
 
-    def _print_prefixed_message(self, message: str, msg_style: MessageStyle) -> None:
+    def _print_prefixed_message(
+        self: CommandOperationContext, message: str, msg_style: MessageStyle,
+    ) -> None:
         """Print a message with a prefix and style.
 
         Args:
@@ -153,7 +161,9 @@ class CommandOperationContext:
         """
         self._print_formatted_message(f"{msg_style.prefix} {message}", msg_style.style)
 
-    def get_arg(self, index: int, default: str | None = None) -> str | None:
+    def get_arg(
+        self: CommandOperationContext, index: int, default: str | None = None,
+    ) -> str | None:
         """Get argument at index or default if out of bounds.
 
         Args:
@@ -167,7 +177,7 @@ class CommandOperationContext:
             return self.args[index]
         return default
 
-    def get_arg_or_empty(self, index: int) -> str:
+    def get_arg_or_empty(self: CommandOperationContext, index: int) -> str:
         """Get argument at index or empty string if out of bounds.
 
         Args:
@@ -180,7 +190,7 @@ class CommandOperationContext:
             return self.args[index]
         return ""
 
-    def has_min_args(self, min_args: int) -> bool:
+    def has_min_args(self: CommandOperationContext, min_args: int) -> bool:
         """Check if context has minimum number of arguments.
 
         Args:
@@ -214,15 +224,15 @@ class SessionFieldDisplayParams:
 class SessionCommandExecutor(ABC):
     """Abstract base class for session command executors."""
 
-    def __init__(self, op_context: CommandOperationContext) -> None:
+    def __init__(self: SessionCommandExecutor, op_context: CommandOperationContext) -> None:
         self.op_context = op_context
 
     @abstractmethod
-    async def execute(self, manager: SessionManager) -> None:
+    async def execute(self: SessionCommandExecutor, manager: SessionManager) -> None:
         """Execute the command with the given manager."""
-        pass
+        ...
 
-    def _ensure_args(self, min_args: int, usage: str) -> bool:
+    def _ensure_args(self: SessionCommandExecutor, min_args: int, usage: str) -> bool:
         """Ensure minimum number of arguments.
 
         Args:
@@ -232,23 +242,20 @@ class SessionCommandExecutor(ABC):
         Returns:
             True if arguments are valid, False otherwise.
         """
-        if not self.op_context.has_min_args(min_args):
-            self.op_context.print_usage(usage)
-            return False
-        return True
+        return _validate_args(self.op_context, min_args, usage)
 
 
 class BranchExecutor(SessionCommandExecutor):
     """Executor for branch operations."""
 
-    async def execute(self, manager: SessionManager) -> None:
+    async def execute(self: BranchExecutor, manager: SessionManager) -> None:
         """Execute branch operation."""
         if not self._ensure_args(DEFAULT_MIN_ARGS_FOR_BRANCH, "/session branch <id> <point> [tag]"):
             return
 
         session_id = self.op_context.get_arg(1)
         branch_point_str = self.op_context.get_arg(2)
-        tag = self.op_context.get_arg(3)
+        tag = self.op_context.get_arg(_ARG_IDX_3)
 
         if not session_id or not branch_point_str:
             self.op_context.print_usage("/session branch <id> <point> [tag]")
@@ -274,7 +281,7 @@ class BranchExecutor(SessionCommandExecutor):
 class MergeExecutor(SessionCommandExecutor):
     """Executor for merge operations."""
 
-    def _parse_merge_arguments(self) -> tuple[list[str], str, str | None]:
+    def _parse_merge_arguments(self: MergeExecutor) -> tuple[list[str], str, str | None]:
         """Parse merge command arguments.
 
         Returns:
@@ -289,15 +296,17 @@ class MergeExecutor(SessionCommandExecutor):
         session_ids = [session_id1, session_id2]
 
         # Parse optional arguments
-        strategy_arg = self.op_context.get_arg(3)
-        tag_arg = self.op_context.get_arg(4)
+        strategy_arg = self.op_context.get_arg(_ARG_IDX_3)
+        tag_arg = self.op_context.get_arg(_ARG_IDX_4)
 
         strategy, tag = self._parse_strategy_and_tag(strategy_arg, tag_arg)
 
         return session_ids, strategy, tag
 
     def _parse_strategy_and_tag(
-        self, strategy_arg: str | None, tag_arg: str | None
+        self: MergeExecutor,
+        strategy_arg: str | None,
+        tag_arg: str | None,
     ) -> tuple[str, str | None]:
         """Parse strategy and tag from optional arguments.
 
@@ -320,10 +329,10 @@ class MergeExecutor(SessionCommandExecutor):
 
         return strategy, tag
 
-    async def execute(self, manager: SessionManager) -> None:
+    async def execute(self: MergeExecutor, manager: SessionManager) -> None:
         """Execute merge operation."""
         if not self._ensure_args(
-            DEFAULT_MIN_ARGS_FOR_MERGE, "/session merge <id1> <id2> [strategy] [tag]"
+            DEFAULT_MIN_ARGS_FOR_MERGE, "/session merge <id1> <id2> [strategy] [tag]",
         ):
             return
 
@@ -344,16 +353,16 @@ class MergeExecutor(SessionCommandExecutor):
 class TemplateSaveExecutor(SessionCommandExecutor):
     """Executor for template save operations."""
 
-    async def execute(self, manager: SessionManager) -> None:
+    async def execute(self: TemplateSaveExecutor, manager: SessionManager) -> None:
         """Execute template save operation."""
         if not self._ensure_args(
-            DEFAULT_MIN_ARGS_FOR_TEMPLATE_SAVE, "/session template save <id> <name>"
+            DEFAULT_MIN_ARGS_FOR_TEMPLATE_SAVE, "/session template save <id> <name>",
         ):
             return
 
         session_id = self.op_context.get_arg(2)
-        name = self.op_context.get_arg(3)
-        description = self.op_context.get_arg_or_empty(4)
+        name = self.op_context.get_arg(_ARG_IDX_3)
+        description = self.op_context.get_arg_or_empty(_ARG_IDX_4)
 
         if not session_id or not name:
             self.op_context.print_usage("/session template save <id> <name>")
@@ -372,15 +381,15 @@ class TemplateSaveExecutor(SessionCommandExecutor):
 class TemplateCreateExecutor(SessionCommandExecutor):
     """Executor for template create operations."""
 
-    async def execute(self, manager: SessionManager) -> None:
+    async def execute(self: TemplateCreateExecutor, manager: SessionManager) -> None:
         """Execute template create operation."""
         if not self._ensure_args(
-            DEFAULT_MIN_ARGS_FOR_TEMPLATE_CREATE, "/session template create <template_id> [tag]"
+            DEFAULT_MIN_ARGS_FOR_TEMPLATE_CREATE, "/session template create <template_id> [tag]",
         ):
             return
 
         template_id = self.op_context.get_arg(2)
-        tag = self.op_context.get_arg(3)
+        tag = self.op_context.get_arg(_ARG_IDX_3)
 
         if not template_id:
             self.op_context.print_usage("/session template create <template_id> [tag]")
@@ -400,7 +409,7 @@ class TemplateCreateExecutor(SessionCommandExecutor):
 class TemplateListExecutor(SessionCommandExecutor):
     """Executor for template list operations."""
 
-    async def execute(self, manager: SessionManager) -> None:
+    async def execute(self: TemplateListExecutor, manager: SessionManager) -> None:
         """Execute template list operation."""
         templates = manager.list_templates()
 
@@ -424,10 +433,10 @@ class TemplateListExecutor(SessionCommandExecutor):
 class TemplateDeleteExecutor(SessionCommandExecutor):
     """Executor for template delete operations."""
 
-    async def execute(self, manager: SessionManager) -> None:
+    async def execute(self: TemplateDeleteExecutor, manager: SessionManager) -> None:
         """Execute template delete operation."""
         if not self._ensure_args(
-            DEFAULT_MIN_ARGS_FOR_TEMPLATE_DELETE, "/session template delete <template_id>"
+            DEFAULT_MIN_ARGS_FOR_TEMPLATE_DELETE, "/session template delete <template_id>",
         ):
             return
 
@@ -447,28 +456,28 @@ class TemplateDeleteExecutor(SessionCommandExecutor):
 class ExportExecutor(SessionCommandExecutor):
     """Executor for export operations."""
 
-    async def execute(self, manager: SessionManager) -> None:
+    async def execute(self: ExportExecutor, manager: SessionManager) -> None:
         """Execute export operation."""
         if not self._ensure_args(DEFAULT_MIN_ARGS_FOR_EXPORT, "/session export <id> [format]"):
             return
 
         session_id = self.op_context.get_arg(1)
         format_arg = self.op_context.get_arg(2, "json")
-        format = format_arg if format_arg else "json"
+        fmt = format_arg or "json"
 
         if not session_id:
             self.op_context.print_usage("/session export <id> [format]")
             return
 
         try:
-            exported = manager.export_session(session_id, format)
+            exported = manager.export_session(session_id, fmt)
 
-            ext = "json" if format == "json" else "md"
+            ext = "json" if fmt == "json" else "md"
             output_file = Path.cwd() / f"session_{session_id}.{ext}"
             output_file.write_text(exported)
 
             self.op_context.print_success(f"Exported session to: {output_file}")
-            self.op_context.print_info(f"Format: {format}, Size: {len(exported)} bytes")
+            self.op_context.print_info(f"Format: {fmt}, Size: {len(exported)} bytes")
         except (FileNotFoundError, ValueError) as e:
             self.op_context.print_error(str(e))
 
@@ -476,34 +485,34 @@ class ExportExecutor(SessionCommandExecutor):
 class ImportExecutor(SessionCommandExecutor):
     """Executor for import operations."""
 
-    async def execute(self, manager: SessionManager) -> None:
+    async def execute(self: ImportExecutor, manager: SessionManager) -> None:
         """Execute import operation."""
         if not self._ensure_args(DEFAULT_MIN_ARGS_FOR_IMPORT, "/session import <file> [format]"):
             return
 
         file_path_str = self.op_context.get_arg(1)
         format_arg = self.op_context.get_arg(2, "json")
-        format = format_arg if format_arg else "json"
-        tag = self.op_context.get_arg(3)
+        fmt = format_arg or "json"
+        tag = self.op_context.get_arg(_ARG_IDX_3)
 
         if not file_path_str:
             self.op_context.print_usage("/session import <file> [format]")
             return
 
         file_path = Path(file_path_str)
-        if not file_path.exists():
+        if not file_path.exists():  # noqa: ASYNC240
             self.op_context.print_error(f"File not found: {file_path}")
             return
 
         try:
-            data = file_path.read_text()
-            session = manager.import_session(data, format, tag)
+            data = file_path.read_text()  # noqa: ASYNC240
+            session = manager.import_session(data, fmt, tag)
             manager.save(session)
 
             self.op_context.print_success(f"Imported session: {session.id}")
             if session.tag:
                 self.op_context.print_info(f"Tag: {session.tag}")
-            self.op_context.print_info(f"Format: {format}, Messages: {len(session.messages)}")
+            self.op_context.print_info(f"Format: {fmt}, Messages: {len(session.messages)}")
         except (ValueError, json.JSONDecodeError) as e:
             self.op_context.print_error(f"Error importing session: {e}")
 
@@ -514,267 +523,298 @@ SESSION_FIELD_CONFIGS: dict[str, tuple[str, str, str]] = {
     "template_id": ("template_id", "[magenta]ⓣ[/]", "template:"),
 }
 
+# Executor maps for subcommand dispatch
+_EXECUTOR_MAP: dict[str, type[SessionCommandExecutor]] = {
+    "branch": BranchExecutor,
+    "merge": MergeExecutor,
+    "export": ExportExecutor,
+    "import": ImportExecutor,
+}
 
-class SessionDisplayFormatter:
-    """Formats session information for display to reduce feature envy."""
+_TEMPLATE_EXECUTOR_MAP: dict[str, type[SessionCommandExecutor]] = {
+    "save": TemplateSaveExecutor,
+    "create": TemplateCreateExecutor,
+    "list": TemplateListExecutor,
+    "delete": TemplateDeleteExecutor,
+}
 
-    @staticmethod
-    def format_session_display(context: SessionDisplayContext) -> str:
-        """Format a session for display.
 
-        Args:
-            context: Session display context.
+def _validate_args(op_context: CommandOperationContext, min_args: int, usage: str) -> bool:
+    """Validate minimum argument count, printing usage on failure.
 
-        Returns:
-            Formatted display string.
-        """
-        # Extract values from context to reduce feature envy
-        meta = context.meta
-        session = context.session
-        params = context.params or SessionListParams()
+    Args:
+        op_context: Command operation context.
+        min_args: Minimum number of arguments required.
+        usage: Usage string to display on failure.
 
-        max_id_len = params.max_id_display_len
-        max_date_len = params.max_date_display_len
+    Returns:
+        True if minimum args are present, False otherwise.
+    """
+    if not op_context.has_min_args(min_args):
+        op_context.print_usage(usage)
+        return False
+    return True
 
-        tag_display = SessionDisplayFormatter._format_tag_display(meta, max_id_len)
 
-        if session is None:
-            return SessionDisplayFormatter._format_basic_session_info(
-                tag_display, meta, max_date_len
-            )
+def _format_tag_display(meta: SessionMetadata, max_id_len: int) -> str:
+    """Format the tag/ID display for a session.
 
-        branch_info = SessionDisplayFormatter._format_session_field(
-            session, "parent_id", max_id_len
-        )
-        template_info = SessionDisplayFormatter._format_session_field(
-            session, "template_id", max_id_len
-        )
+    Args:
+        meta: Session metadata.
+        max_id_len: Maximum ID display length.
 
-        return f"  {tag_display}{branch_info}{template_info}"
+    Returns:
+        Formatted tag display string.
+    """
+    if meta.tag:
+        return f"[cyan]{meta.tag}[/]"
+    truncated_id = meta.id[:max_id_len] if max_id_len > 0 else meta.id
+    return f"[dim]{truncated_id}[/]"
 
-    @staticmethod
-    def _format_tag_display(meta: SessionMetadata, max_id_len: int) -> str:
-        """Format the tag/ID display for a session.
 
-        Args:
-            meta: Session metadata.
-            max_id_len: Maximum ID display length.
+def _format_basic_session_info(
+    tag_display: str,
+    meta: SessionMetadata,
+    max_date_len: int,
+) -> str:
+    """Format basic session information.
 
-        Returns:
-            Formatted tag display string.
-        """
-        if meta.tag:
-            return f"[cyan]{meta.tag}[/]"
-        else:
-            truncated_id = meta.id[:max_id_len] if max_id_len > 0 else meta.id
-            return f"[dim]{truncated_id}[/]"
+    Args:
+        tag_display: Formatted tag display.
+        meta: Session metadata.
+        max_date_len: Maximum date display length.
 
-    @staticmethod
-    def _format_basic_session_info(
-        tag_display: str, meta: SessionMetadata, max_date_len: int
-    ) -> str:
-        """Format basic session information.
+    Returns:
+        Formatted basic info string.
+    """
+    truncated_date = meta.last_updated[:max_date_len] if max_date_len > 0 else meta.last_updated
+    return f"  {tag_display} - {meta.message_count} messages, updated {truncated_date}"
 
-        Args:
-            tag_display: Formatted tag display.
-            meta: Session metadata.
-            max_date_len: Maximum date display length.
 
-        Returns:
-            Formatted basic info string.
-        """
-        truncated_date = meta.last_updated[:max_date_len] if max_date_len > 0 else meta.last_updated
-        return f"  {tag_display} - {meta.message_count} messages, updated {truncated_date}"
+def _format_session_field_info(session: Session, params: SessionFieldDisplayParams) -> str:
+    """Format session field information for display.
 
-    @staticmethod
-    def _format_session_field_info(session: Session, params: SessionFieldDisplayParams) -> str:
-        """Format session field information for display.
+    Args:
+        session: The session object.
+        params: Display parameters for the field.
 
-        Args:
-            session: The session object.
-            params: Display parameters for the field.
+    Returns:
+        Formatted field info string or empty string.
+    """
+    condition = getattr(session, params.field_name, None)
+    attr_info = AttributeDisplayInfo(
+        condition=condition,
+        icon=params.icon,
+        label=params.label,
+        max_id_len=params.max_id_len,
+    )
+    return attr_info.format_attribute_info()
 
-        Returns:
-            Formatted field info string or empty string.
-        """
-        condition = getattr(session, params.field_name, None)
-        attr_info = AttributeDisplayInfo(
-            condition=condition, icon=params.icon, label=params.label, max_id_len=params.max_id_len
-        )
-        return attr_info.format_attribute_info()
 
-    @staticmethod
-    def _format_session_field(session: Session, field_key: str, max_id_len: int) -> str:
-        """Format specific session field information for display.
+def _format_session_field(session: Session, field_key: str, max_id_len: int) -> str:
+    """Format specific session field information for display.
 
-        Args:
-            session: The session object.
-            field_key: Key identifying which field to format (e.g., "parent_id", "template_id").
-            max_id_len: Maximum ID display length.
+    Args:
+        session: The session object.
+        field_key: Key identifying which field to format (e.g., "parent_id", "template_id").
+        max_id_len: Maximum ID display length.
 
-        Returns:
-            Formatted field info string.
-        """
-        if field_key not in SESSION_FIELD_CONFIGS:
-            return ""
+    Returns:
+        Formatted field info string.
+    """
+    if field_key not in SESSION_FIELD_CONFIGS:
+        return ""
 
-        attribute_name, icon, label = SESSION_FIELD_CONFIGS[field_key]
-        params = SessionFieldDisplayParams(
-            field_name=attribute_name,
-            icon=icon,
-            label=label,
-            max_id_len=max_id_len,
-        )
-        return SessionDisplayFormatter._format_session_field_info(session, params)
+    attribute_name, icon, label = SESSION_FIELD_CONFIGS[field_key]
+    params = SessionFieldDisplayParams(
+        field_name=attribute_name,
+        icon=icon,
+        label=label,
+        max_id_len=max_id_len,
+    )
+    return _format_session_field_info(session, params)
 
-    @staticmethod
-    def format_session_details(meta: SessionMetadata, session: Session | None = None) -> str:
-        """Format session details for display.
 
-        Args:
-            meta: Session metadata.
-            session: Optional full session object for enhanced info.
+def format_session_display(context: SessionDisplayContext) -> str:
+    """Format a session for display.
 
-        Returns:
-            Formatted details string.
-        """
-        details = f"    Messages: {meta.message_count}, Updated: {meta.last_updated[:DEFAULT_DATE_DISPLAY_LENGTH]}"
+    Args:
+        context: Session display context.
 
-        if session and session.export_metadata and "merged_from" in session.export_metadata:
-            details += (
-                f"\n    [dim]Merged from {len(session.export_metadata['merged_from'])} sessions[/]"
-            )
+    Returns:
+        Formatted display string.
+    """
+    meta = context.meta
+    session = context.session
+    params = context.params or SessionListParams()
 
-        return details
+    max_id_len = params.max_id_display_len
+    max_date_len = params.max_date_display_len
 
-    @staticmethod
-    def display_sessions_list(
-        op_context: CommandOperationContext,
-        manager: SessionManager,
-        sessions: list[SessionMetadata],
-    ) -> None:
-        """Display list of sessions with enhanced information.
+    tag_display = _format_tag_display(meta, max_id_len)
 
-        Args:
-            op_context: Command operation context.
-            manager: Session manager.
-            sessions: List of session metadata.
-        """
-        params = SessionListParams(
-            max_id_display_len=DEFAULT_ID_DISPLAY_LENGTH,
-            max_date_display_len=DEFAULT_DATE_DISPLAY_LENGTH,
+    if session is None:
+        return _format_basic_session_info(
+            tag_display,
+            meta,
+            max_date_len,
         )
 
-        for meta in sessions:
-            SessionDisplayFormatter.display_session_entry(op_context, manager, meta, params)
+    branch_info = _format_session_field(
+        session,
+        "parent_id",
+        max_id_len,
+    )
+    template_info = _format_session_field(
+        session,
+        "template_id",
+        max_id_len,
+    )
 
-    @staticmethod
-    def display_session_entry(
-        op_context: CommandOperationContext,
-        manager: SessionManager,
-        meta: SessionMetadata,
-        params: SessionListParams,
-    ) -> None:
-        """Display a single session entry.
-
-        Args:
-            op_context: Command operation context.
-            manager: Session manager.
-            meta: Session metadata.
-            params: Display parameters.
-        """
-        try:
-            session = manager.load(meta.id)
-            SessionDisplayFormatter.display_enhanced_session_info(op_context, meta, session, params)
-        except (FileNotFoundError, ValueError, json.JSONDecodeError):
-            SessionDisplayFormatter.display_basic_session_info(op_context, meta, params)
-
-    @staticmethod
-    def display_enhanced_session_info(
-        op_context: CommandOperationContext,
-        meta: SessionMetadata,
-        session: Session,
-        params: SessionListParams,
-    ) -> None:
-        """Display enhanced session information.
-
-        Args:
-            op_context: Command operation context.
-            meta: Session metadata.
-            session: Full session object.
-            params: Display parameters.
-        """
-        display_context = SessionDisplayContext(meta=meta, session=session, params=params)
-        display_line = SessionDisplayFormatter.format_session_display(display_context)
-        op_context.console.print(display_line)
-
-        details = SessionDisplayFormatter.format_session_details(meta, session)
-        op_context.console.print(details)
-        op_context.console.print("")
-
-    @staticmethod
-    def display_basic_session_info(
-        op_context: CommandOperationContext,
-        meta: SessionMetadata,
-        params: SessionListParams,
-    ) -> None:
-        """Display basic session information when enhanced info fails.
-
-        Args:
-            op_context: Command operation context.
-            meta: Session metadata.
-            params: Display parameters.
-        """
-        display_context = SessionDisplayContext(meta=meta, session=None, params=params)
-        display_line = SessionDisplayFormatter.format_session_display(display_context)
-        op_context.console.print(display_line)
+    return f"  {tag_display}{branch_info}{template_info}"
 
 
-class SessionCommandHelper:
-    """Helper class for session command operations to reduce class size and feature envy."""
+def format_session_details(meta: SessionMetadata, session: Session | None = None) -> str:
+    """Format session details for display.
 
-    def __init__(self, command: SessionCommand) -> None:
-        """Initialize the session command helper.
+    Args:
+        meta: Session metadata.
+        session: Optional full session object for enhanced info.
 
-        Args:
-            command: The parent session command.
-        """
-        self.command = command
+    Returns:
+        Formatted details string.
+    """
+    details = (
+        f"    Messages: {meta.message_count}, "
+        f"Updated: {meta.last_updated[:DEFAULT_DATE_DISPLAY_LENGTH]}"
+    )
 
-    def _get_manager(self, op_context: CommandOperationContext) -> SessionManager | None:
-        """Get session manager from context with error handling.
+    if session and session.export_metadata and "merged_from" in session.export_metadata:
+        details += (
+            f"\n    [dim]Merged from {len(session.export_metadata['merged_from'])} sessions[/]"
+        )
 
-        Args:
-            op_context: Command operation context.
+    return details
 
-        Returns:
-            SessionManager or None if not available.
-        """
-        manager: SessionManager | None = op_context.session_manager
-        if manager is None:
-            op_context.print_error("Session manager not available")
-        return manager
 
-    async def _execute_with_executor(
-        self, op_context: CommandOperationContext, executor_class: type[SessionCommandExecutor]
-    ) -> None:
-        """Execute operation with executor pattern.
+def display_sessions_list(
+    op_context: CommandOperationContext,
+    manager: SessionManager,
+    sessions: list[SessionMetadata],
+) -> None:
+    """Display list of sessions with enhanced information.
 
-        Args:
-            op_context: Command operation context.
-            executor_class: Executor class to instantiate.
-        """
-        manager = self._get_manager(op_context)
-        if manager is not None:
-            executor = executor_class(op_context)
-            await executor.execute(manager)
+    Args:
+        op_context: Command operation context.
+        manager: Session manager.
+        sessions: List of session metadata.
+    """
+    params = SessionListParams(
+        max_id_display_len=DEFAULT_ID_DISPLAY_LENGTH,
+        max_date_display_len=DEFAULT_DATE_DISPLAY_LENGTH,
+    )
+
+    for meta in sessions:
+        display_session_entry(op_context, manager, meta, params)
+
+
+def display_session_entry(
+    op_context: CommandOperationContext,
+    manager: SessionManager,
+    meta: SessionMetadata,
+    params: SessionListParams,
+) -> None:
+    """Display a single session entry.
+
+    Args:
+        op_context: Command operation context.
+        manager: Session manager.
+        meta: Session metadata.
+        params: Display parameters.
+    """
+    try:
+        session = manager.load(meta.id)
+        display_enhanced_session_info(op_context, meta, session, params)
+    except (FileNotFoundError, ValueError, json.JSONDecodeError):
+        display_basic_session_info(op_context, meta, params)
+
+
+def display_enhanced_session_info(
+    op_context: CommandOperationContext,
+    meta: SessionMetadata,
+    session: Session,
+    params: SessionListParams,
+) -> None:
+    """Display enhanced session information.
+
+    Args:
+        op_context: Command operation context.
+        meta: Session metadata.
+        session: Full session object.
+        params: Display parameters.
+    """
+    display_context = SessionDisplayContext(meta=meta, session=session, params=params)
+    display_line = format_session_display(display_context)
+    op_context.console.print(display_line)
+
+    details = format_session_details(meta, session)
+    op_context.console.print(details)
+    op_context.console.print("")
+
+
+def display_basic_session_info(
+    op_context: CommandOperationContext,
+    meta: SessionMetadata,
+    params: SessionListParams,
+) -> None:
+    """Display basic session information when enhanced info fails.
+
+    Args:
+        op_context: Command operation context.
+        meta: Session metadata.
+        params: Display parameters.
+    """
+    display_context = SessionDisplayContext(meta=meta, session=None, params=params)
+    display_line = format_session_display(display_context)
+    op_context.console.print(display_line)
+
+
+def _get_manager(op_context: CommandOperationContext) -> SessionManager | None:
+    """Get session manager from context with error handling.
+
+    Args:
+        op_context: Command operation context.
+
+    Returns:
+        SessionManager or None if not available.
+    """
+    manager: SessionManager | None = op_context.session_manager
+    if manager is None:
+        op_context.print_error("Session manager not available")
+    return manager
+
+
+async def _execute_with_executor(
+    op_context: CommandOperationContext,
+    executor_class: type[SessionCommandExecutor],
+) -> None:
+    """Execute operation with executor pattern.
+
+    Args:
+        op_context: Command operation context.
+        executor_class: Executor class to instantiate.
+    """
+    manager = _get_manager(op_context)
+    if manager is not None:
+        executor = executor_class(op_context)
+        await executor.execute(manager)
 
 
 class SessionCommand(BaseCommand):
     """/session command for enhanced session management."""
 
     _help_command_name: str = "Enhanced Session"
-    _help_lines: list[str] = [
+    _help_lines: ClassVar[list[str]] = [
         "  /session branch <id> <point> [tag]  - Branch from session at message point",
         "  /session merge <id1> <id2> [strategy] [tag] - Merge sessions",
         "  /session template save <id> <name>  - Save session as template",
@@ -789,13 +829,12 @@ class SessionCommand(BaseCommand):
         "[dim]Formats: json (default), markdown[/]",
     ]
 
-    def __init__(self) -> None:
-        """Initialize session command with helper."""
+    def __init__(self: SessionCommand) -> None:
+        """Initialize session command."""
         super().__init__()
-        self.helper = SessionCommandHelper(self)
 
     @property
-    def name(self) -> str:
+    def name(self: SessionCommand) -> str:
         """Command name.
 
         Returns:
@@ -804,7 +843,7 @@ class SessionCommand(BaseCommand):
         return "session"
 
     @property
-    def description(self) -> str:
+    def description(self: SessionCommand) -> str:
         """Command description.
 
         Returns:
@@ -813,7 +852,7 @@ class SessionCommand(BaseCommand):
         return "Enhanced session management (branch, merge, templates, export/import)"
 
     @property
-    def usage(self) -> str:
+    def usage(self: SessionCommand) -> str:
         """Command usage.
 
         Returns:
@@ -821,7 +860,7 @@ class SessionCommand(BaseCommand):
         """
         return "/session <branch|merge|template|export|import|list> [args]"
 
-    async def execute(self, ctx: CommandContext) -> None:
+    async def execute(self: SessionCommand, ctx: CommandContext) -> None:
         """Execute the session command.
 
         Args:
@@ -833,15 +872,7 @@ class SessionCommand(BaseCommand):
 
         subcommand = ctx.args[0].lower()
 
-        # Map subcommands to their executor classes
-        executor_map: dict[str, type[SessionCommandExecutor]] = {
-            "branch": BranchExecutor,
-            "merge": MergeExecutor,
-            "export": ExportExecutor,
-            "import": ImportExecutor,
-        }
-
-        executor_class = executor_map.get(subcommand)
+        executor_class = _EXECUTOR_MAP.get(subcommand)
         if executor_class:
             await self._execute_with_executor_class(ctx, executor_class)
         elif subcommand == "template":
@@ -851,7 +882,9 @@ class SessionCommand(BaseCommand):
         else:
             await self._show_help(ctx)
 
-    def _create_operation_context(self, ctx: CommandContext) -> CommandOperationContext:
+    def _create_operation_context(
+        self: SessionCommand, ctx: CommandContext,
+    ) -> CommandOperationContext:
         """Create operation context from command context.
 
         Args:
@@ -868,7 +901,9 @@ class SessionCommand(BaseCommand):
         )
 
     async def _execute_with_executor_class(
-        self, ctx: CommandContext, executor_class: type[SessionCommandExecutor]
+        self: SessionCommand,
+        ctx: CommandContext,
+        executor_class: type[SessionCommandExecutor],
     ) -> None:
         """Execute a command with the given executor class.
 
@@ -877,43 +912,93 @@ class SessionCommand(BaseCommand):
             executor_class: The executor class to instantiate.
         """
         op_context = self._create_operation_context(ctx)
-        await self.helper._execute_with_executor(op_context, executor_class)
+        await _execute_with_executor(op_context, executor_class)
 
-    async def _template(self, ctx: CommandContext) -> None:
+    def _validate_min_args(
+        self: SessionCommand,
+        op_context: CommandOperationContext,
+        min_args: int,
+        usage: str,
+    ) -> bool:
+        """Validate minimum args, printing usage if not met.
+
+        Args:
+            op_context: Command operation context.
+            min_args: Minimum number of arguments required.
+            usage: Usage string to display on failure.
+
+        Returns:
+            True if minimum args are present, False otherwise.
+        """
+        return _validate_args(op_context, min_args, usage)
+
+    def _get_manager(
+        self: SessionCommand, op_context: CommandOperationContext,
+    ) -> SessionManager | None:
+        """Get session manager with error handling.
+
+        Args:
+            op_context: Command operation context.
+
+        Returns:
+            SessionManager or None if not available.
+        """
+        return _get_manager(op_context)
+
+    def _get_template_action(
+        self: SessionCommand, op_context: CommandOperationContext,
+    ) -> str:
+        """Get the template subcommand action from args.
+
+        Args:
+            op_context: Command operation context.
+
+        Returns:
+            Lowercase action string or empty string.
+        """
+        action_arg = op_context.get_arg(1, "")
+        return action_arg.lower() if action_arg else ""
+
+    def _render_sessions(
+        self: SessionCommand,
+        op_context: CommandOperationContext,
+        manager: SessionManager,
+        sessions: list[SessionMetadata],
+    ) -> None:
+        """Render session list output.
+
+        Args:
+            op_context: Command operation context.
+            manager: Session manager.
+            sessions: List of session metadata.
+        """
+        op_context.console.print("\n[bold blue]Saved Sessions[/]\n")
+        display_sessions_list(op_context, manager, sessions)
+
+    async def _template(self: SessionCommand, ctx: CommandContext) -> None:
         """Template operations."""
         op_context = self._create_operation_context(ctx)
-
-        if not op_context.has_min_args(DEFAULT_MIN_ARGS_FOR_TEMPLATE):
-            op_context.print_usage("/session template <save|create|list|delete> [args]")
+        if not self._validate_min_args(
+            op_context,
+            DEFAULT_MIN_ARGS_FOR_TEMPLATE,
+            "/session template <save|create|list|delete> [args]",
+        ):
             return
-
-        action_arg = op_context.get_arg(1, "")
-        action = action_arg.lower() if action_arg else ""
-        executor_map: dict[str, type[SessionCommandExecutor]] = {
-            "save": TemplateSaveExecutor,
-            "create": TemplateCreateExecutor,
-            "list": TemplateListExecutor,
-            "delete": TemplateDeleteExecutor,
-        }
-
-        executor_class = executor_map.get(action)
+        action = self._get_template_action(op_context)
+        executor_class = _TEMPLATE_EXECUTOR_MAP.get(action)
         if executor_class:
-            await self.helper._execute_with_executor(op_context, executor_class)
+            await _execute_with_executor(op_context, executor_class)
         else:
             op_context.print_usage("/session template <save|create|list|delete>")
 
-    async def _list(self, ctx: CommandContext) -> None:
+    async def _list(self: SessionCommand, ctx: CommandContext) -> None:
         """List sessions with enhanced information."""
         op_context = self._create_operation_context(ctx)
-        manager = self.helper._get_manager(op_context)
+        manager = self._get_manager(op_context)
         if manager is None:
             return
-
         sessions = manager.list_sessions(op_context.project_hash)
-
         if not sessions:
             op_context.print_info("No saved sessions")
             return
-
-        op_context.console.print("\n[bold blue]Saved Sessions[/]\n")
-        SessionDisplayFormatter.display_sessions_list(op_context, manager, sessions)
+        self._render_sessions(op_context, manager, sessions)

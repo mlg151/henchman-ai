@@ -173,20 +173,26 @@ class TestImportGraphTool:
 
     def test_classify_import_method(self) -> None:
         """Test _classify_import helper directly."""
-        tool = ImportGraphTool()
-        assert tool._classify_import("import os", set()) == "stdlib"
-        assert tool._classify_import("import requests", set()) == "third-party"
-        assert tool._classify_import("from . import foo", set()) == "local"
-        assert tool._classify_import("from ..bar import baz", set()) == "local"
-        assert tool._classify_import("import mymod", {"mymod"}) == "local"
+        from henchman.tools.builtins.import_graph import ImportAnalyzer
+        
+        analyzer = ImportAnalyzer(set())
+        assert analyzer.classify_import("import os") == "stdlib"
+        assert analyzer.classify_import("import requests") == "third-party"
+        assert analyzer.classify_import("from . import foo") == "local"
+        assert analyzer.classify_import("from ..bar import baz") == "local"
+        
+        analyzer_with_local = ImportAnalyzer({"mymod"})
+        assert analyzer_with_local.classify_import("import mymod") == "local"
 
     def test_build_import_graph(self) -> None:
         """Test _build_import_graph constructs correct graph."""
-        tool = ImportGraphTool()
+        from henchman.tools.builtins.import_graph import ImportGraphBuilder
+        
         with tempfile.TemporaryDirectory() as tmpdir:
             pkg = Path(tmpdir)
             (pkg / "a.py").write_text("from pkg import b\n")
             (pkg / "b.py").write_text("import os\n")
-            graph = tool._build_import_graph(pkg)
+            builder = ImportGraphBuilder(pkg)
+            graph = builder.build_graph()
             assert "a" in graph
             assert "b" in graph.get("a", set())
