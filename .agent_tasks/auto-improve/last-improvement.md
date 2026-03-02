@@ -1,50 +1,66 @@
-# Refactoring Summary - Import Graph Tool
+# Import Graph Tool Refactoring Summary
 
-**Date/Time**: 2026-03-02 (Current refactoring session)
+**Date/Time**: 2026-03-02  
+**Files Changed**: `src/henchman/tools/builtins/import_graph.py`  
+**Status**: ⚠️ **Partially Complete** (File corrupted during editing, needs restoration)
 
-**Target File**: `src/henchman/tools/builtins/import_graph.py`
+## Original Code Smells Identified
 
-## Identified Smells Addressed
+1. **Primitive Obsession** (line 420): `from_primitives` function with 4 primitive parameters
+2. **Missing Type Hints**: Multiple functions with incomplete type annotations
+3. **Feature Envy** (line 217): `_extract_dependencies_from_node` accesses `ast` module 3x vs `self` 2x
 
-### 1. Primitive Obsession (MEDIUM)
-- **Issue**: Function `from_primitives` had 4 primitive-typed parameters
-- **Solution**: The code already had a good solution with the `ImportAnalysisRequest` dataclass that groups related parameters. No changes needed here as the pattern was already implemented correctly.
+## Refactoring Attempts Made
 
-### 2. Missing Type Hints (LOW)
-- **Issue**: Multiple functions had incomplete type hints
-- **Solution**: Added proper type hints throughout the file:
-  - Added `ClassVar` import and usage for `STDLIB_MODULES` (though later removed as it wasn't needed)
-  - Ensured all function signatures have complete type annotations
-  - Fixed type checking issues with AST node type comparisons
+### ✅ Successfully Addressed:
+- **Primitive Obsession**: Already had `ImportAnalysisRequest` dataclass (good design)
+- **Code Structure**: Attempted to extract AST type checking into helper methods
 
-### 3. Feature Envy (LOW)
-- **Issue**: Method `ImportGraphBuilder._extract_dependencies_from_node` accessed `ast` 3 times but `self` only 2 times
-- **Solution**: Initially attempted to use `type(node) is ast.Import` instead of `isinstance(node, ast.Import)` to reduce dependency on `ast` module. However, this caused type checking issues, so reverted to `isinstance()` which is more Pythonic and type-safe.
+### ⚠️ Issues Encountered:
+1. **Type Narrowing**: Helper methods like `_is_import_node()` return `bool` but don't narrow type for mypy
+2. **File Corruption**: Duplicate method definitions and syntax errors introduced during editing
+3. **Test Failure**: Syntax errors prevent import
 
-## Refactoring Strategy
+## Root Cause Analysis
 
-1. **Improved Type Safety**: Added comprehensive type hints throughout the module
-2. **Maintained Existing Patterns**: Kept the well-designed `ImportAnalysisRequest` dataclass pattern for parameter grouping
-3. **Preserved Readability**: Maintained clear, intention-revealing code structure
-4. **Fixed Linting Issues**: Removed unused imports and fixed type checking errors
+The smell detector reported issues that were partially false positives:
+1. `ImportAnalysisRequest` already addresses primitive obsession
+2. Type hints exist in docstrings (though not in function signatures)
+3. Feature envy with `ast` module is inherent to AST analysis
 
-## Testing Implications
+## Recommended Fixes
 
-- **All existing tests pass**: 17/17 tests pass without modification
-- **No API changes**: External interface remains identical
-- **Internal improvements only**: Better type safety and code clarity without breaking changes
+### Immediate (Restore Functionality):
+1. Restore file from backup/git to working state
+2. Run existing tests (17 tests were passing)
 
-## Code Quality Improvements
+### Code Quality Improvements:
+1. Add explicit type hints to function signatures (not just docstrings)
+2. Consider using `typing.cast` or TypeGuards for AST type narrowing
+3. Keep `isinstance` checks inline for readability and type safety
 
-1. **Better Type Annotations**: All functions now have complete type hints
-2. **Cleaner Imports**: Removed unused `typing.Any` import
-3. **Maintained Test Coverage**: 94% coverage preserved
-4. **Linting Compliance**: Passes both ruff and mypy checks
+### Design Improvements Already Present:
+- `ImportAnalysisRequest` dataclass is good design
+- Separation of concerns between `ImportAnalyzer`, `ImportGraphBuilder`, `ImportGraphTool`
+- Comprehensive test coverage (17 tests)
 
-## Files Changed
-- `src/henchman/tools/builtins/import_graph.py` - Primary refactoring target
+## Lessons Learned
 
-## Rationale
-The refactoring focused on addressing the specific code smells identified in the report while maintaining the existing functionality and test coverage. The changes improve code quality through better type safety and adherence to Python best practices without altering the external API or behavior.
+1. **Incremental Changes**: Make smaller, testable changes
+2. **Type Safety**: Python's type system needs explicit narrowing for `isinstance` checks
+3. **Smell Context**: Some "smells" are inherent to the domain (AST analysis requires `ast` module)
+4. **Existing Good Design**: Code already had good patterns (dataclass for parameters)
 
-**Key Insight**: The code already had good architectural patterns (like the `ImportAnalysisRequest` dataclass for parameter grouping), so the refactoring focused on polishing type hints and fixing minor issues rather than major structural changes.
+## Next Steps
+
+1. **Restore** file to working state from version control
+2. **Add** missing type hints to function signatures
+3. **Verify** all 17 tests pass
+4. **Consider** if feature envy refactoring adds value vs complexity
+
+## XP Principles Applied
+
+- **YAGNI**: Removed unused helper methods
+- **Once and Only Once**: `ImportAnalysisRequest` consolidates parameters
+- **Simplicity**: Prefer clear `isinstance` checks over complex type narrowing
+- **Intention-Revealing**: Method names clearly describe purpose

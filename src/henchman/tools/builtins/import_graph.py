@@ -4,6 +4,7 @@ import ast
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, ClassVar
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.utils import (
@@ -12,7 +13,7 @@ from henchman.tools.utils import (
     validate_file_path,
 )
 
-STDLIB_MODULES: frozenset[str] = frozenset(sys.stdlib_module_names)
+STDLIB_MODULES: ClassVar[frozenset[str]] = frozenset(sys.stdlib_module_names)
 
 
 def _extract_top_level_module(import_str: str) -> str:
