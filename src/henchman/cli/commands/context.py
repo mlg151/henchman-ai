@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 from henchman.cli.commands import Command, CommandContext
 from henchman.config import load_settings
@@ -10,6 +11,62 @@ from henchman.config.settings import save_settings
 
 if TYPE_CHECKING:
     pass
+
+
+@dataclass
+class RangeParameterConfig:
+    """Configuration for range-validated parameters.
+    
+    Attributes:
+        param_name: Name of the parameter.
+        min_val: Minimum allowed value.
+        max_val: Maximum allowed value (optional).
+        is_int: Whether the value should be an integer.
+        label: Display label for the parameter.
+    """
+    param_name: str
+    min_val: float
+    max_val: float | None = None
+    is_int: bool = False
+    label: str | None = None
+    
+    def get_display_label(self) -> str:
+        """Get display label for the parameter.
+        
+        Returns:
+            Display label.
+        """
+        return self.label or self.param_name.replace('_', ' ').capitalize()
+    
+    def validate_value(self, value: float | int) -> None:
+        """Validate value against range constraints.
+        
+        Args:
+            value: Value to validate.
+            
+        Raises:
+            ValueError: If value is outside valid range.
+        """
+        display_label = self.get_display_label()
+        if self.max_val is not None:
+            if not self.min_val <= value <= self.max_val:
+                raise ValueError(
+                    f"{display_label} must be between {self.min_val} and {self.max_val}"
+                )
+        else:
+            if value < self.min_val:
+                raise ValueError(f"{display_label} must be at least {self.min_val}")
+    
+    def parse_value(self, value_str: str) -> float | int:
+        """Parse string value to appropriate type.
+        
+        Args:
+            value_str: String value to parse.
+            
+        Returns:
+            Parsed value as float or int.
+        """
+        return int(value_str) if self.is_int else float(value_str)
 
 
 class ContextCommand(Command):
@@ -90,10 +147,15 @@ class ContextCommand(Command):
         """
         settings = load_settings()
         context_settings = settings.context
-        
-        # Use a local reference to reduce ctx accesses (Feature Envy)
-        console = ctx.console
+        self._print_status_info(ctx.console, context_settings)
 
+    def _print_status_info(self, console: Any, context_settings: Any) -> None:
+        """Print intelligent context status information.
+        
+        Args:
+            console: Console for output.
+            context_settings: Context settings to display.
+        """
         console.print("\n[bold blue]Intelligent Context Management[/]\n")
         console.print(
             f"  Status: [{'green' if context_settings.intelligent_context else 'red'}]"
@@ -271,43 +333,59 @@ class ContextCommand(Command):
         ctx.console.print(f"[green]✓ {param_name.replace('_', ' ').capitalize()} set to {display_value}[/]")
 
     async def _handle_range_parameter(
-        self, 
-        ctx: CommandContext, 
-        value: str, 
-        param_name: str, 
-        min_val: float, 
-        max_val: float | None = None,
-        is_int: bool = False,
-        label: str | None = None
+        self,
+        ctx: CommandContext,
+        value: str,
+        config: RangeParameterConfig
     ) -> None:
         """Generic handler for range-validated parameters (DRY)."""
-        val = int(value) if is_int else float(value)
-        
-        display_label = label or param_name.replace('_', ' ').capitalize()
-        if max_val is not None:
-            if not min_val <= val <= max_val:
-                raise ValueError(f"{display_label} must be between {min_val} and {max_val}")
-        else:
-            if val < min_val:
-                raise ValueError(f"{display_label} must be at least {min_val}")
-                
-        await self._update_context_setting(ctx, param_name, val, str(val))
+        val = config.parse_value(value)
+        config.validate_value(val)
+        await self._update_context_setting(ctx, config.param_name, val, str(val))
 
     async def _handle_max_tokens_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle max_tokens parameter setting."""
-        await self._handle_range_parameter(ctx, value, "max_tokens", 1000, is_int=True)
+        config = RangeParameterConfig(
+            param_name="max_tokens",
+            min_val=1000,
+            is_int=True
+        )
+        await self._handle_range_parameter(ctx, value, config)
 
     async def _handle_threshold_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle threshold parameter setting."""
-        await self._handle_range_parameter(ctx, value, "compaction_threshold", 0.1, 1.0, label="Threshold")
+        config = RangeParameterConfig(
+            param_name="compaction_threshold",
+            min_val=0.1,
+            max_val=1.0,
+            label="Threshold"
+        )
+        await self._handle_range_parameter(ctx, value, config)
 
     async def _handle_importance_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle importance parameter setting."""
-        await self._handle_range_parameter(ctx, value, "importance_threshold", 0.0, 1.0)
+        await self._handle_zero_to_one_parameter(ctx, value, "importance_threshold")
 
     async def _handle_similarity_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle similarity parameter setting."""
-        await self._handle_range_parameter(ctx, value, "cluster_similarity_threshold", 0.0, 1.0)
+        await self._handle_zero_to_one_parameter(ctx, value, "cluster_similarity_threshold")
+
+    async def _handle_zero_to_one_parameter(
+        self, ctx: CommandContext, value: str, param_name: str
+    ) -> None:
+        """Handle parameter with range 0.0 to 1.0.
+        
+        Args:
+            ctx: Command context.
+            value: Parameter value as string.
+            param_name: Name of the parameter.
+        """
+        config = RangeParameterConfig(
+            param_name=param_name,
+            min_val=0.0,
+            max_val=1.0
+        )
+        await self._handle_range_parameter(ctx, value, config)
 
     async def _handle_adaptive_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle adaptive parameter setting."""
@@ -329,17 +407,23 @@ class ContextCommand(Command):
             ctx.console.print("[yellow]No active agent. Cannot show context statistics.[/]")
             return
 
-        # Use local reference to reduce ctx accesses
-        console = ctx.console
+        self._print_stats_info(ctx.console, ctx.agent)
 
+    def _print_stats_info(self, console: Any, agent: Any) -> None:
+        """Print context usage statistics.
+        
+        Args:
+            console: Console for output.
+            agent: Agent to get statistics from.
+        """
         # Try to get statistics from the agent's context manager
         try:
             from henchman.utils.intelligent_context import IntelligentContextManager
 
-            if hasattr(ctx.agent, "compactor") and isinstance(
-                ctx.agent.compactor, IntelligentContextManager
+            if hasattr(agent, "compactor") and isinstance(
+                agent.compactor, IntelligentContextManager
             ):
-                compactor = ctx.agent.compactor
+                compactor = agent.compactor
                 stats = compactor.get_statistics() if hasattr(compactor, "get_statistics") else {}
 
                 console.print("\n[bold blue]Context Usage Statistics[/]\n")
@@ -353,9 +437,9 @@ class ContextCommand(Command):
                     console.print("  [dim]No statistics available.[/]")
 
                 # Show current context size if available
-                if hasattr(ctx.agent, "session") and ctx.agent.session:
+                if hasattr(agent, "session") and agent.session:
                     messages = (
-                        ctx.agent.session.messages if hasattr(ctx.agent.session, "messages") else []
+                        agent.session.messages if hasattr(agent.session, "messages") else []
                     )
                     console.print(f"  Current messages in session: [cyan]{len(messages)}[/]")
 

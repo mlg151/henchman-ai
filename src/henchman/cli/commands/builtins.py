@@ -55,21 +55,50 @@ class HelpCommand(Command):
         Args:
             ctx: Command context.
         """
-        ctx.console.print("\n[bold blue]Henchman-AI Commands[/]\n")
-
+        self._print_header(ctx)
+        
         # If a specific command is requested, show its usage
         if ctx.args:
-            command_name = ctx.args[0].lower().removeprefix("/")
-            if ctx.registry:
-                cmd = ctx.registry.get(command_name)
-                if cmd:
-                    ctx.console.print(f"  [cyan]/{cmd.name}[/] - {cmd.description}")
-                    ctx.console.print(f"  Usage: [yellow]{cmd.usage}[/]\n")
-                    return
-
-            ctx.console.print(f"[red]Unknown command: /{command_name}[/]\n")
-
+            if self._show_specific_command_help(ctx):
+                return
+        
         # Otherwise list all commands
+        self._list_all_commands(ctx)
+
+    def _print_header(self, ctx: CommandContext) -> None:
+        """Print help command header.
+        
+        Args:
+            ctx: Command context.
+        """
+        ctx.console.print("\n[bold blue]Henchman-AI Commands[/]\n")
+
+    def _show_specific_command_help(self, ctx: CommandContext) -> bool:
+        """Show help for a specific command.
+        
+        Args:
+            ctx: Command context.
+            
+        Returns:
+            True if command was found and help shown, False otherwise.
+        """
+        command_name = ctx.args[0].lower().removeprefix("/")
+        if ctx.registry:
+            cmd = ctx.registry.get(command_name)
+            if cmd:
+                ctx.console.print(f"  [cyan]/{cmd.name}[/] - {cmd.description}")
+                ctx.console.print(f"  Usage: [yellow]{cmd.usage}[/]\n")
+                return True
+        
+        ctx.console.print(f"[red]Unknown command: /{command_name}[/]\n")
+        return False
+
+    def _list_all_commands(self, ctx: CommandContext) -> None:
+        """List all available commands.
+        
+        Args:
+            ctx: Command context.
+        """
         if ctx.registry:
             # Sort commands by name
             commands = sorted(ctx.registry.get_commands(), key=lambda c: c.name)
@@ -79,7 +108,7 @@ class HelpCommand(Command):
             # Fallback if registry is missing
             ctx.console.print("  /help     - Show this help message")
             ctx.console.print("  /quit     - Exit the CLI")
-
+        
         ctx.console.print("")
 
 
