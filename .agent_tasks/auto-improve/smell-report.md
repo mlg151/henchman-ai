@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 52.8/100)
+# Code Smell Report — ❌ F (Score: 53.3/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T09:00:17.465010+00:00_
+_Generated: 2026-03-02T09:30:19.198249+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 52.8/100 |
+| **Overall Score** | 53.3/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 33,187 |
-| **Total Smells** | 2186 |
+| **Total Lines (non-blank)** | 33,183 |
+| **Total Smells** | 2172 |
 | **Avg Maintainability Index** | 71.4 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
@@ -20,8 +20,8 @@ _Generated: 2026-03-02T09:00:17.465010+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1599 |
-| medium | 507 |
+| low | 1600 |
+| medium | 492 |
 | high | 80 |
 
 ### Smells by Category
@@ -29,12 +29,12 @@ _Generated: 2026-03-02T09:00:17.465010+00:00_
 | Category | Count |
 |:---------|------:|
 | Missing Type Hint | 1113 |
-| Feature Envy | 291 |
-| Duplicate Code | 280 |
+| Feature Envy | 292 |
+| Duplicate Code | 266 |
 | Magic Number | 132 |
 | Long Method | 120 |
 | Deep Nesting | 111 |
-| Primitive Obsession | 75 |
+| Primitive Obsession | 74 |
 | Complex Function | 37 |
 | Large Class | 27 |
 
@@ -107,44 +107,20 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | tools/builtins/coverage_map.py | ❌ F | 12.8 | 40 | 491 | 43 | 0.0 |
-| 2 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
-| 3 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
-| 4 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
-| 5 | cli/commands/context.py | ❌ F | 15.3 | 41 | 303 | 51 | 11.0 |
-| 6 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
-| 7 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
-| 8 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
-| 9 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
-| 10 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
+| 1 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
+| 2 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
+| 3 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
+| 4 | cli/commands/context.py | ❌ F | 15.3 | 41 | 303 | 51 | 11.0 |
+| 5 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
+| 6 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
+| 7 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
+| 8 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
+| 9 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
+| 10 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 168 additional files omitted._
-
-### tools/builtins/coverage_map.py — ❌ F (12.8/100)
-
-LOC: 491 | Classes: 7 | Functions: 0 | MI: 43 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/dead_code.py:48 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/delegate.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/file_edit.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/file_write.py:26 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/glob_tool.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/grep.py:31 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:50 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 526 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 558 | 🟡 MEDIUM | Primitive Obsession | Function 'execute' has 4 primitive-typed parameters: path: Name(id='str', ctx=Load()), file_filter: Name(id='str', ctx=Load()), show_branches: Name(id='bool', ctx=Load()), per_function: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 558 | 🟡 MEDIUM | Feature Envy | Method 'CoverageMapTool.execute' accesses 'request' 5 times but 'self' only 0 times | Move Method — consider moving 'execute' to the class that owns 'request'. |
-
-_... and 25 more smells._
 
 ### cli/console.py — ❌ F (14.6/100)
 
@@ -601,6 +577,30 @@ LOC: 203 | Classes: 2 | Functions: 0 | MI: 64 | Avg CC: 0.0
 | 254 | 🟡 MEDIUM | Magic Number | Magic number 0.1 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
 _... and 13 more smells._
+
+### cli/commands/__init__.py — ❌ F (20.8/100)
+
+LOC: 155 | Classes: 4 | Functions: 2 | MI: 62 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 137 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at extensions/manager.py:39 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 141 | 🟡 MEDIUM | Duplicate Code | Function 'register' is 100% similar to 'register_theme' at cli/console.py:196 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 149 | 🟡 MEDIUM | Duplicate Code | Function 'get' is 100% similar to 'get' at extensions/manager.py:67 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 149 | 🟡 MEDIUM | Duplicate Code | Function 'get' is 100% similar to 'get' at tools/registry.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_commands' at cli/commands/__init__.py:168 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_themes' at cli/console.py:188 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_extensions' at extensions/manager.py:78 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_providers' at providers/registry.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_tools' at tools/registry.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_themes' at cli/console.py:188 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_extensions' at extensions/manager.py:78 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_providers' at providers/registry.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_tools' at tools/registry.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
+
+_... and 11 more smells._
 
 ## ✨ Clean Files (59 files with no smells)
 
