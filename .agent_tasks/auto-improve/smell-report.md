@@ -1,42 +1,42 @@
-# Code Smell Report — ❌ F (Score: 53.1/100)
+# Code Smell Report — ❌ F (Score: 52.2/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T07:30:16.623538+00:00_
+_Generated: 2026-03-02T08:30:17.948998+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 53.1/100 |
+| **Overall Score** | 52.2/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 32,997 |
-| **Total Smells** | 2190 |
-| **Avg Maintainability Index** | 71.5 |
+| **Total Lines (non-blank)** | 33,631 |
+| **Total Smells** | 2251 |
+| **Avg Maintainability Index** | 71.3 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1596 |
-| medium | 512 |
-| high | 82 |
+| low | 1628 |
+| medium | 520 |
+| high | 103 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1107 |
-| Feature Envy | 289 |
-| Duplicate Code | 279 |
-| Magic Number | 132 |
-| Long Method | 122 |
-| Deep Nesting | 114 |
-| Primitive Obsession | 79 |
-| Complex Function | 40 |
-| Large Class | 28 |
+| Missing Type Hint | 1141 |
+| Duplicate Code | 307 |
+| Feature Envy | 293 |
+| Magic Number | 138 |
+| Long Method | 119 |
+| Deep Nesting | 111 |
+| Primitive Obsession | 75 |
+| Complex Function | 37 |
+| Large Class | 30 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 45 | 301 | 48 | 12.3 |
+| 1 | tools/builtins/coverage_map.py | ❌ F | 7.2 | 105 | 935 | 24 | 0.0 |
 | 2 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
 | 3 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
 | 4 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 168 additional files omitted._
 
-### tools/builtins/coverage_map.py — ❌ F (14.3/100)
+### tools/builtins/coverage_map.py — ❌ F (7.2/100)
 
-LOC: 301 | Classes: 1 | Functions: 0 | MI: 48 | Avg CC: 12.3
+LOC: 935 | Classes: 5 | Functions: 0 | MI: 24 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 68 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: 'execute' (line 68), '_parse_xml' (line 108), '_parse_json' (line 196), '_format_results' (line 268) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 165 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_parse_xml' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/dead_code.py:48 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/delegate.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/file_edit.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/file_write.py:26 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/glob_tool.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/grep.py:31 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:50 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 122 | 🟠 HIGH | Duplicate Code | Function '_parse_lines' is an exact duplicate of '_parse_xml_lines' at tools/builtins/coverage_map.py:801 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 157 | 🟠 HIGH | Duplicate Code | Function '_parse_branch_coverage' is an exact duplicate of '_parse_branch_coverage' at tools/builtins/coverage_map.py:836 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 189 | 🟠 HIGH | Duplicate Code | Function '_parse_functions' is an exact duplicate of '_parse_xml_functions' at tools/builtins/coverage_map.py:868 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 208 | 🟠 HIGH | Duplicate Code | Function '_format_results' is an exact duplicate of '_format_results' at tools/builtins/coverage_map.py:471 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 208 | 🟠 HIGH | Duplicate Code | Function '_format_results' is an exact duplicate of '_format_results' at tools/builtins/coverage_map.py:1005 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 238 | 🟠 HIGH | Duplicate Code | Function '_format_file_entry' is an exact duplicate of '_format_file_entry' at tools/builtins/coverage_map.py:501 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 238 | 🟠 HIGH | Duplicate Code | Function '_format_file_entry' is an exact duplicate of '_format_file_entry' at tools/builtins/coverage_map.py:1035 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 267 | 🟠 HIGH | Duplicate Code | Function '_format_coverage_line' is an exact duplicate of '_format_coverage_line' at tools/builtins/coverage_map.py:530 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 267 | 🟠 HIGH | Duplicate Code | Function '_format_coverage_line' is an exact duplicate of '_format_coverage_line' at tools/builtins/coverage_map.py:1064 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 289 | 🟠 HIGH | Duplicate Code | Function '_format_branch_info' is an exact duplicate of '_format_branch_info' at tools/builtins/coverage_map.py:552 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 289 | 🟠 HIGH | Duplicate Code | Function '_format_branch_info' is an exact duplicate of '_format_branch_info' at tools/builtins/coverage_map.py:1086 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 309 | 🟠 HIGH | Duplicate Code | Function '_format_function_info' is an exact duplicate of '_format_function_info' at tools/builtins/coverage_map.py:572 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 309 | 🟠 HIGH | Duplicate Code | Function '_format_function_info' is an exact duplicate of '_format_function_info' at tools/builtins/coverage_map.py:1106 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 325 | 🟠 HIGH | Duplicate Code | Function '_compress_ranges' is an exact duplicate of '_compress_ranges' at tools/builtins/coverage_map.py:588 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 325 | 🟠 HIGH | Duplicate Code | Function '_compress_ranges' is an exact duplicate of '_compress_ranges' at tools/builtins/coverage_map.py:1122 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
 
-_... and 30 more smells._
+_... and 90 more smells._
 
 ### cli/console.py — ❌ F (14.6/100)
 
