@@ -187,7 +187,23 @@ def get_theme(name: str = "dark", overrides: dict[str, str] | None = None) -> Th
     Returns:
         Theme object.
     """
-    base_theme = THEMES.get(name, DARK_THEME)
+    return _get_theme_from_dict(THEMES, name, overrides)
+
+
+def _get_theme_from_dict(
+    themes_dict: dict[str, Theme], name: str, overrides: dict[str, str] | None = None
+) -> Theme:
+    """Get a theme from a dictionary with optional overrides.
+
+    Args:
+        themes_dict: Dictionary of theme names to Theme objects.
+        name: Theme name.
+        overrides: Optional style overrides.
+
+    Returns:
+        Theme object with overrides applied.
+    """
+    base_theme = themes_dict.get(name, DARK_THEME)
     return base_theme.with_overrides(overrides)
 
 
@@ -218,8 +234,7 @@ class ThemeManager:
         Returns:
             The requested theme with overrides applied, or default if not found.
         """
-        base_theme = self._themes.get(name, DARK_THEME)
-        return base_theme.with_overrides(overrides)
+        return _get_theme_from_dict(self._themes, name, overrides)
 
     def set_theme(self, name: str) -> None:
         """Set the current theme by name.
@@ -310,9 +325,7 @@ class OutputRenderer:
         Args:
             message: Success message text.
         """
-        self._print_status_message(
-            StatusMessageParams(message=message, style="success", icon="✓", accessible_icon="[OK]")
-        )
+        self._print_status("success", message, "✓", "[OK]")
 
     def info(self, message: str) -> None:
         """Print an info message.
@@ -320,11 +333,7 @@ class OutputRenderer:
         Args:
             message: Info message text.
         """
-        self._print_status_message(
-            StatusMessageParams(
-                message=message, style="primary", icon="ℹ", accessible_icon="[INFO]"
-            )
-        )
+        self._print_status("primary", message, "ℹ", "[INFO]")
 
     def warning(self, message: str) -> None:
         """Print a warning message.
@@ -332,11 +341,7 @@ class OutputRenderer:
         Args:
             message: Warning message text.
         """
-        self._print_status_message(
-            StatusMessageParams(
-                message=message, style="warning", icon="⚠", accessible_icon="[WARN]"
-            )
-        )
+        self._print_status("warning", message, "⚠", "[WARN]")
 
     def error(self, message: str) -> None:
         """Print an error message.
@@ -344,8 +349,21 @@ class OutputRenderer:
         Args:
             message: Error message text.
         """
+        self._print_status("error", message, "✗", "[ERR]")
+
+    def _print_status(self, style: str, message: str, icon: str, accessible_icon: str) -> None:
+        """Print a status message with consistent formatting.
+
+        Args:
+            style: Theme style name (success, primary, warning, error).
+            message: Message text.
+            icon: Unicode icon for normal mode.
+            accessible_icon: Text icon for accessible mode.
+        """
         self._print_status_message(
-            StatusMessageParams(message=message, style="error", icon="✗", accessible_icon="[ERR]")
+            StatusMessageParams(
+                message=message, style=style, icon=icon, accessible_icon=accessible_icon
+            )
         )
 
     def _print_status_message(self, params: StatusMessageParams) -> None:
