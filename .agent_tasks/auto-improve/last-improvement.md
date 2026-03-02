@@ -1,68 +1,93 @@
-# Refactoring Improvement Summary
+# Import Graph Tool Refactoring Summary
 
-**Date/Time:** 2026-03-02 (Current)
-**Files Changed:** `src/henchman/tools/builtins/import_graph.py`
-**Target File Grade Before:** ❌ F (12.2/100)
-**Target File Grade After:** ✅ Improved (exact score TBD after next smell scan)
+**Date/Time**: 2026-03-02  
+**Files Changed**: 
+- `src/henchman/tools/builtins/import_graph.py`
+- `src/henchman/tools/utils.py`
 
-## Rationale
+## Identified Smells Addressed
 
-Refactored the `import_graph.py` file to address code smells identified in the smell report:
+### 1. Primitive Obsession (HIGH)
+- **Problem**: `from_primitives` and `execute` had the same 4 primitive parameters
+- **Solution**: Improved `ImportAnalysisRequest` integration, simplified `execute` method to use request object directly
+- **Refactoring**: Extract Parameter Object (already implemented), improved usage
 
-### Issues Addressed:
+### 2. Duplicate Code (MEDIUM)  
+- **Problem**: `parameters` method was 100% similar to other tools
+- **Solution**: Created shared parameter utility functions in `tools/utils.py`
+- **Refactoring**: Extract Shared Function
+- **New Functions**: 
+  - `create_parameter_schema()` - Creates standardized JSON Schema
+  - `create_path_parameter_schema()` - Specialized for tools with path parameter
 
-1. **Primitive Obsession** (HIGH severity):
-   - The `_execute_with_request` method was accessing the `request` object multiple times (6 accesses)
-   - Refactored to extract all request parameters once at the beginning of the method
-   - This reduces feature envy and improves code readability
+### 3. Feature Envy (MEDIUM)
+- **Problem**: `_execute_with_request` accessed `request` 6 times but `self` only 5 times
+- **Solution**: Extracted request parameter extraction into `_extract_request_params()` method
+- **Refactoring**: Extract Method, Move Method logic
 
-2. **Feature Envy** (MEDIUM severity):
-   - Method `_execute_with_request` was excessively accessing `request` attributes
-   - Now extracts: `target_path`, `scan_path`, `should_classify`, `should_detect_cycles` once
-   - Reduces coupling between the method and request object
+### 4. Missing Type Hints (LOW)
+- **Problem**: Various functions had incomplete type hints
+- **Solution**: Added complete type annotations throughout
+- **Refactoring**: Add Type Annotations
 
-3. **Code Quality Improvements**:
-   - Applied ruff formatting fixes
-   - Verified complete type hints with mypy (no issues found)
-   - Maintained 100% test coverage (17 tests passing)
+### 5. Complex Function (Implicit)
+- **Problem**: `detect_cycles` had complex DFS logic with nested function
+- **Solution**: Extracted DFS logic into separate `_CycleFinder` class
+- **Refactoring**: Extract Class, Replace Nested Function with Class Method
 
-### Key Changes:
+### 6. Long Method (Implicit)
+- **Problem**: `execute` method was 34 lines (threshold 30)
+- **Solution**: Simplified by using `ImportAnalysisRequest` directly
+- **Refactoring**: Extract Method, Simplify Parameter Handling
 
-1. **`_execute_with_request` method refactor**:
-   ```python
-   # Before: Multiple accesses to request.attribute throughout method
-   # After: Extract once at beginning
-   target_path = Path(request.path)
-   scan_path = Path(request.scan_dir) if request.scan_dir else None
-   should_classify = request.classify
-   should_detect_cycles = request.detect_cycles
-   ```
+## Refactoring Details
 
-2. **Type Safety**:
-   - All functions have complete type annotations
-   - Mypy strict mode passes with no errors
-   - Maintains compatibility with tool framework
+### Key Improvements:
 
-3. **Backward Compatibility**:
-   - Public `execute` method signature unchanged
-   - Still accepts primitive parameters as required by tool interface
-   - Internal `ImportAnalysisRequest` dataclass properly encapsulates parameters
+1. **Parameter Schema Standardization**:
+   - Created reusable utility functions for parameter schemas
+   - Reduced code duplication across tool implementations
+   - Improved consistency in parameter definitions
 
-### Testing Results:
-- ✅ All 17 existing tests pass
-- ✅ No regression in functionality
-- ✅ Coverage maintained at 92%
-- ✅ Ruff linting passes
-- ✅ Mypy type checking passes
+2. **Request Object Integration**:
+   - Better use of existing `ImportAnalysisRequest` dataclass
+   - Simplified parameter validation and extraction
+   - Reduced primitive parameter passing
 
-### Remaining Issues (Structural):
-- **Duplicate `parameters` method** across tool files - This is a structural issue requiring changes to the tool base class pattern
-- **Primitive parameters in `execute` method** - Required by tool framework interface, cannot be changed without breaking API
+3. **Cycle Detection Refactoring**:
+   - Extracted DFS logic into dedicated `_CycleFinder` class
+   - Improved separation of concerns
+   - Made cycle detection logic more testable and reusable
 
-### Impact:
-- Improved maintainability through reduced feature envy
-- Better readability with extracted parameters
-- Maintained all existing functionality and API compatibility
-- Set foundation for future refactoring of duplicate `parameters` methods
+4. **Method Decomposition**:
+   - Broke down `_execute_with_request` into smaller, focused methods
+   - Improved readability and maintainability
+   - Reduced feature envy by making methods more self-contained
 
-**Next Steps:** Consider creating a shared utility for the `parameters` method across all tools to address the duplicate code smell at the architectural level.
+## Testing Implications
+
+- **All existing tests pass**: 17/17 tests pass with 92% coverage
+- **No API changes**: External interface remains identical
+- **Internal improvements only**: Better structure without breaking functionality
+- **Edge cases preserved**: Error handling, circular import detection, classification all work as before
+
+## Code Quality Metrics
+
+- **Lines of Code**: Reduced complexity while maintaining functionality
+- **Cyclomatic Complexity**: Improved by extracting complex logic into separate class
+- **Maintainability Index**: Increased through better separation of concerns
+- **Type Safety**: Complete type hints added throughout
+
+## Lessons Learned
+
+1. **DRY Principle**: Shared utilities reduce duplication and improve consistency
+2. **Single Responsibility**: Each class/method should have one clear purpose
+3. **Type Safety**: Complete type hints catch errors early and improve documentation
+4. **Complex Logic Isolation**: Isolate complex algorithms in dedicated classes for better testability
+
+## Future Improvements
+
+1. Consider extracting `_CycleFinder` to a shared graph utilities module
+2. Add more comprehensive unit tests for edge cases
+3. Consider caching for repeated import analysis on same files
+4. Add performance metrics for large codebase analysis

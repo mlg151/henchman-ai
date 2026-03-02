@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T02:30:16.450591+00:00_
+_Generated: 2026-03-02T03:00:16.876963+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-02T02:30:16.450591+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 52.9/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 32,767 |
+| **Total Lines (non-blank)** | 32,769 |
 | **Total Smells** | 2215 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.7 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | tools/builtins/import_graph.py | ❌ F | 12.2 | 54 | 581 | 41 | 0.0 |
+| 1 | tools/builtins/import_graph.py | ❌ F | 12.2 | 54 | 583 | 41 | 0.0 |
 | 2 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
 | 3 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
 | 4 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
@@ -124,7 +124,7 @@ _Showing 20 worst files. 168 additional files omitted._
 
 ### tools/builtins/import_graph.py — ❌ F (12.2/100)
 
-LOC: 581 | Classes: 4 | Functions: 5 | MI: 41 | Avg CC: 0.0
+LOC: 583 | Classes: 4 | Functions: 5 | MI: 41 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
