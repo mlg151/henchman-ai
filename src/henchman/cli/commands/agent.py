@@ -36,11 +36,10 @@ class AgentCommand(Command):
         Args:
             ctx: Command context.
         """
-        if not ctx.repl or not hasattr(ctx.repl, "orchestrator"):
-            ctx.console.print("[red]Multi-agent system not initialized.[/]")
+        if not self._check_multi_agent_initialized(ctx):
             return
 
-        orchestrator: Orchestrator = ctx.repl.orchestrator
+        orchestrator = self._get_orchestrator(ctx)
         args = ctx.args
 
         if not args or args[0] == "list":
@@ -53,20 +52,66 @@ class AgentCommand(Command):
             role = args[0]
             message = " ".join(args[1:])
             if not message:
-                ctx.console.print(f"[red]Please provide a message for agent '{role}'.[/]")
+                self._print_error(ctx, f"Please provide a message for agent '{role}'.")
                 return
 
-            try:
-                # We need to run this through the REPL's agent run logic
-                # but target a specific agent.
-                if hasattr(ctx.repl, "_run_agent_direct"):
-                    await ctx.repl._run_agent_direct(role, message)
-                else:
-                    ctx.console.print(
-                        "[red]Direct agent targeting not supported in this REPL version.[/]"
-                    )
-            except Exception as e:
-                ctx.console.print(f"[red]Error talking to agent '{role}': {e}[/]")
+            await self._talk_to_agent_directly(ctx, role, message)
+
+    def _check_multi_agent_initialized(self, ctx: CommandContext) -> bool:
+        """Check if multi-agent system is initialized.
+
+        Args:
+            ctx: Command context.
+
+        Returns:
+            True if initialized, False otherwise.
+        """
+        if not ctx.repl or not hasattr(ctx.repl, "orchestrator"):
+            ctx.console.print("[red]Multi-agent system not initialized.[/]")
+            return False
+        return True
+
+    def _get_orchestrator(self, ctx: CommandContext) -> Orchestrator:
+        """Get orchestrator from context.
+
+        Args:
+            ctx: Command context.
+
+        Returns:
+            Orchestrator instance.
+        """
+        return ctx.repl.orchestrator
+
+    def _print_error(self, ctx: CommandContext, message: str) -> None:
+        """Print error message.
+
+        Args:
+            ctx: Command context.
+            message: Error message.
+        """
+        ctx.console.print(f"[red]{message}[/]")
+
+    async def _talk_to_agent_directly(
+        self, ctx: CommandContext, role: str, message: str
+    ) -> None:
+        """Talk to agent directly.
+
+        Args:
+            ctx: Command context.
+            role: Agent role.
+            message: Message to send.
+        """
+        try:
+            # We need to run this through the REPL's agent run logic
+            # but target a specific agent.
+            if hasattr(ctx.repl, "_run_agent_direct"):
+                await ctx.repl._run_agent_direct(role, message)
+            else:
+                ctx.console.print(
+                    "[red]Direct agent targeting not supported in this REPL version.[/]"
+                )
+        except Exception as e:
+            ctx.console.print(f"[red]Error talking to agent '{role}': {e}[/]")
 
     def _list_agents(self, ctx: CommandContext, orchestrator: Orchestrator) -> None:
         """List all configured agents."""

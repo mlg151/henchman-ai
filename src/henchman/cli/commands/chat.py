@@ -12,7 +12,7 @@ from henchman.cli.commands import BaseCommand, CommandContext
 from henchman.providers.base import Message, ToolCall
 
 if TYPE_CHECKING:
-    from henchman.core.session import SessionManager
+    from henchman.core.session import Session, SessionManager
 
 
 class ChatCommand(BaseCommand):
@@ -119,18 +119,65 @@ class ChatCommand(BaseCommand):
 
     async def _resume(self, ctx: CommandContext) -> None:
         """Resume a saved session."""
-        manager: SessionManager | None = getattr(ctx, "session_manager", None)
+        manager = self._get_session_manager(ctx)
         if manager is None:
-            ctx.console.print("[red]Session manager not available[/]")
             return
 
-        if len(ctx.args) < 2:
-            ctx.console.print("[yellow]Usage: /chat resume <tag|id>[/]")
+        if not self._validate_resume_args(ctx):
             return
 
         tag_or_id = ctx.args[1]
-        project_hash = getattr(ctx, "project_hash", None)
+        session = self._load_session(ctx, manager, tag_or_id)
+        
+        if session is None:
+            ctx.console.print(f"[red]Session not found: {tag_or_id}[/]")
+            return
 
+        self._restore_session(ctx, manager, session, tag_or_id)
+
+    def _get_session_manager(self, ctx: CommandContext) -> SessionManager | None:
+        """Get session manager from context.
+        
+        Args:
+            ctx: Command context.
+            
+        Returns:
+            SessionManager instance or None if not available.
+        """
+        manager: SessionManager | None = getattr(ctx, "session_manager", None)
+        if manager is None:
+            ctx.console.print("[red]Session manager not available[/]")
+        return manager
+
+    def _validate_resume_args(self, ctx: CommandContext) -> bool:
+        """Validate resume command arguments.
+        
+        Args:
+            ctx: Command context.
+            
+        Returns:
+            True if arguments are valid, False otherwise.
+        """
+        if len(ctx.args) < 2:
+            ctx.console.print("[yellow]Usage: /chat resume <tag|id>[/]")
+            return False
+        return True
+
+    def _load_session(
+        self, ctx: CommandContext, manager: SessionManager, tag_or_id: str
+    ) -> Session | None:
+        """Load session by tag or ID.
+        
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+            tag_or_id: Session tag or ID.
+            
+        Returns:
+            Session instance or None if not found.
+        """
+        project_hash = getattr(ctx, "project_hash", None)
+        
         # Try loading by tag first
         session = manager.load_by_tag(tag_or_id, project_hash)
 
@@ -138,45 +185,63 @@ class ChatCommand(BaseCommand):
         if session is None:
             with contextlib.suppress(ValueError, FileNotFoundError):
                 session = manager.load(tag_or_id)
+        
+        return session
 
-        if session is None:
-            ctx.console.print(f"[red]Session not found: {tag_or_id}[/]")
-            return
-
+    def _restore_session(
+        self, ctx: CommandContext, manager: SessionManager, session: Session, tag_or_id: str
+    ) -> None:
+        """Restore session to context.
+        
+        Args:
+            ctx: Command context.
+            manager: Session manager.
+            session: Session to restore.
+            tag_or_id: Session tag or ID for display.
+        """
         # Use repl.set_session if available to handle all sync logic
         if ctx.repl and hasattr(ctx.repl, "set_session"):
             ctx.repl.set_session(session)
         else:
             # Fallback for when REPL isn't available (e.g. some tests)
             manager.set_current(session)
-
-            # Restore session messages to agent history
-            if ctx.agent is not None:
-                # Clear agent history (keeping system prompt)
-                ctx.agent.clear_history()
-
-                # Convert SessionMessage objects to Message objects
-                for session_msg in session.messages:
-                    # Convert tool_calls from dicts to ToolCall objects if present
-                    tool_calls = None
-                    if session_msg.tool_calls:
-                        tool_calls = [
-                            ToolCall(
-                                id=tc.get("id", ""),
-                                name=tc.get("name", ""),
-                                arguments=tc.get("arguments", {}),
-                            )
-                            for tc in session_msg.tool_calls
-                        ]
-
-                    msg = Message(
-                        role=session_msg.role,
-                        content=session_msg.content,
-                        tool_calls=tool_calls,
-                        tool_call_id=session_msg.tool_call_id,
-                    )
-                    ctx.agent.messages.append(msg)
+            self._restore_agent_history(ctx, session)
 
         ctx.console.print(
             f"[green]✓[/] Resumed session '{tag_or_id}' ({len(session.messages)} messages)"
         )
+
+    def _restore_agent_history(self, ctx: CommandContext, session: Session) -> None:
+        """Restore session messages to agent history.
+        
+        Args:
+            ctx: Command context.
+            session: Session containing messages.
+        """
+        if ctx.agent is None:
+            return
+            
+        # Clear agent history (keeping system prompt)
+        ctx.agent.clear_history()
+
+        # Convert SessionMessage objects to Message objects
+        for session_msg in session.messages:
+            # Convert tool_calls from dicts to ToolCall objects if present
+            tool_calls = None
+            if session_msg.tool_calls:
+                tool_calls = [
+                    ToolCall(
+                        id=tc.get("id", ""),
+                        name=tc.get("name", ""),
+                        arguments=tc.get("arguments", {}),
+                    )
+                    for tc in session_msg.tool_calls
+                ]
+
+            msg = Message(
+                role=session_msg.role,
+                content=session_msg.content,
+                tool_calls=tool_calls,
+                tool_call_id=session_msg.tool_call_id,
+            )
+            ctx.agent.messages.append(msg)

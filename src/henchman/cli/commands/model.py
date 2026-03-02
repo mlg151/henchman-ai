@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from henchman.cli.commands import Command, CommandContext
 from henchman.config import load_settings
@@ -71,20 +71,30 @@ class ModelCommand(Command):
         provider = ctx.agent.provider
         _settings = load_settings()
         registry = get_default_registry()
+        available = registry.list_providers()
 
-        ctx.console.print("\n[bold blue]Current Configuration[/]\n")
-        ctx.console.print(f"  Provider: [cyan]{provider.name}[/]")
+        self._print_current_configuration(ctx.console, provider, available)
+
+    def _print_current_configuration(self, console: Any, provider: Any, available: list[str]) -> None:
+        """Print current provider and model configuration.
+
+        Args:
+            console: Console for output.
+            provider: Current provider.
+            available: List of available providers.
+        """
+        console.print("\n[bold blue]Current Configuration[/]\n")
+        console.print(f"  Provider: [cyan]{provider.name}[/]")
 
         # Show model if available
         if hasattr(provider, "default_model"):
-            ctx.console.print(f"  Model: [cyan]{provider.default_model}[/]")
+            console.print(f"  Model: [cyan]{provider.default_model}[/]")
 
         # Show available providers
-        available = registry.list_providers()
-        ctx.console.print(f"\n  Available providers: [dim]{', '.join(available)}[/]")
-        ctx.console.print("\n  Use [cyan]/model list[/] to see all providers")
-        ctx.console.print("  Use [cyan]/model set <provider> [model][/] to switch")
-        ctx.console.print("")
+        console.print(f"\n  Available providers: [dim]{', '.join(available)}[/]")
+        console.print("\n  Use [cyan]/model list[/] to see all providers")
+        console.print("  Use [cyan]/model set <provider> [model][/] to switch")
+        console.print("")
 
     async def _list_providers(self, ctx: CommandContext) -> None:
         """List all available providers and models.
@@ -140,70 +150,138 @@ class ModelCommand(Command):
             return
 
         try:
-            # Get registry and create new provider
-            registry = get_default_registry()
-
-            if provider_name not in registry.list_providers():
-                ctx.console.print(f"[red]Provider '{provider_name}' not found.[/]")
-                ctx.console.print(f"Available providers: {', '.join(registry.list_providers())}")
+            # Validate provider exists
+            if not self._validate_provider_exists(ctx, provider_name):
                 return
 
             # Try to get API key from environment or settings
             api_key = self._get_api_key_for_provider(provider_name)
 
             # Create provider instance
-            provider_kwargs = {"api_key": api_key or ""}
-            if model_name:
-                provider_kwargs["model"] = model_name
+            new_provider = self._create_provider_instance(provider_name, model_name, api_key)
 
-            new_provider = registry.create(provider_name, **provider_kwargs)
-
-            # Test the provider with a simple call
-            ctx.console.print(f"[dim]Testing {provider_name} connection...[/]")
-            try:
-                # Simple test to verify provider works
-                if hasattr(new_provider, "default_model"):
-                    ctx.console.print(f"[green]✓ Connected to {provider_name}[/]")
-                    if model_name:
-                        ctx.console.print(f"[green]✓ Using model: {model_name}[/]")
-                    else:
-                        ctx.console.print(
-                            f"[green]✓ Using default model: {new_provider.default_model}[/]"
-                        )
-                else:
-                    ctx.console.print(f"[green]✓ Connected to {provider_name}[/]")
-            except Exception as e:
-                ctx.console.print(f"[yellow]⚠ Connection test failed: {e}[/]")
-                ctx.console.print("[yellow]Provider created but may not work correctly.[/]")
+            # Test the provider connection
+            self._test_provider_connection(ctx, new_provider, provider_name, model_name)
 
             # Update the agent with new provider
-            if ctx.agent is None:
-                ctx.console.print("[red]No agent available[/]")
+            if not self._update_agent_provider(ctx, new_provider):
                 return
-            old_provider = ctx.agent.provider
-            ctx.agent.provider = new_provider
-
-            # Update REPL's provider reference
-            if ctx.repl is not None:
-                ctx.repl.provider = new_provider
-
-            ctx.console.print(
-                f"\n[bold green]✓ Switched from {old_provider.name} to {new_provider.name}[/]"
-            )
 
             # Show any configuration needed
-            if not api_key:
-                env_var = self._get_env_var_name(provider_name)
-                ctx.console.print(f"\n[yellow]⚠ No API key found for {provider_name}[/]")
-                ctx.console.print(f"  Set environment variable: [cyan]{env_var}=your-api-key[/]")
-                ctx.console.print("  Or configure in [cyan]~/.henchman/settings.yaml[/]:")
-                ctx.console.print("    providers:")
-                ctx.console.print(f"      {provider_name}:")
-                ctx.console.print("        api_key: your-api-key")
+            self._show_configuration_warnings(ctx, provider_name, api_key)
 
         except Exception as e:
             ctx.console.print(f"[red]Failed to switch provider: {e}[/]")
             ctx.console.print("[dim]Check that the provider is properly configured.[/]")
+
+    def _validate_provider_exists(self, ctx: CommandContext, provider_name: str) -> bool:
+        """Validate that the provider exists in the registry.
+
+        Args:
+            ctx: Command context.
+            provider_name: Name of the provider to validate.
+
+        Returns:
+            True if provider exists, False otherwise.
+        """
+        registry = get_default_registry()
+        if provider_name not in registry.list_providers():
+            ctx.console.print(f"[red]Provider '{provider_name}' not found.[/]")
+            ctx.console.print(f"Available providers: {', '.join(registry.list_providers())}")
+            return False
+        return True
+
+    def _create_provider_instance(
+        self, provider_name: str, model_name: str | None, api_key: str | None
+    ) -> Any:
+        """Create a new provider instance.
+
+        Args:
+            provider_name: Name of the provider to create.
+            model_name: Optional model name to use.
+            api_key: API key for the provider.
+
+        Returns:
+            New provider instance.
+        """
+        registry = get_default_registry()
+        provider_kwargs = {"api_key": api_key or ""}
+        if model_name:
+            provider_kwargs["model"] = model_name
+        return registry.create(provider_name, **provider_kwargs)
+
+    def _test_provider_connection(
+        self, ctx: CommandContext, provider: Any, provider_name: str, model_name: str | None
+    ) -> None:
+        """Test provider connection and print results.
+
+        Args:
+            ctx: Command context.
+            provider: Provider instance to test.
+            provider_name: Name of the provider.
+            model_name: Optional model name used.
+        """
+        ctx.console.print(f"[dim]Testing {provider_name} connection...[/]")
+        try:
+            # Simple test to verify provider works
+            if hasattr(provider, "default_model"):
+                ctx.console.print(f"[green]✓ Connected to {provider_name}[/]")
+                if model_name:
+                    ctx.console.print(f"[green]✓ Using model: {model_name}[/]")
+                else:
+                    ctx.console.print(
+                        f"[green]✓ Using default model: {provider.default_model}[/]"
+                    )
+            else:
+                ctx.console.print(f"[green]✓ Connected to {provider_name}[/]")
+        except Exception as e:
+            ctx.console.print(f"[yellow]⚠ Connection test failed: {e}[/]")
+            ctx.console.print("[yellow]Provider created but may not work correctly.[/]")
+
+    def _update_agent_provider(self, ctx: CommandContext, new_provider: Any) -> bool:
+        """Update agent with new provider.
+
+        Args:
+            ctx: Command context.
+            new_provider: New provider instance.
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        if ctx.agent is None:
+            ctx.console.print("[red]No agent available[/]")
+            return False
+
+        old_provider = ctx.agent.provider
+        ctx.agent.provider = new_provider
+
+        # Update REPL's provider reference
+        if ctx.repl is not None:
+            ctx.repl.provider = new_provider
+
+        ctx.console.print(
+            f"\n[bold green]✓ Switched from {old_provider.name} to {new_provider.name}[/]"
+        )
+        return True
+
+    def _show_configuration_warnings(
+        self, ctx: CommandContext, provider_name: str, api_key: str | None
+    ) -> None:
+        """Show configuration warnings if API key is missing.
+
+        Args:
+            ctx: Command context.
+            provider_name: Name of the provider.
+            api_key: API key for the provider.
+        """
+        if not api_key:
+            env_var = self._get_env_var_name(provider_name)
+            ctx.console.print(f"\n[yellow]⚠ No API key found for {provider_name}[/]")
+            ctx.console.print(f"  Set environment variable: [cyan]{env_var}=your-api-key[/]")
+            ctx.console.print("  Or configure in [cyan]~/.henchman/settings.yaml[/]:")
+            ctx.console.print("    providers:")
+            ctx.console.print(f"      {provider_name}:")
+            ctx.console.print("        api_key: your-api-key")
 
     def _get_example_config(self, provider_name: str) -> str:
         """Get example configuration for a provider.

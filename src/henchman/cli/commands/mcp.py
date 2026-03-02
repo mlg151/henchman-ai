@@ -5,7 +5,7 @@ This module provides the /mcp command for listing and managing MCP servers.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from henchman.cli.commands import BaseCommand, CommandContext
 from henchman.config import load_settings
@@ -125,15 +125,31 @@ class McpCommand(BaseCommand):
             ctx: Command context.
         """
         if len(ctx.args) < 2:
-            ctx.console.print("\n[bold blue]MCP Logging Control[/]\n")
-            ctx.console.print("  /mcp logging on     - Enable MCP logging messages")
-            ctx.console.print("  /mcp logging off    - Disable MCP logging messages")
-            ctx.console.print("  /mcp logging status - Show current logging status")
-            ctx.console.print("")
+            self._print_logging_help(ctx.console)
             return
 
         action = ctx.args[1].lower()
+        self._handle_logging_action(ctx, action)
 
+    def _print_logging_help(self, console: Any) -> None:
+        """Print MCP logging help information.
+
+        Args:
+            console: Console for output.
+        """
+        console.print("\n[bold blue]MCP Logging Control[/]\n")
+        console.print("  /mcp logging on     - Enable MCP logging messages")
+        console.print("  /mcp logging off    - Disable MCP logging messages")
+        console.print("  /mcp logging status - Show current logging status")
+        console.print("")
+
+    def _handle_logging_action(self, ctx: CommandContext, action: str) -> None:
+        """Handle MCP logging action.
+
+        Args:
+            ctx: Command context.
+            action: Action to perform ('on', 'off', or 'status').
+        """
         # Get settings from REPL context if available, otherwise load fresh
         settings = ctx.repl.settings if ctx.repl and ctx.repl.settings else load_settings()
 
