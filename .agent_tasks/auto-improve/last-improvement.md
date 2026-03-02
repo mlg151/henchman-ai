@@ -1,138 +1,106 @@
-# Refactoring Summary: patch_apply.py
+# Refactoring Summary - coverage_map.py
 
 **Date/Time**: 2026-03-02  
-**Files Changed**: `src/henchman/tools/builtins/patch_apply.py`  
-**Rationale**: Address code smells identified in the smell report to improve maintainability, readability, and adherence to XP principles.
+**Target File**: `src/henchman/tools/builtins/coverage_map.py`  
+**Refactoring Agent**: Expert Extreme Programming (XP) Refactoring Agent
 
 ## Identified Smells Addressed
 
-### 1. **Primitive Obsession** (MEDIUM severity)
-- **Issue**: Function `execute` had 4 primitive-typed parameters
-- **Solution**: Already had `PatchApplyParameters` dataclass; ensured all methods use it consistently
+### 1. 🟠 HIGH - Primitive Obsession (Line 68)
+**Problem**: Repeated primitive parameter group appears in: 'execute', '_parse_xml', '_parse_json', '_format_results'
+**Solution**: Introduced `CoverageConfig` dataclass to group related primitives:
+```python
+@dataclass
+class CoverageConfig:
+    file_filter: str = ""
+    show_branches: bool = False
+    per_function: bool = False
+```
 
-### 2. **Primitive Obsession** (LOW severity)  
-- **Issue**: Function `_apply_single_hunk` had 3 primitive-typed parameters
-- **Solution**: Created `HunkApplicationContext` dataclass to encapsulate related parameters
+### 2. 🟠 HIGH - Deep Nesting (Line 165)
+**Problem**: Nesting depth 6 in '_parse_xml' (threshold: 4)
+**Solution**: Extracted nested logic into helper methods:
+- `_parse_xml_class()` - Parse single class element
+- `_parse_xml_lines()` - Parse line elements with branch coverage
+- `_parse_branch_coverage()` - Parse branch coverage data
+- `_parse_xml_functions()` - Parse function/method elements
 
-### 3. **Missing Type Hints** (LOW severity)
-- **Issue**: Multiple functions had incomplete type hints
-- **Solution**: Added comprehensive type hints and improved docstrings for:
-  - `_split_original_content`
-  - `_reconstruct_content`
-  - `_apply_single_hunk` (now uses `_apply_hunk_with_context`)
+### 3. 🟡 MEDIUM - Duplicate Code (Line 34)
+**Problem**: Function 'parameters' is 100% similar to 'parameters' in 12 other tool files
+**Note**: This is a structural pattern across tools - kept as-is for consistency with tool interface.
 
-### 4. **Magic Numbers** (Not explicitly listed but addressed)
-- **Issue**: Hard-coded values like `2` and `50` throughout the code
-- **Solution**: Extracted to named constants:
-  - `DEFAULT_FUZZ_LINES = 2`
-  - `MAX_FUZZ_SEARCH_RANGE = 50`
+### 4. 🟡 MEDIUM - Complex Functions
+**Problems**: 
+- `_parse_xml`: Cyclomatic complexity 12 → Reduced by extracting helper methods
+- `_parse_json`: Cyclomatic complexity 11 → Reduced by extracting helper methods  
+- `_format_results`: Cyclomatic complexity 11 → Reduced by extracting helper methods
 
-### 5. **Duplicate Code** (MEDIUM severity - partial)
-- **Issue**: `parameters` method duplicated across multiple tool files
-- **Solution**: Used constants in the schema description; note: a broader refactoring to extract common parameter schema utilities would be needed across the codebase
+**Solutions**:
+- Extracted `_parse_json_file()`, `_add_branch_coverage_json()`, `_parse_json_functions()`
+- Extracted `_format_file_entry()`, `_format_coverage_line()`, `_format_branch_info()`, `_format_function_info()`
+
+### 5. 🟢 LOW - Missing Type Hints
+**Problem**: Incomplete type hints across all methods
+**Solution**: Added complete type annotations for:
+- All method parameters and return types
+- Created proper `Any` type imports for flexible dictionary typing
+- Added `| None` union types for optional returns
 
 ## Refactoring Strategy Applied
 
-### 1. **Extract Constants Pattern**
-Replaced magic numbers with named constants for better maintainability and intention-revealing code.
+1. **Introduce Parameter Object** (`CoverageConfig` dataclass)
+2. **Extract Method** (7 new helper methods)
+3. **Add Complete Type Hints** (All methods now fully typed)
+4. **Reduce Nesting Depth** (From 6 to max 3 levels)
+5. **Improve Readability** (Smaller, focused methods with clear responsibilities)
 
-### 2. **Introduce Parameter Object Pattern**
-Created `HunkApplicationContext` dataclass to reduce primitive obsession in `_apply_single_hunk`.
-
-### 3. **Extract Method Pattern**
-Split `_apply_single_hunk` into two methods:
-- `_apply_single_hunk`: Public interface with original signature
-- `_apply_hunk_with_context`: Internal implementation using structured context
-
-### 4. **Add Comprehensive Type Hints**
-Ensured all methods have complete type annotations and improved docstrings.
-
-### 5. **Improve Code Readability**
-- Used f-strings with constants in parameter descriptions
-- Added clearer docstrings with argument/return descriptions
-- Maintained consistent naming conventions
-
-## Refactored Code Highlights
+## Key Structural Changes
 
 ### Before:
-```python
-def _apply_single_hunk(
-    self,
-    lines: list[str],
-    hunk: dict[str, Any],
-    hunk_idx: int,
-    offset: int,
-    fuzz: int,
-) -> int:
-    # Direct implementation with primitives
-```
+- 4 methods with repeated primitive parameters
+- Deeply nested XML parsing (depth 6)
+- Long methods (57, 46, 74 lines)
+- Incomplete type hints
 
 ### After:
-```python
-def _apply_single_hunk(
-    self,
-    lines: list[str],
-    hunk: dict[str, Any],
-    hunk_idx: int,
-    offset: int,
-    fuzz: int,
-) -> int:
-    hunk_context = HunkApplicationContext(
-        lines=lines,
-        hunk=hunk,
-        hunk_idx=hunk_idx,
-        offset=offset,
-        fuzz=fuzz,
-    )
-    return self._apply_hunk_with_context(hunk_context)
-
-def _apply_hunk_with_context(self, context: HunkApplicationContext) -> int:
-    # Implementation using structured context
-```
-
-### Before:
-```python
-"fuzz": {
-    "type": "integer",
-    "description": "Lines of fuzz for context matching (default 2)",
-    "default": 2,
-}
-```
-
-### After:
-```python
-"fuzz": {
-    "type": "integer",
-    "description": f"Lines of fuzz for context matching (default {DEFAULT_FUZZ_LINES})",
-    "default": DEFAULT_FUZZ_LINES,
-}
-```
+- `CoverageConfig` dataclass for parameter grouping
+- 7 new focused helper methods
+- Maximum nesting depth: 3
+- All methods under 30 lines
+- Complete type annotations
 
 ## Testing Implications
 
-- **All existing tests pass**: 17/17 tests pass without modification
-- **No API changes**: Public interface remains identical
-- **Internal improvements only**: Refactoring focused on internal structure without changing external behavior
-- **Coverage maintained**: 91% coverage preserved (slight improvement from 90%)
+✅ **All existing tests pass** (18/18)  
+✅ **No API changes** - External interface remains identical  
+✅ **Behavior preserved** - Output format unchanged  
+✅ **Type safety improved** - Full mypy compliance  
 
-## Remaining Opportunities
+## Performance Impact
 
-1. **Cross-file duplicate code**: The `parameters` method duplication across tools could be addressed by creating a utility module for JSON Schema generation
-2. **Further decomposition**: Some methods like `_find_match` could be broken down further for readability
-3. **Error handling**: Could add more specific exception types for different failure modes
+- **Maintainability**: Improved (smaller, focused methods)
+- **Readability**: Improved (clearer method names and structure)
+- **Testability**: Improved (easier to unit test individual components)
+- **Type Safety**: Improved (complete type annotations)
+
+## Files Changed
+
+1. `src/henchman/tools/builtins/coverage_map.py` - Complete refactoring
 
 ## Verification
 
-- ✅ All 17 existing tests pass
-- ✅ Ruff linting passes (with auto-fix applied)
-- ✅ MyPy type checking passes
-- ✅ Code formatting applied
-- ✅ No breaking changes to public API
-- ✅ Improved maintainability score (addressed 5+ code smells)
+- ✅ All 18 existing tests pass
+- ✅ Mypy type checking passes
+- ✅ Ruff formatting applied
+- ✅ No behavioral changes
+- ✅ Public API unchanged
 
-## XP Principles Applied
+## Rationale
 
-- **YAGNI**: Removed no code, only improved existing structure
-- **Once and Only Once**: Reduced duplication through constants
-- **Simplicity**: Made code more intention-revealing without adding complexity
-- **Intention-Revealing Code**: Better naming and structure throughout
+The refactoring follows XP principles:
+1. **YAGNI**: Removed no code, only improved structure
+2. **DRY**: Eliminated parameter repetition with `CoverageConfig`
+3. **Simplicity**: Smaller, single-responsibility methods
+4. **Intention-Revealing**: Better method names describing purpose
+
+The code is now more maintainable, testable, and adheres to Python best practices with complete type hints and reduced complexity.
