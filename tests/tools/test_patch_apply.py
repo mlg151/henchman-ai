@@ -39,13 +39,7 @@ class TestPatchApplyTool:
             f = Path(tmpdir) / "hello.py"
             f.write_text("x = 1\ny = 2\nz = 3\n")
             patch = (
-                "--- a/hello.py\n"
-                "+++ b/hello.py\n"
-                "@@ -1,3 +1,3 @@\n"
-                " x = 1\n"
-                "-y = 2\n"
-                "+y = 99\n"
-                " z = 3\n"
+                "--- a/hello.py\n+++ b/hello.py\n@@ -1,3 +1,3 @@\n x = 1\n-y = 2\n+y = 99\n z = 3\n"
             )
             result = await tool.execute(patch=patch, path=str(f))
             assert result.success is True
@@ -81,7 +75,7 @@ class TestPatchApplyTool:
             f = Path(tmpdir) / "dry.py"
             original = "x = 1\n"
             f.write_text(original)
-            patch = "@@ -1,1 +1,1 @@\n" "-x = 1\n" "+x = 2\n"
+            patch = "@@ -1,1 +1,1 @@\n-x = 1\n+x = 2\n"
             result = await tool.execute(patch=patch, path=str(f), dry_run=True)
             assert result.success is True
             assert "dry run" in result.content
@@ -102,13 +96,7 @@ class TestPatchApplyTool:
     async def test_file_not_found(self) -> None:
         """Handle nonexistent target file."""
         tool = PatchApplyTool()
-        patch = (
-            "--- a/missing.py\n"
-            "+++ b/missing.py\n"
-            "@@ -1,1 +1,1 @@\n"
-            "-x = 1\n"
-            "+x = 2\n"
-        )
+        patch = "--- a/missing.py\n+++ b/missing.py\n@@ -1,1 +1,1 @@\n-x = 1\n+x = 2\n"
         result = await tool.execute(patch=patch)
         assert "SKIP" in result.content
 
@@ -118,7 +106,7 @@ class TestPatchApplyTool:
         with tempfile.TemporaryDirectory() as tmpdir:
             f = Path(tmpdir) / "mismatch.py"
             f.write_text("totally different content\n")
-            patch = "@@ -1,1 +1,1 @@\n" "-expected line\n" "+new line\n"
+            patch = "@@ -1,1 +1,1 @@\n-expected line\n+new line\n"
             result = await tool.execute(patch=patch, path=str(f))
             assert "FAIL" in result.content
 
@@ -129,7 +117,7 @@ class TestPatchApplyTool:
             f = Path(tmpdir) / "fuzz.py"
             # Extra line at the top shifts everything by 1
             f.write_text("extra\nx = 1\ny = 2\n")
-            patch = "@@ -1,2 +1,2 @@\n" "-x = 1\n" "+x = 99\n" " y = 2\n"
+            patch = "@@ -1,2 +1,2 @@\n-x = 1\n+x = 99\n y = 2\n"
             result = await tool.execute(patch=patch, path=str(f), fuzz=2)
             assert result.success is True
             assert "x = 99" in f.read_text()
@@ -140,13 +128,7 @@ class TestPatchApplyTool:
         with tempfile.TemporaryDirectory() as tmpdir:
             f = Path(tmpdir) / "header.py"
             f.write_text("a = 1\n")
-            patch = (
-                f"--- a/header.py\n"
-                f"+++ b/{f}\n"
-                "@@ -1,1 +1,1 @@\n"
-                "-a = 1\n"
-                "+a = 2\n"
-            )
+            patch = f"--- a/header.py\n+++ b/{f}\n@@ -1,1 +1,1 @@\n-a = 1\n+a = 2\n"
             # Use explicit path since b/ stripping won't find the file
             result = await tool.execute(patch=patch, path=str(f))
             assert result.success is True
@@ -157,7 +139,7 @@ class TestPatchApplyTool:
         with tempfile.TemporaryDirectory() as tmpdir:
             f = Path(tmpdir) / "add.py"
             f.write_text("line1\nline2\n")
-            patch = "@@ -1,2 +1,3 @@\n" " line1\n" "+inserted\n" " line2\n"
+            patch = "@@ -1,2 +1,3 @@\n line1\n+inserted\n line2\n"
             result = await tool.execute(patch=patch, path=str(f))
             assert result.success is True
             content = f.read_text()
@@ -170,7 +152,7 @@ class TestPatchApplyTool:
         with tempfile.TemporaryDirectory() as tmpdir:
             f = Path(tmpdir) / "del.py"
             f.write_text("keep\nremove\nkeep2\n")
-            patch = "@@ -1,3 +1,2 @@\n" " keep\n" "-remove\n" " keep2\n"
+            patch = "@@ -1,3 +1,2 @@\n keep\n-remove\n keep2\n"
             result = await tool.execute(patch=patch, path=str(f))
             assert result.success is True
             content = f.read_text()
@@ -189,9 +171,11 @@ class TestPatchApplyTool:
 
     def test_lines_match(self) -> None:
         """Test _lines_match helper."""
-        tool = PatchApplyTool()
+        from henchman.tools.builtins.patch_apply import HunkApplier
+
+        applier = HunkApplier()
         lines = ["a", "b", "c", "d"]
-        assert tool._lines_match(lines, ["b", "c"], 1) is True
-        assert tool._lines_match(lines, ["b", "c"], 0) is False
-        assert tool._lines_match(lines, ["c", "d"], 2) is True
-        assert tool._lines_match(lines, ["x"], 0) is False
+        assert applier._lines_match(lines, ["b", "c"], 1) is True
+        assert applier._lines_match(lines, ["b", "c"], 0) is False
+        assert applier._lines_match(lines, ["c", "d"], 2) is True
+        assert applier._lines_match(lines, ["x"], 0) is False

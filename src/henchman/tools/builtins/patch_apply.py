@@ -3,6 +3,7 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
@@ -17,184 +18,13 @@ class PatchApplyParameters:
     fuzz: int = 2
 
 
-class PatchApplyTool(Tool):
-    """Apply unified diff patches to files.
+class HunkApplier:
+    """Applies hunks to file content with fuzzy matching."""
 
-    Accepts standard unified diff format with multiple hunks and
-    applies them in a single operation. Supports dry-run preview
-    and fuzzy context matching.
-    """
-
-    @property
-    def name(self) -> str:
-        """Tool name."""
-        return "patch_apply"
-
-    @property
-    def description(self) -> str:
-        """Tool description."""
-        return (
-            "Apply a unified diff patch to one or more files. "
-            "Supports multi-hunk patches, dry-run preview, and "
-            "fuzzy context matching."
-        )
-
-    @property
-    def parameters(self) -> dict[str, object]:
-        """JSON Schema for parameters."""
-        return {
-            "type": "object",
-            "properties": {
-                "patch": {
-                    "type": "string",
-                    "description": "Unified diff patch content",
-                },
-                "path": {
-                    "type": "string",
-                    "description": (
-                        "Target file path (required for single-file patches "
-                        "without file headers)"
-                    ),
-                },
-                "dry_run": {
-                    "type": "boolean",
-                    "description": "Preview changes without applying",
-                    "default": False,
-                },
-                "fuzz": {
-                    "type": "integer",
-                    "description": "Lines of fuzz for context matching (default 2)",
-                    "default": 2,
-                },
-            },
-            "required": ["patch"],
-        }
-
-    @property
-    def kind(self) -> ToolKind:
-        """Tool kind - WRITE because it modifies files."""
-        return ToolKind.WRITE
-
-    async def execute(  # type: ignore[override]
-        self,
-        patch: str = "",
-        path: str | None = None,
-        dry_run: bool = False,
-        fuzz: int = 2,
-        **kwargs: object,  # noqa: ARG002
-    ) -> ToolResult:
-        """Apply a unified diff patch.
-
-        Args:
-            patch: The unified diff content.
-            path: Target file (for headerless patches).
-            dry_run: Preview without writing.
-            fuzz: Context fuzz lines.
-            **kwargs: Additional arguments (ignored).
-
-        Returns:
-            ToolResult with application status.
-        """
-        params = PatchApplyParameters(
-            patch=patch,
-            path=path,
-            dry_run=dry_run,
-            fuzz=fuzz,
-        )
-        return await self._execute_with_params(params)
-
-    async def _execute_with_params(self, params: PatchApplyParameters) -> ToolResult:
-        """Apply patch using structured parameters."""
-        if not params.patch.strip():
-            return self._create_error_result("Empty patch", "Empty patch")
-
-        try:
-            file_patches = self._parse_patch(params.patch, default_path=params.path)
-        except ValueError as exc:
-            return self._create_error_result(f"Error parsing patch: {exc}", str(exc))
-
-        if not file_patches:
-            return self._create_error_result("Error: No hunks found in patch", "No hunks")
-
-        results = self._apply_patches_to_files(file_patches, params.dry_run, params.fuzz)
-        return self._create_result_from_application_results(results)
-
-    def _create_error_result(self, content: str, error: str) -> ToolResult:
-        """Create an error ToolResult."""
-        return ToolResult(content=content, success=False, error=error)
-
-    def _apply_patches_to_files(
-        self,
-        file_patches: dict[str, list[dict[str, object]]],
-        dry_run: bool,
-        fuzz: int,
-    ) -> list[str]:
-        """Apply patches to multiple files and collect results."""
-        results: list[str] = []
-        for file_path, hunks in file_patches.items():
-            result = self._apply_patch_to_single_file(file_path, hunks, dry_run, fuzz)
-            results.append(result)
-        return results
-
-    def _apply_patch_to_single_file(
-        self,
-        file_path: str,
-        hunks: list[dict[str, object]],
-        dry_run: bool,
-        fuzz: int,
-    ) -> str:
-        """Apply patch to a single file and return result message."""
-        target = Path(file_path)
-        if not target.exists():
-            return f"SKIP {file_path}: file not found"
-
-        try:
-            original = target.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError) as exc:
-            return f"SKIP {file_path}: {exc}"
-
-        try:
-            patched = self._apply_hunks(original, hunks, fuzz=fuzz)
-        except ValueError as exc:
-            return f"FAIL {file_path}: {exc}"
-
-        if dry_run:
-            return f"OK {file_path} (dry run, {len(hunks)} hunks)"
-        else:
-            target.write_text(patched, encoding="utf-8")
-            return f"OK {file_path} ({len(hunks)} hunks applied)"
-
-    def _create_result_from_application_results(self, results: list[str]) -> ToolResult:
-        """Create ToolResult from list of application results."""
-        return ToolResult(
-            content="\n".join(results),
-            success=all(r.startswith("OK") for r in results),
-        )
-
-    def _parse_patch(
-        self,
-        patch: str,
-        default_path: str | None = None,
-    ) -> dict[str, list[dict[str, object]]]:
-        """Parse unified diff into file patches.
-
-        Args:
-            patch: The unified diff text.
-            default_path: Default file path for headerless patches.
-
-        Returns:
-            Dict mapping file paths to lists of hunk dicts.
-
-        Raises:
-            ValueError: If patch is malformed.
-        """
-        parser = PatchParser(patch, default_path)
-        return parser.parse()
-
-    def _apply_hunks(
+    def apply_hunks(
         self,
         original: str,
-        hunks: list[dict[str, object]],
+        hunks: list[dict[str, Any]],
         fuzz: int = 2,
     ) -> str:
         """Apply hunks to file content.
@@ -237,7 +67,7 @@ class PatchApplyTool(Tool):
     def _apply_single_hunk(
         self,
         lines: list[str],
-        hunk: dict[str, object],
+        hunk: dict[str, Any],
         hunk_idx: int,
         offset: int,
         fuzz: int,
@@ -270,7 +100,7 @@ class PatchApplyTool(Tool):
         lines[matched_start : matched_start + len(old_lines)] = new_lines
         return offset + len(new_lines) - len(old_lines)
 
-    def _extract_hunk_lines(self, hunk: dict[str, object]) -> list[str]:
+    def _extract_hunk_lines(self, hunk: dict[str, Any]) -> list[str]:
         """Extract lines from hunk dictionary."""
         lines_value = hunk.get("lines", [])
         if isinstance(lines_value, list):
@@ -327,9 +157,7 @@ class PatchApplyTool(Tool):
                     return candidate
 
         # Wider search
-        for start in range(
-            max(0, expected_start - 50), min(len(lines), expected_start + 50)
-        ):
+        for start in range(max(0, expected_start - 50), min(len(lines), expected_start + 50)):
             if self._lines_match(lines, old_lines, start):
                 return start
 
@@ -368,13 +196,13 @@ class PatchParser:
         """
         self.lines = patch.split("\n")
         self.default_path = default_path
-        self.file_patches: dict[str, list[dict[str, object]]] = {}
+        self.file_patches: dict[str, list[dict[str, Any]]] = {}
         self.current_file: str | None = default_path
-        self.current_hunk: dict[str, object] | None = None
+        self.current_hunk: dict[str, Any] | None = None
         self.hunk_lines: list[str] = []
         self.index = 0
 
-    def parse(self) -> dict[str, list[dict[str, object]]]:
+    def parse(self) -> dict[str, list[dict[str, Any]]]:
         """Parse the patch into file patches.
 
         Returns:
@@ -478,13 +306,16 @@ class PatchParser:
         match = re.match(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", line)
         if not match:
             return None
-        if not match:
-            return None
 
-        old_start = int(match.group(1))
-        old_count = int(match.group(2)) if match.group(2) else 1
-        new_start = int(match.group(3))
-        new_count = int(match.group(4)) if match.group(4) else 1
+        old_start_str = match.group(1)
+        old_count_str = match.group(2)
+        new_start_str = match.group(3)
+        new_count_str = match.group(4)
+
+        old_start = int(old_start_str)
+        old_count = int(old_count_str) if old_count_str else 1
+        new_start = int(new_start_str)
+        new_count = int(new_count_str) if new_count_str else 1
 
         return old_start, old_count, new_start, new_count
 
@@ -508,3 +339,178 @@ class PatchParser:
         if self.current_hunk is not None and self.current_file:
             self.current_hunk["lines"] = self.hunk_lines
             self.file_patches.setdefault(self.current_file, []).append(self.current_hunk)
+
+
+class PatchApplyTool(Tool):
+    """Apply unified diff patches to files.
+
+    Accepts standard unified diff format with multiple hunks and
+    applies them in a single operation. Supports dry-run preview
+    and fuzzy context matching.
+    """
+
+    @property
+    def name(self) -> str:
+        """Tool name."""
+        return "patch_apply"
+
+    @property
+    def description(self) -> str:
+        """Tool description."""
+        return (
+            "Apply a unified diff patch to one or more files. "
+            "Supports multi-hunk patches, dry-run preview, and "
+            "fuzzy context matching."
+        )
+
+    @property
+    def parameters(self) -> dict[str, object]:
+        """JSON Schema for parameters."""
+        return {
+            "type": "object",
+            "properties": {
+                "patch": {
+                    "type": "string",
+                    "description": "Unified diff patch content",
+                },
+                "path": {
+                    "type": "string",
+                    "description": (
+                        "Target file path (required for single-file patches without file headers)"
+                    ),
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "Preview changes without applying",
+                    "default": False,
+                },
+                "fuzz": {
+                    "type": "integer",
+                    "description": "Lines of fuzz for context matching (default 2)",
+                    "default": 2,
+                },
+            },
+            "required": ["patch"],
+        }
+
+    @property
+    def kind(self) -> ToolKind:
+        """Tool kind - WRITE because it modifies files."""
+        return ToolKind.WRITE
+
+    async def execute(  # type: ignore[override]
+        self,
+        patch: str = "",
+        path: str | None = None,
+        dry_run: bool = False,
+        fuzz: int = 2,
+        **kwargs: object,  # noqa: ARG002
+    ) -> ToolResult:
+        """Apply a unified diff patch.
+
+        Args:
+            patch: The unified diff content.
+            path: Target file (for headerless patches).
+            dry_run: Preview without writing.
+            fuzz: Context fuzz lines.
+            **kwargs: Additional arguments (ignored).
+
+        Returns:
+            ToolResult with application status.
+        """
+        params = PatchApplyParameters(
+            patch=patch,
+            path=path,
+            dry_run=dry_run,
+            fuzz=fuzz,
+        )
+        return await self._execute_with_params(params)
+
+    async def _execute_with_params(self, params: PatchApplyParameters) -> ToolResult:
+        """Apply patch using structured parameters."""
+        if not params.patch.strip():
+            return self._create_error_result("Empty patch", "Empty patch")
+
+        try:
+            file_patches = self._parse_patch(params.patch, default_path=params.path)
+        except ValueError as exc:
+            return self._create_error_result(f"Error parsing patch: {exc}", str(exc))
+
+        if not file_patches:
+            return self._create_error_result("Error: No hunks found in patch", "No hunks")
+
+        results = self._apply_patches_to_files(file_patches, params.dry_run, params.fuzz)
+        return self._create_result_from_application_results(results)
+
+    def _create_error_result(self, content: str, error: str) -> ToolResult:
+        """Create an error ToolResult."""
+        return ToolResult(content=content, success=False, error=error)
+
+    def _apply_patches_to_files(
+        self,
+        file_patches: dict[str, list[dict[str, Any]]],
+        dry_run: bool,
+        fuzz: int,
+    ) -> list[str]:
+        """Apply patches to multiple files and collect results."""
+        results: list[str] = []
+        for file_path, hunks in file_patches.items():
+            result = self._apply_patch_to_single_file(file_path, hunks, dry_run, fuzz)
+            results.append(result)
+        return results
+
+    def _apply_patch_to_single_file(
+        self,
+        file_path: str,
+        hunks: list[dict[str, Any]],
+        dry_run: bool,
+        fuzz: int,
+    ) -> str:
+        """Apply patch to a single file and return result message."""
+        target = Path(file_path)
+        if not target.exists():
+            return f"SKIP {file_path}: file not found"
+
+        try:
+            original = target.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            return f"SKIP {file_path}: {exc}"
+
+        try:
+            applier = HunkApplier()
+            patched = applier.apply_hunks(original, hunks, fuzz=fuzz)
+        except ValueError as exc:
+            return f"FAIL {file_path}: {exc}"
+
+        if dry_run:
+            return f"OK {file_path} (dry run, {len(hunks)} hunks)"
+        else:
+            target.write_text(patched, encoding="utf-8")
+            return f"OK {file_path} ({len(hunks)} hunks applied)"
+
+    def _create_result_from_application_results(self, results: list[str]) -> ToolResult:
+        """Create ToolResult from list of application results."""
+        return ToolResult(
+            content="\n".join(results),
+            success=all(r.startswith("OK") for r in results),
+        )
+
+    def _parse_patch(
+        self,
+        patch: str,
+        default_path: str | None = None,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Parse unified diff into file patches.
+
+        Args:
+            patch: The unified diff text.
+            default_path: Default file path for headerless patches.
+
+        Returns:
+            Dict mapping file paths to lists of hunk dicts.
+
+        Raises:
+            ValueError: If patch is malformed.
+        """
+        parser = PatchParser(patch, default_path)
+        return parser.parse()
