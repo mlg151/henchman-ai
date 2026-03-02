@@ -251,8 +251,7 @@ class ImportGraphBuilder:
         """
         for alias in node.names:
             top = alias.name.split(".")[0]
-            if top in local_modules and top != mod_name:
-                deps.add(top)
+            self._add_dependency_if_local(top, mod_name, local_modules, deps)
 
     def _extract_dependencies_from_import_from(
         self,
@@ -271,12 +270,28 @@ class ImportGraphBuilder:
         """
         mod = node.module or ""
         top = mod.split(".")[0] if mod else ""
-        if top in local_modules and top != mod_name:
-            deps.add(top)
+        self._add_dependency_if_local(top, mod_name, local_modules, deps)
 
         for alias in node.names:
-            if alias.name in local_modules and alias.name != mod_name:
-                deps.add(alias.name)
+            self._add_dependency_if_local(alias.name, mod_name, local_modules, deps)
+
+    def _add_dependency_if_local(
+        self,
+        module_name: str,
+        current_module: str,
+        local_modules: set[str],
+        deps: set[str],
+    ) -> None:
+        """Add a module to dependencies if it's a local module and not the current module.
+
+        Args:
+            module_name: Name of the module to check.
+            current_module: Name of the current module.
+            local_modules: Set of local module names.
+            deps: Set to add dependencies to.
+        """
+        if module_name in local_modules and module_name != current_module:
+            deps.add(module_name)
 
     def detect_cycles(self) -> list[list[str]]:
         """Detect circular import chains using DFS.
@@ -388,6 +403,18 @@ class ImportAnalysisRequest:
                 return dir_error
 
         return None
+
+    def extract_params(self) -> tuple[Path, Path | None, bool, bool]:
+        """Extract parameters as typed values.
+
+        Returns:
+            Tuple of (target_path, scan_path, should_classify, should_detect_cycles).
+        """
+        target_path = Path(self.path)
+        scan_path = Path(self.scan_dir) if self.scan_dir else None
+        should_classify = self.classify
+        should_detect_cycles = self.detect_cycles
+        return target_path, scan_path, should_classify, should_detect_cycles
 
     @classmethod
     def from_primitives(
@@ -549,11 +576,7 @@ class ImportGraphTool(Tool):
         Returns:
             Tuple of (target_path, scan_path, should_classify, should_detect_cycles).
         """
-        target_path = Path(request.path)
-        scan_path = Path(request.scan_dir) if request.scan_dir else None
-        should_classify = request.classify
-        should_detect_cycles = request.detect_cycles
-        return target_path, scan_path, should_classify, should_detect_cycles
+        return request.extract_params()
 
     def _build_analysis_result(
         self,
