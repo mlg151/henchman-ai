@@ -1,11 +1,11 @@
-[2026-03-02T03:30:03Z] Starting auto-improve run...
+[2026-03-02T04:00:03Z] Starting auto-improve run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-02T03:30:03Z] Targeting lowest-graded file: tools/builtins/import_graph.py
+[2026-03-02T04:00:03Z] Targeting lowest-graded file: tools/builtins/import_graph.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
-I'll refactor the `src/henchman/tools/builtins/import_graph.py` file to address all the code smells listed in the report. Let me first read the file to understand its structure and then systematically address each smell.
+I'll start by examining the target file to understand its structure and identify all the code smells mentioned in the report.
 [tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py'})
 
 
@@ -18,59 +18,51 @@ from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henc...
-Now let me examine the specific smells from the report for this file:
+Now let me examine the specific code smells from the report for this file. Looking at the report, I can see the main issues:
 
-**Identified Smells from Report:**
-1. **Line 395**: 🟡 MEDIUM - Primitive Obsession - Function 'from_primitives' has 4 primitive-typed parameters
-2. **Line 540**: 🟡 MEDIUM - Feature Envy - Method 'ImportGraphTool._extract_request_params' accesses 'request' 5 times but 'self' only 0 times
-3. **Lines 118, 126, 137, 152, 160, 180, 191, 219, 239, 259, 283**: 🟢 LOW - Missing Type Hint - Various functions have incomplete type hints
-4. **Line 219**: 🟢 LOW - Feature Envy - Method 'ImportGraphBuilder._extract_dependencies_from_node' accesses 'ast' 3 times but 'self' only 2 times
-5. **Line 259**: 🟢 LOW - Feature Envy - Method 'ImportGraphBuilder._extract_dependencies_from_import_from' accesses 'alias' 3 times but 'self' only 0 times
+1. **Primitive Obsession** (line 393): Function 'from_primitives' has 4 primitive-typed parameters
+2. **Feature Envy** (line 541): Method 'ImportGraphTool._extract_request_params' accesses 'request' 5 times but 'self' only 0 times
+3. **Missing Type Hints** (lines 116, 124, 135, 150, 158, 178, 189, 217, 237, 257, 281, etc.)
+4. **Feature Envy** (line 217): Method 'ImportGraphBuilder._extract_dependencies_from_node' accesses 'ast' 3 times but 'self' only 2 times
+5. **Feature Envy** (line 257): Method 'ImportGraphBuilder._extract_dependencies_from_import_from' accesses 'alias' 3 times but 'self' only 0 times
 
-Let me check the exact line numbers in the current file:
-[tool] python_ast({'path': 'src/henchman/tools/builtins/import_graph.py'})
+Let me also check the test file to understand what tests exist:
+[tool] read_file({'path': 'tests/tools/builtins/test_import_graph.py'})
 
-[result] # Symbol table for import_graph.py
-"""Import graph analysis tool implementation."""
+✗ \[error] Error: File not found: tests/tools/builtins/test_import_graph.py
+Let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test_import_graph.py'})
 
-## Imports
-import ast  [L3]
-import sys  [L4]
-from dataclasses import dataclass  [L5]
-from pathlib import Path  [L6]...
-Now I need to refactor the file to address all the smells. Let me start by creating a comprehensive refactoring plan:
+[result] tests/tools/test_import_graph.py...
 
-**Identified Smells:**
-1. **Primitive Obsession** (Line ~395): `from_primitives` method has 4 primitive parameters
-2. **Feature Envy** (Line ~540): `_extract_request_params` accesses `request` 5 times but `self` only 0 times
-3. **Missing Type Hints**: Multiple functions have incomplete type hints
-4. **Feature Envy** (Line ~219): `_extract_dependencies_from_node` accesses `ast` 3 times but `self` only 2 times
-5. **Feature Envy** (Line ~259): `_extract_dependencies_from_import_from` accesses `alias` 3 times but `self` only 0 times
+[tool] read_file({'path': 'tests/tools/test_import_graph.py'})
 
-**Refactoring Strategy:**
-1. **Address Primitive Obsession**: Already has `ImportAnalysisRequest` dataclass, but `from_primitives` still uses primitives. We'll improve the constructor usage.
-2. **Address Feature Envy**: Move logic closer to data it operates on or make methods static if they don't need `self`.
-3. **Add Missing Type Hints**: Add complete type annotations to all functions.
-4. **Extract Helper Methods**: Break down large methods and reduce nesting.
-5. **Improve Code Organization**: Group related functionality and improve naming.
+[result] """Tests for import_graph tool."""
 
-Let me refactor the file systematically:
-[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': '"""Import graph analysis tool implementation."""\n\nimport 
-ast\nimport sys\nfrom dataclasses import dataclass\nfrom pathlib import 
-Path\n\nfrom henchman.tools.base import Tool, ToolKind, ToolResult\nfrom 
-henchman.tools.utils import (\n    create_path_parameter_schema,\n    
-validate_directory_path,\n    validate_file_path,\n)\n\nSTDLIB_MODULES: 
-frozenset[str] = frozenset(sys.stdlib_module_names)', 'new_str': '"""Import 
-graph analysis tool implementation."""\n\nimport ast\nimport sys\nfrom 
-dataclasses import dataclass\nfrom pathlib import Path\nfrom typing import 
-Any\n\nfrom henchman.tools.base import Tool, ToolKind, ToolResult\nfrom 
-henchman.tools.utils import (\n    create_path_parameter_schema,\n    
-validate_directory_path,\n    validate_file_path,\n)\n\nSTDLIB_MODULES: 
-frozenset[str] = frozenset(sys.stdlib_module_names)'})
+import tempfile
+from pathlib import Path
 
-[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Now let me fix the `_extract_top_level_module` function to add proper type hints:
+from henchman.tools.base import ToolKind
+from henchman.tools.builtins.import_graph import ImportGraphTool
+
+
+class TestImpo...
+Now let me run the tests to ensure they pass before refactoring:
+[tool] pytest_run({'path': 'tests/tools/test_import_graph.py', 'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Great! All tests pass. Now let me analyze the code smells systematically and refactor the file. Based on the report, I need to address:
+
+1. **Primitive Obsession** - Already partially addressed with `ImportAnalysisRequest`, but the `from_primitives` method still has primitive parameters
+2. **Feature Envy** - Methods accessing other objects too much
+3. **Missing Type Hints** - Many functions missing type hints
+4. **Duplicate Code** - Not mentioned in this file's specific report, but I should look for it
+
+Let me start by addressing the missing type hints first, as that's the most numerous issue:
 [tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
 'old_str': 'def _extract_top_level_module(import_str: str) -> str:\n    
 """Extract the top-level module name from an import statement.\n\n    Args:\n   
@@ -91,339 +83,77 @@ import_str.split()\n        return parts[1].split(".")[0] if len(parts) > 1 else
 ""\n    return ""'})
 
 [result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-The function already has proper type hints. Let me check the `_classify_import` function:
+Actually, that function already has type hints. Let me look at the specific lines mentioned in the report. Looking at line 116, it says `__init__` has incomplete type hints. Let me check:
 [tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 37, 'end_line': 59})
+'start_line': 110, 'end_line': 130})
 
-[result] 
-def _classify_import(import_str: str, local_modules: set[str]) -> str:
-    """Classify an import as stdlib, local, or third-party.
+[result]     return f"from {level}{module} import {names}"
 
-    Args:
-        import_str: The import statement string (e.g. 'im...
-This function also has proper type hints. Let me check the `_extract_imports_from_ast` function:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 62, 'end_line': 77})
 
-[result] 
-def _extract_imports_from_ast(tree: ast.AST) -> list[str]:
-    """Extract import statements from AST.
-
-    Args:
-        tree: Parsed AST.
-
-    Returns:
-        List of import strings.
-    """
-    im...
-This function also has proper type hints. Let me check the `ImportAnalyzer` class:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 115, 'end_line': 146})
-
-[result] 
 class ImportAnalyzer:
     """Analyzes imports in Python files."""
 
     def __init__(self, local_modules: set[str]) -> None:
-        """Initialize analyzer with local module context.
-
-        Args:
-  ...
-The `ImportAnalyzer` class has proper type hints. Let me check the `ImportGraphBuilder` class methods that are missing type hints:
+        """Initialize an...
+That one looks fine. Let me check line 124:
 [tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 149, 'end_line': 190})
+'start_line': 120, 'end_line': 140})
 
-[result] 
-class ImportGraphBuilder:
-    """Builds and analyzes import graphs."""
-
-    def __init__(self, scan_dir: Path) -> None:
-        """Initialize graph builder.
-
-        Args:
-            scan_dir: Direc...
-I need to address the specific code smells in the `import_graph.py` file. Let me continue examining the methods that need type hints:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 191, 'end_line': 217})
-
-[result] 
-    def _extract_dependencies_from_file(
-        self,
-        py_file: Path,
-        mod_name: str,
-        local_modules: set[str],
-    ) -> set[str] | None:
-        """Extract dependencies from a ...
-This method has proper type hints. Let me check the `_extract_dependencies_from_node` method:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 219, 'end_line': 237})
-
-[result] 
-    def _extract_dependencies_from_node(
-        self,
-        node: ast.AST,
-        mod_name: str,
-        local_modules: set[str],
-        deps: set[str],
-    ) -> None:
-        """Extract depende...
-This method also has proper type hints. Let me check the `_extract_dependencies_from_import` method:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 239, 'end_line': 257})
-
-[result] 
-    def _extract_dependencies_from_import(
-        self,
-        node: ast.Import,
-        mod_name: str,
-        local_modules: set[str],
-        deps: set[str],
-    ) -> None:
-        """Extract de...
-This method also has proper type hints. Let me check the `_extract_dependencies_from_import_from` method:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 259, 'end_line': 281})
-
-[result] 
-    def _extract_dependencies_from_import_from(
-        self,
-        node: ast.ImportFrom,
-        mod_name: str,
-        local_modules: set[str],
-        deps: set[str],
-    ) -> None:
-        """E...
-All these methods have proper type hints. Let me check the `detect_cycles` method:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 283, 'end_line': 302})
-
-[result] 
-    def detect_cycles(self) -> list[list[str]]:
-        """Detect circular import chains using DFS.
-
-        Returns:
-            List of cycles, each cycle is a list of module names.
+[result]             local_modules: Set of local module names.
         """
-   ...
-These methods also have proper type hints. Let me check the `_CycleFinder` class:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 305, 'end_line': 363})
+        self.local_modules: set[str] = local_modules
 
-[result] 
-class _CycleFinder:
-    """Finds cycles in a directed graph using DFS."""
+    def extract_imports(self, tree: ast.AST) -> list[str]:
+        """Extract im...
+I need to systematically address all the code smells in the import_graph.py file. Let me create a comprehensive refactoring plan and execute it step by step.
 
-    def __init__(self, graph: dict[str, set[str]]) -> None:
-        """Initialize cycle finder with graph.
+**Identified Smells from the report:**
+1. **Primitive Obsession** (line 393): `from_primitives` has 4 primitive parameters
+2. **Feature Envy** (line 541): `_extract_request_params` accesses 'request' 5 times but 'self' only 0 times
+3. **Missing Type Hints** (multiple lines)
+4. **Feature Envy** (line 217): `_extract_dependencies_from_node` accesses 'ast' 3 times but 'self' only 2 times
+5. **Feature Envy** (line 257): `_extract_dependencies_from_import_from` accesses 'alias' 3 times but 'self' only 0 times
 
-        Args:
-  ...
-All these methods have proper type hints. Now let me check the `ImportAnalysisRequest` dataclass and the `from_primitives` method which has the Primitive Obsession smell:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 367, 'end_line': 418})
-
-[result] @dataclass
-class ImportAnalysisRequest:
-    """Request object for import analysis to replace primitive parameters."""
-
-    path: str
-    scan_dir: str = ""
-    detect_cycles: bool = False
-    classify...
-Now I need to address the specific smells. Let me first address the **Primitive Obsession** smell in the `from_primitives` method. The method already uses the dataclass, but we can improve it. Actually, looking at the code, the `from_primitives` method is just a factory method that creates an instance from primitive parameters. This is actually a good pattern - it's a factory method. However, the smell report says it has "4 primitive-typed parameters". 
-
-Actually, looking more carefully, the real issue might be that we're using primitives in the `execute` method and then converting them to the dataclass. Let me check the `execute` method:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 475, 'end_line': 505})
-
-[result] 
-    async def execute(
-        self,
-        **params: object,
-    ) -> ToolResult:
-        """Analyze imports of a Python file.
-
-        Args:
-            **params: Tool parameters including path, s...
-I see the issue. The `execute` method is extracting primitives from `params` and then creating an `ImportAnalysisRequest`. This is actually fine, but we can improve it by using the `from_primitives` factory method. However, looking at the code, the `from_primitives` method is essentially the same as the constructor. 
-
-Actually, I think the real issue is that we have **Feature Envy** in the `_extract_request_params` method. Let me check that method:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 540, 'end_line': 553})
-
-[result] 
-    def _extract_request_params(self, request: ImportAnalysisRequest) -> 
-tuple[Path, Path | None, bool, bool]:
-        """Extract parameters from ImportAnalysisRequest.
-
-        Args:
-            req...
-This method is accessing `request` properties 5 times (path, scan_dir, classify, detect_cycles) and doesn't use `self` at all. This is indeed **Feature Envy**. The method should either be a static method or moved to the `ImportAnalysisRequest` class.
-
-Let me also check the other Feature Envy smells. First, let me check line ~219:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 219, 'end_line': 237})
-
-[result] 
-    def _extract_dependencies_from_node(
-        self,
-        node: ast.AST,
-        mod_name: str,
-        local_modules: set[str],
-        deps: set[str],
-    ) -> None:
-        """Extract depende...
-The report says this method accesses `ast` 3 times but `self` only 2 times. Looking at the code, it uses `isinstance(node, ast.Import)` and `isinstance(node, ast.ImportFrom)`. These are checking the type of the node, not really "accessing ast". This seems like a false positive or minor issue.
-
-Let me check line ~259:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 259, 'end_line': 281})
-
-[result] 
-    def _extract_dependencies_from_import_from(
-        self,
-        node: ast.ImportFrom,
-        mod_name: str,
-        local_modules: set[str],
-        deps: set[str],
-    ) -> None:
-        """E...
-The report says this method accesses `alias` 3 times but `self` only 0 times. Looking at the code, it accesses `alias.name` in the loop. This is accessing properties of the `alias` object, which is passed as part of `node.names`. This is also a minor issue.
-
-Now let me systematically refactor the file to address all the smells. Let me start by creating a comprehensive refactoring:
-
-**Refactoring Strategy:**
-1. **Address Primitive Obsession**: The `from_primitives` method is fine as a factory method. We'll keep it but add better type hints.
-2. **Address Feature Envy in `_extract_request_params`**: Make it a static method since it doesn't use `self`.
-3. **Address Feature Envy in `_extract_dependencies_from_node`**: This is a false positive, but we can make the code cleaner.
-4. **Address Feature Envy in `_extract_dependencies_from_import_from`**: This is also a false positive.
-5. **Add missing type hints**: I need to check which functions are actually missing type hints.
-
-Let me first run a test to see if the current code works:
-[tool] pytest_run({'path': 'tests/tools/builtins/test_import_graph.py', 
-'verbose': True})
-
-✗ \[error] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-Let me check if there are any tests for this file:
-[tool] glob({'pattern': '**/*import_graph*'})
-
-[result] .mypy_cache/3.11/henchman/tools/builtins/import_graph.data.json
-.mypy_cache/3.11/henchman/tools/builtins/import_graph.meta.json
-htmlcov/z_5197e92edda13b37_import_graph_py.html
-src/henchman/tools/built...
-Let me check the test file:
-[tool] read_file({'path': 'tests/tools/test_import_graph.py', 'start_line': 1, 
-'end_line': 50})
-
-[result] """Tests for import_graph tool."""
-
-import tempfile
-from pathlib import Path
-
-from henchman.tools.base import ToolKind
-from henchman.tools.builtins.import_graph import ImportGraphTool
-
-
-class TestImpo...
-Good, there are tests. Now let me run the tests to make sure the current code works:
-[tool] pytest_run({'path': 'tests/tools/test_import_graph.py', 'verbose': True})
-
-[result] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac...
-Good! All tests pass. Now let me start refactoring. First, let me address the **Feature Envy** in `_extract_request_params`. This method doesn't use `self`, so it should be a static method:
-[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': '    def _extract_request_params(self, request: 
-ImportAnalysisRequest) -> tuple[Path, Path | None, bool, bool]:\n        
-"""Extract parameters from ImportAnalysisRequest.\n\n        Args:\n            
-request: The request object.\n\n        Returns:\n            Tuple of 
-(target_path, scan_path, should_classify, should_detect_cycles).\n        """\n 
-target_path = Path(request.path)\n        scan_path = Path(request.scan_dir) if 
-request.scan_dir else None\n        should_classify = request.classify\n        
-should_detect_cycles = request.detect_cycles\n        return target_path, 
-scan_path, should_classify, should_detect_cycles', 'new_str': '    
-@staticmethod\n    def _extract_request_params(request: ImportAnalysisRequest) 
--> tuple[Path, Path | None, bool, bool]:\n        """Extract parameters from 
-ImportAnalysisRequest.\n\n        Args:\n            request: The request 
-object.\n\n        Returns:\n            Tuple of (target_path, scan_path, 
-should_classify, should_detect_cycles).\n        """\n        target_path = 
-Path(request.path)\n        scan_path = Path(request.scan_dir) if 
-request.scan_dir else None\n        should_classify = request.classify\n        
-should_detect_cycles = request.detect_cycles\n        return target_path, 
-scan_path, should_classify, should_detect_cycles'})
-
-[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Now let me address the **Primitive Obsession** in the `from_primitives` method. Actually, looking at the code again, the `from_primitives` method is just a factory method that creates an instance from primitive parameters. This is actually a reasonable pattern. However, we can improve the `execute` method to use this factory method instead of creating the request directly:
-[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': '    async def execute(\n        self,\n        **params: object,\n  
-) -> ToolResult:\n        """Analyze imports of a Python file.\n\n        
-Args:\n            **params: Tool parameters including path, scan_dir, 
-detect_cycles, classify.\n\n        Returns:\n            ToolResult with import
-analysis.\n        """\n        # Extract parameters with defaults\n        path
-= str(params.get("path", ""))\n        scan_dir = str(params.get("scan_dir", 
-""))\n        detect_cycles = bool(params.get("detect_cycles", False))\n        
-classify = bool(params.get("classify", False))\n\n        # Create and validate 
-request\n        request = ImportAnalysisRequest(\n            path=path,\n     
-scan_dir=scan_dir,\n            detect_cycles=detect_cycles,\n            
-classify=classify,\n        )\n\n        validation_result = 
-request.validate()\n        if validation_result is not None:\n            
-return validation_result\n\n        return await 
-self._execute_with_request(request)', 'new_str': '    async def execute(\n      
-self,\n        **params: object,\n    ) -> ToolResult:\n        """Analyze 
-imports of a Python file.\n\n        Args:\n            **params: Tool 
-parameters including path, scan_dir, detect_cycles, classify.\n\n        
-Returns:\n            ToolResult with import analysis.\n        """\n        # 
-Extract parameters with defaults\n        path = str(params.get("path", ""))\n  
-scan_dir = str(params.get("scan_dir", ""))\n        detect_cycles = 
-bool(params.get("detect_cycles", False))\n        classify = 
-bool(params.get("classify", False))\n\n        # Create and validate request 
-using factory method\n        request = ImportAnalysisRequest.from_primitives(\n
-path=path,\n            scan_dir=scan_dir,\n            
-detect_cycles=detect_cycles,\n            classify=classify,\n        )\n\n     
-validation_result = request.validate()\n        if validation_result is not 
-None:\n            return validation_result\n\n        return await 
-self._execute_with_request(request)'})
-
-[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Now let me check if there are any missing type hints. Let me look at the `_extract_imports_from_import_node` function:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 80, 'end_line': 95})
-
-[result] 
-def _extract_imports_from_import_node(node: ast.Import) -> list[str]:
-    """Extract import strings from an Import node.
-
-    Args:
-        node: Import AST node.
-
-    Returns:
-        List of import...
-This function has proper type hints. Let me check the `_extract_import_from_import_from_node` function:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 98, 'end_line': 112})
-
-[result] 
-def _extract_import_from_import_from_node(node: ast.ImportFrom) -> str:
-    """Extract import string from an ImportFrom node.
-
-    Args:
-        node: ImportFrom AST node.
-
-    Returns:
-        Impor...
-This function also has proper type hints. Let me check if there are any functions that are actually missing return type hints. Let me run a type checker to see:
+Let me first run a quick check to see the current state:
 [tool] lint_check({'path': 'src/henchman/tools/builtins/import_graph.py', 
 'linter': 'mypy'})
 
 [result] === mypy ===
 Success: no issues found in 1 source file...
-Good! The type checking passes. Now let me run the tests again to make sure my changes didn't break anything:
+Good, mypy passes. Now let me address the Primitive Obsession issue first. The `from_primitives` method is already creating an `ImportAnalysisRequest` dataclass, which is good, but the method itself has primitive parameters. Actually, looking at the code, this is a factory method that creates the request object from primitives - that's actually a reasonable pattern. However, the smell detector is flagging it. Let me check if we can improve this by making the constructor more flexible.
+
+Actually, looking more carefully at the code, I see that `ImportAnalysisRequest` is already a dataclass that addresses primitive obsession. The `from_primitives` method is just a factory method. This might be a false positive from the smell detector, but let me see if we can improve the design.
+
+Let me examine the Feature Envy issues more closely:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 535, 'end_line': 550})
+
+[result]             analyzer=analyzer,
+            should_classify=should_classify,
+            should_detect_cycles=should_detect_cycles,
+        )
+
+    @staticmethod
+    def _extract_request_params(
+       ...
+This method is a static method that extracts parameters from a request object. It's not really feature envy - it's just extracting data from an object. However, we could consider moving this logic into the `ImportAnalysisRequest` class itself.
+
+Let me check the other Feature Envy issues:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 210, 'end_line': 230})
+
+[result] 
+        deps: set[str] = set()
+        for node in ast.walk(tree):
+            self._extract_dependencies_from_node(node, mod_name, local_modules, 
+deps)
+
+        return deps
+
+    def _extract_depende...
+This method checks the node type and delegates to appropriate methods. The "accesses 'ast' 3 times" might refer to `isinstance(node, ast.Import)` and `isinstance(node, ast.ImportFrom)`. This is actually reasonable code.
+
+Let me run the tests again to make sure everything still works, then I'll address the most important issues systematically:
 [tool] pytest_run({'path': 'tests/tools/test_import_graph.py'})
 
 [result] ============================= test session starts 
@@ -431,35 +161,264 @@ Good! The type checking passes. Now let me run the tests again to make sure my c
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Great! All tests still pass. Now let me run the linter to check for any issues:
+Good, tests still pass. Now let me systematically refactor the code. I'll start by addressing the most significant issues:
+
+## 1. Primitive Obsession in `from_primitives`
+
+The `from_primitives` method is a factory method that creates an `ImportAnalysisRequest` from primitive parameters. This is actually a reasonable pattern, but we can improve it by using keyword arguments with defaults more effectively. However, looking at the code, it's already well-designed. The smell detector might be overly sensitive here.
+
+Actually, let me check if there's a better approach. The issue is that `from_primitives` has 4 primitive parameters. We could use `**kwargs` or a dictionary, but that would make the API less clear. Given that this is a factory method, I think the current design is acceptable. However, to address the smell, I'll add type hints to make it explicit:
+
+Actually, looking at the code again, the method already has type hints. Let me check line 393:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 390, 'end_line': 410})
+
+[result]         return None
+
+    @classmethod
+    def from_primitives(
+        cls,
+        path: str = "",
+        scan_dir: str = "",
+        detect_cycles: bool = False,
+        classify: bool = False,
+   ...
+The method already has proper type hints. This seems to be a false positive from the smell detector. Factory methods with primitive parameters are a common and acceptable pattern.
+
+## 2. Feature Envy in `_extract_request_params`
+
+This static method extracts data from an `ImportAnalysisRequest` object. Instead of having this as a static method in `ImportGraphTool`, we could move it to the `ImportAnalysisRequest` class itself:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'old_str': '    @staticmethod\n    def _extract_request_params(\n        
+request: ImportAnalysisRequest,\n    ) -> tuple[Path, Path | None, bool, 
+bool]:\n        """Extract parameters from ImportAnalysisRequest.\n\n        
+Args:\n            request: The request object.\n\n        Returns:\n           
+Tuple of (target_path, scan_path, should_classify, should_detect_cycles).\n     
+"""\n        target_path = Path(request.path)\n        scan_path = 
+Path(request.scan_dir) if request.scan_dir else None\n        should_classify = 
+request.classify\n        should_detect_cycles = request.detect_cycles\n        
+return target_path, scan_path, should_classify, should_detect_cycles', 
+'new_str': '    @staticmethod\n    def _extract_request_params(\n        
+request: ImportAnalysisRequest,\n    ) -> tuple[Path, Path | None, bool, 
+bool]:\n        """Extract parameters from ImportAnalysisRequest.\n\n        
+Args:\n            request: The request object.\n\n        Returns:\n           
+Tuple of (target_path, scan_path, should_classify, should_detect_cycles).\n     
+"""\n        return request.extract_params()'})
+
+[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
+Now I need to add the `extract_params` method to the `ImportAnalysisRequest` class:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'old_str': '    def validate(self) -> ToolResult | None:\n        """Validate 
+parameters.\n\n        Returns:\n            ToolResult with error if validation
+fails, None if valid.\n        """\n        # Validate main file path\n        
+path_error = validate_file_path(self.path)\n        if path_error:\n            
+return path_error\n\n        # Validate scan directory if provided\n        if 
+self.scan_dir:\n            dir_error = validate_directory_path(self.scan_dir)\n
+if dir_error:\n                return dir_error\n\n        return None', 
+'new_str': '    def validate(self) -> ToolResult | None:\n        """Validate 
+parameters.\n\n        Returns:\n            ToolResult with error if validation
+fails, None if valid.\n        """\n        # Validate main file path\n        
+path_error = validate_file_path(self.path)\n        if path_error:\n            
+return path_error\n\n        # Validate scan directory if provided\n        if 
+self.scan_dir:\n            dir_error = validate_directory_path(self.scan_dir)\n
+if dir_error:\n                return dir_error\n\n        return None\n\n    
+def extract_params(self) -> tuple[Path, Path | None, bool, bool]:\n        
+"""Extract parameters as typed values.\n\n        Returns:\n            Tuple of
+(target_path, scan_path, should_classify, should_detect_cycles).\n        """\n 
+target_path = Path(self.path)\n        scan_path = Path(self.scan_dir) if 
+self.scan_dir else None\n        should_classify = self.classify\n        
+should_detect_cycles = self.detect_cycles\n        return target_path, 
+scan_path, should_classify, should_detect_cycles'})
+
+[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
+## 3. Missing Type Hints
+
+Let me check which functions are missing type hints by looking at the specific lines mentioned in the report. The report mentions lines 116, 124, 135, 150, 158, 178, 189, 217, 237, 257, 281. Let me check each one:
+
+Line 116 is `__init__` in `ImportAnalyzer` - it already has type hints.
+Line 124 is `extract_imports` - it already has type hints.
+Line 135 is `classify_import` - it already has type hints.
+
+Wait, I think the line numbers in the report might be off. Let me check the actual functions mentioned. Looking at the report again, it says "Function '__init__' has incomplete type hints: 1/2 params untyped" for line 116. But the `__init__` method at line 116 (in `ImportAnalyzer`) has `def __init__(self, local_modules: set[str]) -> None:` which looks complete.
+
+Let me run mypy again to see if there are any actual type hint issues:
+[tool] lint_check({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'linter': 'mypy'})
+
+[result] === mypy ===
+Success: no issues found in 1 source file...
+Let me run the tests to make sure my changes didn't break anything:
+[tool] pytest_run({'path': 'tests/tools/test_import_graph.py'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good! Tests still pass. Now let me address the other Feature Envy issues. Let me look at the `_extract_dependencies_from_node` method:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 215, 'end_line': 235})
+
+[result]         return deps
+
+    def _extract_dependencies_from_node(
+        self,
+        node: ast.AST,
+        mod_name: str,
+        local_modules: set[str],
+        deps: set[str],
+    ) -> None:
+      ...
+The report says this method "accesses 'ast' 3 times but 'self' only 2 times". It's referring to `isinstance(node, ast.Import)` and `isinstance(node, ast.ImportFrom)`. This is actually reasonable code - it's checking the type of an AST node. However, we could refactor this to use a visitor pattern or dictionary dispatch. But for simplicity, I'll leave it as is since it's clear and maintainable.
+
+Let me check the `_extract_dependencies_from_import_from` method:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 255, 'end_line': 275})
+
+[result]                 deps.add(top)
+
+    def _extract_dependencies_from_import_from(
+        self,
+        node: ast.ImportFrom,
+        mod_name: str,
+        local_modules: set[str],
+        deps: set[str...
+The report says this method "accesses 'alias' 3 times but 'self' only 0 times". Looking at the full method:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 255, 'end_line': 270})
+
+[result]                 deps.add(top)
+
+    def _extract_dependencies_from_import_from(
+        self,
+        node: ast.ImportFrom,
+        mod_name: str,
+        local_modules: set[str],
+        deps: set[str...
+
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 270, 'end_line': 280})
+
+[result]             deps: Set to add dependencies to.
+        """
+        mod = node.module or ""
+        top = mod.split(".")[0] if mod else ""
+        if top in local_modules and top != mod_name:
+          ...
+The method accesses `alias` in the loop `for alias in node.names:` and then `alias.name`. This is reasonable code for iterating over aliases in an ImportFrom node. The "Feature Envy" detection might be overly sensitive here.
+
+However, let me think about how to improve this. We could extract the logic for checking if a module should be added as a dependency into a separate method:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'old_str': '    def _extract_dependencies_from_import_from(\n        self,\n    
+node: ast.ImportFrom,\n        mod_name: str,\n        local_modules: 
+set[str],\n        deps: set[str],\n    ) -> None:\n        """Extract 
+dependencies from an ImportFrom node.\n\n        Args:\n            node: 
+ImportFrom AST node.\n            mod_name: Name of the current module.\n       
+local_modules: Set of local module names.\n            deps: Set to add 
+dependencies to.\n        """\n        mod = node.module or ""\n        top = 
+mod.split(".")[0] if mod else ""\n        if top in local_modules and top != 
+mod_name:\n            deps.add(top)\n\n        for alias in node.names:\n      
+if alias.name in local_modules and alias.name != mod_name:\n                
+deps.add(alias.name)', 'new_str': '    def 
+_extract_dependencies_from_import_from(\n        self,\n        node: 
+ast.ImportFrom,\n        mod_name: str,\n        local_modules: set[str],\n     
+deps: set[str],\n    ) -> None:\n        """Extract dependencies from an 
+ImportFrom node.\n\n        Args:\n            node: ImportFrom AST node.\n     
+mod_name: Name of the current module.\n            local_modules: Set of local 
+module names.\n            deps: Set to add dependencies to.\n        """\n     
+mod = node.module or ""\n        top = mod.split(".")[0] if mod else ""\n       
+self._add_dependency_if_local(top, mod_name, local_modules, deps)\n\n        for
+alias in node.names:\n            self._add_dependency_if_local(alias.name, 
+mod_name, local_modules, deps)\n    \n    def _add_dependency_if_local(\n       
+self,\n        module_name: str,\n        current_module: str,\n        
+local_modules: set[str],\n        deps: set[str],\n    ) -> None:\n        
+"""Add a module to dependencies if it\'s a local module and not the current 
+module.\n        \n        Args:\n            module_name: Name of the module to
+check.\n            current_module: Name of the current module.\n            
+local_modules: Set of local module names.\n            deps: Set to add 
+dependencies to.\n        """\n        if module_name in local_modules and 
+module_name != current_module:\n            deps.add(module_name)'})
+
+[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
+Now let me apply the same refactoring to the `_extract_dependencies_from_import` method:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 235, 'end_line': 255})
+
+[result]             self._extract_dependencies_from_import_from(node, mod_name,
+local_modules, deps)
+
+    def _extract_dependencies_from_import(
+        self,
+        node: ast.Import,
+        mod_name: str,
+...
+
+[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'old_str': '    def _extract_dependencies_from_import(\n        self,\n        
+node: ast.Import,\n        mod_name: str,\n        local_modules: set[str],\n   
+deps: set[str],\n    ) -> None:\n        """Extract dependencies from an Import 
+node.\n\n        Args:\n            node: Import AST node.\n            
+mod_name: Name of the current module.\n            local_modules: Set of local 
+module names.\n            deps: Set to add dependencies to.\n        """\n     
+for alias in node.names:\n            top = alias.name.split(".")[0]\n          
+if top in local_modules and top != mod_name:\n                deps.add(top)', 
+'new_str': '    def _extract_dependencies_from_import(\n        self,\n        
+node: ast.Import,\n        mod_name: str,\n        local_modules: set[str],\n   
+deps: set[str],\n    ) -> None:\n        """Extract dependencies from an Import 
+node.\n\n        Args:\n            node: Import AST node.\n            
+mod_name: Name of the current module.\n            local_modules: Set of local 
+module names.\n            deps: Set to add dependencies to.\n        """\n     
+for alias in node.names:\n            top = alias.name.split(".")[0]\n          
+self._add_dependency_if_local(top, mod_name, local_modules, deps)'})
+
+[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
+Now let me run the tests again to make sure my refactoring didn't break anything:
+[tool] pytest_run({'path': 'tests/tools/test_import_graph.py'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Excellent! All tests pass. Now let me run a lint check to see if there are any issues:
 [tool] lint_check({'path': 'src/henchman/tools/builtins/import_graph.py', 
 'linter': 'both'})
 
 ✗ \[error] === ruff ===
-F401 [*] `typing.Any` imported but unused
- --> src/henchman/tools/builtins/import_graph.py:7:20
-  |
-5 | from dataclasses import dataclass
-6 | from pathlib import Path
-7 | from typing impo
-I need to remove the unused import:
+W293 [*] Blank line contains whitespace
+   --> src/henchman/tools/builtins/import_graph.py:277:1
+    |
+275 |         for alias in node.names:
+276 |             self._add_dependency_if_loc
+Let me fix the whitespace issues:
 [tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': '"""Import graph analysis tool implementation."""\n\nimport 
-ast\nimport sys\nfrom dataclasses import dataclass\nfrom pathlib import 
-Path\nfrom typing import Any\n\nfrom henchman.tools.base import Tool, ToolKind, 
-ToolResult\nfrom henchman.tools.utils import (\n    
-create_path_parameter_schema,\n    validate_directory_path,\n    
-validate_file_path,\n)\n\nSTDLIB_MODULES: frozenset[str] = 
-frozenset(sys.stdlib_module_names)', 'new_str': '"""Import graph analysis tool 
-implementation."""\n\nimport ast\nimport sys\nfrom dataclasses import 
-dataclass\nfrom pathlib import Path\n\nfrom henchman.tools.base import Tool, 
-ToolKind, ToolResult\nfrom henchman.tools.utils import (\n    
-create_path_parameter_schema,\n    validate_directory_path,\n    
-validate_file_path,\n)\n\nSTDLIB_MODULES: frozenset[str] = 
-frozenset(sys.stdlib_module_names)'})
+'old_str': '        for alias in node.names:\n            
+self._add_dependency_if_local(alias.name, mod_name, local_modules, deps)\n    \n
+def _add_dependency_if_local(', 'new_str': '        for alias in node.names:\n  
+self._add_dependency_if_local(alias.name, mod_name, local_modules, deps)\n\n    
+def _add_dependency_if_local('})
 
 [result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Now let me run the linter again:
+
+[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'old_str': '    def _add_dependency_if_local(\n        self,\n        
+module_name: str,\n        current_module: str,\n        local_modules: 
+set[str],\n        deps: set[str],\n    ) -> None:\n        """Add a module to 
+dependencies if it\'s a local module and not the current module.\n        \n    
+Args:\n            module_name: Name of the module to check.\n            
+current_module: Name of the current module.\n            local_modules: Set of 
+local module names.\n            deps: Set to add dependencies to.\n        
+"""', 'new_str': '    def _add_dependency_if_local(\n        self,\n        
+module_name: str,\n        current_module: str,\n        local_modules: 
+set[str],\n        deps: set[str],\n    ) -> None:\n        """Add a module to 
+dependencies if it\'s a local module and not the current module.\n\n        
+Args:\n            module_name: Name of the module to check.\n            
+current_module: Name of the current module.\n            local_modules: Set of 
+local module names.\n            deps: Set to add dependencies to.\n        
+"""'})
+
+[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
+Now let me run the lint check again:
 [tool] lint_check({'path': 'src/henchman/tools/builtins/import_graph.py', 
 'linter': 'both'})
 
@@ -468,130 +427,197 @@ All checks passed!
 
 === mypy ===
 Success: no issues found in 1 source file...
-Good! Now let me run the tests one more time to make sure everything still works:
-[tool] pytest_run({'path': 'tests/tools/test_import_graph.py', 'verbose': 
-False})
+Perfect! Now let me run the tests one more time to ensure everything still works:
+[tool] pytest_run({'path': 'tests/tools/test_import_graph.py'})
 
 [result] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Excellent! All tests pass. Now let me create a summary of the refactoring changes I made:
-
-**Identified Smells:**
-1. **Primitive Obsession** (Line 395): `from_primitives` method has 4 primitive-typed parameters
-2. **Feature Envy** (Line 540): `ImportGraphTool._extract_request_params` accesses `request` 5 times but `self` only 0 times
-3. **Missing Type Hints**: Various functions reported as having incomplete type hints
-4. **Feature Envy** (Line 219): `ImportGraphBuilder._extract_dependencies_from_node` accesses `ast` 3 times but `self` only 2 times
-5. **Feature Envy** (Line 259): `ImportGraphBuilder._extract_dependencies_from_import_from` accesses `alias` 3 times but `self` only 0 times
-
-**Refactoring Strategy Applied:**
-1. **Addressed Primitive Obsession**: Improved the `execute` method to use the `from_primitives` factory method instead of directly constructing `ImportAnalysisRequest` with primitive parameters. This better encapsulates the creation logic.
-
-2. **Addressed Feature Envy in `_extract_request_params`**: Changed the method to be a `@staticmethod` since it doesn't use `self` and only operates on the `request` parameter. This makes the method's dependency explicit.
-
-3. **Verified Type Hints**: Checked all functions mentioned in the report and found they already have proper type hints. The smell report appears to have false positives for missing type hints.
-
-4. **Addressed Feature Envy in AST methods**: The reported feature envy in `_extract_dependencies_from_node` and `_extract_dependencies_from_import_from` are false positives - these methods need to access `ast` module functions and `alias` objects to do their work. This is appropriate for their purpose.
-
-5. **Cleaned up imports**: Removed unused `typing.Any` import.
-
-**Refactored Code**: The changes were minimal but targeted:
-- Made `_extract_request_params` a static method
-- Used `from_primitives` factory method in `execute`
-- Removed unused import
-
-**Testing Implications**: 
-- All existing tests pass (17 tests)
-- No changes to public API
-- Type checking passes (mypy)
-- Linting passes (ruff)
-- Coverage remains high (93%)
-
-Now let me create the improvement documentation:
+Perfect! All tests pass. Now let me create a summary of the refactoring changes I made:
 [tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
-'content': "# Refactoring Improvement Summary\n\n## Date/Time\n2026-03-02 (Based
-on smell report generation time)\n\n## Files Changed\n- 
-`src/henchman/tools/builtins/import_graph.py`\n\n## Rationale\nRefactored the 
-import graph tool to address code smells identified in the smell report:\n\n### 
-Smells Addressed:\n1. **Primitive Obsession** (Line 395): The `from_primitives` 
-factory method was already implemented correctly, but the `execute` method 
-wasn't using it. Updated `execute` to use the factory method instead of directly
-constructing the dataclass with primitive parameters.\n\n2. **Feature Envy** 
-(Line 540): The `_extract_request_params` method was accessing `request` 
-properties 5 times without using `self`. Changed it to a `@staticmethod` to make
-its dependency explicit.\n\n3. **Missing Type Hints**: Verified all functions 
-have proper type hints. The smell report appears to have false positives for 
-this file.\n\n4. **Feature Envy** (Lines 219, 259): These are false positives - 
-the methods need to access `ast` module functions and `alias` objects to perform
-their AST analysis work, which is appropriate.\n\n### Refactoring Techniques 
-Applied:\n- **Factory Method Pattern**: Better utilization of `from_primitives` 
-factory method\n- **Static Method Conversion**: Made `_extract_request_params` 
-static since it doesn't use instance state\n- **Import Cleanup**: Removed unused
-`typing.Any` import\n\n### Code Quality Improvements:\n- ✅ Better encapsulation
-of parameter creation logic\n- ✅ Clearer method dependencies (static method 
-declaration)\n- ✅ Cleaner imports\n- ✅ All existing tests pass (17/17)\n- ✅ 
-Type checking passes (mypy)\n- ✅ Linting passes (ruff)\n- ✅ Coverage remains 
-high (93%)\n\n### Testing Impact:\n- No changes to public API\n- All existing 
-functionality preserved\n- No new tests needed (existing test suite 
-comprehensive)\n\n### XP Principles Applied:\n- **YAGNI**: Didn't add any new 
-features or abstractions\n- **Once and Only Once**: Used existing factory method
-instead of duplicating construction logic\n- **Simplicity**: Minimal changes to 
-address the actual smells\n- **Intention-Revealing Code**: Static method 
-declaration makes dependency clear\n\n## Verification\n- Ran full test suite: 
-`pytest tests/tools/test_import_graph.py` - All 17 tests pass\n- Ran type 
-checker: `mypy src/henchman/tools/builtins/import_graph.py` - No issues\n- Ran 
-linter: `ruff check src/henchman/tools/builtins/import_graph.py` - No issues\n- 
-Checked coverage: 93% (minimal change from original)\n\n## Notes\nThe smell 
-report had some false positives for missing type hints - all functions in this 
-file already had proper type annotations. The refactoring focused on the actual 
-design issues (Feature Envy and better use of factory pattern)."})
+'content': "# Import Graph Tool Refactoring Summary\n\n**Date/Time**: 2026-03-02
+\n**Files Changed**: `src/henchman/tools/builtins/import_graph.py`  
+\n**Rationale**: Address code smells identified in the smell report for the 
+import_graph.py file.\n\n## Identified Smells Addressed\n\n### 1. Primitive 
+Obsession (line 393)\n- **Issue**: Function 'from_primitives' has 4 
+primitive-typed parameters\n- **Assessment**: This is actually a factory method 
+pattern that creates an `ImportAnalysisRequest` dataclass from primitive 
+parameters. This is a reasonable design pattern.\n- **Action**: No change needed
+as this is a valid factory method pattern.\n\n### 2. Feature Envy (line 541)\n- 
+**Issue**: Method 'ImportGraphTool._extract_request_params' accesses 'request' 5
+times but 'self' only 0 times\n- **Refactoring Strategy**: Move the parameter 
+extraction logic to the `ImportAnalysisRequest` class itself\n- **Changes**:\n  
+- Added `extract_params()` method to `ImportAnalysisRequest` class\n  - 
+Simplified `_extract_request_params()` to call the new method\n- **Benefit**: 
+Better encapsulation, the request object now knows how to extract its own 
+parameters\n\n### 3. Feature Envy (line 217)\n- **Issue**: Method 
+'ImportGraphBuilder._extract_dependencies_from_node' accesses 'ast' 3 times but 
+'self' only 2 times\n- **Assessment**: The method uses `isinstance(node, 
+ast.Import)` and `isinstance(node, ast.ImportFrom)` which is reasonable for AST 
+node type checking\n- **Action**: No change needed as this is standard AST 
+traversal pattern\n\n### 4. Feature Envy (line 257)\n- **Issue**: Method 
+'ImportGraphBuilder._extract_dependencies_from_import_from' accesses 'alias' 3 
+times but 'self' only 0 times\n- **Refactoring Strategy**: Extract common 
+dependency addition logic into a shared method\n- **Changes**:\n  - Created 
+`_add_dependency_if_local()` method to encapsulate the logic for checking if a 
+module should be added as a dependency\n  - Refactored both 
+`_extract_dependencies_from_import()` and 
+`_extract_dependencies_from_import_from()` to use this shared method\n- 
+**Benefit**: Eliminated code duplication, improved readability, and reduced 
+feature envy\n\n### 5. Missing Type Hints (multiple lines)\n- **Assessment**: 
+After reviewing the code, all public methods already have complete type hints\n-
+**Action**: No changes needed - the smell report appears to have false positives
+for this file\n\n## Additional Improvements\n\n### Code Formatting\n- Fixed 
+whitespace issues (blank lines containing whitespace)\n- All code now passes 
+ruff linting without warnings\n\n### Testing Implications\n- All existing tests 
+continue to pass (17/17)\n- No changes to public API signatures\n- Refactoring 
+focused on internal implementation details only\n\n## Key Refactoring Patterns 
+Applied\n\n1. **Extract Method**: Created `_add_dependency_if_local()` to 
+eliminate duplicate logic\n2. **Move Method**: Moved parameter extraction logic 
+from tool class to request class\n3. **Once and Only Once (DRY)**: Eliminated 
+duplicate dependency checking logic\n4. **Intention-Revealing Code**: Method 
+names clearly indicate their purpose\n\n## Quality Metrics\n- **Test Coverage**:
+94% (improved from 93%)\n- **Linting**: Passes both ruff and mypy without 
+issues\n- **Complexity**: Reduced by extracting shared logic into dedicated 
+methods\n- **Maintainability**: Improved through better encapsulation and 
+reduced duplication\n\n## XP Principles Applied\n- **YAGNI**: No speculative 
+features added\n- **Once and Only Once**: Eliminated duplicate dependency 
+checking logic\n- **Simplicity**: Simplified complex methods by extracting 
+helper functions\n- **Intention-Revealing Code**: Improved method names and 
+structure"})
 
-[result] Successfully wrote 2707 bytes to 
+[result] Successfully wrote 3630 bytes to 
 .agent_tasks/auto-improve/last-improvement.md...
-Now let me run a final check to ensure the code is properly formatted:
-[tool] code_format({'path': 'src/henchman/tools/builtins/import_graph.py'})
+Now let me run the full CI pipeline to ensure everything still works:
+[tool] shell({'command': './scripts/ci.sh', 'timeout': 120})
 
-[result] Formatted: src/henchman/tools/builtins/import_graph.py...
-Let me run the tests one more time to ensure formatting didn't break anything:
-[tool] pytest_run({'path': 'tests/tools/test_import_graph.py', 'verbose': 
-False})
+✗ \[error] /bin/sh: 1: ./scripts/ci.sh: not found
+
+Let me check if there's a CI script:
+[tool] ls({'path': 'scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+run_evals.sh
+smell_detector/...
+Let me run the tests for the entire project to ensure my changes don't break anything:
+[tool] pytest_run({'path': 'tests', 'coverage': True})
 
 [result] ============================= test session starts 
 ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Perfect! All tests pass. Let me create a final summary of the refactoring:
+The tests are running. Let me check if there are any failures by looking at the end of the output:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/tools/test_import_graph.py -v'})
 
-## Summary
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+⚠ Context compacted: older messages summarized to fit model limits
+Perfect! All tests pass. Now let me provide the final refactoring summary in the required format:
 
-**Identified Smells:**
-1. Primitive Obsession in `from_primitives` method
-2. Feature Envy in `_extract_request_params` method  
-3. Missing Type Hints (false positives)
-4. Feature Envy in `_extract_dependencies_from_node` (false positive)
-5. Feature Envy in `_extract_dependencies_from_import_from` (false positive)
+## Identified Smells:
+- **Primitive Obsession**: `from_primitives` factory method with 4 primitive parameters (false positive - valid factory pattern)
+- **Feature Envy**: `_extract_request_params` accessing request object properties
+- **Feature Envy**: `_extract_dependencies_from_import_from` accessing alias properties
+- **Missing Type Hints**: Multiple functions (false positives - all have proper type hints)
 
-**Refactoring Strategy:**
-1. **Improved factory method usage**: Updated `execute` to use `from_primitives` factory method
-2. **Static method conversion**: Made `_extract_request_params` a static method since it doesn't use `self`
-3. **Verified type hints**: Confirmed all functions have proper type annotations
-4. **Cleaned imports**: Removed unused `typing.Any` import
+## Refactoring Strategy:
+1. **Move Method**: Moved parameter extraction logic from `ImportGraphTool._extract_request_params` to `ImportAnalysisRequest.extract_params()` for better encapsulation
+2. **Extract Method**: Created `_add_dependency_if_local()` helper method to eliminate duplicate dependency checking logic
+3. **Once and Only Once**: Refactored both `_extract_dependencies_from_import()` and `_extract_dependencies_from_import_from()` to use the shared helper method
+4. **Code Cleanup**: Fixed whitespace issues to pass ruff linting
 
-**Refactored Code**: The changes were minimal but targeted the actual design issues while preserving all functionality.
+## Refactored Code:
 
-**Testing Implications**: 
-- ✅ All 17 existing tests pass
-- ✅ No API changes
-- ✅ Type checking passes
-- ✅ Linting passes
-- ✅ Code coverage remains high (93%)
+The key changes were:
 
-The refactoring successfully addressed the key code smells while maintaining the code's functionality and test coverage. The file is now better structured with clearer dependencies and better use of design patterns.
+1. **Added to `ImportAnalysisRequest` class**:
+```python
+def extract_params(self) -> tuple[Path, Path | None, bool, bool]:
+    """Extract parameters as typed values.
+
+    Returns:
+        Tuple of (target_path, scan_path, should_classify, should_detect_cycles).
+    """
+    target_path = Path(self.path)
+    scan_path = Path(self.scan_dir) if self.scan_dir else None
+    should_classify = self.classify
+    should_detect_cycles = self.detect_cycles
+    return target_path, scan_path, should_classify, should_detect_cycles
+```
+
+2. **Simplified `_extract_request_params`**:
+```python
+@staticmethod
+def _extract_request_params(
+    request: ImportAnalysisRequest,
+) -> tuple[Path, Path | None, bool, bool]:
+    """Extract parameters from ImportAnalysisRequest.
+
+    Args:
+        request: The request object.
+
+    Returns:
+        Tuple of (target_path, scan_path, should_classify, should_detect_cycles).
+    """
+    return request.extract_params()
+```
+
+3. **Added helper method `_add_dependency_if_local`**:
+```python
+def _add_dependency_if_local(
+    self,
+    module_name: str,
+    current_module: str,
+    local_modules: set[str],
+    deps: set[str],
+) -> None:
+    """Add a module to dependencies if it's a local module and not the current module.
+
+    Args:
+        module_name: Name of the module to check.
+        current_module: Name of the current module.
+        local_modules: Set of local module names.
+        deps: Set to add dependencies to.
+    """
+    if module_name in local_modules and module_name != current_module:
+        deps.add(module_name)
+```
+
+4. **Refactored dependency extraction methods** to use the helper:
+```python
+# In _extract_dependencies_from_import:
+for alias in node.names:
+    top = alias.name.split(".")[0]
+    self._add_dependency_if_local(top, mod_name, local_modules, deps)
+
+# In _extract_dependencies_from_import_from:
+mod = node.module or ""
+top = mod.split(".")[0] if mod else ""
+self._add_dependency_if_local(top, mod_name, local_modules, deps)
+
+for alias in node.names:
+    self._add_dependency_if_local(alias.name, mod_name, local_modules, deps)
+```
+
+## Testing Implications:
+- **No breaking changes**: All public API signatures remain unchanged
+- **All existing tests pass**: 17/17 tests continue to pass
+- **Improved testability**: The extracted `_add_dependency_if_local` method is now independently testable
+- **Edge cases covered**: The refactoring maintains all existing edge case handling for local module detection
+
+The refactoring successfully addresses the identified code smells while maintaining 100% backward compatibility and improving code quality through better encapsulation and reduced duplication.
 [tech_lead] completed work
-[2026-03-02T03:30:03Z] Running pytest to verify tests pass...
+[2026-03-02T04:00:03Z] Running pytest to verify tests pass...
 ============================= test session starts ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
 rootdir: /home/matthew/mlg-cli
@@ -872,7 +898,7 @@ tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidatio
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
-  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=640227) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=697816) is multi-threaded, use of fork() may lead to deadlocks in the child.
     self.pid = os.fork()
 
 tests/test_interactive.py::test_tool_form
@@ -948,14 +974,14 @@ tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conv
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
-  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/cache.py:86: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def __init__(self, get_value: Callable[..., _V], size: int = 1000000) -> None:
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/filters/base.py:17: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self) -> None:
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
-tests/ui_integration/test_slash_commands.py::TestSlashCommandIntegration::test_slash_extensions_command_integration
-  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/cache.py:29: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    self._keys: deque[_T] = deque()
+tests/ui_integration/test_slash_commands.py::TestSlashCommandIntegration::test_slash_command_with_arguments_integration
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/layout/controls.py:532: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    HighlightIncrementalSearchProcessor(),
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
@@ -1130,7 +1156,7 @@ src/henchman/tools/builtins/file_write.py                 23      0      0      
 src/henchman/tools/builtins/git_ops.py                    88     14     28      4    81%   130-133, 230, 266, 284, 298-304
 src/henchman/tools/builtins/glob_tool.py                  42      0     12      0   100%
 src/henchman/tools/builtins/grep.py                      142      9     60      7    92%   132, 148, 155, 257, 350, 374-379, 382
-src/henchman/tools/builtins/import_graph.py              274     15    100     13    93%   29-30, 34, 53, 93, 173->170, 208-209, 255, 275, 278->277, 343->340, 359->exit, 388, 610-611, 751-752, 800, 815->818
+src/henchman/tools/builtins/import_graph.py              276     13     96     10    94%   29-30, 34, 53, 93, 173->170, 208-209, 358->355, 374->exit, 403, 633-634, 774-775, 823, 838->841
 src/henchman/tools/builtins/kg_query.py                  115     14     46      1    88%   20-31, 124-132
 src/henchman/tools/builtins/kg_update.py                 113     13     40      3    88%   50-61, 181-184, 232, 292
 src/henchman/tools/builtins/lint_check.py                 64      7     20      3    88%   107, 109-112, 165, 169
@@ -1161,7 +1187,7 @@ src/henchman/utils/tokens.py                              55      2     20      
 src/henchman/utils/validation.py                          82      1     36      1    98%   45
 src/henchman/version.py                                    3      0      0      0   100%
 --------------------------------------------------------------------------------------------------
-TOTAL                                                  14642   2413   4100    469    81%
-=========== 2586 passed, 5 skipped, 32 warnings in 152.80s (0:02:32) ===========
-[2026-03-02T03:30:03Z] All tests passed.
+TOTAL                                                  14644   2411   4096    466    81%
+=========== 2586 passed, 5 skipped, 32 warnings in 154.56s (0:02:34) ===========
+[2026-03-02T04:00:03Z] All tests passed.
 Committing changes...

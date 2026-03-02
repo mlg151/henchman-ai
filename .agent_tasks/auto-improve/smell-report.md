@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T03:30:17.016927+00:00_
+_Generated: 2026-03-02T04:00:17.798730+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-02T03:30:17.016927+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 52.9/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 32,881 |
-| **Total Smells** | 2200 |
+| **Total Lines (non-blank)** | 32,885 |
+| **Total Smells** | 2199 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-02T03:30:17.016927+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1584 |
+| low | 1583 |
 | medium | 534 |
 | high | 82 |
 
@@ -28,7 +28,7 @@ _Generated: 2026-03-02T03:30:17.016927+00:00_
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1095 |
+| Missing Type Hint | 1094 |
 | Duplicate Code | 295 |
 | Feature Envy | 291 |
 | Magic Number | 133 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | tools/builtins/import_graph.py | ❌ F | 11.5 | 48 | 647 | 38 | 0.0 |
+| 1 | tools/builtins/import_graph.py | ❌ F | 11.5 | 47 | 651 | 38 | 0.0 |
 | 2 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
 | 3 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 46 | 301 | 48 | 12.3 |
 | 4 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
@@ -124,27 +124,27 @@ _Showing 20 worst files. 168 additional files omitted._
 
 ### tools/builtins/import_graph.py — ❌ F (11.5/100)
 
-LOC: 647 | Classes: 5 | Functions: 5 | MI: 38 | Avg CC: 0.0
+LOC: 651 | Classes: 5 | Functions: 5 | MI: 38 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 395 | 🟡 MEDIUM | Primitive Obsession | Function 'from_primitives' has 4 primitive-typed parameters: path: Name(id='str', ctx=Load()), scan_dir: Name(id='str', ctx=Load()), detect_cycles: Name(id='bool', ctx=Load()), classify: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 540 | 🟡 MEDIUM | Feature Envy | Method 'ImportGraphTool._extract_request_params' accesses 'request' 5 times but 'self' only 0 times | Move Method — consider moving '_extract_request_params' to the class that owns 'request'. |
-| 118 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 126 | 🟢 LOW | Missing Type Hint | Function 'extract_imports' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 137 | 🟢 LOW | Missing Type Hint | Function 'classify_import' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 152 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 160 | 🟢 LOW | Missing Type Hint | Function 'build_graph' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 180 | 🟢 LOW | Missing Type Hint | Function '_collect_local_modules' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 191 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_file' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 219 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_node' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 219 | 🟢 LOW | Feature Envy | Method 'ImportGraphBuilder._extract_dependencies_from_node' accesses 'ast' 3 times but 'self' only 2 times | Move Method — consider moving '_extract_dependencies_from_node' to the class that owns 'ast'. |
-| 239 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_import' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 259 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_import_from' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 259 | 🟢 LOW | Feature Envy | Method 'ImportGraphBuilder._extract_dependencies_from_import_from' accesses 'alias' 3 times but 'self' only 0 times | Move Method — consider moving '_extract_dependencies_from_import_from' to the class that owns 'alias'. |
-| 283 | 🟢 LOW | Missing Type Hint | Function 'detect_cycles' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 393 | 🟡 MEDIUM | Primitive Obsession | Function 'from_primitives' has 4 primitive-typed parameters: path: Name(id='str', ctx=Load()), scan_dir: Name(id='str', ctx=Load()), detect_cycles: Name(id='bool', ctx=Load()), classify: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 541 | 🟡 MEDIUM | Feature Envy | Method 'ImportGraphTool._extract_request_params' accesses 'request' 5 times but 'self' only 0 times | Move Method — consider moving '_extract_request_params' to the class that owns 'request'. |
+| 116 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 124 | 🟢 LOW | Missing Type Hint | Function 'extract_imports' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 135 | 🟢 LOW | Missing Type Hint | Function 'classify_import' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 150 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 158 | 🟢 LOW | Missing Type Hint | Function 'build_graph' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 178 | 🟢 LOW | Missing Type Hint | Function '_collect_local_modules' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 189 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_file' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 217 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_node' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 217 | 🟢 LOW | Feature Envy | Method 'ImportGraphBuilder._extract_dependencies_from_node' accesses 'ast' 3 times but 'self' only 2 times | Move Method — consider moving '_extract_dependencies_from_node' to the class that owns 'ast'. |
+| 237 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_import' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 257 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_import_from' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 257 | 🟢 LOW | Feature Envy | Method 'ImportGraphBuilder._extract_dependencies_from_import_from' accesses 'alias' 3 times but 'self' only 0 times | Move Method — consider moving '_extract_dependencies_from_import_from' to the class that owns 'alias'. |
+| 281 | 🟢 LOW | Missing Type Hint | Function 'detect_cycles' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 33 more smells._
+_... and 32 more smells._
 
 ### tools/builtins/patch_apply.py — ❌ F (14.1/100)
 

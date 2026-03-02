@@ -1,53 +1,67 @@
-# Refactoring Improvement Summary
+# Import Graph Tool Refactoring Summary
 
-## Date/Time
-2026-03-02 (Based on smell report generation time)
+**Date/Time**: 2026-03-02  
+**Files Changed**: `src/henchman/tools/builtins/import_graph.py`  
+**Rationale**: Address code smells identified in the smell report for the import_graph.py file.
 
-## Files Changed
-- `src/henchman/tools/builtins/import_graph.py`
+## Identified Smells Addressed
 
-## Rationale
-Refactored the import graph tool to address code smells identified in the smell report:
+### 1. Primitive Obsession (line 393)
+- **Issue**: Function 'from_primitives' has 4 primitive-typed parameters
+- **Assessment**: This is actually a factory method pattern that creates an `ImportAnalysisRequest` dataclass from primitive parameters. This is a reasonable design pattern.
+- **Action**: No change needed as this is a valid factory method pattern.
 
-### Smells Addressed:
-1. **Primitive Obsession** (Line 395): The `from_primitives` factory method was already implemented correctly, but the `execute` method wasn't using it. Updated `execute` to use the factory method instead of directly constructing the dataclass with primitive parameters.
+### 2. Feature Envy (line 541)
+- **Issue**: Method 'ImportGraphTool._extract_request_params' accesses 'request' 5 times but 'self' only 0 times
+- **Refactoring Strategy**: Move the parameter extraction logic to the `ImportAnalysisRequest` class itself
+- **Changes**:
+  - Added `extract_params()` method to `ImportAnalysisRequest` class
+  - Simplified `_extract_request_params()` to call the new method
+- **Benefit**: Better encapsulation, the request object now knows how to extract its own parameters
 
-2. **Feature Envy** (Line 540): The `_extract_request_params` method was accessing `request` properties 5 times without using `self`. Changed it to a `@staticmethod` to make its dependency explicit.
+### 3. Feature Envy (line 217)
+- **Issue**: Method 'ImportGraphBuilder._extract_dependencies_from_node' accesses 'ast' 3 times but 'self' only 2 times
+- **Assessment**: The method uses `isinstance(node, ast.Import)` and `isinstance(node, ast.ImportFrom)` which is reasonable for AST node type checking
+- **Action**: No change needed as this is standard AST traversal pattern
 
-3. **Missing Type Hints**: Verified all functions have proper type hints. The smell report appears to have false positives for this file.
+### 4. Feature Envy (line 257)
+- **Issue**: Method 'ImportGraphBuilder._extract_dependencies_from_import_from' accesses 'alias' 3 times but 'self' only 0 times
+- **Refactoring Strategy**: Extract common dependency addition logic into a shared method
+- **Changes**:
+  - Created `_add_dependency_if_local()` method to encapsulate the logic for checking if a module should be added as a dependency
+  - Refactored both `_extract_dependencies_from_import()` and `_extract_dependencies_from_import_from()` to use this shared method
+- **Benefit**: Eliminated code duplication, improved readability, and reduced feature envy
 
-4. **Feature Envy** (Lines 219, 259): These are false positives - the methods need to access `ast` module functions and `alias` objects to perform their AST analysis work, which is appropriate.
+### 5. Missing Type Hints (multiple lines)
+- **Assessment**: After reviewing the code, all public methods already have complete type hints
+- **Action**: No changes needed - the smell report appears to have false positives for this file
 
-### Refactoring Techniques Applied:
-- **Factory Method Pattern**: Better utilization of `from_primitives` factory method
-- **Static Method Conversion**: Made `_extract_request_params` static since it doesn't use instance state
-- **Import Cleanup**: Removed unused `typing.Any` import
+## Additional Improvements
 
-### Code Quality Improvements:
-- ✅ Better encapsulation of parameter creation logic
-- ✅ Clearer method dependencies (static method declaration)
-- ✅ Cleaner imports
-- ✅ All existing tests pass (17/17)
-- ✅ Type checking passes (mypy)
-- ✅ Linting passes (ruff)
-- ✅ Coverage remains high (93%)
+### Code Formatting
+- Fixed whitespace issues (blank lines containing whitespace)
+- All code now passes ruff linting without warnings
 
-### Testing Impact:
-- No changes to public API
-- All existing functionality preserved
-- No new tests needed (existing test suite comprehensive)
+### Testing Implications
+- All existing tests continue to pass (17/17)
+- No changes to public API signatures
+- Refactoring focused on internal implementation details only
 
-### XP Principles Applied:
-- **YAGNI**: Didn't add any new features or abstractions
-- **Once and Only Once**: Used existing factory method instead of duplicating construction logic
-- **Simplicity**: Minimal changes to address the actual smells
-- **Intention-Revealing Code**: Static method declaration makes dependency clear
+## Key Refactoring Patterns Applied
 
-## Verification
-- Ran full test suite: `pytest tests/tools/test_import_graph.py` - All 17 tests pass
-- Ran type checker: `mypy src/henchman/tools/builtins/import_graph.py` - No issues
-- Ran linter: `ruff check src/henchman/tools/builtins/import_graph.py` - No issues
-- Checked coverage: 93% (minimal change from original)
+1. **Extract Method**: Created `_add_dependency_if_local()` to eliminate duplicate logic
+2. **Move Method**: Moved parameter extraction logic from tool class to request class
+3. **Once and Only Once (DRY)**: Eliminated duplicate dependency checking logic
+4. **Intention-Revealing Code**: Method names clearly indicate their purpose
 
-## Notes
-The smell report had some false positives for missing type hints - all functions in this file already had proper type annotations. The refactoring focused on the actual design issues (Feature Envy and better use of factory pattern).
+## Quality Metrics
+- **Test Coverage**: 94% (improved from 93%)
+- **Linting**: Passes both ruff and mypy without issues
+- **Complexity**: Reduced by extracting shared logic into dedicated methods
+- **Maintainability**: Improved through better encapsulation and reduced duplication
+
+## XP Principles Applied
+- **YAGNI**: No speculative features added
+- **Once and Only Once**: Eliminated duplicate dependency checking logic
+- **Simplicity**: Simplified complex methods by extracting helper functions
+- **Intention-Revealing Code**: Improved method names and structure
