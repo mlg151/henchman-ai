@@ -1,9 +1,20 @@
 """Patch apply tool implementation."""
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+
+
+@dataclass
+class PatchApplyParameters:
+    """Parameters for patch application."""
+
+    patch: str
+    path: str | None = None
+    dry_run: bool = False
+    fuzz: int = 2
 
 
 class PatchApplyTool(Tool):
@@ -84,54 +95,77 @@ class PatchApplyTool(Tool):
         Returns:
             ToolResult with application status.
         """
-        if not patch.strip():
-            return ToolResult(
-                content="Error: Empty patch",
-                success=False,
-                error="Empty patch",
-            )
+        params = PatchApplyParameters(
+            patch=patch,
+            path=path,
+            dry_run=dry_run,
+            fuzz=fuzz,
+        )
+        return await self._execute_with_params(params)
+
+    async def _execute_with_params(self, params: PatchApplyParameters) -> ToolResult:
+        """Apply patch using structured parameters."""
+        if not params.patch.strip():
+            return self._create_error_result("Empty patch", "Empty patch")
 
         try:
-            file_patches = self._parse_patch(patch, default_path=path)
+            file_patches = self._parse_patch(params.patch, default_path=params.path)
         except ValueError as exc:
-            return ToolResult(
-                content=f"Error parsing patch: {exc}",
-                success=False,
-                error=str(exc),
-            )
+            return self._create_error_result(f"Error parsing patch: {exc}", str(exc))
 
         if not file_patches:
-            return ToolResult(
-                content="Error: No hunks found in patch",
-                success=False,
-                error="No hunks",
-            )
+            return self._create_error_result("Error: No hunks found in patch", "No hunks")
 
+        results = self._apply_patches_to_files(file_patches, params.dry_run, params.fuzz)
+        return self._create_result_from_application_results(results)
+
+    def _create_error_result(self, content: str, error: str) -> ToolResult:
+        """Create an error ToolResult."""
+        return ToolResult(content=content, success=False, error=error)
+
+    def _apply_patches_to_files(
+        self,
+        file_patches: dict[str, list[dict[str, object]]],
+        dry_run: bool,
+        fuzz: int,
+    ) -> list[str]:
+        """Apply patches to multiple files and collect results."""
         results: list[str] = []
         for file_path, hunks in file_patches.items():
-            target = Path(file_path)
-            if not target.exists():
-                results.append(f"SKIP {file_path}: file not found")
-                continue
+            result = self._apply_patch_to_single_file(file_path, hunks, dry_run, fuzz)
+            results.append(result)
+        return results
 
-            try:
-                original = target.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError) as exc:
-                results.append(f"SKIP {file_path}: {exc}")
-                continue
+    def _apply_patch_to_single_file(
+        self,
+        file_path: str,
+        hunks: list[dict[str, object]],
+        dry_run: bool,
+        fuzz: int,
+    ) -> str:
+        """Apply patch to a single file and return result message."""
+        target = Path(file_path)
+        if not target.exists():
+            return f"SKIP {file_path}: file not found"
 
-            try:
-                patched = self._apply_hunks(original, hunks, fuzz=fuzz)
-            except ValueError as exc:
-                results.append(f"FAIL {file_path}: {exc}")
-                continue
+        try:
+            original = target.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            return f"SKIP {file_path}: {exc}"
 
-            if dry_run:
-                results.append(f"OK {file_path} (dry run, {len(hunks)} hunks)")
-            else:
-                target.write_text(patched, encoding="utf-8")
-                results.append(f"OK {file_path} ({len(hunks)} hunks applied)")
+        try:
+            patched = self._apply_hunks(original, hunks, fuzz=fuzz)
+        except ValueError as exc:
+            return f"FAIL {file_path}: {exc}"
 
+        if dry_run:
+            return f"OK {file_path} (dry run, {len(hunks)} hunks)"
+        else:
+            target.write_text(patched, encoding="utf-8")
+            return f"OK {file_path} ({len(hunks)} hunks applied)"
+
+    def _create_result_from_application_results(self, results: list[str]) -> ToolResult:
+        """Create ToolResult from list of application results."""
         return ToolResult(
             content="\n".join(results),
             success=all(r.startswith("OK") for r in results),
@@ -176,47 +210,88 @@ class PatchApplyTool(Tool):
         Raises:
             ValueError: If a hunk fails to apply.
         """
+        lines = self._split_original_content(original)
+        offset = 0
+
+        for hunk_idx, hunk in enumerate(hunks):
+            offset = self._apply_single_hunk(lines, hunk, hunk_idx, offset, fuzz)
+
+        return self._reconstruct_content(lines, original)
+
+    def _split_original_content(self, original: str) -> list[str]:
+        """Split original content into lines, handling trailing newline."""
         lines = original.split("\n")
         # Track if original ended with newline
         trailing_newline = original.endswith("\n")
         if trailing_newline and lines and lines[-1] == "":
             lines = lines[:-1]
+        return lines
 
-        offset = 0
-        for hunk_idx, hunk in enumerate(hunks):
-            old_start = int(str(hunk["old_start"])) - 1 + offset
-            lines_value = hunk.get("lines", [])
-            if isinstance(lines_value, list):
-                hunk_lines = [str(line) for line in lines_value]
-            else:
-                hunk_lines = []
-
-            # Extract old and new lines
-            old_lines: list[str] = []
-            new_lines: list[str] = []
-            for hl in hunk_lines:
-                if hl.startswith("-"):
-                    old_lines.append(hl[1:])
-                elif hl.startswith("+"):
-                    new_lines.append(hl[1:])
-                elif hl.startswith(" "):
-                    old_lines.append(hl[1:])
-                    new_lines.append(hl[1:])
-
-            # Try exact match first
-            matched_start = self._find_match(lines, old_lines, old_start, fuzz)
-            if matched_start is None:
-                msg = f"Hunk {hunk_idx + 1} failed to apply at line {old_start + 1}"
-                raise ValueError(msg)
-
-            # Replace
-            lines[matched_start : matched_start + len(old_lines)] = new_lines
-            offset += len(new_lines) - len(old_lines)
-
+    def _reconstruct_content(self, lines: list[str], original: str) -> str:
+        """Reconstruct content from lines, preserving trailing newline."""
         result = "\n".join(lines)
-        if trailing_newline:
+        if original.endswith("\n"):
             result += "\n"
         return result
+
+    def _apply_single_hunk(
+        self,
+        lines: list[str],
+        hunk: dict[str, object],
+        hunk_idx: int,
+        offset: int,
+        fuzz: int,
+    ) -> int:
+        """Apply a single hunk to the lines and return new offset.
+
+        Args:
+            lines: Current file lines (will be modified).
+            hunk: Hunk dictionary.
+            hunk_idx: Index of this hunk (0-based).
+            offset: Current line offset.
+            fuzz: Lines of fuzz for matching.
+
+        Returns:
+            New offset after applying hunk.
+
+        Raises:
+            ValueError: If hunk fails to apply.
+        """
+        old_start = int(str(hunk["old_start"])) - 1 + offset
+        hunk_lines = self._extract_hunk_lines(hunk)
+        old_lines, new_lines = self._extract_old_and_new_lines(hunk_lines)
+
+        matched_start = self._find_match(lines, old_lines, old_start, fuzz)
+        if matched_start is None:
+            msg = f"Hunk {hunk_idx + 1} failed to apply at line {old_start + 1}"
+            raise ValueError(msg)
+
+        # Replace the old lines with new lines
+        lines[matched_start : matched_start + len(old_lines)] = new_lines
+        return offset + len(new_lines) - len(old_lines)
+
+    def _extract_hunk_lines(self, hunk: dict[str, object]) -> list[str]:
+        """Extract lines from hunk dictionary."""
+        lines_value = hunk.get("lines", [])
+        if isinstance(lines_value, list):
+            return [str(line) for line in lines_value]
+        return []
+
+    def _extract_old_and_new_lines(self, hunk_lines: list[str]) -> tuple[list[str], list[str]]:
+        """Extract old and new lines from hunk lines."""
+        old_lines: list[str] = []
+        new_lines: list[str] = []
+
+        for line in hunk_lines:
+            if line.startswith("-"):
+                old_lines.append(line[1:])
+            elif line.startswith("+"):
+                new_lines.append(line[1:])
+            elif line.startswith(" "):
+                old_lines.append(line[1:])
+                new_lines.append(line[1:])
+
+        return old_lines, new_lines
 
     def _find_match(
         self,
@@ -377,14 +452,11 @@ class PatchParser:
         """
         self._save_current_hunk()
 
-        match = re.match(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", line)
-        if not match:
+        hunk_data = self._parse_hunk_header(line)
+        if hunk_data is None:
             return
 
-        old_start = int(match.group(1))
-        old_count = int(match.group(2)) if match.group(2) else 1
-        new_start = int(match.group(3))
-        new_count = int(match.group(4)) if match.group(4) else 1
+        old_start, old_count, new_start, new_count = hunk_data
 
         self.current_hunk = {
             "old_start": old_start,
@@ -394,6 +466,27 @@ class PatchParser:
         }
         self.hunk_lines = []
         self.index += 1
+
+    def _parse_hunk_header(self, line: str) -> tuple[int, int, int, int] | None:
+        """Parse hunk header line into components.
+
+        Args:
+            line: The hunk header line.
+        Returns:
+            Tuple of (old_start, old_count, new_start, new_count) or None if invalid.
+        """
+        match = re.match(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", line)
+        if not match:
+            return None
+        if not match:
+            return None
+
+        old_start = int(match.group(1))
+        old_count = int(match.group(2)) if match.group(2) else 1
+        new_start = int(match.group(3))
+        new_count = int(match.group(4)) if match.group(4) else 1
+
+        return old_start, old_count, new_start, new_count
 
     def _handle_hunk_content(self, line: str) -> None:
         """Handle hunk content line.
