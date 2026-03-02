@@ -5,10 +5,10 @@ This module provides Rich-based console output with theming support.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, ParamSpec, TypeVar
 
 import anyio
 from rich import box
@@ -18,6 +18,12 @@ from rich.markup import escape
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
+
+# Type variables for generic async wrappers
+P = ParamSpec("P")  # For parameters
+R = TypeVar("R")  # For return values
+AsyncMethod = Callable[P, Awaitable[R]]
+SyncMethod = Callable[P, R]
 
 # Safety limit: truncate content before Rich parses it to prevent
 # excessive memory / CPU usage on pathologically large payloads.
@@ -416,7 +422,9 @@ class OutputRenderer:
         Args:
             message: Success message text.
         """
-        self._print_status(StatusType.SUCCESS, message)
+        self._print_status_message(
+            StatusMessageParams(message=message, status_type=StatusType.SUCCESS)
+        )
 
     def info(self, message: str) -> None:
         """Print an info message.
@@ -424,7 +432,9 @@ class OutputRenderer:
         Args:
             message: Info message text.
         """
-        self._print_status(StatusType.INFO, message)
+        self._print_status_message(
+            StatusMessageParams(message=message, status_type=StatusType.INFO)
+        )
 
     def warning(self, message: str) -> None:
         """Print a warning message.
@@ -432,7 +442,9 @@ class OutputRenderer:
         Args:
             message: Warning message text.
         """
-        self._print_status(StatusType.WARNING, message)
+        self._print_status_message(
+            StatusMessageParams(message=message, status_type=StatusType.WARNING)
+        )
 
     def error(self, message: str) -> None:
         """Print an error message.
@@ -440,16 +452,9 @@ class OutputRenderer:
         Args:
             message: Error message text.
         """
-        self._print_status(StatusType.ERROR, message)
-
-    def _print_status(self, status_type: StatusType, message: str) -> None:
-        """Print a status message with consistent formatting.
-
-        Args:
-            status_type: Type of status message.
-            message: Message text.
-        """
-        self._print_status_message(StatusMessageParams(message=message, status_type=status_type))
+        self._print_status_message(
+            StatusMessageParams(message=message, status_type=StatusType.ERROR)
+        )
 
     def _print_status_message(self, params: StatusMessageParams) -> None:
         """Print a status message with consistent formatting.
