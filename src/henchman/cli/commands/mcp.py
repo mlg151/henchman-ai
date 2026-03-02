@@ -71,8 +71,6 @@ class McpCommand(BaseCommand):
         else:
             await self._show_help(ctx)
 
-
-
     async def _list(self, ctx: CommandContext) -> None:
         """List configured MCP servers."""
         manager: McpManager | None = getattr(ctx, "mcp_manager", None)

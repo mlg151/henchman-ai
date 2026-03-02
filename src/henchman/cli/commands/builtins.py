@@ -56,18 +56,18 @@ class HelpCommand(Command):
             ctx: Command context.
         """
         self._print_header(ctx)
-        
+
         # If a specific command is requested, show its usage
         if ctx.args:
             if self._show_specific_command_help(ctx):
                 return
-        
+
         # Otherwise list all commands
         self._list_all_commands(ctx)
 
     def _print_header(self, ctx: CommandContext) -> None:
         """Print help command header.
-        
+
         Args:
             ctx: Command context.
         """
@@ -75,10 +75,10 @@ class HelpCommand(Command):
 
     def _show_specific_command_help(self, ctx: CommandContext) -> bool:
         """Show help for a specific command.
-        
+
         Args:
             ctx: Command context.
-            
+
         Returns:
             True if command was found and help shown, False otherwise.
         """
@@ -89,13 +89,13 @@ class HelpCommand(Command):
                 ctx.console.print(f"  [cyan]/{cmd.name}[/] - {cmd.description}")
                 ctx.console.print(f"  Usage: [yellow]{cmd.usage}[/]\n")
                 return True
-        
+
         ctx.console.print(f"[red]Unknown command: /{command_name}[/]\n")
         return False
 
     def _list_all_commands(self, ctx: CommandContext) -> None:
         """List all available commands.
-        
+
         Args:
             ctx: Command context.
         """
@@ -108,7 +108,7 @@ class HelpCommand(Command):
             # Fallback if registry is missing
             ctx.console.print("  /help     - Show this help message")
             ctx.console.print("  /quit     - Exit the CLI")
-        
+
         ctx.console.print("")
 
 
@@ -242,7 +242,7 @@ class ToolsCommand(Command):
         tool_registry = ctx.tool_registry
 
         # If no direct tool registry, check if agent has one
-        if not tool_registry and ctx.agent and hasattr(ctx.agent, 'tool_registry'):
+        if not tool_registry and ctx.agent and hasattr(ctx.agent, "tool_registry"):
             tool_registry = ctx.agent.tool_registry
 
         if tool_registry:

@@ -1,42 +1,42 @@
-# Code Smell Report — ❌ F (Score: 52.9/100)
+# Code Smell Report — ❌ F (Score: 52.8/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T14:00:17.985802+00:00_
+_Generated: 2026-03-02T14:30:20.237598+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 52.9/100 |
+| **Overall Score** | 52.8/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 33,537 |
-| **Total Smells** | 2172 |
+| **Total Lines (non-blank)** | 33,687 |
+| **Total Smells** | 2202 |
 | **Avg Maintainability Index** | 71.4 |
-| **Avg Cyclomatic Complexity** | 13.9 |
+| **Avg Cyclomatic Complexity** | 14.1 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1627 |
-| medium | 471 |
-| high | 74 |
+| low | 1648 |
+| medium | 485 |
+| high | 69 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1136 |
-| Feature Envy | 298 |
-| Duplicate Code | 245 |
+| Missing Type Hint | 1155 |
+| Feature Envy | 304 |
+| Duplicate Code | 254 |
 | Magic Number | 131 |
-| Long Method | 117 |
-| Deep Nesting | 108 |
-| Primitive Obsession | 74 |
-| Complex Function | 35 |
-| Large Class | 28 |
+| Long Method | 114 |
+| Deep Nesting | 107 |
+| Primitive Obsession | 75 |
+| Complex Function | 33 |
+| Large Class | 29 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -46,60 +46,60 @@ These are the highest-impact smells to address first:
    Function 'chat_command' has 8 primitive-typed parameters: prompt: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), agent: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), team: Name(id='bool', ctx=Load()), output_format: Name(id='str', ctx=Load()), plan: Name(id='bool', ctx=Load()), yes: Name(id='bool', ctx=Load()), tui: Name(id='bool', ctx=Load()), debug: Name(id='bool', ctx=Load())  
    → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
 
-2. **cli/commands/context.py:152** — 🟠 HIGH — Feature Envy  
-   Method 'ContextCommand._print_status_info' accesses 'console' 13 times but 'self' only 0 times  
-   → _Move Method — consider moving '_print_status_info' to the class that owns 'console'._
-
-3. **cli/commands/context.py:365** — 🟠 HIGH — Duplicate Code  
-   Function '_handle_importance_parameter' is an exact duplicate of '_handle_similarity_parameter' at cli/commands/context.py:369  
+2. **cli/commands/context.py:375** — 🟠 HIGH — Duplicate Code  
+   Function '_handle_importance_parameter' is an exact duplicate of '_handle_similarity_parameter' at cli/commands/context.py:379  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-4. **cli/commands/context.py:412** — 🟠 HIGH — Feature Envy  
-   Method 'ContextCommand._print_stats_info' accesses 'console' 12 times but 'self' only 0 times  
-   → _Move Method — consider moving '_print_stats_info' to the class that owns 'console'._
+3. **cli/commands/context.py:486** — 🟠 HIGH — Duplicate Code  
+   Function '_print_no_compactor_message' is an exact duplicate of '_print_set_theme_error' at cli/commands/theme.py:121  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-5. **cli/commands/mcp.py:121** — 🟠 HIGH — Feature Envy  
-   Method 'McpCommand._logging' accesses 'ctx' 15 times but 'self' only 0 times  
-   → _Move Method — consider moving '_logging' to the class that owns 'ctx'._
-
-6. **cli/commands/model.py:61** — 🟠 HIGH — Feature Envy  
-   Method 'ModelCommand._show_current' accesses 'ctx' 10 times but 'self' only 0 times  
-   → _Move Method — consider moving '_show_current' to the class that owns 'ctx'._
-
-7. **cli/commands/model.py:125** — 🟠 HIGH — Feature Envy  
-   Method 'ModelCommand._set_provider' accesses 'ctx' 26 times but 'self' only 2 times  
-   → _Move Method — consider moving '_set_provider' to the class that owns 'ctx'._
-
-8. **cli/commands/plan.py:32** — 🟠 HIGH — Feature Envy  
+4. **cli/commands/plan.py:32** — 🟠 HIGH — Feature Envy  
    Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-9. **cli/commands/theme.py:94** — 🟠 HIGH — Feature Envy  
-   Method 'ThemeCommand._set_theme' accesses 'ctx' 20 times but 'self' only 1 times  
-   → _Move Method — consider moving '_set_theme' to the class that owns 'ctx'._
-
-10. **cli/console.py:55** — 🟠 HIGH — Primitive Obsession  
+5. **cli/console.py:55** — 🟠 HIGH — Primitive Obsession  
    Repeated primitive parameter group appears in: 'create_diff_params' (line 55), 'diff' (line 648), 'async_diff' (line 817)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-11. **cli/json_output.py:37** — 🟠 HIGH — Duplicate Code  
+6. **cli/json_output.py:37** — 🟠 HIGH — Duplicate Code  
    Function 'render' is an exact duplicate of 'render_stream_json' at cli/json_output.py:71  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-12. **cli/repl.py:78** — 🟠 HIGH — Long Method  
+7. **cli/repl.py:78** — 🟠 HIGH — Long Method  
    Function '__init__' has 105 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-13. **cli/textual_bridge.py:199** — 🟠 HIGH — Duplicate Code  
+8. **cli/textual_bridge.py:199** — 🟠 HIGH — Duplicate Code  
    Function '_on_content' is an exact duplicate of '_on_thought' at cli/textual_bridge.py:204  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-14. **cli/textual_bridge.py:209** — 🟠 HIGH — Duplicate Code  
+9. **cli/textual_bridge.py:209** — 🟠 HIGH — Duplicate Code  
    Function '_on_tool_req' is an exact duplicate of '_on_tool_res' at cli/textual_bridge.py:214  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-15. **cli/textual_bridge.py:209** — 🟠 HIGH — Duplicate Code  
+10. **cli/textual_bridge.py:209** — 🟠 HIGH — Duplicate Code  
    Function '_on_tool_req' is an exact duplicate of '_on_tool_confirm' at cli/textual_bridge.py:219  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+11. **cli/textual_bridge.py:214** — 🟠 HIGH — Duplicate Code  
+   Function '_on_tool_res' is an exact duplicate of '_on_tool_confirm' at cli/textual_bridge.py:219  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+12. **cli/textual_bridge.py:246** — 🟠 HIGH — Duplicate Code  
+   Function '_on_turn_summary' is an exact duplicate of '_on_think_start' at cli/textual_bridge.py:312  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+13. **cli/textual_bridge.py:246** — 🟠 HIGH — Duplicate Code  
+   Function '_on_turn_summary' is an exact duplicate of '_on_think_done' at cli/textual_bridge.py:316  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+14. **cli/textual_bridge.py:246** — 🟠 HIGH — Duplicate Code  
+   Function '_on_turn_summary' is an exact duplicate of '_on_think_req' at cli/textual_bridge.py:320  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+15. **cli/textual_bridge.py:312** — 🟠 HIGH — Duplicate Code  
+   Function '_on_think_start' is an exact duplicate of '_on_think_done' at cli/textual_bridge.py:316  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 
@@ -109,8 +109,8 @@ These are the highest-impact smells to address first:
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
 | 1 | cli/console.py | ❌ F | 13.0 | 59 | 630 | 43 | 0.0 |
 | 2 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
-| 3 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
-| 4 | cli/commands/context.py | ❌ F | 15.1 | 47 | 377 | 50 | 0.0 |
+| 3 | cli/commands/context.py | ❌ F | 15.0 | 63 | 402 | 50 | 0.0 |
+| 4 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
 | 5 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
 | 6 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
 | 7 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
@@ -170,6 +170,30 @@ LOC: 432 | Classes: 1 | Functions: 0 | MI: 49 | Avg CC: 12.0
 
 _... and 16 more smells._
 
+### cli/commands/context.py — ❌ F (15.0/100)
+
+LOC: 402 | Classes: 2 | Functions: 0 | MI: 50 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 375 | 🟠 HIGH | Duplicate Code | Function '_handle_importance_parameter' is an exact duplicate of '_handle_similarity_parameter' at cli/commands/context.py:379 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 486 | 🟠 HIGH | Duplicate Code | Function '_print_no_compactor_message' is an exact duplicate of '_print_set_theme_error' at cli/commands/theme.py:121 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 133 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_help_message' accesses 'ctx' 7 times but 'self' only 1 times | Move Method — consider moving '_show_help_message' to the class that owns 'ctx'. |
+| 153 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'print_usage' at cli/commands/session.py:138 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 153 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 153 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 153 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 153 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 172 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_values' accesses 'console' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'console'. |
+| 172 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_values' accesses 'context_settings' 8 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'context_settings'. |
+| 196 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_commands' accesses 'console' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_commands' to the class that owns 'console'. |
+| 196 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_commands' is 100% similar to '_print_logging_help' at cli/commands/mcp.py:132 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 241 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._manage_strategy' accesses 'ctx' 8 times but 'self' only 5 times | Move Method — consider moving '_manage_strategy' to the class that owns 'ctx'. |
+| 274 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'console' 9 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'console'. |
+| 274 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'context_settings'. |
+
+_... and 48 more smells._
+
 ### tools/builtins/dead_code.py — ❌ F (15.0/100)
 
 LOC: 301 | Classes: 1 | Functions: 0 | MI: 50 | Avg CC: 15.5
@@ -191,30 +215,6 @@ LOC: 301 | Classes: 1 | Functions: 0 | MI: 50 | Avg CC: 15.5
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 122 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._analyze_file' accesses 'parts' 5 times but 'self' only 2 times | Move Method — consider moving '_analyze_file' to the class that owns 'parts'. |
 | 223 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._find_unused_imports' accesses 'ast' 9 times but 'self' only 1 times | Move Method — consider moving '_find_unused_imports' to the class that owns 'ast'. |
-
-_... and 32 more smells._
-
-### cli/commands/context.py — ❌ F (15.1/100)
-
-LOC: 377 | Classes: 2 | Functions: 0 | MI: 50 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 152 | 🟠 HIGH | Feature Envy | Method 'ContextCommand._print_status_info' accesses 'console' 13 times but 'self' only 0 times | Move Method — consider moving '_print_status_info' to the class that owns 'console'. |
-| 365 | 🟠 HIGH | Duplicate Code | Function '_handle_importance_parameter' is an exact duplicate of '_handle_similarity_parameter' at cli/commands/context.py:369 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 412 | 🟠 HIGH | Feature Envy | Method 'ContextCommand._print_stats_info' accesses 'console' 12 times but 'self' only 0 times | Move Method — consider moving '_print_stats_info' to the class that owns 'console'. |
-| 132 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_help_message' accesses 'ctx' 7 times but 'self' only 1 times | Move Method — consider moving '_show_help_message' to the class that owns 'ctx'. |
-| 152 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_info' accesses 'context_settings' 8 times but 'self' only 0 times | Move Method — consider moving '_print_status_info' to the class that owns 'context_settings'. |
-| 217 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._manage_strategy' accesses 'ctx' 8 times but 'self' only 5 times | Move Method — consider moving '_manage_strategy' to the class that owns 'ctx'. |
-| 250 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'console' 9 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'console'. |
-| 250 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'context_settings'. |
-| 346 | 🟡 MEDIUM | Duplicate Code | Function '_handle_max_tokens_parameter' is 100% similar to '_handle_threshold_parameter' at cli/commands/context.py:355 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 412 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_stats_info' accesses 'agent' 5 times but 'self' only 0 times | Move Method — consider moving '_print_stats_info' to the class that owns 'agent'. |
-| 33 | 🟢 LOW | Missing Type Hint | Function 'get_display_label' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 41 | 🟢 LOW | Missing Type Hint | Function 'validate_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 60 | 🟢 LOW | Missing Type Hint | Function 'parse_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 72 | 🟢 LOW | Large Class | Class 'ContextCommand' spans 383 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 72 | 🟢 LOW | Large Class | Class 'ContextCommand' has 22 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
 
 _... and 32 more smells._
 

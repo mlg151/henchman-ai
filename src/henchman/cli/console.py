@@ -52,18 +52,7 @@ class DiffParams(NamedTuple):
     filename: str = ""
 
 
-def create_diff_params(old: str, new: str, filename: str = "") -> DiffParams:
-    """Create DiffParams with type-safe factory function.
 
-    Args:
-        old: Old content string.
-        new: New content string.
-        filename: Filename for context.
-
-    Returns:
-        DiffParams instance.
-    """
-    return DiffParams(old, new, filename)
 
 
 @dataclass(frozen=True)
@@ -653,7 +642,7 @@ class OutputRenderer:
             new: New content string.
             filename: Filename for context.
         """
-        params = create_diff_params(old, new, filename)
+        params = DiffParams(old, new, filename)
         self._render_diff(params)
 
     def _render_diff(self, params: DiffParams) -> None:
@@ -815,7 +804,7 @@ class AsyncOutputRenderer:
         """
 
         async def async_diff(old: str, new: str, filename: str = "") -> None:
-            params = create_diff_params(old, new, filename)
+            params = DiffParams(old, new, filename)
             await anyio.to_thread.run_sync(self.renderer._render_diff, params)
 
         return async_diff

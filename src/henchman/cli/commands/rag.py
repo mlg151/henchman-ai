@@ -77,8 +77,6 @@ class RagCommand(BaseCommand):
         else:
             await self._show_help(ctx)
 
-
-
     def _get_rag_system(self, ctx: CommandContext) -> RagSystem | None:
         """Get the RAG system from context.
 

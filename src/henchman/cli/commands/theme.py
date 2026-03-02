@@ -5,7 +5,7 @@ This module provides the /theme command for managing UI themes.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.console import ThemeManager
@@ -99,23 +99,58 @@ class ThemeCommand(Command):
             args: Command arguments (theme name).
         """
         if not args:
-            ctx.console.print("[red]Error:[/] Theme name required")
-            ctx.console.print("[yellow]Usage:[/] /theme set <theme-name>")
+            self._print_set_theme_error(ctx.console)
             return
 
         theme_name = args[0]
         theme_manager = self._get_theme_manager(ctx.repl)
 
         # Check if theme exists
-        if theme_name not in theme_manager.list_themes():
-            ctx.console.print(f"[yellow]Warning:[/] Theme '{theme_name}' not found")
-            ctx.console.print("[dim]Falling back to default theme (dark)[/]")
-            theme_name = "dark"
+        theme_name = self._validate_theme_name(ctx, theme_name, theme_manager)
 
         # Set the theme
         theme_manager.set_theme(theme_name)
 
         # Update REPL renderer if available
+        self._update_renderer_theme(ctx, theme_manager)
+
+        ctx.console.print(f"[green]Theme set to:[/] {theme_name}")
+
+        self._persist_theme_settings(ctx, theme_name)
+
+    def _print_set_theme_error(self, console: Any) -> None:
+        """Print error message for missing theme name.
+
+        Args:
+            console: Console for output.
+        """
+        console.print("[red]Error:[/] Theme name required")
+        console.print("[yellow]Usage:[/] /theme set <theme-name>")
+
+    def _validate_theme_name(self, ctx: CommandContext, theme_name: str, theme_manager: Any) -> str:
+        """Validate theme name and fall back to default if not found.
+
+        Args:
+            ctx: Command context.
+            theme_name: Name of the theme to validate.
+            theme_manager: Theme manager instance.
+
+        Returns:
+            Valid theme name (original or fallback).
+        """
+        if theme_name not in theme_manager.list_themes():
+            ctx.console.print(f"[yellow]Warning:[/] Theme '{theme_name}' not found")
+            ctx.console.print("[dim]Falling back to default theme (dark)[/]")
+            return "dark"
+        return theme_name
+
+    def _update_renderer_theme(self, ctx: CommandContext, theme_manager: Any) -> None:
+        """Update REPL renderer with new theme.
+
+        Args:
+            ctx: Command context.
+            theme_manager: Theme manager instance.
+        """
         if ctx.repl and hasattr(ctx.repl, "renderer") and hasattr(ctx.repl.renderer, "renderer"):
             if hasattr(ctx.repl.renderer.renderer, "theme"):
                 ctx.repl.renderer.renderer.theme = theme_manager.current
@@ -127,8 +162,13 @@ class ThemeCommand(Command):
                     console=ctx.repl.renderer.console, theme=theme_manager.current
                 )
 
-        ctx.console.print(f"[green]Theme set to:[/] {theme_name}")
+    def _persist_theme_settings(self, ctx: CommandContext, theme_name: str) -> None:
+        """Persist theme settings to disk.
 
+        Args:
+            ctx: Command context.
+            theme_name: Name of the theme to persist.
+        """
         if ctx.repl and hasattr(ctx.repl, "settings") and ctx.repl.settings:
             try:
                 # Update settings object
