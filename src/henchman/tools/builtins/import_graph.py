@@ -67,19 +67,45 @@ def _extract_imports_from_ast(tree: ast.AST) -> list[str]:
     imports: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            for alias in node.names:
-                name = alias.name
-                if alias.asname:
-                    name += f" as {alias.asname}"
-                imports.append(f"import {name}")
+            imports.extend(_extract_imports_from_import_node(node))
         elif isinstance(node, ast.ImportFrom):
-            module = node.module or ""
-            level = "." * (node.level or 0)
-            names = ", ".join(
-                a.name + (f" as {a.asname}" if a.asname else "") for a in node.names
-            )
-            imports.append(f"from {level}{module} import {names}")
+            imports.append(_extract_import_from_import_from_node(node))
     return imports
+
+
+def _extract_imports_from_import_node(node: ast.Import) -> list[str]:
+    """Extract import strings from an Import node.
+
+    Args:
+        node: Import AST node.
+
+    Returns:
+        List of import strings.
+    """
+    imports: list[str] = []
+    for alias in node.names:
+        name = alias.name
+        if alias.asname:
+            name += f" as {alias.asname}"
+        imports.append(f"import {name}")
+    return imports
+
+
+def _extract_import_from_import_from_node(node: ast.ImportFrom) -> str:
+    """Extract import string from an ImportFrom node.
+
+    Args:
+        node: ImportFrom AST node.
+
+    Returns:
+        Import string.
+    """
+    module = node.module or ""
+    level = "." * (node.level or 0)
+    names = ", ".join(
+        a.name + (f" as {a.asname}" if a.asname else "") for a in node.names
+    )
+    return f"from {level}{module} import {names}"
 
 
 class ImportAnalyzer:
@@ -91,7 +117,7 @@ class ImportAnalyzer:
         Args:
             local_modules: Set of local module names.
         """
-        self.local_modules = local_modules
+        self.local_modules: set[str] = local_modules
 
     def extract_imports(self, tree: ast.AST) -> list[str]:
         """Extract import statements from AST.
@@ -291,8 +317,8 @@ class ImportGraphBuilder:
 
 
 @dataclass
-class ImportGraphParameters:
-    """Parameters for import graph analysis."""
+class ImportAnalysisRequest:
+    """Request object for import analysis to replace primitive parameters."""
 
     path: str
     scan_dir: str = ""
@@ -317,16 +343,6 @@ class ImportGraphParameters:
                 return dir_error
 
         return None
-
-
-@dataclass
-class ImportAnalysisRequest:
-    """Request object for import analysis to replace primitive parameters."""
-
-    path: str
-    scan_dir: str = ""
-    detect_cycles: bool = False
-    classify: bool = False
 
     @classmethod
     def from_primitives(
@@ -443,15 +459,8 @@ class ImportGraphTool(Tool):
             classify=classify,
         )
 
-        # Create and validate parameters
-        params = ImportGraphParameters(
-            path=request.path,
-            scan_dir=request.scan_dir,
-            detect_cycles=request.detect_cycles,
-            classify=request.classify,
-        )
-
-        validation_result = params.validate()
+        # Validate request
+        validation_result = request.validate()
         if validation_result is not None:
             return validation_result
 

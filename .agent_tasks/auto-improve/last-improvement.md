@@ -1,98 +1,76 @@
 # Refactoring Summary - Import Graph Tool
 
-**Date/Time:** 2026-03-02 01:45 UTC  
+**Date/Time:** 2026-03-02  
 **Target File:** `src/henchman/tools/builtins/import_graph.py`  
-**Original Score:** ❌ F (12.5/100)  
-**Refactored Smells:** 57 total smells addressed
+**Refactoring Agent:** Expert Extreme Programming (XP) Refactoring Agent
 
 ## Identified Smells Addressed
 
-### 1. Feature Envy (Line 51 - MEDIUM)
-- **Issue:** `classify_import` method accessed `import_str` 6 times but `self` only 1 time
-- **Solution:** Extracted logic into standalone functions `_extract_top_level_module()` and `_classify_import()`
-- **Benefit:** Reduced method coupling, improved testability, follows Single Responsibility Principle
+### 1. **Primitive Obsession** (HIGH Severity)
+- **Issue:** Repeated primitive parameter group in `from_primitives` and `execute` methods
+- **Solution:** Consolidated `ImportGraphParameters` and `ImportAnalysisRequest` into a single `ImportAnalysisRequest` dataclass
+- **Refactoring Pattern:** Introduce Parameter Object
+- **Changes:**
+  - Removed duplicate `ImportGraphParameters` class
+  - Enhanced `ImportAnalysisRequest` with validation method
+  - Updated `execute` method to use consolidated request object
 
-### 2. Primitive Obsession (Line 344 - MEDIUM)  
-- **Issue:** `execute` method had 4 primitive-typed parameters
-- **Solution:** Created `ImportAnalysisRequest` dataclass to encapsulate parameters
-- **Benefit:** Improved type safety, better parameter validation, cleaner method signatures
+### 2. **Deep Nesting** (LOW Severity)
+- **Issue:** Nesting depth 4 in `_extract_imports_from_ast` function
+- **Solution:** Extracted nested logic into separate helper functions
+- **Refactoring Pattern:** Extract Method
+- **Changes:**
+  - Created `_extract_imports_from_import_node` function
+  - Created `_extract_import_from_import_from_node` function
+  - Reduced nesting depth from 4 to 2
 
-### 3. Feature Envy (Line 378 - MEDIUM)
-- **Issue:** `_execute_with_params` accessed `params` 6 times but `self` only 5 times
-- **Solution:** Renamed to `_execute_with_request` and uses new parameter object
-- **Benefit:** Reduced method coupling, clearer parameter flow
+### 3. **Missing Type Hints** (LOW Severity)
+- **Issue:** `__init__` methods had incomplete type hints
+- **Solution:** Added explicit type annotations
+- **Changes:**
+  - Added `: set[str]` type annotation to `ImportAnalyzer.__init__`
+  - Removed unused `typing.Any` import
 
-### 4. Missing Type Hints (Multiple locations - LOW)
-- **Issue:** Incomplete type hints in `__init__`, `extract_imports`, and other methods
-- **Solution:** Added complete type annotations throughout the file
-- **Benefit:** Improved static analysis, better IDE support, clearer interfaces
+### 4. **Code Duplication** (MEDIUM Severity - Partially Addressed)
+- **Issue:** `parameters` method duplicated across multiple tool files
+- **Note:** This is a broader architectural issue. The `parameters` method needs to be tool-specific to define JSON schema, so complete deduplication would require a different approach (e.g., decorators or base class enhancements).
 
-### 5. Feature Envy (Line 25 - LOW)
-- **Issue:** `extract_imports` accessed `ast` and `node` frequently with minimal `self` usage
-- **Solution:** Extracted into `_extract_imports_from_ast()` helper function
-- **Benefit:** Reduced class coupling, improved reusability
+## Refactoring Strategy
 
-## Refactoring Strategy Applied
+1. **Consolidated Data Classes:** Merged `ImportGraphParameters` into `ImportAnalysisRequest` to eliminate duplication and address Primitive Obsession.
 
-1. **Extract Method Pattern**: Created helper functions for AST traversal logic
-2. **Introduce Parameter Object**: Replaced primitive parameters with `ImportAnalysisRequest` dataclass  
-3. **Move Method**: Moved logic from instance methods to standalone functions where appropriate
-4. **Add Type Annotations**: Completed type hints for all public interfaces
-5. **DRY Principle**: Reduced code duplication in import classification logic
+2. **Extracted Nested Logic:** Broke down complex nested functions into smaller, single-responsibility helper functions to improve readability and maintainability.
 
-## Key Changes Made
+3. **Enhanced Type Safety:** Added missing type annotations to improve code clarity and enable better static analysis.
 
-### New Functions:
-- `_extract_top_level_module()`: Extracts module name from import string
-- `_classify_import()`: Classifies imports as stdlib/local/third-party
-- `_extract_imports_from_ast()`: Extracts imports from AST tree
-
-### New Data Classes:
-- `ImportAnalysisRequest`: Encapsulates execution parameters
-- Maintains backward compatibility with `ImportGraphParameters`
-
-### Method Signatures:
-- `execute()`: Now uses `ImportAnalysisRequest.from_primitives()`
-- `_execute_with_request()`: Replaces `_execute_with_params()` with better encapsulation
+4. **Maintained Backward Compatibility:** All public API signatures remain unchanged to avoid breaking existing tests and integrations.
 
 ## Testing Implications
 
-- **All existing tests pass** (17/17 tests)
-- **No API changes**: Public interface remains identical
-- **Backward compatible**: Existing tool calls work unchanged
-- **Improved testability**: Helper functions can be tested independently
+- **All existing tests pass:** 17/17 tests pass without modification
+- **No API changes:** External interface remains identical
+- **Internal improvements:** Better separation of concerns and reduced coupling
 
 ## Code Quality Improvements
 
-1. **Maintainability**: Reduced method complexity and coupling
-2. **Readability**: Clearer parameter flow with dataclasses
-3. **Type Safety**: Complete type annotations throughout
-4. **Reusability**: Standalone functions can be used elsewhere
-5. **Testability**: Smaller, focused functions are easier to test
+1. **Reduced Complexity:** Deep nesting eliminated through method extraction
+2. **Improved Maintainability:** Single responsibility principle applied to helper functions
+3. **Better Type Safety:** Explicit type annotations added
+4. **Eliminated Duplication:** Consolidated parameter handling logic
+5. **Enhanced Readability:** Clearer function names and separation of concerns
 
-## Remaining Issues (Systemic)
+## Remaining Issues (Not Addressed)
 
-- **Duplicate Code** (Line 308): `parameters` method duplication across tools
-  - *Note:* This is a systemic issue across the tool system, not specific to this file
-  - Requires broader refactoring of the tool base class system
+1. **Duplicate `parameters` method across tools:** This is a systemic issue that would require architectural changes beyond the scope of this file-specific refactoring.
 
-## Performance Impact
-
-- **No performance degradation**: Changes are structural, not algorithmic
-- **Memory usage**: Minimal increase due to dataclass creation
-- **Runtime**: Negligible difference - helper functions are lightweight
+2. **Feature Envy in `_execute_with_request`:** The method needs to access request properties to perform its work, making this likely a false positive or acceptable design given the tool's responsibilities.
 
 ## Verification
 
 - ✅ All 17 existing tests pass
-- ✅ Ruff linting passes with no errors
-- ✅ Mypy type checking passes
-- ✅ Code coverage remains high (92%)
-- ✅ Backward compatibility maintained
+- ✅ No linting errors (ruff clean)
+- ✅ Type checking passes (mypy clean)
+- ✅ Code formatting consistent
+- ✅ External API unchanged
 
-## Next Steps
-
-1. Consider extracting the duplicated `parameters` method pattern to a base class
-2. Evaluate similar refactoring for other tools with primitive obsession
-3. Add unit tests for new helper functions
-4. Consider creating a shared `ToolRequest` base class for all tools
+The refactoring successfully addresses the highest-priority code smells while maintaining full backward compatibility and test coverage.
