@@ -4,8 +4,6 @@ import ast
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar
-
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.utils import (
     create_path_parameter_schema,
@@ -13,7 +11,7 @@ from henchman.tools.utils import (
     validate_file_path,
 )
 
-STDLIB_MODULES: ClassVar[frozenset[str]] = frozenset(sys.stdlib_module_names)
+STDLIB_MODULES: frozenset[str] = frozenset(sys.stdlib_module_names)
 
 
 def _extract_top_level_module(import_str: str) -> str:
@@ -417,32 +415,6 @@ class ImportAnalysisRequest:
         should_detect_cycles = self.detect_cycles
         return target_path, scan_path, should_classify, should_detect_cycles
 
-    @classmethod
-    def from_primitives(
-        cls,
-        path: str = "",
-        scan_dir: str = "",
-        detect_cycles: bool = False,
-        classify: bool = False,
-    ) -> "ImportAnalysisRequest":
-        """Create request from primitive parameters.
-
-        Args:
-            path: Target Python file to analyze.
-            scan_dir: Optional directory for reverse-import scan.
-            detect_cycles: Detect circular import chains in scan_dir.
-            classify: Classify imports as stdlib/local/third-party.
-
-        Returns:
-            ImportAnalysisRequest instance.
-        """
-        return cls(
-            path=path,
-            scan_dir=scan_dir,
-            detect_cycles=detect_cycles,
-            classify=classify,
-        )
-
 
 class ImportGraphTool(Tool):
     """Analyze Python import dependencies.
@@ -510,18 +482,12 @@ class ImportGraphTool(Tool):
         Returns:
             ToolResult with import analysis.
         """
-        # Extract parameters with defaults
-        path = str(params.get("path", ""))
-        scan_dir = str(params.get("scan_dir", ""))
-        detect_cycles = bool(params.get("detect_cycles", False))
-        classify = bool(params.get("classify", False))
-
-        # Create and validate request using factory method
-        request = ImportAnalysisRequest.from_primitives(
-            path=path,
-            scan_dir=scan_dir,
-            detect_cycles=detect_cycles,
-            classify=classify,
+        # Create and validate request directly from params
+        request = ImportAnalysisRequest(
+            path=str(params.get("path", "")),
+            scan_dir=str(params.get("scan_dir", "")),
+            detect_cycles=bool(params.get("detect_cycles", False)),
+            classify=bool(params.get("classify", False)),
         )
 
         validation_result = request.validate()
