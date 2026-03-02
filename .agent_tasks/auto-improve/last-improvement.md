@@ -1,77 +1,72 @@
-# Refactoring Summary - src/henchman/cli/console.py
+# Refactoring Summary: src/henchman/cli/console.py
 
-**Date/Time**: 2026-03-02 (Current refactoring session)
-**Files Changed**: `src/henchman/cli/console.py`
-**Rationale**: Address code smells identified in the smell report for console.py
+**Date/Time:** 2026-03-02  
+**Files Changed:** src/henchman/cli/console.py  
+**Test Status:** ✅ All 42 tests pass
 
 ## Identified Smells Addressed:
 
-### 1. **Primitive Obsession** (HIGH - line 49)
-- **Problem**: Repeated primitive parameter group in `__init__`, `diff`, `async_diff`
-- **Solution**: 
-  - Created `OutputRendererConfig` dataclass to encapsulate initialization parameters
-  - Extracted initialization logic into `_initialize_from_config()` method
-  - Already had `DiffParams` NamedTuple for diff parameters (was already being used)
+### 1. **HIGH - Primitive Obsession (Line 63)**
+- **Problem:** Repeated primitive parameter group (style, icon, accessible_icon) in `StatusType` enum constructor
+- **Solution:** Created `StatusTypeConfig` dataclass to encapsulate the three related primitive parameters
+- **Refactoring:** 
+  - Created `@dataclass(frozen=True) class StatusTypeConfig` with `style`, `icon`, `accessible_icon` fields
+  - Updated `StatusType` enum to use `StatusTypeConfig` instances as values
+  - Added properties to `StatusType` to maintain backward compatibility (`style`, `icon`, `accessible_icon` properties)
 
-### 2. **Duplicate Code** (MEDIUM - line 258)
-- **Problem**: `list_themes` similar to other list functions in the codebase
-- **Solution**: Created `list_dict_keys()` utility function to extract common logic
-- **Note**: This pattern appears in multiple files (`extensions/manager.py`, `mcp/manager.py`, `providers/registry.py`, `tools/registry.py`)
+### 2. **MEDIUM - Feature Envy (Line 355)**
+- **Problem:** Method `OutputRenderer._initialize_from_config` accessed `config` 9 times but `self` only 6 times
+- **Solution:** Moved theme resolution logic into `OutputRendererConfig` class
+- **Refactoring:**
+  - Added `get_resolved_theme()` method to `OutputRendererConfig` class
+  - Simplified `_initialize_from_config` to call `config.get_resolved_theme()` instead of complex conditional logic
+  - Reduced config access from 9 to 1 time in the method
 
-### 3. **Duplicate Code** (MEDIUM - lines 333, 341, 349, 357)
-- **Problem**: `success`, `info`, `warning`, `error` methods flagged as similar
-- **Analysis**: These methods already use shared `_print_status()` helper
-- **Decision**: Left as-is since they're already well-factored using DRY principles
-- **Note**: The methods delegate to `_print_status()` which uses `StatusType` enum
+### 3. **MEDIUM - Duplicate Code (Lines 381, 389, 397, 405)**
+- **Analysis:** Methods `success`, `info`, `warning`, `error` are simple wrapper methods that delegate to `_print_status`
+- **Decision:** This is actually good API design - simple public methods with consistent naming
+- **No change needed:** The methods provide a clean, intention-revealing public API
 
-### 4. **Missing Type Hints** (LOW - line 49)
-- **Problem**: `__init__` had incomplete type hints
-- **Solution**: Added proper type hints for all parameters
-- **Note**: Changed `layout_settings: object | None` to `layout_settings: Any | None` for flexibility
+### 4. **LOW - Missing Type Hints**
+- **Analysis:** All public methods already had complete type hints
+- **Verified:** Functions like `list_dict_keys`, `_get_theme_from_dict`, `get_theme`, `Theme.with_overrides`, etc. all have proper type annotations
+- **No change needed:** Type hints are already comprehensive
 
-### 5. **Primitive Obsession** (LOW - line 49)
-- **Problem**: `__init__` had 3 primitive-typed parameters
-- **Solution**: Addressed by creating `OutputRendererConfig` dataclass
+### 5. **LOW - Primitive Obsession (Line 63)**
+- **Problem:** `__init__` method has 3 primitive-typed parameters
+- **Solution:** Already addressed by creating `StatusTypeConfig` dataclass
+- **Note:** The `__init__` parameters (style, icon, accessible_icon) are now encapsulated in `StatusTypeConfig`
 
-## Additional Improvements Made:
+## Refactoring Strategy Applied:
 
-### 6. **Magic Numbers**
-- **Problem**: Magic number `1000` in `tool_result()` method
-- **Solution**: Extracted as constant `_MAX_TOOL_RESULT_LEN = 1000`
-
-### 7. **Complex Method Refactoring**
-- **Problem**: `AsyncOutputRenderer.__getattr__()` was complex with feature envy
-- **Solution**: 
-  - Extracted validation logic into `_validate_method_name()`
-  - Extracted wrapper creation into `_create_async_wrapper()`
-  - Extracted special diff handling into `_create_async_diff_wrapper()`
-  - Added method caching check at beginning
-
-### 8. **Code Organization**
-- Added `Any` import from typing module
-- Grouped constants together at top of file
-- Improved method documentation
+1. **Replace Data Value with Object** - Created `StatusTypeConfig` dataclass to encapsulate related primitive parameters
+2. **Move Method** - Moved theme resolution logic from `OutputRenderer` to `OutputRendererConfig` where it belongs
+3. **Maintain Clean API** - Kept simple wrapper methods (`success`, `info`, etc.) as they provide good developer experience
 
 ## Testing Implications:
-- **All existing tests pass**: 42/42 tests in `test_console.py`
-- **No API changes**: Public interface remains identical
-- **Backward compatible**: All changes are internal refactoring
-- **Type safety improved**: Better type hints throughout
 
-## Refactoring Patterns Applied:
-1. **Extract Parameter Object** - Created `OutputRendererConfig`
-2. **Extract Method** - Multiple helper methods extracted
-3. **Replace Magic Number with Constant** - `_MAX_TOOL_RESULT_LEN`
-4. **Introduce Explaining Variable** - Better variable names
-5. **Preserve Whole Object** - Using `DiffParams` consistently
-
-## Remaining Smells (Not Addressed):
-- The status methods (`success`, `info`, `warning`, `error`) were flagged as duplicate but are already using shared helper methods. This is a false positive in the smell detector.
-- Some other smells in the report (42+ more) were not visible in the excerpt provided.
+- **Backward Compatibility:** ✅ Maintained - All existing tests pass without modification
+- **Public API:** ✅ Unchanged - All public methods retain same signatures
+- **Internal Structure:** ✅ Improved - Better encapsulation and separation of concerns
+- **Type Safety:** ✅ Maintained - All type hints preserved and improved
 
 ## Code Quality Improvements:
-- **Maintainability**: Increased by extracting complex logic
-- **Readability**: Better method names and organization
-- **Testability**: Smaller, focused methods
-- **Type Safety**: Improved type annotations
-- **DRY Compliance**: Reduced duplication with utility function
+
+1. **Better Encapsulation:** `StatusTypeConfig` encapsulates related configuration
+2. **Reduced Coupling:** `OutputRenderer` no longer needs to know how to resolve themes from config
+3. **Improved Readability:** `get_resolved_theme()` method name clearly expresses intent
+4. **Maintainability:** Easier to modify theme resolution logic in one place
+5. **Testability:** `OutputRendererConfig.get_resolved_theme()` can be tested independently
+
+## Performance Impact:
+
+- **Negligible:** Changes are structural, not algorithmic
+- **Memory:** Slight increase due to additional dataclass instances (immaterial)
+- **CPU:** No measurable impact
+
+## XP Principles Applied:
+
+- **YAGNI:** Didn't add speculative features, only addressed existing smells
+- **Once and Only Once:** Eliminated duplicate theme resolution logic
+- **Simplicity:** Simplified `_initialize_from_config` method
+- **Intention-Revealing Code:** `StatusTypeConfig` and `get_resolved_theme()` clearly express intent
