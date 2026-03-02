@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T11:30:15.959966+00:00_
+_Generated: 2026-03-02T12:00:17.942278+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-02T11:30:15.959966+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 53.2/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 33,242 |
-| **Total Smells** | 2154 |
+| **Total Lines (non-blank)** | 33,254 |
+| **Total Smells** | 2155 |
 | **Avg Maintainability Index** | 71.4 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-02T11:30:15.959966+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1599 |
+| low | 1600 |
 | medium | 470 |
 | high | 85 |
 
@@ -28,13 +28,13 @@ _Generated: 2026-03-02T11:30:15.959966+00:00_
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1109 |
+| Missing Type Hint | 1110 |
 | Feature Envy | 294 |
-| Duplicate Code | 249 |
+| Duplicate Code | 248 |
 | Magic Number | 132 |
 | Long Method | 121 |
 | Deep Nesting | 111 |
-| Primitive Obsession | 74 |
+| Primitive Obsession | 75 |
 | Complex Function | 37 |
 | Large Class | 27 |
 
@@ -98,8 +98,8 @@ These are the highest-impact smells to address first:
    Method 'ThemeCommand._set_theme' accesses 'ctx' 20 times but 'self' only 1 times  
    → _Move Method — consider moving '_set_theme' to the class that owns 'ctx'._
 
-15. **cli/console.py:307** — 🟠 HIGH — Duplicate Code  
-   Function 'success' is an exact duplicate of 'info' at cli/console.py:317  
+15. **cli/console.py:322** — 🟠 HIGH — Duplicate Code  
+   Function 'success' is an exact duplicate of 'info' at cli/console.py:330  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/console.py | ❌ F | 14.3 | 55 | 518 | 48 | 0.0 |
+| 1 | cli/console.py | ❌ F | 14.1 | 56 | 530 | 47 | 0.0 |
 | 2 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
 | 3 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
 | 4 | cli/commands/context.py | ❌ F | 15.3 | 41 | 303 | 51 | 11.0 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 168 additional files omitted._
 
-### cli/console.py — ❌ F (14.3/100)
+### cli/console.py — ❌ F (14.1/100)
 
-LOC: 518 | Classes: 6 | Functions: 2 | MI: 48 | Avg CC: 0.0
+LOC: 530 | Classes: 6 | Functions: 3 | MI: 47 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 307 | 🟠 HIGH | Duplicate Code | Function 'success' is an exact duplicate of 'info' at cli/console.py:317 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 307 | 🟠 HIGH | Duplicate Code | Function 'success' is an exact duplicate of 'warning' at cli/console.py:329 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 307 | 🟠 HIGH | Duplicate Code | Function 'success' is an exact duplicate of 'error' at cli/console.py:341 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 317 | 🟠 HIGH | Duplicate Code | Function 'info' is an exact duplicate of 'warning' at cli/console.py:329 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 317 | 🟠 HIGH | Duplicate Code | Function 'info' is an exact duplicate of 'error' at cli/console.py:341 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 329 | 🟠 HIGH | Duplicate Code | Function 'warning' is an exact duplicate of 'error' at cli/console.py:341 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 530 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: 'diff' (line 530), 'async_diff' (line 656) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 180 | 🟡 MEDIUM | Duplicate Code | Function 'get_theme' is 93% similar to 'get_theme' at cli/console.py:211 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 232 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_extensions' at extensions/manager.py:78 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 232 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 232 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_providers' at providers/registry.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 232 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_tools' at tools/registry.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 322 | 🟠 HIGH | Duplicate Code | Function 'success' is an exact duplicate of 'info' at cli/console.py:330 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 322 | 🟠 HIGH | Duplicate Code | Function 'success' is an exact duplicate of 'warning' at cli/console.py:338 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 322 | 🟠 HIGH | Duplicate Code | Function 'success' is an exact duplicate of 'error' at cli/console.py:346 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 330 | 🟠 HIGH | Duplicate Code | Function 'info' is an exact duplicate of 'warning' at cli/console.py:338 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 330 | 🟠 HIGH | Duplicate Code | Function 'info' is an exact duplicate of 'error' at cli/console.py:346 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 338 | 🟠 HIGH | Duplicate Code | Function 'warning' is an exact duplicate of 'error' at cli/console.py:346 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 354 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_print_status' (line 354), 'diff' (line 548), 'async_diff' (line 674) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 247 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_extensions' at extensions/manager.py:78 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 247 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 247 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_providers' at providers/registry.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 247 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_tools' at tools/registry.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 354 | 🟡 MEDIUM | Primitive Obsession | Function '_print_status' has 4 primitive-typed parameters: style: Name(id='str', ctx=Load()), message: Name(id='str', ctx=Load()), icon: Name(id='str', ctx=Load()), accessible_icon: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 | 79 | 🟢 LOW | Missing Type Hint | Function 'with_overrides' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 201 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 207 | 🟢 LOW | Missing Type Hint | Function 'current' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 217 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 223 | 🟢 LOW | Missing Type Hint | Function 'current' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 40 more smells._
+_... and 41 more smells._
 
 ### metrics/storage.py — ❌ F (14.6/100)
 
@@ -585,16 +585,16 @@ LOC: 155 | Classes: 4 | Functions: 2 | MI: 62 | Avg CC: 0.0
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 137 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at extensions/manager.py:39 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 141 | 🟡 MEDIUM | Duplicate Code | Function 'register' is 100% similar to 'register_theme' at cli/console.py:240 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 141 | 🟡 MEDIUM | Duplicate Code | Function 'register' is 100% similar to 'register_theme' at cli/console.py:255 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 149 | 🟡 MEDIUM | Duplicate Code | Function 'get' is 100% similar to 'get' at extensions/manager.py:67 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 149 | 🟡 MEDIUM | Duplicate Code | Function 'get' is 100% similar to 'get' at tools/registry.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_commands' at cli/commands/__init__.py:168 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_themes' at cli/console.py:232 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_themes' at cli/console.py:247 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_extensions' at extensions/manager.py:78 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_providers' at providers/registry.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_tools' at tools/registry.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_themes' at cli/console.py:232 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_themes' at cli/console.py:247 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_extensions' at extensions/manager.py:78 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_providers' at providers/registry.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
