@@ -52,6 +52,20 @@ class DiffParams(NamedTuple):
     filename: str = ""
 
 
+def create_diff_params(old: str, new: str, filename: str = "") -> DiffParams:
+    """Create DiffParams with type-safe factory function.
+
+    Args:
+        old: Old content string.
+        new: New content string.
+        filename: Filename for context.
+
+    Returns:
+        DiffParams instance.
+    """
+    return DiffParams(old, new, filename)
+
+
 @dataclass(frozen=True)
 class StatusTypeConfig:
     """Configuration for a status message type.
@@ -639,7 +653,7 @@ class OutputRenderer:
             new: New content string.
             filename: Filename for context.
         """
-        params = DiffParams(old, new, filename)
+        params = create_diff_params(old, new, filename)
         self._render_diff(params)
 
     def _render_diff(self, params: DiffParams) -> None:
@@ -729,9 +743,9 @@ class AsyncOutputRenderer:
             renderer: Sync OutputRenderer instance.
         """
         self.renderer = renderer
-        self._async_methods: dict[str, Callable[..., object]] = {}
+        self._async_methods: dict[str, Callable[..., Any]] = {}
 
-    def __getattr__(self, name: str) -> Callable[..., object]:
+    def __getattr__(self, name: str) -> Callable[..., Any]:
         """Dynamically create async wrappers for OutputRenderer methods.
 
         Args:
@@ -769,7 +783,7 @@ class AsyncOutputRenderer:
         if name.startswith("_"):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
-    def _create_async_wrapper(self, name: str) -> Callable[..., object]:
+    def _create_async_wrapper(self, name: str) -> Callable[..., Any]:
         """Create an async wrapper for a sync method.
 
         Args:
@@ -785,15 +799,15 @@ class AsyncOutputRenderer:
             return self._create_async_diff_wrapper()
 
         # Generic async wrapper for other methods
-        async def async_wrapper(*args: object, **kwargs: object) -> object:
-            def sync_wrapper() -> object:
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            def sync_wrapper() -> Any:
                 return sync_method(*args, **kwargs)
 
             return await anyio.to_thread.run_sync(sync_wrapper)
 
         return async_wrapper
 
-    def _create_async_diff_wrapper(self) -> Callable[..., object]:
+    def _create_async_diff_wrapper(self) -> Callable[..., Any]:
         """Create async wrapper for diff method.
 
         Returns:
@@ -801,7 +815,7 @@ class AsyncOutputRenderer:
         """
 
         async def async_diff(old: str, new: str, filename: str = "") -> None:
-            params = DiffParams(old, new, filename)
+            params = create_diff_params(old, new, filename)
             await anyio.to_thread.run_sync(self.renderer._render_diff, params)
 
         return async_diff
