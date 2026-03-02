@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import anyio
 from rich import box
@@ -22,6 +22,20 @@ from rich.tree import Tree
 # Safety limit: truncate content before Rich parses it to prevent
 # excessive memory / CPU usage on pathologically large payloads.
 _MAX_MARKDOWN_LEN = 200_000
+# Maximum length for tool result content before truncation
+_MAX_TOOL_RESULT_LEN = 1000
+
+
+def list_dict_keys(items_dict: dict[str, Any]) -> list[str]:
+    """Utility function to list keys from a dictionary.
+
+    Args:
+        items_dict: Dictionary to list keys from.
+
+    Returns:
+        List of dictionary keys.
+    """
+    return list(items_dict.keys())
 
 
 class DiffParams(NamedTuple):
@@ -63,6 +77,25 @@ class StatusMessageParams:
 
     message: str
     status_type: StatusType
+
+
+@dataclass
+class OutputRendererConfig:
+    """Configuration for OutputRenderer initialization.
+
+    Attributes:
+        console: Rich Console to use, or creates a new one.
+        theme: Theme to use, or uses default.
+        accessible_mode: Whether to enable high-accessibility mode.
+        style_overrides: Optional style overrides.
+        layout_settings: Optional LayoutSettings object.
+    """
+
+    console: Console | None = None
+    theme: Theme | None = None
+    accessible_mode: bool = False
+    style_overrides: dict[str, str] | None = None
+    layout_settings: Any | None = None  # Avoid circular import, pass as object or dict
 
 
 @dataclass
@@ -261,7 +294,7 @@ class ThemeManager:
         Returns:
             List of theme names.
         """
-        return list(self._themes.keys())
+        return list_dict_keys(self._themes)
 
     def register_theme(self, theme: Theme) -> None:
         """Register a custom theme.
@@ -298,7 +331,7 @@ class OutputRenderer:
         theme: Theme | None = None,
         accessible_mode: bool = False,
         style_overrides: dict[str, str] | None = None,
-        layout_settings: object | None = None,  # Avoid circular import, pass as object or dict
+        layout_settings: Any | None = None,  # Avoid circular import, pass as object or dict
     ) -> None:
         """Initialize the output renderer.
 
@@ -309,17 +342,32 @@ class OutputRenderer:
             style_overrides: Optional style overrides.
             layout_settings: Optional LayoutSettings object.
         """
-        self.console = console or Console()
-        self.accessible_mode = accessible_mode
-        self.layout_settings = layout_settings
-        self.theme: Theme = theme or get_theme("dark", overrides=style_overrides)
+        self._initialize_from_config(
+            OutputRendererConfig(
+                console=console,
+                theme=theme,
+                accessible_mode=accessible_mode,
+                style_overrides=style_overrides,
+                layout_settings=layout_settings,
+            )
+        )
 
-        if theme is None:
-            # Already set above with overrides
-            pass
-        elif style_overrides:
-            # If theme provided, apply overrides to it
-            self.theme = self.theme.with_overrides(style_overrides)
+    def _initialize_from_config(self, config: OutputRendererConfig) -> None:
+        """Initialize renderer from configuration object.
+
+        Args:
+            config: OutputRendererConfig instance.
+        """
+        self.console = config.console or Console()
+        self.accessible_mode = config.accessible_mode
+        self.layout_settings = config.layout_settings
+
+        if config.theme is None:
+            self.theme = get_theme("dark", overrides=config.style_overrides)
+        elif config.style_overrides:
+            self.theme = config.theme.with_overrides(config.style_overrides)
+        else:
+            self.theme = config.theme
 
     def print(self, text: str, style: str | None = None) -> None:
         """Print text with optional styling.
@@ -377,7 +425,9 @@ class OutputRenderer:
         Args:
             params: Status message parameters.
         """
-        prefix = params.status_type.accessible_icon if self.accessible_mode else params.status_type.icon
+        prefix = (
+            params.status_type.accessible_icon if self.accessible_mode else params.status_type.icon
+        )
         color = getattr(self.theme, params.status_type.style)
         self.console.print(f"[{color}]{prefix}[/] {escape(params.message)}")
 
@@ -465,9 +515,8 @@ class OutputRenderer:
             error: Optional error message if failed.
         """
         # Truncate content if too long
-        max_len = 1000
-        if len(content) > max_len:
-            content = content[:max_len]
+        if len(content) > _MAX_TOOL_RESULT_LEN:
+            content = content[:_MAX_TOOL_RESULT_LEN]
             # Close unclosed code fences to prevent rendering corruption
             if content.count("```") % 2 != 0:
                 content += "\n```"
@@ -662,35 +711,65 @@ class AsyncOutputRenderer:
         Raises:
             AttributeError: If the method doesn't exist on OutputRenderer.
         """
-        # Check if method exists on the renderer
+        self._validate_method_name(name)
+
+        # Return cached wrapper if available
+        if name in self._async_methods:
+            return self._async_methods[name]
+
+        # Create and cache wrapper
+        wrapper = self._create_async_wrapper(name)
+        self._async_methods[name] = wrapper
+        return wrapper
+
+    def _validate_method_name(self, name: str) -> None:
+        """Validate that method name is valid for async wrapping.
+
+        Args:
+            name: Method name to validate.
+
+        Raises:
+            AttributeError: If method is invalid.
+        """
         if not hasattr(self.renderer, name):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
-        # Get the sync method
-        sync_method = getattr(self.renderer, name)
-
-        # Skip private methods
         if name.startswith("_"):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
+    def _create_async_wrapper(self, name: str) -> Callable[..., object]:
+        """Create an async wrapper for a sync method.
+
+        Args:
+            name: Method name to wrap.
+
+        Returns:
+            Async wrapper function.
+        """
+        sync_method = getattr(self.renderer, name)
+
         # Special handling for diff method
         if name == "diff":
+            return self._create_async_diff_wrapper()
 
-            async def async_diff(old: str, new: str, filename: str = "") -> None:
-                params = DiffParams(old, new, filename)
-                await anyio.to_thread.run_sync(self.renderer._render_diff, params)
-
-            self._async_methods[name] = async_diff
-            return async_diff
-
-        # Create async wrapper for other methods
+        # Generic async wrapper for other methods
         async def async_wrapper(*args: object, **kwargs: object) -> object:
-            # Create a wrapper function that captures args and kwargs
             def sync_wrapper() -> object:
                 return sync_method(*args, **kwargs)
 
             return await anyio.to_thread.run_sync(sync_wrapper)
 
-        # Cache the wrapper
-        self._async_methods[name] = async_wrapper
         return async_wrapper
+
+    def _create_async_diff_wrapper(self) -> Callable[..., object]:
+        """Create async wrapper for diff method.
+
+        Returns:
+            Async diff wrapper function.
+        """
+
+        async def async_diff(old: str, new: str, filename: str = "") -> None:
+            params = DiffParams(old, new, filename)
+            await anyio.to_thread.run_sync(self.renderer._render_diff, params)
+
+        return async_diff
