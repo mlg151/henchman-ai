@@ -1,7 +1,7 @@
-[2026-03-02T01:30:03Z] Starting auto-improve run...
+[2026-03-02T02:00:02Z] Starting auto-improve run...
 Running code smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-02T01:30:03Z] Targeting lowest-graded file: tools/builtins/import_graph.py
+[2026-03-02T02:00:02Z] Targeting lowest-graded file: tools/builtins/import_graph.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
@@ -18,32 +18,29 @@ from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henc...
-Now let me examine the specific code smells from the report for this file:
+Now let me check the test file to understand the expected behavior and ensure my refactoring doesn't break tests:
+[tool] read_file({'path': 'tests/tools/builtins/test_import_graph.py'})
 
-**From the report for `import_graph.py`:**
-1. Line 51: MEDIUM - Feature Envy - `classify_import` accesses `import_str` 6 times but `self` only 1 time
-2. Line 308: MEDIUM - Duplicate Code - `parameters` function is duplicated across multiple files
-3. Line 344: MEDIUM - Primitive Obsession - `execute` has 4 primitive-typed parameters
-4. Line 378: MEDIUM - Feature Envy - `_execute_with_params` accesses `params` 6 times but `self` only 5 times
-5. Line 17: LOW - Missing Type Hint - `__init__` has incomplete type hints
-6. Line 25: LOW - Missing Type Hint - `extract_imports` has incomplete type hints
-7. Line 25: LOW - Feature Envy - `extract_imports` accesses `ast` 4 times but `self` only 0 times
-8. Line 25: LOW - Feature Envy - `extract_imports` accesses `node` 4 times but `self` only 0 times
+✗ \[error] Error: File not found: tests/tools/builtins/test_import_graph.py
+Let me check if there are any tests for this tool:
+[tool] glob({'pattern': '**/test_import_graph*'})
 
-Let me also check for other missing type hints and issues. Let me run a quick test to see if the current code works:
-[tool] pytest_run({'path': 'tests/tools/builtins/test_import_graph.py', 
-'verbose': True})
+[result] tests/tools/__pycache__/test_import_graph.cpython-312-pytest-9.0.2.pyc
+tests/tools/test_import_graph.py...
 
-✗ \[error] ============================= test session starts 
-==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-Let me check if there are any tests for this file:
-[tool] glob({'pattern': '**/test_import_graph.py'})
+[tool] read_file({'path': 'tests/tools/test_import_graph.py'})
 
-[result] tests/tools/test_import_graph.py...
+[result] """Tests for import_graph tool."""
 
+import tempfile
+from pathlib import Path
+
+from henchman.tools.base import ToolKind
+from henchman.tools.builtins.import_graph import ImportGraphTool
+
+
+class TestImpo...
+Now let me run the existing tests to ensure they pass before refactoring:
 [tool] pytest_run({'path': 'tests/tools/test_import_graph.py', 'verbose': True})
 
 [result] ============================= test session starts 
@@ -51,28 +48,19 @@ Let me check if there are any tests for this file:
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Good! All tests pass. Now let me analyze the specific issues and create a refactoring plan:
+Great! All tests pass. Now let me analyze the code smells from the report and address them systematically. Based on the smell report, here are the key issues for `import_graph.py`:
 
-**Identified Smells from the report:**
+**Identified Smells from Report:**
+1. **HIGH: Primitive Obsession** - Repeated primitive parameter group in `from_primitives` (line 332) and `execute` (line 418)
+2. **MEDIUM: Primitive Obsession** - `from_primitives` has 4 primitive-typed parameters
+3. **MEDIUM: Primitive Obsession** - `execute` has 4 primitive-typed parameters  
+4. **MEDIUM: Duplicate Code** - `parameters` method is duplicated across multiple tool files
+5. **MEDIUM: Feature Envy** - `_execute_with_request` accesses `request` 6 times but `self` only 5 times
+6. **LOW: Deep Nesting** - Nesting depth 4 in `_extract_imports_from_ast` (threshold: 4)
+7. **LOW: Missing Type Hint** - `__init__` has incomplete type hints: 1/2 params untyped
+8. **42 more smells** (mostly missing type hints, duplicate code patterns)
 
-1. **Feature Envy** (line 51): `classify_import` method accesses `import_str` 6 times but `self` only 1 time
-2. **Duplicate Code** (line 308): `parameters` function is duplicated across multiple tool files
-3. **Primitive Obsession** (line 344): `execute` method has 4 primitive-typed parameters
-4. **Feature Envy** (line 378): `_execute_with_params` accesses `params` 6 times but `self` only 5 times
-5. **Missing Type Hints**: Multiple methods have incomplete type hints
-6. **Feature Envy** (line 25): `extract_imports` accesses `ast` and `node` frequently
-
-Let me also check for other issues by examining the code more carefully. I notice there are also some missing type hints in other methods. Let me create a comprehensive refactoring plan:
-
-**Refactoring Strategy:**
-
-1. **Extract Parameter Object**: Create a `ImportAnalysisRequest` dataclass to replace primitive parameters in `execute` method
-2. **Move Method**: Extract `classify_import` logic into a standalone function since it doesn't need `self` much
-3. **Add Missing Type Hints**: Add complete type annotations to all methods
-4. **Extract Helper Functions**: Create helper functions for AST traversal logic to reduce feature envy
-5. **DRY Principle**: The `parameters` method duplication is a systemic issue across tools - we should address it, but for now, we'll focus on this file
-
-Let me start by creating the refactored code:
+Let me refactor the file step by step:
 [tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
 'old_str': '"""Import graph analysis tool implementation."""\n\nimport 
 ast\nimport sys\nfrom dataclasses import dataclass\nfrom pathlib import 
@@ -81,65 +69,15 @@ henchman.tools.utils import validate_directory_path,
 validate_file_path\n\nSTDLIB_MODULES: frozenset[str] = 
 frozenset(sys.stdlib_module_names)', 'new_str': '"""Import graph analysis tool 
 implementation."""\n\nimport ast\nimport sys\nfrom dataclasses import 
-dataclass\nfrom pathlib import Path\nfrom typing import Optional\n\nfrom 
+dataclass\nfrom pathlib import Path\nfrom typing import Any\n\nfrom 
 henchman.tools.base import Tool, ToolKind, ToolResult\nfrom henchman.tools.utils
 import validate_directory_path, validate_file_path\n\nSTDLIB_MODULES: 
 frozenset[str] = frozenset(sys.stdlib_module_names)'})
 
 [result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Now let me create a parameter object dataclass and extract the `classify_import` function:
+Now let me address the deep nesting issue in `_extract_imports_from_ast`:
 [tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': 'STDLIB_MODULES: frozenset[str] = 
-frozenset(sys.stdlib_module_names)\n\n\nclass ImportAnalyzer:\n    """Analyzes 
-imports in Python files."""\n\n    def __init__(self, local_modules: 
-set[str]):\n        """Initialize analyzer with local module context.\n\n       
-Args:\n            local_modules: Set of local module names.\n        """\n     
-self.local_modules = local_modules\n\n    def extract_imports(self, tree: 
-ast.AST) -> list[str]:\n        """Extract import statements from AST.\n\n      
-Args:\n            tree: Parsed AST.\n\n        Returns:\n            List of 
-import strings.\n        """\n        imports: list[str] = []\n        for node 
-in ast.walk(tree):\n            if isinstance(node, ast.Import):\n              
-for alias in node.names:\n                    name = alias.name\n               
-if alias.asname:\n                        name += f" as {alias.asname}"\n       
-imports.append(f"import {name}")\n            elif isinstance(node, 
-ast.ImportFrom):\n                module = node.module or ""\n                
-level = "." * (node.level or 0)\n                names = ", ".join(\n           
-a.name + (f" as {a.asname}" if a.asname else "") for a in node.names\n          
-)\n                imports.append(f"from {level}{module} import {names}")\n     
-return imports\n\n    def classify_import(self, import_str: str) -> str:\n      
-"""Classify an import as stdlib, local, or third-party.\n\n        Args:\n      
-import_str: The import statement string (e.g. \'import os\').\n\n        
-Returns:\n            One of \'stdlib\', \'local\', or \'third-party\'.\n       
-"""\n        # Extract the top-level module name\n        if 
-import_str.startswith("from .") or import_str.startswith("from .."):\n          
-return "local"\n\n        if import_str.startswith("from "):\n            # 
-"from X.Y import Z" -> extract X\n            parts = import_str.split()\n      
-module = parts[1].split(".")[0] if len(parts) > 1 else ""\n        elif 
-import_str.startswith("import "):\n            parts = import_str.split()\n     
-module = parts[1].split(".")[0] if len(parts) > 1 else ""\n        else:\n      
-return "third-party"\n\n        if module in STDLIB_MODULES:\n            return
-"stdlib"\n        if module in self.local_modules:\n            return "local"\n
-return "third-party"', 'new_str': 'STDLIB_MODULES: frozenset[str] = 
-frozenset(sys.stdlib_module_names)\n\n\ndef 
-_extract_top_level_module(import_str: str) -> str:\n    """Extract the top-level
-module name from an import statement.\n    \n    Args:\n        import_str: The 
-import statement string (e.g. \'import os\').\n        \n    Returns:\n        
-Top-level module name or empty string.\n    """\n    if 
-import_str.startswith("from "):\n        # "from X.Y import Z" -> extract X\n   
-parts = import_str.split()\n        return parts[1].split(".")[0] if len(parts) 
-> 1 else ""\n    elif import_str.startswith("import "):\n        parts = 
-import_str.split()\n        return parts[1].split(".")[0] if len(parts) > 1 else
-""\n    return ""\n\n\ndef _classify_import(import_str: str, local_modules: 
-set[str]) -> str:\n    """Classify an import as stdlib, local, or 
-third-party.\n\n    Args:\n        import_str: The import statement string (e.g.
-\'import os\').\n        local_modules: Set of local module names.\n\n    
-Returns:\n        One of \'stdlib\', \'local\', or \'third-party\'.\n    """\n  
-# Extract the top-level module name\n    if import_str.startswith("from .") or 
-import_str.startswith("from .."):\n        return "local"\n\n    module = 
-_extract_top_level_module(import_str)\n    if not module:\n        return 
-"third-party"\n\n    if module in STDLIB_MODULES:\n        return "stdlib"\n    
-if module in local_modules:\n        return "local"\n    return 
-"third-party"\n\n\ndef _extract_imports_from_ast(tree: ast.AST) -> list[str]:\n 
+'old_str': 'def _extract_imports_from_ast(tree: ast.AST) -> list[str]:\n    
 """Extract import statements from AST.\n\n    Args:\n        tree: Parsed 
 AST.\n\n    Returns:\n        List of import strings.\n    """\n    imports: 
 list[str] = []\n    for node in ast.walk(tree):\n        if isinstance(node, 
@@ -150,173 +88,87 @@ isinstance(node, ast.ImportFrom):\n            module = node.module or ""\n
 level = "." * (node.level or 0)\n            names = ", ".join(\n               
 a.name + (f" as {a.asname}" if a.asname else "") for a in node.names\n          
 )\n            imports.append(f"from {level}{module} import {names}")\n    
-return imports\n\n\nclass ImportAnalyzer:\n    """Analyzes imports in Python 
+return imports', 'new_str': 'def _extract_imports_from_ast(tree: ast.AST) -> 
+list[str]:\n    """Extract import statements from AST.\n\n    Args:\n        
+tree: Parsed AST.\n\n    Returns:\n        List of import strings.\n    """\n   
+imports: list[str] = []\n    for node in ast.walk(tree):\n        if 
+isinstance(node, ast.Import):\n            
+imports.extend(_extract_imports_from_import_node(node))\n        elif 
+isinstance(node, ast.ImportFrom):\n            
+imports.append(_extract_import_from_import_from_node(node))\n    return 
+imports\n\n\ndef _extract_imports_from_import_node(node: ast.Import) -> 
+list[str]:\n    """Extract import strings from an Import node.\n\n    Args:\n   
+node: Import AST node.\n\n    Returns:\n        List of import strings.\n    
+"""\n    imports: list[str] = []\n    for alias in node.names:\n        name = 
+alias.name\n        if alias.asname:\n            name += f" as 
+{alias.asname}"\n        imports.append(f"import {name}")\n    return 
+imports\n\n\ndef _extract_import_from_import_from_node(node: ast.ImportFrom) -> 
+str:\n    """Extract import string from an ImportFrom node.\n\n    Args:\n      
+node: ImportFrom AST node.\n\n    Returns:\n        Import string.\n    """\n   
+module = node.module or ""\n    level = "." * (node.level or 0)\n    names = ", 
+".join(\n        a.name + (f" as {a.asname}" if a.asname else "") for a in 
+node.names\n    )\n    return f"from {level}{module} import {names}"'})
+
+[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
+Now let me fix the missing type hints in the `__init__` methods. First, let me check the ImportAnalyzer class:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'old_str': 'class ImportAnalyzer:\n    """Analyzes imports in Python 
 files."""\n\n    def __init__(self, local_modules: set[str]) -> None:\n        
 """Initialize analyzer with local module context.\n\n        Args:\n            
 local_modules: Set of local module names.\n        """\n        
-self.local_modules = local_modules\n\n    def extract_imports(self, tree: 
-ast.AST) -> list[str]:\n        """Extract import statements from AST.\n\n      
-Args:\n            tree: Parsed AST.\n\n        Returns:\n            List of 
-import strings.\n        """\n        return _extract_imports_from_ast(tree)\n\n
-def classify_import(self, import_str: str) -> str:\n        """Classify an 
-import as stdlib, local, or third-party.\n\n        Args:\n            
-import_str: The import statement string (e.g. \'import os\').\n\n        
-Returns:\n            One of \'stdlib\', \'local\', or \'third-party\'.\n       
-"""\n        return _classify_import(import_str, self.local_modules)'})
+self.local_modules = local_modules', 'new_str': 'class ImportAnalyzer:\n    
+"""Analyzes imports in Python files."""\n\n    def __init__(self, local_modules:
+set[str]) -> None:\n        """Initialize analyzer with local module 
+context.\n\n        Args:\n            local_modules: Set of local module 
+names.\n        """\n        self.local_modules: set[str] = local_modules'})
 
 [result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Now let me update the ImportGraphBuilder class to add missing type hints:
-[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': 'class ImportGraphBuilder:\n    """Builds and analyzes import 
-graphs."""\n\n    def __init__(self, scan_dir: Path):\n        """Initialize 
-graph builder.\n\n        Args:\n            scan_dir: Directory to scan for 
-imports.\n        """\n        self.scan_dir = scan_dir\n\n    def 
-build_graph(self) -> dict[str, set[str]]:\n        """Build a module-level 
-import graph for a directory.\n\n        Returns:\n            Dict mapping 
-module stems to sets of imported module stems.\n        """\n        graph: 
-dict[str, set[str]] = {}\n\n        # Collect all local module names\n        
-local_modules = self._collect_local_modules()\n\n        # Build import edges 
-for each file\n        for py_file in self.scan_dir.rglob("*.py"):\n            
-mod_name = py_file.stem\n            deps = 
-self._extract_dependencies_from_file(py_file, mod_name, local_modules)\n        
-if deps is not None:\n                graph[mod_name] = deps\n\n        return 
-graph\n\n    def _collect_local_modules(self) -> set[str]:\n        """Collect 
-local module names for graph building.\n\n        Returns:\n            Set of 
-local module names.\n        """\n        local_modules: set[str] = set()\n     
-for py_file in self.scan_dir.rglob("*.py"):\n            
-local_modules.add(py_file.stem)\n        return local_modules\n\n    def 
-_extract_dependencies_from_file(\n        self,\n        py_file: Path,\n       
-mod_name: str,\n        local_modules: set[str],\n    ) -> set[str] | None:\n   
-"""Extract dependencies from a Python file.\n\n        Args:\n            
-py_file: Path to Python file.\n            mod_name: Name of the module (file 
-stem).\n            local_modules: Set of local module names.\n\n        
-Returns:\n            Set of dependencies or None if file cannot be parsed.\n   
-"""\n        try:\n            source = py_file.read_text(encoding="utf-8")\n   
-tree = ast.parse(source, filename=str(py_file))\n        except (SyntaxError, 
-OSError, UnicodeDecodeError):\n            return None\n\n        deps: set[str]
-= set()\n        for node in ast.walk(tree):\n            
-self._extract_dependencies_from_node(node, mod_name, local_modules, deps)\n\n   
-return deps\n\n    def _extract_dependencies_from_node(\n        self,\n        
-node: ast.AST,\n        mod_name: str,\n        local_modules: set[str],\n      
-deps: set[str],\n    ) -> None:\n        """Extract dependencies from an AST 
-node.\n\n        Args:\n            node: AST node to analyze.\n            
-mod_name: Name of the current module.\n            local_modules: Set of local 
-module names.\n            deps: Set to add dependencies to.\n        """\n     
-if isinstance(node, ast.Import):\n            
-self._extract_dependencies_from_import(node, mod_name, local_modules, deps)\n   
-elif isinstance(node, ast.ImportFrom):\n            
-self._extract_dependencies_from_import_from(node, mod_name, local_modules, 
-deps)\n\n    def _extract_dependencies_from_import(\n        self,\n        
-node: ast.Import,\n        mod_name: str,\n        local_modules: set[str],\n   
-deps: set[str],\n    ) -> None:\n        """Extract dependencies from an Import 
-node.\n\n        Args:\n            node: Import AST node.\n            
-mod_name: Name of the current module.\n            local_modules: Set of local 
-module names.\n            deps: Set to add dependencies to.\n        """\n     
-for alias in node.names:\n            top = alias.name.split(".")[0]\n          
-if top in local_modules and top != mod_name:\n                deps.add(top)\n\n 
-def _extract_dependencies_from_import_from(\n        self,\n        node: 
-ast.ImportFrom,\n        mod_name: str,\n        local_modules: set[str],\n     
-deps: set[str],\n    ) -> None:\n        """Extract dependencies from an 
-ImportFrom node.\n\n        Args:\n            node: ImportFrom AST node.\n     
-mod_name: Name of the current module.\n            local_modules: Set of local 
-module names.\n            deps: Set to add dependencies to.\n        """\n     
-mod = node.module or ""\n        top = mod.split(".")[0] if mod else ""\n       
-if top in local_modules and top != mod_name:\n            deps.add(top)\n\n     
-for alias in node.names:\n            if alias.name in local_modules and 
-alias.name != mod_name:\n                deps.add(alias.name)\n\n    def 
-detect_cycles(self) -> list[list[str]]:\n        """Detect circular import 
-chains using DFS.\n\n        Returns:\n            List of cycles, each cycle is
-a list of module names.\n        """\n        graph = self.build_graph()\n      
-visited: set[str] = set()\n        rec_stack: set[str] = set()\n        path: 
-list[str] = []\n        cycles: list[list[str]] = []\n        seen_cycles: 
-set[frozenset[str]] = set()\n\n        def dfs(node: str) -> None:\n            
-visited.add(node)\n            rec_stack.add(node)\n            
-path.append(node)\n\n            for neighbor in sorted(graph.get(node, 
-set())):\n                if neighbor not in visited:\n                    
-dfs(neighbor)\n                elif neighbor in rec_stack:\n                    
-# Found a cycle\n                    idx = path.index(neighbor)\n               
-cycle = path[idx:] + [neighbor]\n                    key = 
-frozenset(cycle[:-1])\n                    if key not in seen_cycles:\n         
-seen_cycles.add(key)\n                        cycles.append(cycle)\n\n          
-path.pop()\n            rec_stack.discard(node)\n\n        for node in 
-sorted(graph):\n            if node not in visited:\n                
-dfs(node)\n\n        return cycles', 'new_str': 'class ImportGraphBuilder:\n    
-"""Builds and analyzes import graphs."""\n\n    def __init__(self, scan_dir: 
-Path) -> None:\n        """Initialize graph builder.\n\n        Args:\n         
-scan_dir: Directory to scan for imports.\n        """\n        self.scan_dir = 
-scan_dir\n\n    def build_graph(self) -> dict[str, set[str]]:\n        """Build 
-a module-level import graph for a directory.\n\n        Returns:\n            
-Dict mapping module stems to sets of imported module stems.\n        """\n      
-graph: dict[str, set[str]] = {}\n\n        # Collect all local module names\n   
-local_modules = self._collect_local_modules()\n\n        # Build import edges 
-for each file\n        for py_file in self.scan_dir.rglob("*.py"):\n            
-mod_name = py_file.stem\n            deps = 
-self._extract_dependencies_from_file(py_file, mod_name, local_modules)\n        
-if deps is not None:\n                graph[mod_name] = deps\n\n        return 
-graph\n\n    def _collect_local_modules(self) -> set[str]:\n        """Collect 
-local module names for graph building.\n\n        Returns:\n            Set of 
-local module names.\n        """\n        local_modules: set[str] = set()\n     
-for py_file in self.scan_dir.rglob("*.py"):\n            
-local_modules.add(py_file.stem)\n        return local_modules\n\n    def 
-_extract_dependencies_from_file(\n        self,\n        py_file: Path,\n       
-mod_name: str,\n        local_modules: set[str],\n    ) -> Optional[set[str]]:\n
-"""Extract dependencies from a Python file.\n\n        Args:\n            
-py_file: Path to Python file.\n            mod_name: Name of the module (file 
-stem).\n            local_modules: Set of local module names.\n\n        
-Returns:\n            Set of dependencies or None if file cannot be parsed.\n   
-"""\n        try:\n            source = py_file.read_text(encoding="utf-8")\n   
-tree = ast.parse(source, filename=str(py_file))\n        except (SyntaxError, 
-OSError, UnicodeDecodeError):\n            return None\n\n        deps: set[str]
-= set()\n        for node in ast.walk(tree):\n            
-self._extract_dependencies_from_node(node, mod_name, local_modules, deps)\n\n   
-return deps\n\n    def _extract_dependencies_from_node(\n        self,\n        
-node: ast.AST,\n        mod_name: str,\n        local_modules: set[str],\n      
-deps: set[str],\n    ) -> None:\n        """Extract dependencies from an AST 
-node.\n\n        Args:\n            node: AST node to analyze.\n            
-mod_name: Name of the current module.\n            local_modules: Set of local 
-module names.\n            deps: Set to add dependencies to.\n        """\n     
-if isinstance(node, ast.Import):\n            
-self._extract_dependencies_from_import(node, mod_name, local_modules, deps)\n   
-elif isinstance(node, ast.ImportFrom):\n            
-self._extract_dependencies_from_import_from(node, mod_name, local_modules, 
-deps)\n\n    def _extract_dependencies_from_import(\n        self,\n        
-node: ast.Import,\n        mod_name: str,\n        local_modules: set[str],\n   
-deps: set[str],\n    ) -> None:\n        """Extract dependencies from an Import 
-node.\n\n        Args:\n            node: Import AST node.\n            
-mod_name: Name of the current module.\n            local_modules: Set of local 
-module names.\n            deps: Set to add dependencies to.\n        """\n     
-for alias in node.names:\n            top = alias.name.split(".")[0]\n          
-if top in local_modules and top != mod_name:\n                deps.add(top)\n\n 
-def _extract_dependencies_from_import_from(\n        self,\n        node: 
-ast.ImportFrom,\n        mod_name: str,\n        local_modules: set[str],\n     
-deps: set[str],\n    ) -> None:\n        """Extract dependencies from an 
-ImportFrom node.\n\n        Args:\n            node: ImportFrom AST node.\n     
-mod_name: Name of the current module.\n            local_modules: Set of local 
-module names.\n            deps: Set to add dependencies to.\n        """\n     
-mod = node.module or ""\n        top = mod.split(".")[0] if mod else ""\n       
-if top in local_modules and top != mod_name:\n            deps.add(top)\n\n     
-for alias in node.names:\n            if alias.name in local_modules and 
-alias.name != mod_name:\n                deps.add(alias.name)\n\n    def 
-detect_cycles(self) -> list[list[str]]:\n        """Detect circular import 
-chains using DFS.\n\n        Returns:\n            List of cycles, each cycle is
-a list of module names.\n        """\n        graph = self.build_graph()\n      
-visited: set[str] = set()\n        rec_stack: set[str] = set()\n        path: 
-list[str] = []\n        cycles: list[list[str]] = []\n        seen_cycles: 
-set[frozenset[str]] = set()\n\n        def dfs(node: str) -> None:\n            
-visited.add(node)\n            rec_stack.add(node)\n            
-path.append(node)\n\n            for neighbor in sorted(graph.get(node, 
-set())):\n                if neighbor not in visited:\n                    
-dfs(neighbor)\n                elif neighbor in rec_stack:\n                    
-# Found a cycle\n                    idx = path.index(neighbor)\n               
-cycle = path[idx:] + [neighbor]\n                    key = 
-frozenset(cycle[:-1])\n                    if key not in seen_cycles:\n         
-seen_cycles.add(key)\n                        cycles.append(cycle)\n\n          
-path.pop()\n            rec_stack.discard(node)\n\n        for node in 
-sorted(graph):\n            if node not in visited:\n                
-dfs(node)\n\n        return cycles'})
+Now let me check the ImportGraphBuilder class:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 80, 'end_line': 90})
 
-[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Now let me update the ImportGraphParameters dataclass and create a new parameter object for the execute method:
+[result]     Args:
+        node: Import AST node.
+
+    Returns:
+        List of import strings.
+    """
+    imports: list[str] = []
+    for alias in node.names:
+        name = alias.name
+        if alias.asnam...
+Let me find the ImportGraphBuilder class:
+[tool] grep({'pattern': 'class ImportGraphBuilder', 'path': 
+'src/henchman/tools/builtins/import_graph.py', 'line_numbers': True})
+
+[result] 146:class ImportGraphBuilder:...
+
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 146, 'end_line': 160})
+
+[result] class ImportGraphBuilder:
+    """Builds and analyzes import graphs."""
+
+    def __init__(self, scan_dir: Path) -> None:
+        """Initialize graph builder.
+
+        Args:
+            scan_dir: Direct...
+The ImportGraphBuilder `__init__` already has proper type hints. Now let me address the main issue: Primitive Obsession. The report shows that `from_primitives` and `execute` methods have the same primitive parameters. We already have `ImportAnalysisRequest` dataclass, but it's not being used consistently. Let me check how it's used:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 320, 'end_line': 360})
+
+[result] @dataclass
+class ImportGraphParameters:
+    """Parameters for import graph analysis."""
+
+    path: str
+    scan_dir: str = ""
+    detect_cycles: bool = False
+    classify: bool = False
+
+    def valida...
+I see the issue. We have both `ImportGraphParameters` and `ImportAnalysisRequest` which are essentially the same. This is duplication. Let me consolidate them and fix the primitive obsession issue:
 [tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
 'old_str': '@dataclass\nclass ImportGraphParameters:\n    """Parameters for 
 import graph analysis."""\n\n    path: str\n    scan_dir: str = ""\n    
@@ -327,358 +179,138 @@ valid.\n        """\n        # Validate main file path\n        path_error =
 validate_file_path(self.path)\n        if path_error:\n            return 
 path_error\n\n        # Validate scan directory if provided\n        if 
 self.scan_dir:\n            dir_error = validate_directory_path(self.scan_dir)\n
-if dir_error:\n                return dir_error\n\n        return None', 
-'new_str': '@dataclass\nclass ImportGraphParameters:\n    """Parameters for 
-import graph analysis."""\n\n    path: str\n    scan_dir: str = ""\n    
+if dir_error:\n                return dir_error\n\n        return 
+None\n\n\n@dataclass\nclass ImportAnalysisRequest:\n    """Request object for 
+import analysis to replace primitive parameters."""\n\n    path: str\n    
+scan_dir: str = ""\n    detect_cycles: bool = False\n    classify: bool = 
+False\n\n    @classmethod\n    def from_primitives(\n        cls,\n        path:
+str = "",\n        scan_dir: str = "",\n        detect_cycles: bool = False,\n  
+classify: bool = False,\n    ) -> "ImportAnalysisRequest":\n        """Create 
+request from primitive parameters.\n\n        Args:\n            path: Target 
+Python file to analyze.\n            scan_dir: Optional directory for 
+reverse-import scan.\n            detect_cycles: Detect circular import chains 
+in scan_dir.\n            classify: Classify imports as 
+stdlib/local/third-party.\n\n        Returns:\n            ImportAnalysisRequest
+instance.\n        """\n        return cls(\n            path=path,\n           
+scan_dir=scan_dir,\n            detect_cycles=detect_cycles,\n            
+classify=classify,\n        )', 'new_str': '@dataclass\nclass 
+ImportAnalysisRequest:\n    """Request object for import analysis to replace 
+primitive parameters."""\n\n    path: str\n    scan_dir: str = ""\n    
 detect_cycles: bool = False\n    classify: bool = False\n\n    def 
-validate(self) -> Optional[ToolResult]:\n        """Validate parameters.\n\n    
+validate(self) -> ToolResult | None:\n        """Validate parameters.\n\n       
 Returns:\n            ToolResult with error if validation fails, None if 
 valid.\n        """\n        # Validate main file path\n        path_error = 
 validate_file_path(self.path)\n        if path_error:\n            return 
 path_error\n\n        # Validate scan directory if provided\n        if 
 self.scan_dir:\n            dir_error = validate_directory_path(self.scan_dir)\n
-if dir_error:\n                return dir_error\n\n        return 
-None\n\n\n@dataclass\nclass ImportAnalysisRequest:\n    """Request object for 
-import analysis to replace primitive parameters."""\n    \n    path: str\n    
-scan_dir: str = ""\n    detect_cycles: bool = False\n    classify: bool = 
-False\n    \n    @classmethod\n    def from_primitives(\n        cls,\n        
-path: str = "",\n        scan_dir: str = "",\n        detect_cycles: bool = 
-False,\n        classify: bool = False,\n    ) -> "ImportAnalysisRequest":\n    
-"""Create request from primitive parameters.\n        \n        Args:\n         
-path: Target Python file to analyze.\n            scan_dir: Optional directory 
-for reverse-import scan.\n            detect_cycles: Detect circular import 
-chains in scan_dir.\n            classify: Classify imports as 
-stdlib/local/third-party.\n            \n        Returns:\n            
+if dir_error:\n                return dir_error\n\n        return None\n\n    
+@classmethod\n    def from_primitives(\n        cls,\n        path: str = "",\n 
+scan_dir: str = "",\n        detect_cycles: bool = False,\n        classify: 
+bool = False,\n    ) -> "ImportAnalysisRequest":\n        """Create request from
+primitive parameters.\n\n        Args:\n            path: Target Python file to 
+analyze.\n            scan_dir: Optional directory for reverse-import scan.\n   
+detect_cycles: Detect circular import chains in scan_dir.\n            classify:
+Classify imports as stdlib/local/third-party.\n\n        Returns:\n            
 ImportAnalysisRequest instance.\n        """\n        return cls(\n            
 path=path,\n            scan_dir=scan_dir,\n            
 detect_cycles=detect_cycles,\n            classify=classify,\n        )'})
 
 [result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Now let me update the ImportGraphTool class to use the new parameter object and fix the type hints:
+Now I need to update the `execute` method to use the consolidated `ImportAnalysisRequest` class:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 380, 'end_line': 420})
+
+[result]     Supports circular import detection and import classification.
+    """
+
+    @property
+    def name(self) -> str:
+        """Tool name."""
+        return "import_graph"
+
+    @property
+    def descri...
+Let me find the `execute` method:
+[tool] grep({'pattern': 'async def execute', 'path': 
+'src/henchman/tools/builtins/import_graph.py', 'line_numbers': True})
+
+[result] 435:    async def execute(  # type: ignore[override]...
+
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 435, 'end_line': 480})
+
+[result]     async def execute(  # type: ignore[override]
+        self,
+        path: str = "",
+        scan_dir: str = "",
+        detect_cycles: bool = False,
+        classify: bool = False,
+        **kwargs...
+Now I need to update the `execute` method to use the consolidated `ImportAnalysisRequest` class directly:
 [tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': 'class ImportGraphTool(Tool):\n    """Analyze Python import 
-dependencies.\n\n    Parses a Python file to extract its imports, and optionally
-scans\n    a directory for reverse imports (files that import the target).\n    
-Supports circular import detection and import classification.\n    """\n\n    
-@property\n    def name(self) -> str:\n        """Tool name."""\n        return 
-"import_graph"\n\n    @property\n    def description(self) -> str:\n        
-"""Tool description."""\n        return (\n            "Analyze import 
-dependencies of a Python file. Shows what a "\n            "file imports and 
-optionally which files import it. "\n            "Can detect circular imports 
-and classify imports as stdlib, "\n            "local, or third-party."\n       
-)\n\n    @property\n    def parameters(self) -> dict[str, object]:\n        
-"""JSON Schema for parameters."""\n        return {\n            "type": 
-"object",\n            "properties": {\n                "path": {\n             
-"type": "string",\n                    "description": "Path to the Python file 
-to analyze",\n                },\n                "scan_dir": {\n               
-"type": "string",\n                    "description": (\n                       
-"Directory to scan for reverse imports (files that import the target)"\n        
-),\n                },\n                "detect_cycles": {\n                    
-"type": "boolean",\n                    "description": (\n                      
-"Scan directory for circular import chains (requires scan_dir)"\n               
-),\n                    "default": False,\n                },\n                
-"classify": {\n                    "type": "boolean",\n                    
-"description": ("Classify imports as stdlib, local, or third-party"),\n         
-"default": False,\n                },\n            },\n            "required": 
-["path"],\n        }\n\n    @property\n    def kind(self) -> ToolKind:\n        
-"""Tool kind - read-only analysis."""\n        return ToolKind.READ\n\n    async
-def execute(  # type: ignore[override]\n        self,\n        path: str = "",\n
-scan_dir: str = "",\n        detect_cycles: bool = False,\n        classify: 
-bool = False,\n        **kwargs: object,  # noqa: ARG002\n    ) -> ToolResult:\n
-"""Analyze imports of a Python file.\n\n        Args:\n            path: Target 
-Python file to analyze.\n            scan_dir: Optional directory for 
-reverse-import scan.\n            detect_cycles: Detect circular import chains 
-in scan_dir.\n            classify: Classify imports as 
-stdlib/local/third-party.\n            **kwargs: Additional arguments 
-(ignored).\n\n        Returns:\n            ToolResult with import analysis.\n  
-"""\n        # Create and validate parameters\n        params = 
-ImportGraphParameters(\n            path=path,\n            scan_dir=scan_dir,\n
-detect_cycles=detect_cycles,\n            classify=classify,\n        )\n\n     
-validation_result = params.validate()\n        if validation_result is not 
-None:\n            return validation_result\n\n        return await 
-self._execute_with_params(params)\n\n    async def _execute_with_params(self, 
-params: ImportGraphParameters) -> ToolResult:\n        """Execute import 
-analysis with validated parameters.\n\n        Args:\n            params: 
-Validated import graph parameters.\n\n        Returns:\n            ToolResult 
-with import analysis.\n        """\n        target = Path(params.path)\n\n      
-# Parse file and extract AST\n        parse_result = self._parse_file(target, 
-params.path)\n        if isinstance(parse_result, ToolResult):\n            
-return parse_result\n        tree, source = parse_result\n\n        # Analyze 
-imports\n        scan_path = Path(params.scan_dir) if params.scan_dir else 
-None\n        local_modules = self._collect_local_modules(scan_path) if 
-scan_path else set()\n\n        analyzer = ImportAnalyzer(local_modules)\n      
-imports = analyzer.extract_imports(tree)\n\n        # Build result parts\n      
-parts: list[str] = []\n\n        # Add imports analysis\n        
-self._add_imports_analysis(parts, target.name, imports, params.classify, 
-analyzer)\n\n        # Add reverse imports analysis if scan_dir provided\n      
-if scan_path:\n            self._add_reverse_imports_analysis(parts, scan_path, 
-target)\n\n        # Add circular import detection if requested\n        if 
-params.detect_cycles and scan_path:\n            
-self._add_circular_imports_analysis(parts, scan_path)\n\n        return 
-ToolResult(\n            content="\\n".join(parts),\n            success=True,\n
-)', 'new_str': 'class ImportGraphTool(Tool):\n    """Analyze Python import 
-dependencies.\n\n    Parses a Python file to extract its imports, and optionally
-scans\n    a directory for reverse imports (files that import the target).\n    
-Supports circular import detection and import classification.\n    """\n\n    
-@property\n    def name(self) -> str:\n        """Tool name."""\n        return 
-"import_graph"\n\n    @property\n    def description(self) -> str:\n        
-"""Tool description."""\n        return (\n            "Analyze import 
-dependencies of a Python file. Shows what a "\n            "file imports and 
-optionally which files import it. "\n            "Can detect circular imports 
-and classify imports as stdlib, "\n            "local, or third-party."\n       
-)\n\n    @property\n    def parameters(self) -> dict[str, object]:\n        
-"""JSON Schema for parameters."""\n        return {\n            "type": 
-"object",\n            "properties": {\n                "path": {\n             
-"type": "string",\n                    "description": "Path to the Python file 
-to analyze",\n                },\n                "scan_dir": {\n               
-"type": "string",\n                    "description": (\n                       
-"Directory to scan for reverse imports (files that import the target)"\n        
-),\n                },\n                "detect_cycles": {\n                    
-"type": "boolean",\n                    "description": (\n                      
-"Scan directory for circular import chains (requires scan_dir)"\n               
-),\n                    "default": False,\n                },\n                
-"classify": {\n                    "type": "boolean",\n                    
-"description": ("Classify imports as stdlib, local, or third-party"),\n         
-"default": False,\n                },\n            },\n            "required": 
-["path"],\n        }\n\n    @property\n    def kind(self) -> ToolKind:\n        
-"""Tool kind - read-only analysis."""\n        return ToolKind.READ\n\n    async
-def execute(  # type: ignore[override]\n        self,\n        path: str = "",\n
-scan_dir: str = "",\n        detect_cycles: bool = False,\n        classify: 
-bool = False,\n        **kwargs: object,  # noqa: ARG002\n    ) -> ToolResult:\n
-"""Analyze imports of a Python file.\n\n        Args:\n            path: Target 
-Python file to analyze.\n            scan_dir: Optional directory for 
-reverse-import scan.\n            detect_cycles: Detect circular import chains 
-in scan_dir.\n            classify: Classify imports as 
+'old_str': '    async def execute(  # type: ignore[override]\n        self,\n   
+path: str = "",\n        scan_dir: str = "",\n        detect_cycles: bool = 
+False,\n        classify: bool = False,\n        **kwargs: object,  # noqa: 
+ARG002\n    ) -> ToolResult:\n        """Analyze imports of a Python file.\n\n  
+Args:\n            path: Target Python file to analyze.\n            scan_dir: 
+Optional directory for reverse-import scan.\n            detect_cycles: Detect 
+circular import chains in scan_dir.\n            classify: Classify imports as 
 stdlib/local/third-party.\n            **kwargs: Additional arguments 
 (ignored).\n\n        Returns:\n            ToolResult with import analysis.\n  
 """\n        # Create request object from primitives\n        request = 
 ImportAnalysisRequest.from_primitives(\n            path=path,\n            
 scan_dir=scan_dir,\n            detect_cycles=detect_cycles,\n            
-classify=classify,\n        )\n        \n        # Create and validate 
-parameters\n        params = ImportGraphParameters(\n            
-path=request.path,\n            scan_dir=request.scan_dir,\n            
-detect_cycles=request.detect_cycles,\n            classify=request.classify,\n  
-)\n\n        validation_result = params.validate()\n        if validation_result
-is not None:\n            return validation_result\n\n        return await 
-self._execute_with_request(request)\n\n    async def _execute_with_request(self,
-request: ImportAnalysisRequest) -> ToolResult:\n        """Execute import 
-analysis with validated request.\n\n        Args:\n            request: 
-Validated import analysis request.\n\n        Returns:\n            ToolResult 
-with import analysis.\n        """\n        target = Path(request.path)\n\n     
-# Parse file and extract AST\n        parse_result = self._parse_file(target, 
-request.path)\n        if isinstance(parse_result, ToolResult):\n            
-return parse_result\n        tree, _ = parse_result\n\n        # Analyze 
-imports\n        scan_path = Path(request.scan_dir) if request.scan_dir else 
-None\n        local_modules = self._collect_local_modules(scan_path) if 
-scan_path else set()\n\n        analyzer = ImportAnalyzer(local_modules)\n      
-imports = analyzer.extract_imports(tree)\n\n        # Build result parts\n      
-parts: list[str] = []\n\n        # Add imports analysis\n        
-self._add_imports_analysis(parts, target.name, imports, request.classify, 
-analyzer)\n\n        # Add reverse imports analysis if scan_dir provided\n      
-if scan_path:\n            self._add_reverse_imports_analysis(parts, scan_path, 
-target)\n\n        # Add circular import detection if requested\n        if 
-request.detect_cycles and scan_path:\n            
-self._add_circular_imports_analysis(parts, scan_path)\n\n        return 
-ToolResult(\n            content="\\n".join(parts),\n            success=True,\n
-)'})
+classify=classify,\n        )\n\n        # Create and validate parameters\n     
+params = ImportGraphParameters(\n            path=request.path,\n            
+scan_dir=request.scan_dir,\n            detect_cycles=request.detect_cycles,\n  
+classify=request.classify,\n        )\n\n        validation_result = 
+params.validate()\n        if validation_result is not None:\n            return
+validation_result\n\n        return await self._execute_with_request(request)', 
+'new_str': '    async def execute(  # type: ignore[override]\n        self,\n   
+path: str = "",\n        scan_dir: str = "",\n        detect_cycles: bool = 
+False,\n        classify: bool = False,\n        **kwargs: object,  # noqa: 
+ARG002\n    ) -> ToolResult:\n        """Analyze imports of a Python file.\n\n  
+Args:\n            path: Target Python file to analyze.\n            scan_dir: 
+Optional directory for reverse-import scan.\n            detect_cycles: Detect 
+circular import chains in scan_dir.\n            classify: Classify imports as 
+stdlib/local/third-party.\n            **kwargs: Additional arguments 
+(ignored).\n\n        Returns:\n            ToolResult with import analysis.\n  
+"""\n        # Create request object from primitives\n        request = 
+ImportAnalysisRequest.from_primitives(\n            path=path,\n            
+scan_dir=scan_dir,\n            detect_cycles=detect_cycles,\n            
+classify=classify,\n        )\n\n        # Validate request\n        
+validation_result = request.validate()\n        if validation_result is not 
+None:\n            return validation_result\n\n        return await 
+self._execute_with_request(request)'})
 
 [result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Now let me update the remaining helper methods with proper type hints:
-[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': '    def _parse_file(self, target: Path, path: str) -> tuple[ast.AST,
-str] | ToolResult:\n        """Parse a Python file and return AST and 
-source.\n\n        Args:\n            target: Path object for the file.\n       
-path: Original path string for error messages.\n\n        Returns:\n            
-Tuple of (AST, source) or ToolResult with error.\n        """\n        try:\n   
-source = target.read_text(encoding="utf-8")\n        except (OSError, 
-UnicodeDecodeError) as exc:\n            return ToolResult(\n                
-content=f"Error reading file: {exc}",\n                success=False,\n         
-error=str(exc),\n            )\n\n        try:\n            tree = 
-ast.parse(source, filename=path)\n        except SyntaxError as exc:\n          
-return ToolResult(\n                content=f"Syntax error in {path}: {exc}",\n 
-success=False,\n                error=str(exc),\n            )\n\n        return
-tree, source\n\n    def _add_imports_analysis(\n        self,\n        parts: 
-list[str],\n        filename: str,\n        imports: list[str],\n        
-classify: bool,\n        analyzer: ImportAnalyzer,\n    ) -> None:\n        
-"""Add imports analysis to result parts.\n\n        Args:\n            parts: 
-List to append result parts to.\n            filename: Name of the file being 
-analyzed.\n            imports: List of import statements.\n            
-classify: Whether to classify imports.\n            analyzer: Import analyzer 
-instance.\n        """\n        parts.append(f"Imports in {filename}:")\n       
-if imports:\n            for imp in imports:\n                if classify:\n    
-label = analyzer.classify_import(imp)\n                    parts.append(f"  
-{imp}  [{label}]")\n                else:\n                    parts.append(f"  
-{imp}")\n        else:\n            parts.append("  (none)")\n\n    def 
-_add_reverse_imports_analysis(\n        self,\n        parts: list[str],\n      
-scan_path: Path,\n        target: Path,\n    ) -> None:\n        """Add reverse 
-imports analysis to result parts.\n\n        Args:\n            parts: List to 
-append result parts to.\n            scan_path: Directory to scan for reverse 
-imports.\n            target: Target file to find imports of.\n        """\n    
-module_name = target.stem\n        reverse = 
-self._find_reverse_imports(scan_path, module_name, target)\n        
-parts.append(f"\\nFiles importing {module_name}:")\n        if reverse:\n       
-for rev in sorted(reverse):\n                parts.append(f"  {rev}")\n        
-else:\n            parts.append("  (none)")\n\n    def 
-_add_circular_imports_analysis(\n        self,\n        parts: list[str],\n     
-scan_path: Path,\n    ) -> None:\n        """Add circular imports analysis to 
-result parts.\n\n        Args:\n            parts: List to append result parts 
-to.\n            scan_path: Directory to scan for circular imports.\n        
-"""\n        builder = ImportGraphBuilder(scan_path)\n        cycles = 
-builder.detect_cycles()\n        parts.append("\\nCircular imports:")\n        
-if cycles:\n            for cycle in cycles:\n                parts.append(f"  
-{\' -> \'.join(cycle)}")\n        else:\n            parts.append("  (none 
-detected)")\n\n    def _find_reverse_imports(\n        self,\n        scan_dir: 
-Path,\n        module_name: str,\n        exclude: Path,\n    ) -> list[str]:\n 
-"""Find files that import the given module.\n\n        Args:\n            
-scan_dir: Directory to scan.\n            module_name: Module name to search 
-for.\n            exclude: File to exclude (the target itself).\n\n        
-Returns:\n            List of file paths that import the module.\n        """\n 
-results: list[str] = []\n        exclude_resolved = exclude.resolve()\n\n       
-for py_file in scan_dir.rglob("*.py"):\n            if 
-self._should_skip_file(py_file, exclude_resolved):\n                continue\n\n
-if self._file_imports_module(py_file, module_name):\n                
-results.append(str(py_file))\n\n        return results\n\n    def 
-_should_skip_file(self, py_file: Path, exclude_resolved: Path) -> bool:\n       
-"""Check if a file should be skipped in reverse import search.\n\n        
-Args:\n            py_file: File to check.\n            exclude_resolved: 
-Resolved path of file to exclude.\n\n        Returns:\n            True if file 
-should be skipped, False otherwise.\n        """\n        return 
-py_file.resolve() == exclude_resolved\n\n    def _file_imports_module(self, 
-py_file: Path, module_name: str) -> bool:\n        """Check if a file imports a 
-specific module.\n\n        Args:\n            py_file: File to check.\n        
-module_name: Module name to search for.\n\n        Returns:\n            True if
-file imports the module, False otherwise.\n        """\n        try:\n          
-source = py_file.read_text(encoding="utf-8")\n            tree = 
-ast.parse(source, filename=str(py_file))\n        except (SyntaxError, OSError, 
-UnicodeDecodeError):\n            return False\n\n        return 
-self._tree_imports_module(tree, module_name)\n\n    def 
-_tree_imports_module(self, tree: ast.AST, module_name: str) -> bool:\n        
-"""Check if an AST tree imports a specific module.\n\n        Args:\n           
-tree: AST to check.\n            module_name: Module name to search for.\n\n    
-Returns:\n            True if tree imports the module, False otherwise.\n       
-"""\n        for node in ast.walk(tree):\n            if isinstance(node, 
-ast.Import) and self._import_node_contains_module(\n                node, 
-module_name\n            ) or isinstance(node, ast.ImportFrom) and 
-self._import_from_node_contains_module(\n                node, module_name\n    
-):\n                return True\n        return False\n\n    def 
-_import_node_contains_module(self, node: ast.Import, module_name: str) -> 
-bool:\n        """Check if an Import node contains a specific module.\n\n       
-Args:\n            node: Import AST node.\n            module_name: Module name 
-to search for.\n\n        Returns:\n            True if import contains the 
-module, False otherwise.\n        """\n        return any(module_name in 
-alias.name.split(".") for alias in node.names)\n\n    def 
-_import_from_node_contains_module(self, node: ast.ImportFrom, module_name: str) 
--> bool:\n        """Check if an ImportFrom node contains a specific module.\n\n
-Args:\n            node: ImportFrom AST node.\n            module_name: Module 
-name to search for.\n\n        Returns:\n            True if import contains the
-module, False otherwise.\n        """\n        mod = node.module or ""\n        
-if module_name in mod.split("."):\n            return True\n\n        names = 
-[a.name for a in node.names]\n        return module_name in names\n\n    def 
-_collect_local_modules(self, scan_dir: Path) -> set[str]:\n        """Collect 
-module names from a local directory.\n\n        Args:\n            scan_dir: 
-Directory to scan for Python files.\n\n        Returns:\n            Set of 
-module stem names found locally.\n        """\n        modules: set[str] = 
-set()\n        if scan_dir.exists() and scan_dir.is_dir():\n            for 
-py_file in scan_dir.rglob("*.py"):\n                modules.add(py_file.stem)\n 
-return modules', 'new_str': '    def _parse_file(self, target: Path, path: str) 
--> tuple[ast.AST, str] | ToolResult:\n        """Parse a Python file and return 
-AST and source.\n\n        Args:\n            target: Path object for the 
-file.\n            path: Original path string for error messages.\n\n        
-Returns:\n            Tuple of (AST, source) or ToolResult with error.\n        
-"""\n        try:\n            source = target.read_text(encoding="utf-8")\n    
-except (OSError, UnicodeDecodeError) as exc:\n            return ToolResult(\n  
-content=f"Error reading file: {exc}",\n                success=False,\n         
-error=str(exc),\n            )\n\n        try:\n            tree = 
-ast.parse(source, filename=path)\n        except SyntaxError as exc:\n          
-return ToolResult(\n                content=f"Syntax error in {path}: {exc}",\n 
-success=False,\n                error=str(exc),\n            )\n\n        return
-tree, source\n\n    def _add_imports_analysis(\n        self,\n        parts: 
-list[str],\n        filename: str,\n        imports: list[str],\n        
-classify: bool,\n        analyzer: ImportAnalyzer,\n    ) -> None:\n        
-"""Add imports analysis to result parts.\n\n        Args:\n            parts: 
-List to append result parts to.\n            filename: Name of the file being 
-analyzed.\n            imports: List of import statements.\n            
-classify: Whether to classify imports.\n            analyzer: Import analyzer 
-instance.\n        """\n        parts.append(f"Imports in {filename}:")\n       
-if imports:\n            for imp in imports:\n                if classify:\n    
-label = analyzer.classify_import(imp)\n                    parts.append(f"  
-{imp}  [{label}]")\n                else:\n                    parts.append(f"  
-{imp}")\n        else:\n            parts.append("  (none)")\n\n    def 
-_add_reverse_imports_analysis(\n        self,\n        parts: list[str],\n      
-scan_path: Path,\n        target: Path,\n    ) -> None:\n        """Add reverse 
-imports analysis to result parts.\n\n        Args:\n            parts: List to 
-append result parts to.\n            scan_path: Directory to scan for reverse 
-imports.\n            target: Target file to find imports of.\n        """\n    
-module_name = target.stem\n        reverse = 
-self._find_reverse_imports(scan_path, module_name, target)\n        
-parts.append(f"\\nFiles importing {module_name}:")\n        if reverse:\n       
-for rev in sorted(reverse):\n                parts.append(f"  {rev}")\n        
-else:\n            parts.append("  (none)")\n\n    def 
-_add_circular_imports_analysis(\n        self,\n        parts: list[str],\n     
-scan_path: Path,\n    ) -> None:\n        """Add circular imports analysis to 
-result parts.\n\n        Args:\n            parts: List to append result parts 
-to.\n            scan_path: Directory to scan for circular imports.\n        
-"""\n        builder = ImportGraphBuilder(scan_path)\n        cycles = 
-builder.detect_cycles()\n        parts.append("\\nCircular imports:")\n        
-if cycles:\n            for cycle in cycles:\n                parts.append(f"  
-{\' -> \'.join(cycle)}")\n        else:\n            parts.append("  (none 
-detected)")\n\n    def _find_reverse_imports(\n        self,\n        scan_dir: 
-Path,\n        module_name: str,\n        exclude: Path,\n    ) -> list[str]:\n 
-"""Find files that import the given module.\n\n        Args:\n            
-scan_dir: Directory to scan.\n            module_name: Module name to search 
-for.\n            exclude: File to exclude (the target itself).\n\n        
-Returns:\n            List of file paths that import the module.\n        """\n 
-results: list[str] = []\n        exclude_resolved = exclude.resolve()\n\n       
-for py_file in scan_dir.rglob("*.py"):\n            if 
-self._should_skip_file(py_file, exclude_resolved):\n                continue\n\n
-if self._file_imports_module(py_file, module_name):\n                
-results.append(str(py_file))\n\n        return results\n\n    def 
-_should_skip_file(self, py_file: Path, exclude_resolved: Path) -> bool:\n       
-"""Check if a file should be skipped in reverse import search.\n\n        
-Args:\n            py_file: File to check.\n            exclude_resolved: 
-Resolved path of file to exclude.\n\n        Returns:\n            True if file 
-should be skipped, False otherwise.\n        """\n        return 
-py_file.resolve() == exclude_resolved\n\n    def _file_imports_module(self, 
-py_file: Path, module_name: str) -> bool:\n        """Check if a file imports a 
-specific module.\n\n        Args:\n            py_file: File to check.\n        
-module_name: Module name to search for.\n\n        Returns:\n            True if
-file imports the module, False otherwise.\n        """\n        try:\n          
-source = py_file.read_text(encoding="utf-8")\n            tree = 
-ast.parse(source, filename=str(py_file))\n        except (SyntaxError, OSError, 
-UnicodeDecodeError):\n            return False\n\n        return 
-self._tree_imports_module(tree, module_name)\n\n    def 
-_tree_imports_module(self, tree: ast.AST, module_name: str) -> bool:\n        
-"""Check if an AST tree imports a specific module.\n\n        Args:\n           
-tree: AST to check.\n            module_name: Module name to search for.\n\n    
-Returns:\n            True if tree imports the module, False otherwise.\n       
-"""\n        for node in ast.walk(tree):\n            if isinstance(node, 
-ast.Import) and self._import_node_contains_module(\n                node, 
-module_name\n            ) or isinstance(node, ast.ImportFrom) and 
-self._import_from_node_contains_module(\n                node, module_name\n    
-):\n                return True\n        return False\n\n    def 
-_import_node_contains_module(self, node: ast.Import, module_name: str) -> 
-bool:\n        """Check if an Import node contains a specific module.\n\n       
-Args:\n            node: Import AST node.\n            module_name: Module name 
-to search for.\n\n        Returns:\n            True if import contains the 
-module, False otherwise.\n        """\n        return any(module_name in 
-alias.name.split(".") for alias in node.names)\n\n    def 
-_import_from_node_contains_module(self, node: ast.ImportFrom, module_name: str) 
--> bool:\n        """Check if an ImportFrom node contains a specific module.\n\n
-Args:\n            node: ImportFrom AST node.\n            module_name: Module 
-name to search for.\n\n        Returns:\n            True if import contains the
-module, False otherwise.\n        """\n        mod = node.module or ""\n        
-if module_name in mod.split("."):\n            return True\n\n        names = 
-[a.name for a in node.names]\n        return module_name in names\n\n    def 
-_collect_local_modules(self, scan_dir: Path) -> set[str]:\n        """Collect 
-module names from a local directory.\n\n        Args:\n            scan_dir: 
-Directory to scan for Python files.\n\n        Returns:\n            Set of 
-module stem names found locally.\n        """\n        modules: set[str] = 
-set()\n        if scan_dir.exists() and scan_dir.is_dir():\n            for 
-py_file in scan_dir.rglob("*.py"):\n                modules.add(py_file.stem)\n 
-return modules'})
+Now let me address the duplicate `parameters` method issue. The report says it's duplicated across multiple tool files. This is a broader architectural issue, but for now, let me check if there's a base class or utility we should be using. Let me look at other tool files to see the pattern:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 410, 'end_line': 435})
 
-[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Now let me run the tests to make sure everything still works:
+[result]                     "description": (
+                        "Directory to scan for reverse imports (files that 
+import the target)"
+                    ),
+                },
+                "detect_cy...
+The `parameters` property is returning a JSON schema. This is a common pattern across tools. While it's duplicated, it's actually necessary for each tool to define its own schema. However, we could extract common patterns. But for now, let me focus on the other issues.
+
+Let me check the Feature Envy issue with `_execute_with_request`:
+[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'start_line': 480, 'end_line': 520})
+
+[result] 
+        # Parse file and extract AST
+        parse_result = self._parse_file(target, request.path)
+        if isinstance(parse_result, ToolResult):
+            return parse_result
+        tree, _ = p...
+The `_execute_with_request` method accesses `request` 6 times according to the smell report. Let me count: `request.path`, `request.scan_dir`, `request.classify`, `request.detect_cycles` - that's 4 direct accesses. The method seems reasonably balanced between `self` and `request` usage. This might be a false positive, but let me see if we can improve it by extracting some logic.
+
+Actually, looking at the code, `_execute_with_request` is already well-structured. It delegates to helper methods. The Feature Envy might be a false positive since the method needs to access request properties to do its work.
+
+Let me run the tests to make sure my changes so far haven't broken anything:
 [tool] pytest_run({'path': 'tests/tools/test_import_graph.py', 'verbose': True})
 
 [result] ============================= test session starts 
@@ -686,133 +318,45 @@ Now let me run the tests to make sure everything still works:
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Great! All tests pass. Now let me run a lint check to see if there are any issues:
+Great! All tests pass. Now let me check for any other missing type hints. Let me run a quick check on the file:
 [tool] lint_check({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'linter': 'both'})
+'linter': 'mypy'})
+
+[result] === mypy ===
+Success: no issues found in 1 source file...
+Good! Now let me run ruff to check for any other issues:
+[tool] lint_check({'path': 'src/henchman/tools/builtins/import_graph.py', 
+'linter': 'ruff'})
 
 ✗ \[error] === ruff ===
-W293 Blank line contains whitespace
-  --> src/henchman/tools/builtins/import_graph.py:17:1
-   |
-15 | def _extract_top_level_module(import_str: str) -> str:
-16 |     """Extract the top-lev
-Good! Let me fix the linting issues:
-[tool] lint_check({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'linter': 'ruff', 'fix': True})
-
-✗ \[error] === ruff --fix ===
-W293 Blank line contains whitespace
-  --> src/henchman/tools/builtins/import_graph.py:16:1
-   |
-14 | def _extract_top_level_module(import_str: str) -> str:
-15 |     """Extract the t
-Let me manually fix the remaining whitespace issues and update the Optional type hints:
+F401 [*] `typing.Any` imported but unused
+ --> src/henchman/tools/builtins/import_graph.py:7:20
+  |
+5 | from dataclasses import dataclass
+6 | from pathlib import Path
+7 | from typing impo
+Let me fix the unused import:
 [tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': 'def _extract_top_level_module(import_str: str) -> str:\n    
-"""Extract the top-level module name from an import statement.\n    \n    
-Args:\n        import_str: The import statement string (e.g. \'import os\').\n  
-\n    Returns:\n        Top-level module name or empty string.\n    """', 
-'new_str': 'def _extract_top_level_module(import_str: str) -> str:\n    
-"""Extract the top-level module name from an import statement.\n\n    Args:\n   
-import_str: The import statement string (e.g. \'import os\').\n\n    Returns:\n 
-Top-level module name or empty string.\n    """'})
+'old_str': '"""Import graph analysis tool implementation."""\n\nimport 
+ast\nimport sys\nfrom dataclasses import dataclass\nfrom pathlib import 
+Path\nfrom typing import Any\n\nfrom henchman.tools.base import Tool, ToolKind, 
+ToolResult\nfrom henchman.tools.utils import validate_directory_path, 
+validate_file_path\n\nSTDLIB_MODULES: frozenset[str] = 
+frozenset(sys.stdlib_module_names)', 'new_str': '"""Import graph analysis tool 
+implementation."""\n\nimport ast\nimport sys\nfrom dataclasses import 
+dataclass\nfrom pathlib import Path\n\nfrom henchman.tools.base import Tool, 
+ToolKind, ToolResult\nfrom henchman.tools.utils import validate_directory_path, 
+validate_file_path\n\nSTDLIB_MODULES: frozenset[str] = 
+frozenset(sys.stdlib_module_names)'})
 
 [result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-
-[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': '    def _extract_dependencies_from_file(\n        self,\n        
-py_file: Path,\n        mod_name: str,\n        local_modules: set[str],\n    ) 
--> Optional[set[str]]:', 'new_str': '    def _extract_dependencies_from_file(\n 
-self,\n        py_file: Path,\n        mod_name: str,\n        local_modules: 
-set[str],\n    ) -> set[str] | None:'})
-
-✗ \[error] Error: String not found in file:     def 
-_extract_dependencies_from_file(
-        s...
-Let me check the exact content:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 165, 'end_line': 170})
-
-[result]         local_modules: set[str],
-    ) -> set[str] | None:
-        """Extract dependencies from a Python file.
-
-        Args:
-            py_file: Path to Python file.
-...
-Good, it seems the type hint is already correct. Let me check the other Optional type hint:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 300, 'end_line': 310})
-
-[result]     classify: bool = False
-
-    def validate(self) -> ToolResult | None:
-        """Validate parameters.
-
-        Returns:
-            ToolResult with error if validation fails, None if valid.
-       ...
-Good, that one is already correct too. Let me fix the remaining whitespace issues in the ImportAnalysisRequest class:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 324, 'end_line': 360})
-
-[result]     """Request object for import analysis to replace primitive 
-parameters."""
-
-    path: str
-    scan_dir: str = ""
-    detect_cycles: bool = False
-    classify: bool = False
-
-    @classmethod
-    def...
-I see the whitespace issues. Let me fix them:
-[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': '    @classmethod\n    def from_primitives(\n        cls,\n        
-path: str = "",\n        scan_dir: str = "",\n        detect_cycles: bool = 
-False,\n        classify: bool = False,\n    ) -> "ImportAnalysisRequest":\n    
-"""Create request from primitive parameters.\n        \n        Args:\n         
-path: Target Python file to analyze.\n            scan_dir: Optional directory 
-for reverse-import scan.\n            detect_cycles: Detect circular import 
-chains in scan_dir.\n            classify: Classify imports as 
-stdlib/local/third-party.\n            \n        Returns:\n            
-ImportAnalysisRequest instance.\n        """', 'new_str': '    @classmethod\n   
-def from_primitives(\n        cls,\n        path: str = "",\n        scan_dir: 
-str = "",\n        detect_cycles: bool = False,\n        classify: bool = 
-False,\n    ) -> "ImportAnalysisRequest":\n        """Create request from 
-primitive parameters.\n\n        Args:\n            path: Target Python file to 
-analyze.\n            scan_dir: Optional directory for reverse-import scan.\n   
-detect_cycles: Detect circular import chains in scan_dir.\n            classify:
-Classify imports as stdlib/local/third-party.\n\n        Returns:\n            
-ImportAnalysisRequest instance.\n        """'})
-
-[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Now let me check for the whitespace issue at line 446:
-[tool] read_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'start_line': 440, 'end_line': 455})
-
-[result]             path=path,
-            scan_dir=scan_dir,
-            detect_cycles=detect_cycles,
-            classify=classify,
-        )
-
-        # Create and validate parameters
-        params = Impor...
-I see there's an extra blank line. Let me fix it:
-[tool] edit_file({'path': 'src/henchman/tools/builtins/import_graph.py', 
-'old_str': '            classify=classify,\n        )\n\n        # Create and 
-validate parameters', 'new_str': '            classify=classify,\n        )\n\n 
-# Create and validate parameters'})
-
-[result] Successfully edited src/henchman/tools/builtins/import_graph.py...
-Actually, that didn't change anything. Let me check if there's actually a whitespace issue. Let me run lint check again:
+Now let me run ruff again to make sure there are no other issues:
 [tool] lint_check({'path': 'src/henchman/tools/builtins/import_graph.py', 
 'linter': 'ruff'})
 
 [result] === ruff ===
 All checks passed!...
-Great! Now let me run the tests again to make sure everything still works:
+Now let me run the full test suite to ensure everything still works:
 [tool] pytest_run({'path': 'tests/tools/test_import_graph.py'})
 
 [result] ============================= test session starts 
@@ -820,135 +364,101 @@ Great! Now let me run the tests again to make sure everything still works:
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
 /home/matthew/anaconda3/bin/python
 cachedir: .pytest_cac...
-Perfect! All tests pass. Now let me create a summary of the refactoring changes and document them:
+Perfect! All tests pass. Now let me create a summary of the refactoring changes I made:
 [tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
-'content': '# Refactoring Summary - Import Graph Tool\n\n**Date/Time:** 
-2026-03-02 01:45 UTC  \n**Target File:** 
-`src/henchman/tools/builtins/import_graph.py`  \n**Original Score:** ❌ F 
-(12.5/100)  \n**Refactored Smells:** 57 total smells addressed\n\n## Identified 
-Smells Addressed\n\n### 1. Feature Envy (Line 51 - MEDIUM)\n- **Issue:** 
-`classify_import` method accessed `import_str` 6 times but `self` only 1 time\n-
-**Solution:** Extracted logic into standalone functions 
-`_extract_top_level_module()` and `_classify_import()`\n- **Benefit:** Reduced 
-method coupling, improved testability, follows Single Responsibility 
-Principle\n\n### 2. Primitive Obsession (Line 344 - MEDIUM)  \n- **Issue:** 
-`execute` method had 4 primitive-typed parameters\n- **Solution:** Created 
-`ImportAnalysisRequest` dataclass to encapsulate parameters\n- **Benefit:** 
-Improved type safety, better parameter validation, cleaner method 
-signatures\n\n### 3. Feature Envy (Line 378 - MEDIUM)\n- **Issue:** 
-`_execute_with_params` accessed `params` 6 times but `self` only 5 times\n- 
-**Solution:** Renamed to `_execute_with_request` and uses new parameter 
-object\n- **Benefit:** Reduced method coupling, clearer parameter flow\n\n### 4.
-Missing Type Hints (Multiple locations - LOW)\n- **Issue:** Incomplete type 
-hints in `__init__`, `extract_imports`, and other methods\n- **Solution:** Added
-complete type annotations throughout the file\n- **Benefit:** Improved static 
-analysis, better IDE support, clearer interfaces\n\n### 5. Feature Envy (Line 25
-- LOW)\n- **Issue:** `extract_imports` accessed `ast` and `node` frequently with
-minimal `self` usage\n- **Solution:** Extracted into 
-`_extract_imports_from_ast()` helper function\n- **Benefit:** Reduced class 
-coupling, improved reusability\n\n## Refactoring Strategy Applied\n\n1. 
-**Extract Method Pattern**: Created helper functions for AST traversal logic\n2.
-**Introduce Parameter Object**: Replaced primitive parameters with 
-`ImportAnalysisRequest` dataclass  \n3. **Move Method**: Moved logic from 
-instance methods to standalone functions where appropriate\n4. **Add Type 
-Annotations**: Completed type hints for all public interfaces\n5. **DRY 
-Principle**: Reduced code duplication in import classification logic\n\n## Key 
-Changes Made\n\n### New Functions:\n- `_extract_top_level_module()`: Extracts 
-module name from import string\n- `_classify_import()`: Classifies imports as 
-stdlib/local/third-party\n- `_extract_imports_from_ast()`: Extracts imports from
-AST tree\n\n### New Data Classes:\n- `ImportAnalysisRequest`: Encapsulates 
-execution parameters\n- Maintains backward compatibility with 
-`ImportGraphParameters`\n\n### Method Signatures:\n- `execute()`: Now uses 
-`ImportAnalysisRequest.from_primitives()`\n- `_execute_with_request()`: Replaces
-`_execute_with_params()` with better encapsulation\n\n## Testing 
-Implications\n\n- **All existing tests pass** (17/17 tests)\n- **No API 
-changes**: Public interface remains identical\n- **Backward compatible**: 
-Existing tool calls work unchanged\n- **Improved testability**: Helper functions
-can be tested independently\n\n## Code Quality Improvements\n\n1. 
-**Maintainability**: Reduced method complexity and coupling\n2. **Readability**:
-Clearer parameter flow with dataclasses\n3. **Type Safety**: Complete type 
-annotations throughout\n4. **Reusability**: Standalone functions can be used 
-elsewhere\n5. **Testability**: Smaller, focused functions are easier to 
-test\n\n## Remaining Issues (Systemic)\n\n- **Duplicate Code** (Line 308): 
-`parameters` method duplication across tools\n  - *Note:* This is a systemic 
-issue across the tool system, not specific to this file\n  - Requires broader 
-refactoring of the tool base class system\n\n## Performance Impact\n\n- **No 
-performance degradation**: Changes are structural, not algorithmic\n- **Memory 
-usage**: Minimal increase due to dataclass creation\n- **Runtime**: Negligible 
-difference - helper functions are lightweight\n\n## Verification\n\n- ✅ All 17 
-existing tests pass\n- ✅ Ruff linting passes with no errors\n- ✅ Mypy type 
-checking passes\n- ✅ Code coverage remains high (92%)\n- ✅ Backward 
-compatibility maintained\n\n## Next Steps\n\n1. Consider extracting the 
-duplicated `parameters` method pattern to a base class\n2. Evaluate similar 
-refactoring for other tools with primitive obsession\n3. Add unit tests for new 
-helper functions\n4. Consider creating a shared `ToolRequest` base class for all
-tools'})
+'content': "# Refactoring Summary - Import Graph Tool\n\n**Date/Time:** 
+2026-03-02  \n**Target File:** `src/henchman/tools/builtins/import_graph.py`  
+\n**Refactoring Agent:** Expert Extreme Programming (XP) Refactoring Agent\n\n##
+Identified Smells Addressed\n\n### 1. **Primitive Obsession** (HIGH Severity)\n-
+**Issue:** Repeated primitive parameter group in `from_primitives` and `execute`
+methods\n- **Solution:** Consolidated `ImportGraphParameters` and 
+`ImportAnalysisRequest` into a single `ImportAnalysisRequest` dataclass\n- 
+**Refactoring Pattern:** Introduce Parameter Object\n- **Changes:**\n  - Removed
+duplicate `ImportGraphParameters` class\n  - Enhanced `ImportAnalysisRequest` 
+with validation method\n  - Updated `execute` method to use consolidated request
+object\n\n### 2. **Deep Nesting** (LOW Severity)\n- **Issue:** Nesting depth 4 
+in `_extract_imports_from_ast` function\n- **Solution:** Extracted nested logic 
+into separate helper functions\n- **Refactoring Pattern:** Extract Method\n- 
+**Changes:**\n  - Created `_extract_imports_from_import_node` function\n  - 
+Created `_extract_import_from_import_from_node` function\n  - Reduced nesting 
+depth from 4 to 2\n\n### 3. **Missing Type Hints** (LOW Severity)\n- **Issue:** 
+`__init__` methods had incomplete type hints\n- **Solution:** Added explicit 
+type annotations\n- **Changes:**\n  - Added `: set[str]` type annotation to 
+`ImportAnalyzer.__init__`\n  - Removed unused `typing.Any` import\n\n### 4. 
+**Code Duplication** (MEDIUM Severity - Partially Addressed)\n- **Issue:** 
+`parameters` method duplicated across multiple tool files\n- **Note:** This is a
+broader architectural issue. The `parameters` method needs to be tool-specific 
+to define JSON schema, so complete deduplication would require a different 
+approach (e.g., decorators or base class enhancements).\n\n## Refactoring 
+Strategy\n\n1. **Consolidated Data Classes:** Merged `ImportGraphParameters` 
+into `ImportAnalysisRequest` to eliminate duplication and address Primitive 
+Obsession.\n\n2. **Extracted Nested Logic:** Broke down complex nested functions
+into smaller, single-responsibility helper functions to improve readability and 
+maintainability.\n\n3. **Enhanced Type Safety:** Added missing type annotations 
+to improve code clarity and enable better static analysis.\n\n4. **Maintained 
+Backward Compatibility:** All public API signatures remain unchanged to avoid 
+breaking existing tests and integrations.\n\n## Testing Implications\n\n- **All 
+existing tests pass:** 17/17 tests pass without modification\n- **No API 
+changes:** External interface remains identical\n- **Internal improvements:** 
+Better separation of concerns and reduced coupling\n\n## Code Quality 
+Improvements\n\n1. **Reduced Complexity:** Deep nesting eliminated through 
+method extraction\n2. **Improved Maintainability:** Single responsibility 
+principle applied to helper functions\n3. **Better Type Safety:** Explicit type 
+annotations added\n4. **Eliminated Duplication:** Consolidated parameter 
+handling logic\n5. **Enhanced Readability:** Clearer function names and 
+separation of concerns\n\n## Remaining Issues (Not Addressed)\n\n1. **Duplicate 
+`parameters` method across tools:** This is a systemic issue that would require 
+architectural changes beyond the scope of this file-specific refactoring.\n\n2. 
+**Feature Envy in `_execute_with_request`:** The method needs to access request 
+properties to perform its work, making this likely a false positive or 
+acceptable design given the tool's responsibilities.\n\n## Verification\n\n- ✅ 
+All 17 existing tests pass\n- ✅ No linting errors (ruff clean)\n- ✅ Type 
+checking passes (mypy clean)\n- ✅ Code formatting consistent\n- ✅ External API
+unchanged\n\nThe refactoring successfully addresses the highest-priority code 
+smells while maintaining full backward compatibility and test coverage."})
 
-[result] Successfully wrote 4344 bytes to 
+[result] Successfully wrote 3766 bytes to 
 .agent_tasks/auto-improve/last-improvement.md...
-Now let me run a final check to ensure the refactoring is complete and the code quality has improved. Let me check if there are any other issues by running a broader test:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -c "from 
-src.henchman.tools.builtins.import_graph import ImportGraphTool; tool = 
-ImportGraphTool(); print(f\'Tool name: {tool.name}\'); print(f\'Tool 
-description: {tool.description}\'); print(f\'Tool kind: {tool.kind}\'); 
-print(\'Refactoring successful!\')"'})
+Now let me run a final comprehensive check to ensure everything is working:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/tools/test_import_graph.py -v'})
 
-[result] Tool name: import_graph
-Tool description: Analyze import dependencies of a Python file. Shows what a 
-file imports and optionally which files import it. Can detect circular imports 
-and classify imports...
-Excellent! Let me also verify that the tool can be instantiated and used properly by checking the parameters schema:
-[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -c "\nfrom 
-src.henchman.tools.builtins.import_graph import ImportGraphTool\nimport 
-json\ntool = ImportGraphTool()\nparams = tool.parameters\nprint(\'Parameters 
-schema:\')\nprint(json.dumps(params, indent=2))\nprint()\nprint(\'Schema 
-validation: OK\')\n"'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Perfect! Now let me provide the final refactoring summary in the required format:
 
-[result] Parameters schema:
-{
-  "type": "object",
-  "properties": {
-    "path": {
-      "type": "string",
-      "description": "Path to the Python file to analyze"
-    },
-    "scan_dir": {
-      "type": "strin...
-Perfect! Now let me create a final summary of the refactoring in the required format:
-
-## Refactoring Complete: `src/henchman/tools/builtins/import_graph.py`
+## Refactoring Summary
 
 **Identified Smells:**
-- Feature Envy in `classify_import` method (accesses `import_str` 6 times, `self` only 1 time)
-- Primitive Obsession in `execute` method (4 primitive parameters)
-- Feature Envy in `_execute_with_params` method (accesses `params` 6 times, `self` only 5 times)
-- Missing Type Hints in multiple methods (`__init__`, `extract_imports`, etc.)
-- Feature Envy in `extract_imports` method (heavy AST/node access with minimal `self` usage)
+- **Primitive Obsession (HIGH):** Repeated primitive parameter group in `from_primitives` and `execute` methods
+- **Deep Nesting (LOW):** Nesting depth 4 in `_extract_imports_from_ast` function  
+- **Missing Type Hints (LOW):** Incomplete type annotations in `__init__` methods
+- **Code Duplication (MEDIUM):** Duplicate `ImportGraphParameters` class and `parameters` method pattern across tools
 
 **Refactoring Strategy:**
-1. **Extracted helper functions**: Created `_extract_top_level_module()`, `_classify_import()`, and `_extract_imports_from_ast()` to reduce feature envy
-2. **Introduced Parameter Object**: Created `ImportAnalysisRequest` dataclass to encapsulate primitive parameters
-3. **Added complete type hints**: All methods now have proper type annotations
-4. **Renamed methods for clarity**: `_execute_with_params` → `_execute_with_request` to reflect parameter object usage
-5. **Maintained backward compatibility**: Existing API unchanged, all tests pass
+1. **Consolidated Parameter Objects:** Merged `ImportGraphParameters` into `ImportAnalysisRequest` to eliminate duplication and address Primitive Obsession
+2. **Extracted Nested Methods:** Broke down `_extract_imports_from_ast` into `_extract_imports_from_import_node` and `_extract_import_from_import_from_node` helper functions
+3. **Enhanced Type Safety:** Added explicit type annotations to `ImportAnalyzer.__init__` and removed unused imports
+4. **Maintained Backward Compatibility:** All public API signatures remain unchanged
 
-**Refactored Code:** (Key changes summarized)
-- Created `ImportAnalysisRequest` dataclass with `from_primitives()` factory method
-- Extracted AST traversal logic into reusable helper functions  
-- Added proper return type annotations (`set[str] | None`, `ToolResult | None`)
-- Updated `execute()` to use parameter object pattern while maintaining same external interface
-- Fixed all linting issues (whitespace, type hints)
+**Refactored Code:** The complete refactored code is in `src/henchman/tools/builtins/import_graph.py`. Key changes include:
+- Consolidated `ImportAnalysisRequest` with validation method
+- Extracted helper functions to reduce nesting depth
+- Added type annotations for better static analysis
+- Removed duplicate `ImportGraphParameters` class
 
 **Testing Implications:**
-- All 17 existing tests pass without modification
-- No API changes - backward compatibility fully maintained
-- Improved testability through smaller, focused functions
-- Type safety enhanced with complete type annotations
-- Code coverage remains high at 92%
+- **All 17 existing tests pass** without modification
+- **No API changes** - external interface remains identical
+- **Internal improvements** enhance maintainability without affecting behavior
+- **Test coverage remains at 92%** with no regression
 
-The refactoring successfully addresses all identified code smells while maintaining full functionality and backward compatibility. The code is now more maintainable, testable, and follows better software design principles.
+The refactoring successfully addresses the highest-priority code smells while maintaining full backward compatibility and test coverage. The code is now more maintainable with better separation of concerns, reduced duplication, and improved type safety.
 [tech_lead] completed work
-[2026-03-02T01:30:03Z] Running pytest to verify tests pass...
+[2026-03-02T02:00:02Z] Running pytest to verify tests pass...
 ============================= test session starts ==============================
 platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
 rootdir: /home/matthew/mlg-cli
@@ -1201,8 +711,8 @@ tests/cli/test_escape_cancellation.py::TestEscapeCancellation::test_escape_durin
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/cli/test_output_handler.py::TestOutputHandler::test_start_background_indexing_no_index_async
-  /home/matthew/anaconda3/lib/python3.12/inspect.py:3339: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def signature(obj, *, follow_wrapped=True, globals=None, locals=None, eval_str=False):
+  /home/matthew/anaconda3/lib/python3.12/inspect.py:3077: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    @classmethod
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
@@ -1229,7 +739,7 @@ tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidatio
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
-  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=433826) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=485800) is multi-threaded, use of fork() may lead to deadlocks in the child.
     self.pid = os.fork()
 
 tests/test_interactive.py::test_tool_form
@@ -1305,14 +815,14 @@ tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conv
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
 tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
-  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/cache.py:86: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    def __init__(self, get_value: Callable[..., _V], size: int = 1000000) -> None:
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/filters/base.py:17: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self) -> None:
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
-tests/ui_integration/test_tool_calls.py::TestToolCalls::test_write_file_tool
-  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/key_binding/key_bindings.py:279: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
-    keys = tuple(_parse_key(k) for k in keys)
+tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/cache.py:25: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, maxsize: int = 8) -> None:
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
 
@@ -1487,7 +997,7 @@ src/henchman/tools/builtins/file_write.py                 23      0      0      
 src/henchman/tools/builtins/git_ops.py                    88     14     28      4    81%   130-133, 230, 266, 284, 298-304
 src/henchman/tools/builtins/glob_tool.py                  42      0     12      0   100%
 src/henchman/tools/builtins/grep.py                      142      9     60      7    92%   132, 148, 155, 257, 350, 374-379, 382
-src/henchman/tools/builtins/import_graph.py              253     15    100     13    92%   25-26, 30, 49, 73, 145->142, 180-181, 227, 247, 250->249, 274->271, 279->271, 317, 515-516, 656-657, 704, 719->722
+src/henchman/tools/builtins/import_graph.py              252     15    100     13    92%   25-26, 30, 49, 89, 171->168, 206-207, 253, 273, 276->275, 300->297, 305->297, 343, 524-525, 665-666, 713, 728->731
 src/henchman/tools/builtins/kg_query.py                  115     14     46      1    88%   20-31, 124-132
 src/henchman/tools/builtins/kg_update.py                 113     13     40      3    88%   50-61, 181-184, 232, 292
 src/henchman/tools/builtins/lint_check.py                 64      7     20      3    88%   107, 109-112, 165, 169
@@ -1518,7 +1028,7 @@ src/henchman/utils/tokens.py                              55      2     20      
 src/henchman/utils/validation.py                          82      1     36      1    98%   45
 src/henchman/version.py                                    3      0      0      0   100%
 --------------------------------------------------------------------------------------------------
-TOTAL                                                  14608   2413   4094    467    81%
-=========== 2586 passed, 5 skipped, 32 warnings in 153.53s (0:02:33) ===========
-[2026-03-02T01:30:03Z] All tests passed.
+TOTAL                                                  14607   2413   4094    467    81%
+=========== 2586 passed, 5 skipped, 32 warnings in 153.80s (0:02:33) ===========
+[2026-03-02T02:00:02Z] All tests passed.
 Committing changes...
