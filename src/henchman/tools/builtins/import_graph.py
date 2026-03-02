@@ -475,18 +475,20 @@ class ImportGraphTool(Tool):
         Returns:
             ToolResult with import analysis.
         """
-        target = Path(request.path)
+        # Extract request parameters once
+        target_path = Path(request.path)
+        scan_path = Path(request.scan_dir) if request.scan_dir else None
+        should_classify = request.classify
+        should_detect_cycles = request.detect_cycles
 
         # Parse file and extract AST
-        parse_result = self._parse_file(target, request.path)
+        parse_result = self._parse_file(target_path, request.path)
         if isinstance(parse_result, ToolResult):
             return parse_result
         tree, _ = parse_result
 
         # Analyze imports
-        scan_path = Path(request.scan_dir) if request.scan_dir else None
         local_modules = self._collect_local_modules(scan_path) if scan_path else set()
-
         analyzer = ImportAnalyzer(local_modules)
         imports = analyzer.extract_imports(tree)
 
@@ -494,14 +496,14 @@ class ImportGraphTool(Tool):
         parts: list[str] = []
 
         # Add imports analysis
-        self._add_imports_analysis(parts, target.name, imports, request.classify, analyzer)
+        self._add_imports_analysis(parts, target_path.name, imports, should_classify, analyzer)
 
         # Add reverse imports analysis if scan_dir provided
         if scan_path:
-            self._add_reverse_imports_analysis(parts, scan_path, target)
+            self._add_reverse_imports_analysis(parts, scan_path, target_path)
 
         # Add circular import detection if requested
-        if request.detect_cycles and scan_path:
+        if should_detect_cycles and scan_path:
             self._add_circular_imports_analysis(parts, scan_path)
 
         return ToolResult(
