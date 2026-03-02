@@ -528,6 +528,10 @@ class CoverageMapTool(Tool):
         """JSON Schema for parameters."""
         return create_path_parameter_schema(
             additional_params={
+                "path": {
+                    "type": "string",
+                    "description": "Path to coverage.xml or coverage.json file",
+                },
                 "file_filter": {
                     "type": "string",
                     "description": "Optional substring filter to show only matching files",
@@ -550,26 +554,25 @@ class CoverageMapTool(Tool):
         """Tool kind - read-only analysis."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]
-        self,
-        path: str = "",
-        file_filter: str = "",
-        show_branches: bool = False,
-        per_function: bool = False,
-        **kwargs: object,  # noqa: ARG002
-    ) -> ToolResult:
+    async def execute(self, **params: object) -> ToolResult:
         """Parse coverage report for uncovered lines.
 
         Args:
-            path: Path to coverage.xml or coverage.json.
-            file_filter: Optional filename substring filter.
-            show_branches: Include branch coverage in output.
-            per_function: Show per-function coverage breakdown.
-            **kwargs: Additional arguments (ignored).
+            **params: Tool parameters including:
+                - path: Path to coverage.xml or coverage.json.
+                - file_filter: Optional filename substring filter.
+                - show_branches: Include branch coverage in output.
+                - per_function: Show per-function coverage breakdown.
 
         Returns:
             ToolResult with coverage information.
         """
+        # Extract parameters with defaults
+        path = str(params.get("path", ""))
+        file_filter = str(params.get("file_filter", ""))
+        show_branches = bool(params.get("show_branches", False))
+        per_function = bool(params.get("per_function", False))
+
         request = CoverageRequest(
             path=path,
             file_filter=file_filter,
