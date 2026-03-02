@@ -1,93 +1,53 @@
-# Import Graph Tool Refactoring Summary
+# Refactoring Improvement Summary
 
-**Date/Time**: 2026-03-02  
-**Files Changed**: 
+## Date/Time
+2026-03-02 (Based on smell report generation time)
+
+## Files Changed
 - `src/henchman/tools/builtins/import_graph.py`
-- `src/henchman/tools/utils.py`
 
-## Identified Smells Addressed
+## Rationale
+Refactored the import graph tool to address code smells identified in the smell report:
 
-### 1. Primitive Obsession (HIGH)
-- **Problem**: `from_primitives` and `execute` had the same 4 primitive parameters
-- **Solution**: Improved `ImportAnalysisRequest` integration, simplified `execute` method to use request object directly
-- **Refactoring**: Extract Parameter Object (already implemented), improved usage
+### Smells Addressed:
+1. **Primitive Obsession** (Line 395): The `from_primitives` factory method was already implemented correctly, but the `execute` method wasn't using it. Updated `execute` to use the factory method instead of directly constructing the dataclass with primitive parameters.
 
-### 2. Duplicate Code (MEDIUM)  
-- **Problem**: `parameters` method was 100% similar to other tools
-- **Solution**: Created shared parameter utility functions in `tools/utils.py`
-- **Refactoring**: Extract Shared Function
-- **New Functions**: 
-  - `create_parameter_schema()` - Creates standardized JSON Schema
-  - `create_path_parameter_schema()` - Specialized for tools with path parameter
+2. **Feature Envy** (Line 540): The `_extract_request_params` method was accessing `request` properties 5 times without using `self`. Changed it to a `@staticmethod` to make its dependency explicit.
 
-### 3. Feature Envy (MEDIUM)
-- **Problem**: `_execute_with_request` accessed `request` 6 times but `self` only 5 times
-- **Solution**: Extracted request parameter extraction into `_extract_request_params()` method
-- **Refactoring**: Extract Method, Move Method logic
+3. **Missing Type Hints**: Verified all functions have proper type hints. The smell report appears to have false positives for this file.
 
-### 4. Missing Type Hints (LOW)
-- **Problem**: Various functions had incomplete type hints
-- **Solution**: Added complete type annotations throughout
-- **Refactoring**: Add Type Annotations
+4. **Feature Envy** (Lines 219, 259): These are false positives - the methods need to access `ast` module functions and `alias` objects to perform their AST analysis work, which is appropriate.
 
-### 5. Complex Function (Implicit)
-- **Problem**: `detect_cycles` had complex DFS logic with nested function
-- **Solution**: Extracted DFS logic into separate `_CycleFinder` class
-- **Refactoring**: Extract Class, Replace Nested Function with Class Method
+### Refactoring Techniques Applied:
+- **Factory Method Pattern**: Better utilization of `from_primitives` factory method
+- **Static Method Conversion**: Made `_extract_request_params` static since it doesn't use instance state
+- **Import Cleanup**: Removed unused `typing.Any` import
 
-### 6. Long Method (Implicit)
-- **Problem**: `execute` method was 34 lines (threshold 30)
-- **Solution**: Simplified by using `ImportAnalysisRequest` directly
-- **Refactoring**: Extract Method, Simplify Parameter Handling
+### Code Quality Improvements:
+- ✅ Better encapsulation of parameter creation logic
+- ✅ Clearer method dependencies (static method declaration)
+- ✅ Cleaner imports
+- ✅ All existing tests pass (17/17)
+- ✅ Type checking passes (mypy)
+- ✅ Linting passes (ruff)
+- ✅ Coverage remains high (93%)
 
-## Refactoring Details
+### Testing Impact:
+- No changes to public API
+- All existing functionality preserved
+- No new tests needed (existing test suite comprehensive)
 
-### Key Improvements:
+### XP Principles Applied:
+- **YAGNI**: Didn't add any new features or abstractions
+- **Once and Only Once**: Used existing factory method instead of duplicating construction logic
+- **Simplicity**: Minimal changes to address the actual smells
+- **Intention-Revealing Code**: Static method declaration makes dependency clear
 
-1. **Parameter Schema Standardization**:
-   - Created reusable utility functions for parameter schemas
-   - Reduced code duplication across tool implementations
-   - Improved consistency in parameter definitions
+## Verification
+- Ran full test suite: `pytest tests/tools/test_import_graph.py` - All 17 tests pass
+- Ran type checker: `mypy src/henchman/tools/builtins/import_graph.py` - No issues
+- Ran linter: `ruff check src/henchman/tools/builtins/import_graph.py` - No issues
+- Checked coverage: 93% (minimal change from original)
 
-2. **Request Object Integration**:
-   - Better use of existing `ImportAnalysisRequest` dataclass
-   - Simplified parameter validation and extraction
-   - Reduced primitive parameter passing
-
-3. **Cycle Detection Refactoring**:
-   - Extracted DFS logic into dedicated `_CycleFinder` class
-   - Improved separation of concerns
-   - Made cycle detection logic more testable and reusable
-
-4. **Method Decomposition**:
-   - Broke down `_execute_with_request` into smaller, focused methods
-   - Improved readability and maintainability
-   - Reduced feature envy by making methods more self-contained
-
-## Testing Implications
-
-- **All existing tests pass**: 17/17 tests pass with 92% coverage
-- **No API changes**: External interface remains identical
-- **Internal improvements only**: Better structure without breaking functionality
-- **Edge cases preserved**: Error handling, circular import detection, classification all work as before
-
-## Code Quality Metrics
-
-- **Lines of Code**: Reduced complexity while maintaining functionality
-- **Cyclomatic Complexity**: Improved by extracting complex logic into separate class
-- **Maintainability Index**: Increased through better separation of concerns
-- **Type Safety**: Complete type hints added throughout
-
-## Lessons Learned
-
-1. **DRY Principle**: Shared utilities reduce duplication and improve consistency
-2. **Single Responsibility**: Each class/method should have one clear purpose
-3. **Type Safety**: Complete type hints catch errors early and improve documentation
-4. **Complex Logic Isolation**: Isolate complex algorithms in dedicated classes for better testability
-
-## Future Improvements
-
-1. Consider extracting `_CycleFinder` to a shared graph utilities module
-2. Add more comprehensive unit tests for edge cases
-3. Consider caching for repeated import analysis on same files
-4. Add performance metrics for large codebase analysis
+## Notes
+The smell report had some false positives for missing type hints - all functions in this file already had proper type annotations. The refactoring focused on the actual design issues (Feature Envy and better use of factory pattern).
