@@ -52,18 +52,43 @@ class DiffParams(NamedTuple):
     filename: str = ""
 
 
+@dataclass(frozen=True)
+class StatusTypeConfig:
+    """Configuration for a status message type.
+
+    Attributes:
+        style: Rich style string for the status.
+        icon: Unicode icon for the status.
+        accessible_icon: Text-based icon for accessibility mode.
+    """
+
+    style: str
+    icon: str
+    accessible_icon: str
+
+
 class StatusType(Enum):
     """Status message types with their styling configuration."""
 
-    SUCCESS = ("success", "✓", "[OK]")
-    INFO = ("primary", "ℹ", "[INFO]")
-    WARNING = ("warning", "⚠", "[WARN]")
-    ERROR = ("error", "✗", "[ERR]")
+    SUCCESS = StatusTypeConfig("success", "✓", "[OK]")
+    INFO = StatusTypeConfig("primary", "ℹ", "[INFO]")
+    WARNING = StatusTypeConfig("warning", "⚠", "[WARN]")
+    ERROR = StatusTypeConfig("error", "✗", "[ERR]")
 
-    def __init__(self, style: str, icon: str, accessible_icon: str) -> None:
-        self.style = style
-        self.icon = icon
-        self.accessible_icon = accessible_icon
+    @property
+    def style(self) -> str:
+        """Get the style for this status type."""
+        return self.value.style
+
+    @property
+    def icon(self) -> str:
+        """Get the icon for this status type."""
+        return self.value.icon
+
+    @property
+    def accessible_icon(self) -> str:
+        """Get the accessible icon for this status type."""
+        return self.value.accessible_icon
 
 
 @dataclass
@@ -96,6 +121,19 @@ class OutputRendererConfig:
     accessible_mode: bool = False
     style_overrides: dict[str, str] | None = None
     layout_settings: Any | None = None  # Avoid circular import, pass as object or dict
+
+    def get_resolved_theme(self) -> Theme:
+        """Get the resolved theme based on configuration.
+
+        Returns:
+            The resolved Theme object.
+        """
+        if self.theme is None:
+            return get_theme("dark", overrides=self.style_overrides)
+        elif self.style_overrides:
+            return self.theme.with_overrides(self.style_overrides)
+        else:
+            return self.theme
 
 
 @dataclass
@@ -361,13 +399,7 @@ class OutputRenderer:
         self.console = config.console or Console()
         self.accessible_mode = config.accessible_mode
         self.layout_settings = config.layout_settings
-
-        if config.theme is None:
-            self.theme = get_theme("dark", overrides=config.style_overrides)
-        elif config.style_overrides:
-            self.theme = config.theme.with_overrides(config.style_overrides)
-        else:
-            self.theme = config.theme
+        self.theme = config.get_resolved_theme()
 
     def print(self, text: str, style: str | None = None) -> None:
         """Print text with optional styling.

@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 53.2/100)
+# Code Smell Report — ❌ F (Score: 53.1/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T12:30:16.315425+00:00_
+_Generated: 2026-03-02T13:00:16.967001+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 53.2/100 |
+| **Overall Score** | 53.1/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 33,255 |
-| **Total Smells** | 2156 |
+| **Total Lines (non-blank)** | 33,319 |
+| **Total Smells** | 2153 |
 | **Avg Maintainability Index** | 71.4 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
@@ -20,19 +20,19 @@ _Generated: 2026-03-02T12:30:16.315425+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1602 |
-| medium | 475 |
+| low | 1604 |
+| medium | 470 |
 | high | 79 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1111 |
-| Feature Envy | 294 |
-| Duplicate Code | 248 |
-| Magic Number | 132 |
-| Long Method | 121 |
+| Missing Type Hint | 1115 |
+| Feature Envy | 295 |
+| Duplicate Code | 242 |
+| Magic Number | 131 |
+| Long Method | 120 |
 | Deep Nesting | 111 |
 | Primitive Obsession | 75 |
 | Complex Function | 37 |
@@ -98,8 +98,8 @@ These are the highest-impact smells to address first:
    Method 'ThemeCommand._set_theme' accesses 'ctx' 20 times but 'self' only 1 times  
    → _Move Method — consider moving '_set_theme' to the class that owns 'ctx'._
 
-15. **cli/console.py:49** — 🟠 HIGH — Primitive Obsession  
-   Repeated primitive parameter group appears in: '__init__' (line 49), 'diff' (line 553), 'async_diff' (line 679)  
+15. **cli/console.py:63** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: '__init__' (line 63), 'diff' (line 602), 'async_diff' (line 771)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/console.py | ❌ F | 14.1 | 57 | 531 | 47 | 0.0 |
+| 1 | cli/console.py | ❌ F | 13.4 | 56 | 595 | 45 | 0.0 |
 | 2 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
 | 3 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
 | 4 | cli/commands/context.py | ❌ F | 15.3 | 41 | 303 | 51 | 11.0 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 168 additional files omitted._
 
-### cli/console.py — ❌ F (14.1/100)
+### cli/console.py — ❌ F (13.4/100)
 
-LOC: 531 | Classes: 7 | Functions: 3 | MI: 47 | Avg CC: 0.0
+LOC: 595 | Classes: 8 | Functions: 4 | MI: 45 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 49 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '__init__' (line 49), 'diff' (line 553), 'async_diff' (line 679) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 258 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_extensions' at extensions/manager.py:78 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 258 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 258 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_providers' at providers/registry.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 258 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_tools' at tools/registry.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 333 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'info' at cli/console.py:341 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 333 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/console.py:349 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 333 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/console.py:357 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 341 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'warning' at cli/console.py:349 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 341 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'error' at cli/console.py:357 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 349 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 100% similar to 'error' at cli/console.py:357 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 49 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 49 | 🟢 LOW | Primitive Obsession | Function '__init__' has 3 primitive-typed parameters: style: Name(id='str', ctx=Load()), icon: Name(id='str', ctx=Load()), accessible_icon: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 90 | 🟢 LOW | Missing Type Hint | Function 'with_overrides' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 228 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 63 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '__init__' (line 63), 'diff' (line 602), 'async_diff' (line 771) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 355 | 🟡 MEDIUM | Feature Envy | Method 'OutputRenderer._initialize_from_config' accesses 'config' 9 times but 'self' only 6 times | Move Method — consider moving '_initialize_from_config' to the class that owns 'config'. |
+| 381 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'info' at cli/console.py:389 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 381 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/console.py:397 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 381 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/console.py:405 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 389 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'warning' at cli/console.py:397 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 389 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'error' at cli/console.py:405 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 397 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 100% similar to 'error' at cli/console.py:405 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 63 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 63 | 🟢 LOW | Primitive Obsession | Function '__init__' has 3 primitive-typed parameters: style: Name(id='str', ctx=Load()), icon: Name(id='str', ctx=Load()), accessible_icon: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 123 | 🟢 LOW | Missing Type Hint | Function 'with_overrides' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 261 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 267 | 🟢 LOW | Missing Type Hint | Function 'current' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 271 | 🟢 LOW | Missing Type Hint | Function 'get_theme' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 283 | 🟢 LOW | Missing Type Hint | Function 'set_theme' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 42 more smells._
+_... and 41 more smells._
 
 ### metrics/storage.py — ❌ F (14.6/100)
 
@@ -578,29 +578,29 @@ LOC: 203 | Classes: 2 | Functions: 0 | MI: 64 | Avg CC: 0.0
 
 _... and 13 more smells._
 
-### cli/commands/__init__.py — ❌ F (20.8/100)
+### tools/builtins/patch_apply.py — ❌ F (21.1/100)
 
-LOC: 155 | Classes: 4 | Functions: 2 | MI: 62 | Avg CC: 0.0
+LOC: 459 | Classes: 5 | Functions: 0 | MI: 42 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 137 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at extensions/manager.py:39 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 141 | 🟡 MEDIUM | Duplicate Code | Function 'register' is 100% similar to 'register_theme' at cli/console.py:266 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 149 | 🟡 MEDIUM | Duplicate Code | Function 'get' is 100% similar to 'get' at extensions/manager.py:67 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 149 | 🟡 MEDIUM | Duplicate Code | Function 'get' is 100% similar to 'get' at tools/registry.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_commands' at cli/commands/__init__.py:168 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_themes' at cli/console.py:258 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_extensions' at extensions/manager.py:78 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_providers' at providers/registry.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 160 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_tools' at tools/registry.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_themes' at cli/console.py:258 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_extensions' at extensions/manager.py:78 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_providers' at providers/registry.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 168 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_tools' at tools/registry.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 129 | 🟡 MEDIUM | Feature Envy | Method 'HunkApplier._apply_hunk_with_context' accesses 'context' 8 times but 'self' only 3 times | Move Method — consider moving '_apply_hunk_with_context' to the class that owns 'context'. |
+| 456 | 🟡 MEDIUM | Primitive Obsession | Function 'execute' has 4 primitive-typed parameters: patch: Name(id='str', ctx=Load()), path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), dry_run: Name(id='bool', ctx=Load()), fuzz: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 39 | 🟢 LOW | Missing Type Hint | Function 'apply_hunks' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 66 | 🟢 LOW | Missing Type Hint | Function '_split_original_content' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 82 | 🟢 LOW | Missing Type Hint | Function '_reconstruct_content' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 97 | 🟢 LOW | Missing Type Hint | Function '_apply_single_hunk' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
+| 97 | 🟢 LOW | Primitive Obsession | Function '_apply_single_hunk' has 3 primitive-typed parameters: hunk_idx: Name(id='int', ctx=Load()), offset: Name(id='int', ctx=Load()), fuzz: Name(id='int', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 129 | 🟢 LOW | Missing Type Hint | Function '_apply_hunk_with_context' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 154 | 🟢 LOW | Missing Type Hint | Function '_extract_hunk_lines' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 161 | 🟢 LOW | Missing Type Hint | Function '_extract_old_and_new_lines' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 161 | 🟢 LOW | Feature Envy | Method 'HunkApplier._extract_old_and_new_lines' accesses 'line' 3 times but 'self' only 0 times | Move Method — consider moving '_extract_old_and_new_lines' to the class that owns 'line'. |
+| 171 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_extract_old_and_new_lines' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 177 | 🟢 LOW | Missing Type Hint | Function '_find_match' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 221 | 🟢 LOW | Missing Type Hint | Function '_lines_match' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 245 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 11 more smells._
+_... and 26 more smells._
 
 ## ✨ Clean Files (59 files with no smells)
 
