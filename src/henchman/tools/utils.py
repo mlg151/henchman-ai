@@ -1,6 +1,7 @@
 """Shared utilities for tool implementations."""
 
 from pathlib import Path
+from typing import Any
 
 from henchman.tools.base import ToolResult
 
@@ -64,3 +65,65 @@ def validate_directory_path(path: str) -> ToolResult | None:
         )
 
     return None
+
+
+def create_parameter_schema(
+    required_params: list[str],
+    optional_params: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, object]:
+    """Create a standardized parameter schema for tools.
+
+    Args:
+        required_params: List of required parameter names.
+        optional_params: Dict mapping optional parameter names to their schemas.
+
+    Returns:
+        JSON Schema parameter definition.
+    """
+    properties: dict[str, Any] = {}
+
+    # Add required parameters (simple string type by default)
+    for param in required_params:
+        properties[param] = {
+            "type": "string",
+            "description": f"{param.replace('_', ' ').title()}",
+        }
+
+    # Add optional parameters if provided
+    if optional_params:
+        properties.update(optional_params)
+
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": required_params,
+    }
+
+
+def create_path_parameter_schema(
+    additional_params: dict[str, dict[str, Any]] | None = None,
+    required: list[str] | None = None,
+) -> dict[str, object]:
+    """Create a parameter schema for tools that take a file path.
+
+    Args:
+        additional_params: Additional parameters to include.
+        required: Custom required parameter list (defaults to ["path"]).
+
+    Returns:
+        JSON Schema parameter definition.
+    """
+    base_properties = {
+        "path": {
+            "type": "string",
+            "description": "Path to the file or directory",
+        }
+    }
+
+    if additional_params:
+        base_properties.update(additional_params)
+
+    return create_parameter_schema(
+        required_params=required or ["path"],
+        optional_params=additional_params,
+    )

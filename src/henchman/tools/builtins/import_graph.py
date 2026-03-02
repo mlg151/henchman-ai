@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
-from henchman.tools.utils import validate_directory_path, validate_file_path
+from henchman.tools.utils import (
+    create_path_parameter_schema,
+    validate_directory_path,
+    validate_file_path,
+)
 
 STDLIB_MODULES: frozenset[str] = frozenset(sys.stdlib_module_names)
 
@@ -283,37 +287,80 @@ class ImportGraphBuilder:
             List of cycles, each cycle is a list of module names.
         """
         graph = self.build_graph()
-        visited: set[str] = set()
-        rec_stack: set[str] = set()
-        path: list[str] = []
-        cycles: list[list[str]] = []
-        seen_cycles: set[frozenset[str]] = set()
+        return self._find_cycles_in_graph(graph)
 
-        def dfs(node: str) -> None:
-            visited.add(node)
-            rec_stack.add(node)
-            path.append(node)
+    def _find_cycles_in_graph(self, graph: dict[str, set[str]]) -> list[list[str]]:
+        """Find cycles in a directed graph using DFS.
 
-            for neighbor in sorted(graph.get(node, set())):
-                if neighbor not in visited:
-                    dfs(neighbor)
-                elif neighbor in rec_stack:
-                    # Found a cycle
-                    idx = path.index(neighbor)
-                    cycle = path[idx:] + [neighbor]
-                    key = frozenset(cycle[:-1])
-                    if key not in seen_cycles:
-                        seen_cycles.add(key)
-                        cycles.append(cycle)
+        Args:
+            graph: Directed graph as adjacency list.
 
-            path.pop()
-            rec_stack.discard(node)
+        Returns:
+            List of cycles, each cycle is a list of node names.
+        """
+        cycle_finder = _CycleFinder(graph)
+        return cycle_finder.find_cycles()
 
-        for node in sorted(graph):
-            if node not in visited:
-                dfs(node)
 
-        return cycles
+class _CycleFinder:
+    """Finds cycles in a directed graph using DFS."""
+
+    def __init__(self, graph: dict[str, set[str]]) -> None:
+        """Initialize cycle finder with graph.
+
+        Args:
+            graph: Directed graph as adjacency list.
+        """
+        self.graph = graph
+        self.visited: set[str] = set()
+        self.rec_stack: set[str] = set()
+        self.path: list[str] = []
+        self.cycles: list[list[str]] = []
+        self.seen_cycles: set[frozenset[str]] = set()
+
+    def find_cycles(self) -> list[list[str]]:
+        """Find all cycles in the graph.
+
+        Returns:
+            List of cycles, each cycle is a list of node names.
+        """
+        for node in sorted(self.graph):
+            if node not in self.visited:
+                self._dfs(node)
+        return self.cycles
+
+    def _dfs(self, node: str) -> None:
+        """Depth-first search to find cycles.
+
+        Args:
+            node: Current node being visited.
+        """
+        self.visited.add(node)
+        self.rec_stack.add(node)
+        self.path.append(node)
+
+        for neighbor in sorted(self.graph.get(node, set())):
+            if neighbor not in self.visited:
+                self._dfs(neighbor)
+            elif neighbor in self.rec_stack:
+                self._record_cycle(neighbor)
+
+        self.path.pop()
+        self.rec_stack.discard(node)
+
+    def _record_cycle(self, cycle_start: str) -> None:
+        """Record a found cycle.
+
+        Args:
+            cycle_start: Node where the cycle starts/ends.
+        """
+        idx = self.path.index(cycle_start)
+        cycle = self.path[idx:] + [cycle_start]
+        key = frozenset(cycle[:-1])
+
+        if key not in self.seen_cycles:
+            self.seen_cycles.add(key)
+            self.cycles.append(cycle)
 
 
 @dataclass
@@ -397,13 +444,8 @@ class ImportGraphTool(Tool):
     @property
     def parameters(self) -> dict[str, object]:
         """JSON Schema for parameters."""
-        return {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to the Python file to analyze",
-                },
+        return create_path_parameter_schema(
+            additional_params={
                 "scan_dir": {
                     "type": "string",
                     "description": (
@@ -419,47 +461,43 @@ class ImportGraphTool(Tool):
                 },
                 "classify": {
                     "type": "boolean",
-                    "description": ("Classify imports as stdlib, local, or third-party"),
+                    "description": "Classify imports as stdlib, local, or third-party",
                     "default": False,
                 },
-            },
-            "required": ["path"],
-        }
+            }
+        )
 
     @property
     def kind(self) -> ToolKind:
         """Tool kind - read-only analysis."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]
+    async def execute(
         self,
-        path: str = "",
-        scan_dir: str = "",
-        detect_cycles: bool = False,
-        classify: bool = False,
-        **kwargs: object,  # noqa: ARG002
+        **params: object,
     ) -> ToolResult:
         """Analyze imports of a Python file.
 
         Args:
-            path: Target Python file to analyze.
-            scan_dir: Optional directory for reverse-import scan.
-            detect_cycles: Detect circular import chains in scan_dir.
-            classify: Classify imports as stdlib/local/third-party.
-            **kwargs: Additional arguments (ignored).
+            **params: Tool parameters including path, scan_dir, detect_cycles, classify.
 
         Returns:
             ToolResult with import analysis.
         """
-        # Create request object from primitives
-        request = ImportAnalysisRequest.from_primitives(
+        # Extract parameters with defaults
+        path = str(params.get("path", ""))
+        scan_dir = str(params.get("scan_dir", ""))
+        detect_cycles = bool(params.get("detect_cycles", False))
+        classify = bool(params.get("classify", False))
+
+        # Create and validate request
+        request = ImportAnalysisRequest(
             path=path,
             scan_dir=scan_dir,
             detect_cycles=detect_cycles,
             classify=classify,
         )
 
-        # Validate request
         validation_result = request.validate()
         if validation_result is not None:
             return validation_result
@@ -475,14 +513,11 @@ class ImportGraphTool(Tool):
         Returns:
             ToolResult with import analysis.
         """
-        # Extract request parameters once
-        target_path = Path(request.path)
-        scan_path = Path(request.scan_dir) if request.scan_dir else None
-        should_classify = request.classify
-        should_detect_cycles = request.detect_cycles
+        # Extract parameters from request
+        target_path, scan_path, should_classify, should_detect_cycles = self._extract_request_params(request)
 
         # Parse file and extract AST
-        parse_result = self._parse_file(target_path, request.path)
+        parse_result = self._parse_file(target_path, str(target_path))
         if isinstance(parse_result, ToolResult):
             return parse_result
         tree, _ = parse_result
@@ -492,7 +527,53 @@ class ImportGraphTool(Tool):
         analyzer = ImportAnalyzer(local_modules)
         imports = analyzer.extract_imports(tree)
 
-        # Build result parts
+        # Build and return analysis result
+        return self._build_analysis_result(
+            target_path=target_path,
+            scan_path=scan_path,
+            imports=imports,
+            analyzer=analyzer,
+            should_classify=should_classify,
+            should_detect_cycles=should_detect_cycles,
+        )
+
+    def _extract_request_params(self, request: ImportAnalysisRequest) -> tuple[Path, Path | None, bool, bool]:
+        """Extract parameters from ImportAnalysisRequest.
+
+        Args:
+            request: The request object.
+
+        Returns:
+            Tuple of (target_path, scan_path, should_classify, should_detect_cycles).
+        """
+        target_path = Path(request.path)
+        scan_path = Path(request.scan_dir) if request.scan_dir else None
+        should_classify = request.classify
+        should_detect_cycles = request.detect_cycles
+        return target_path, scan_path, should_classify, should_detect_cycles
+
+    def _build_analysis_result(
+        self,
+        target_path: Path,
+        scan_path: Path | None,
+        imports: list[str],
+        analyzer: ImportAnalyzer,
+        should_classify: bool,
+        should_detect_cycles: bool,
+    ) -> ToolResult:
+        """Build the analysis result from extracted data.
+
+        Args:
+            target_path: Path to the target file.
+            scan_path: Optional directory to scan for reverse imports.
+            imports: List of import statements.
+            analyzer: Import analyzer instance.
+            should_classify: Whether to classify imports.
+            should_detect_cycles: Whether to detect circular imports.
+
+        Returns:
+            ToolResult with import analysis.
+        """
         parts: list[str] = []
 
         # Add imports analysis
