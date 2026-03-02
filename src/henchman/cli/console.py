@@ -5,6 +5,7 @@ This module provides Rich-based console output with theming support.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import NamedTuple
 
@@ -180,16 +181,31 @@ class ThemeManager:
         """Get the current theme."""
         return self._current
 
-    def get_theme(self, name: str) -> Theme:
-        """Get a theme by name.
+    def get_theme(self, name: str, overrides: dict[str, str] | None = None) -> Theme:
+        """Get a theme by name with optional overrides.
 
         Args:
             name: Theme name.
+            overrides: Optional style overrides.
 
         Returns:
-            The requested theme, or default if not found.
+            The requested theme with overrides applied, or default if not found.
         """
-        return self._themes.get(name, DARK_THEME)
+        base_theme = self._themes.get(name, DARK_THEME)
+
+        if not overrides:
+            return base_theme
+
+        # Apply overrides
+        return Theme(
+            name=base_theme.name,
+            primary=overrides.get("primary", base_theme.primary),
+            secondary=overrides.get("secondary", base_theme.secondary),
+            success=overrides.get("success", base_theme.success),
+            warning=overrides.get("warning", base_theme.warning),
+            error=overrides.get("error", base_theme.error),
+            muted=overrides.get("muted", base_theme.muted),
+        )
 
     def set_theme(self, name: str) -> None:
         """Set the current theme by name.
@@ -594,40 +610,46 @@ class AsyncOutputRenderer:
             renderer: Sync OutputRenderer instance.
         """
         self.renderer = renderer
+        self._async_methods: dict[str, Callable[..., object]] = {}
 
-    async def print(self, text: str, style: str | None = None) -> None:
-        """Async print."""
-        await anyio.to_thread.run_sync(self.renderer.print, text, style)
+    def __getattr__(self, name: str) -> Callable[..., object]:
+        """Dynamically create async wrappers for OutputRenderer methods.
+        
+        Args:
+            name: Method name to look up.
+            
+        Returns:
+            Async wrapper function for the method.
+            
+        Raises:
+            AttributeError: If the method doesn't exist on OutputRenderer.
+        """
+        # Check if method exists on the renderer
+        if not hasattr(self.renderer, name):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
-    async def success(self, message: str) -> None:
-        """Async success message."""
-        await anyio.to_thread.run_sync(self.renderer.success, message)
+        # Get the sync method
+        sync_method = getattr(self.renderer, name)
 
-    async def info(self, message: str) -> None:
-        """Async info message."""
-        await anyio.to_thread.run_sync(self.renderer.info, message)
+        # Skip private methods
+        if name.startswith('_'):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
-    async def warning(self, message: str) -> None:
-        """Async warning message."""
-        await anyio.to_thread.run_sync(self.renderer.warning, message)
+        # Special handling for diff method
+        if name == 'diff':
+            async def async_diff(old: str, new: str, filename: str = "") -> None:
+                params = DiffParams(old, new, filename)
+                await anyio.to_thread.run_sync(self.renderer._render_diff, params)
+            self._async_methods[name] = async_diff
+            return async_diff
 
-    async def error(self, message: str) -> None:
-        """Async error message."""
-        await anyio.to_thread.run_sync(self.renderer.error, message)
+        # Create async wrapper for other methods
+        async def async_wrapper(*args: object, **kwargs: object) -> object:
+            # Create a wrapper function that captures args and kwargs
+            def sync_wrapper() -> object:
+                return sync_method(*args, **kwargs)
+            return await anyio.to_thread.run_sync(sync_wrapper)
 
-    async def markdown(self, content: str) -> None:
-        """Async markdown."""
-        await anyio.to_thread.run_sync(self.renderer.markdown, content)
-
-    async def code(self, code: str, language: str = "python") -> None:
-        """Async code block."""
-        await anyio.to_thread.run_sync(self.renderer.code, code, language)
-
-    async def table(self, data: list[dict[str, object]], title: str | None = None) -> None:
-        """Async table rendering."""
-        await anyio.to_thread.run_sync(self.renderer.table, data, title)
-
-    async def diff(self, old: str, new: str, filename: str = "") -> None:
-        """Async diff rendering."""
-        params = DiffParams(old, new, filename)
-        await anyio.to_thread.run_sync(self.renderer._render_diff, params)
+        # Cache the wrapper
+        self._async_methods[name] = async_wrapper
+        return async_wrapper
