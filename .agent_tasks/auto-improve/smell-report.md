@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 52.0/100)
+# Code Smell Report — ❌ F (Score: 53.0/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T00:30:15.475494+00:00_
+_Generated: 2026-03-02T01:00:17.013408+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 52.0/100 |
+| **Overall Score** | 53.0/100 |
 | **Files Scanned** | 187 |
-| **Total Lines (non-blank)** | 32,519 |
-| **Total Smells** | 2265 |
+| **Total Lines (non-blank)** | 32,585 |
+| **Total Smells** | 2221 |
 | **Avg Maintainability Index** | 71.4 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,18 +20,18 @@ _Generated: 2026-03-02T00:30:15.475494+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1634 |
-| medium | 547 |
+| low | 1582 |
+| medium | 555 |
 | high | 84 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1115 |
-| Feature Envy | 306 |
-| Duplicate Code | 304 |
-| Magic Number | 140 |
+| Missing Type Hint | 1079 |
+| Duplicate Code | 312 |
+| Feature Envy | 297 |
+| Magic Number | 133 |
 | Long Method | 128 |
 | Deep Nesting | 122 |
 | Primitive Obsession | 78 |
@@ -107,44 +107,20 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/session.py | ❌ F | 9.4 | 52 | 716 | 31 | 0.0 |
-| 2 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
-| 3 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
-| 4 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
-| 5 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
-| 6 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
-| 7 | tools/builtins/dead_code.py | ❌ F | 15.0 | 49 | 301 | 50 | 15.5 |
-| 8 | cli/commands/context.py | ❌ F | 15.3 | 41 | 303 | 51 | 11.0 |
-| 9 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
-| 10 | tools/builtins/grep.py | ❌ F | 15.7 | 34 | 436 | 52 | 0.0 |
+| 1 | tools/builtins/import_graph.py | ❌ F | 12.9 | 61 | 450 | 43 | 13.0 |
+| 2 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
+| 3 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
+| 4 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
+| 5 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
+| 6 | tools/builtins/dead_code.py | ❌ F | 15.0 | 49 | 301 | 50 | 15.5 |
+| 7 | cli/commands/context.py | ❌ F | 15.3 | 41 | 303 | 51 | 11.0 |
+| 8 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
+| 9 | tools/builtins/grep.py | ❌ F | 15.7 | 34 | 436 | 52 | 0.0 |
+| 10 | tools/builtins/python_ast.py | ❌ F | 15.7 | 51 | 335 | 52 | 11.0 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 167 additional files omitted._
-
-### cli/commands/session.py — ❌ F (9.4/100)
-
-LOC: 716 | Classes: 19 | Functions: 0 | MI: 31 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 61 | 🟢 LOW | Missing Type Hint | Function 'format_optional_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 83 | 🟢 LOW | Missing Type Hint | Function 'format_attribute_info' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 124 | 🟢 LOW | Missing Type Hint | Function 'print_success' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 128 | 🟢 LOW | Missing Type Hint | Function 'print_error' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 132 | 🟢 LOW | Missing Type Hint | Function 'print_info' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 136 | 🟢 LOW | Missing Type Hint | Function 'print_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 140 | 🟢 LOW | Missing Type Hint | Function '_print_formatted_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 149 | 🟢 LOW | Missing Type Hint | Function '_print_prefixed_message' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 158 | 🟢 LOW | Missing Type Hint | Function 'get_arg' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 172 | 🟢 LOW | Missing Type Hint | Function 'get_arg_or_empty' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 185 | 🟢 LOW | Missing Type Hint | Function 'has_min_args' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 220 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 224 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 228 | 🟢 LOW | Missing Type Hint | Function '_ensure_args' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 247 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 37 more smells._
 
 ### tools/builtins/import_graph.py — ❌ F (12.9/100)
 
@@ -601,6 +577,30 @@ LOC: 477 | Classes: 5 | Functions: 0 | MI: 41 | Avg CC: 0.0
 | 257 | 🟢 LOW | Missing Type Hint | Function '_build_tool_calls_from_pending' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 25 more smells._
+
+### tools/builtins/file_edit.py — ❌ F (18.6/100)
+
+LOC: 227 | Classes: 1 | Functions: 0 | MI: 62 | Avg CC: 12.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 71 | 🟠 HIGH | Primitive Obsession | Function 'execute' has 6 primitive-typed parameters: path: Name(id='str', ctx=Load()), old_str: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), new_str: Name(id='str', ctx=Load()), start_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), dry_run: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/file_write.py:26 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/glob_tool.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/grep.py:31 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/import_graph.py:36 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/patch_apply.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:50 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 71 | 🟡 MEDIUM | Long Method | Function 'execute' has 51 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 71 | 🟡 MEDIUM | Complex Function | Function 'execute' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+
+_... and 13 more smells._
 
 ## ✨ Clean Files (58 files with no smells)
 
