@@ -106,9 +106,7 @@ def _extract_import_from_import_from_node(node: ast.ImportFrom) -> str:
     """
     module = node.module or ""
     level = "." * (node.level or 0)
-    names = ", ".join(
-        a.name + (f" as {a.asname}" if a.asname else "") for a in node.names
-    )
+    names = ", ".join(a.name + (f" as {a.asname}" if a.asname else "") for a in node.names)
     return f"from {level}{module} import {names}"
 
 
@@ -490,8 +488,8 @@ class ImportGraphTool(Tool):
         detect_cycles = bool(params.get("detect_cycles", False))
         classify = bool(params.get("classify", False))
 
-        # Create and validate request
-        request = ImportAnalysisRequest(
+        # Create and validate request using factory method
+        request = ImportAnalysisRequest.from_primitives(
             path=path,
             scan_dir=scan_dir,
             detect_cycles=detect_cycles,
@@ -514,7 +512,9 @@ class ImportGraphTool(Tool):
             ToolResult with import analysis.
         """
         # Extract parameters from request
-        target_path, scan_path, should_classify, should_detect_cycles = self._extract_request_params(request)
+        target_path, scan_path, should_classify, should_detect_cycles = (
+            self._extract_request_params(request)
+        )
 
         # Parse file and extract AST
         parse_result = self._parse_file(target_path, str(target_path))
@@ -537,7 +537,10 @@ class ImportGraphTool(Tool):
             should_detect_cycles=should_detect_cycles,
         )
 
-    def _extract_request_params(self, request: ImportAnalysisRequest) -> tuple[Path, Path | None, bool, bool]:
+    @staticmethod
+    def _extract_request_params(
+        request: ImportAnalysisRequest,
+    ) -> tuple[Path, Path | None, bool, bool]:
         """Extract parameters from ImportAnalysisRequest.
 
         Args:
@@ -761,10 +764,11 @@ class ImportGraphTool(Tool):
             True if tree imports the module, False otherwise.
         """
         for node in ast.walk(tree):
-            if isinstance(node, ast.Import) and self._import_node_contains_module(
-                node, module_name
-            ) or isinstance(node, ast.ImportFrom) and self._import_from_node_contains_module(
-                node, module_name
+            if (
+                isinstance(node, ast.Import)
+                and self._import_node_contains_module(node, module_name)
+                or isinstance(node, ast.ImportFrom)
+                and self._import_from_node_contains_module(node, module_name)
             ):
                 return True
         return False

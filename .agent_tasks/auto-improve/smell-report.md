@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T03:00:16.876963+00:00_
+_Generated: 2026-03-02T03:30:17.016927+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-02T03:00:16.876963+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 52.9/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 32,769 |
-| **Total Smells** | 2215 |
+| **Total Lines (non-blank)** | 32,881 |
+| **Total Smells** | 2200 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 13.7 |
 
@@ -20,21 +20,21 @@ _Generated: 2026-03-02T03:00:16.876963+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1580 |
-| medium | 551 |
-| high | 84 |
+| low | 1584 |
+| medium | 534 |
+| high | 82 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1088 |
-| Duplicate Code | 312 |
+| Missing Type Hint | 1095 |
+| Duplicate Code | 295 |
 | Feature Envy | 291 |
 | Magic Number | 133 |
-| Long Method | 126 |
-| Deep Nesting | 116 |
-| Primitive Obsession | 80 |
+| Long Method | 124 |
+| Deep Nesting | 115 |
+| Primitive Obsession | 78 |
 | Complex Function | 41 |
 | Large Class | 28 |
 
@@ -107,44 +107,44 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | tools/builtins/import_graph.py | ❌ F | 12.2 | 54 | 583 | 41 | 0.0 |
+| 1 | tools/builtins/import_graph.py | ❌ F | 11.5 | 48 | 647 | 38 | 0.0 |
 | 2 | tools/builtins/patch_apply.py | ❌ F | 14.1 | 39 | 339 | 47 | 13.0 |
-| 3 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 47 | 301 | 48 | 12.3 |
+| 3 | tools/builtins/coverage_map.py | ❌ F | 14.3 | 46 | 301 | 48 | 12.3 |
 | 4 | cli/console.py | ❌ F | 14.6 | 72 | 462 | 49 | 0.0 |
 | 5 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
-| 6 | tools/builtins/dead_code.py | ❌ F | 15.0 | 49 | 301 | 50 | 15.5 |
+| 6 | tools/builtins/dead_code.py | ❌ F | 15.0 | 48 | 301 | 50 | 15.5 |
 | 7 | cli/commands/context.py | ❌ F | 15.3 | 41 | 303 | 51 | 11.0 |
 | 8 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
-| 9 | tools/builtins/grep.py | ❌ F | 15.7 | 34 | 436 | 52 | 0.0 |
+| 9 | tools/builtins/grep.py | ❌ F | 15.7 | 33 | 436 | 52 | 0.0 |
 | 10 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 168 additional files omitted._
 
-### tools/builtins/import_graph.py — ❌ F (12.2/100)
+### tools/builtins/import_graph.py — ❌ F (11.5/100)
 
-LOC: 583 | Classes: 4 | Functions: 5 | MI: 41 | Avg CC: 0.0
+LOC: 647 | Classes: 5 | Functions: 5 | MI: 38 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 348 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: 'from_primitives' (line 348), 'execute' (line 434) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 348 | 🟡 MEDIUM | Primitive Obsession | Function 'from_primitives' has 4 primitive-typed parameters: path: Name(id='str', ctx=Load()), scan_dir: Name(id='str', ctx=Load()), detect_cycles: Name(id='bool', ctx=Load()), classify: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 398 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/patch_apply.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 398 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:50 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 398 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 398 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 398 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 398 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 398 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 398 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 434 | 🟡 MEDIUM | Primitive Obsession | Function 'execute' has 4 primitive-typed parameters: path: Name(id='str', ctx=Load()), scan_dir: Name(id='str', ctx=Load()), detect_cycles: Name(id='bool', ctx=Load()), classify: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 469 | 🟡 MEDIUM | Feature Envy | Method 'ImportGraphTool._execute_with_request' accesses 'request' 6 times but 'self' only 5 times | Move Method — consider moving '_execute_with_request' to the class that owns 'request'. |
-| 114 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 122 | 🟢 LOW | Missing Type Hint | Function 'extract_imports' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 133 | 🟢 LOW | Missing Type Hint | Function 'classify_import' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 395 | 🟡 MEDIUM | Primitive Obsession | Function 'from_primitives' has 4 primitive-typed parameters: path: Name(id='str', ctx=Load()), scan_dir: Name(id='str', ctx=Load()), detect_cycles: Name(id='bool', ctx=Load()), classify: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 540 | 🟡 MEDIUM | Feature Envy | Method 'ImportGraphTool._extract_request_params' accesses 'request' 5 times but 'self' only 0 times | Move Method — consider moving '_extract_request_params' to the class that owns 'request'. |
+| 118 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 126 | 🟢 LOW | Missing Type Hint | Function 'extract_imports' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 137 | 🟢 LOW | Missing Type Hint | Function 'classify_import' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 152 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 160 | 🟢 LOW | Missing Type Hint | Function 'build_graph' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 180 | 🟢 LOW | Missing Type Hint | Function '_collect_local_modules' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 191 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_file' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 219 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_node' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 219 | 🟢 LOW | Feature Envy | Method 'ImportGraphBuilder._extract_dependencies_from_node' accesses 'ast' 3 times but 'self' only 2 times | Move Method — consider moving '_extract_dependencies_from_node' to the class that owns 'ast'. |
+| 239 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_import' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 259 | 🟢 LOW | Missing Type Hint | Function '_extract_dependencies_from_import_from' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 259 | 🟢 LOW | Feature Envy | Method 'ImportGraphBuilder._extract_dependencies_from_import_from' accesses 'alias' 3 times but 'self' only 0 times | Move Method — consider moving '_extract_dependencies_from_import_from' to the class that owns 'alias'. |
+| 283 | 🟢 LOW | Missing Type Hint | Function 'detect_cycles' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 39 more smells._
+_... and 33 more smells._
 
 ### tools/builtins/patch_apply.py — ❌ F (14.1/100)
 
@@ -176,7 +176,6 @@ LOC: 301 | Classes: 1 | Functions: 0 | MI: 48 | Avg CC: 12.3
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 34 | 🟠 HIGH | Duplicate Code | Function 'parameters' is an exact duplicate of 'parameters' at tools/builtins/import_graph.py:398 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
 | 68 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: 'execute' (line 68), '_parse_xml' (line 108), '_parse_json' (line 196), '_format_results' (line 268) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
 | 165 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_parse_xml' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 | 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/dead_code.py:48 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -191,8 +190,9 @@ LOC: 301 | Classes: 1 | Functions: 0 | MI: 48 | Avg CC: 12.3
 | 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-_... and 32 more smells._
+_... and 31 more smells._
 
 ### cli/console.py — ❌ F (14.6/100)
 
@@ -254,7 +254,6 @@ LOC: 301 | Classes: 1 | Functions: 0 | MI: 50 | Avg CC: 15.5
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/file_write.py:26 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/glob_tool.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/grep.py:31 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/import_graph.py:398 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/patch_apply.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:50 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -263,8 +262,9 @@ LOC: 301 | Classes: 1 | Functions: 0 | MI: 50 | Avg CC: 15.5
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 122 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._analyze_file' accesses 'parts' 5 times but 'self' only 2 times | Move Method — consider moving '_analyze_file' to the class that owns 'parts'. |
 
-_... and 34 more smells._
+_... and 33 more smells._
 
 ### cli/commands/context.py — ❌ F (15.3/100)
 
@@ -326,7 +326,6 @@ LOC: 436 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 0.0
 | 395 | 🟠 HIGH | Primitive Obsession | Function '_search_single_file' has 6 primitive-typed parameters: invert_match: Name(id='bool', ctx=Load()), has_context: Name(id='bool', ctx=Load()), context_before: Name(id='int', ctx=Load()), context_after: Name(id='int', ctx=Load()), line_numbers: Name(id='bool', ctx=Load()), multi_file: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 | 9 | 🟡 MEDIUM | Large Class | Class 'GrepTool' spans 509 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
 | 31 | 🟡 MEDIUM | Long Method | Function 'parameters' has 54 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/import_graph.py:398 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/patch_apply.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:50 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 31 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -335,8 +334,9 @@ LOC: 436 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 0.0
 | 318 | 🟡 MEDIUM | Long Method | Function '_search_files_with_results' has 50 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 21 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 26 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 31 | 🟢 LOW | Missing Type Hint | Function 'parameters' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 19 more smells._
+_... and 18 more smells._
 
 ### tools/builtins/python_ast.py — ❌ F (15.7/100)
 
@@ -588,7 +588,6 @@ LOC: 227 | Classes: 1 | Functions: 0 | MI: 62 | Avg CC: 12.0
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/file_write.py:26 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/glob_tool.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/grep.py:31 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/import_graph.py:398 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/patch_apply.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:50 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -599,8 +598,9 @@ LOC: 227 | Classes: 1 | Functions: 0 | MI: 62 | Avg CC: 12.0
 | 32 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 71 | 🟡 MEDIUM | Long Method | Function 'execute' has 51 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 71 | 🟡 MEDIUM | Complex Function | Function 'execute' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 147 | 🟡 MEDIUM | Primitive Obsession | Function '_edit_string' has 4 primitive-typed parameters: content: Name(id='str', ctx=Load()), old_str: Name(id='str', ctx=Load()), new_str: Name(id='str', ctx=Load()), dry_run: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
-_... and 13 more smells._
+_... and 12 more smells._
 
 ## ✨ Clean Files (59 files with no smells)
 
