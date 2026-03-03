@@ -37,8 +37,43 @@ _PTY_READ_SIZE = 1024
 _DEFAULT_TIMEOUT = 3600
 """Default command timeout in seconds (1 hour)."""
 
+_SUDO_PREFIX_LEN = 5
+"""Length of 'sudo ' prefix to strip when rewriting sudo commands."""
+
 MAX_OUTPUT_CHARS = 100_000
 """Maximum characters of combined stdout+stderr returned to the model."""
+
+_SHELL_PARAMETERS: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "command": {
+            "type": "string",
+            "description": "Shell command to execute",
+        },
+        "timeout": {
+            "type": "integer",
+            "description": (
+                "Command timeout in seconds. Defaults to 3600 (1 hour). "
+                "Use 0 for no timeout. Increase for long-running data "
+                "transformation or build jobs."
+            ),
+        },
+        "cwd": {
+            "type": "string",
+            "description": "Working directory for the command",
+            "default": None,
+        },
+        "interactive": {
+            "type": "boolean",
+            "description": (
+                "Enable interactive mode for sudo commands that require password input. "
+                "Only works when running in TUI mode with a terminal."
+            ),
+            "default": False,
+        },
+    },
+    "required": ["command"],
+}
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +88,16 @@ class _ProcessOutcome:
     returncode: int | None
     timed_out: bool
     elapsed: float
+
+
+@dataclass(frozen=True, slots=True)
+class ShellParams:
+    """Parameter object for shell execution — eliminates primitive obsession."""
+
+    command: str
+    env: dict[str, str]
+    cwd: str | None
+    timeout: float | None
 
 
 # ---------------------------------------------------------------------------
@@ -109,29 +154,25 @@ def _format_output(stdout: str, stderr: str) -> str:
     parts = [s for s in (stdout, stderr) if s]
     text = "\n".join(parts)
     if len(text) > MAX_OUTPUT_CHARS:
-        text = text[:MAX_OUTPUT_CHARS] + f"\n... (output truncated after {MAX_OUTPUT_CHARS} chars)"
+        text = (
+            text[:MAX_OUTPUT_CHARS]
+            + f"\n... (output truncated after {MAX_OUTPUT_CHARS} chars)"
+        )
     return text or "(no output)"
 
 
-def _make_result(
-    output: str,
-    returncode: int | None,
-    *,
-    timed_out: bool,
-    timeout_value: float | None,
-) -> ToolResult:
+def _make_result(outcome: _ProcessOutcome, timeout_value: float | None) -> ToolResult:
     """Build the final :class:`ToolResult` from process outcome.
 
     Args:
-        output: Combined, possibly truncated output string.
-        returncode: Process exit code (``None`` if not reaped).
-        timed_out: Whether the command exceeded its timeout.
+        outcome: The completed process outcome including output and timing.
         timeout_value: The timeout that was in effect (for the error message).
 
     Returns:
         A populated :class:`ToolResult`.
     """
-    if timed_out:
+    output = _format_output(outcome.stdout, outcome.stderr)
+    if outcome.timed_out:
         return ToolResult(
             content=f"Command timed out after {timeout_value} seconds. Partial output:\n{output}",
             success=False,
@@ -139,15 +180,18 @@ def _make_result(
         )
     return ToolResult(
         content=output,
-        success=returncode == 0,
-        error=f"Exit code: {returncode}" if returncode != 0 else None,
+        success=outcome.returncode == 0,
+        error=f"Exit code: {outcome.returncode}" if outcome.returncode != 0 else None,
     )
 
 
 # ---------------------------------------------------------------------------
 # Async subprocess helpers
 # ---------------------------------------------------------------------------
-async def _read_stream_into(stream: asyncio.StreamReader, accumulator: list[str]) -> None:
+async def _read_stream_into(
+    stream: asyncio.StreamReader,
+    accumulator: list[str],
+) -> None:
     """Read *stream* until EOF, appending decoded chunks to *accumulator*.
 
     Args:
@@ -274,6 +318,249 @@ async def _cancel_tasks(*tasks: asyncio.Task[None]) -> None:
         await asyncio.gather(*tasks)
 
 
+async def _create_process(
+    params: ShellParams,
+    *,
+    is_sudo: bool,
+) -> asyncio.subprocess.Process:
+    """Create a subprocess for *params.command*.
+
+    For sudo commands without a TTY, the command is rewritten to use
+    ``sudo -A`` with ``SUDO_ASKPASS=/bin/false`` so that passwordless
+    sudo still works while interactive prompts fail fast.
+
+    Args:
+        params: Shell execution parameters.
+        is_sudo: Whether the command is a sudo invocation.
+
+    Returns:
+        The created subprocess.
+    """
+    command = params.command
+    env = params.env
+
+    if is_sudo and not sys.stdin.isatty():
+        env = {**env, "SUDO_ASKPASS": "/bin/false"}
+        command = f"sudo -A {command[_SUDO_PREFIX_LEN:]}"
+
+    return await asyncio.create_subprocess_shell(
+        command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        env=env,
+        cwd=params.cwd,
+    )
+
+
+async def _run_and_collect(
+    process: asyncio.subprocess.Process,
+    timeout: float | None,
+) -> _ProcessOutcome:
+    """Drive *process* to completion and return captured output.
+
+    Handles the full lifecycle: reading stdout/stderr in parallel,
+    polling for exit, draining buffers, closing pipes, and reaping.
+
+    Args:
+        process: A running subprocess with piped stdout/stderr.
+        timeout: Maximum seconds to wait, or ``None`` for unlimited.
+
+    Returns:
+        A :class:`_ProcessOutcome` with captured data.
+    """
+    stdout_data: list[str] = []
+    stderr_data: list[str] = []
+
+    stdout_task = asyncio.create_task(
+        _read_stream_into(process.stdout, stdout_data),  # type: ignore[arg-type]
+    )
+    stderr_task = asyncio.create_task(
+        _read_stream_into(process.stderr, stderr_data),  # type: ignore[arg-type]
+    )
+
+    timed_out, elapsed = await _poll_until_exit(process, timeout)
+
+    readers_done = await _drain_readers(stdout_task, stderr_task)
+
+    _force_close_pipes(process)
+    await _reap_process(process)
+
+    if not readers_done:
+        await _cancel_tasks(stdout_task, stderr_task)
+
+    return _ProcessOutcome(
+        stdout="".join(stdout_data),
+        stderr="".join(stderr_data),
+        returncode=process.returncode,
+        timed_out=timed_out,
+        elapsed=elapsed,
+    )
+
+
+# ---------------------------------------------------------------------------
+# PTY I/O helpers (keep interactive loop readable)
+# ---------------------------------------------------------------------------
+def _drain_pty(master_fd: int, accumulator: list[str]) -> None:
+    """Read remaining data from the PTY after the process exits.
+
+    Args:
+        master_fd: File descriptor of the PTY master side.
+        accumulator: List to append decoded output to.
+    """
+    try:
+        while True:
+            chunk = os.read(master_fd, _PTY_READ_SIZE)
+            if not chunk:
+                break
+            accumulator.append(chunk.decode("utf-8", errors="replace"))
+    except OSError:
+        pass
+
+
+def _handle_pty_read(master_fd: int, accumulator: list[str]) -> None:
+    """Read one chunk from the PTY master and write it to stdout.
+
+    Args:
+        master_fd: File descriptor of the PTY master side.
+        accumulator: List to append decoded output to.
+    """
+    import errno  # noqa: PLC0415
+
+    try:
+        chunk = os.read(master_fd, _PTY_READ_SIZE)
+    except OSError as e:
+        if e.errno != errno.EIO:
+            raise
+        return
+
+    if not chunk:
+        return
+
+    decoded = chunk.decode("utf-8", errors="replace")
+    accumulator.append(decoded)
+    sys.stdout.write(decoded)
+    sys.stdout.flush()
+
+
+def _handle_pty_stdin_write(master_fd: int) -> None:
+    """Forward one chunk from stdin to the PTY master.
+
+    Args:
+        master_fd: File descriptor of the PTY master side.
+    """
+    try:
+        chunk = os.read(sys.stdin.fileno(), _PTY_READ_SIZE)
+        if chunk:
+            os.write(master_fd, chunk)
+    except OSError:
+        pass
+
+
+def _handle_pty_io(master_fd: int, ready: list[object], accumulator: list[str]) -> None:
+    """Handle one iteration of PTY I/O (read output, forward input).
+
+    Args:
+        master_fd: File descriptor of the PTY master side.
+        ready: List of file descriptors/objects from ``select()``.
+        accumulator: List to append decoded output to.
+    """
+    if master_fd in ready:
+        _handle_pty_read(master_fd, accumulator)
+    if sys.stdin in ready:
+        _handle_pty_stdin_write(master_fd)
+
+
+async def _run_sudo_with_pty(params: ShellParams) -> ToolResult:
+    """Execute a sudo command with interactive password input via PTY.
+
+    Args:
+        params: Shell execution parameters.
+
+    Returns:
+        ToolResult with command output or error.
+    """
+    import fcntl  # noqa: PLC0415
+    import pty  # noqa: PLC0415
+    import select  # noqa: PLC0415
+
+    try:
+        master_fd, slave_fd = pty.openpty()
+        os.setsid()
+
+        process = await asyncio.create_subprocess_shell(
+            params.command,
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            env=params.env,
+            cwd=params.cwd,
+            start_new_session=True,
+        )
+        os.close(slave_fd)
+
+        flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
+        fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+        old_settings = termios.tcgetattr(sys.stdin.fileno())
+
+        try:
+            tty.setraw(sys.stdin.fileno())
+            output_data: list[str] = []
+            start_time = asyncio.get_running_loop().time()
+
+            while True:
+                elapsed = asyncio.get_running_loop().time() - start_time
+                if params.timeout and elapsed > params.timeout:
+                    process.kill()
+                    return ToolResult(
+                        content="Command timed out",
+                        success=False,
+                        error=f"Timeout after {params.timeout} seconds",
+                    )
+
+                if process.returncode is not None:
+                    _drain_pty(master_fd, output_data)
+                    break
+
+                rlist, _, _ = select.select(
+                    [master_fd, sys.stdin],
+                    [],
+                    [],
+                    _POLL_INTERVAL,
+                )
+                _handle_pty_io(master_fd, rlist, output_data)
+
+            await process.wait()
+
+            output = "".join(output_data)
+            if len(output) > MAX_OUTPUT_CHARS:
+                output = (
+                    output[:MAX_OUTPUT_CHARS]
+                    + f"\n... (output truncated after {MAX_OUTPUT_CHARS} chars)"
+                )
+
+            return ToolResult(
+                content=output or "(no output)",
+                success=process.returncode == 0,
+                error=(
+                    f"Exit code: {process.returncode}"
+                    if process.returncode != 0
+                    else None
+                ),
+            )
+
+        finally:
+            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_settings)
+            os.close(master_fd)
+
+    except Exception as e:  # noqa: BLE001
+        return ToolResult(
+            content=f"Error executing sudo command: {e}",
+            success=False,
+            error=str(e),
+        )
+
+
 # ---------------------------------------------------------------------------
 # Main tool class
 # ---------------------------------------------------------------------------
@@ -311,6 +598,23 @@ class ShellTool(Tool):
         """
         return _is_sudo_command(command)
 
+    async def _execute_interactive_sudo(
+        self: ShellTool,
+        params: ShellParams,
+    ) -> ToolResult:
+        """Execute a sudo command interactively via PTY.
+
+        Thin wrapper around the module-level :func:`_run_sudo_with_pty`
+        preserved for backward-compatibility with tests that patch this method.
+
+        Args:
+            params: Shell execution parameters.
+
+        Returns:
+            ToolResult with command output or error.
+        """
+        return await _run_sudo_with_pty(params)
+
     # -- Tool interface ------------------------------------------------------
     @property
     def name(self: ShellTool) -> str:
@@ -329,37 +633,7 @@ class ShellTool(Tool):
     @property
     def parameters(self: ShellTool) -> dict[str, object]:
         """JSON Schema for parameters."""
-        return {
-            "type": "object",
-            "properties": {
-                "command": {
-                    "type": "string",
-                    "description": "Shell command to execute",
-                },
-                "timeout": {
-                    "type": "integer",
-                    "description": (
-                        "Command timeout in seconds. Defaults to 3600 (1 hour). "
-                        "Use 0 for no timeout. Increase for long-running data "
-                        "transformation or build jobs."
-                    ),
-                },
-                "cwd": {
-                    "type": "string",
-                    "description": "Working directory for the command",
-                    "default": None,
-                },
-                "interactive": {
-                    "type": "boolean",
-                    "description": (
-                        "Enable interactive mode for sudo commands that require password input. "
-                        "Only works when running in TUI mode with a terminal."
-                    ),
-                    "default": False,
-                },
-            },
-            "required": ["command"],
-        }
+        return _SHELL_PARAMETERS
 
     @property
     def kind(self: ShellTool) -> ToolKind:
@@ -392,21 +666,19 @@ class ShellTool(Tool):
             env = _build_env()
             interactive = kwargs.get("interactive", False)
             is_sudo = _is_sudo_command(command)
+            params = ShellParams(
+                command=command,
+                env=env,
+                cwd=cwd,
+                timeout=effective_timeout,
+            )
 
-            # Interactive sudo path (TTY required)
             if (interactive or is_sudo) and sys.stdin.isatty():
-                return await self._execute_interactive_sudo(
-                    command, env, cwd, effective_timeout,
-                )
+                return await self._execute_interactive_sudo(params)
 
-            # Create subprocess (with sudo fallback when no TTY)
-            process = await self._create_process(command, env, cwd, is_sudo=is_sudo)
-
-            # Run subprocess and collect output
-            outcome = await self._run_and_collect(process, effective_timeout)
-
-            output = _format_output(outcome.stdout, outcome.stderr)
-            return _make_result(output, outcome.returncode, timed_out=outcome.timed_out, timeout_value=effective_timeout)  # noqa: E501
+            process = await _create_process(params, is_sudo=is_sudo)
+            outcome = await _run_and_collect(process, effective_timeout)
+            return _make_result(outcome, effective_timeout)
 
         except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
@@ -414,236 +686,3 @@ class ShellTool(Tool):
                 success=False,
                 error=str(e),
             )
-
-    # -- private orchestration -----------------------------------------------
-    async def _create_process(
-        self: ShellTool,
-        command: str,
-        env: dict[str, str],
-        cwd: str | None,
-        *,
-        is_sudo: bool,
-    ) -> asyncio.subprocess.Process:
-        """Create a subprocess for *command*.
-
-        For sudo commands without a TTY, the command is rewritten to use
-        ``sudo -A`` with ``SUDO_ASKPASS=/bin/false`` so that passwordless
-        sudo still works while interactive prompts fail fast.
-
-        Args:
-            command: The shell command.
-            env: Environment variables.
-            cwd: Working directory.
-            is_sudo: Whether the command is a sudo invocation.
-
-        Returns:
-            The created subprocess.
-        """
-        if is_sudo and not sys.stdin.isatty():
-            env = {**env, "SUDO_ASKPASS": "/bin/false"}
-            command = f"sudo -A {command[5:]}"
-
-        return await asyncio.create_subprocess_shell(
-            command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=env,
-            cwd=cwd,
-        )
-
-    async def _run_and_collect(
-        self: ShellTool,
-        process: asyncio.subprocess.Process,
-        timeout: float | None,
-    ) -> _ProcessOutcome:
-        """Drive *process* to completion and return captured output.
-
-        Handles the full lifecycle: reading stdout/stderr in parallel,
-        polling for exit, draining buffers, closing pipes, and reaping.
-
-        Args:
-            process: A running subprocess with piped stdout/stderr.
-            timeout: Maximum seconds to wait, or ``None`` for unlimited.
-
-        Returns:
-            A :class:`_ProcessOutcome` with captured data.
-        """
-        stdout_data: list[str] = []
-        stderr_data: list[str] = []
-
-        stdout_task = asyncio.create_task(
-            _read_stream_into(process.stdout, stdout_data),  # type: ignore[arg-type]
-        )
-        stderr_task = asyncio.create_task(
-            _read_stream_into(process.stderr, stderr_data),  # type: ignore[arg-type]
-        )
-
-        timed_out, elapsed = await _poll_until_exit(process, timeout)
-
-        # Let readers finish consuming any remaining buffered data.
-        readers_done = await _drain_readers(stdout_task, stderr_task)
-
-        _force_close_pipes(process)
-        await _reap_process(process)
-
-        if not readers_done:
-            await _cancel_tasks(stdout_task, stderr_task)
-
-        return _ProcessOutcome(
-            stdout="".join(stdout_data),
-            stderr="".join(stderr_data),
-            returncode=process.returncode,
-            timed_out=timed_out,
-            elapsed=elapsed,
-        )
-
-    # -- interactive sudo via PTY -------------------------------------------
-    async def _execute_interactive_sudo(
-        self: ShellTool,
-        command: str,
-        env: dict[str, str],
-        cwd: str | None,
-        timeout: float | None,
-    ) -> ToolResult:
-        """Execute a sudo command with interactive password input.
-
-        This method handles sudo commands that require password input by:
-        1. Allocating a pseudo-terminal (PTY) for the subprocess
-        2. Forwarding user input from stdin to the subprocess
-        3. Capturing output from the subprocess
-
-        Args:
-            command: The sudo command to execute.
-            env: Environment variables for the subprocess.
-            cwd: Working directory for the command.
-            timeout: Command timeout in seconds.
-
-        Returns:
-            ToolResult with command output or error.
-        """
-        import errno  # noqa: PLC0415
-        import fcntl  # noqa: PLC0415
-        import pty  # noqa: PLC0415
-        import select  # noqa: PLC0415
-
-        try:
-            master_fd, slave_fd = pty.openpty()
-            os.setsid()
-
-            process = await asyncio.create_subprocess_shell(
-                command,
-                stdin=slave_fd,
-                stdout=slave_fd,
-                stderr=slave_fd,
-                env=env,
-                cwd=cwd,
-                start_new_session=True,
-            )
-            os.close(slave_fd)
-
-            flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
-            fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-            old_settings = termios.tcgetattr(sys.stdin.fileno())
-
-            try:
-                tty.setraw(sys.stdin.fileno())
-                output_data: list[str] = []
-                start_time = asyncio.get_running_loop().time()
-
-                while True:
-                    if timeout and (asyncio.get_running_loop().time() - start_time > timeout):
-                        process.kill()
-                        return ToolResult(
-                            content="Command timed out",
-                            success=False,
-                            error=f"Timeout after {timeout} seconds",
-                        )
-
-                    if process.returncode is not None:
-                        self._drain_pty(master_fd, output_data)
-                        break
-
-                    rlist, _, _ = select.select(
-                        [master_fd, sys.stdin], [], [], _POLL_INTERVAL,
-                    )
-                    self._handle_pty_io(master_fd, rlist, output_data, errno)
-
-                await process.wait()
-
-                output = "".join(output_data)
-                if len(output) > MAX_OUTPUT_CHARS:
-                    output = (
-                        output[:MAX_OUTPUT_CHARS]
-                        + f"\n... (output truncated after {MAX_OUTPUT_CHARS} chars)"
-                    )
-
-                return ToolResult(
-                    content=output or "(no output)",
-                    success=process.returncode == 0,
-                    error=f"Exit code: {process.returncode}" if process.returncode != 0 else None,
-                )
-
-            finally:
-                termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_settings)
-                os.close(master_fd)
-
-        except Exception as e:  # noqa: BLE001
-            return ToolResult(
-                content=f"Error executing sudo command: {e}",
-                success=False,
-                error=str(e),
-            )
-
-    # -- PTY I/O helpers (keep interactive loop readable) --------------------
-    @staticmethod
-    def _drain_pty(master_fd: int, accumulator: list[str]) -> None:
-        """Read remaining data from the PTY after the process exits.
-
-        Args:
-            master_fd: File descriptor of the PTY master side.
-            accumulator: List to append decoded output to.
-        """
-        try:
-            while True:
-                chunk = os.read(master_fd, _PTY_READ_SIZE)
-                if not chunk:
-                    break
-                accumulator.append(chunk.decode("utf-8", errors="replace"))
-        except OSError:
-            pass
-
-    @staticmethod
-    def _handle_pty_io(
-        master_fd: int,
-        ready: list[object],
-        accumulator: list[str],
-        errno_mod: object,
-    ) -> None:
-        """Handle one iteration of PTY I/O (read output, forward input).
-
-        Args:
-            master_fd: File descriptor of the PTY master side.
-            ready: List of file descriptors/objects from ``select()``.
-            accumulator: List to append decoded output to.
-            errno_mod: The ``errno`` module (passed to avoid re-importing).
-        """
-        if master_fd in ready:
-            try:
-                chunk = os.read(master_fd, _PTY_READ_SIZE)
-                if chunk:
-                    decoded = chunk.decode("utf-8", errors="replace")
-                    accumulator.append(decoded)
-                    sys.stdout.write(decoded)
-                    sys.stdout.flush()
-            except OSError as e:
-                if e.errno != errno_mod.EIO:  # type: ignore[attr-defined]
-                    raise
-
-        if sys.stdin in ready:
-            try:
-                chunk = os.read(sys.stdin.fileno(), _PTY_READ_SIZE)
-                if chunk:
-                    os.write(master_fd, chunk)
-            except OSError:
-                pass

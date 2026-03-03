@@ -83,15 +83,15 @@ def test_bug12_event_handlers_missing_null_checks():
     from henchman.core.events import AgentEvent, EventType
 
     bridge = EventBridge(MagicMock())
-    bridge._post = MagicMock()
+    bridge._message_poster.post = MagicMock()
 
     # Test _on_finished with None source_agent
     event = AgentEvent(type=EventType.FINISHED, data=None, source_agent=None)
     bridge._on_finished(event)
-    bridge._post.assert_called_once()
+    bridge._message_poster.post.assert_called_once()
 
     # The handler should handle None source_agent gracefully
-    call_args = bridge._post.call_args[0][0]
+    call_args = bridge._message_poster.post.call_args[0][0]
     assert call_args.source_agent is None  # Should be accepted
 
 

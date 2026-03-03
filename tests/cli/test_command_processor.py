@@ -49,7 +49,7 @@ class TestCommandProcessor:
 
     def _create_mocks(self) -> tuple:
         """Create properly configured mocks for testing."""
-        output_handler = MagicMock(spec=OutputHandler)
+        output_handler = MagicMock()
         output_handler.renderer = MagicMock()
         output_handler.renderer.console = MagicMock()
 

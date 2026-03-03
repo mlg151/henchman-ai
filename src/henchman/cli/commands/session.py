@@ -458,7 +458,11 @@ class TemplateListExecutor(SessionCommandExecutor):
     """Executor for template list operations."""
 
     async def execute(self: TemplateListExecutor, manager: SessionManager) -> None:
-        """Execute template list operation."""
+        """Execute template list operation.
+        
+        Args:
+            manager: The SessionManager instance to use for listing templates.
+        """
         templates = manager.list_templates()
 
         if not templates:
@@ -482,7 +486,11 @@ class TemplateDeleteExecutor(SessionCommandExecutor):
     """Executor for template delete operations."""
 
     async def execute(self: TemplateDeleteExecutor, manager: SessionManager) -> None:
-        """Execute template delete operation."""
+        """Execute template delete operation.
+        
+        Args:
+            manager: The SessionManager instance to use for deleting templates.
+        """
         if not self._ensure_args(
             DEFAULT_MIN_ARGS_FOR_TEMPLATE_DELETE,
             "/session template delete <template_id>",
@@ -506,7 +514,11 @@ class ExportExecutor(SessionCommandExecutor):
     """Executor for export operations."""
 
     async def execute(self: ExportExecutor, manager: SessionManager) -> None:
-        """Execute export operation."""
+        """Execute export operation.
+        
+        Args:
+            manager: The SessionManager instance to use for exporting sessions.
+        """
         if not self._ensure_args(DEFAULT_MIN_ARGS_FOR_EXPORT, "/session export <id> [format]"):
             return
 
@@ -535,7 +547,11 @@ class ImportExecutor(SessionCommandExecutor):
     """Executor for import operations."""
 
     async def execute(self: ImportExecutor, manager: SessionManager) -> None:
-        """Execute import operation."""
+        """Execute import operation.
+        
+        Args:
+            manager: The SessionManager instance to use for importing sessions.
+        """
         if not self._ensure_args(DEFAULT_MIN_ARGS_FOR_IMPORT, "/session import <file> [format]"):
             return
 

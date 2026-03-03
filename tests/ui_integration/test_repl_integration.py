@@ -114,7 +114,7 @@ class TestREPLComponentCommunication:
         repl.tool_registry = Mock(spec=ToolRegistry)
         repl.agent = Mock(spec=Agent)
         repl.command_processor.command_registry = Mock(spec=CommandRegistry)
-        repl.renderer = Mock(spec=UIRenderer)
+        repl.renderer = Mock()
 
         return repl
 

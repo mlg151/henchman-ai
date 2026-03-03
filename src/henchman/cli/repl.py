@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -24,12 +23,13 @@ from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.tool_manager import ToolManager
 from henchman.cli.ui_renderer import UIRenderer
 from henchman.core.eventbus import EventBus
-from henchman.core.events import AgentEvent, EventType
+from henchman.core.events import EventType
 from henchman.mcp.manager import McpManager
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
 
+    from henchman.cli.input import KeyMonitor
     from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.core.events import AgentEvent
@@ -42,6 +42,11 @@ try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
+
+_DEFAULT_BASE_TOOL_ITERATIONS: int = 25
+_DEFAULT_MAX_TOOL_CALLS_PER_TURN: int = 100
+_MONITOR_POLL_INTERVAL: float = 0.1
+
 
 @dataclass
 class ReplConfig:
@@ -62,10 +67,79 @@ class ReplConfig:
     system_prompt: str = ""
     auto_save: bool = True
     history_file: Path | None = None
-    base_tool_iterations: int = 25
-    max_tool_calls_per_turn: int = 100
+    base_tool_iterations: int = _DEFAULT_BASE_TOOL_ITERATIONS
+    max_tool_calls_per_turn: int = _DEFAULT_MAX_TOOL_CALLS_PER_TURN
     auto_approve_tools: bool = False
     agent_role: str | None = None
+
+
+async def _run_monitored_task(
+    event_stream: AsyncIterator[AgentEvent],
+    agent: Agent,
+    assistant_content: list[str],
+    tool_executor: ToolExecutor,
+    monitor: KeyMonitor,
+) -> tuple[bool, bool]:
+    """Execute the agent task and poll for monitor cancellation signals.
+
+    Returns:
+        Tuple of (exit_requested, stop_requested).
+    """
+    agent_task = asyncio.create_task(
+        tool_executor.process_agent_stream(
+            event_stream,
+            agent,
+            assistant_content,
+            None,
+        ),
+    )
+    exit_requested = False
+    stop_requested = False
+
+    while not agent_task.done():
+        if monitor.exit_requested:
+            agent_task.cancel()
+            exit_requested = True
+            break
+        if monitor.stop_requested:
+            agent_task.cancel()
+            stop_requested = True
+            break
+        await asyncio.sleep(_MONITOR_POLL_INTERVAL)
+
+    with contextlib.suppress(asyncio.CancelledError):
+        await agent_task
+
+    return exit_requested, stop_requested
+
+
+async def _cleanup_monitor(
+    monitor: KeyMonitor,
+    monitor_task: asyncio.Task[None],
+) -> None:
+    """Signal monitor to stop and wait for it to finish with a timeout."""
+    if hasattr(monitor, "_stop_event"):
+        monitor._stop_event.set()  # noqa: SLF001
+    try:
+        await asyncio.wait_for(monitor_task, timeout=1.0)
+    except (asyncio.TimeoutError, asyncio.CancelledError):
+        monitor_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await monitor_task
+
+
+def _collect_event_content(
+    event: AgentEvent,
+    content_collector: list[str] | None,
+    render_error: Callable[[str], None],
+) -> None:
+    """Route an agent event to error display or content collection."""
+    if event.type == EventType.ERROR:
+        render_error(str(event.data))
+    elif (
+        event.type == EventType.CONTENT and content_collector is not None and event.data
+    ):
+        content_collector.append(event.data)
 
 
 class Repl:
@@ -103,63 +177,74 @@ class Repl:
         self.console = console or Console()
         self.config = config or ReplConfig()
         self.settings = settings
+        self.event_bus = EventBus()
+        self.running = False
+        self.rag_system: object | None = None
+        self.current_monitor: object | None = None
 
-        accessible_mode = settings.ui.accessible_mode if settings and settings.ui else False
-        style_overrides = settings.ui.style_overrides if settings and settings.ui else None
-        layout_settings = getattr(settings.ui, "layout", None) if settings and settings.ui else None
-        self.renderer = renderer or UIRenderer(
+        self.renderer = self._init_renderer(renderer)
+        self._init_tool_manager()
+        self._init_mcp_manager()
+        self._init_plugin_manager()
+        self.orchestrator = self._init_orchestrator(environment_context)
+        self.agent = self.orchestrator.tech_lead
+        self.session_manager = ReplSessionManager(auto_save=self.config.auto_save)
+        self._init_handlers()
+        self._init_tool_executor()
+        self._init_input_handler()
+
+    def _init_renderer(self: Self, renderer: UIRenderer | None) -> UIRenderer:
+        """Create UI renderer with settings-based configuration."""
+        if renderer:
+            return renderer
+        ui = self.settings.ui if self.settings else None
+        return UIRenderer(
             console=self.console,
-            accessible_mode=accessible_mode,
-            style_overrides=style_overrides,
-            layout_settings=layout_settings,
+            accessible_mode=ui.accessible_mode if ui else False,
+            style_overrides=ui.style_overrides if ui else None,
+            layout_settings=getattr(ui, "layout", None) if ui else None,
         )
 
-        # Initialize tool manager
-        self.tool_manager = ToolManager(settings=settings)
+    def _init_tool_manager(self: Self) -> None:
+        """Initialize tool manager and expose its registry."""
+        self.tool_manager = ToolManager(settings=self.settings)
         self.tool_manager.set_auto_approve(auto_approve=self.config.auto_approve_tools)
         self.tool_manager.register_builtin_tools()
         self.tool_registry = self.tool_manager.registry  # Backwards compatibility
 
-        # Initialize MCP manager if servers are configured
+    def _init_mcp_manager(self: Self) -> None:
+        """Create MCP manager if servers are configured in settings."""
         self.mcp_manager: McpManager | None = None
-        if settings and settings.mcp_servers:
-            mcp_logging = settings.ui.mcp_logging if settings.ui else False
+        if self.settings and self.settings.mcp_servers:
+            mcp_logging = self.settings.ui.mcp_logging if self.settings.ui else False
             self.mcp_manager = McpManager.create_from_settings(
-                settings, mcp_logging_enabled=mcp_logging,
+                self.settings,
+                mcp_logging_enabled=mcp_logging,
             )
 
-        # Initialize Plugin Manager
+    def _init_plugin_manager(self: Self) -> None:
+        """Load plugins from home and workspace plugin directories."""
         self.plugin_manager = PluginManager(self)
-        self.plugin_manager.load_plugins_from_directory(Path.home() / ".henchman" / "plugins")
-        # Also load from workspace plugins
-        self.plugin_manager.load_plugins_from_directory(Path.cwd() / ".henchman" / "plugins")
+        self.plugin_manager.load_plugins_from_directory(
+            Path.home() / ".henchman" / "plugins",
+        )
+        self.plugin_manager.load_plugins_from_directory(
+            Path.cwd() / ".henchman" / "plugins",
+        )
 
-        # Initialize EventBus
-        self.event_bus = EventBus()
-
-        # Initialize Orchestrator
-        self.orchestrator = Orchestrator(
-            default_provider=provider,
+    def _init_orchestrator(self: Self, environment_context: str | None) -> Orchestrator:
+        """Create the orchestrator with provider, tools, and event bus."""
+        return Orchestrator(
+            default_provider=self.provider,
             tool_registry=self.tool_registry,
             event_bus=self.event_bus,
-            settings=settings,
+            settings=self.settings,
             system_prompt=self.config.system_prompt,
             environment_context=environment_context,
         )
 
-        # Reference Tech Lead as self.agent for backwards compatibility
-        self.agent = self.orchestrator.tech_lead
-
-        self.running = False
-
-        # Session management
-        self.session_manager = ReplSessionManager(auto_save=self.config.auto_save)
-
-        # RAG system (set externally by app.py)
-        self.rag_system: object | None = None
-        self.current_monitor: object | None = None
-
-        # Initialize OutputHandler
+    def _init_handlers(self: Self) -> None:
+        """Create output handler and command processor wired to shared subsystems."""
         self.output_handler = OutputHandler(
             renderer=self.renderer,
             tool_manager=self.tool_manager,
@@ -169,8 +254,6 @@ class Repl:
             rag_system=self.rag_system,
             mcp_manager=self.mcp_manager,
         )
-
-        # Initialize CommandProcessor
         self.command_processor = CommandProcessor(
             output_handler=self.output_handler,
             tool_manager=self.tool_manager,
@@ -179,7 +262,8 @@ class Repl:
             mcp_manager=self.mcp_manager,
         )
 
-        # Initialize ToolExecutor
+    def _init_tool_executor(self: Self) -> None:
+        """Create tool executor and wire its confirmation handler."""
         self.tool_executor = ToolExecutor(
             output_handler=self.output_handler,
             tool_manager=self.tool_manager,
@@ -187,14 +271,16 @@ class Repl:
             base_tool_iterations=self.config.base_tool_iterations,
             max_tool_calls_per_turn=self.config.max_tool_calls_per_turn,
         )
-        # Set confirmation handler on tool manager
-        self.tool_manager.set_confirmation_handler(self.tool_executor.handle_confirmation)
+        self.tool_manager.set_confirmation_handler(
+            self.tool_executor.handle_confirmation,
+        )
 
-        # Initialize InputHandler
+    def _init_input_handler(self: Self) -> None:
+        """Create input handler and initialise its prompt session."""
         history_file = self.config.history_file or Path.home() / ".henchman_history"
-
-        keybindings = settings.ui.keybindings if settings and settings.ui else None
-
+        keybindings = (
+            self.settings.ui.keybindings if self.settings and self.settings.ui else None
+        )
         self.input_handler = InputHandler(
             config=self.config,
             renderer=self.renderer,
@@ -202,7 +288,6 @@ class Repl:
             keybindings=keybindings,
             tool_registry=self.tool_registry,
         )
-        # Initialize prompt session in InputHandler
         self.input_handler.initialize_prompt_session(
             bottom_toolbar=lambda: self.output_handler.get_toolbar_status(self.agent),
         )
@@ -265,16 +350,7 @@ class Repl:
 
         try:
             while self.running:
-                try:
-                    user_input = await self._get_input()
-                    should_continue = await self.process_input(user_input)
-                    if not should_continue:
-                        break
-                except KeyboardInterrupt:
-                    self.running = False
-                    break
-                except EOFError:
-                    self.renderer.print_newline()
+                if not await self._process_one_turn():
                     break
         finally:
             self.running = False
@@ -282,6 +358,22 @@ class Repl:
                 await self.mcp_manager.disconnect_all()
             self._auto_save_session()
             self.output_handler.print_goodbye()
+
+    async def _process_one_turn(self: Self) -> bool:
+        """Process one input turn, handling keyboard interrupts.
+
+        Returns:
+            True to continue running, False to exit.
+        """
+        try:
+            user_input = await self._get_input()
+            return await self.process_input(user_input)
+        except KeyboardInterrupt:
+            self.running = False
+            return False
+        except EOFError:
+            self.renderer.print_newline()
+            return False
 
     def _auto_save_session(self: Self) -> None:
         """Auto-save the session if enabled and session has content."""
@@ -309,8 +401,10 @@ class Repl:
             True to continue running, False to exit.
         """
         # Use InputHandler to process input
-        processed_input, is_command, should_continue = await self.input_handler.process_input(
-            user_input,
+        processed_input, is_command, should_continue = (
+            await self.input_handler.process_input(
+                user_input,
+            )
         )
 
         if not should_continue:
@@ -322,7 +416,11 @@ class Repl:
 
         if is_command:
             # Handle slash commands
-            return await self.command_processor.handle_command(processed_input, self.agent, self)
+            return await self.command_processor.handle_command(
+                processed_input,
+                self.agent,
+                self,
+            )
 
         # Run through agent with expanded input
         await self._run_agent(processed_input)
@@ -338,7 +436,10 @@ class Repl:
         assistant_content: list[str] = []
         status_msg = self.output_handler.get_rich_status_message(self.agent)
         await self._run_agent_with_monitor(
-            self.orchestrator.run(user_input), self.agent, assistant_content, status_msg,
+            self.orchestrator.run(user_input),
+            self.agent,
+            assistant_content,
+            status_msg,
         )
 
     async def _run_agent_direct(self: Self, role: str, user_input: str) -> None:
@@ -353,7 +454,10 @@ class Repl:
         status_msg = f"[bold cyan]@{role}[/] thinking..."
         agent = self.orchestrator.pool.get_agent(role)
         await self._run_agent_with_monitor(
-            self.orchestrator.run_direct(role, user_input), agent, assistant_content, status_msg,
+            self.orchestrator.run_direct(role, user_input),
+            agent,
+            assistant_content,
+            status_msg,
         )
 
     async def _run_agent_with_monitor(
@@ -378,64 +482,39 @@ class Repl:
         monitor_task = asyncio.create_task(monitor.monitor())
 
         try:
-            # Print status message without spinner
             if status_msg:
                 self.renderer.info(status_msg)
 
-            agent_task = asyncio.create_task(
-                self.tool_executor.process_agent_stream(
-                    event_stream,
-                    agent,
-                    assistant_content,
-                    None,  # No status object
-                ),
+            exit_req, stop_req = await _run_monitored_task(
+                event_stream,
+                agent,
+                assistant_content,
+                self.tool_executor,
+                monitor,
             )
 
-            # Wait for agent task or monitor cancellation
-            while not agent_task.done():
-                if monitor.exit_requested:
-                    self.renderer.warning("\n[Exit requested by Ctrl+C]")
-                    self.running = False
-                    agent_task.cancel()
-                    break
-                if monitor.stop_requested:
-                    self.renderer.warning("\n[Interrupted by Esc]")
-                    agent_task.cancel()
-                    break
-                await asyncio.sleep(0.1)
-
-            # Await agent task (handles cancellation)
-            with contextlib.suppress(asyncio.CancelledError):
-                await agent_task
+            if exit_req:
+                self.renderer.warning("\n[Exit requested by Ctrl+C]")
+                self.running = False
+            elif stop_req:
+                self.renderer.warning("\n[Interrupted by Esc]")
 
         except Exception as e:  # noqa: BLE001
             self.renderer.error(f"Error: {e}")
         finally:
-            # Signal monitor to stop
-            if hasattr(monitor, "_stop_event"):
-                monitor._stop_event.set()  # noqa: SLF001
-
-            # Wait for monitor task to complete with timeout
-            try:
-                await asyncio.wait_for(monitor_task, timeout=1.0)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
-                # If monitor task doesn't complete quickly, cancel it
-                monitor_task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await monitor_task
+            await _cleanup_monitor(monitor, monitor_task)
 
     async def _handle_agent_event(
-        self, event: AgentEvent, content_collector: list[str] | None = None,
+        self: Self,
+        event: AgentEvent,
+        content_collector: list[str] | None = None,
     ) -> None:
         """Handle an event from the agent.
 
         DEPRECATED: Use ToolExecutor.process_agent_stream instead.
         This method is kept for backwards compatibility with tests.
         """
-        if event.type == EventType.ERROR:
-            self.renderer.error(str(event.data))
-        elif event.type == EventType.CONTENT and content_collector is not None and event.data:
-            content_collector.append(event.data)
+        _collect_event_content(event, content_collector, self.renderer.error)
 
     async def _handle_tool_call(self: Self, tool_call: ToolCall) -> None:
         """Handle a single tool call from the agent.

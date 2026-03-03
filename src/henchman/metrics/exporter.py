@@ -74,6 +74,7 @@ class MetricsExporter:
             ISO formatted timestamp string.
         """
         from datetime import datetime, timezone  # noqa: PLC0415
+
         return datetime.now(tz=timezone.utc).isoformat()
 
     def export_to_csv(self, filepath: str, **filters: Any) -> None:

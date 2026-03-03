@@ -5,7 +5,13 @@ from unittest.mock import Mock, patch
 import pytest
 
 from henchman.cli.commands import CommandContext
-from henchman.cli.commands.model import ModelCommand
+from henchman.cli.commands.model import (
+    ModelCommand,
+    _get_api_key_for_provider,
+    _get_env_var_name,
+    _get_env_vars,
+    _get_example_config,
+)
 from henchman.core.agent import Agent
 from henchman.core.session import Session
 from henchman.providers.base import ModelProvider
@@ -264,50 +270,42 @@ async def test_invalid_usage(ctx):
 @pytest.mark.asyncio
 async def test_get_api_key_from_env():
     """Test getting API key from environment variables."""
-    cmd = ModelCommand()
-
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True):
-        api_key = cmd._get_api_key_for_provider("openai")
+        api_key = _get_api_key_for_provider("openai")
         assert api_key == "test-key"
 
     with patch.dict("os.environ", {"HENCHMAN_API_KEY": "generic-key"}, clear=True):
-        api_key = cmd._get_api_key_for_provider("openai")
+        api_key = _get_api_key_for_provider("openai")
         assert api_key == "generic-key"
 
 
 @pytest.mark.asyncio
 async def test_get_env_var_name():
     """Test getting environment variable names for providers."""
-    cmd = ModelCommand()
-
-    assert cmd._get_env_var_name("deepseek") == "DEEPSEEK_API_KEY"
-    assert cmd._get_env_var_name("openai") == "OPENAI_API_KEY"
-    assert cmd._get_env_var_name("anthropic") == "ANTHROPIC_API_KEY"
-    assert cmd._get_env_var_name("unknown") == "HENCHMAN_API_KEY"
+    assert _get_env_var_name("deepseek") == "DEEPSEEK_API_KEY"
+    assert _get_env_var_name("openai") == "OPENAI_API_KEY"
+    assert _get_env_var_name("anthropic") == "ANTHROPIC_API_KEY"
+    assert _get_env_var_name("unknown") == "HENCHMAN_API_KEY"
 
 
 @pytest.mark.asyncio
 async def test_get_example_config():
     """Test getting example configurations."""
-    cmd = ModelCommand()
-
-    assert "deepseek-chat" in cmd._get_example_config("deepseek")
-    assert "gpt-4-turbo" in cmd._get_example_config("openai")
-    assert "claude-3" in cmd._get_example_config("anthropic")
-    assert "llama2" in cmd._get_example_config("ollama")
-    assert cmd._get_example_config("unknown") == "Check provider documentation"
+    assert "deepseek-chat" in _get_example_config("deepseek")
+    assert "gpt-4-turbo" in _get_example_config("openai")
+    assert "claude-3" in _get_example_config("anthropic")
+    assert "llama2" in _get_example_config("ollama")
+    assert _get_example_config("unknown") == "Check provider documentation"
 
 
 @pytest.mark.asyncio
 async def test_get_env_vars():
     """Test getting environment variable descriptions."""
-    cmd = ModelCommand()
-
-    assert "DEEPSEEK_API_KEY" in cmd._get_env_vars("deepseek")
-    assert "OPENAI_API_KEY" in cmd._get_env_vars("openai")
-    assert "ANTHROPIC_API_KEY" in cmd._get_env_vars("anthropic")
-    assert "OLLAMA_HOST" in cmd._get_env_vars("ollama")
-    assert cmd._get_env_vars("unknown") == "Check provider documentation"
+    assert "DEEPSEEK_API_KEY" in _get_env_vars("deepseek")
+    assert "OPENAI_API_KEY" in _get_env_vars("openai")
+    assert "ANTHROPIC_API_KEY" in _get_env_vars("anthropic")
+    assert "OLLAMA_HOST" in _get_env_vars("ollama")
+    assert _get_env_vars("unknown") == "Check provider documentation"
 
 
 if __name__ == "__main__":

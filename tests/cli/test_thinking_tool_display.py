@@ -189,8 +189,8 @@ class TestThinkingToolDisplay:
             source_agent="Analyst",
         )
 
-        # Handle the event
-        bridge._on_thought(event)
+        # Handle the event via dispatch (THOUGHT now uses a handler factory)
+        bridge._dispatch(event)
 
         # Verify message was posted
         assert mock_app.post_message.call_count == 1

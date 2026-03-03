@@ -33,7 +33,7 @@ async def test_sub_agent_event_filtering() -> None:
     tool_manager = MagicMock(spec=ToolManager)
     tool_manager.registry = MagicMock()
 
-    output_handler = MagicMock(spec=OutputHandler)
+    output_handler = MagicMock()
     session_manager = MagicMock(spec=ReplSessionManager)
     output_handler.session_manager = session_manager
 

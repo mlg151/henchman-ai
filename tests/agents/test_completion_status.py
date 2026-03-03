@@ -348,7 +348,7 @@ class TestAgentCompletionRendering:
     def _make_output_handler(self):
         """Create a mocked OutputHandler."""
         from henchman.cli.output_handler import OutputHandler
-        return MagicMock(spec=OutputHandler)
+        return MagicMock()
 
     def test_completed_renders_muted(self):
         """Status 'completed' renders the standard muted message."""

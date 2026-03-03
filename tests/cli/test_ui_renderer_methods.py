@@ -118,7 +118,7 @@ class TestUIRendererDelegation:
         ui = _make_renderer()
         ui.progress_manager.update_task = MagicMock()
         ui.update_task("task1", advance=5, description="Still loading...")
-        ui.progress_manager.update_task.assert_called_once_with("task1", 5, "Still loading...")
+        ui.progress_manager.update_task.assert_called_once_with("task1", advance=5, description="Still loading...")
 
     def test_complete_task(self) -> None:
         """Test complete_task delegates to progress_manager."""

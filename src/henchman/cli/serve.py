@@ -48,6 +48,12 @@ def serve_command(
     This command starts a FastAPI server that provides REST API access
     to Henchman-AI functionality.
 
+    Args:
+        host: The host address to bind the server to.
+        port: The port number to listen on.
+        reload: Whether to enable auto-reload for development.
+        workers: Number of worker processes.
+
     Examples:
         henchman serve
         henchman serve --host 0.0.0.0 --port 8080

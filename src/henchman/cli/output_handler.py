@@ -9,8 +9,6 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from rich.status import Status
-
     from henchman.cli.session_manager import ReplSessionManager
     from henchman.cli.tool_manager import ToolManager
     from henchman.cli.ui_renderer import UIRenderer
@@ -23,6 +21,7 @@ try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
+
 
 class OutputHandler:
     """Handles output and event streaming for the REPL.
@@ -63,7 +62,32 @@ class OutputHandler:
         self.rag_system = rag_system
         self.mcp_manager = mcp_manager
 
-    def get_toolbar_status(self: Self, agent: Agent | None = None) -> list[tuple[str, str]]:
+    def __getattr__(self: Self, name: str) -> Any:
+        """Delegate unknown attribute access to the underlying renderer.
+
+        Transparently proxies all renderer methods so that OutputHandler does
+        not need to redeclare each single-line delegate.
+
+        Args:
+            name: Attribute name to look up.
+
+        Returns:
+            The attribute from the renderer.
+
+        Raises:
+            AttributeError: If neither OutputHandler nor its renderer has the attribute.
+        """
+        try:
+            renderer = object.__getattribute__(self, "renderer")
+            return getattr(renderer, name)
+        except AttributeError:
+            pass
+        msg = f"'{type(self).__name__}' object has no attribute '{name}'"
+        raise AttributeError(msg)
+
+    def get_toolbar_status(
+        self: Self, agent: Agent | None = None,
+    ) -> list[tuple[str, str]]:
         """Get status bar content.
 
         Args:
@@ -109,7 +133,9 @@ class OutputHandler:
         except Exception:  # noqa: BLE001
             pass
 
-    def _add_token_status(self: Self, status: list[tuple[str, str]], agent: Agent | None) -> None:
+    def _add_token_status(
+        self: Self, status: list[tuple[str, str]], agent: Agent | None,
+    ) -> None:
         """Add token usage status to the status list.
 
         Args:
@@ -149,7 +175,10 @@ class OutputHandler:
         return getattr(context, "max_tokens", 0)
 
     def _add_token_percentage_status(
-        self, status: list[tuple[str, str]], tokens: int, max_tokens: int,
+        self: Self,
+        status: list[tuple[str, str]],
+        tokens: int,
+        max_tokens: int,
     ) -> None:
         """Add token percentage status with color coding.
 
@@ -237,80 +266,10 @@ class OutputHandler:
             Status message string.
         """
         return self.renderer.get_rich_status_message(
-            self.session_manager.current, agent, self.rag_system,
+            self.session_manager.current,
+            agent,
+            self.rag_system,
         )
-
-    def print_welcome(self: Self) -> None:
-        """Print welcome message."""
-        self.renderer.print_welcome()
-
-    def print_goodbye(self: Self) -> None:
-        """Print goodbye message."""
-        self.renderer.print_goodbye()
-
-    def print_newline(self: Self) -> None:
-        """Print a newline."""
-        self.renderer.print_newline()
-
-    def success(self: Self, message: str) -> None:
-        """Print success message.
-
-        Args:
-            message: The message to print.
-        """
-        self.renderer.success(message)
-
-    def error(self: Self, message: str) -> None:
-        """Print error message.
-
-        Args:
-            message: The message to print.
-        """
-        self.renderer.error(message)
-
-    def warning(self: Self, message: str) -> None:
-        """Print warning message.
-
-        Args:
-            message: The message to print.
-        """
-        self.renderer.warning(message)
-
-    def muted(self: Self, message: str) -> None:
-        """Print muted message.
-
-        Args:
-            message: The message to print.
-        """
-        self.renderer.muted(message)
-
-    def thinking(self: Self, message: str) -> None:
-        """Print thinking message.
-
-        Args:
-            message: The message to print.
-        """
-        self.renderer.thinking(message)
-
-    def print_agent_content(self: Self, content: str) -> None:
-        """Print agent content.
-
-        Args:
-            content: The content to print.
-        """
-        self.renderer.print_agent_content(content)
-
-    def create_status(self: Self, message: str, spinner: str = "dots") -> Status:
-        """Create a status context manager.
-
-        Args:
-            message: Status message.
-            spinner: Spinner style.
-
-        Returns:
-            Status context manager.
-        """
-        return self.renderer.create_status(message, spinner=spinner)
 
     def show_turn_status(self: Self, agent: Agent, base_iterations: int) -> None:
         """Display current turn status.
@@ -334,37 +293,6 @@ class OutputHandler:
             if self.rag_system and hasattr(self.rag_system, "index_async"):
                 self._safe_create_task(self.rag_system.index_async())
 
-    def start_task(self: Self, task_id: str, description: str, total: int = 100) -> Any:
-        """Start a new progress task.
-
-        Args:
-            task_id: Unique identifier for the task.
-            description: Description to show next to the progress bar.
-            total: Total steps for the task.
-
-        Returns:
-            The created Progress instance.
-        """
-        return self.renderer.start_task(task_id, description, total)
-
-    def update_task(self: Self, task_id: str, advance: int = 1, description: str | None = None) -> None:  # noqa: E501
-        """Update progress for a task.
-
-        Args:
-            task_id: Task identifier.
-            advance: Number of steps to advance.
-            description: Optional new description.
-        """
-        self.renderer.update_task(task_id, advance, description)
-
-    def complete_task(self: Self, task_id: str) -> None:
-        """Complete and remove a task.
-
-        Args:
-            task_id: Task identifier.
-        """
-        self.renderer.complete_task(task_id)
-
     def start_background_indexing(self: Self) -> None:
         """Start background indexing if RAG is available."""
         if self.rag_system and hasattr(self.rag_system, "index_async"):
@@ -383,6 +311,8 @@ class OutputHandler:
 
         def _on_done(t: asyncio.Task[Any]) -> None:
             if not t.cancelled() and t.exception():
-                logging.error("Background task failed: %s", t.exception())  # noqa: LOG015
+                logging.error(  # noqa: LOG015
+                    "Background task failed: %s", t.exception(),
+                )
 
         task.add_done_callback(_on_done)

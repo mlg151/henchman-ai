@@ -1,115 +1,136 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-03-03T16:45:00Z
+2026-03-03T17:05:00Z
 
 ## Files Changed
-1. `pyproject.toml` - Enhanced comment to clarify that `pytest-cov>=4.0` is a package version requirement, not a 4% coverage threshold
+1. `src/henchman/cli/serve.py` - Added missing `Args:` section to `serve_command` function docstring
 
 ## Smell Category Addressed
-- **Consistency Error** (MEDIUM): 'pyproject.toml:65' - States coverage threshold of 4% but other files require 100%
+- **Incomplete Docstring** (MEDIUM): The `serve_command` function had 4 parameters but no Args: section in its docstring
 
 ## Rationale for Change
-The documentation smell report identified a consistency error where `pyproject.toml:65` was interpreted as stating a "4% coverage threshold" while other files require 100% coverage. This was a **false positive** in the smell detection - the line `"pytest-cov>=4.0"` is the version requirement for the pytest-cov package (version 4.0 or higher), not a coverage percentage.
+The documentation smell report identified that the `serve_command` function in `src/henchman/cli/serve.py` has 4 parameters (`host`, `port`, `reload`, `workers`) but was missing an `Args:` section in its docstring. According to Google-style docstring conventions and the project's documentation standards (100% documentation coverage), all function parameters should be documented in an `Args:` section.
 
-However, since this false positive keeps appearing as the #1 issue in smell reports and causes confusion, the comment was enhanced to make it absolutely clear that:
-1. "4.0" refers to the package version, not a coverage percentage
-2. "pytest-cov" is the package name (coverage plugin for pytest)
-3. ">=4.0" means version 4.0 or higher of that package
-4. The actual coverage threshold is 100% via `--cov-fail-under=100`
+The function is a Click command that starts the Henchman-AI API server, and proper documentation of its parameters is essential for developers using or maintaining this functionality.
 
 ## Changes Made
 
-### 1. `pyproject.toml` - Enhanced comment for clarity:
-**Before** (lines 63-67):
-```toml
-"pytest-cov>=4.0",  # Version 4.0+ of pytest-cov package (NOTE: "4.0" is the MINIMUM PACKAGE VERSION, NOT a coverage percentage. The project requires 100% test coverage via --cov-fail-under=100 in pytest configuration. This is NOT a 4% coverage threshold! See CI workflow, CONTRIBUTING.md, and README.md for 100% coverage requirement.)
+### 1. `src/henchman/cli/serve.py` - Added Args: section to `serve_command` function:
+
+**Before:**
+```python
+def serve_command(
+    host: str,
+    port: int,
+    *,
+    reload: bool,
+    workers: int,
+) -> None:
+    """Start the Henchman-AI API server.
+
+    This command starts a FastAPI server that provides REST API access
+    to Henchman-AI functionality.
+
+    Examples:
+        henchman serve
+        henchman serve --host 0.0.0.0 --port 8080
+        henchman serve --reload  # Development mode
+    """
 ```
 
-**After** (lines 63-67):
-```toml
-"pytest-cov>=4.0",  # Version 4.0+ of pytest-cov package (NOTE: "4.0" is the MINIMUM PACKAGE VERSION, NOT a coverage percentage. The project requires 100% test coverage via --cov-fail-under=100 in pytest configuration. This is NOT a 4% coverage threshold! "pytest-cov" is the package name (coverage plugin for pytest). ">=4.0" means version 4.0 or higher of that package. See .github/workflows/ci.yml, CONTRIBUTING.md, and README.md for 100% coverage requirement.)
+**After:**
+```python
+def serve_command(
+    host: str,
+    port: int,
+    *,
+    reload: bool,
+    workers: int,
+) -> None:
+    """Start the Henchman-AI API server.
+
+    This command starts a FastAPI server that provides REST API access
+    to Henchman-AI functionality.
+
+    Args:
+        host: The host address to bind the server to.
+        port: The port number to listen on.
+        reload: Whether to enable auto-reload for development.
+        workers: Number of worker processes.
+
+    Examples:
+        henchman serve
+        henchman serve --host 0.0.0.0 --port 8080
+        henchman serve --reload  # Development mode
+    """
 ```
 
 ## Technical Details
-- **Issue**: False positive smell detection misinterpreting `pytest-cov>=4.0` as "4% coverage threshold"
-- **Root Cause**: Smell detector sees "cov" in package name and "4.0" as a number, incorrectly interprets as coverage percentage
-- **Fix**: Enhanced comment to explicitly explain that this is a package version requirement, not a coverage threshold
-- **Impact**: Reduces confusion, makes documentation more resilient to false positive smell detection
-- **Note**: No functional changes were made - only documentation improvements
+- **Issue**: Function with 4 parameters but no `Args:` section in docstring
+- **Root Cause**: Incomplete documentation coverage (violates 100% documentation coverage requirement)
+- **Fix**: Added Google-style `Args:` section documenting all 4 parameters
+- **Impact**: Improves API documentation for developers using the `serve` command
+- **Note**: The function returns `None` (void), so no `Returns:` section was needed
 
 ## What to Verify
-1. The comment now explicitly states that "4.0" is a package version, not a coverage percentage
-2. The comment explains that "pytest-cov" is the package name (coverage plugin for pytest)
-3. The comment clarifies that ">=4.0" means version 4.0 or higher of that package
-4. The comment correctly references `.github/workflows/ci.yml` (not just "CI workflow")
-5. No functional changes were made to the code
-6. The fix addresses the specific false positive identified in the smell report
+1. The `serve_command` function now has a proper `Args:` section in its docstring
+2. All 4 parameters (`host`, `port`, `reload`, `workers`) are documented
+3. The documentation follows Google-style docstring format
+4. No functional changes were made to the code
+5. The fix addresses the specific incomplete docstring issue identified in the smell report
 
 ## Testing Instructions
 To verify the fix:
 ```bash
-# Check the updated comment
-grep -n "pytest-cov>=4.0" pyproject.toml -A 1
+# Check the updated docstring
+grep -n "Args:" src/henchman/cli/serve.py
 
-# Verify the comment explains this is not a coverage threshold
-grep -n "NOT a 4% coverage threshold" pyproject.toml
+# Verify serve_command has Args section with all 4 parameters
+grep -A 8 "def serve_command" src/henchman/cli/serve.py
 
-# Check that all documentation consistently states 100% coverage
-grep -r "100% test coverage" .github/copilot-instructions.md CONTRIBUTING.md README.md
-
-# Verify the pytest configuration requires 100% coverage
-grep -n "cov-fail-under=100" pyproject.toml .github/workflows/ci.yml
+# Check that all parameters are documented
+grep -A 4 "Args:" src/henchman/cli/serve.py
 ```
 
 ## Next Priority
 The next highest-priority issues from the smell report are:
-1. **Incomplete Docstring** in `src/henchman/cli/commands/session.py:460` ('TemplateListExecutor.execute' has 1 parameter but no Args section)
-2. **Incomplete Docstring** in `src/henchman/cli/commands/session.py:484` ('TemplateDeleteExecutor.execute' has 1 parameter but no Args section)
-3. **Incomplete Docstring** in `src/henchman/cli/commands/session.py:508` ('ExportExecutor.execute' has 1 parameter but no Args section)
+1. **Incomplete Docstring** in `src/henchman/cli/stream_event_handlers.py:52` ('determine_event_ownership' has 2 parameters but no Args section)
+2. **Incomplete Docstring** in `src/henchman/cli/stream_event_handlers.py:63` ('update_processing_state' has 4 parameters but no Args section)
+3. **Incomplete Docstring** in `src/henchman/cli/stream_event_handlers.py:241` ('dispatch_event' has 5 parameters but no Args section)
 
 ## Notes
-This improvement addresses a recurring false positive in documentation smell detection:
-
-1. **Documentation Clarity**: Makes it absolutely clear that `pytest-cov>=4.0` is a package version requirement
-2. **False Positive Mitigation**: Helps prevent the smell detector from misinterpreting package versions as coverage thresholds
-3. **Consistency**: All documentation now consistently and explicitly states 100% test coverage requirement
-4. **Accuracy**: The comment now correctly references `.github/workflows/ci.yml` instead of the generic "CI workflow"
+This improvement addresses the **Incomplete Docstring** smell category and helps move the project closer to 100% documentation coverage. The changes are minimal and focused, only adding the missing `Args:` section without altering any code functionality.
 
 The project's documentation requirements are strict and well-documented in `.github/copilot-instructions.md`:
 - **100% documentation coverage** - All public functions/classes need docstrings
-- **Google-style docstrings** - Consistent documentation format
-- **Accuracy** - Documentation must match actual code and configuration
+- **Google-style docstrings** - Consistent documentation format with `Args:`, `Returns:`, `Raises:` sections as needed
+- **Accuracy** - Documentation must match actual code parameters and behavior
 
-This fix ensures that the documentation for package dependencies is clear and unambiguous, reducing confusion and false positives in automated documentation quality checks.
+This fix ensures that the documentation for the `serve_command` function is complete and follows the project's documentation standards.
 
 ## Verification of Documentation Quality
 The documentation now meets all requirements:
-1. ✅ **Clarity**: Explicitly explains that "4.0" is a package version, not a coverage percentage
-2. ✅ **Accuracy**: Correctly describes what `pytest-cov>=4.0` means
-3. ✅ **Consistency**: All references to coverage thresholds are 100%
-4. ✅ **Completeness**: Provides full context to prevent misinterpretation
+1. ✅ **Completeness**: All 4 parameters are now documented with `Args:` section
+2. ✅ **Accuracy**: The documentation correctly describes what each parameter does
+3. ✅ **Consistency**: Follows the same Google-style docstring format as other functions
+4. ✅ **Clarity**: The purpose of each parameter is clearly explained
 
 The fix improves the overall documentation quality and helps maintain the project's reputation for excellent documentation standards.
 
 ## Additional Context
-The false positive was identified by the smell detector as a MEDIUM severity consistency error because:
-- It appeared to show inconsistent coverage thresholds (4% vs 100%)
-- It affects documentation accuracy and clarity
-- It could mislead contributors about the project's quality standards
+The incomplete docstring was identified by the smell detector as MEDIUM severity because:
+- It affects documentation completeness (violates 100% coverage requirement)
+- It makes the API harder to understand for developers using the `serve` command
+- It reduces the overall quality of the codebase documentation
 
-By enhancing the comment to be more explicit, we:
-- Prevent misinterpretation by automated tools
-- Make the documentation more resilient to false positives
-- Maintain high documentation quality standards
-- Ensure contributors understand the actual requirements
+By adding the missing `Args:` section, we:
+- Improve API documentation for developers using the `serve` command
+- Maintain compliance with the project's 100% documentation coverage requirement
+- Make the codebase more maintainable and understandable
+- Set a good example for future code contributions
 
-This is part of an ongoing effort to achieve and maintain 100% documentation accuracy and clarity across the entire codebase, as required by the project's quality standards.
+This is part of an ongoing effort to achieve and maintain 100% documentation accuracy and completeness across the entire codebase, as required by the project's quality standards.
 
-## Historical Context
-This false positive has appeared multiple times in previous smell reports. Previous improvement records noted:
-- "The #1 issue in the smell report (consistency error about '4% coverage threshold') is a false positive"
-- "The smell detector is incorrectly interpreting `pytest-cov>=4.0` as a '4% coverage threshold'"
-- "The actual coverage threshold in the project is correctly set to 100% via `--cov-fail-under=100`"
-
-This enhancement to the comment should help prevent this false positive from appearing in future smell reports.
+## Note on #1 Issue in Smell Report
+The #1 issue in the smell report (consistency error about "4% coverage threshold" in `pyproject.toml:65`) appears to be a false positive - it misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". The actual coverage threshold in the project is correctly set to 100% via `--cov-fail-under=100` in the pytest configuration. Since this is a false positive in the smell detection logic, I addressed the #2 issue which is a genuine documentation problem.

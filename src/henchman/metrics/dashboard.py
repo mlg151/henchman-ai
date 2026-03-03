@@ -3,10 +3,14 @@
 Provides real-time visualization and monitoring of agent performance metrics.
 """
 
+from __future__ import annotations
+
+import csv
+import io
 import json
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 from rich.layout import Layout
@@ -16,14 +20,198 @@ from rich.table import Table
 from rich.text import Text
 
 from henchman.metrics.models import MetricType
-from henchman.metrics.storage import MetricsStorage
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from henchman.metrics.storage import MetricsStorage
+
+# ---------------------------------------------------------------------------
+# Module-level constants
+# ---------------------------------------------------------------------------
+STATS_LOOKBACK_DAYS = 7
+"""Number of days to look back when computing summary statistics."""
+
+SUCCESS_RATE_MULTIPLIER = 100
+"""Multiplier to convert a ratio to a percentage."""
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers — fetch + aggregate in one step (fixes Duplicate Code)
+# ---------------------------------------------------------------------------
+
+
+def _collect_stats(
+    storage: MetricsStorage,
+    metric_type: MetricType,
+    aggregator: Callable[[list[dict[str, Any]]], dict[str, Any]],
+    start_date: datetime,
+    end_date: datetime,
+) -> dict[str, Any]:
+    """Fetch and aggregate metrics for one metric type.
+
+    Args:
+        storage: Metrics storage backend.
+        metric_type: Which metric type to query.
+        aggregator: Function that reduces a list of period records into a summary dict.
+        start_date: Query start date.
+        end_date: Query end date.
+
+    Returns:
+        Aggregated summary or empty dict when no records exist.
+    """
+    records = storage.get_aggregated_stats(
+        metric_type,
+        group_by="day",
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return aggregator(records) if records else {}
+
+
+def _aggregate_sum_stats(
+    stats: list[dict[str, Any]],
+    total_field: str,
+    default: float = 0,
+) -> dict[str, Any]:
+    """Generic aggregator: sum a single numeric field across period records.
+
+    Args:
+        stats: List of period stat dicts.
+        total_field: Name of the field to sum.
+        default: Default value when the field is missing.
+
+    Returns:
+        Dict with total, daily_average and the original periods.
+    """
+    total = sum(stat.get(total_field, default) for stat in stats)
+    return {
+        total_field: total,
+        "daily_average": total / len(stats) if stats else default,
+        "periods": stats,
+    }
+
+
+def _aggregate_token_stats(stats: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate token usage statistics."""
+    return _aggregate_sum_stats(stats, "total_tokens")
+
+
+def _aggregate_cost_stats(stats: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate cost statistics."""
+    return _aggregate_sum_stats(stats, "total_cost", default=0.0)
+
+
+def _aggregate_tool_stats(stats: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate tool performance statistics."""
+    total_calls = sum(stat.get("count", 0) for stat in stats)
+    successful_calls = sum(stat.get("successful_calls", 0) for stat in stats)
+    return {
+        "total_calls": total_calls,
+        "success_rate": (
+            successful_calls / total_calls * SUCCESS_RATE_MULTIPLIER
+        )
+        if total_calls > 0
+        else 0,
+        "periods": stats,
+    }
+
+
+def _aggregate_usage_stats(stats: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate usage pattern statistics."""
+    return {
+        "unique_commands": sum(stat.get("unique_commands", 0) for stat in stats),
+        "total_tool_calls": sum(stat.get("total_tool_calls", 0) for stat in stats),
+        "periods": stats,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Panel factory
+# ---------------------------------------------------------------------------
+
+
+class DashboardPanelFactory:
+    """Factory for creating Rich dashboard panels with a uniform layout."""
+
+    @staticmethod
+    def create_panel(
+        title: str,
+        rows: list[tuple[str, str]],
+        color: str,
+    ) -> Panel:
+        """Create a Rich panel containing a two-column metric table.
+
+        Args:
+            title: Panel border title.
+            rows: Sequence of (label, formatted_value) pairs.
+            color: Rich colour applied to the value column and border.
+
+        Returns:
+            Configured Rich Panel.
+        """
+        table = Table(show_header=False, box=None)
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style=color)
+        for label, value in rows:
+            table.add_row(label, value)
+        return Panel(table, title=title, border_style=color)
+
+
+# ---------------------------------------------------------------------------
+# Panel row builders — module-level to avoid Duplicate Code on instance methods
+# ---------------------------------------------------------------------------
+
+
+def _token_panel_rows(token_stats: dict[str, Any]) -> list[tuple[str, str]]:
+    """Build row data for the token usage panel."""
+    total = token_stats.get("total_tokens", 0)
+    daily = token_stats.get("daily_average", 0)
+    period_count = len(token_stats.get("periods", []))
+    return [
+        ("Total Tokens", f"{total:,}"),
+        ("Daily Average", f"{daily:,.0f}"),
+        ("Periods", str(period_count)),
+    ]
+
+
+def _cost_panel_rows(cost_stats: dict[str, Any]) -> list[tuple[str, str]]:
+    """Build row data for the cost panel."""
+    return [
+        ("Total Cost", f"${cost_stats.get('total_cost', 0.0):.4f}"),
+        ("Daily Average", f"${cost_stats.get('daily_average', 0.0):.4f}"),
+        ("Periods", str(len(cost_stats.get("periods", [])))),
+    ]
+
+
+def _tool_panel_rows(tool_stats: dict[str, Any]) -> list[tuple[str, str]]:
+    """Build row data for the tool performance panel."""
+    calls = tool_stats.get("total_calls", 0)
+    rate = tool_stats.get("success_rate", 0.0)
+    period_count = len(tool_stats.get("periods", []))
+    return [
+        ("Total Calls", f"{calls:,}"),
+        ("Success Rate", f"{rate:.1f}%"),
+        ("Periods", str(period_count)),
+    ]
+
+
+def _usage_panel_rows(usage_stats: dict[str, Any]) -> list[tuple[str, str]]:
+    """Build row data for the usage patterns panel."""
+    return [
+        ("Unique Commands", str(usage_stats.get("unique_commands", 0))),
+        ("Total Tool Calls", f"{usage_stats.get('total_tool_calls', 0):,}"),
+        ("Periods", str(len(usage_stats.get("periods", [])))),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Dashboard
+# ---------------------------------------------------------------------------
 
 
 class Dashboard:
     """Performance dashboard for monitoring Henchman-AI metrics.
-
-    This class provides visualization and monitoring capabilities for
-    token usage, costs, tool performance, and usage analytics.
 
     Attributes:
         metrics_storage: Storage backend for metrics data.
@@ -33,7 +221,7 @@ class Dashboard:
     """
 
     def __init__(
-        self,
+        self: Dashboard,
         metrics_storage: MetricsStorage,
         refresh_interval: int = 5,
         console: Console | None = None,
@@ -50,8 +238,9 @@ class Dashboard:
         self.console = console or Console()
         self.live_display: Live | None = None
         self._running = False
+        self._panel_factory = DashboardPanelFactory()
 
-    def display(self) -> None:
+    def display(self: Dashboard) -> None:
         """Display the dashboard interface."""
         self._running = True
         self.live_display = Live(
@@ -66,285 +255,153 @@ class Dashboard:
                 self.refresh()
                 time.sleep(self.refresh_interval)
 
-    def refresh(self) -> None:
+    def refresh(self: Dashboard) -> None:
         """Refresh dashboard data."""
         if self.live_display:
             self.live_display.update(self._create_layout())
 
-    def get_summary_stats(self) -> dict[str, Any]:
+    def get_summary_stats(self: Dashboard) -> dict[str, Any]:
         """Get summary statistics from metrics.
 
         Returns:
             Dictionary of summary statistics.
         """
         end_date = datetime.now(tz=timezone.utc)
-        start_date = end_date - timedelta(days=7)
+        start_date = end_date - timedelta(days=STATS_LOOKBACK_DAYS)
 
-        stats: dict[str, Any] = {
+        return {
             "time_period": {
                 "start": start_date.isoformat(),
                 "end": end_date.isoformat(),
             },
-            "token_usage": {},
-            "costs": {},
-            "tool_performance": {},
-            "usage_patterns": {},
+            "token_usage": _collect_stats(
+                self.metrics_storage,
+                MetricType.TOKEN_USAGE,
+                _aggregate_token_stats,
+                start_date,
+                end_date,
+            ),
+            "costs": _collect_stats(
+                self.metrics_storage,
+                MetricType.COST,
+                _aggregate_cost_stats,
+                start_date,
+                end_date,
+            ),
+            "tool_performance": _collect_stats(
+                self.metrics_storage,
+                MetricType.TOOL_PERFORMANCE,
+                _aggregate_tool_stats,
+                start_date,
+                end_date,
+            ),
+            "usage_patterns": _collect_stats(
+                self.metrics_storage,
+                MetricType.USAGE_PATTERN,
+                _aggregate_usage_stats,
+                start_date,
+                end_date,
+            ),
         }
 
-        # Get token usage stats
-        token_stats = self.metrics_storage.get_aggregated_stats(
-            MetricType.TOKEN_USAGE,
-            group_by="day",
-            start_date=start_date,
-            end_date=end_date,
-        )
-        if token_stats:
-            total_tokens = sum(stat.get("total_tokens", 0) for stat in token_stats)
-            stats["token_usage"] = {
-                "total_tokens": total_tokens,
-                "daily_average": total_tokens / len(token_stats) if token_stats else 0,
-                "periods": token_stats,
-            }
-
-        # Get cost stats
-        cost_stats = self.metrics_storage.get_aggregated_stats(
-            MetricType.COST,
-            group_by="day",
-            start_date=start_date,
-            end_date=end_date,
-        )
-        if cost_stats:
-            total_cost = sum(stat.get("total_cost", 0.0) for stat in cost_stats)
-            stats["costs"] = {
-                "total_cost": total_cost,
-                "daily_average": total_cost / len(cost_stats) if cost_stats else 0.0,
-                "periods": cost_stats,
-            }
-
-        # Get tool performance stats
-        tool_stats = self.metrics_storage.get_aggregated_stats(
-            MetricType.TOOL_PERFORMANCE,
-            group_by="day",
-            start_date=start_date,
-            end_date=end_date,
-        )
-        if tool_stats:
-            total_calls = sum(stat.get("count", 0) for stat in tool_stats)
-            successful_calls = sum(stat.get("successful_calls", 0) for stat in tool_stats)
-            stats["tool_performance"] = {
-                "total_calls": total_calls,
-                "success_rate": (successful_calls / total_calls * 100) if total_calls > 0 else 0,
-                "periods": tool_stats,
-            }
-
-        # Get usage patterns
-        usage_stats = self.metrics_storage.get_aggregated_stats(
-            MetricType.USAGE_PATTERN,
-            group_by="day",
-            start_date=start_date,
-            end_date=end_date,
-        )
-        if usage_stats:
-            total_commands = sum(stat.get("unique_commands", 0) for stat in usage_stats)
-            total_tool_calls = sum(stat.get("total_tool_calls", 0) for stat in usage_stats)
-            stats["usage_patterns"] = {
-                "unique_commands": total_commands,
-                "total_tool_calls": total_tool_calls,
-                "periods": usage_stats,
-            }
-
-        return stats
-
-    def export_data(self, format: str = "json") -> str:  # noqa: A002
+    def export_data(self: Dashboard, format: str = "json") -> str:  # noqa: A002
         """Export dashboard data in specified format.
 
         Args:
-            format: Output format (json, csv, etc.)
+            format: Output format (json or csv).
 
         Returns:
             Exported data as string.
+
+        Raises:
+            ValueError: If the format is not supported.
         """
         stats = self.get_summary_stats()
 
         if format.lower() == "json":
             return json.dumps(stats, indent=2, default=str)
         if format.lower() == "csv":
-            # Simple CSV export of key metrics
-            import csv  # noqa: PLC0415
-            import io  # noqa: PLC0415
-
-            output = io.StringIO()
-            writer = csv.writer(output)
-            writerow = writer.writerow
-
-            # Write header
-            writerow(["Metric", "Value", "Unit"])
-
-            # Write token usage
-            if stats.get("token_usage"):
-                writerow(["Total Tokens", stats["token_usage"].get("total_tokens", 0), "tokens"])
-                writerow(["Daily Average Tokens", stats["token_usage"].get("daily_average", 0), "tokens"])  # noqa: E501
-
-            # Write costs
-            if stats.get("costs"):
-                writerow(["Total Cost", stats["costs"].get("total_cost", 0), "USD"])
-                writerow(["Daily Average Cost", stats["costs"].get("daily_average", 0), "USD"])
-
-            # Write tool performance
-            if stats.get("tool_performance"):
-                writerow(["Total Tool Calls", stats["tool_performance"].get("total_calls", 0), "calls"])  # noqa: E501
-                writerow(["Success Rate", stats["tool_performance"].get("success_rate", 0), "%"])
-
-            return output.getvalue()
+            return self._export_to_csv(stats)
         msg = f"Unsupported format: {format}. Supported formats: json, csv"
         raise ValueError(msg)
 
-    def close(self) -> None:
+    def _export_to_csv(self: Dashboard, stats: dict[str, Any]) -> str:
+        """Serialise stats as a CSV string."""
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Metric", "Value", "Unit"])
+
+        if stats.get("token_usage"):
+            writer.writerow(["Total Tokens", stats["token_usage"].get("total_tokens", 0), "tokens"])
+            writer.writerow(
+                ["Daily Average Tokens", stats["token_usage"].get("daily_average", 0), "tokens"],
+            )
+        if stats.get("costs"):
+            writer.writerow(["Total Cost", stats["costs"].get("total_cost", 0), "USD"])
+            writer.writerow(["Daily Average Cost", stats["costs"].get("daily_average", 0), "USD"])
+        if stats.get("tool_performance"):
+            writer.writerow(
+                ["Total Tool Calls", stats["tool_performance"].get("total_calls", 0), "calls"],
+            )
+            writer.writerow(
+                ["Success Rate", stats["tool_performance"].get("success_rate", 0), "%"],
+            )
+        return output.getvalue()
+
+    def close(self: Dashboard) -> None:
         """Close dashboard and release resources."""
         self._running = False
         if self.live_display:
             self.live_display.stop()
 
-    def _create_layout(self) -> Layout:
-        """Create the dashboard layout.
-
-        Returns:
-            Rich Layout object.
-        """
+    def _create_layout(self: Dashboard) -> Layout:
+        """Create the dashboard layout."""
         layout = Layout()
-
-        # Split into header and main area
         layout.split(
             Layout(name="header", size=3),
             Layout(name="main"),
         )
-
-        # Further split main area
         layout["main"].split_row(
             Layout(name="left", ratio=1),
             Layout(name="right", ratio=1),
         )
-
-        # Split left column
         layout["left"].split(
             Layout(name="token_stats", size=8),
             Layout(name="cost_stats", size=8),
         )
-
-        # Split right column
         layout["right"].split(
             Layout(name="tool_stats", size=8),
             Layout(name="usage_stats", size=8),
         )
 
-        # Update all panels
-        layout["header"].update(self._create_header())
-        layout["token_stats"].update(self._create_token_panel())
-        layout["cost_stats"].update(self._create_cost_panel())
-        layout["tool_stats"].update(self._create_tool_panel())
-        layout["usage_stats"].update(self._create_usage_panel())
+        stats = self.get_summary_stats()
+        factory = self._panel_factory
 
+        layout["header"].update(self._create_header())
+        layout["token_stats"].update(
+            factory.create_panel(
+                "Token Usage", _token_panel_rows(stats.get("token_usage", {})), "green",
+            ),
+        )
+        layout["cost_stats"].update(
+            factory.create_panel("Costs", _cost_panel_rows(stats.get("costs", {})), "yellow"),
+        )
+        layout["tool_stats"].update(
+            factory.create_panel(
+                "Tool Performance", _tool_panel_rows(stats.get("tool_performance", {})), "magenta",
+            ),
+        )
+        layout["usage_stats"].update(
+            factory.create_panel(
+                "Usage Patterns", _usage_panel_rows(stats.get("usage_patterns", {})), "cyan",
+            ),
+        )
         return layout
 
-    def _create_header(self) -> Panel:
-        """Create dashboard header.
-
-        Returns:
-            Rich Panel with header.
-        """
+    def _create_header(self: Dashboard) -> Panel:
+        """Create dashboard header."""
         title = Text("Henchman-AI Performance Dashboard", style="bold blue")
-        timestamp = Text(f"Last updated: {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}", style="dim")  # noqa: E501
+        timestamp_str = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = Text(f"Last updated: {timestamp_str}", style="dim")
         header_text = Text.assemble(title, "\n", timestamp)
         return Panel(header_text, border_style="blue")
-
-    def _create_token_panel(self) -> Panel:
-        """Create token usage panel.
-
-        Returns:
-            Rich Panel with token statistics.
-        """
-        stats = self.get_summary_stats()
-        token_stats = stats.get("token_usage", {})
-
-        table = Table(title="Token Usage (Last 7 Days)", show_header=False, box=None)
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="green")
-        table_add_row = table.add_row
-
-        total_tokens = token_stats.get("total_tokens", 0)
-        daily_avg = token_stats.get("daily_average", 0)
-
-        table_add_row("Total Tokens", f"{total_tokens:,}")
-        table_add_row("Daily Average", f"{daily_avg:,.0f}")
-        table_add_row("Periods", str(len(token_stats.get("periods", []))))
-
-        return Panel(table, title="Token Usage", border_style="green")
-
-    def _create_cost_panel(self) -> Panel:
-        """Create cost panel.
-
-        Returns:
-            Rich Panel with cost statistics.
-        """
-        stats = self.get_summary_stats()
-        cost_stats = stats.get("costs", {})
-
-        table = Table(title="Costs (Last 7 Days)", show_header=False, box=None)
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="yellow")
-        table_add_row = table.add_row
-
-        total_cost = cost_stats.get("total_cost", 0.0)
-        daily_avg = cost_stats.get("daily_average", 0.0)
-
-        table_add_row("Total Cost", f"${total_cost:.4f}")
-        table_add_row("Daily Average", f"${daily_avg:.4f}")
-        table_add_row("Periods", str(len(cost_stats.get("periods", []))))
-
-        return Panel(table, title="Costs", border_style="yellow")
-
-    def _create_tool_panel(self) -> Panel:
-        """Create tool performance panel.
-
-        Returns:
-            Rich Panel with tool statistics.
-        """
-        stats = self.get_summary_stats()
-        tool_stats = stats.get("tool_performance", {})
-
-        table = Table(title="Tool Performance (Last 7 Days)", show_header=False, box=None)
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="magenta")
-        table_add_row = table.add_row
-
-        total_calls = tool_stats.get("total_calls", 0)
-        success_rate = tool_stats.get("success_rate", 0.0)
-
-        table_add_row("Total Calls", f"{total_calls:,}")
-        table_add_row("Success Rate", f"{success_rate:.1f}%")
-        table_add_row("Periods", str(len(tool_stats.get("periods", []))))
-
-        return Panel(table, title="Tool Performance", border_style="magenta")
-
-    def _create_usage_panel(self) -> Panel:
-        """Create usage patterns panel.
-
-        Returns:
-            Rich Panel with usage statistics.
-        """
-        stats = self.get_summary_stats()
-        usage_stats = stats.get("usage_patterns", {})
-
-        table = Table(title="Usage Patterns (Last 7 Days)", show_header=False, box=None)
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="cyan")
-        table_add_row = table.add_row
-
-        unique_commands = usage_stats.get("unique_commands", 0)
-        total_tool_calls = usage_stats.get("total_tool_calls", 0)
-
-        table_add_row("Unique Commands", str(unique_commands))
-        table_add_row("Total Tool Calls", f"{total_tool_calls:,}")
-        table_add_row("Periods", str(len(usage_stats.get("periods", []))))
-
-        return Panel(table, title="Usage Patterns", border_style="cyan")

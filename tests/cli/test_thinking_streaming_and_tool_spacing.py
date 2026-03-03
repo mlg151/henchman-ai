@@ -36,9 +36,7 @@ class TestThinkingStreamAccumulation:
             # First call returns chat pane, second returns thinking pane
             mock_query.side_effect = [mock_pane, mock_thinking]
 
-            msg = AgentThoughtMessage.__new__(AgentThoughtMessage)
-            msg.thought = "Thinking about something"
-            msg.source_agent = "Agent"
+            msg = AgentThoughtMessage("Thinking about something", "Agent")
 
             app.on_agent_thought_message(msg)
 
@@ -87,9 +85,7 @@ class TestThinkingStreamAccumulation:
         with patch.object(app, "query_one") as mock_query:
             mock_query.side_effect = [mock_pane, mock_thinking]
 
-            msg = AgentThoughtMessage.__new__(AgentThoughtMessage)
-            msg.thought = "Thinking..."
-            msg.source_agent = None
+            msg = AgentThoughtMessage("Thinking...", source_agent=None)
 
             app.on_agent_thought_message(msg)
 
@@ -136,8 +132,7 @@ class TestToolResultSpacing:
         with patch.object(app, "query_one") as mock_query:
             mock_query.side_effect = [mock_pane, mock_tool_pane]
 
-            msg = ToolCallResultMessage.__new__(ToolCallResultMessage)
-            msg.result = "success"
+            msg = ToolCallResultMessage("success")
 
             app.on_tool_call_result_message(msg)
 
@@ -160,8 +155,7 @@ class TestToolResultSpacing:
         with patch.object(app, "query_one") as mock_query:
             mock_query.side_effect = [mock_pane, mock_tool_pane]
 
-            msg = ToolCallResultMessage.__new__(ToolCallResultMessage)
-            msg.result = "output data"
+            msg = ToolCallResultMessage("output data")
 
             app.on_tool_call_result_message(msg)
 

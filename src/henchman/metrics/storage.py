@@ -3,14 +3,18 @@
 Provides persistent storage for metrics with configurable retention.
 """
 
+from __future__ import annotations
+
 import json
 import sqlite3
-from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 from henchman.metrics.models import (
     BaseMetric,
@@ -38,7 +42,7 @@ class MetricsQueryParams:
 class SessionMetricsAnalyzer:
     """Analyzes metrics for specific sessions."""
 
-    def __init__(self, storage: "MetricsStorage") -> None:
+    def __init__(self: SessionMetricsAnalyzer, storage: MetricsStorage) -> None:
         """Initialize analyzer with storage reference.
 
         Args:
@@ -46,7 +50,9 @@ class SessionMetricsAnalyzer:
         """
         self.storage = storage
 
-    def get_session_metrics(self, session_id: str) -> dict[str, Any]:
+    def get_session_metrics(
+        self: SessionMetricsAnalyzer, session_id: str,
+    ) -> dict[str, Any]:
         """Get all metrics for a specific session.
 
         Args:
@@ -58,9 +64,13 @@ class SessionMetricsAnalyzer:
         with self.storage._get_connection() as conn:  # noqa: SLF001
             cursor = conn.cursor()
 
-            token_stats = self._get_session_metric_by_type(cursor, session_id, "token_usage")
+            token_stats = self._get_session_metric_by_type(
+                cursor, session_id, "token_usage",
+            )
             cost_stats = self._get_session_metric_by_type(cursor, session_id, "cost")
-            tool_stats = self._get_session_metric_by_type(cursor, session_id, "tool_performance")
+            tool_stats = self._get_session_metric_by_type(
+                cursor, session_id, "tool_performance",
+            )
             usage_patterns = self._get_session_usage_patterns(cursor, session_id)
 
         return {
@@ -72,7 +82,11 @@ class SessionMetricsAnalyzer:
         }
 
     def _get_session_metrics_by_type(
-        self, cursor: sqlite3.Cursor, session_id: str, metric_type: str, select_clause: str,
+        self: SessionMetricsAnalyzer,
+        cursor: sqlite3.Cursor,
+        session_id: str,
+        metric_type: str,
+        select_clause: str,
     ) -> tuple[Any, ...] | None:
         """Get session metrics by type with parameterized query.
 
@@ -94,7 +108,10 @@ class SessionMetricsAnalyzer:
         return cursor.fetchone()  # type: ignore[no-any-return]
 
     def _get_session_aggregated_metrics(
-        self, cursor: sqlite3.Cursor, session_id: str, metric_type: str,
+        self: SessionMetricsAnalyzer,
+        cursor: sqlite3.Cursor,
+        session_id: str,
+        metric_type: str,
     ) -> tuple[Any, ...] | None:
         """Get aggregated metrics for a session by metric type.
 
@@ -131,11 +148,17 @@ class SessionMetricsAnalyzer:
             return None
 
         return self._get_session_metrics_by_type(
-            cursor, session_id, metric_type, select_clauses[metric_type],
+            cursor,
+            session_id,
+            metric_type,
+            select_clauses[metric_type],
         )
 
     def _get_session_metric_by_type(
-        self, cursor: sqlite3.Cursor, session_id: str, metric_type: str,
+        self: SessionMetricsAnalyzer,
+        cursor: sqlite3.Cursor,
+        session_id: str,
+        metric_type: str,
     ) -> tuple[Any, ...] | None:
         """Get session metrics by type.
 
@@ -150,7 +173,9 @@ class SessionMetricsAnalyzer:
         return self._get_session_aggregated_metrics(cursor, session_id, metric_type)
 
     def _get_session_usage_patterns(
-        self, cursor: sqlite3.Cursor, session_id: str,
+        self: SessionMetricsAnalyzer,
+        cursor: sqlite3.Cursor,
+        session_id: str,
     ) -> list[sqlite3.Row]:
         """Get usage patterns for a session."""
         cursor.execute(
@@ -220,7 +245,9 @@ class DatabaseSchemaManager:
         "metadata TEXT",
     ]
 
-    def create_metrics_table(self, cursor: sqlite3.Cursor) -> None:
+    def create_metrics_table(
+        self: DatabaseSchemaManager, cursor: sqlite3.Cursor,
+    ) -> None:
         """Create the main metrics table with all columns."""
         columns_sql = ",\n                ".join(self._METRICS_TABLE_COLUMNS)
         cursor.execute(f"""
@@ -229,7 +256,7 @@ class DatabaseSchemaManager:
             )
         """)
 
-    def create_indexes(self, cursor: sqlite3.Cursor) -> None:
+    def create_indexes(self: DatabaseSchemaManager, cursor: sqlite3.Cursor) -> None:
         """Create indexes for common queries."""
         indexes = [
             ("idx_metric_type", "metric_type"),
@@ -242,13 +269,15 @@ class DatabaseSchemaManager:
         ]
 
         for index_name, column_name in indexes:
-            cursor.execute(f"CREATE INDEX IF NOT EXISTS {index_name} ON metrics({column_name})")
+            cursor.execute(
+                f"CREATE INDEX IF NOT EXISTS {index_name} ON metrics({column_name})",
+            )
 
 
 class MetricsAggregator:
     """Handles aggregation and statistical analysis of metrics."""
 
-    def __init__(self, storage: "MetricsStorage") -> None:
+    def __init__(self: MetricsAggregator, storage: MetricsStorage) -> None:
         """Initialize aggregator with storage reference.
 
         Args:
@@ -257,7 +286,7 @@ class MetricsAggregator:
         self.storage = storage
 
     def get_aggregated_stats(
-        self,
+        self: MetricsAggregator,
         metric_type: MetricType,
         group_by: str = "day",
         start_date: datetime | None = None,
@@ -280,7 +309,7 @@ class MetricsAggregator:
 
         return self._execute_aggregation_query(query, params)
 
-    def _get_time_format_for_grouping(self, group_by: str) -> str:
+    def _get_time_format_for_grouping(self: MetricsAggregator, group_by: str) -> str:
         """Get SQL time format string for the specified grouping interval.
 
         Args:
@@ -337,7 +366,11 @@ class MetricsAggregator:
         """,
     }
 
-    def _build_aggregation_query(self, metric_type: MetricType, time_format: str) -> str:
+    def _build_aggregation_query(
+        self: MetricsAggregator,
+        metric_type: MetricType,
+        time_format: str,
+    ) -> str:
         """Build the SQL query for metric aggregation.
 
         Args:
@@ -365,7 +398,7 @@ class MetricsAggregator:
         return base_query
 
     def _build_aggregation_params(
-        self,
+        self: MetricsAggregator,
         metric_type: MetricType,
         start_date: datetime | None,
         end_date: datetime | None,
@@ -384,7 +417,11 @@ class MetricsAggregator:
 
         return params
 
-    def _execute_aggregation_query(self, query: str, params: list[Any]) -> list[dict[str, Any]]:
+    def _execute_aggregation_query(
+        self: MetricsAggregator,
+        query: str,
+        params: list[Any],
+    ) -> list[dict[str, Any]]:
         """Execute the aggregation query and return results."""
         query += """
             GROUP BY period
@@ -410,7 +447,7 @@ class MetricsStorage:
     """
 
     def __init__(
-        self,
+        self: MetricsStorage,
         db_path: str | Path | None = None,
         retention_days: int | None = 30,
         max_metrics: int | None = 100000,
@@ -445,7 +482,9 @@ class MetricsStorage:
         self._init_database()
 
     @contextmanager
-    def _get_connection(self) -> Generator[sqlite3.Connection, None, None]:
+    def _get_connection(
+        self: MetricsStorage,
+    ) -> Generator[sqlite3.Connection, None, None]:
         """Get a database connection with proper configuration.
 
         Yields:
@@ -458,7 +497,7 @@ class MetricsStorage:
         finally:
             conn.close()
 
-    def _init_database(self) -> None:
+    def _init_database(self: MetricsStorage) -> None:
         """Initialize database schema."""
         schema_manager = DatabaseSchemaManager()
         with self._get_connection() as conn:
@@ -467,7 +506,7 @@ class MetricsStorage:
             schema_manager.create_indexes(cursor)
             conn.commit()
 
-    def store_metric(self, metric: BaseMetric) -> None:
+    def store_metric(self: MetricsStorage, metric: BaseMetric) -> None:
         """Store a metric in the database.
 
         Args:
@@ -498,7 +537,7 @@ class MetricsStorage:
         # Clean up old metrics if retention is enabled
         self._cleanup_old_metrics()
 
-    def _metric_to_dict(self, metric: BaseMetric) -> dict[str, Any]:
+    def _metric_to_dict(self: MetricsStorage, metric: BaseMetric) -> dict[str, Any]:
         """Convert a metric to dictionary for database storage.
 
         Args:
@@ -589,7 +628,11 @@ class MetricsStorage:
         },
     }
 
-    def _add_metric_specific_fields(self, metric: BaseMetric, base_dict: dict[str, Any]) -> None:
+    def _add_metric_specific_fields(
+        self: MetricsStorage,
+        metric: BaseMetric,
+        base_dict: dict[str, Any],
+    ) -> None:
         """Add type-specific fields to the metric dictionary."""
         # Find the appropriate mapping and apply it
         for metric_type, mapping in self._FIELD_MAPPINGS.items():
@@ -598,7 +641,10 @@ class MetricsStorage:
                 break
 
     def _apply_field_mapping(
-        self, metric: BaseMetric, base_dict: dict[str, Any], mapping: dict[str, str],
+        self: MetricsStorage,
+        metric: BaseMetric,
+        base_dict: dict[str, Any],
+        mapping: dict[str, str],
     ) -> None:
         """Apply field mapping from metric to base dictionary.
 
@@ -612,7 +658,7 @@ class MetricsStorage:
             if value is not None:
                 base_dict[db_column] = value
 
-    def _should_store_metric(self) -> bool:
+    def _should_store_metric(self: MetricsStorage) -> bool:
         """Check if a metric should be stored based on limits.
 
         Returns:
@@ -631,12 +677,14 @@ class MetricsStorage:
 
         return count < self.max_metrics
 
-    def _cleanup_old_metrics(self) -> None:
+    def _cleanup_old_metrics(self: MetricsStorage) -> None:
         """Clean up metrics older than retention period."""
         if self.retention_days is None:
             return
 
-        cutoff_date = datetime.now(tz=timezone.utc) - timedelta(days=self.retention_days)
+        cutoff_date = datetime.now(tz=timezone.utc) - timedelta(
+            days=self.retention_days,
+        )
         cutoff_str = cutoff_date.isoformat()
 
         with self._get_connection() as conn:
@@ -645,7 +693,7 @@ class MetricsStorage:
             conn.commit()
 
     def get_metrics(  # noqa: PLR0913
-        self,
+        self: MetricsStorage,
         metric_type: MetricType | None = None,
         session_id: str | None = None,
         agent_id: str | None = None,
@@ -676,7 +724,10 @@ class MetricsStorage:
         )
         return self._execute_metrics_query(query_params)
 
-    def get_metrics_with_params(self, query_params: MetricsQueryParams) -> list[dict[str, Any]]:
+    def get_metrics_with_params(
+        self: MetricsStorage,
+        query_params: MetricsQueryParams,
+    ) -> list[dict[str, Any]]:
         """Retrieve metrics using a MetricsQueryParams object.
 
         Args:
@@ -687,7 +738,10 @@ class MetricsStorage:
         """
         return self._execute_metrics_query(query_params)
 
-    def _execute_metrics_query(self, query_params: MetricsQueryParams) -> list[dict[str, Any]]:
+    def _execute_metrics_query(
+        self: MetricsStorage,
+        query_params: MetricsQueryParams,
+    ) -> list[dict[str, Any]]:
         """Execute a metrics query with the given parameters.
 
         Args:
@@ -696,7 +750,7 @@ class MetricsStorage:
         Returns:
             List of metric dictionaries.
         """
-        query, params = self._build_metrics_query(query_params)
+        query, params = query_params.build_query()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -705,55 +759,8 @@ class MetricsStorage:
 
         return [dict(row) for row in rows]
 
-    def _build_metrics_query(self, query_params: MetricsQueryParams) -> tuple[str, list[Any]]:
-        """Build SQL query and parameters for retrieving metrics.
-
-        Args:
-            query_params: Parameters for filtering metrics.
-
-        Returns:
-            Tuple of (query_string, parameters_list).
-        """
-        query = "SELECT * FROM metrics WHERE 1=1"
-        params: list[Any] = []
-        params_append = params.append
-        qp_metric_type = query_params.metric_type
-        qp_session_id = query_params.session_id
-        qp_agent_id = query_params.agent_id
-        qp_start_date = query_params.start_date
-        qp_end_date = query_params.end_date
-        qp_limit = query_params.limit
-
-        if qp_metric_type:
-            query += " AND metric_type = ?"
-            params_append(qp_metric_type.value)
-
-        if qp_session_id:
-            query += " AND session_id = ?"
-            params_append(qp_session_id)
-
-        if qp_agent_id:
-            query += " AND agent_id = ?"
-            params_append(qp_agent_id)
-
-        if qp_start_date:
-            query += " AND timestamp >= ?"
-            params_append(qp_start_date.isoformat())
-
-        if qp_end_date:
-            query += " AND timestamp <= ?"
-            params_append(qp_end_date.isoformat())
-
-        query += " ORDER BY timestamp DESC"
-
-        if qp_limit:
-            query += " LIMIT ?"
-            params_append(qp_limit)
-
-        return query, params
-
     def get_aggregated_stats(
-        self,
+        self: MetricsStorage,
         metric_type: MetricType,
         group_by: str = "day",
         start_date: datetime | None = None,
@@ -770,9 +777,11 @@ class MetricsStorage:
         Returns:
             List of aggregated statistics.
         """
-        return self.aggregator.get_aggregated_stats(metric_type, group_by, start_date, end_date)
+        return self.aggregator.get_aggregated_stats(
+            metric_type, group_by, start_date, end_date,
+        )
 
-    def get_session_metrics(self, session_id: str) -> dict[str, Any]:
+    def get_session_metrics(self: MetricsStorage, session_id: str) -> dict[str, Any]:
         """Get all metrics for a specific session.
 
         Args:
@@ -783,14 +792,14 @@ class MetricsStorage:
         """
         return self.session_analyzer.get_session_metrics(session_id)
 
-    def clear_metrics(self) -> None:
+    def clear_metrics(self: MetricsStorage) -> None:
         """Clear all metrics from storage."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM metrics")
             conn.commit()
 
-    def get_database_size(self) -> int:
+    def get_database_size(self: MetricsStorage) -> int:
         """Get the size of the database file in bytes.
 
         Returns:
