@@ -25,6 +25,24 @@ _COMPACTION_THRESHOLD_MIN_VALUE: float = 0.1
 
 
 @dataclass
+class StrategyParameters:
+    """Data class for strategy parameters to reduce primitive obsession.
+    
+    Attributes:
+        max_tokens: Maximum tokens before compaction.
+        compaction_threshold: Compaction threshold (0.1-1.0).
+        importance_threshold: Importance threshold (0.0-1.0).
+        cluster_similarity_threshold: Cluster similarity threshold (0.0-1.0).
+        adaptive_compression: Whether adaptive compression is enabled.
+    """
+    max_tokens: int
+    compaction_threshold: float
+    importance_threshold: float
+    cluster_similarity_threshold: float
+    adaptive_compression: bool
+
+
+@dataclass
 class RangeParameterConfig:
     """Configuration for range-validated parameters.
 
