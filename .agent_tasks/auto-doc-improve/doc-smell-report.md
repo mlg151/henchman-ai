@@ -1,17 +1,17 @@
-# Documentation Smell Report — ✅ A (Score: 94.2/100)
+# Documentation Smell Report — ✅ A (Score: 94.3/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T02:15:03.069833+00:00_
+_Generated: 2026-03-03T02:30:02.404433+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ✅ A |
-| **Overall Score** | 94.2/100 |
+| **Overall Score** | 94.3/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 166 |
-| **Total Smells** | 451 |
+| **Total Smells** | 450 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
@@ -20,7 +20,7 @@ _Generated: 2026-03-03T02:15:03.069833+00:00_
 |:---------|------:|
 | low | 317 |
 | medium | 89 |
-| high | 45 |
+| high | 44 |
 
 ### Smells by Category
 
@@ -30,7 +30,7 @@ _Generated: 2026-03-03T02:15:03.069833+00:00_
 | Stale Content | 31 |
 | Stale Docstring | 13 |
 | Missing Docstring | 5 |
-| Stale Age | 3 |
+| Stale Age | 2 |
 | Config Issue | 2 |
 | Broken Link | 1 |
 | Consistency Error | 1 |
@@ -39,85 +39,85 @@ _Generated: 2026-03-03T02:15:03.069833+00:00_
 
 These are the highest-impact documentation smells to address first:
 
-1. **docs/api.md:1** — 🟠 HIGH — Stale Age  
+1. **docs/extensions.md:1** — 🟠 HIGH — Stale Age  
    Doc file last modified 38 days ago  
    → _Review and update this documentation to ensure it still reflects current behaviour._
 
-2. **docs/extensions.md:1** — 🟠 HIGH — Stale Age  
+2. **docs/mcp.md:1** — 🟠 HIGH — Stale Age  
    Doc file last modified 38 days ago  
    → _Review and update this documentation to ensure it still reflects current behaviour._
 
-3. **docs/mcp.md:1** — 🟠 HIGH — Stale Age  
-   Doc file last modified 38 days ago  
-   → _Review and update this documentation to ensure it still reflects current behaviour._
-
-4. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+3. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'ask_user' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'ask_user' tool, including its parameters and usage._
 
-5. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+4. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'code_format' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'code_format' tool, including its parameters and usage._
 
-6. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+5. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'coverage_map' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'coverage_map' tool, including its parameters and usage._
 
-7. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+6. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'dead_code' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'dead_code' tool, including its parameters and usage._
 
-8. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+7. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'delegate_task' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'delegate_task' tool, including its parameters and usage._
 
-9. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+8. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'diff_view' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'diff_view' tool, including its parameters and usage._
 
-10. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+9. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'edit_file' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'edit_file' tool, including its parameters and usage._
 
-11. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+10. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'env_inspect' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'env_inspect' tool, including its parameters and usage._
 
-12. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+11. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'git_ops' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'git_ops' tool, including its parameters and usage._
 
-13. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+12. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'glob' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'glob' tool, including its parameters and usage._
 
-14. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+13. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'grep' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'grep' tool, including its parameters and usage._
 
-15. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+14. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'import_graph' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'import_graph' tool, including its parameters and usage._
 
-16. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+15. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'kg_query' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'kg_query' tool, including its parameters and usage._
 
-17. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+16. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'kg_update' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'kg_update' tool, including its parameters and usage._
 
-18. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+17. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'lint_check' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'lint_check' tool, including its parameters and usage._
 
-19. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+18. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'ls' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'ls' tool, including its parameters and usage._
 
-20. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+19. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
    Tool 'patch_apply' exists in source but is not documented in tools.md  
    → _Add a section documenting the 'patch_apply' tool, including its parameters and usage._
+
+20. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
+   Tool 'pip_inspect' exists in source but is not documented in tools.md  
+   → _Add a section documenting the 'pip_inspect' tool, including its parameters and usage._
 
 
 ## 📊 Files Ranked by Quality
@@ -553,13 +553,14 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 | 450 | 🟢 LOW | Incomplete Docstring | 'SessionScreen.on_button_pressed' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'SessionScreen.on_button_pressed'. |
 | 468 | 🟢 LOW | Incomplete Docstring | 'SessionScreen.action_cancel' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'SessionScreen.action_cancel'. |
 
-## ✨ Clean Files (84 files with no smells)
+## ✨ Clean Files (85 files with no smells)
 
 <details><summary>Click to expand</summary>
 
 - CHANGELOG.md — ✅ A
 - RELEASE_CHECKLIST.md — ✅ A
 - docs/agents.md — ✅ A
+- docs/api.md — ✅ A
 - docs/architecture.md — ✅ A
 - docs/configuration.md — ✅ A
 - docs/getting-started.md — ✅ A
