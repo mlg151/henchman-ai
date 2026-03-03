@@ -658,7 +658,29 @@ def chat_command(
     tui: bool,
     debug: bool,
 ) -> None:
-    """Start an interactive chat session or run with --prompt for headless mode."""
+    """Start an interactive chat session or run with --prompt for headless mode.
+
+    Args:
+        prompt (str | None): Run with a single prompt and exit. If provided,
+            runs in headless mode with the given prompt.
+        agent (str | None): Target a specific specialist agent. If None,
+            uses the default agent.
+        team (bool): Show team information and exit. When True, displays
+            team information without starting a chat session.
+        output_format (str): Output format for responses. Must be one of:
+            "text", "json", "stream-json", or "json-complete".
+        plan (bool): Start in plan mode (read-only). When True, tools
+            that modify files or execute commands require confirmation.
+        yes (bool): Auto-approve all tool executions (non-interactive mode).
+            When True, automatically approves all tool execution requests.
+        tui (bool): Use Textual TUI interface (experimental). When True,
+            uses the Textual-based terminal UI instead of the standard REPL.
+        debug (bool): Enable debug output. When True, shows debug-level
+            logging information.
+
+    Returns:
+        None: This function doesn't return anything.
+    """
     config = RunConfig(
         prompt=prompt,
         agent_role=agent,
