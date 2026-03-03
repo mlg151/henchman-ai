@@ -160,11 +160,21 @@ class OutputHandler:
             pass
 
     def _get_max_tokens(self: Self) -> int:
-        """Get the maximum token limit from settings.
+        """Get the model's context window limit.
+
+        Returns the model's actual context window size from the token utilities,
+        falling back to the settings compaction limit if the model is unknown.
 
         Returns:
             Maximum token limit, or 0 if not available.
         """
+        from henchman.utils.tokens import get_model_limit  # noqa: PLC0415
+
+        model = getattr(self.provider, "default_model", None)
+        if model:
+            return get_model_limit(model)
+
+        # Fallback: use settings compaction max_tokens
         if not self.settings:
             return 0
         if not hasattr(self.settings, "context"):

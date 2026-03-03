@@ -6,32 +6,64 @@ entity name/type, relations, full-text search, and importance ranking.
 
 from __future__ import annotations
 
-import subprocess
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from henchman.knowledge.scanner import scan_repository
 from henchman.knowledge.store import KnowledgeStore
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ToolKind, ToolResult
+from henchman.tools.builtins.kg_common import KgToolBase, _find_git_root
 from henchman.tools.builtins.kg_update import VALID_ENTITY_TYPES
 
+if TYPE_CHECKING:
+    from henchman.knowledge.models import Relation
 
-def _find_git_root() -> Path | None:
-    """Locate the git repository root from cwd."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return Path(result.stdout.strip())
-    except (subprocess.SubprocessError, FileNotFoundError):
-        pass
-    return None
+_DEFAULT_SEARCH_LIMIT = 10
+"""Default number of results for the 'important' action."""
 
 
-class KgQueryTool(Tool):
+def _parse_int_param(value: object, default: int) -> int:
+    """Safely coerce a parameter value to int, falling back to *default*."""
+    if isinstance(value, (int, str)) and str(value).isdigit():
+        return int(value)
+    return default
+
+
+def _format_relation_line(rel: Relation, query: str) -> str:
+    """Format a single relation edge as a Markdown list item.
+
+    Args:
+        rel: The relation to format.
+        query: The entity id that was queried (determines arrow direction).
+
+    Returns:
+        A Markdown list item string.
+    """
+    arrow = "→" if rel.source == query else "←"
+    other = rel.target if rel.source == query else rel.source
+    desc = f" ({rel.description})" if rel.description else ""
+    return f"- {arrow} **{rel.relation_type}**: `{other}`{desc}"
+
+
+def _format_stats_content(store: KnowledgeStore) -> str:
+    """Build a Markdown summary of knowledge-graph statistics.
+
+    Args:
+        store: The KnowledgeStore to summarise.
+
+    Returns:
+        Formatted Markdown string.
+    """
+    components = store.get_connected_components()
+    return (
+        f"# Knowledge Graph Stats\n\n"
+        f"- **Entities:** {store.entity_count()}\n"
+        f"- **Relations:** {store.relation_count()}\n"
+        f"- **Connected components:** {len(components)}\n"
+        f"- **Last indexed:** {store.meta.last_indexed or 'never'}"
+    )
+
+
+class KgQueryTool(KgToolBase):
     """Query the project knowledge graph.
 
     Supports multiple actions: search, get, neighbors, relations,
@@ -40,16 +72,6 @@ class KgQueryTool(Tool):
     The graph is lazily initialised on first query — auto-scanning the
     repository if the graph is empty.
     """
-
-    def __init__(self: KgQueryTool, store: KnowledgeStore | None = None) -> None:
-        """Initialise the knowledge graph query tool.
-
-        Args:
-            store: Optional pre-built store.  When ``None`` the tool
-                will auto-discover the git root and create one.
-        """
-        self._store = store
-        self._initialised = store is not None
 
     @property
     def name(self: KgQueryTool) -> str:
@@ -66,7 +88,7 @@ class KgQueryTool(Tool):
         )
 
     @property
-    def parameters(self: KgQueryTool) -> dict[str, object]:
+    def parameters(self: KgQueryTool) -> dict[str, object]:  # noqa
         """JSON Schema for tool parameters."""
         return {
             "type": "object",
@@ -101,7 +123,7 @@ class KgQueryTool(Tool):
                 },
                 "top_k": {
                     "type": "integer",
-                    "description": "Number of results for 'important' (default 10).",
+                    "description": f"Number of results for 'important' (default {_DEFAULT_SEARCH_LIMIT}).",
                 },
             },
             "required": ["action"],
@@ -159,16 +181,11 @@ class KgQueryTool(Tool):
         query = str(params.get("query", ""))
         entity_type = params.get("entity_type")
 
-        # Safely convert depth and top_k to int
         depth_val = params.get("depth", 1)
-        depth = (
-            int(depth_val) if isinstance(depth_val, (int, str)) and str(depth_val).isdigit() else 1
-        )
+        depth = _parse_int_param(depth_val, default=1)
 
-        top_k_val = params.get("top_k", 10)
-        top_k = (
-            int(top_k_val) if isinstance(top_k_val, (int, str)) and str(top_k_val).isdigit() else 10
-        )
+        top_k_val = params.get("top_k", _DEFAULT_SEARCH_LIMIT)
+        top_k = _parse_int_param(top_k_val, default=_DEFAULT_SEARCH_LIMIT)
 
         # Dispatch to appropriate handler method
         if action == "search":
@@ -232,16 +249,7 @@ class KgQueryTool(Tool):
             return ToolResult(content=f"No relations found for '{query}'.")
 
         lines = [f"# Relations for `{query}`\n"]
-        for rel in relations:
-            rel_source = rel.source
-            rel_target = rel.target
-            rel_description = rel.description
-            rel_type = rel.relation_type
-            arrow = "→" if rel_source == query else "←"
-            other = rel_target if rel_source == query else rel_source
-            desc = f" ({rel_description})" if rel_description else ""
-            lines.append(f"- {arrow} **{rel_type}**: `{other}`{desc}")
-
+        lines.extend(_format_relation_line(rel, query) for rel in relations)
         return ToolResult(content="\n".join(lines))
 
     def _handle_important(self: KgQueryTool, store: KnowledgeStore, top_k: int) -> ToolResult:
@@ -258,13 +266,4 @@ class KgQueryTool(Tool):
 
     def _handle_stats(self: KgQueryTool, store: KnowledgeStore) -> ToolResult:
         """Handle stats action."""
-        components = store.get_connected_components()
-        return ToolResult(
-            content=(
-                f"# Knowledge Graph Stats\n\n"
-                f"- **Entities:** {store.entity_count()}\n"
-                f"- **Relations:** {store.relation_count()}\n"
-                f"- **Connected components:** {len(components)}\n"
-                f"- **Last indexed:** {store.meta.last_indexed or 'never'}"
-            ),
-        )
+        return ToolResult(content=_format_stats_content(store))

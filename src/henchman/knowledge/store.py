@@ -104,7 +104,7 @@ def _build_entity_haystack(entity: Entity) -> str:
     ).lower()
 
 
-def _relation_to_edge_attrs(relation: Relation) -> dict[str, str]:
+def _relation_to_edge_attrs(relation: Relation) -> dict[str, str]:  # noqa: PLR0801
     """Extract NetworkX edge attributes from a Relation.
 
     Args:
@@ -142,6 +142,31 @@ def _edge_data_to_relation(
     )
 
 
+def _collect_entity_relations(
+    graph: DiGraph[str],
+    entity_id: str,
+    direction: str = "both",
+) -> list[Relation]:
+    """Collect relations for an entity from a directed graph.
+
+    Args:
+        graph: The directed graph to query.
+        entity_id: The entity to query.
+        direction: ``"out"``, ``"in"``, or ``"both"``.
+
+    Returns:
+        Relations involving this entity.
+    """
+    relations: list[Relation] = []
+    if direction in ("out", "both"):
+        for _, target, data in graph.out_edges(entity_id, data=True):
+            relations.append(_edge_data_to_relation(entity_id, target, data))
+    if direction in ("in", "both"):
+        for source, _, data in graph.in_edges(entity_id, data=True):
+            relations.append(_edge_data_to_relation(source, entity_id, data))
+    return relations
+
+
 def _format_entity_as_markdown(entity: Entity, relations: list[Relation]) -> str:
     """Format an entity and its relations as Markdown for LLM consumption.
 
@@ -168,10 +193,118 @@ def _format_entity_as_markdown(entity: Entity, relations: list[Relation]) -> str
     if relations:
         parts.append("**Relations:**")
         for rel in relations:
-            arrow = "→" if rel.source == entity.id else "←"
+            arrow = "\u2192" if rel.source == entity.id else "\u2190"
             other = rel.target if rel.source == entity.id else rel.source
             parts.append(f"- {arrow} {rel.relation_type}: `{other}`")
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# KnowledgeStoreQueryMixin
+# ---------------------------------------------------------------------------
+
+
+class KnowledgeStoreQueryMixin:
+    """Secondary analytics and search operations for the knowledge graph.
+
+    Intended to be mixed into ``KnowledgeStore``.  All methods assume
+    that ``self._graph`` is a ``DiGraph[str]`` provided by the host class.
+    """
+
+    _graph: DiGraph[str]
+
+    def search_entities(self: KnowledgeStoreQueryMixin, query: str) -> list[Entity]:
+        """Full-text search over entity names, descriptions, and observations.
+
+        Args:
+            query: Case-insensitive search term.
+
+        Returns:
+            Entities whose text fields contain the query.
+        """
+        q = query.lower()
+        results: list[Entity] = []
+        for nid, attrs in self._graph.nodes(data=True):
+            entity = _safe_node_to_entity(nid, dict(attrs))
+            if entity is None:
+                continue
+            if q in _build_entity_haystack(entity):
+                results.append(entity)
+        return results
+
+    def get_neighbors(
+        self: KnowledgeStoreQueryMixin,
+        entity_id: str,
+        depth: int = 1,
+    ) -> list[Entity]:
+        """Get entities within *depth* hops of *entity_id*.
+
+        Args:
+            entity_id: Starting node.
+            depth: Maximum hop distance.
+
+        Returns:
+            Neighbouring entities (excluding the start node).
+        """
+        if entity_id not in self._graph:
+            return []
+
+        undirected = self._graph.to_undirected()
+        visited: set[str] = set()
+        frontier = {entity_id}
+
+        for _ in range(depth):
+            next_frontier: set[str] = set()
+            for node in frontier:
+                for neighbor in undirected.neighbors(node):
+                    if neighbor not in visited and neighbor != entity_id:
+                        next_frontier.add(neighbor)
+            visited.update(next_frontier)
+            frontier = next_frontier
+
+        results: list[Entity] = []
+        for n in visited:
+            if n not in self._graph:
+                continue
+            ent = _safe_node_to_entity(n, dict(self._graph.nodes[n]))
+            if ent is not None:
+                results.append(ent)
+        return results
+
+    def get_important_entities(
+        self: KnowledgeStoreQueryMixin,
+        top_k: int = 10,
+    ) -> list[tuple[Entity, float]]:
+        """Return the most important entities by PageRank.
+
+        Args:
+            top_k: Number of entities to return.
+
+        Returns:
+            List of ``(entity, score)`` pairs sorted by importance.
+        """
+        if len(self._graph) == 0:
+            return []
+
+        scores = nx.pagerank(self._graph)
+        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
+        results: list[tuple[Entity, float]] = []
+        for nid, score in ranked:
+            if nid not in self._graph:
+                continue
+            ent = _safe_node_to_entity(nid, dict(self._graph.nodes[nid]))
+            if ent is not None:
+                results.append((ent, score))
+        return results
+
+    def get_connected_components(self: KnowledgeStoreQueryMixin) -> list[list[str]]:
+        """Return connected components of the graph.
+
+        Returns:
+            List of components, each being a list of entity ids.
+        """
+        undirected = self._graph.to_undirected()
+        return [list(c) for c in nx.connected_components(undirected)]
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +312,7 @@ def _format_entity_as_markdown(entity: Entity, relations: list[Relation]) -> str
 # ---------------------------------------------------------------------------
 
 
-class KnowledgeStore:
+class KnowledgeStore(KnowledgeStoreQueryMixin):
     """Persistent project knowledge graph.
 
     The graph is stored under ``~/.henchman/knowledge/<repo-hash>/``.
@@ -330,36 +463,10 @@ class KnowledgeStore:
             results.append(entity)
         return results
 
-    def search_entities(self, query: str) -> list[Entity]:
-        """Full-text search over entity names, descriptions, and observations.
-
-        Args:
-            query: Case-insensitive search term.
-
-        Returns:
-            Entities whose text fields contain the query.
-        """
-        q = query.lower()
-        results: list[Entity] = []
-        for nid, attrs in self._graph.nodes(data=True):
-            entity = _safe_node_to_entity(nid, dict(attrs))
-            if entity is None:
-                continue
-            haystack = " ".join(
-                [
-                    entity.name,
-                    entity.description,
-                    " ".join(o.content for o in entity.observations),
-                ],
-            ).lower()
-            if q in haystack:
-                results.append(entity)
-        return results
-
     # -- observations --------------------------------------------------------
 
     def add_observation(
-        self,
+        self: KnowledgeStore,
         entity_id: str,
         observation: Observation,
     ) -> bool:
@@ -382,7 +489,7 @@ class KnowledgeStore:
 
     # -- relation CRUD -------------------------------------------------------
 
-    def add_relation(self, relation: Relation) -> None:
+    def add_relation(self: KnowledgeStore, relation: Relation) -> None:
         """Add or update a directed edge between two entities.
 
         Missing endpoint entities are **not** auto-created; the caller
@@ -394,13 +501,12 @@ class KnowledgeStore:
         self._graph.add_edge(
             relation.source,
             relation.target,
-            relation_type=relation.relation_type,
-            description=relation.description,
+            **_relation_to_edge_attrs(relation),
         )
         self._dirty = True
 
     def get_relations(
-        self,
+        self: KnowledgeStore,
         entity_id: str,
         direction: str = "both",
     ) -> list[Relation]:
@@ -413,33 +519,9 @@ class KnowledgeStore:
         Returns:
             Relations involving this entity.
         """
-        relations: list[Relation] = []
+        return _collect_entity_relations(self._graph, entity_id, direction)
 
-        if direction in ("out", "both"):
-            for _, target, data in self._graph.out_edges(entity_id, data=True):
-                relations.append(
-                    Relation(
-                        source=entity_id,
-                        target=target,
-                        relation_type=data.get("relation_type", "related_to"),
-                        description=data.get("description", ""),
-                    ),
-                )
-
-        if direction in ("in", "both"):
-            for source, _, data in self._graph.in_edges(entity_id, data=True):
-                relations.append(
-                    Relation(
-                        source=source,
-                        target=entity_id,
-                        relation_type=data.get("relation_type", "related_to"),
-                        description=data.get("description", ""),
-                    ),
-                )
-
-        return relations
-
-    def remove_relation(self, source: str, target: str) -> bool:
+    def remove_relation(self: KnowledgeStore, source: str, target: str) -> bool:
         """Remove an edge between two entities.
 
         Args:
@@ -455,97 +537,24 @@ class KnowledgeStore:
             return True
         return False
 
-    # -- graph queries -------------------------------------------------------
-
-    def get_neighbors(
-        self,
-        entity_id: str,
-        depth: int = 1,
-    ) -> list[Entity]:
-        """Get entities within *depth* hops of *entity_id*.
-
-        Args:
-            entity_id: Starting node.
-            depth: Maximum hop distance.
-
-        Returns:
-            Neighbouring entities (excluding the start node).
-        """
-        if entity_id not in self._graph:
-            return []
-
-        undirected = self._graph.to_undirected()
-        visited: set[str] = set()
-        frontier = {entity_id}
-
-        for _ in range(depth):
-            next_frontier: set[str] = set()
-            for node in frontier:
-                for neighbor in undirected.neighbors(node):
-                    if neighbor not in visited and neighbor != entity_id:
-                        next_frontier.add(neighbor)
-            visited.update(next_frontier)
-            frontier = next_frontier
-
-        results: list[Entity] = []
-        for n in visited:
-            if n not in self._graph:
-                continue
-            ent = _safe_node_to_entity(n, dict(self._graph.nodes[n]))
-            if ent is not None:
-                results.append(ent)
-        return results
-
-    def get_important_entities(self, top_k: int = 10) -> list[tuple[Entity, float]]:
-        """Return the most important entities by PageRank.
-
-        Args:
-            top_k: Number of entities to return.
-
-        Returns:
-            List of ``(entity, score)`` pairs sorted by importance.
-        """
-        if len(self._graph) == 0:
-            return []
-
-        scores = nx.pagerank(self._graph)
-        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
-        results: list[tuple[Entity, float]] = []
-        for nid, score in ranked:
-            if nid not in self._graph:
-                continue
-            ent = _safe_node_to_entity(nid, dict(self._graph.nodes[nid]))
-            if ent is not None:
-                results.append((ent, score))
-        return results
-
-    def get_connected_components(self) -> list[list[str]]:
-        """Return connected components of the graph.
-
-        Returns:
-            List of components, each being a list of entity ids.
-        """
-        undirected = self._graph.to_undirected()
-        return [list(c) for c in nx.connected_components(undirected)]
-
     # -- bulk helpers --------------------------------------------------------
 
-    def entity_count(self) -> int:
+    def entity_count(self: KnowledgeStore) -> int:
         """Number of entities in the graph."""
         return self._graph.number_of_nodes()
 
-    def relation_count(self) -> int:
+    def relation_count(self: KnowledgeStore) -> int:
         """Number of relations in the graph."""
         return self._graph.number_of_edges()
 
-    def clear(self) -> None:
+    def clear(self: KnowledgeStore) -> None:
         """Remove all entities and relations."""
         self._graph.clear()
         self._dirty = True
 
     # -- formatting ----------------------------------------------------------
 
-    def format_entity_for_llm(self, entity: Entity) -> str:
+    def format_entity_for_llm(self: KnowledgeStore, entity: Entity) -> str:
         """Format an entity for LLM consumption.
 
         Args:
@@ -554,37 +563,11 @@ class KnowledgeStore:
         Returns:
             Markdown-formatted string.
         """
-        entity_id = entity.id
-        entity_name = entity.name
-        entity_type = entity.entity_type
-        parts = [f"## {entity_name} ({entity_type})"]
-        parts_append = parts.append
-        if entity.file_path:
-            parts_append(f"**File:** `{entity.file_path}`")
-        if entity.description:
-            parts_append(entity.description)
-        if entity.tags:
-            parts_append(f"**Tags:** {', '.join(entity.tags)}")
-        if entity.observations:
-            parts_append("**Observations:**")
-            parts.extend(
-                f"- {obs.content} _(source: {obs.source})_"
-                for obs in entity.observations
-            )
-
-        relations = self.get_relations(entity_id)
-        if relations:
-            parts_append("**Relations:**")
-            for rel in relations:
-                rel_source = rel.source
-                arrow = "→" if rel_source == entity_id else "←"
-                other = rel.target if rel_source == entity_id else rel_source
-                parts_append(f"- {arrow} {rel.relation_type}: `{other}`")
-
-        return "\n".join(parts)
+        relations = self.get_relations(entity.id)
+        return _format_entity_as_markdown(entity, relations)
 
     def format_for_llm(
-        self,
+        self: KnowledgeStore,
         entities: Sequence[Entity],
         max_entities: int = 20,
     ) -> str:

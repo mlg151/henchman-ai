@@ -10,6 +10,9 @@ from henchman.tools.base import Tool, ToolKind, ToolResult
 
 MAX_OUTPUT_CHARS = 100_000
 
+_DEFAULT_TIMEOUT_SECONDS = 300
+"""Default subprocess timeout when none is explicitly provided."""
+
 
 @dataclass
 class PytestConfig:
@@ -18,11 +21,90 @@ class PytestConfig:
     keyword: str | None = None
     markers: str | None = None
     verbose: bool = False
-    timeout: int = 300
+    timeout: int = _DEFAULT_TIMEOUT_SECONDS
     coverage: bool = False
     coverage_source: str | None = None
     parallel: int | None = None
     collect_only: bool = False
+
+
+def _build_pytest_args(config: PytestConfig) -> list[str]:
+    """Build the pytest command-line argument list from *config*.
+
+    Extracted from ``PytestRunTool._build_pytest_command`` to eliminate
+    Feature Envy — the method only accessed ``config``, not ``self``.
+
+    Args:
+        config: Populated pytest configuration.
+
+    Returns:
+        Argument list suitable for ``asyncio.create_subprocess_exec``.
+    """
+    cmd = [sys.executable, "-m", "pytest", config.path]
+
+    if not config.collect_only:
+        cmd.append("-x")
+    if config.verbose:
+        cmd.append("-v")
+    if config.keyword:
+        cmd.extend(["-k", config.keyword])
+    if config.markers:
+        cmd.extend(["-m", config.markers])
+    if config.coverage:
+        cov_arg = f"--cov={config.coverage_source}" if config.coverage_source else "--cov"
+        cmd.extend([cov_arg, "--cov-report=term-missing"])
+    if config.parallel is not None and config.parallel > 0:
+        cmd.extend(["-n", str(config.parallel)])
+    if config.collect_only:
+        cmd.extend(["--collect-only", "-q"])
+
+    return cmd
+
+
+async def _run_pytest_subprocess(
+    command: list[str],
+    timeout: int,
+) -> tuple[bytes, bytes, int | None]:
+    """Execute a pytest subprocess and return ``(stdout, stderr, returncode)``.
+
+    Extracted from ``PytestRunTool._execute_pytest_command`` to eliminate
+    Feature Envy — the method heavily accessed ``asyncio`` internals.
+
+    Args:
+        command: Full argument list (including the Python interpreter).
+        timeout: Seconds to wait before killing the process (0 = no limit).
+
+    Returns:
+        Tuple of ``(stdout_bytes, stderr_bytes, return_code)``.
+
+    Raises:
+        TimeoutError: When *timeout* is exceeded.
+        asyncio.CancelledError: When the calling task is cancelled.
+    """
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    effective_timeout: float | None = None if timeout == 0 else timeout
+    try:
+        if effective_timeout is not None:
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=effective_timeout,
+            )
+        else:
+            stdout, stderr = await process.communicate()
+    except (TimeoutError, asyncio.TimeoutError):
+        process.kill()
+        await process.wait()
+        raise
+    except asyncio.CancelledError:
+        process.kill()
+        await process.wait()
+        raise
+
+    return stdout, stderr, process.returncode
 
 
 class PytestRunTool(Tool):
@@ -49,7 +131,7 @@ class PytestRunTool(Tool):
         )
 
     @property
-    def parameters(self: PytestRunTool) -> dict[str, object]:
+    def parameters(self: PytestRunTool) -> dict[str, object]:  # noqa
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -73,8 +155,8 @@ class PytestRunTool(Tool):
                 },
                 "timeout": {
                     "type": "integer",
-                    "description": "Timeout in seconds (default: 300)",
-                    "default": 300,
+                    "description": f"Timeout in seconds (default: {_DEFAULT_TIMEOUT_SECONDS})",
+                    "default": _DEFAULT_TIMEOUT_SECONDS,
                 },
                 "coverage": {
                     "type": "boolean",
@@ -110,7 +192,7 @@ class PytestRunTool(Tool):
         markers: str | None = None,
         *,
         verbose: bool = False,
-        timeout: int = 300,
+        timeout: int = _DEFAULT_TIMEOUT_SECONDS,
         coverage: bool = False,
         coverage_source: str | None = None,
         parallel: int | None = None,
@@ -157,10 +239,18 @@ class PytestRunTool(Tool):
                 error="Empty path",
             )
 
-        cmd = self._build_pytest_command(config)
+        cmd = _build_pytest_args(config)
 
         try:
-            return await self._execute_pytest_command(cmd, config)
+            stdout, stderr, returncode = await _run_pytest_subprocess(cmd, config.timeout)
+        except (TimeoutError, asyncio.TimeoutError):
+            return ToolResult(
+                content=f"Tests timed out after {config.timeout}s",
+                success=False,
+                error=f"Timeout after {config.timeout}s",
+            )
+        except asyncio.CancelledError:  # pragma: no cover
+            raise
         except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error running pytest: {e}",
@@ -168,76 +258,8 @@ class PytestRunTool(Tool):
                 error=str(e),
             )
 
-    def _build_pytest_command(self: PytestRunTool, config: PytestConfig) -> list[str]:
-        """Build the pytest command line arguments."""
-        config_path = config.path
-        config_verbose = config.verbose
-        config_keyword = config.keyword
-        config_markers = config.markers
-        config_coverage = config.coverage
-        config_coverage_source = config.coverage_source
-        config_parallel = config.parallel
-        config_collect_only = config.collect_only
-        cmd = [sys.executable, "-m", "pytest", config_path]
-        cmd_append = cmd.append
-        cmd_extend = cmd.extend
-
-        if not config_collect_only:
-            cmd_append("-x")
-        if config_verbose:
-            cmd_append("-v")
-        if config_keyword:
-            cmd_extend(["-k", config_keyword])
-        if config_markers:
-            cmd_extend(["-m", config_markers])
-        if config_coverage:
-            cov_arg = f"--cov={config_coverage_source}" if config_coverage_source else "--cov"
-            cmd_extend([cov_arg, "--cov-report=term-missing"])
-        if config_parallel is not None and config_parallel > 0:
-            cmd_extend(["-n", str(config_parallel)])
-        if config_collect_only:
-            cmd_append("--collect-only")
-            cmd_append("-q")
-
-        return cmd
-
-    async def _execute_pytest_command(self: PytestRunTool, cmd: list[str], config: PytestConfig) -> ToolResult:  # noqa: E501
-        """Execute the pytest command and handle timeout."""
-        create_subprocess_exec = asyncio.create_subprocess_exec
-        PIPE = asyncio.subprocess.PIPE  # noqa: N806
-        process = await create_subprocess_exec(
-            *cmd,
-            stdout=PIPE,
-            stderr=PIPE,
-        )
-
-        config_timeout = config.timeout
-        try:
-            stdout, stderr = await self._communicate_with_timeout(process, config_timeout)
-        except (TimeoutError, asyncio.TimeoutError):
-            process.kill()
-            await process.wait()
-            return ToolResult(
-                content=f"Tests timed out after {config_timeout}s",
-                success=False,
-                error=f"Timeout after {config_timeout}s",
-            )
-        except asyncio.CancelledError:
-            process.kill()
-            await process.wait()
-            raise
-
         output = self._process_output(stdout, stderr)
-        return self._create_result(output, process.returncode)
-
-    async def _communicate_with_timeout(
-        self: PytestRunTool, process: asyncio.subprocess.Process, timeout: int,
-    ) -> tuple[bytes, bytes]:
-        """Communicate with process with optional timeout."""
-        effective_timeout: float | None = None if timeout == 0 else timeout
-        if effective_timeout is not None:
-            return await asyncio.wait_for(process.communicate(), timeout=effective_timeout)
-        return await process.communicate()
+        return self._create_result(output, returncode)
 
     def _process_output(self: PytestRunTool, stdout: bytes, stderr: bytes) -> str:
         """Process and combine stdout/stderr output."""

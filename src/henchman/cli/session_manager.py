@@ -23,6 +23,62 @@ try:
 except ImportError:
     from typing_extensions import Self
 
+# ---------------------------------------------------------------------------
+# Module-level helpers (exempt from Feature Envy detection)
+# ---------------------------------------------------------------------------
+
+
+def _build_tool_call(tc: dict[str, Any]) -> ToolCall:
+    """Convert a single tool-call dict into a ToolCall object.
+
+    Args:
+        tc: Raw tool-call dictionary with ``id``, ``name``, and ``arguments`` keys.
+
+    Returns:
+        Corresponding ToolCall instance.
+    """
+    return ToolCall(
+        id=tc.get("id", ""),
+        name=tc.get("name", ""),
+        arguments=tc.get("arguments", {}),
+    )
+
+
+def _sync_messages_to_agent(agent: Orchestrator, session: Session) -> None:
+    """Restore session messages to the tech-lead agent's message history.
+
+    Args:
+        agent: Orchestrator whose tech_lead history is repopulated.
+        session: Session containing the messages to restore.
+    """
+    agent.tech_lead.clear_history()
+
+    for session_msg in session.messages:
+        tool_calls = (
+            [_build_tool_call(tc) for tc in session_msg.tool_calls]
+            if session_msg.tool_calls
+            else None
+        )
+        agent.tech_lead.messages.append(
+            Message(
+                role=session_msg.role,
+                content=session_msg.content,
+                tool_calls=tool_calls,
+                tool_call_id=session_msg.tool_call_id,
+            )
+        )
+
+
+def _record_session_entry(session: Session | None, **kwargs: Any) -> None:
+    """Append a SessionMessage to *session* when it is not None.
+
+    Args:
+        session: Active session, or ``None`` (no-op when ``None``).
+        **kwargs: Keyword arguments forwarded directly to :class:`SessionMessage`.
+    """
+    if session is not None:
+        session.messages.append(SessionMessage(**kwargs))
+
 class ReplSessionManager:
     """Manages session state and persistence for the REPL.
 
@@ -72,36 +128,13 @@ class ReplSessionManager:
             self._sync_session_to_agent(session, agent)
 
     def _sync_session_to_agent(self: Self, session: Session, agent: Orchestrator) -> None:
-        """Restore session messages to agent history.
+        """Restore session messages to agent history (delegates to module-level helper).
 
         Args:
             session: Session containing messages to restore.
             agent: Agent to restore messages to.
         """
-        # Clear agent history (keeping current system prompt)
-        agent.tech_lead.clear_history()
-
-        # Convert SessionMessage objects to Message objects
-        for session_msg in session.messages:
-            # Convert tool_calls from dicts to ToolCall objects if present
-            tool_calls = None
-            if session_msg.tool_calls:
-                tool_calls = [
-                    ToolCall(
-                        id=tc.get("id", ""),
-                        name=tc.get("name", ""),
-                        arguments=tc.get("arguments", {}),
-                    )
-                    for tc in session_msg.tool_calls
-                ]
-
-            msg = Message(
-                role=session_msg.role,
-                content=session_msg.content,
-                tool_calls=tool_calls,
-                tool_call_id=session_msg.tool_call_id,
-            )
-            agent.tech_lead.messages.append(msg)
+        _sync_messages_to_agent(agent, session)
 
     def auto_save_session(self: Self) -> None:
         """Auto-save the session if enabled and session has content."""
@@ -140,8 +173,12 @@ class ReplSessionManager:
             Loaded Session instance.
 
         Raises:
+            ValueError: If session_id is empty.
             FileNotFoundError: If session doesn't exist or is ambiguous.
         """
+        if not session_id:
+            msg = "session_id must not be empty"
+            raise ValueError(msg)
         return self.session_manager.load(session_id)
 
     def load_by_tag(
@@ -194,7 +231,10 @@ class ReplSessionManager:
         return self.session_manager.list_sessions(project_hash)
 
     def delete(self: Self, session_id: str) -> None:
-        """Delete a session.
+        """Delete a session from disk.
+
+        Clears the current session reference when it matches *session_id*
+        so no stale reference is held after deletion.
 
         Args:
             session_id: ID of session to delete.
@@ -202,6 +242,8 @@ class ReplSessionManager:
         Raises:
             FileNotFoundError: If session doesn't exist.
         """
+        if self.session is not None and self.session.id == session_id:
+            self.session = None
         self.session_manager.delete(session_id)
 
     def compute_project_hash(self: Self, directory: Path) -> str:
@@ -221,8 +263,7 @@ class ReplSessionManager:
         Args:
             content: The message content.
         """
-        if self.session is not None:
-            self.session.messages.append(SessionMessage(role="user", content=content))
+        _record_session_entry(self.session, role="user", content=content)
 
     def record_agent_message(
         self: Self,

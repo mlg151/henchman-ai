@@ -4,9 +4,12 @@ This provider works with any API that follows the OpenAI chat completions format
 including DeepSeek, Together, Groq, Fireworks, and others.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Any
 
 from openai import APIStatusError, AsyncOpenAI
@@ -29,11 +32,74 @@ logger = logging.getLogger(__name__)
 _HTTP_REQUEST_TOO_LARGE = 413
 
 
+@dataclass
+class ProviderConfig:
+    """Configuration for an OpenAI-compatible provider."""
+
+    api_key: str
+    base_url: str
+    default_model: str
+
+
+def _format_tool(tool: ToolDeclaration) -> dict[str, Any]:
+    """Format a tool declaration for the OpenAI API."""
+    return {
+        "type": "function",
+        "function": {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.parameters,
+        },
+    }
+
+
+def _format_tool_call_for_message(tc: ToolCall) -> dict[str, Any]:
+    """Format a single tool call for inclusion in a message."""
+    return {
+        "id": tc.id,
+        "type": "function",
+        "function": {
+            "name": tc.name,
+            "arguments": json.dumps(tc.arguments),
+        },
+    }
+
+
+def _format_message(message: Message) -> dict[str, Any]:
+    """Format a message for the OpenAI API."""
+    result: dict[str, Any] = {
+        "role": message.role,
+        "content": message.content,
+    }
+    if message.reasoning_content:
+        result["reasoning_content"] = message.reasoning_content
+    if message.tool_calls:
+        result["tool_calls"] = [
+            _format_tool_call_for_message(tc) for tc in message.tool_calls
+        ]
+    if message.tool_call_id:
+        result["tool_call_id"] = message.tool_call_id
+    return result
+
+
+def _parse_single_tool_call(tc: Any) -> ToolCall:
+    """Parse a single tool call from the API response."""
+    try:
+        arguments = json.loads(tc.function.arguments)
+    except (json.JSONDecodeError, AttributeError):
+        arguments = {}
+    return ToolCall(
+        id=tc.id,
+        name=tc.function.name,
+        arguments=arguments,
+    )
+
+
 class OpenAICompatibleProvider(ModelProvider):
     """Base provider for OpenAI-compatible APIs."""
 
     def __init__(
-        self,
+        self: OpenAICompatibleProvider,
         api_key: str,
         base_url: str,
         default_model: str,
@@ -45,88 +111,54 @@ class OpenAICompatibleProvider(ModelProvider):
             base_url: Base URL for the API.
             default_model: Default model to use for completions.
         """
+        self.config = ProviderConfig(
+            api_key=api_key,
+            base_url=base_url,
+            default_model=default_model,
+        )
         self.api_key = api_key
         self.base_url = base_url
         self.default_model = default_model
         self._client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     @property
-    def name(self) -> str:
+    def name(self: OpenAICompatibleProvider) -> str:
         """The unique name of this provider."""
         return "openai-compatible"
 
-    def _format_tool(self, tool: ToolDeclaration) -> dict[str, Any]:
+    def _format_tool(
+        self: OpenAICompatibleProvider,
+        tool: ToolDeclaration,
+    ) -> dict[str, Any]:
         """Format a tool declaration for the OpenAI API."""
-        return {
-            "type": "function",
-            "function": {
-                "name": tool.name,
-                "description": tool.description,
-                "parameters": tool.parameters,
-            },
-        }
+        return _format_tool(tool)
 
-    def _format_message(self, message: Message) -> dict[str, Any]:
+    def _format_message(
+        self: OpenAICompatibleProvider,
+        message: Message,
+    ) -> dict[str, Any]:
         """Format a message for the OpenAI API."""
-        message_role = message.role
-        message_content = message.content
-        message_tool_calls = message.tool_calls
-        message_tool_call_id = message.tool_call_id
-        message_reasoning = message.reasoning_content
-        result: dict[str, Any] = {
-            "role": message_role,
-            "content": message_content,
-        }
+        return _format_message(message)
 
-        if message_reasoning:
-            result["reasoning_content"] = message_reasoning
-
-        if message_tool_calls:
-            result["tool_calls"] = [
-                {
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {
-                        "name": tc.name,
-                        "arguments": json.dumps(tc.arguments),
-                    },
-                }
-                for tc in message_tool_calls
-            ]
-
-        if message_tool_call_id:
-            result["tool_call_id"] = message_tool_call_id
-
-        return result
-
-    def _parse_finish_reason(self, reason: str | None) -> FinishReason | None:
+    def _parse_finish_reason(
+        self: OpenAICompatibleProvider,
+        reason: str | None,
+    ) -> FinishReason | None:
         """Parse OpenAI finish reason to our enum."""
-        # OpenAI uses standard mapping, so we can use the default
         return parse_finish_reason(reason)
 
-    def _parse_tool_calls(self, tool_calls: list[Any] | None) -> list[ToolCall] | None:
+    def _parse_tool_calls(
+        self: OpenAICompatibleProvider,
+        tool_calls: list[Any] | None,
+    ) -> list[ToolCall] | None:
         """Parse tool calls from the API response."""
         if not tool_calls:
             return None
-
-        result = []
-        for tc in tool_calls:
-            try:
-                arguments = json.loads(tc.function.arguments)
-            except (json.JSONDecodeError, AttributeError):
-                arguments = {}
-
-            result.append(
-                ToolCall(
-                    id=tc.id,
-                    name=tc.function.name,
-                    arguments=arguments,
-                ),
-            )
+        result = [_parse_single_tool_call(tc) for tc in tool_calls]
         return result or None
 
     async def chat_completion_stream(
-        self,
+        self: OpenAICompatibleProvider,
         messages: list[Message],
         tools: list[ToolDeclaration] | None = None,
         **kwargs: Any,
@@ -142,7 +174,10 @@ class OpenAICompatibleProvider(ModelProvider):
             StreamChunk objects as the response is generated.
         """
         self._validate_messages(messages)
-        logger.debug("OpenAICompatibleProvider.chat_completion_stream: Starting with %d messages", len(messages))  # noqa: E501
+        logger.debug(
+            "OpenAICompatibleProvider.chat_completion_stream: Starting with %d messages",
+            len(messages),
+        )
 
         try:
             messages = self._repair_message_sequence_if_needed(messages)
@@ -158,7 +193,10 @@ class OpenAICompatibleProvider(ModelProvider):
         except Exception as e:  # noqa: BLE001
             yield self._create_error_chunk(e)
 
-    def _validate_messages(self, messages: list[Message]) -> None:
+    def _validate_messages(
+        self: OpenAICompatibleProvider,
+        messages: list[Message],
+    ) -> None:
         """Validate that messages are not empty and have content where required.
 
         Args:
@@ -169,7 +207,10 @@ class OpenAICompatibleProvider(ModelProvider):
         """
         validate_messages(messages)
 
-    def _repair_message_sequence_if_needed(self, messages: list[Message]) -> list[Message]:
+    def _repair_message_sequence_if_needed(
+        self: OpenAICompatibleProvider,
+        messages: list[Message],
+    ) -> list[Message]:
         """Repair message sequence if it's invalid to prevent API errors.
 
         Args:
@@ -188,7 +229,7 @@ class OpenAICompatibleProvider(ModelProvider):
         return messages
 
     def _build_request_params(
-        self,
+        self: OpenAICompatibleProvider,
         messages: list[Message],
         tools: list[ToolDeclaration] | None,
         kwargs: dict[str, Any],
@@ -205,17 +246,20 @@ class OpenAICompatibleProvider(ModelProvider):
         """
         params: dict[str, Any] = {
             "model": kwargs.pop("model", self.default_model),
-            "messages": [self._format_message(m) for m in messages],
+            "messages": [_format_message(m) for m in messages],
             "stream": True,
             **kwargs,
         }
 
         if tools:
-            params["tools"] = [self._format_tool(t) for t in tools]
+            params["tools"] = [_format_tool(t) for t in tools]
 
         return params
 
-    async def _make_api_request(self, params: dict[str, Any]) -> Any:
+    async def _make_api_request(
+        self: OpenAICompatibleProvider,
+        params: dict[str, Any],
+    ) -> Any:
         """Make the API request with error handling for context too large errors.
 
         Args:
@@ -236,12 +280,13 @@ class OpenAICompatibleProvider(ModelProvider):
                     "Request too large. Try using start_line/end_line when reading "
                     "files to limit context size, or start a new conversation."
                 )
-                raise ContextTooLargeError(
-                    msg,
-                ) from e
+                raise ContextTooLargeError(msg) from e
             raise
 
-    async def _process_stream_response(self, response: Any) -> AsyncIterator[StreamChunk]:
+    async def _process_stream_response(
+        self: OpenAICompatibleProvider,
+        response: Any,
+    ) -> AsyncIterator[StreamChunk]:
         """Process the streaming response and yield StreamChunk objects.
 
         Args:
@@ -259,23 +304,18 @@ class OpenAICompatibleProvider(ModelProvider):
             choice = chunk.choices[0]
             delta = choice.delta
 
-            # Handle content and thinking
             content = getattr(delta, "content", None)
             thinking = getattr(delta, "reasoning_content", None)
 
-            # Handle tool calls
             tool_calls = None
             if hasattr(delta, "tool_calls") and delta.tool_calls:
                 self._update_pending_tool_calls(pending_tool_calls, delta.tool_calls)
 
-            # Handle finish reason
             finish_reason = self._parse_finish_reason(choice.finish_reason)
 
-            # If we're done and have pending tool calls, emit them
             if finish_reason and pending_tool_calls:
                 tool_calls = self._build_tool_calls_from_pending(pending_tool_calls)
 
-            # Extract usage information if available
             usage = self._extract_usage_info(chunk)
 
             yield StreamChunk(
@@ -287,7 +327,7 @@ class OpenAICompatibleProvider(ModelProvider):
             )
 
     def _update_pending_tool_calls(
-        self,
+        self: OpenAICompatibleProvider,
         pending_tool_calls: dict[int, dict[str, Any]],
         tool_call_deltas: list[Any],
     ) -> None:
@@ -298,17 +338,16 @@ class OpenAICompatibleProvider(ModelProvider):
             tool_call_deltas: List of tool call delta objects from the API.
         """
         for tc_delta in tool_call_deltas:
-            tc_delta_id = tc_delta.id
             idx = tc_delta.index
             if idx not in pending_tool_calls:
                 pending_tool_calls[idx] = {
-                    "id": tc_delta_id or "",
+                    "id": tc_delta.id or "",
                     "name": "",
                     "arguments": "",
                 }
 
-            if tc_delta_id:
-                pending_tool_calls[idx]["id"] = tc_delta_id
+            if tc_delta.id:
+                pending_tool_calls[idx]["id"] = tc_delta.id
             if tc_delta.function:
                 tc_func = tc_delta.function
                 if tc_func.name:
@@ -317,7 +356,7 @@ class OpenAICompatibleProvider(ModelProvider):
                     pending_tool_calls[idx]["arguments"] += tc_func.arguments
 
     def _build_tool_calls_from_pending(
-        self,
+        self: OpenAICompatibleProvider,
         pending_tool_calls: dict[int, dict[str, Any]],
     ) -> list[ToolCall]:
         """Build ToolCall objects from pending tool call data.
@@ -343,7 +382,10 @@ class OpenAICompatibleProvider(ModelProvider):
             )
         return tool_calls
 
-    def _extract_usage_info(self, chunk: Any) -> dict[str, int] | None:
+    def _extract_usage_info(
+        self: OpenAICompatibleProvider,
+        chunk: Any,
+    ) -> dict[str, int] | None:
         """Extract usage information from the chunk if available.
 
         Args:
@@ -360,7 +402,10 @@ class OpenAICompatibleProvider(ModelProvider):
             }
         return None
 
-    def _create_error_chunk(self, error: Exception) -> StreamChunk:
+    def _create_error_chunk(
+        self: OpenAICompatibleProvider,
+        error: Exception,
+    ) -> StreamChunk:
         """Create an error StreamChunk for API/network errors.
 
         Args:
@@ -371,6 +416,7 @@ class OpenAICompatibleProvider(ModelProvider):
         """
         logger.debug("OpenAICompatibleProvider: Caught exception: %s", error)
         from henchman.providers.base import FinishReason  # noqa: PLC0415
+
         return StreamChunk(
             content=f"❌ Provider Error: {error}",
             finish_reason=FinishReason.STOP,

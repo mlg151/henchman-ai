@@ -26,17 +26,17 @@ class AskUserTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: AskUserTool) -> str:
         """Return the tool name."""
         return "ask_user"
 
     @property
-    def description(self) -> str:
+    def description(self: AskUserTool) -> str:
         """Return the tool description."""
         return "Ask the user a question and wait for their response"
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: AskUserTool) -> dict[str, object]:  # noqa
         """Return the tool parameters schema."""
         return {
             "type": "object",
@@ -55,11 +55,11 @@ class AskUserTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: AskUserTool) -> ToolKind:
         """Return the tool kind."""
         return ToolKind.READ  # Always auto-approved since it's just asking
 
-    def needs_confirmation(self, params: dict[str, object]) -> ConfirmationRequest | None:  # noqa: ARG002
+    def needs_confirmation(self: AskUserTool, params: dict[str, object]) -> ConfirmationRequest | None:  # noqa: ARG002
         """Check if this tool needs confirmation.
 
         Args:
@@ -70,7 +70,7 @@ class AskUserTool(Tool):
         """
         return None  # Never needs confirmation
 
-    async def execute(self, **params: object) -> ToolResult:
+    async def execute(self: AskUserTool, **params: object) -> ToolResult:
         """Execute the ask_user tool.
 
         Args:

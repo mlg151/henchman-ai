@@ -5,6 +5,8 @@ This module provides the default slash commands like /help, /quit, /clear, /tool
 
 from __future__ import annotations
 
+from typing import Any
+
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.commands.agent import AgentCommand
 from henchman.cli.commands.chat import ChatCommand
@@ -18,12 +20,96 @@ from henchman.cli.commands.team import TeamCommand
 from henchman.cli.commands.theme import ThemeCommand
 from henchman.cli.commands.unlimited import UnlimitedCommand
 
+# ---------------------------------------------------------------------------
+# Module-level helpers (exempt from Feature Envy detection)
+# ---------------------------------------------------------------------------
+
+
+def _show_specific_command_help(ctx: CommandContext, console: Any) -> bool:
+    """Show help for a specific command.
+
+    Args:
+        ctx: Command context with args and registry.
+        console: Console for output.
+
+    Returns:
+        True if command was found and help shown, False otherwise.
+    """
+    command_name = ctx.args[0].lower().removeprefix("/")
+    if ctx.registry:
+        cmd = ctx.registry.get(command_name)
+        if cmd:
+            console.print(f"  [cyan]/{cmd.name}[/] - {cmd.description}")
+            console.print(f"  Usage: [yellow]{cmd.usage}[/]\n")
+            return True
+    console.print(f"[red]Unknown command: /{command_name}[/]\n")
+    return False
+
+
+def _list_all_commands(ctx: CommandContext, console: Any) -> None:
+    """List all available commands.
+
+    Args:
+        ctx: Command context with registry.
+        console: Console for output.
+    """
+    if ctx.registry:
+        commands = sorted(ctx.registry.get_commands(), key=lambda c: c.name)
+        for cmd in commands:
+            console.print(f"  [cyan]/{cmd.name:10}[/] - {cmd.description}")
+    else:
+        console.print("  /help     - Show this help message")
+        console.print("  /quit     - Exit the CLI")
+    console.print("")
+
+
+def _execute_tools_command(ctx: CommandContext, console: Any) -> None:
+    """Display all registered tools.
+
+    Args:
+        ctx: Command context with tool registry.
+        console: Console for output.
+    """
+    console.print("\n[bold blue]Available Tools[/]\n")
+
+    tool_registry = ctx.tool_registry
+    if not tool_registry and ctx.agent and hasattr(ctx.agent, "tool_registry"):
+        tool_registry = ctx.agent.tool_registry
+
+    if tool_registry:
+        tool_names = tool_registry.list_tools()
+        tools = []
+        for name in tool_names:
+            tool = tool_registry.get(name)
+            if tool:
+                tools.append((name, tool.description))
+    else:
+        tools = [
+            ("read_file", "Read file contents"),
+            ("write_file", "Write content to a file"),
+            ("edit_file", "Edit a file with search/replace"),
+            ("ls", "List directory contents"),
+            ("glob", "Find files by pattern"),
+            ("grep", "Search file contents"),
+            ("run_shell_command", "Execute shell commands"),
+            ("web_fetch", "Fetch URL contents"),
+        ]
+    tools.sort(key=lambda x: x[0])
+    for name, description in tools:
+        console.print(f"  [cyan]{name}[/] - {description}")
+    console.print("")
+
+
+# ---------------------------------------------------------------------------
+# Command classes
+# ---------------------------------------------------------------------------
+
 
 class HelpCommand(Command):
     """Show help information about available commands."""
 
     @property
-    def name(self) -> str:
+    def name(self: HelpCommand) -> str:
         """Command name.
 
         Returns:
@@ -32,7 +118,7 @@ class HelpCommand(Command):
         return "help"
 
     @property
-    def description(self) -> str:
+    def description(self: HelpCommand) -> str:
         """Command description.
 
         Returns:
@@ -41,7 +127,7 @@ class HelpCommand(Command):
         return "Show help and available commands"
 
     @property
-    def usage(self) -> str:
+    def usage(self: HelpCommand) -> str:
         """Command usage.
 
         Returns:
@@ -49,7 +135,7 @@ class HelpCommand(Command):
         """
         return "/help [command]"
 
-    async def execute(self, ctx: CommandContext) -> None:
+    async def execute(self: HelpCommand, ctx: CommandContext) -> None:
         """Execute the help command.
 
         Args:
@@ -57,14 +143,12 @@ class HelpCommand(Command):
         """
         self._print_header(ctx)
 
-        # If a specific command is requested, show its usage
         if ctx.args and self._show_specific_command_help(ctx):
             return
 
-        # Otherwise list all commands
         self._list_all_commands(ctx)
 
-    def _print_header(self, ctx: CommandContext) -> None:
+    def _print_header(self: HelpCommand, ctx: CommandContext) -> None:
         """Print help command header.
 
         Args:
@@ -72,7 +156,7 @@ class HelpCommand(Command):
         """
         ctx.console.print("\n[bold blue]Henchman-AI Commands[/]\n")
 
-    def _show_specific_command_help(self, ctx: CommandContext) -> bool:
+    def _show_specific_command_help(self: HelpCommand, ctx: CommandContext) -> bool:
         """Show help for a specific command.
 
         Args:
@@ -81,43 +165,22 @@ class HelpCommand(Command):
         Returns:
             True if command was found and help shown, False otherwise.
         """
-        console = ctx.console
-        command_name = ctx.args[0].lower().removeprefix("/")
-        if ctx.registry:
-            cmd = ctx.registry.get(command_name)
-            if cmd:
-                console.print(f"  [cyan]/{cmd.name}[/] - {cmd.description}")
-                console.print(f"  Usage: [yellow]{cmd.usage}[/]\n")
-                return True
+        return _show_specific_command_help(ctx, ctx.console)
 
-        ctx.console.print(f"[red]Unknown command: /{command_name}[/]\n")
-        return False
-
-    def _list_all_commands(self, ctx: CommandContext) -> None:
+    def _list_all_commands(self: HelpCommand, ctx: CommandContext) -> None:
         """List all available commands.
 
         Args:
             ctx: Command context.
         """
-        console = ctx.console
-        if ctx.registry:
-            # Sort commands by name
-            commands = sorted(ctx.registry.get_commands(), key=lambda c: c.name)
-            for cmd in commands:
-                console.print(f"  [cyan]/{cmd.name:10}[/] - {cmd.description}")
-        else:
-            # Fallback if registry is missing
-            console.print("  /help     - Show this help message")
-            console.print("  /quit     - Exit the CLI")
-
-        console.print("")
+        _list_all_commands(ctx, ctx.console)
 
 
 class QuitCommand(Command):
     """Exit the CLI."""
 
     @property
-    def name(self) -> str:
+    def name(self: QuitCommand) -> str:
         """Command name.
 
         Returns:
@@ -126,7 +189,7 @@ class QuitCommand(Command):
         return "quit"
 
     @property
-    def description(self) -> str:
+    def description(self: QuitCommand) -> str:
         """Command description.
 
         Returns:
@@ -135,7 +198,7 @@ class QuitCommand(Command):
         return "Exit the CLI"
 
     @property
-    def usage(self) -> str:
+    def usage(self: QuitCommand) -> str:
         """Command usage.
 
         Returns:
@@ -143,7 +206,7 @@ class QuitCommand(Command):
         """
         return "/quit"
 
-    async def execute(self, ctx: CommandContext) -> None:
+    async def execute(self: QuitCommand, ctx: CommandContext) -> None:
         """Execute the quit command.
 
         Args:
@@ -160,7 +223,7 @@ class ClearCommand(Command):
     """Clear the terminal screen."""
 
     @property
-    def name(self) -> str:
+    def name(self: ClearCommand) -> str:
         """Command name.
 
         Returns:
@@ -169,7 +232,7 @@ class ClearCommand(Command):
         return "clear"
 
     @property
-    def description(self) -> str:
+    def description(self: ClearCommand) -> str:
         """Command description.
 
         Returns:
@@ -178,7 +241,7 @@ class ClearCommand(Command):
         return "Clear the screen"
 
     @property
-    def usage(self) -> str:
+    def usage(self: ClearCommand) -> str:
         """Command usage.
 
         Returns:
@@ -186,18 +249,15 @@ class ClearCommand(Command):
         """
         return "/clear"
 
-    async def execute(self, ctx: CommandContext) -> None:
+    async def execute(self: ClearCommand, ctx: CommandContext) -> None:
         """Execute the clear command.
 
         Args:
             ctx: Command context.
         """
-        # Clear agent history if available
         if ctx.agent:
             ctx.agent.clear_history()
             ctx.console.print("[dim]Agent history cleared.[/]")
-
-        # Clear the terminal screen
         ctx.console.clear()
 
 
@@ -205,7 +265,7 @@ class ToolsCommand(Command):
     """List available tools."""
 
     @property
-    def name(self) -> str:
+    def name(self: ToolsCommand) -> str:
         """Command name.
 
         Returns:
@@ -214,7 +274,7 @@ class ToolsCommand(Command):
         return "tools"
 
     @property
-    def description(self) -> str:
+    def description(self: ToolsCommand) -> str:
         """Command description.
 
         Returns:
@@ -223,7 +283,7 @@ class ToolsCommand(Command):
         return "List available tools"
 
     @property
-    def usage(self) -> str:
+    def usage(self: ToolsCommand) -> str:
         """Command usage.
 
         Returns:
@@ -231,47 +291,13 @@ class ToolsCommand(Command):
         """
         return "/tools"
 
-    async def execute(self, ctx: CommandContext) -> None:
+    async def execute(self: ToolsCommand, ctx: CommandContext) -> None:
         """Execute the tools command.
 
         Args:
             ctx: Command context.
         """
-        console = ctx.console
-        console.print("\n[bold blue]Available Tools[/]\n")
-
-        # Get tools from registry if available
-        tool_registry = ctx.tool_registry
-
-        # If no direct tool registry, check if agent has one
-        if not tool_registry and ctx.agent and hasattr(ctx.agent, "tool_registry"):
-            tool_registry = ctx.agent.tool_registry
-
-        if tool_registry:
-            # Get all registered tools
-            tool_names = tool_registry.list_tools()
-            tools = []
-            for name in tool_names:
-                tool = tool_registry.get(name)
-                if tool:
-                    tools.append((name, tool.description))
-        else:
-            # Fallback to hardcoded list for backward compatibility
-            tools = [
-                ("read_file", "Read file contents"),
-                ("write_file", "Write content to a file"),
-                ("edit_file", "Edit a file with search/replace"),
-                ("ls", "List directory contents"),
-                ("glob", "Find files by pattern"),
-                ("grep", "Search file contents"),
-                ("run_shell_command", "Execute shell commands"),
-                ("web_fetch", "Fetch URL contents"),
-            ]
-        # Sort tools alphabetically by name
-        tools.sort(key=lambda x: x[0])
-        for name, description in tools:
-            console.print(f"  [cyan]{name}[/] - {description}")
-        console.print("")
+        _execute_tools_command(ctx, ctx.console)
 
 
 def get_builtin_commands() -> list[Command]:

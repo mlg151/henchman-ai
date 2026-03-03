@@ -9,6 +9,144 @@ from pathlib import Path
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
 
+# ---------------------------------------------------------------------------
+# Module-level AST helpers (extracted from TestGenTool to eliminate Feature
+# Envy — each helper accessed ``ast`` more times than ``self``).
+# ---------------------------------------------------------------------------
+
+def _get_return_annotation(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+    """Return the return-type annotation of *node* as source text, or ``''``.
+
+    Args:
+        node: Function or async-function AST node.
+
+    Returns:
+        Unparsed annotation string, or empty string when absent.
+    """
+    if node.returns:
+        return ast.unparse(node.returns)
+    return ""
+
+
+def _extract_args_from_node(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
+    """Extract non-self/cls argument names from *node*.
+
+    Args:
+        node: Function or async-function AST node.
+
+    Returns:
+        List of argument name strings.
+    """
+    return [arg.arg for arg in node.args.args if arg.arg not in ("self", "cls")]
+
+
+def _extract_class_methods_from_ast(node: ast.ClassDef) -> list[dict[str, object]]:
+    """Extract public methods (and ``__init__``) from a class AST node.
+
+    Args:
+        node: AST class definition node.
+
+    Returns:
+        List of method descriptor dicts.
+    """
+    methods: list[dict[str, object]] = []
+    for item in ast.iter_child_nodes(node):
+        if not isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        if item.name.startswith("_") and item.name != "__init__":
+            continue
+        methods.append(
+            {
+                "kind": "method",
+                "name": item.name,
+                "args": _extract_args_from_node(item),
+                "is_async": isinstance(item, ast.AsyncFunctionDef),
+                "returns": _get_return_annotation(item),
+            },
+        )
+    return methods
+
+
+def _extract_symbols_from_tree(tree: ast.Module) -> list[dict[str, object]]:
+    """Extract all testable top-level symbols from an AST module.
+
+    Uses guard clauses to avoid deep nesting.
+
+    Args:
+        tree: Parsed AST module node.
+
+    Returns:
+        List of symbol descriptor dicts.
+    """
+    symbols: list[dict[str, object]] = []
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            if node.name.startswith("_"):
+                continue
+            symbols.append(
+                {
+                    "kind": "function",
+                    "name": node.name,
+                    "args": _extract_args_from_node(node),
+                    "is_async": isinstance(node, ast.AsyncFunctionDef),
+                    "returns": _get_return_annotation(node),
+                },
+            )
+            continue
+
+        if not isinstance(node, ast.ClassDef):
+            continue
+        if node.name.startswith("_"):
+            continue
+        symbols.append(
+            {
+                "kind": "class",
+                "name": node.name,
+                "methods": _extract_class_methods_from_ast(node),
+            },
+        )
+
+    return symbols
+
+
+def _generate_test_method(cls_name: str, method_name: str, is_async: bool) -> str:
+    """Generate a single test-method stub for *method_name* on *cls_name*.
+
+    Args:
+        cls_name: The class under test (used in the docstring).
+        method_name: The method being tested.
+        is_async: Whether the test should be an ``async def``.
+
+    Returns:
+        Indented test method source code.
+    """
+    test_name = "init" if method_name == "__init__" else method_name
+    prefix = "async " if is_async else ""
+    return (
+        f"    {prefix}def test_{test_name}(self) -> None:\n"
+        f'        """Test {cls_name}.{method_name}."""\n'
+        f"        # TODO: Implement test for {cls_name}.{method_name}\n"
+        f"        pass\n"
+    )
+
+
+def _generate_test_init(cls_name: str) -> str:
+    """Generate a fallback creation test for a class with no public methods.
+
+    Args:
+        cls_name: The class under test.
+
+    Returns:
+        Indented test method source code.
+    """
+    return (
+        "    def test_create(self) -> None:\n"
+        f'        """Test {cls_name} creation."""\n'
+        f"        # TODO: Implement test for {cls_name} creation\n"
+        f"        pass\n"
+    )
+
+
 class TestGenTool(Tool):
     """Generate pytest test stubs from Python source files.
 
@@ -31,7 +169,7 @@ class TestGenTool(Tool):
         )
 
     @property
-    def parameters(self: TestGenTool) -> dict[str, object]:
+    def parameters(self: TestGenTool) -> dict[str, object]:  # noqa
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -111,7 +249,7 @@ class TestGenTool(Tool):
             )
 
         module_name = target.stem
-        symbols = self._extract_symbols(tree)
+        symbols = _extract_symbols_from_tree(tree)
 
         if not symbols:
             return ToolResult(
@@ -140,100 +278,20 @@ class TestGenTool(Tool):
         self: TestGenTool,
         node: ast.ClassDef,
     ) -> list[dict[str, object]]:
-        """Extract public methods from a class node.
-
-        Args:
-            node: AST class node.
-
-        Returns:
-            List of method dicts for public and __init__ methods.
-        """
-        methods: list[dict[str, object]] = []
-        for item in ast.iter_child_nodes(node):
-            if not isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
-                continue
-            if item.name.startswith("_") and item.name != "__init__":
-                continue
-            methods.append(
-                {
-                    "kind": "method",
-                    "name": item.name,
-                    "args": self._extract_args(item),
-                    "is_async": isinstance(item, ast.AsyncFunctionDef),
-                    "returns": self._get_return_annotation(item),
-                },
-            )
-        return methods
+        """Delegate to module-level ``_extract_class_methods_from_ast``."""
+        return _extract_class_methods_from_ast(node)
 
     def _extract_symbols(self: TestGenTool, tree: ast.Module) -> list[dict[str, object]]:
-        """Extract testable symbols from AST.
-
-        Args:
-            tree: Parsed AST module.
-
-        Returns:
-            List of symbol dicts with name, kind, args, is_async, decorators.
-        """
-        symbols: list[dict[str, object]] = []
-        FunctionDef = ast.FunctionDef  # noqa: N806
-        AsyncFunctionDef = ast.AsyncFunctionDef  # noqa: N806
-        ClassDef = ast.ClassDef  # noqa: N806
-        iter_child_nodes = ast.iter_child_nodes
-
-        for node in iter_child_nodes(tree):
-            if isinstance(node, FunctionDef | AsyncFunctionDef):
-                if node.name.startswith("_"):
-                    continue
-                symbols.append(
-                    {
-                        "kind": "function",
-                        "name": node.name,
-                        "args": self._extract_args(node),
-                        "is_async": isinstance(node, AsyncFunctionDef),
-                        "returns": self._get_return_annotation(node),
-                    },
-                )
-            elif isinstance(node, ClassDef):
-                if node.name.startswith("_"):
-                    continue
-                symbols.append(
-                    {
-                        "kind": "class",
-                        "name": node.name,
-                        "methods": self._extract_class_methods(node),
-                    },
-                )
-
-        return symbols
+        """Delegate to module-level ``_extract_symbols_from_tree``."""
+        return _extract_symbols_from_tree(tree)
 
     def _extract_args(self: TestGenTool, node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
-        """Extract argument names from function definition.
-
-        Args:
-            node: Function AST node.
-
-        Returns:
-            List of argument names (excluding self/cls).
-        """
-        args: list[str] = []
-        for arg in node.args.args:
-            if arg.arg in ("self", "cls"):
-                continue
-            args.append(arg.arg)
-        return args
+        """Delegate to module-level ``_extract_args_from_node``."""
+        return _extract_args_from_node(node)
 
     def _get_return_annotation(self: TestGenTool, node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:  # noqa: E501
-        """Get return type annotation as string.
-
-        Args:
-            node: Function AST node.
-
-        Returns:
-            Return annotation string or empty.
-        """
-        if node.returns:
-            return ast.unparse(node.returns)
-        return ""
+        """Delegate to module-level ``_get_return_annotation``."""
+        return _get_return_annotation(node)
 
     def _build_method_test_stubs(
         self: TestGenTool,
@@ -259,14 +317,7 @@ class TestGenTool(Tool):
             m_name = str(method.get("name", ""))
             m_async = bool(method.get("is_async", False))
             has_async = has_async or m_async
-            test_name = "init" if m_name == "__init__" else m_name
-            prefix = "async " if m_async else ""
-            method_tests.append(
-                f"    {prefix}def test_{test_name}(self) -> None:\n"
-                f'        """Test {cls_name}.{m_name}."""\n'
-                f'        # TODO: Implement test for {cls_name}.{m_name}\n'
-                f'        pass\n',
-            )
+            method_tests.append(_generate_test_method(cls_name, m_name, m_async))
         return method_tests, has_async
 
     def _generate_class_tests(
@@ -288,66 +339,78 @@ class TestGenTool(Tool):
         classes: list[str] = []
 
         for sym in symbols:
-            kind = sym["kind"]
-            if kind == "function":
-                name = str(sym["name"])
-                is_async = bool(sym.get("is_async", False))
-                imports.add(name)
-                if is_async:
-                    has_async = True
-                prefix = "async " if is_async else ""
-                args_value = sym.get("args", [])
-                args_list = [str(arg) for arg in args_value] if isinstance(args_value, list) else []
-                test_body = self._make_test_body(name, args_list)
-                classes.append(
-                    textwrap.dedent(
-                        f"""\
-                    class Test{self._pascal(name)}:
-                        \"\"\"Tests for {name}.\"\"\"
+            class_str, sym_async, sym_imports = self._generate_symbol_test_class(sym)
+            has_async = has_async or sym_async
+            imports.update(sym_imports)
+            classes.append(class_str)
 
-                        {prefix}def test_{name}_basic(self) -> None:
-                            \"\"\"Test basic {name} behavior.\"\"\"
-                            {test_body}
-
-                        {prefix}def test_{name}_edge_cases(self) -> None:
-                            \"\"\"Test {name} edge cases.\"\"\"
-                            # TODO: Add edge case tests for {name}
-                            pass
-                    """,
-                    ),
-                )
-            elif kind == "class":
-                cls_name = str(sym["name"])
-                imports.add(cls_name)
-                method_tests, cls_async = self._build_method_test_stubs(
-                    cls_name, sym.get("methods", []),
-                )
-                has_async = has_async or cls_async
-                body = (
-                    "\n".join(method_tests)
-                    if method_tests
-                    else (
-                        "    def test_create(self) -> None:\n"
-                        f'        """Test {cls_name} creation."""\n'
-                        f'        # TODO: Implement test for {cls_name} creation\n'
-                        f'        pass\n'
-                    )
-                )
-                classes.append(f'class Test{cls_name}:\n    """Tests for {cls_name}."""\n\n{body}')
-
-        # Build header
-        header_parts = [f'"""Tests for {module_name} module."""\n']
-        if has_async:
-            header_parts.append("import pytest\n")
-        else:
-            header_parts.append("import pytest\n")
-
+        header_parts = [f'"""Tests for {module_name} module."""\n', "import pytest\n"]
         import_names = ", ".join(sorted(imports))
         header_parts.append(f"from {module_name} import {import_names}\n")
 
         header = "\n".join(header_parts)
         body = "\n\n".join(classes)
         return f"{header}\n\n{body}\n"
+
+    def _generate_symbol_test_class(
+        self: TestGenTool,
+        sym: dict[str, object],
+    ) -> tuple[str, bool, set[str]]:
+        """Generate a test class block for a single symbol.
+
+        Args:
+            sym: Symbol descriptor dict from ``_extract_symbols_from_tree``.
+
+        Returns:
+            Tuple of ``(class_source, has_async, import_names)``.
+        """
+        kind = sym["kind"]
+        if kind == "function":
+            return self._generate_function_test_class(sym)
+        if kind == "class":
+            return self._generate_class_symbol_test_class(sym)
+        return "", False, set()
+
+    def _generate_function_test_class(
+        self: TestGenTool,
+        sym: dict[str, object],
+    ) -> tuple[str, bool, set[str]]:
+        """Build a ``TestXxx`` class for a module-level function symbol."""
+        name = str(sym["name"])
+        is_async = bool(sym.get("is_async", False))
+        prefix = "async " if is_async else ""
+        args_value = sym.get("args", [])
+        args_list = [str(arg) for arg in args_value] if isinstance(args_value, list) else []
+        test_body = self._make_test_body(name, args_list)
+        source = textwrap.dedent(
+            f"""\
+            class Test{self._pascal(name)}:
+                \"\"\"Tests for {name}.\"\"\"
+
+                {prefix}def test_{name}_basic(self) -> None:
+                    \"\"\"Test basic {name} behavior.\"\"\"
+                    {test_body}
+
+                {prefix}def test_{name}_edge_cases(self) -> None:
+                    \"\"\"Test {name} edge cases.\"\"\"
+                    # TODO: Add edge case tests for {name}
+                    pass
+            """,
+        )
+        return source, is_async, {name}
+
+    def _generate_class_symbol_test_class(
+        self: TestGenTool,
+        sym: dict[str, object],
+    ) -> tuple[str, bool, set[str]]:
+        """Build a ``TestXxx`` class for a class symbol."""
+        cls_name = str(sym["name"])
+        method_tests, cls_async = self._build_method_test_stubs(
+            cls_name, sym.get("methods", []),
+        )
+        body = "\n".join(method_tests) if method_tests else _generate_test_init(cls_name)
+        source = f'class Test{cls_name}:\n    """Tests for {cls_name}."""\n\n{body}'
+        return source, cls_async, {cls_name}
 
     def _generate_function_tests(
         self: TestGenTool,
