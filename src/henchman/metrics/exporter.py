@@ -31,7 +31,7 @@ class MetricsExporter:
 
         Args:
             filepath: Path to output JSON file.
-            **filters: Optional filters for metrics selection.
+            filters: Optional filters for metrics selection (keyword arguments).
 
         Raises:
             FileNotFoundError: If the directory doesn't exist and can't be created.
@@ -80,7 +80,7 @@ class MetricsExporter:
 
         Args:
             filepath: Path to output CSV file.
-            **filters: Optional filters for metrics selection.
+            filters: Optional filters for metrics selection (keyword arguments).
 
         Raises:
             NotImplementedError: CSV export is not yet implemented.
@@ -93,7 +93,7 @@ class MetricsExporter:
 
         Args:
             endpoint: Prometheus push gateway endpoint.
-            **filters: Optional filters for metrics selection.
+            filters: Optional filters for metrics selection (keyword arguments).
 
         Raises:
             NotImplementedError: Prometheus export is not yet implemented.
@@ -105,7 +105,7 @@ class MetricsExporter:
         """Export summary statistics.
 
         Args:
-            **filters: Optional filters for metrics selection.
+            filters: Optional filters for metrics selection (keyword arguments).
 
         Returns:
             Dictionary of summary statistics.
