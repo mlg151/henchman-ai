@@ -2,6 +2,40 @@
 
 Henchman-AI includes a set of built-in tools that the AI agent can use to interact with your system.
 
+## Quick Reference
+
+| Tool | Category | Kind | Description |
+|------|----------|------|-------------|
+| `read_file` | File Operations | READ | Read file contents |
+| `write_file` | File Operations | WRITE | Write content to a file |
+| `edit_file` | File Operations | WRITE | Make surgical edits to a file |
+| `patch_apply` | File Operations | WRITE | Apply unified diff patches |
+| `ls` | Directory Operations | READ | List directory contents |
+| `glob` | Directory Operations | READ | Find files matching patterns |
+| `grep` | Directory Operations | READ | Search file contents with regex |
+| `code_format` | Code Analysis | WRITE | Run ruff format on Python files |
+| `lint_check` | Code Analysis | READ | Run ruff/mypy linting |
+| `dead_code` | Code Analysis | READ | Detect unused code |
+| `python_ast` | Code Analysis | READ | Parse Python AST and symbol table |
+| `import_graph` | Code Analysis | READ | Analyze import dependencies |
+| `pytest_run` | Testing | EXECUTE | Run pytest tests |
+| `coverage_map` | Testing | READ | Parse coverage reports |
+| `test_gen` | Testing | WRITE | Generate pytest test stubs |
+| `git_ops` | Git Operations | READ | Run git operations (status, log, blame, etc.) |
+| `diff_view` | Git Operations | READ | Show git diffs |
+| `env_inspect` | Environment | READ | Inspect Python environment |
+| `pip_inspect` | Environment | READ | Query installed packages |
+| `python_exec` | Python Execution | EXECUTE | Execute Python code in subprocess |
+| `traceback_parse` | Python Execution | READ | Parse Python tracebacks |
+| `shell` | Shell Execution | EXECUTE | Execute shell commands |
+| `web_fetch` | Web Operations | NETWORK | Fetch content from URLs |
+| `web_search` | Web Operations | NETWORK | Search the web |
+| `kg_query` | Knowledge Graph | READ | Query project knowledge graph |
+| `kg_update` | Knowledge Graph | WRITE | Update knowledge graph |
+| `rag_search` | RAG | READ | Semantic code search |
+| `ask_user` | Agent Interaction | READ | Ask user questions |
+| `delegate_task` | Agent Interaction | EXECUTE | Delegate tasks to specialist agents |
+
 ## Built-in Tools
 
 ### File Operations

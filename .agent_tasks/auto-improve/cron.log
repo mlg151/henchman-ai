@@ -266416,3 +266416,160 @@ Committing changes...
 [main d3b556d] chore(auto-improve): automated codebase improvement
  8 files changed, 3658 insertions(+), 704 deletions(-)
 [2026-03-03T02:00:03Z] Auto-improve complete.
+[2026-03-03T02:30:02Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-03T02:30:02Z] Targeting lowest-graded file: cli/console.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll refactor the target file `src/henchman/cli/console.py` to address all code smells listed in the report. Let me first examine the file to understand its structure and the specific issues.
+[tool] read_file({'path': 'src/henchman/cli/console.py'})
+
+
+[result] """Console output and theming for the CLI.
+
+This module provides Rich-based console output with theming support.
+"""
+
+from __future__ import annotations
+
+import difflib
+import json
+from collections.ab...
+Now let me check the test file to understand the expected behavior:
+[tool] read_file({'path': 'tests/cli/test_console.py'})
+
+[result] """Tests for console output and theming."""
+
+from __future__ import annotations
+
+from io import StringIO
+
+import pytest
+from rich.console import Console
+
+from henchman.cli.console import (
+    OutputR...
+Now let me run the tests to see if they pass before refactoring:
+[tool] pytest_run({'path': 'tests/cli/test_console.py'})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good, the tests pass. Now let me analyze the code smells from the report for `cli/console.py`:
+
+**Identified Smells from the report:**
+1. **Duplicate Code**: Functions `success`, `info`, `warning`, and `error` are 100% similar to each other
+2. **Duplicate Code**: These functions are also 94% similar to methods in `cli/textual_widgets.py`
+3. **Missing Type Hints**: Several functions have incomplete type hints
+4. **Large Class**: The file has 671 lines with 9 classes and 4 functions
+5. **Primitive Obsession**: Some functions have many primitive parameters
+
+Let me examine the specific duplicate code issue more closely:
+[tool] read_file({'path': 'src/henchman/cli/console.py', 'start_line': 430, 
+'end_line': 470})
+
+[result]         """
+        self.console.print(text, style=style)
+
+    def success(self: Self, message: str) -> None:
+        """Print a success message.
+
+        Args:
+            message: Success message te...
+I can see the issue. The `success`, `info`, `warning`, and `error` methods are indeed very similar - they all just call `_print_status` with different `StatusType` values. However, looking at the code, they're already refactored to use a shared `_print_status` method! The smell detector might be flagging them because they have identical structure, but they're actually following good DRY principles.
+
+Let me check if there are other issues in the file:
+[tool] read_file({'path': 'src/henchman/cli/console.py', 'start_line': 1, 
+'end_line': 50})
+
+[result] """Console output and theming for the CLI.
+
+This module provides Rich-based console output with theming support.
+"""
+
+from __future__ import annotations
+
+import difflib
+import json
+from collections.ab...
+Let me check the end of the file to see the AsyncOutputRenderer class:
+[tool] read_file({'path': 'src/henchman/cli/console.py', 'start_line': 650, 
+'end_line': 671})
+
+[result]                     current = 
+current.add(f"[{self.theme.secondary}]{part}[/]")
+
+            # Add leaf with value
+            current.add(f"{parts[-1]}: [bold]{value}[/]")
+
+        self.console.print...
+Let me see the AsyncOutputRenderer class:
+[tool] read_file({'path': 'src/henchman/cli/console.py', 'start_line': 680, 
+'end_line': 750})
+
+[result]         Returns:
+            DiffParams object.
+
+        Raises:
+            TypeError: If arguments are invalid.
+        """
+        if len(args) == 1 and isinstance(args[0], DiffParams):
+           ...
+
+[tool] read_file({'path': 'src/henchman/cli/console.py', 'start_line': 750, 
+'end_line': 850})
+
+[result]         Args:
+            content: Thinking content.
+        """
+        # Escape content to prevent rich markup interpretation
+        # Note: We should eventually render markdown properly, but for n...
+Now I'll analyze the code more systematically. Let me check for the actual issues mentioned in the smell report:
+
+**Identified Smells from the report for `cli/console.py`:**
+1. **Duplicate Code**: Functions `success`, `info`, `warning`, and `error` are 100% similar to each other
+2. **Duplicate Code**: These functions are also 94% similar to methods in `cli/textual_widgets.py`
+3. **Missing Type Hints**: Several functions have incomplete type hints
+4. **Large Class**: The file has 671 lines with 9 classes and 4 functions
+5. **Primitive Obsession**: Some functions have many primitive parameters
+
+Let me check for missing type hints:
+[tool] python_ast({'path': 'src/henchman/cli/console.py', 'include_docstrings': 
+True})
+
+[result] # Symbol table for console.py
+"""Console output and theming for the CLI."""
+
+## Imports
+from __future__ import annotations  [L6]
+import difflib  [L8]
+import json  [L9]
+from collections.abc import Awai...
+Now let me check for specific missing type hints by looking at the actual function signatures:
+[tool] read_file({'path': 'src/henchman/cli/console.py', 'start_line': 770, 
+'end_line': 790})
+
+[result] class AsyncOutputRenderer:
+    """Async wrapper for OutputRenderer."""
+
+    def __init__(self, renderer: OutputRenderer) -> None:
+        """Initialize the async renderer.
+
+        Args:
+            r...
+I can see that `AsyncOutputRenderer.__init__` has a type hint for `renderer` but not for `self`. Let me check other methods:
+[tool] read_file({'path': 'src/henchman/cli/console.py', 'start_line': 805, 
+'end_line': 825})
+
+[result]     def _validate_method_name(self, name: str) -> None:
+        """Validate that method name is valid for async wrapping.
+
+        Args:
+            name: Method name to validate.
+
+        Raises:
+   ...
