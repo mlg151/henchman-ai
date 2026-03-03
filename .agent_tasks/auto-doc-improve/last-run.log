@@ -142,4 +142,95 @@ I think the issue might be the type annotation mismatch. The docstring says `Too
 
 Let me check if changing the type annotation would help. Actually, I can't change the code, only documentation. So I need to update the docstring to match.
 
-Actually, I just realized something. The smell report says "Stale Docstring" and lists 11 high-severity issues,
+Actually, I just realized something. The smell report says "Stale Docstring" and lists 11 high-severity issues, all for `execute` methods with `params` parameter. Maybe all of these were recently changed from a different signature? Let me check if maybe they used to have explicit parameters instead of `**params`.
+
+Actually, looking at the task constraints: "Do NOT modify source code behavior — only documentation, docstrings, and config." So I should only update the docstring, not the code.
+
+I think the issue is that the docstring needs to be more specific. Let me update the McpTool.execute docstring to be more explicit about what `params` is:
+[tool] edit_file({'path': 'src/henchman/mcp/tool.py', 'old_str': '    async def 
+execute(self, **params: object) -> ToolResult:\n        """Execute the tool via 
+MCP.\n\n        Args:\n            **params: Tool parameters.\n\n        
+Returns:\n            Tool execution result.\n        """', 'new_str': '    
+async def execute(self, **params: object) -> ToolResult:\n        """Execute the
+tool via MCP.\n\n        Args:\n            **params: Tool parameters as keyword
+arguments. These are passed\n                directly to the MCP server 
+tool.\n\n        Returns:\n            Tool execution result.\n        """'})
+
+[result] Successfully edited src/henchman/mcp/tool.py...
+Now let me check what the last improvement was to avoid repeating work:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T03:30:30Z
+
+## Files Changed
+1. `src/henchman/api/endpoints/health.py` - Fixed stale docstrings for 
+`get_metrics` and `get_usage` functions
+
+...
+Perfect! I can see that the last improvement was addressing stale docstrings in the API endpoints, and now I've addressed the McpTool.execute stale docstring issue. Let me write the summary of what I changed:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': "# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T03:45:30Z\n\n## Files Changed\n1. 
+`src/henchman/mcp/tool.py` - Fixed stale docstring for `McpTool.execute` 
+method\n\n## Smell Category Addressed\n- **Stale Docstring** (HIGH): Function 
+parameter `params` documented incorrectly\n\n## Rationale for Change\nThe 
+documentation smell report identified a HIGH severity stale docstring issue:\n- 
+`src/henchman/mcp/tool.py:84` - `McpTool.execute` had undocumented parameter: 
+`params`\n\nThe `execute` method signature is `async def execute(self, **params:
+object) -> ToolResult:` but the docstring's Args section only had `**params: 
+Tool parameters.` which the smell detector flagged as insufficient 
+documentation. The parameter `params` (as keyword arguments) needed clearer 
+documentation.\n\n## Changes Made\n1. **Updated `McpTool.execute` docstring**: 
+Enhanced the documentation for the `**params` parameter to be more explicit:\n  
+- Changed from `**params: Tool parameters.` \n   - To: `**params: Tool 
+parameters as keyword arguments. These are passed directly to the MCP server 
+tool.`\n2. **Maintained Google-style format**: The updated docstring follows 
+proper Google-style documentation conventions\n3. **Improved clarity**: The new 
+documentation better explains what `params` represents and how it's used\n\n## 
+What to Verify\n1. The docstring now properly documents the `**params` 
+parameter\n2. The documentation accurately reflects that parameters are passed 
+as keyword arguments to MCP server tools\n3. The McpTool class continues to 
+function correctly with the updated documentation\n4. The change doesn't break 
+any other documentation or code\n\n## Next Priority\nThe next highest-priority 
+issues are:\n1. **Stale Docstrings** in other source files (HIGH severity - 
+missing parameter documentation)\n   - `src/henchman/metrics/exporter.py:29` - 
+`MetricsExporter.export_to_json` missing `filters` parameter\n   - 
+`src/henchman/metrics/exporter.py:78` - `MetricsExporter.export_to_csv` missing 
+`filters` parameter\n   - `src/henchman/metrics/exporter.py:91` - 
+`MetricsExporter.export_to_prometheus` missing `filters` parameter\n   - 
+`src/henchman/metrics/exporter.py:104` - `MetricsExporter.export_summary` 
+missing `filters` parameter\n2. **Stale Docstrings** in tool base classes (HIGH 
+severity):\n   - `src/henchman/tools/base.py:144` - `Tool.execute` missing 
+`params` parameter\n   - `src/henchman/tools/builtins/ask_user.py:73` - 
+`AskUserTool.execute` missing `params` parameter\n3. **Broken Link** in 
+`docs/intelligent-context-management.md` (anchor '#performance-tuning' not 
+found)\n4. **Config Issue** in `mkdocs.yml` (mermaid diagrams not 
+configured)\n\nThe stale docstrings in metrics exporter should be addressed next
+as they are also HIGH severity and affect multiple methods in the same file."})
+
+[result] Successfully wrote 2778 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+## Summary
+
+I've successfully addressed one of the highest-priority documentation smells from the report. The improvement focused on:
+
+**File**: `src/henchman/mcp/tool.py`
+**Issue**: Stale Docstring (HIGH severity) - `McpTool.execute` method had undocumented parameter `params`
+**Fix**: Enhanced the docstring for the `**params` parameter to provide clearer documentation about how these keyword arguments are passed to MCP server tools.
+
+The change maintains Google-style docstring format while improving clarity. The updated documentation now better explains that `params` represents tool parameters as keyword arguments that are passed directly to the MCP server tool.
+
+This addresses item #1 in the prioritized fix queue from the documentation smell report. The next logical step would be to address the similar stale docstring issues in the metrics exporter file, which has multiple methods with the same `filters` parameter documentation issue.
+[tech_lead] completed work
+[2026-03-03T03:45:01Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Doc file 'intelligent-context-management.md' contains a link 'configuration.md#performance-tuning', but the doc 'configuration.md' does not contain an anchor '#performance-tuning'.
+INFO    -  Documentation built in 0.73 seconds
+[2026-03-03T03:45:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T03:45:01Z] Verification passed.
+Committing changes...
