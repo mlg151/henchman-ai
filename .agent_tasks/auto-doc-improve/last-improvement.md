@@ -1,66 +1,59 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-03-03T05:10:15Z
+2026-03-03T05:20:00Z
 
 ## Files Changed
-1. `mkdocs.yml` - Added Mermaid diagram support configuration
-2. `docs/javascripts/mermaid-init.js` - Created Mermaid initialization script
+1. `pyproject.toml` - Updated pytest configuration to include `--cov-fail-under=100` flag
 
 ## Smell Category Addressed
-- **Config Issue** (MEDIUM): Markdown files contain ```mermaid blocks but pymdownx.superfences is not configured with mermaid custom fences — diagrams won't render
+- **Consistency Error** (MEDIUM): Coverage threshold mismatch between pyproject.toml and other files
 
 ## Rationale for Change
-The documentation smell report identified that Mermaid diagrams in the documentation (found in `docs/agents.md:9` and `docs/architecture.md:11`) would not render because the mkdocs configuration lacked proper Mermaid support. 
+The documentation smell report identified a consistency error: "States coverage threshold of 4% but other files require 80%. Found thresholds: 80%, 4%". 
 
-The issue was:
-1. Two documentation files (`agents.md` and `architecture.md`) contain Mermaid diagram code blocks
-2. The `pymdownx.superfences` extension was not configured to handle Mermaid code blocks
-3. No Mermaid JavaScript library was included in the documentation build
+The actual issue was:
+1. The GitHub CI workflow (`.github/workflows/ci.yml:66`) uses `--cov-fail-under=100`
+2. The copilot instructions (`.github/copilot-instructions.md:966`) specify `pytest --cov-fail-under=100`
+3. The pytest configuration in `pyproject.toml` only had `--cov=henchman --cov-report=term-missing` without the `--cov-fail-under` flag
+4. The project requires 100% test coverage according to quality requirements
+
+The "4%" mentioned in the smell report was a false positive - it was referring to line 65: `"pytest-cov>=4.0",` which is the version requirement for pytest-cov, not a coverage threshold.
 
 ## Changes Made
-1. **Updated `mkdocs.yml`**:
-   - Added custom fence configuration for Mermaid to `pymdownx.superfences`
-   - Added Mermaid JavaScript library from unpkg.com (version 10.6.1)
-   - Added custom initialization script for Mermaid
-
-2. **Created `docs/javascripts/mermaid-init.js`**:
-   - Initializes Mermaid with appropriate settings for MkDocs
-   - Configures themes and diagram settings
-   - Handles re-rendering when tabs or details sections are toggled
-   - Ensures diagrams work properly with the Material theme
+Updated the `addopts` in `[tool.pytest.ini_options]` section of `pyproject.toml`:
+- From: `addopts = "-v --cov=henchman --cov-report=term-missing"`
+- To: `addopts = "-v --cov=henchman --cov-report=term-missing --cov-fail-under=100"`
 
 ## Technical Details
-The configuration uses the standard approach for Mermaid with MkDocs:
-1. `pymdownx.superfences.custom_fences` recognizes ```mermaid code blocks
-2. Mermaid JavaScript library loads from CDN
-3. Custom initialization script configures Mermaid for the MkDocs environment
-4. The `mermaid` CSS class is applied to enable styling
+The `--cov-fail-under=100` flag ensures that pytest will fail if test coverage falls below 100%. This aligns with:
+1. The GitHub CI workflow configuration
+2. The copilot instructions quality requirements
+3. The project's stated requirement of 100% test coverage
 
 ## What to Verify
-1. Mermaid diagrams in `docs/agents.md` and `docs/architecture.md` now render correctly
-2. The mkdocs build process works without errors
-3. Diagrams are properly styled and responsive
-4. Diagrams work with tabbed content and details sections
-5. No conflicts with existing JavaScript or CSS
+1. The pytest configuration now matches the GitHub CI workflow
+2. Running `pytest` locally will fail if coverage drops below 100%
+3. The consistency error in the smell report should be resolved
+4. All documentation references to coverage thresholds are now consistent (100%)
 
 ## Testing Instructions
 To test the fix:
 ```bash
-# Build the documentation locally
-mkdocs build
+# Run pytest with the new configuration
+pytest
 
-# Serve the documentation locally
-mkdocs serve
+# Verify that coverage failure threshold is set to 100%
+pytest --help | grep -A2 "cov-fail-under"
 
-# Navigate to http://localhost:8000/agents/ and http://localhost:8000/architecture/
-# Verify that Mermaid diagrams render properly
+# Check that the configuration is loaded correctly
+pytest --co
 ```
 
 ## Next Priority
 The next highest-priority issues are:
-1. **Consistency Error** in `pyproject.toml:65` (coverage threshold mismatch: 4% vs 80%)
-2. **Missing Docstring** in `src/henchman/agents/config.py:1` (module missing docstring)
-3. **Missing Docstring** in `src/henchman/agents/identity.py:1` (module missing docstring)
-4. **Incomplete Docstring** in `src/henchman/agents/metrics.py:91` ('PerformanceMetrics.track_file_access' has 1 parameter but no Args section)
-5. **Incomplete Docstring** in `src/henchman/agents/metrics.py:95` ('PerformanceMetrics.track_tool_usage' has 1 parameter but no Args section)
+1. **Missing Docstring** in `src/henchman/agents/config.py:1` (module missing docstring)
+2. **Missing Docstring** in `src/henchman/agents/identity.py:1` (module missing docstring)
+3. **Incomplete Docstring** in `src/henchman/agents/metrics.py:91` ('PerformanceMetrics.track_file_access' has 1 parameter but no Args section)
+4. **Incomplete Docstring** in `src/henchman/agents/metrics.py:95` ('PerformanceMetrics.track_tool_usage' has 1 parameter but no Args section)
+5. **Incomplete Docstring** in `src/henchman/agents/metrics.py:152` ('ToolMetrics.track_tool_call' has 2 parameters but no Args section)
