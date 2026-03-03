@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T08:30:21.324735+00:00_
+_Generated: 2026-03-03T09:00:23.864903+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-03T08:30:21.324735+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 53.5/100 |
 | **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 34,388 |
-| **Total Smells** | 2143 |
+| **Total Lines (non-blank)** | 34,409 |
+| **Total Smells** | 2145 |
 | **Avg Maintainability Index** | 71.7 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-03T08:30:21.324735+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1631 |
+| low | 1633 |
 | medium | 447 |
 | high | 65 |
 
@@ -28,8 +28,8 @@ _Generated: 2026-03-03T08:30:21.324735+00:00_
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1143 |
-| Feature Envy | 298 |
+| Missing Type Hint | 1144 |
+| Feature Envy | 299 |
 | Duplicate Code | 238 |
 | Magic Number | 129 |
 | Long Method | 108 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/context.py | ❌ F | 14.3 | 55 | 473 | 48 | 0.0 |
+| 1 | cli/commands/context.py | ❌ F | 14.2 | 57 | 479 | 47 | 0.0 |
 | 2 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
 | 3 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
 | 4 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
@@ -122,9 +122,9 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 169 additional files omitted._
 
-### cli/commands/context.py — ❌ F (14.3/100)
+### cli/commands/context.py — ❌ F (14.2/100)
 
-LOC: 473 | Classes: 5 | Functions: 0 | MI: 48 | Avg CC: 0.0
+LOC: 479 | Classes: 5 | Functions: 0 | MI: 47 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
@@ -142,9 +142,9 @@ LOC: 473 | Classes: 5 | Functions: 0 | MI: 48 | Avg CC: 0.0
 | 97 | 🟢 LOW | Missing Type Hint | Function 'print_status_info' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 108 | 🟢 LOW | Missing Type Hint | Function '_print_status_header' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 116 | 🟢 LOW | Missing Type Hint | Function '_print_status_values' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 131 | 🟢 LOW | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 127 | 🟢 LOW | Missing Type Hint | Function '_print_context_settings_values' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 40 more smells._
+_... and 42 more smells._
 
 ### cli/textual_bridge.py — ❌ F (15.7/100)
 
