@@ -85,30 +85,35 @@ class ContextConsoleHelper:
     Consolidates console output logic to eliminate duplication and feature envy.
     """
 
-    @staticmethod
-    def print_status_info(console: Console, context_settings: ContextSettings) -> None:
+    def __init__(self, console_helper: ConsoleHelper | None = None):
+        """Initialize the context console helper.
+
+        Args:
+            console_helper: Console helper instance to use. If None, creates a new one.
+        """
+        self._console_helper = console_helper or ConsoleHelper()
+
+    def print_status_info(self, console: Console, context_settings: ContextSettings) -> None:
         """Print intelligent context status information.
 
         Args:
             console: Console for output.
             context_settings: Context settings to display.
         """
-        ContextConsoleHelper._print_status_header(console)
-        ContextConsoleHelper._print_status_values(console, context_settings)
-        ContextConsoleHelper._print_status_commands(console)
+        self._print_status_header(console)
+        self._print_status_values(console, context_settings)
+        self._print_status_commands(console)
 
-    @staticmethod
-    def _print_status_header(console: Console) -> None:
+    def _print_status_header(self, console: Console) -> None:
         """Print status header.
 
         Args:
             console: Console for output.
         """
-        ConsoleHelper.print_status_header(console, "Intelligent Context Management")
+        self._console_helper.print_status_header(console, "Intelligent Context Management")
 
-    @staticmethod
     def _print_status_values(
-        console: Console, context_settings: ContextSettings
+        self, console: Console, context_settings: ContextSettings
     ) -> None:
         """Print status values.
 
@@ -116,29 +121,28 @@ class ContextConsoleHelper:
             console: Console for output.
             context_settings: Context settings to display.
         """
-        ConsoleHelper.print_enabled_status(console, "Status", context_settings.intelligent_context)
-        ConsoleHelper.print_enabled_status(
+        self._console_helper.print_enabled_status(console, "Status", context_settings.intelligent_context)
+        self._console_helper.print_enabled_status(
             console, "Adaptive compression", context_settings.adaptive_compression
         )
-        ConsoleHelper.print_status_value(console, "Max tokens", context_settings.max_tokens)
-        ConsoleHelper.print_status_value(
+        self._console_helper.print_status_value(console, "Max tokens", context_settings.max_tokens)
+        self._console_helper.print_status_value(
             console, "Compaction threshold", f"{context_settings.compaction_threshold * 100:.0f}%"
         )
-        ConsoleHelper.print_status_value(
+        self._console_helper.print_status_value(
             console, "Importance threshold", context_settings.importance_threshold
         )
-        ConsoleHelper.print_status_value(
+        self._console_helper.print_status_value(
             console, "Cluster similarity", context_settings.cluster_similarity_threshold
         )
 
-    @staticmethod
-    def _print_status_commands(console: Console) -> None:
+    def _print_status_commands(self, console: Console) -> None:
         """Print available commands.
 
         Args:
             console: Console for output.
         """
-        ContextConsoleHelper._print_command_list(
+        self._print_command_list(
             console,
             [
                 ("/context enable", "enable intelligent context"),
@@ -148,14 +152,13 @@ class ContextConsoleHelper:
             ],
         )
 
-    @staticmethod
-    def print_strategy_usage(console: Console) -> None:
+    def print_strategy_usage(self, console: Console) -> None:
         """Print strategy command usage help.
 
         Args:
             console: Console for output.
         """
-        ConsoleHelper.print_error_message(
+        self._console_helper.print_error_message(
             console, "Missing parameter or value", "/context strategy set <parameter> <value>"
         )
         console.print("\nParameters:")
@@ -169,8 +172,7 @@ class ContextConsoleHelper:
             "  adaptive <on|off>         - Enable/disable adaptive compression"
         )
 
-    @staticmethod
-    def print_strategy_status(console: Console, context_settings: ContextSettings) -> None:
+    def print_strategy_status(self, console: Console, context_settings: ContextSettings) -> None:
         """Show current compression strategy settings.
 
         Args:
@@ -178,28 +180,27 @@ class ContextConsoleHelper:
             context_settings: Context settings to display.
         """
         console.print("\n[bold blue]Compression Strategy Settings[/]\n")
-        ConsoleHelper.print_status_value(console, "Max tokens", context_settings.max_tokens)
-        ConsoleHelper.print_status_value(
+        self._console_helper.print_status_value(console, "Max tokens", context_settings.max_tokens)
+        self._console_helper.print_status_value(
             console, "Compaction threshold", context_settings.compaction_threshold
         )
-        ConsoleHelper.print_status_value(
+        self._console_helper.print_status_value(
             console, "Importance threshold", context_settings.importance_threshold
         )
-        ConsoleHelper.print_status_value(
+        self._console_helper.print_status_value(
             console, "Cluster similarity", context_settings.cluster_similarity_threshold
         )
-        ConsoleHelper.print_enabled_status(
+        self._console_helper.print_enabled_status(
             console, "Adaptive compression", context_settings.adaptive_compression
         )
         console.print("")
-        ConsoleHelper.print_command_help(
+        self._console_helper.print_command_help(
             console, "/context strategy set <parameter> <value>", "change settings"
         )
         console.print("")
 
-    @staticmethod
     def _print_command_list(
-        console: Console, commands: list[tuple[str, str]]
+        self, console: Console, commands: list[tuple[str, str]]
     ) -> None:
         """Print a list of commands (shared logic to eliminate duplication).
 
@@ -209,7 +210,7 @@ class ContextConsoleHelper:
         """
         console.print("")
         for command, description in commands:
-            ConsoleHelper.print_command_help(console, command, description)
+            self._console_helper.print_command_help(console, command, description)
         console.print("")
 
 
@@ -240,6 +241,7 @@ class StrategyManager:
                 param_name="cluster_similarity_threshold", min_val=0.0, max_val=1.0
             ),
         }
+        self._console_helper = ContextConsoleHelper()
 
     async def manage_strategy(self, ctx: CommandContext, args: list[str]) -> None:
         """Manage compression strategy settings.
@@ -255,7 +257,7 @@ class StrategyManager:
         action = args[self._STRATEGY_ACTION_IDX].lower()
         if action == "set":
             if len(args) < 3:  # Need at least 'set', 'parameter' and 'value'
-                ContextConsoleHelper.print_strategy_usage(ctx.console)
+                self._console_helper.print_strategy_usage(ctx.console)
                 return
 
             param = args[self._STRATEGY_PARAM_IDX]
@@ -270,7 +272,9 @@ class StrategyManager:
         Args:
             ctx: Command context.
         """
-        self._show_context_info(ctx, ContextConsoleHelper.print_strategy_status)
+        settings = load_settings()
+        context_settings = settings.context
+        self._console_helper.print_strategy_status(ctx.console, context_settings)
 
     async def _set_strategy_parameter(
         self, ctx: CommandContext, param: str, value: str | None
@@ -345,6 +349,7 @@ class ContextCommand(Command):
     def __init__(self) -> None:
         """Initialize context command."""
         super().__init__()
+        self._console_helper = ContextConsoleHelper()
         self._strategy_manager = StrategyManager()
         self._statistics_manager = StatisticsManager()
 
@@ -437,7 +442,7 @@ class ContextCommand(Command):
         Args:
             ctx: Command context.
         """
-        self._show_context_info(ctx, ContextConsoleHelper.print_status_info)
+        self._show_context_info(ctx, self._console_helper.print_status_info)
 
     async def _enable_intelligent_context(self, ctx: CommandContext) -> None:
         """Enable intelligent context management.

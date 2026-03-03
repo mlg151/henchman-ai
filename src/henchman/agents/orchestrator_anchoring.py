@@ -17,9 +17,20 @@ if TYPE_CHECKING:
 
 
 def inject_role_anchor(
-    orchestrator: Any, agent: Agent, tool_call_count: int,
+    orchestrator: Any,
+    agent: Agent,
+    tool_call_count: int,
 ) -> None:
-    """Inject periodic role anchoring reminder if needed."""
+    """Inject periodic role anchoring reminder if needed.
+
+    Args:
+        orchestrator: The orchestrator instance managing the agent.
+        agent: The agent to inject the role anchor message to.
+        tool_call_count: Current count of tool calls in the loop.
+
+    Returns:
+        None: The function modifies the agent's messages in-place.
+    """
     if tool_call_count <= 0 or tool_call_count % ROLE_ANCHOR_INTERVAL != 0:
         return
     if not agent.identity:
@@ -40,16 +51,24 @@ def inject_role_anchor(
 
 
 def assess_agent_completion(orchestrator: Any, agent: Agent) -> CompletionStatus:
-    """Assess whether an agent performed meaningful work."""
+    """Assess whether an agent performed meaningful work.
+
+    Args:
+        orchestrator: The orchestrator instance managing the agent.
+        agent: The agent to assess completion status for.
+
+    Returns:
+        CompletionStatus: The completion status of the agent (STALLED, NO_WORK_DONE, or COMPLETED).
+    """
     tool_calls = getattr(orchestrator, "_last_loop_tool_call_count", 0)
-    
+
     # Check for stall failure in new StallDetector or legacy attribute.
     # We use 'is True' to avoid MagicMock truthiness in tests.
     stalled = False
     stall_detector = getattr(agent, "_stall", None)
     if stall_detector is not None and getattr(stall_detector, "failure", False) is True:
         stalled = True
-    
+
     # Fallback to legacy attribute if not already found to be stalled
     if not stalled and getattr(agent, "_stall_failure", False) is True:
         stalled = True
