@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 94.2/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T02:00:02.921065+00:00_
+_Generated: 2026-03-03T02:15:03.069833+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-03T02:00:02.921065+00:00_
 | **Overall Score** | 94.2/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 166 |
-| **Total Smells** | 452 |
+| **Total Smells** | 451 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
@@ -20,7 +20,7 @@ _Generated: 2026-03-03T02:00:02.921065+00:00_
 |:---------|------:|
 | low | 317 |
 | medium | 89 |
-| high | 46 |
+| high | 45 |
 
 ### Smells by Category
 
@@ -30,7 +30,7 @@ _Generated: 2026-03-03T02:00:02.921065+00:00_
 | Stale Content | 31 |
 | Stale Docstring | 13 |
 | Missing Docstring | 5 |
-| Stale Age | 4 |
+| Stale Age | 3 |
 | Config Issue | 2 |
 | Broken Link | 1 |
 | Consistency Error | 1 |
@@ -124,13 +124,13 @@ These are the highest-impact documentation smells to address first:
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | docs/tools.md | ❌ F | 0.0 | 30 | 2026-01-24 |
+| 1 | docs/tools.md | ❌ F | 0.0 | 29 | 2026-03-03 |
 | 2 | src/henchman/cli/commands/session.py | ❌ F | 0.0 | 31 | 2026-03-02 |
 | 3 | src/henchman/cli/ui_renderer.py | ❌ F | 0.0 | 38 | 2026-03-02 |
 | 4 | src/henchman/cli/textual_widgets.py | ❌ F | 49.0 | 24 | 2026-03-01 |
 | 5 | src/henchman/core/session_manager.py | ❌ F | 49.0 | 15 | 2026-02-28 |
 | 6 | src/henchman/metrics/exporter.py | ❌ F | 54.0 | 7 | 2026-02-26 |
-| 7 | src/henchman/cli/console.py | ❌ F | 56.0 | 22 | 2026-03-02 |
+| 7 | src/henchman/cli/console.py | ❌ F | 56.0 | 22 | 2026-03-03 |
 | 8 | src/henchman/agents/orchestrator_loop.py | ❌ F | 58.0 | 12 | 2026-02-28 |
 | 9 | src/henchman/agents/metrics.py | 🔶 D | 61.0 | 15 | 2026-02-27 |
 | 10 | src/henchman/cli/stream_event_handlers.py | 🔶 D | 65.0 | 10 | 2026-03-01 |
@@ -144,9 +144,9 @@ These are the highest-impact documentation smells to address first:
 
 _Showing 25 worst files. 160 additional files omitted._
 
-### docs/tools.md — ❌ F (0.0/100) (last modified 2026-01-24)
+### docs/tools.md — ❌ F (0.0/100) (last modified 2026-03-03)
 
-Words: 526 | Headings: 24 | Links: 0 | Code blocks: 15
+Words: 1859 | Headings: 52 | Links: 0 | Code blocks: 36
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
@@ -166,7 +166,7 @@ Words: 526 | Headings: 24 | Links: 0 | Code blocks: 15
 | 1 | 🟠 HIGH | Stale Content | Tool 'kg_update' exists in source but is not documented in tools.md | Add a section documenting the 'kg_update' tool, including its parameters and usage. |
 | 1 | 🟠 HIGH | Stale Content | Tool 'lint_check' exists in source but is not documented in tools.md | Add a section documenting the 'lint_check' tool, including its parameters and usage. |
 
-_... and 15 more smells._
+_... and 14 more smells._
 
 ### src/henchman/cli/commands/session.py — ❌ F (0.0/100) (last modified 2026-03-02)
 
@@ -276,27 +276,27 @@ Public APIs: 6 | Documented: 6 | Coverage: 100.0%
 | 78 | 🟢 LOW | Incomplete Docstring | 'MetricsExporter.export_to_csv' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsExporter.export_to_csv'. |
 | 91 | 🟢 LOW | Incomplete Docstring | 'MetricsExporter.export_to_prometheus' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsExporter.export_to_prometheus'. |
 
-### src/henchman/cli/console.py — ❌ F (56.0/100) (last modified 2026-03-02)
+### src/henchman/cli/console.py — ❌ F (56.0/100) (last modified 2026-03-03)
 
 Public APIs: 43 | Documented: 43 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 334 | 🟢 LOW | Incomplete Docstring | 'ThemeManager.set_theme' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ThemeManager.set_theme'. |
-| 350 | 🟢 LOW | Incomplete Docstring | 'ThemeManager.register_theme' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ThemeManager.register_theme'. |
-| 418 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.print' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.print'. |
-| 427 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.success' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.success'. |
-| 435 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.info' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.info'. |
-| 443 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.warning' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.warning'. |
-| 451 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.error' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.error'. |
-| 482 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.muted' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.muted'. |
-| 490 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.heading' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.heading'. |
-| 498 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.markdown' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.markdown'. |
-| 515 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.code' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.code'. |
-| 527 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.rule' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.rule'. |
-| 538 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.clear' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.clear'. |
-| 542 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.tool_call' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.tool_call'. |
-| 555 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.tool_result' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.tool_result'. |
+| 340 | 🟢 LOW | Incomplete Docstring | 'ThemeManager.set_theme' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ThemeManager.set_theme'. |
+| 356 | 🟢 LOW | Incomplete Docstring | 'ThemeManager.register_theme' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ThemeManager.register_theme'. |
+| 424 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.print' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.print'. |
+| 433 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.success' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.success'. |
+| 441 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.info' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.info'. |
+| 449 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.warning' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.warning'. |
+| 457 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.error' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.error'. |
+| 488 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.muted' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.muted'. |
+| 496 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.heading' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.heading'. |
+| 504 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.markdown' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.markdown'. |
+| 521 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.code' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.code'. |
+| 533 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.rule' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.rule'. |
+| 544 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.clear' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.clear'. |
+| 548 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.tool_call' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.tool_call'. |
+| 561 | 🟢 LOW | Incomplete Docstring | 'OutputRenderer.tool_result' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OutputRenderer.tool_result'. |
 
 _... and 7 more smells._
 
@@ -459,7 +459,7 @@ Public APIs: 6 | Documented: 6 | Coverage: 100.0%
 | 59 | 🟠 HIGH | Stale Docstring | 'get_metrics' has undocumented parameters: _api_key | Add these parameters to the Args: section: _api_key |
 | 111 | 🟠 HIGH | Stale Docstring | 'get_usage' has undocumented parameters: _api_key | Add these parameters to the Args: section: _api_key |
 
-### src/henchman/metrics/storage.py — 👍 B (82.0/100) (last modified 2026-02-26)
+### src/henchman/metrics/storage.py — 👍 B (82.0/100) (last modified 2026-03-03)
 
 Public APIs: 16 | Documented: 16 | Coverage: 100.0%
 
