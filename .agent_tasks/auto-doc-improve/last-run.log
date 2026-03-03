@@ -1,12 +1,26 @@
-[2026-03-03T12:00:02Z] Starting auto-doc-improve run...
+[2026-03-03T12:15:01Z] Starting auto-doc-improve run...
 Running documentation smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
-I'll start by examining the highest-priority issue from the smell report: the consistency error in pyproject.toml regarding coverage thresholds.
-[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
+I'll start by checking what was last improved to avoid repeating work.
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
 
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T12:15:30Z
+
+## Files Changed
+1. `src/henchman/cli/app.py:600` - Added Args: section to 'cli' function 
+docstring
+
+## Smell Category Addressed
+...
+Now I'll look at the highest-priority issue from the smell report: the consistency error in `pyproject.toml` about coverage thresholds. Let me examine the file to understand the issue.
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
 
 [result] 
 [project.optional-dependencies]
@@ -15,43 +29,44 @@ dev = [
     "pytest-asyncio>=0.23",
     "pytest-cov>=4.0",  # Version 4.0+ of pytest-cov package (coverage threshold
 is 100% via --cov-fail-under=10...
-Let me check the coverage configuration more thoroughly:
-[tool] read_file({'path': 'pyproject.toml', 'start_line': 1, 'end_line': 100})
+Let me check the coverage threshold mentioned in the comment and also look for other coverage references:
+[tool] grep({'pattern': 'coverage', 'path': 'pyproject.toml', 'ignore_case': 
+True})
 
-[result] [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[result]     "pytest-cov>=4.0",  # Version 4.0+ of pytest-cov package (coverage 
+threshold is 100% via --cov-fail-under=100)
+[tool.coverage.run]
+[tool.coverage.report]...
+Let me check the coverage configuration sections:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 80, 'end_line': 100})
 
-[project]
-name = "henchman-ai"
-version = "0.3.12"
-description = "A model-agnostic AI agent CLI - your AI henchman for the ter...
+[result] Repository = "https://github.com/mlg151/henchman-ai"
+Documentation = "https://github.com/mlg151/henchman-ai/tree/main/docs"
+Changelog = "https://github.com/mlg151/henchman-ai/blob...
+Let me find the coverage section:
+[tool] grep({'pattern': 'tool.coverage', 'path': 'pyproject.toml', 
+'ignore_case': True, 'line_numbers': True})
+
+[result] 145:[tool.coverage.run]
+149:[tool.coverage.report]...
+Let me read the coverage sections:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 145, 'end_line': 160})
+
+[result] [tool.coverage.run]
+source = ["src/henchman"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "pragma: no branch",
+    "if TYPE_CHECKING:",
+    "raise NotImplemente...
 Now let me check the CI script to see what coverage threshold it uses:
 [tool] read_file({'path': 'scripts/ci.sh'})
 
 ✗ \[error] Error: File not found: scripts/ci.sh
-Let me check if there's a CI script in the project:
-[tool] ls({'path': '.'})
-
-[result] CHANGELOG.md
-CONTRIBUTING.md
-LICENSE
-MagicMock/
-README.md
-RELEASE_CHECKLIST.md
-__pycache__/
-coverage.json
-dist/
-docs/
-evals/
-htmlcov/
-mkdocs.yml
-pyproject.toml
-scripts/
-site/
-src/
-test_compatibility.p...
-
+Let me check what scripts are available:
 [tool] ls({'path': 'scripts'})
 
 [result] auto-doc-improve.sh
@@ -60,35 +75,75 @@ build_docs.py
 doc_smell_detector/
 run_evals.sh
 smell_detector/...
-Let me check the GitHub workflows or other CI configuration:
-[tool] glob({'pattern': '**/*.yml'})
+Let me check the copilot instructions to understand the coverage requirements:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 1, 
+'end_line': 50})
 
-[result] .github/workflows/ci.yml
-.github/workflows/docs.yml
-.github/workflows/publish.yml
-.serena/project.yml
-.venv/lib/python3.12/site-packages/chromadb/log_config.yml
-mkdocs.yml...
+[result] # Henchman-AI Copilot Instructions
 
-[tool] read_file({'path': '.github/workflows/ci.yml'})
+Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by 
+gemini-cli. It supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, 
+Ollama) via a u...
+Now let me check the CI pipeline section more carefully:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 60, 
+'end_line': 80})
 
-[result] name: CI
+[result] provider = OllamaProvider(model="llama3.2")
+# Stream chat completion
+async for chunk in provider.chat_completion_stream(
+    messages=[Message(role="user", content="Hello")],
+    tools=[...],  # Optio...
+Let me search for the CI pipeline details:
+[tool] grep({'pattern': 'CI Pipeline', 'path': 
+'.github/copilot-instructions.md', 'ignore_case': True, 'context_before': 5, 
+'context_after': 20})
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+[result] ```
+**Key insight**: DeepSeek uses OpenAI-compatible API, so 
+`OpenAICompatibleProvider` handles DeepSeek, OpenAI, Together, Groq, and similar
+APIs.
+## Development Setup
+```bash
+pip install -e ".[dev]"...
+Now I can see the issue clearly. The copilot instructions mention `pytest --cov-fail-under=100` which requires 100% coverage, but the comment in `pyproject.toml` mentions "coverage threshold is 100% via --cov-fail-under=100". However, the smell report says there's a consistency error stating "coverage threshold of 4% but other files require 100%". Let me check if there's a 4% threshold mentioned anywhere:
+[tool] grep({'pattern': '4%', 'path': '.', 'ignore_case': True})
 
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Pytho...
-Now let me check what the smell report says about the inconsistency. Let me look at the actual line 65 in pyproject.toml:
-[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 80})
+[result] .agent_tasks/auto-doc-improve/cron.log:mismatch: 4% vs 80%)\n\nThe 
+stale docstrings should be addressed next as they 
+.agent_tasks/auto-doc-improve/cron.log:mismatch: 4% vs 80%)\n\nThe stale 
+docstring...
+Now I understand the situation. The smell report is showing a false positive - it's misinterpreting `pytest-cov>=4.0` (which is version 4.0 of the pytest-cov package) as a "4% coverage threshold". However, looking at the current smell report, it says "Found thresholds: 100%, 4%". Let me check if there are any actual inconsistencies in coverage thresholds by examining the pytest configuration in pyproject.toml:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 130, 'end_line': 145})
+
+[result] module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"...
+Good! The pytest configuration has `--cov-fail-under=100` which means 100% coverage is required. This is consistent with the copilot instructions which also mention 100% coverage. The "4%" is a false positive from misinterpreting `pytest-cov>=4.0`.
+
+However, I should check if there are any other files that mention different coverage thresholds. Let me check the documentation files:
+[tool] grep({'pattern': 'coverage.*threshold|threshold.*coverage|100%|4%', 
+'path': 'docs', 'ignore_case': True, 'line_numbers': True})
+
+[result] docs/architecture.md:204:- **Unit Tests**: Each component tested 
+independently (100% coverage for core components)
+docs/index.md:12:- 🚀 **Production-Ready**: Proper error handling, testing, and 
+100% t...
+Good! The documentation also mentions 100% coverage. Let me check if there are any other references to different percentages:
+[tool] grep({'pattern': '80%|90%|95%|4%', 'path': '.', 'ignore_case': True, 
+'glob': '*.md'})
+
+[result] No matches found...
+Good! So the documentation consistently mentions 100% coverage. The issue is that the smell detector is misinterpreting `pytest-cov>=4.0` as a "4% coverage threshold". 
+
+Looking at the prioritised fix queue, the #1 issue is this false positive. However, since this is a documentation improvement task and the false positive keeps appearing, I should address it by adding a clarifying comment to the `pytest-cov>=4.0` line to make it clear that this is a version requirement, not a coverage threshold. This will help prevent future confusion.
+
+Let me check the exact line and add a clarifying comment:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 75})
 
 [result] 
 [project.optional-dependencies]
@@ -97,197 +152,226 @@ dev = [
     "pytest-asyncio>=0.23",
     "pytest-cov>=4.0",  # Version 4.0+ of pytest-cov package (coverage threshold
 is 100% via --cov-fail-under=10...
-I see the issue. The smell report says there's a consistency error at line 65 of pyproject.toml stating "coverage threshold of 4% but other files require 100%". Looking at line 65, I see it's a comment about pytest-cov version 4.0+, but the comment says "coverage threshold is 100% via --cov-fail-under=100". 
+Perfect! I can see that there's already a comment on line 65 that clarifies this: `# Version 4.0+ of pytest-cov package (coverage threshold is 100% via --cov-fail-under=100)`. This comment already explains that `pytest-cov>=4.0` is a version requirement and that the coverage threshold is 100%.
 
-Let me check if there are any other references to coverage thresholds in the documentation:
-[tool] grep({'pattern': 'coverage.*threshold|threshold.*coverage', 'path': '.', 
-'ignore_case': True})
+However, the smell detector is still flagging this as a consistency error. Let me check if the comment is clear enough. Actually, looking at the comment, it says "coverage threshold is 100% via --cov-fail-under=100" which should be sufficient. But perhaps the issue is that the smell detector is looking for numeric patterns and finding "4.0" which it interprets as "4%".
 
-[result] .agent_tasks/auto-doc-improve/cron.log:`pyproject.toml` (coverage 
-threshold mismatch)'})
-.agent_tasks/auto-doc-improve/cron.log:configured)\n4. **Consistency Error** in 
-`pyproject.toml` (coverage thre...
-Let me check the last improvement record to see what was done previously:
-[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+Since this is a false positive in the smell detection and the comment already clarifies the situation, I should move on to the next highest-priority issue. Looking at the prioritised fix queue, the #2 issue is:
 
-[result] # Documentation Improvement Record
+**src/henchman/cli/app.py:651** — 🟡 MEDIUM — Incomplete Docstring  
+'chat_command' has 8 parameter(s) but no Args: section in docstring  
+→ _Add an Args: section documenting: prompt, agent, team, output_format, plan, yes, tui, debug_
 
-## Date/Time
-2026-03-03T11:45:15Z
+This is a genuine documentation issue that needs to be fixed. Let me examine this file:
+[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 645, 
+'end_line': 670})
 
-## Files Changed
-1. `pyproject.toml:65` - Added clarifying comment to `pytest-cov>=4.0` line
+[result] @click.option(
+    "--tui",
+    is_flag=True,
+    default=False,
+    help="Use Textual TUI interface (experimental)",
+)
+def chat_command(
+    prompt: str | None,
+    agent: str | None,
+    team: bool,...
+Perfect! I can see the issue. The `chat_command` function has 8 parameters but the docstring only has a brief description and no `Args:` section. This violates the project's documentation standards which require Google-style docstrings with complete parameter documentation.
 
-## Smell Category Addressed
-- **Con...
-Perfect! I can see that the last improvement already addressed this exact issue. The comment was already added to clarify that `pytest-cov>=4.0` is a package version requirement, not a coverage threshold. Let me verify the current state:
-[tool] read_file({'path': 'pyproject.toml', 'start_line': 63, 'end_line': 68})
+Let me read more of the function to understand what it does:
+[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 670, 
+'end_line': 700})
 
-[result]     "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "pytest-cov>=4.0",  # Version 4.0+ of pytest-cov package (coverage threshold
-is 100% via --cov-fail-under=100)
-    "ruff>=0.4",
-    "mypy>=1.10",
-   ...
-Great! The fix is already in place. The comment clearly explains that `pytest-cov>=4.0` is a package version requirement and references the actual 100% coverage threshold. However, looking at the current smell report, it still lists this as the #1 issue. This suggests the smell detector hasn't been updated or re-run since the fix was applied.
+[result]         debug=debug,
+    )
 
-Since this issue has already been addressed, I should move to the next highest-priority issue. Looking at the prioritised fix queue in the smell report, the #2 issue is:
+    # Configure debug output filtering
+    if not config.debug:
+        import builtins
 
-**src/henchman/cli/app.py:600** — 🟡 MEDIUM — Incomplete Docstring  
-'cli' has 1 parameter(s) but no Args: section in docstring  
-→ _Add an Args: section documenting: ctx_
+        _orig_print = builtins.print
 
-Let me examine this issue:
-[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 595, 
-'end_line': 610})
+        def _filtered_print(*args: object, **...
+Let me see the rest of the function:
+[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 700, 
+'end_line': 720})
 
-[result] 
-
-@click.group(name="henchman", invoke_without_command=True)
-@click.version_option(version=VERSION, prog_name="henchman")
-@click.pass_context
-def cli(ctx: click.Context) -> None:
-    """Henchman-AI: A...
-I can see the issue. The `cli` function has a parameter `ctx: click.Context` but the docstring doesn't have an `Args:` section. Let me check the full function and its context:
-[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 590, 
-'end_line': 620})
-
-[result]     if (
-        hasattr(repl, "orchestrator")
-        and repl.orchestrator.last_completion_status == 
-CompletionStatus.NO_WORK_DONE
-    ):
-        sys.exit(2)
+[result]         _run_textual_tui(config)
+    else:
+        _run_interactive(config)
 
 
-@click.group(name="henchman", invoke_w...
-Now I need to add an `Args:` section to the docstring. According to Google-style docstrings, the format should be:
+# Add serve command to CLI group
+cli.add_command(serve_command)
 
-```python
-"""Short description.
 
-Longer description.
+def main() -> None:  # pragma: no cover
+    """Main entr...
+Now I need to add a proper Google-style docstring with an `Args:` section for all 8 parameters. Let me first check what each parameter does by looking at the click options above the function:
+[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 600, 
+'end_line': 645})
 
-Args:
-    ctx (click.Context): The Click context object.
+[result] def cli(ctx: click.Context) -> None:
+    """Henchman-AI: A model-agnostic AI agent CLI.
 
-Returns:
-    None: This function doesn't return anything.
-"""
-```
+    Start an interactive session, run with --prompt for headless mode,
+    or start an API server with the serv...
+Perfect! Now I have all the information I need. The click options provide descriptions for each parameter. I need to update the docstring for the `chat_command` function to include an `Args:` section documenting all 8 parameters.
 
-Let me fix this:
-[tool] edit_file({'path': 'src/henchman/cli/app.py', 'old_str': 
-'@click.group(name="henchman", 
-invoke_without_command=True)\n@click.version_option(version=VERSION, 
-prog_name="henchman")\n@click.pass_context\ndef cli(ctx: click.Context) -> 
-None:\n    """Henchman-AI: A model-agnostic AI agent CLI.\n\n    Start an 
-interactive session, run with --prompt for headless mode,\n    or start an API 
-server with the serve command.\n    """\n    if ctx.invoked_subcommand is 
-None:\n        click.echo(ctx.get_help())', 'new_str': 
-'@click.group(name="henchman", 
-invoke_without_command=True)\n@click.version_option(version=VERSION, 
-prog_name="henchman")\n@click.pass_context\ndef cli(ctx: click.Context) -> 
-None:\n    """Henchman-AI: A model-agnostic AI agent CLI.\n\n    Start an 
-interactive session, run with --prompt for headless mode,\n    or start an API 
-server with the serve command.\n\n    Args:\n        ctx (click.Context): The 
-Click context object.\n\n    Returns:\n        None: This function doesn\'t 
-return anything.\n    """\n    if ctx.invoked_subcommand is None:\n        
-click.echo(ctx.get_help())'})
+Let me create the improved docstring:
+[tool] edit_file({'path': 'src/henchman/cli/app.py', 'old_str': 'def 
+chat_command(\n    prompt: str | None,\n    agent: str | None,\n    team: 
+bool,\n    output_format: str,\n    plan: bool,\n    yes: bool,\n    tui: 
+bool,\n    debug: bool,\n) -> None:\n    """Start an interactive chat session or
+run with --prompt for headless mode."""', 'new_str': 'def chat_command(\n    
+prompt: str | None,\n    agent: str | None,\n    team: bool,\n    output_format:
+str,\n    plan: bool,\n    yes: bool,\n    tui: bool,\n    debug: bool,\n) -> 
+None:\n    """Start an interactive chat session or run with --prompt for 
+headless mode.\n\n    Args:\n        prompt (str | None): Run with a single 
+prompt and exit. If provided,\n            runs in headless mode with the given 
+prompt.\n        agent (str | None): Target a specific specialist agent. If 
+None,\n            uses the default agent.\n        team (bool): Show team 
+information and exit. When True, displays\n            team information without 
+starting a chat session.\n        output_format (str): Output format for 
+responses. Must be one of:\n            "text", "json", "stream-json", or 
+"json-complete".\n        plan (bool): Start in plan mode (read-only). When 
+True, tools\n            that modify files or execute commands require 
+confirmation.\n        yes (bool): Auto-approve all tool executions 
+(non-interactive mode).\n            When True, automatically approves all tool 
+execution requests.\n        tui (bool): Use Textual TUI interface 
+(experimental). When True,\n            uses the Textual-based terminal UI 
+instead of the standard REPL.\n        debug (bool): Enable debug output. When 
+True, shows debug-level\n            logging information.\n\n    Returns:\n     
+None: This function doesn\'t return anything.\n    """'})
 
 [result] Successfully edited src/henchman/cli/app.py...
-Now let me create the improvement record:
+Now let me verify the change was applied correctly:
+[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 651, 
+'end_line': 690})
+
+[result] def chat_command(
+    prompt: str | None,
+    agent: str | None,
+    team: bool,
+    output_format: str,
+    plan: bool,
+    yes: bool,
+    tui: bool,
+    debug: bool,
+) -> None:
+    """Start an inter...
+Perfect! The docstring has been updated with a proper `Args:` section documenting all 8 parameters and a `Returns:` section. Now let me create the improvement record:
 [tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
 'content': '# Documentation Improvement Record\n\n## 
-Date/Time\n2026-03-03T12:15:30Z\n\n## Files Changed\n1. 
-`src/henchman/cli/app.py:600` - Added Args: section to \'cli\' function 
+Date/Time\n2026-03-03T12:20:15Z\n\n## Files Changed\n1. 
+`src/henchman/cli/app.py:651` - Added Args: section to \'chat_command\' function
 docstring\n\n## Smell Category Addressed\n- **Incomplete Docstring** (MEDIUM): 
-\'cli\' function had 1 parameter but no Args: section in docstring\n\n## 
-Rationale for Change\nThe documentation smell report identified an incomplete 
-docstring for the `cli` function in `src/henchman/cli/app.py`. The function has 
-a parameter `ctx: click.Context` but the docstring was missing the required 
-`Args:` section. This violates the project\'s documentation standards which 
-require Google-style docstrings with complete parameter documentation for all 
-public APIs.\n\n## Changes Made\n\n### 1. `src/henchman/cli/app.py:600` - Added 
-Args: section to \'cli\' function:\n- **Before**:\n  ```python\n  def cli(ctx: 
-click.Context) -> None:\n      """Henchman-AI: A model-agnostic AI agent 
-CLI.\n\n      Start an interactive session, run with --prompt for headless 
-mode,\n      or start an API server with the serve command.\n      """\n  
-```\n\n- **After**:\n  ```python\n  def cli(ctx: click.Context) -> None:\n      
-"""Henchman-AI: A model-agnostic AI agent CLI.\n\n      Start an interactive 
-session, run with --prompt for headless mode,\n      or start an API server with
-the serve command.\n\n      Args:\n          ctx (click.Context): The Click 
-context object.\n\n      Returns:\n          None: This function doesn\'t return
-anything.\n      """\n  ```\n\n## Technical Details\n- **Issue**: Missing 
-`Args:` section in docstring for parameter `ctx`\n- **Root cause**: Incomplete 
-Google-style docstring format\n- **Impact**: Reduced documentation quality and 
-potential confusion for developers\n- **Fix**: Added proper `Args:` and 
-`Returns:` sections following Google-style conventions\n- **Note**: The function
-returns `None` explicitly, which is documented in the `Returns:` section\n\n## 
-What to Verify\n1. The `Args:` section correctly documents the `ctx` 
-parameter\n2. The `Returns:` section correctly documents that the function 
-returns `None`\n3. The docstring follows Google-style formatting conventions\n4.
-No other documentation inconsistencies were introduced\n5. The change doesn\'t 
-affect source code behavior\n\n## Testing Instructions\nTo verify the 
-fix:\n```bash\n# Check the updated docstring\ngrep -A 10 "def cli" 
-src/henchman/cli/app.py\n\n# Verify the function signature hasn\'t changed\ngrep
--n "def cli" src/henchman/cli/app.py\n\n# Check that the function still works 
-correctly\npython -c "from henchman.cli.app import cli; print(\'Function 
-imported successfully\')"\n```\n\n## Next Priority\nThe next highest-priority 
-issues from the smell report are:\n1. **Incomplete Docstring** in 
-`src/henchman/cli/app.py:645` (\'chat_command\' has 8 parameters but no Args 
-section)\n2. **Missing Docstring** in `src/henchman/cli/commands/plan.py:1` 
-(Module is missing a docstring)\n3. **Incomplete Docstring** in 
-`src/henchman/cli/commands/session.py:126` 
+\'chat_command\' function had 8 parameters but no Args: section in 
+docstring\n\n## Rationale for Change\nThe documentation smell report identified 
+an incomplete docstring for the `chat_command` function in 
+`src/henchman/cli/app.py`. The function has 8 parameters (`prompt`, `agent`, 
+`team`, `output_format`, `plan`, `yes`, `tui`, `debug`) but the docstring was 
+missing the required `Args:` section. This violates the project\'s documentation
+standards which require Google-style docstrings with complete parameter 
+documentation for all public APIs.\n\n## Changes Made\n\n### 1. 
+`src/henchman/cli/app.py:651` - Added Args: section to \'chat_command\' 
+function:\n- **Before**:\n  ```python\n  def chat_command(\n      prompt: str | 
+None,\n      agent: str | None,\n      team: bool,\n      output_format: str,\n 
+plan: bool,\n      yes: bool,\n      tui: bool,\n      debug: bool,\n  ) -> 
+None:\n      """Start an interactive chat session or run with --prompt for 
+headless mode."""\n  ```\n\n- **After**:\n  ```python\n  def chat_command(\n    
+prompt: str | None,\n      agent: str | None,\n      team: bool,\n      
+output_format: str,\n      plan: bool,\n      yes: bool,\n      tui: bool,\n    
+debug: bool,\n  ) -> None:\n      """Start an interactive chat session or run 
+with --prompt for headless mode.\n\n      Args:\n          prompt (str | None): 
+Run with a single prompt and exit. If provided,\n              runs in headless 
+mode with the given prompt.\n          agent (str | None): Target a specific 
+specialist agent. If None,\n              uses the default agent.\n          
+team (bool): Show team information and exit. When True, displays\n              
+team information without starting a chat session.\n          output_format 
+(str): Output format for responses. Must be one of:\n              "text", 
+"json", "stream-json", or "json-complete".\n          plan (bool): Start in plan
+mode (read-only). When True, tools\n              that modify files or execute 
+commands require confirmation.\n          yes (bool): Auto-approve all tool 
+executions (non-interactive mode).\n              When True, automatically 
+approves all tool execution requests.\n          tui (bool): Use Textual TUI 
+interface (experimental). When True,\n              uses the Textual-based 
+terminal UI instead of the standard REPL.\n          debug (bool): Enable debug 
+output. When True, shows debug-level\n              logging information.\n\n    
+Returns:\n          None: This function doesn\'t return anything.\n      """\n  
+```\n\n## Technical Details\n- **Issue**: Missing `Args:` section in docstring 
+for 8 parameters\n- **Root cause**: Incomplete Google-style docstring format\n- 
+**Impact**: Reduced documentation quality and potential confusion for developers
+using the CLI\n- **Fix**: Added proper `Args:` and `Returns:` sections following
+Google-style conventions\n- **Source information**: Parameter descriptions were 
+derived from the click option decorators above the function\n- **Note**: The 
+function returns `None` explicitly, which is documented in the `Returns:` 
+section\n\n## What to Verify\n1. The `Args:` section correctly documents all 8 
+parameters with their types and descriptions\n2. The `Returns:` section 
+correctly documents that the function returns `None`\n3. The docstring follows 
+Google-style formatting conventions\n4. No other documentation inconsistencies 
+were introduced\n5. The change doesn\'t affect source code behavior\n\n## 
+Testing Instructions\nTo verify the fix:\n```bash\n# Check the updated 
+docstring\ngrep -A 30 "def chat_command" src/henchman/cli/app.py\n\n# Verify the
+function signature hasn\'t changed\ngrep -n "def chat_command" 
+src/henchman/cli/app.py\n\n# Check that the function still works 
+correctly\npython -c "from henchman.cli.app import chat_command; 
+print(\'Function imported successfully\')"\n```\n\n## Next Priority\nThe next 
+highest-priority issues from the smell report are:\n1. **Missing Docstring** in 
+`src/henchman/cli/commands/plan.py:1` (Module is missing a docstring)\n2. 
+**Incomplete Docstring** in `src/henchman/cli/commands/session.py:126` 
 (\'CommandOperationContext.print_success\' has 1 parameter but no Args 
-section)\n4. **Incomplete Docstring** in 
+section)\n3. **Incomplete Docstring** in 
 `src/henchman/cli/commands/session.py:130` 
 (\'CommandOperationContext.print_error\' has 1 parameter but no Args 
+section)\n4. **Incomplete Docstring** in 
+`src/henchman/cli/commands/session.py:134` 
+(\'CommandOperationContext.print_info\' has 1 parameter but no Args 
 section)\n\n## Notes\nThis improvement addresses a genuine documentation quality
 issue identified in the smell report. The fix ensures:\n\n1. **Complete 
 documentation**: All function parameters are properly documented\n2. 
 **Consistent formatting**: Follows Google-style docstring conventions\n3. 
 **Improved developer experience**: Clear documentation helps developers 
-understand the function\'s purpose and usage\n4. **Compliance with standards**: 
-Meets the project\'s requirement for 100% documentation coverage\n\nThe change 
-is minimal and focused, addressing only the documentation issue without altering
-source code behavior, which aligns with the Technical Documentation Improvement 
-Agent\'s constraints.\n\n## Additional Context\nThe `cli` function is the main 
-entry point for the Henchman-AI CLI application. Proper documentation is 
-essential because:\n1. It\'s a public API that developers interact with\n2. It 
-sets the Click context for the entire application\n3. It handles the case when 
-no subcommand is provided (showing help)\n4. Good documentation improves 
-maintainability and onboarding for new contributors\n\nThe added `Args:` and 
-`Returns:` sections provide the necessary information for developers to 
-understand how to use and extend the CLI functionality.'})
+understand the CLI command\'s options and behavior\n4. **Compliance with 
+standards**: Meets the project\'s requirement for 100% documentation 
+coverage\n\nThe change is minimal and focused, addressing only the documentation
+issue without altering source code behavior, which aligns with the Technical 
+Documentation Improvement Agent\'s constraints.\n\n## Additional Context\nThe 
+`chat_command` function is the main entry point for the Henchman-AI chat 
+functionality. Proper documentation is essential because:\n1. It\'s a public CLI
+command that users interact with directly\n2. It has multiple options that 
+control different aspects of the chat experience\n3. Good documentation helps 
+users understand how to use the various modes (interactive, headless, TUI, 
+etc.)\n4. It improves maintainability and onboarding for new contributors\n\nThe
+added `Args:` and `Returns:` sections provide the necessary information for 
+developers and users to understand how to use the chat command 
+effectively.\n\n## Note on #1 Issue in Smell Report\nThe #1 issue in the smell 
+report (consistency error about "4% coverage threshold" in `pyproject.toml:65`) 
+appears to be a false positive - it misinterprets `pytest-cov>=4.0` (version 4.0
+of the pytest-cov package) as a "4% coverage threshold". The actual coverage 
+threshold in the project is correctly set to 100% via `--cov-fail-under=100` in 
+the pytest configuration. The existing comment on line 65 already clarifies 
+this: `# Version 4.0+ of pytest-cov package (coverage threshold is 100% via 
+--cov-fail-under=100)`.'})
 
-[result] Successfully wrote 4409 bytes to 
+[result] Successfully wrote 6519 bytes to 
 .agent_tasks/auto-doc-improve/last-improvement.md...
-Perfect! I have successfully addressed the #2 priority issue from the documentation smell report. I added the missing `Args:` section to the `cli` function's docstring in `src/henchman/cli/app.py`, documenting the `ctx` parameter as required. The improvement record documents what was changed, why it was changed, and what to verify.
+Perfect! I have successfully addressed the #2 issue from the prioritised fix queue. I've:
 
-## Summary
+1. **Fixed the incomplete docstring** for the `chat_command` function in `src/henchman/cli/app.py:651`
+2. **Added proper `Args:` section** documenting all 8 parameters with their types and descriptions
+3. **Added `Returns:` section** documenting that the function returns `None`
+4. **Created a detailed improvement record** in `.agent_tasks/auto-doc-improve/last-improvement.md`
 
-I addressed the **#2 priority issue** from the documentation smell report: an incomplete docstring in `src/henchman/cli/app.py:600`. The `cli` function had a parameter `ctx: click.Context` but was missing the required `Args:` section in its docstring.
+The improvement addresses a genuine **medium severity** documentation issue identified in the smell report. The function now has complete Google-style documentation that follows the project's standards.
 
-**Changes made:**
-- Added `Args:` section documenting the `ctx` parameter
-- Added `Returns:` section documenting that the function returns `None`
-- Maintained Google-style docstring formatting conventions
-
-**Why this was important:**
-1. The `cli` function is the main entry point for the Henchman-AI CLI application
-2. Complete documentation is required for all public APIs per project standards
-3. Missing parameter documentation reduces code maintainability and developer experience
-4. The project requires 100% documentation coverage
-
-The fix is minimal, focused, and doesn't alter source code behavior - it only improves documentation quality, which aligns perfectly with the Technical Documentation Improvement Agent's mission.
+The change is minimal and focused, only improving documentation without altering source code behavior, which aligns with the Technical Documentation Improvement Agent's constraints.
 [tech_lead] completed work
-[2026-03-03T12:00:02Z] Running mkdocs build to verify documentation...
+[2026-03-03T12:15:01Z] Running mkdocs build to verify documentation...
 INFO    -  Cleaning site directory
 INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
-INFO    -  Documentation built in 0.66 seconds
-[2026-03-03T12:00:02Z] Re-running doc smell detector to verify improvement...
+INFO    -  Documentation built in 0.64 seconds
+[2026-03-03T12:15:01Z] Re-running doc smell detector to verify improvement...
 }
-[2026-03-03T12:00:02Z] Verification passed.
+[2026-03-03T12:15:01Z] Verification passed.
 Committing changes...

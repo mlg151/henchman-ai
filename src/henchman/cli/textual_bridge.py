@@ -30,7 +30,7 @@ from henchman.cli.textual_widgets import StatusBar
 from henchman.core.events import AgentEvent, EventType
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable
+    from collections.abc import AsyncIterator
 
     from henchman.cli.textual_app import HenchmanTextualApp
 
@@ -91,6 +91,110 @@ class TuiConsoleAdapter:
 
 
 # ------------------------------------------------------------------ #
+# Message Poster Helper                                                 #
+# ------------------------------------------------------------------ #
+
+
+class MessagePoster:
+    """Helper class for posting messages to the Textual UI.
+
+    Extracted from EventBridge to reduce class size and improve cohesion.
+    """
+
+    def __init__(self, app: HenchmanTextualApp) -> None:
+        """Initialize.
+
+        Args:
+            app: Target Textual application.
+        """
+        self.app = app
+
+    def post(self, message: Message) -> None:
+        """Post a message to the Textual app.
+
+        Args:
+            message: The Textual message to post.
+        """
+        self.app.post_message(message)
+
+    def post_message_if_data_exists(
+        self,
+        event: AgentEvent,
+        message_class: type[Any],
+        transform_data: Callable[[Any], Any] | None = None,
+    ) -> None:
+        """Post a message with event data if present.
+
+        Args:
+            event: The AgentEvent containing data.
+            message_class: The Textual message class to instantiate.
+            transform_data: Optional function to transform event data before posting.
+        """
+        if event.data:
+            data = transform_data(event.data) if transform_data else event.data
+            self.post(message_class(data, event.source_agent))
+
+    def post_data_message(
+        self, event: AgentEvent, message_class: type[Any], prefix: str = ""
+    ) -> None:
+        """Post a message with event data if present.
+
+        Args:
+            event: The AgentEvent containing data.
+            message_class: The Textual message class to instantiate.
+            prefix: Optional prefix to add before event data.
+        """
+        if event.data:
+            data_str = str(event.data)
+            if prefix:
+                data_str = f"{prefix}{data_str}"
+            self.post(message_class(data_str, event.source_agent))
+
+    def post_prefixed_message(self, event: AgentEvent, prefix: str) -> None:
+        """Post a prefixed message using AgentThoughtMessage.
+
+        Args:
+            event: The AgentEvent containing data.
+            prefix: The prefix to add before event data.
+        """
+        self.post_data_message(event, AgentThoughtMessage, prefix)
+
+    def post_tool_message(self, event: AgentEvent, message_class: type[Any]) -> None:
+        """Post a tool-related message with event data if present.
+
+        Args:
+            event: The AgentEvent containing tool data.
+            message_class: The Textual message class for tools.
+        """
+        self.post_message_if_data_exists(event, message_class)
+
+    def post_status_message(self, event: AgentEvent, text: str) -> None:
+        """Post an AgentStatusMessage with given text.
+
+        Args:
+            event: The AgentEvent for source agent.
+            text: The status text to display.
+        """
+        self.post(AgentStatusMessage(text, event.source_agent))
+
+    def extract_from_dict(self, event: AgentEvent, key: str, default: str = "") -> str:
+        """Extract a string value from event.data dictionary.
+
+        Args:
+            event: The AgentEvent containing a dictionary.
+            key: The dictionary key to extract.
+            default: Default value if key not found.
+
+        Returns:
+            The extracted value or default.
+        """
+        if event.data and isinstance(event.data, dict):
+            value = event.data.get(key)
+            return str(value) if value is not None else default
+        return default
+
+
+# ------------------------------------------------------------------ #
 # Event Bridge                                                         #
 # ------------------------------------------------------------------ #
 
@@ -112,6 +216,7 @@ class EventBridge:
             app: Target Textual application.
         """
         self.app = app
+        self._message_poster = MessagePoster(app)
         self._handlers: dict[EventType, Callable[[AgentEvent], None]] = (
             self._build_handler_registry()
         )
@@ -144,7 +249,7 @@ class EventBridge:
         Args:
             message: The Textual message to post.
         """
-        self.app.post_message(message)
+        self._message_poster.post(message)
 
     def _dispatch(self, event: AgentEvent) -> None:
         """Route a single event to its handler.
@@ -156,12 +261,7 @@ class EventBridge:
         if handler:
             handler(event)
             return
-        self._post(
-            AgentStatusMessage(
-                f"Unhandled event type: {event.type}",
-                event.source_agent,
-            )
-        )
+        self._message_poster.post_status_message(event, f"Unhandled event type: {event.type}")
 
     # -- handler registry --
 
@@ -197,65 +297,6 @@ class EventBridge:
 
     # -- helper methods for event handling --
 
-    def _post_message_if_data_exists(
-        self, event: AgentEvent, message_class: type[Any], transform_data: Callable[[Any], Any] | None = None
-    ) -> None:
-        """Post a message with event data if present.
-
-        Args:
-            event: The AgentEvent containing data.
-            message_class: The Textual message class to instantiate.
-            transform_data: Optional function to transform event data before posting.
-        """
-        if event.data:
-            data = transform_data(event.data) if transform_data else event.data
-            self._post(message_class(data, event.source_agent))
-
-    def _post_data_message(
-        self, event: AgentEvent, message_class: type[Any], prefix: str = ""
-    ) -> None:
-        """Post a message with event data if present.
-
-        Args:
-            event: The AgentEvent containing data.
-            message_class: The Textual message class to instantiate.
-            prefix: Optional prefix to add before event data.
-        """
-        if event.data:
-            data_str = str(event.data)
-            if prefix:
-                data_str = f"{prefix}{data_str}"
-            self._post(message_class(data_str, event.source_agent))
-
-    def _post_prefixed_message(self, event: AgentEvent, prefix: str) -> None:
-        """Post a prefixed message using AgentThoughtMessage.
-
-        Args:
-            event: The AgentEvent containing data.
-            prefix: The prefix to add before event data.
-        """
-        self._post_data_message(event, AgentThoughtMessage, prefix)
-
-    def _post_tool_message(self, event: AgentEvent, message_class: type[Any]) -> None:
-        """Post a tool-related message with event data if present.
-
-        Args:
-            event: The AgentEvent containing tool data.
-            message_class: The Textual message class for tools.
-        """
-        self._post_message_if_data_exists(event, message_class)
-
-    def _post_status_message(self, event: AgentEvent, text: str) -> None:
-        """Post an AgentStatusMessage with given text.
-
-        Args:
-            event: The AgentEvent for source agent.
-            text: The status text to display.
-        """
-        self._post(AgentStatusMessage(text, event.source_agent))
-
-
-
     def _update_status_bar(self, event_data: dict[str, Any]) -> None:
         """Update status bar with token and cost information.
 
@@ -274,50 +315,34 @@ class EventBridge:
             except Exception:
                 pass
 
-    def _extract_from_dict(self, event: AgentEvent, key: str, default: str = "") -> str:
-        """Extract a string value from event.data dictionary.
-
-        Args:
-            event: The AgentEvent containing a dictionary.
-            key: The dictionary key to extract.
-            default: Default value if key not found.
-
-        Returns:
-            The extracted value or default.
-        """
-        if event.data and isinstance(event.data, dict):
-            value = event.data.get(key)
-            return str(value) if value is not None else default
-        return default
-
     # -- individual event handlers --
 
     def _on_content(self, event: AgentEvent) -> None:
         """Handle CONTENT events."""
-        self._post_data_message(event, AgentContentMessage)
+        self._message_poster.post_data_message(event, AgentContentMessage)
 
     def _on_thought(self, event: AgentEvent) -> None:
         """Handle THOUGHT events."""
-        self._post_data_message(event, AgentThoughtMessage)
+        self._message_poster.post_data_message(event, AgentThoughtMessage)
 
     def _on_tool_req(self, event: AgentEvent) -> None:
         """Handle TOOL_CALL_REQUEST events."""
-        self._post_tool_message(event, ToolCallRequestMessage)
+        self._message_poster.post_tool_message(event, ToolCallRequestMessage)
 
     def _on_tool_res(self, event: AgentEvent) -> None:
         """Handle TOOL_CALL_RESULT events."""
-        self._post_tool_message(event, ToolCallResultMessage)
+        self._message_poster.post_tool_message(event, ToolCallResultMessage)
 
     def _on_tool_confirm(self, event: AgentEvent) -> None:
         """Handle TOOL_CONFIRMATION events."""
-        self._post_tool_message(event, ToolConfirmationMessage)
+        self._message_poster.post_tool_message(event, ToolConfirmationMessage)
 
     def _on_error(self, event: AgentEvent) -> None:
         """Handle ERROR events."""
         if not event.data:
             return
         msg = _format_error_text(str(event.data))
-        self._post_status_message(event, f"Error: {msg}")
+        self._message_poster.post_status_message(event, f"Error: {msg}")
         self._post(AgentContentMessage(f"❌ {msg}", event.source_agent))
 
     def _on_finished(self, event: AgentEvent) -> None:
@@ -326,52 +351,52 @@ class EventBridge:
 
     def _on_ctx_compact(self, event: AgentEvent) -> None:
         """Handle CONTEXT_COMPACTED events."""
-        self._post_status_message(event, "Context compacted to fit model limits")
+        self._message_poster.post_status_message(event, "Context compacted to fit model limits")
         self._post(CommandOutputMessage("[dim]ℹ Context window was compacted.[/dim]"))
 
     def _on_turn_summary(self, event: AgentEvent) -> None:
         """Handle TURN_SUMMARIZED events."""
-        self._post_status_message(event, "Previous turn summarized")
+        self._message_poster.post_status_message(event, "Previous turn summarized")
 
     def _on_turn_status(self, event: AgentEvent) -> None:
         """Handle TURN_STATUS events."""
         if not (event.data and isinstance(event.data, dict)):
             return
         status = _format_turn_status(event.data)
-        self._post_status_message(event, status)
+        self._message_poster.post_status_message(event, status)
         self._update_status_bar(event.data)
 
     def _on_agent_start(self, event: AgentEvent) -> None:
         """Handle AGENT_STARTED events."""
         if not (event.data and isinstance(event.data, dict)):
             return
-        name = self._extract_from_dict(event, "agent", "unknown")
-        self._post_status_message(event, f"⚙ {name} working…")
+        name = self._message_poster.extract_from_dict(event, "agent", "unknown")
+        self._message_poster.post_status_message(event, f"⚙ {name} working…")
 
     def _on_agent_done(self, event: AgentEvent) -> None:
         """Handle AGENT_COMPLETED events."""
         if not (event.data and isinstance(event.data, dict)):
             return
-        name = self._extract_from_dict(event, "agent", "unknown")
-        summary = self._extract_from_dict(event, "summary", "")
+        name = self._message_poster.extract_from_dict(event, "agent", "unknown")
+        summary = self._message_poster.extract_from_dict(event, "summary", "")
         msg = f"✓ {name} completed"
         if summary:
             msg += f": {summary}"
-        self._post_status_message(event, msg)
+        self._message_poster.post_status_message(event, msg)
 
     def _on_delegated(self, event: AgentEvent) -> None:
         """Handle AGENT_DELEGATED events."""
         if not (event.data and isinstance(event.data, dict)):
             return
-        from_a = self._extract_from_dict(event, "from", "?")
-        to_a = self._extract_from_dict(event, "to", "?")
-        reason = self._extract_from_dict(event, "reason", "")
+        from_a = self._message_poster.extract_from_dict(event, "from", "?")
+        to_a = self._message_poster.extract_from_dict(event, "to", "?")
+        reason = self._message_poster.extract_from_dict(event, "reason", "")
         text = f"[dim]↳ Delegating: {from_a} → {to_a}"
         if reason:
             text += f" ({reason})"
         text += "[/dim]"
         self._post(CommandOutputMessage(text))
-        self._post_status_message(event, f"{from_a} → {to_a}")
+        self._message_poster.post_status_message(event, f"{from_a} → {to_a}")
 
     def _on_agent_msg(self, event: AgentEvent) -> None:
         """Handle AGENT_MESSAGE events."""
@@ -380,23 +405,23 @@ class EventBridge:
 
     def _on_think_start(self, event: AgentEvent) -> None:
         """Handle THINKING_STARTED events."""
-        self._post_status_message(event, "Thinking…")
+        self._message_poster.post_status_message(event, "Thinking…")
 
     def _on_think_done(self, event: AgentEvent) -> None:
         """Handle THINKING_COMPLETED events."""
-        self._post_status_message(event, "Thinking complete")
+        self._message_poster.post_status_message(event, "Thinking complete")
 
     def _on_think_req(self, event: AgentEvent) -> None:
         """Handle THINKING_REQUIRED events."""
-        self._post_status_message(event, "⚠ Thinking pattern missing in response")
+        self._message_poster.post_status_message(event, "⚠ Thinking pattern missing in response")
 
     def _on_deleg_dec(self, event: AgentEvent) -> None:
         """Handle DELEGATION_DECISION events."""
-        self._post_prefixed_message(event, "Delegation decision: ")
+        self._message_poster.post_prefixed_message(event, "Delegation decision: ")
 
     def _on_reflection(self, event: AgentEvent) -> None:
         """Handle REFLECTION events."""
-        self._post_prefixed_message(event, "Reflection: ")
+        self._message_poster.post_prefixed_message(event, "Reflection: ")
 
 
 # ------------------------------------------------------------------ #
