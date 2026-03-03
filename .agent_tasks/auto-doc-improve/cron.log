@@ -15017,3 +15017,358 @@ INFO    -  Documentation built in 0.67 seconds
 }
 [2026-03-03T11:00:02Z] Verification passed.
 Committing changes...
+[main b799eaa] docs(auto-improve): automated documentation improvement
+ 9 files changed, 1791 insertions(+), 1594 deletions(-)
+ create mode 100644 .agent_tasks/auto-improve/textual_bridge_backup.py
+[2026-03-03T11:00:02Z] Done.
+[2026-03-03T11:15:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by examining the highest-priority issue from the smell report: the consistency error in pyproject.toml where it states a coverage threshold of 4% while other files require 100%.
+
+Let me first check what the current pyproject.toml file looks like:
+[tool] read_file({'path': 'pyproject.toml'})
+
+
+[result] [build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "henchman-ai"
+version = "0.3.12"
+description = "A model-agnostic AI agent CLI - your AI henchman for the ter...
+Now let me check what other files mention coverage thresholds. Let me search for coverage-related mentions:
+[tool] grep({'pattern': 
+'cov-fail-under|coverage.*threshold|coverage.*100|coverage.*4', 'path': '.', 
+'ignore_case': True, 'line_numbers': True})
+
+[result] .agent_tasks/agent-refactoring/README.md:19:7. **Low test coverage**: 
+Currently 41% with only 6 basic tests
+.agent_tasks/agent-refactoring/REFACTORING_SUMMARY.md:33:- Coverage improved 
+from 41% to 72%...
+Let me check the last improvement record to see what was done last time:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T11:45:00Z
+
+## Files Changed
+1. `src/henchman/agents/orchestrator_tools.py` - Added missing Args and Yields 
+sections to `process_pending_tool...
+Now let me check the CONTRIBUTING.md file to see if there's an inconsistency with coverage thresholds:
+[tool] read_file({'path': 'CONTRIBUTING.md', 'start_line': 140, 'end_line': 
+150})
+
+[result] - Use descriptive test names
+- Mock external dependencies
+- Aim for 100% test coverage (required by CI)
+
+### Integration Tests
+- Test end-to-end functionality
+- Use real API calls (with test credentia...
+Good! The CONTRIBUTING.md file already says "Aim for 100% test coverage (required by CI)". Let me check if there are any other references to coverage thresholds in the project. Let me look at the CI workflow:
+[tool] read_file({'path': '.github/workflows/ci.yml', 'start_line': 45, 
+'end_line': 55})
+
+[result] 
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ mat...
+Let me search for the coverage threshold in the CI workflow:
+[tool] grep({'pattern': 'cov-fail-under', 'path': '.github/workflows/ci.yml', 
+'line_numbers': True})
+
+[result] 66:          pytest tests/ --cov=henchman --cov-report=xml 
+--cov-fail-under=100...
+Good! The CI workflow uses `--cov-fail-under=100`. Now let me check the RELEASE_CHECKLIST.md:
+[tool] read_file({'path': 'RELEASE_CHECKLIST.md', 'start_line': 5, 'end_line': 
+15})
+
+[result] ## Pre-Release (1-2 days before)
+
+### Code Quality
+- [ ] Run full test suite: `pytest`
+- [ ] Ensure test coverage = 100%: `pytest --cov=henchman 
+--cov-report=term-missing --cov-fail-under=100`
+- [ ] R...
+Perfect! The RELEASE_CHECKLIST.md also says "Ensure test coverage = 100%". Now let me check the copilot instructions to see if there are any inconsistencies:
+[tool] grep({'pattern': '100% test coverage|100% coverage', 'path': 
+'.github/copilot-instructions.md', 'line_numbers': True})
+
+[result] 17:- **Phase 12**: Polish & Release ✅ (100% test coverage, all core 
+features implemented)
+43:3. **Pytest** - Tests with 100% coverage requirement
+47:- **100% test coverage** - All code must be tested
+...
+Looking at the smell report and my investigation, I can see that the #1 issue is actually a false positive. The smell detector is misinterpreting `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". However, looking at the prioritised fix queue, I should address the #2 issue which is a genuine documentation issue.
+
+Let me check the #2 issue in the smell report: `src/henchman/agents/orchestrator_validation.py:23` — 🟡 MEDIUM — Incomplete Docstring — 'should_check_thinking' has 2 parameter(s) but no Args: section in docstring.
+
+Let me examine this file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_validation.py', 
+'start_line': 20, 'end_line': 30})
+
+[result] # 
+---------------------------------------------------------------------------
+
+
+def should_check_thinking(orchestrator: Any, agent: Any) -> bool:
+    """Determine if thinking pattern should be checked...
+I can see the issue. The function `should_check_thinking` has two parameters (`orchestrator` and `agent`) but the docstring doesn't have an `Args:` section documenting them. Let me check the full context of this function:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_validation.py', 
+'start_line': 1, 'end_line': 35})
+
+[result] """Validation helpers for the orchestrator module.
+
+Contains agent behavior validation logic extracted from components.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from henchman.c...
+Now I need to fix this docstring by adding an `Args:` section. Let me also check the return type documentation. The function returns a `bool`, so I should add a `Returns:` section as well.
+
+Let me fix this:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_validation.py', 
+'old_str': 'def should_check_thinking(orchestrator: Any, agent: Any) -> bool:\n 
+"""Determine if thinking pattern should be checked for this agent."""\n    
+return (\n        agent is orchestrator.tech_lead\n        and 
+bool(agent.messages)\n        and agent.messages[-1].role == "assistant"\n    
+)', 'new_str': 'def should_check_thinking(orchestrator: Any, agent: Any) -> 
+bool:\n    """Determine if thinking pattern should be checked for this agent.\n 
+\n    Args:\n        orchestrator: The orchestrator instance.\n        agent: 
+The agent to check.\n        \n    Returns:\n        bool: True if thinking 
+pattern should be checked for this agent.\n    """\n    return (\n        agent 
+is orchestrator.tech_lead\n        and bool(agent.messages)\n        and 
+agent.messages[-1].role == "assistant"\n    )'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_validation.py...
+Now let me check the next issue in the same file: `handle_valid_thinking` function at line 32. Let me examine it:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_validation.py', 
+'start_line': 32, 'end_line': 45})
+
+[result]     """
+    return (
+        agent is orchestrator.tech_lead
+        and bool(agent.messages)
+        and agent.messages[-1].role == "assistant"
+    )
+
+
+def handle_valid_thinking(metrics: Any, content...
+This function also needs an `Args:` section. Let me fix it:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_validation.py', 
+'old_str': 'def handle_valid_thinking(metrics: Any, content: str) -> None:\n    
+"""Handle valid thinking pattern and update metrics."""\n    
+metrics.thinking_pattern_usage += 1\n    numbered = [\n        ln for ln in 
+content.strip().split("\\n")\n        if ln.strip().startswith(("1.", "2.", 
+"3.", "4.", "5."))', 'new_str': 'def handle_valid_thinking(metrics: Any, 
+content: str) -> None:\n    """Handle valid thinking pattern and update 
+metrics.\n    \n    Args:\n        metrics: The metrics object to update.\n     
+content: The thinking content to analyze.\n    """\n    
+metrics.thinking_pattern_usage += 1\n    numbered = [\n        ln for ln in 
+content.strip().split("\\n")\n        if ln.strip().startswith(("1.", "2.", 
+"3.", "4.", "5."))'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_validation.py...
+Now let me check the next issue: `handle_missing_thinking` function at line 45. Let me examine it:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_validation.py', 
+'start_line': 45, 'end_line': 55})
+
+[result]         content: The thinking content to analyze.
+    """
+    metrics.thinking_pattern_usage += 1
+    numbered = [
+        ln for ln in content.strip().split("\n")
+        if ln.strip().startswith(("1...
+Let me see more of this function:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_validation.py', 
+'start_line': 55, 'end_line': 70})
+
+[result]         )
+
+
+def handle_missing_thinking(agent: Any) -> AgentEvent:
+    """Handle missing thinking pattern by adding reminder."""
+    reminder = (
+        "\n[Thinking Required] Your response must star...
+This function also needs an `Args:` section and a `Returns:` section. Let me fix it:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_validation.py', 
+'old_str': 'def handle_missing_thinking(agent: Any) -> AgentEvent:\n    
+"""Handle missing thinking pattern by adding reminder."""\n    reminder = (\n   
+"\\n[Thinking Required] Your response must start with THINKING: "\n        
+"followed by your reasoning process. Please revise."\n    )\n    
+agent.messages.append(Message(role="user", content=reminder))\n    return 
+AgentEvent(\n        type=EventType.THINKING_REQUIRED,\n        data="Thinking 
+pattern missing in Tech Lead response",\n        source_agent="orchestrator",\n 
+)', 'new_str': 'def handle_missing_thinking(agent: Any) -> AgentEvent:\n    
+"""Handle missing thinking pattern by adding reminder.\n    \n    Args:\n       
+agent: The agent missing the thinking pattern.\n        \n    Returns:\n        
+AgentEvent: An event indicating thinking pattern is required.\n    """\n    
+reminder = (\n        "\\n[Thinking Required] Your response must start with 
+THINKING: "\n        "followed by your reasoning process. Please revise."\n    
+)\n    agent.messages.append(Message(role="user", content=reminder))\n    return
+AgentEvent(\n        type=EventType.THINKING_REQUIRED,\n        data="Thinking 
+pattern missing in Tech Lead response",\n        source_agent="orchestrator",\n 
+)'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_validation.py...
+Now let me check the next issue: `check_stall_failure` function at line 64. Let me examine it:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_validation.py', 
+'start_line': 64, 'end_line': 80})
+
+[result]     Returns:
+        AgentEvent: An event indicating thinking pattern is required.
+    """
+    reminder = (
+        "\n[Thinking Required] Your response must start with THINKING: "
+        "followed b...
+Let me see more to find the `check_stall_failure` function:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_validation.py', 
+'start_line': 80, 'end_line': 100})
+
+[result] # Stall detection
+# ---------------------------------------------------------------------------
+
+
+def check_stall_failure(orchestrator: Any, agent: Any) -> AgentEvent | None:
+    """Check if agent has...
+This function also needs an `Args:` section and a `Returns:` section. Let me fix it:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_validation.py', 
+'old_str': 'def check_stall_failure(orchestrator: Any, agent: Any) -> AgentEvent
+| None:\n    """Check if agent has stalled and report failure."""\n    _stall = 
+getattr(agent, "_stall", None)\n    if agent is orchestrator.tech_lead or not 
+getattr(_stall, "failure", False):\n        return None\n    role_label = 
+agent.identity.role if agent.identity else "agent"\n    nudges = getattr(_stall,
+"nudge_count", 0)\n    fail_msg = (\n        f"STALL FAILURE: {role_label} 
+announced intent but never used "\n        f"tools after {nudges} nudges. The 
+task was NOT completed."\n    )\n    
+agent.messages.append(Message(role="assistant", content=fail_msg))\n    return 
+AgentEvent(type=EventType.ERROR, data=fail_msg, source_agent=role_label)', 
+'new_str': 'def check_stall_failure(orchestrator: Any, agent: Any) -> AgentEvent
+| None:\n    """Check if agent has stalled and report failure.\n    \n    
+Args:\n        orchestrator: The orchestrator instance.\n        agent: The 
+agent to check for stall failure.\n        \n    Returns:\n        AgentEvent | 
+None: An error event if stall failure detected, None otherwise.\n    """\n    
+_stall = getattr(agent, "_stall", None)\n    if agent is orchestrator.tech_lead 
+or not getattr(_stall, "failure", False):\n        return None\n    role_label =
+agent.identity.role if agent.identity else "agent"\n    nudges = getattr(_stall,
+"nudge_count", 0)\n    fail_msg = (\n        f"STALL FAILURE: {role_label} 
+announced intent but never used "\n        f"tools after {nudges} nudges. The 
+task was NOT completed."\n    )\n    
+agent.messages.append(Message(role="assistant", content=fail_msg))\n    return 
+AgentEvent(type=EventType.ERROR, data=fail_msg, source_agent=role_label)'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_validation.py...
+Now let me create the improvement record for this documentation improvement:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T12:15:00Z\n\n## Files Changed\n1. 
+`src/henchman/agents/orchestrator_validation.py` - Added missing Args and 
+Returns sections to four functions:\n   - `should_check_thinking` (lines 
+23-33)\n   - `handle_valid_thinking` (lines 35-45)\n   - 
+`handle_missing_thinking` (lines 47-62)\n   - `check_stall_failure` (lines 
+64-84)\n\n## Smell Category Addressed\n- **Incomplete Docstring** (MEDIUM): Four
+functions had parameters but no Args: sections in their docstrings\n\n## 
+Rationale for Change\nThe documentation smell report identified four functions 
+in the orchestrator validation module with incomplete docstrings. These 
+functions are critical for validating agent behavior in the multi-agent system, 
+particularly for:\n1. Checking if thinking patterns should be validated\n2. 
+Handling valid thinking patterns\n3. Handling missing thinking patterns\n4. 
+Detecting stall failures in agents\n\nWithout proper documentation, developers 
+would not understand what parameters to pass or what these functions return, 
+making the API harder to use and maintain.\n\n## Changes Made\n\n### 1. 
+`should_check_thinking` function (lines 23-33):\n- **Before**: Simple one-line 
+docstring with no parameter documentation\n- **After**: Added Args section 
+documenting `orchestrator` and `agent` parameters, and Returns section 
+documenting the boolean return value\n\n### 2. `handle_valid_thinking` function 
+(lines 35-45):\n- **Before**: Simple one-line docstring with no parameter 
+documentation\n- **After**: Added Args section documenting `metrics` and 
+`content` parameters\n\n### 3. `handle_missing_thinking` function (lines 
+47-62):\n- **Before**: Simple one-line docstring with no parameter or return 
+documentation\n- **After**: Added Args section documenting `agent` parameter and
+Returns section documenting the AgentEvent return value\n\n### 4. 
+`check_stall_failure` function (lines 64-84):\n- **Before**: Simple one-line 
+docstring with no parameter or return documentation\n- **After**: Added Args 
+section documenting `orchestrator` and `agent` parameters, and Returns section 
+documenting the optional AgentEvent return value\n\n## Technical Details\n- 
+**Issue**: Functions had parameters but no corresponding documentation in 
+docstrings\n- **Root cause**: Missing Args and Returns sections in Google-style 
+docstrings\n- **Impact**: Developers using these validation functions would not 
+know what parameters to pass or what the functions return\n- **Fix**: Added 
+proper Google-style docstrings with Args and Returns sections\n- **Note**: All 
+functions now follow consistent documentation standards\n\n## What to Verify\n1.
+All four functions now have proper Args sections documenting their 
+parameters\n2. Functions with return values have proper Returns sections\n3. The
+documentation follows Google-style docstring format\n4. No other documentation 
+inconsistencies were introduced\n5. The functions are now properly documented 
+for API usage\n\n## Testing Instructions\nTo verify the fix:\n```bash\n# Check 
+the updated docstrings\ngrep -n "def should_check_thinking\\|def 
+handle_valid_thinking\\|def handle_missing_thinking\\|def check_stall_failure" 
+src/henchman/agents/orchestrator_validation.py\n\n# Verify the docstrings 
+contain Args and Returns sections\ngrep -n "Args:" 
+src/henchman/agents/orchestrator_validation.py\ngrep -n "Returns:" 
+src/henchman/agents/orchestrator_validation.py\n\n# Run the doc smell detector 
+to confirm these issues are resolved\npython -m scripts.doc_smell_detector . 
+--skip-docstrings -f json | grep -i "orchestrator_validation"\n```\n\n## Next 
+Priority\nThe next highest-priority issues from the smell report are:\n1. 
+**Incomplete Docstring** in `src/henchman/api/server.py:75` (\'lifespan\' has 1 
+parameter but no Args section)\n2. **Incomplete Docstring** in 
+`src/henchman/api/server.py:148` (\'http_exception_handler\' has 2 parameters 
+but no Args section)\n3. **Incomplete Docstring** in 
+`src/henchman/api/server.py:161` (\'generic_exception_handler\' has 2 parameters
+but no Args section)\n4. **Incomplete Docstring** in 
+`src/henchman/cli/app.py:600` (\'cli\' has 1 parameter but no Args 
+section)\n\n## Notes\nThis improvement addresses genuine documentation quality 
+issues in a critical module. The `orchestrator_validation.py` module contains 
+essential validation logic for the multi-agent system, including:\n\n1. 
+**Thinking pattern validation**: Ensures agents follow proper reasoning 
+patterns\n2. **Stall detection**: Prevents agents from getting stuck without 
+making progress\n3. **Behavior monitoring**: Tracks agent performance and 
+quality metrics\n\nHaving proper documentation ensures that:\n1. Developers can 
+understand and use these validation functions correctly\n2. The purpose of each 
+parameter is clear\n3. Return values are properly documented\n4. The codebase 
+maintains consistent documentation standards\n5. Future maintainers can 
+understand the validation logic\n\nThe fix follows the project\'s Google-style 
+docstring conventions and provides clear, actionable documentation for important
+validation functions in the orchestrator system.'})
+
+[result] Successfully wrote 5039 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I have successfully addressed the #2-#5 priority issues from the smell report by fixing incomplete docstrings in the `orchestrator_validation.py` module. 
+
+## Summary of Changes:
+
+I fixed four functions in `src/henchman/agents/orchestrator_validation.py` that had incomplete docstrings:
+
+1. **`should_check_thinking`** - Added Args section for `orchestrator` and `agent` parameters, and Returns section for boolean return value
+2. **`handle_valid_thinking`** - Added Args section for `metrics` and `content` parameters
+3. **`handle_missing_thinking`** - Added Args section for `agent` parameter and Returns section for AgentEvent return value
+4. **`check_stall_failure`** - Added Args section for `orchestrator` and `agent` parameters, and Returns section for optional AgentEvent return value
+
+These functions are critical for the multi-agent system's validation logic, ensuring agents follow proper thinking patterns and don't stall during execution. The documentation improvements make the API clearer for developers and maintainers.
+
+The #1 issue in the smell report (consistency error about "4% coverage threshold") appears to be a false positive as it misinterprets `pytest-cov>=4.0` (version requirement) as a coverage threshold. The actual coverage threshold in the project is correctly set to 100% via `--cov-fail-under=100` in both the pytest configuration and CI workflow.
+[tech_lead] completed work
+[2026-03-03T11:15:02Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.75 seconds
+[2026-03-03T11:15:02Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T11:15:02Z] Verification passed.
+Committing changes...
