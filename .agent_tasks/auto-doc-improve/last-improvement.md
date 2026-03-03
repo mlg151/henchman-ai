@@ -1,43 +1,51 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-03-03T02:30:45Z
+2026-03-03T03:15:00Z
 
 ## Files Changed
-1. `docs/tools.md` - Added comprehensive quick reference table of all tools
+1. `docs/extensions.md` - Updated to match actual implementation
 
 ## Smell Category Addressed
-- **Stale Content** (HIGH): Tools documentation was missing a comprehensive reference table, causing the smell detector to report 29 tools as "not documented" even though they were documented in detail later in the file.
+- **Stale Age** (HIGH): Documentation was 38 days old and didn't match the actual implementation
 
 ## Rationale for Change
-The documentation smell report identified `docs/tools.md` as having 29 HIGH severity stale content smells, reporting that tools like `ask_user`, `code_format`, `coverage_map`, etc. "exist in source but are not documented in tools.md". However, upon inspection, all these tools WERE documented in the detailed sections of the file. The issue was that the smell detector likely expected a comprehensive reference or table of contents at the beginning of the file to help users quickly discover all available tools.
+The extensions documentation was significantly out of date and contained incorrect information:
+1. Documented `activate()`/`deactivate()` methods that don't exist in the actual `Extension` class
+2. Documented a `context` object with `register_tool()`, `register_command()`, `register_provider()` methods that don't exist
+3. Documented `/extensions enable|disable` commands that don't exist (only `/extensions` for listing)
+4. Documented custom provider support which isn't implemented
+5. Had incorrect directory structure for local extensions
+
+The actual implementation has:
+1. `Extension` class with `get_tools()`, `get_commands()`, `get_context()` methods
+2. `ExtensionManager` class for discovery and registration
+3. Only `/extensions` command (no enable/disable)
+4. No custom provider support
+5. Different directory structure for local extensions
 
 ## Changes Made
-1. **Added Quick Reference Table**: Added a comprehensive table at the beginning of `docs/tools.md` listing all 29 built-in tools with their:
-   - Tool name (in backticks for clarity)
-   - Category (File Operations, Directory Operations, Code Analysis, etc.)
-   - Kind (READ, WRITE, EXECUTE, NETWORK)
-   - Brief one-line description
-
-2. **Improved Discoverability**: The table serves as a quick reference guide, allowing users to:
-   - Quickly see all available tools at a glance
-   - Understand what category each tool belongs to
-   - See the tool kind (which determines auto-approval behavior)
-   - Get a brief description before diving into detailed documentation
-
-3. **Maintained Existing Structure**: The detailed documentation for each tool (with JSON schemas, examples, and explanations) remains unchanged and follows the quick reference table.
+1. **Updated Extension Types**: Removed "Providers" from supported types, clarified actual capabilities
+2. **Fixed Extension Base Class Example**: Showed actual `Extension` class with correct methods (`get_tools()`, `get_commands()`, `get_context()`)
+3. **Updated Tool Creation Example**: Fixed to show tools being returned from `get_tools()` method
+4. **Updated Command Creation Example**: Fixed to show commands being returned from `get_commands()` method
+5. **Added Context Section**: Showed how to use `get_context()` method
+6. **Updated Installation Section**: Corrected local extension directory structure and entry point configuration
+7. **Updated Management Section**: Removed non-existent enable/disable commands, added actual `ExtensionManager` API
+8. **Updated Packaging Section**: Added complete example with proper package structure
+9. **Added Complete Example**: Provided a full working example of an extension
 
 ## What to Verify
-1. The quick reference table includes all 29 built-in tools mentioned in the smell report
-2. Tool categories accurately reflect the organization in the detailed sections
-3. Tool kinds (READ/WRITE/EXECUTE/NETWORK) match the actual implementation
-4. Brief descriptions are accurate and helpful
-5. The table improves document navigation without disrupting existing content
+1. All code examples in the documentation now match the actual source code
+2. The documented API matches the actual `Extension` and `ExtensionManager` classes
+3. Installation instructions are accurate for both package and local development
+4. The complete example at the end is a working extension
+5. No references to non-existent features (custom providers, enable/disable commands, etc.)
 
 ## Next Priority
 The next highest-priority issues are:
-1. **Stale Age** in `docs/extensions.md` (last modified 38 days ago)
-2. **Stale Age** in `docs/mcp.md` (last modified 38 days ago)
-3. **Incomplete Docstrings** in various source files (medium/low severity)
-
-These documentation files should be reviewed and updated to ensure they reflect current behavior.
+1. **Stale Age** in `docs/mcp.md` (last modified 38 days ago)
+2. **Stale Docstrings** in various source files (HIGH severity)
+3. **Broken Link** in `docs/intelligent-context-management.md` (anchor not found)
+4. **Config Issue** in `mkdocs.yml` (mermaid diagrams not configured)
+5. **Consistency Error** in `pyproject.toml` (coverage threshold mismatch)

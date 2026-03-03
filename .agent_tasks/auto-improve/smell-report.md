@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T02:30:21.120384+00:00_
+_Generated: 2026-03-03T03:00:19.906206+00:00_
 
 ## Executive Summary
 
@@ -12,7 +12,7 @@ _Generated: 2026-03-03T02:30:21.120384+00:00_
 | **Overall Score** | 52.3/100 |
 | **Files Scanned** | 188 |
 | **Total Lines (non-blank)** | 33,941 |
-| **Total Smells** | 2206 |
+| **Total Smells** | 2183 |
 | **Avg Maintainability Index** | 71.4 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-03T02:30:21.120384+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1643 |
+| low | 1620 |
 | medium | 495 |
 | high | 68 |
 
@@ -28,7 +28,7 @@ _Generated: 2026-03-03T02:30:21.120384+00:00_
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1156 |
+| Missing Type Hint | 1133 |
 | Feature Envy | 301 |
 | Duplicate Code | 272 |
 | Magic Number | 131 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/console.py | ❌ F | 12.5 | 52 | 671 | 42 | 0.0 |
+| 1 | cli/console.py | ❌ F | 12.5 | 29 | 671 | 42 | 0.0 |
 | 2 | cli/commands/context.py | ❌ F | 15.0 | 63 | 401 | 50 | 0.0 |
 | 3 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
 | 4 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
@@ -144,7 +144,7 @@ LOC: 671 | Classes: 9 | Functions: 4 | MI: 42 | Avg CC: 0.0
 | 449 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 100% similar to 'error' at cli/console.py:457 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 449 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-_... and 37 more smells._
+_... and 14 more smells._
 
 ### cli/commands/context.py — ❌ F (15.0/100)
 
