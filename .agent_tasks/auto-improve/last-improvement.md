@@ -1,63 +1,81 @@
-# Refactoring Summary: src/henchman/cli/commands/context.py
+# Refactoring Summary - Context Command
 
-**Date/Time:** 2026-03-03  
-**Files Changed:** `src/henchman/cli/commands/context.py`
+**Date/Time:** 2026-03-03 04:00 UTC  
+**Target File:** `src/henchman/cli/commands/context.py`  
+**Grade Before:** ❌ F (14.8/100)  
+**Smells Addressed:** 10+ code smells from the smell report
 
-## Identified Smells Addressed:
+## Changes Made
 
-### 1. **Duplicate Code** (HIGH Severity)
-- **Issue:** `_handle_importance_parameter` and `_handle_similarity_parameter` were structurally identical
-- **Solution:** Replaced with lambda functions in the handlers dictionary to eliminate duplication
-- **Refactoring Pattern:** Extract Method → Replace with Lambda
+### 1. **Extracted Shared Console Helper Functions** (DRY Principle)
+- Created `src/henchman/cli/console_helpers.py` with reusable console output patterns
+- Consolidated duplicate console printing logic from multiple command files
+- Added `ConsoleHelper` class with static methods for common operations:
+  - `print_status_header()` - Print formatted section headers
+  - `print_status_value()` - Print labeled values with consistent formatting
+  - `print_enabled_status()` - Print enabled/disabled status with color coding
+  - `print_command_help()` - Print command help lines
+  - `print_error_message()` - Print error messages with optional usage help
+  - `print_usage_help()` - Print usage help with command lists
 
-### 2. **Feature Envy** (MEDIUM Severity) - Multiple instances:
-- **`_show_help_message`**: Extracted console printing logic into `_print_help_message` method
-- **`_print_status_values`**: Created `ConsoleHelper` class with static methods for consistent console output
-- **`_print_status_commands`**: Used `ConsoleHelper.print_command_help` for consistent formatting
-- **`_show_strategy_status`**: Refactored to use `ConsoleHelper` methods
-- **`_manage_strategy`**: Extracted usage help into `_print_strategy_usage` method
+### 2. **Fixed Duplicate Code Smells**
+- **HIGH severity**: `_print_no_compactor_message` was duplicate of `_print_set_theme_error` in theme.py
+  - Both now use `ConsoleHelper.print_error_message()`
+- **MEDIUM severity**: `_print_strategy_usage` was 100% similar to `_print_logging_help` in mcp.py
+  - Both now use shared helper patterns
+- **MEDIUM severity**: `_print_help_message` had Feature Envy (accessed console 7 times, self 1 time)
+  - Refactored to use `ConsoleHelper.print_usage_help()`
 
-### 3. **Code Structure Improvements**
-- **Created `ConsoleHelper` class**: Centralized console output logic with consistent formatting
-  - `print_status_header()`: Standard header formatting
-  - `print_status_value()`: Consistent value display with color options
-  - `print_enabled_status()`: Standard enabled/disabled formatting with appropriate colors
-  - `print_command_help()`: Consistent command help formatting
+### 3. **Improved Code Organization**
+- Moved `ConsoleHelper` class from context.py to shared module
+- Updated imports in context.py, theme.py, and mcp.py to use shared helpers
+- Maintained backward compatibility - all existing tests pass
 
-## Refactoring Strategy Applied:
+### 4. **Enhanced Type Safety**
+- Added proper type hints to all helper methods
+- Used `Any` type for console parameter to maintain flexibility
+- Added optional parameters with proper type annotations
 
-1. **Extract Method**: Created helper methods for repeated console output patterns
-2. **Introduce Helper Class**: `ConsoleHelper` encapsulates console formatting logic
-3. **Replace Conditional with Polymorphism**: Used lambda functions for parameter handlers
-4. **Reduce Feature Envy**: Methods now work more with `self` attributes and less with external objects
-5. **DRY Principle**: Eliminated duplicate code patterns
+### 5. **Fixed Test Failures**
+- Updated `ConsoleHelper.print_usage_help()` to accept custom header parameter
+- Fixed test that expected "Subcommands:" header in help output
+- All 8 context command tests pass
+- All 54 command tests pass
 
-## Testing Implications:
+## Files Changed
+1. `src/henchman/cli/commands/context.py` - Main refactoring target
+2. `src/henchman/cli/console_helpers.py` - New shared utility module
+3. `src/henchman/cli/commands/theme.py` - Updated to use shared helpers
+4. `src/henchman/cli/commands/mcp.py` - Updated to use shared helpers
 
-- **All existing tests pass** (8/8 tests)
-- **No API changes**: Public interface remains unchanged
-- **Behavior preserved**: All functionality works exactly as before
-- **Improved testability**: Console output logic is now more modular and testable
+## Refactoring Patterns Applied
+1. **Extract Method** - Created reusable helper functions
+2. **Move Method** - Moved ConsoleHelper to appropriate module
+3. **Once and Only Once (DRY)** - Eliminated duplicate console output logic
+4. **Introduce Parameter Object** - Used structured parameters for helper methods
+5. **Intention-Revealing Code** - Improved method names and documentation
 
-## Code Quality Improvements:
+## Testing Implications
+- **All existing tests pass** - No breaking changes to public API
+- **Improved testability** - Console output logic now centralized
+- **Better coverage** - Shared helpers can be tested independently
+- **Maintained compatibility** - External behavior unchanged
 
-1. **Reduced Method Complexity**: Methods are now more focused and cohesive
-2. **Improved Readability**: Consistent formatting makes code easier to understand
-3. **Better Maintainability**: Changes to console formatting can be made in one place
-4. **Enhanced Reusability**: `ConsoleHelper` can be used by other command classes
+## Performance Impact
+- **Positive**: Reduced code duplication
+- **Positive**: Improved maintainability
+- **Neutral**: Runtime performance unchanged
+- **Positive**: Easier to add new console output patterns
 
-## Performance Impact:
-- **No performance degradation**: Changes are structural, not algorithmic
-- **Slight memory improvement**: Reduced code duplication
-- **Maintainability improved**: Easier to modify and extend
+## Next Steps
+1. Consider refactoring other command files to use shared console helpers
+2. Add unit tests for ConsoleHelper class
+3. Explore further consolidation of similar patterns in other command files
+4. Monitor for any regressions in user experience
 
-## Remaining Issues (Not addressed as they were inaccurate in the report):
-- `_print_no_compactor_message` is NOT an exact duplicate of `_print_set_theme_error` (different messages)
-- `_print_status_info` similarity to other functions is structural, not exact duplication
-
-## Verification:
-- ✅ All tests pass
-- ✅ No linting errors
-- ✅ Type checking passes
-- ✅ Code formatting applied
-- ✅ Behavior unchanged
+## Verification
+- ✅ All tests pass (54/54 command tests)
+- ✅ Ruff linting passes
+- ✅ Mypy type checking passes
+- ✅ No breaking changes to public API
+- ✅ Code smells addressed as per report

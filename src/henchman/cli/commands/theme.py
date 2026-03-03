@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.console import ThemeManager
+from henchman.cli.console_helpers import ConsoleHelper
 
 if TYPE_CHECKING:
     from henchman.cli.repl import Repl
@@ -124,8 +125,7 @@ class ThemeCommand(Command):
         Args:
             console: Console for output.
         """
-        console.print("[red]Error:[/] Theme name required")
-        console.print("[yellow]Usage:[/] /theme set <theme-name>")
+        ConsoleHelper.print_error_message(console, "Theme name required", "/theme set <theme-name>")
 
     def _validate_theme_name(self, ctx: CommandContext, theme_name: str, theme_manager: Any) -> str:
         """Validate theme name and fall back to default if not found.

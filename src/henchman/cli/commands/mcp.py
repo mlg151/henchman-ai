@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from henchman.cli.commands import BaseCommand, CommandContext
+from henchman.cli.console_helpers import ConsoleHelper
 from henchman.config import load_settings
 
 if TYPE_CHECKING:
@@ -135,7 +136,7 @@ class McpCommand(BaseCommand):
         Args:
             console: Console for output.
         """
-        console.print("\n[bold blue]MCP Logging Control[/]\n")
+        ConsoleHelper.print_status_header(console, "MCP Logging Control")
         console.print("  /mcp logging on     - Enable MCP logging messages")
         console.print("  /mcp logging off    - Disable MCP logging messages")
         console.print("  /mcp logging status - Show current logging status")
