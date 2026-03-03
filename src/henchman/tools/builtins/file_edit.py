@@ -1,5 +1,6 @@
 """Edit file tool implementation."""
 
+from __future__ import annotations
 import difflib
 from pathlib import Path
 
@@ -16,12 +17,12 @@ class EditFileTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: EditFileTool) -> str:
         """Tool name."""
         return "edit_file"
 
     @property
-    def description(self) -> str:
+    def description(self: EditFileTool) -> str:
         """Tool description."""
         return (
             "Edit a file by replacing old_str with new_str (must match exactly once), "
@@ -29,7 +30,7 @@ class EditFileTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: EditFileTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -64,12 +65,12 @@ class EditFileTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: EditFileTool) -> ToolKind:
         """Tool kind - WRITE requires confirmation."""
         return ToolKind.WRITE
 
     async def execute(  # type: ignore[override]
-        self,
+        self: EditFileTool,
         path: str = "",
         old_str: str | None = None,
         new_str: str = "",
@@ -145,7 +146,7 @@ class EditFileTool(Tool):
             )
 
     def _edit_string(
-        self,
+        self: EditFileTool,
         file_path: Path,
         content: str,
         old_str: str,
@@ -189,7 +190,7 @@ class EditFileTool(Tool):
         return ToolResult(content=f"Successfully edited {file_path}", success=True)
 
     def _edit_line_range(
-        self,
+        self: EditFileTool,
         file_path: Path,
         content: str,
         start_line: int,
@@ -247,7 +248,7 @@ class EditFileTool(Tool):
             success=True,
         )
 
-    def _make_diff(self, file_path: Path, old: str, new: str) -> ToolResult:
+    def _make_diff(self: EditFileTool, file_path: Path, old: str, new: str) -> ToolResult:
         """Generate a unified diff preview.
 
         Args:

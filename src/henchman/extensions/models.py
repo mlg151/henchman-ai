@@ -8,6 +8,35 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
+# Field constraint constants for plugin metadata validation
+_MAX_RATING: float = 5.0
+"""Maximum allowed plugin rating value."""
+
+_PLUGIN_NAME_MAX_LENGTH: int = 100
+"""Maximum character length for plugin names."""
+
+_DESCRIPTION_MIN_LENGTH: int = 10
+"""Minimum character length for plugin descriptions."""
+
+_DESCRIPTION_MAX_LENGTH: int = 500
+"""Maximum character length for plugin descriptions."""
+
+_AUTHOR_MIN_LENGTH: int = 2
+"""Minimum character length for author name."""
+
+_AUTHOR_MAX_LENGTH: int = 100
+"""Maximum character length for author name."""
+
+_KEYWORDS_MAX_LENGTH: int = 20
+"""Maximum number of keywords per plugin."""
+
+_DEFAULT_PAGE_SIZE: int = 20
+"""Default number of results per page in plugin search."""
+
+_MAX_PAGE_SIZE: int = 100
+"""Maximum number of results per page in plugin search."""
+
+
 
 class PluginPermission(str, Enum):
     """Permissions that plugins can request."""
@@ -88,7 +117,7 @@ class PluginStats(BaseModel):
         default=None,
         description="Average rating (1.0-5.0)",
         ge=1.0,
-        le=5.0,
+        le=_MAX_RATING,
     )
     reviews: int = Field(
         default=0,
@@ -130,8 +159,8 @@ class PluginMetadata(BaseModel):
     name: str = Field(
         ...,
         description="Plugin name (must be unique)",
-        min_length=2,
-        max_length=100,
+        min_length=_AUTHOR_MIN_LENGTH,
+        max_length=_PLUGIN_NAME_MAX_LENGTH,
         pattern=r"^[a-z][a-z0-9_-]*$",
         examples=["github-integration", "docker-tools"],
     )
@@ -144,16 +173,16 @@ class PluginMetadata(BaseModel):
     description: str = Field(
         ...,
         description="Short description of the plugin",
-        min_length=10,
-        max_length=500,
+        min_length=_DESCRIPTION_MIN_LENGTH,
+        max_length=_DESCRIPTION_MAX_LENGTH,
     )
 
     # Author information
     author: str = Field(
         ...,
         description="Author name or organization",
-        min_length=2,
-        max_length=100,
+        min_length=_AUTHOR_MIN_LENGTH,
+        max_length=_AUTHOR_MAX_LENGTH,
     )
     author_email: str | None = Field(
         default=None,
@@ -187,7 +216,7 @@ class PluginMetadata(BaseModel):
     keywords: list[str] = Field(
         default_factory=list,
         description="Keywords for search",
-        max_length=20,
+        max_length=_KEYWORDS_MAX_LENGTH,
     )
     categories: list[str] = Field(
         default_factory=list,
@@ -273,10 +302,10 @@ class PluginSearchParams(BaseModel):
         ge=1,
     )
     page_size: int = Field(
-        default=20,
+        default=_DEFAULT_PAGE_SIZE,
         description="Results per page",
         ge=1,
-        le=100,
+        le=_MAX_PAGE_SIZE,
     )
     category: str | None = Field(
         default=None,
@@ -302,10 +331,10 @@ class PluginSearchResult(BaseModel):
         ge=1,
     )
     page_size: int = Field(
-        default=20,
+        default=_DEFAULT_PAGE_SIZE,
         description="Results per page",
         ge=1,
-        le=100,
+        le=_MAX_PAGE_SIZE,
     )
     query: str | None = Field(
         default=None,

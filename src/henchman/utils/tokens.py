@@ -132,7 +132,7 @@ class TokenCounter:
             return text
 
         # Decode the truncated tokens
-        # Note: We don't handle partial unicode bytes here as tiktoken handles text -> tokens -> text
+        # Note: We don't handle partial unicode bytes here as tiktoken handles text -> tokens -> text  # noqa: E501
         return encoding.decode(tokens[:max_tokens])
 
     @classmethod
@@ -150,6 +150,7 @@ class TokenCounter:
             Total token count including message overhead.
         """
         encoding = cls._get_encoding(model)
+        encoding_encode = encoding.encode
         total = 0
 
         # Per-message overhead (varies by model, using GPT-4 defaults)
@@ -158,13 +159,15 @@ class TokenCounter:
 
         for msg in messages:
             total += tokens_per_message
+            msg_role = msg.role
+            msg_content = msg.content
 
             # Count role
-            total += len(encoding.encode(msg.role))
+            total += len(encoding_encode(msg_role))
 
             # Count content
-            if msg.content:
-                total += len(encoding.encode(msg.content))
+            if msg_content:
+                total += len(encoding_encode(msg_content))
 
             # Count tool calls (JSON serialized)
             if msg.tool_calls:

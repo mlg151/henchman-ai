@@ -31,7 +31,7 @@ class Chunk:
     chunk_index: int
 
     @property
-    def id(self) -> str:
+    def id(self: Chunk) -> str:
         """Generate a unique ID for this chunk.
 
         Returns:
@@ -39,7 +39,7 @@ class Chunk:
         """
         return f"{self.file_path}::{self.chunk_index}"
 
-    def to_metadata(self) -> dict[str, object]:
+    def to_metadata(self: Chunk) -> dict[str, object]:
         """Convert to metadata dict for vector store.
 
         Returns:
@@ -67,7 +67,7 @@ class TextChunker:
     """
 
     def __init__(
-        self,
+        self: TextChunker,
         target_tokens: int = 512,
         overlap_tokens: int = 50,
         encoding_name: str = "cl100k_base",
@@ -83,7 +83,7 @@ class TextChunker:
         self.overlap_tokens = overlap_tokens
         self.encoding = tiktoken.get_encoding(encoding_name)
 
-    def count_tokens(self, text: str) -> int:
+    def count_tokens(self: TextChunker, text: str) -> int:
         """Count the number of tokens in text.
 
         Args:
@@ -94,7 +94,7 @@ class TextChunker:
         """
         return len(self.encoding.encode(text))
 
-    def chunk_file(self, file_path: Path | str) -> list[Chunk]:
+    def chunk_file(self: TextChunker, file_path: Path | str) -> list[Chunk]:
         """Chunk a file into pieces.
 
         Args:
@@ -112,7 +112,7 @@ class TextChunker:
 
         return self.chunk_text(content, str(path))
 
-    def chunk_text(self, text: str, file_path: str) -> list[Chunk]:
+    def chunk_text(self: TextChunker, text: str, file_path: str) -> list[Chunk]:
         """Chunk text content into pieces.
 
         Args:
@@ -180,7 +180,7 @@ class TextChunker:
 
         return chunks
 
-    def _get_overlap_lines(self, lines: list[str]) -> list[str]:
+    def _get_overlap_lines(self: TextChunker, lines: list[str]) -> list[str]:
         """Get lines for overlap from the end of current chunk.
 
         Args:

@@ -1,5 +1,6 @@
 """Import graph analysis tool implementation."""
 
+from __future__ import annotations
 import ast
 import sys
 from dataclasses import dataclass
@@ -113,7 +114,7 @@ def _extract_import_from_import_from_node(node: ast.ImportFrom) -> str:
 class ImportAnalyzer:
     """Analyzes imports in Python files."""
 
-    def __init__(self, local_modules: set[str]) -> None:
+    def __init__(self: ImportAnalyzer, local_modules: set[str]) -> None:
         """Initialize analyzer with local module context.
 
         Args:
@@ -121,7 +122,7 @@ class ImportAnalyzer:
         """
         self.local_modules: set[str] = local_modules
 
-    def extract_imports(self, tree: ast.AST) -> list[str]:
+    def extract_imports(self: ImportAnalyzer, tree: ast.AST) -> list[str]:
         """Extract import statements from AST.
 
         Args:
@@ -132,7 +133,7 @@ class ImportAnalyzer:
         """
         return _extract_imports_from_ast(tree)
 
-    def classify_import(self, import_str: str) -> str:
+    def classify_import(self: ImportAnalyzer, import_str: str) -> str:
         """Classify an import as stdlib, local, or third-party.
 
         Args:
@@ -147,7 +148,7 @@ class ImportAnalyzer:
 class ImportGraphBuilder:
     """Builds and analyzes import graphs."""
 
-    def __init__(self, scan_dir: Path) -> None:
+    def __init__(self: ImportGraphBuilder, scan_dir: Path) -> None:
         """Initialize graph builder.
 
         Args:
@@ -155,7 +156,7 @@ class ImportGraphBuilder:
         """
         self.scan_dir = scan_dir
 
-    def build_graph(self) -> dict[str, set[str]]:
+    def build_graph(self: ImportGraphBuilder) -> dict[str, set[str]]:
         """Build a module-level import graph for a directory.
 
         Returns:
@@ -175,7 +176,7 @@ class ImportGraphBuilder:
 
         return graph
 
-    def _collect_local_modules(self) -> set[str]:
+    def _collect_local_modules(self: ImportGraphBuilder) -> set[str]:
         """Collect local module names for graph building.
 
         Returns:
@@ -187,7 +188,7 @@ class ImportGraphBuilder:
         return local_modules
 
     def _extract_dependencies_from_file(
-        self,
+        self: ImportGraphBuilder,
         py_file: Path,
         mod_name: str,
         local_modules: set[str],
@@ -215,7 +216,7 @@ class ImportGraphBuilder:
         return deps
 
     def _extract_dependencies_from_node(
-        self,
+        self: ImportGraphBuilder,
         node: ast.AST,
         mod_name: str,
         local_modules: set[str],
@@ -235,7 +236,7 @@ class ImportGraphBuilder:
             self._extract_dependencies_from_import_from(node, mod_name, local_modules, deps)
 
     def _extract_dependencies_from_import(
-        self,
+        self: ImportGraphBuilder,
         node: ast.Import,
         mod_name: str,
         local_modules: set[str],
@@ -254,7 +255,7 @@ class ImportGraphBuilder:
             self._add_dependency_if_local(top, mod_name, local_modules, deps)
 
     def _extract_dependencies_from_import_from(
-        self,
+        self: ImportGraphBuilder,
         node: ast.ImportFrom,
         mod_name: str,
         local_modules: set[str],
@@ -276,7 +277,7 @@ class ImportGraphBuilder:
             self._add_dependency_if_local(alias.name, mod_name, local_modules, deps)
 
     def _add_dependency_if_local(
-        self,
+        self: ImportGraphBuilder,
         module_name: str,
         current_module: str,
         local_modules: set[str],
@@ -293,7 +294,7 @@ class ImportGraphBuilder:
         if module_name in local_modules and module_name != current_module:
             deps.add(module_name)
 
-    def detect_cycles(self) -> list[list[str]]:
+    def detect_cycles(self: ImportGraphBuilder) -> list[list[str]]:
         """Detect circular import chains using DFS.
 
         Returns:
@@ -302,7 +303,7 @@ class ImportGraphBuilder:
         graph = self.build_graph()
         return self._find_cycles_in_graph(graph)
 
-    def _find_cycles_in_graph(self, graph: dict[str, set[str]]) -> list[list[str]]:
+    def _find_cycles_in_graph(self: ImportGraphBuilder, graph: dict[str, set[str]]) -> list[list[str]]:  # noqa: E501
         """Find cycles in a directed graph using DFS.
 
         Args:
@@ -318,7 +319,7 @@ class ImportGraphBuilder:
 class _CycleFinder:
     """Finds cycles in a directed graph using DFS."""
 
-    def __init__(self, graph: dict[str, set[str]]) -> None:
+    def __init__(self: _CycleFinder, graph: dict[str, set[str]]) -> None:
         """Initialize cycle finder with graph.
 
         Args:
@@ -331,7 +332,7 @@ class _CycleFinder:
         self.cycles: list[list[str]] = []
         self.seen_cycles: set[frozenset[str]] = set()
 
-    def find_cycles(self) -> list[list[str]]:
+    def find_cycles(self: _CycleFinder) -> list[list[str]]:
         """Find all cycles in the graph.
 
         Returns:
@@ -342,7 +343,7 @@ class _CycleFinder:
                 self._dfs(node)
         return self.cycles
 
-    def _dfs(self, node: str) -> None:
+    def _dfs(self: _CycleFinder, node: str) -> None:
         """Depth-first search to find cycles.
 
         Args:
@@ -361,7 +362,7 @@ class _CycleFinder:
         self.path.pop()
         self.rec_stack.discard(node)
 
-    def _record_cycle(self, cycle_start: str) -> None:
+    def _record_cycle(self: _CycleFinder, cycle_start: str) -> None:
         """Record a found cycle.
 
         Args:
@@ -385,7 +386,7 @@ class ImportAnalysisRequest:
     detect_cycles: bool = False
     classify: bool = False
 
-    def validate(self) -> ToolResult | None:
+    def validate(self: ImportAnalysisRequest) -> ToolResult | None:
         """Validate parameters.
 
         Returns:
@@ -404,7 +405,7 @@ class ImportAnalysisRequest:
 
         return None
 
-    def extract_params(self) -> tuple[Path, Path | None, bool, bool]:
+    def extract_params(self: ImportAnalysisRequest) -> tuple[Path, Path | None, bool, bool]:
         """Extract parameters as typed values.
 
         Returns:
@@ -426,12 +427,12 @@ class ImportGraphTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: ImportGraphTool) -> str:
         """Tool name."""
         return "import_graph"
 
     @property
-    def description(self) -> str:
+    def description(self: ImportGraphTool) -> str:
         """Tool description."""
         return (
             "Analyze import dependencies of a Python file. Shows what a "
@@ -441,7 +442,7 @@ class ImportGraphTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: ImportGraphTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return create_path_parameter_schema(
             additional_params={
@@ -467,12 +468,12 @@ class ImportGraphTool(Tool):
         )
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: ImportGraphTool) -> ToolKind:
         """Tool kind - read-only analysis."""
         return ToolKind.READ
 
     async def execute(
-        self,
+        self: ImportGraphTool,
         **params: object,
     ) -> ToolResult:
         """Analyze imports of a Python file.
@@ -504,7 +505,7 @@ class ImportGraphTool(Tool):
 
         return await self._execute_with_request(request)
 
-    async def _execute_with_request(self, request: ImportAnalysisRequest) -> ToolResult:
+    async def _execute_with_request(self: ImportGraphTool, request: ImportAnalysisRequest) -> ToolResult:  # noqa: E501
         """Execute import analysis with validated request.
 
         Args:
@@ -554,7 +555,7 @@ class ImportGraphTool(Tool):
         return request.extract_params()
 
     def _build_analysis_result(
-        self,
+        self: ImportGraphTool,
         target_path: Path,
         scan_path: Path | None,
         imports: list[str],
@@ -593,7 +594,7 @@ class ImportGraphTool(Tool):
             success=True,
         )
 
-    def _parse_file(self, target: Path, path: str) -> tuple[ast.AST, str] | ToolResult:
+    def _parse_file(self: ImportGraphTool, target: Path, path: str) -> tuple[ast.AST, str] | ToolResult:  # noqa: E501
         """Parse a Python file and return AST and source.
 
         Args:
@@ -624,7 +625,7 @@ class ImportGraphTool(Tool):
         return tree, source
 
     def _add_imports_analysis(
-        self,
+        self: ImportGraphTool,
         parts: list[str],
         filename: str,
         imports: list[str],
@@ -652,7 +653,7 @@ class ImportGraphTool(Tool):
             parts.append("  (none)")
 
     def _add_reverse_imports_analysis(
-        self,
+        self: ImportGraphTool,
         parts: list[str],
         scan_path: Path,
         target: Path,
@@ -674,7 +675,7 @@ class ImportGraphTool(Tool):
             parts.append("  (none)")
 
     def _add_circular_imports_analysis(
-        self,
+        self: ImportGraphTool,
         parts: list[str],
         scan_path: Path,
     ) -> None:
@@ -694,7 +695,7 @@ class ImportGraphTool(Tool):
             parts.append("  (none detected)")
 
     def _find_reverse_imports(
-        self,
+        self: ImportGraphTool,
         scan_dir: Path,
         module_name: str,
         exclude: Path,
@@ -721,7 +722,7 @@ class ImportGraphTool(Tool):
 
         return results
 
-    def _should_skip_file(self, py_file: Path, exclude_resolved: Path) -> bool:
+    def _should_skip_file(self: ImportGraphTool, py_file: Path, exclude_resolved: Path) -> bool:
         """Check if a file should be skipped in reverse import search.
 
         Args:
@@ -733,7 +734,7 @@ class ImportGraphTool(Tool):
         """
         return py_file.resolve() == exclude_resolved
 
-    def _file_imports_module(self, py_file: Path, module_name: str) -> bool:
+    def _file_imports_module(self: ImportGraphTool, py_file: Path, module_name: str) -> bool:
         """Check if a file imports a specific module.
 
         Args:
@@ -751,7 +752,7 @@ class ImportGraphTool(Tool):
 
         return self._tree_imports_module(tree, module_name)
 
-    def _tree_imports_module(self, tree: ast.AST, module_name: str) -> bool:
+    def _tree_imports_module(self: ImportGraphTool, tree: ast.AST, module_name: str) -> bool:
         """Check if an AST tree imports a specific module.
 
         Args:
@@ -771,7 +772,7 @@ class ImportGraphTool(Tool):
                 return True
         return False
 
-    def _import_node_contains_module(self, node: ast.Import, module_name: str) -> bool:
+    def _import_node_contains_module(self: ImportGraphTool, node: ast.Import, module_name: str) -> bool:  # noqa: E501
         """Check if an Import node contains a specific module.
 
         Args:
@@ -783,7 +784,7 @@ class ImportGraphTool(Tool):
         """
         return any(module_name in alias.name.split(".") for alias in node.names)
 
-    def _import_from_node_contains_module(self, node: ast.ImportFrom, module_name: str) -> bool:
+    def _import_from_node_contains_module(self: ImportGraphTool, node: ast.ImportFrom, module_name: str) -> bool:  # noqa: E501
         """Check if an ImportFrom node contains a specific module.
 
         Args:
@@ -800,7 +801,7 @@ class ImportGraphTool(Tool):
         names = [a.name for a in node.names]
         return module_name in names
 
-    def _collect_local_modules(self, scan_dir: Path) -> set[str]:
+    def _collect_local_modules(self: ImportGraphTool, scan_dir: Path) -> set[str]:
         """Collect module names from a local directory.
 
         Args:

@@ -10,6 +10,36 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+DEFAULT_SHELL_TIMEOUT = 3600
+"""Default shell command timeout in seconds."""
+
+DEFAULT_MAX_TOKENS = 8000
+"""Default maximum tokens to keep in context."""
+
+DEFAULT_COMPACTION_THRESHOLD = 0.75
+"""Default compaction threshold as a fraction of max_tokens."""
+
+DEFAULT_CLUSTER_SIMILARITY_THRESHOLD = 0.7
+"""Default similarity threshold for clustering messages."""
+
+DEFAULT_MAX_DELEGATION_DEPTH = 3
+"""Default maximum recursive delegation depth."""
+
+DEFAULT_MAX_DELEGATION_TURNS = 150
+"""Default maximum tool-call turns per specialist delegation."""
+
+DEFAULT_SHARED_CONTEXT_TOKENS = 2000
+"""Default max tokens for shared context between agents."""
+
+DEFAULT_RAG_CHUNK_SIZE = 512
+"""Default target tokens per RAG chunk."""
+
+DEFAULT_RAG_CHUNK_OVERLAP = 50
+"""Default token overlap between RAG chunks."""
+
+DEFAULT_RAG_TOP_K = 5
+"""Default number of results to return from RAG search."""
+
 
 class AgentConfig(BaseModel):
     """Configuration for an agent in the team."""
@@ -86,7 +116,7 @@ class ToolSettings(BaseModel):
     """
 
     auto_approve_read: bool = True
-    shell_timeout: int = 3600
+    shell_timeout: int = DEFAULT_SHELL_TIMEOUT
     sandbox: Literal["none", "docker"] = "none"
 
 
@@ -125,12 +155,12 @@ class ContextSettings(BaseModel):
         adaptive_compression: Whether to use adaptive compression techniques.
     """
 
-    max_tokens: int = 128000
-    compaction_threshold: float = 0.75  # 75% of max_tokens
+    max_tokens: int = DEFAULT_MAX_TOKENS
+    compaction_threshold: float = DEFAULT_COMPACTION_THRESHOLD  # 75% of max_tokens
     auto_compact: bool = True
     intelligent_context: bool = False
     importance_threshold: float = 0.5
-    cluster_similarity_threshold: float = 0.7
+    cluster_similarity_threshold: float = DEFAULT_CLUSTER_SIMILARITY_THRESHOLD
     adaptive_compression: bool = True
 
 
@@ -163,9 +193,9 @@ class AgentSettings(BaseModel):
 
     team_preset: str = "default"
     agents: dict[str, AgentConfig] = Field(default_factory=dict)
-    max_delegation_depth: int = 3
-    max_delegation_turns: int = 150
-    shared_context_max_tokens: int = 4000
+    max_delegation_depth: int = DEFAULT_MAX_DELEGATION_DEPTH
+    max_delegation_turns: int = DEFAULT_MAX_DELEGATION_TURNS
+    shared_context_max_tokens: int = DEFAULT_SHARED_CONTEXT_TOKENS
 
 
 class RagSettings(BaseModel):
@@ -183,9 +213,9 @@ class RagSettings(BaseModel):
     """
 
     enabled: bool = True
-    chunk_size: int = 512
-    chunk_overlap: int = 50
-    top_k: int = 5
+    chunk_size: int = DEFAULT_RAG_CHUNK_SIZE
+    chunk_overlap: int = DEFAULT_RAG_CHUNK_OVERLAP
+    top_k: int = DEFAULT_RAG_TOP_K
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     cache_dir: str | None = None
     file_extensions: list[str] = Field(

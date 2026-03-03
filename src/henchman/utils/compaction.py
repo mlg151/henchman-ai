@@ -39,7 +39,7 @@ class CompactionResult:
 class MessageSequence:
     """Represents an atomic sequence of messages that must be kept together."""
 
-    def __init__(self, messages: list[Message]) -> None:
+    def __init__(self: MessageSequence, messages: list[Message]) -> None:
         """Initialize a MessageSequence.
 
         Args:
@@ -48,16 +48,16 @@ class MessageSequence:
         self.messages = messages
 
     @property
-    def token_count(self) -> int:
+    def token_count(self: MessageSequence) -> int:
         """Get the token count for this sequence."""
         return TokenCounter.count_messages(self.messages)
 
     @property
-    def is_tool_sequence(self) -> bool:
+    def is_tool_sequence(self: MessageSequence) -> bool:
         """Check if this sequence contains tool calls."""
         return any(msg.role == "assistant" and msg.tool_calls for msg in self.messages)
 
-    def __repr__(self) -> str:
+    def __repr__(self: MessageSequence) -> str:
         roles = [msg.role for msg in self.messages]
         return f"MessageSequence(roles={roles}, tokens={self.token_count})"
 
@@ -211,7 +211,7 @@ class MessageSequenceGrouper:
 class ProtectedZoneManager:
     """Manages protected zone truncation and separation."""
 
-    def __init__(self, max_protected_tokens: int) -> None:
+    def __init__(self: ProtectedZoneManager, max_protected_tokens: int) -> None:
         """Initialize protected zone manager.
 
         Args:
@@ -220,7 +220,7 @@ class ProtectedZoneManager:
         self.max_protected_tokens = max_protected_tokens
 
     def separate_protected_messages(
-        self, messages: list[Message], protect_from_index: int,
+        self: ProtectedZoneManager, messages: list[Message], protect_from_index: int,
     ) -> tuple[list[Message], list[Message]]:
         """Separate protected and unprotected messages based on protection index.
 
@@ -240,7 +240,7 @@ class ProtectedZoneManager:
 
         return protected_msgs, unprotected_msgs
 
-    def truncate_if_needed(self, messages: list[Message]) -> tuple[list[Message], int]:
+    def truncate_if_needed(self: ProtectedZoneManager, messages: list[Message]) -> tuple[list[Message], int]:  # noqa: E501
         """Truncate protected zone if it exceeds budget.
 
         Args:
@@ -258,7 +258,7 @@ class ProtectedZoneManager:
         return messages, protected_tokens
 
     def _truncate_protected_zone(
-        self,
+        self: ProtectedZoneManager,
         messages: list[Message],
         max_tokens: int,
     ) -> list[Message]:
@@ -291,7 +291,7 @@ class ProtectedZoneManager:
             if content and len(content) > TRUNCATION_CHAR_THRESHOLD:
                 truncated_msg = _truncate_tool_message_content(msg, tokens_to_trim)
                 # truncated_msg.content is guaranteed to be non-None since we checked content
-                trimmed_tokens = (len(content) - len(truncated_msg.content or "")) // CHARS_PER_TOKEN_ESTIMATE
+                trimmed_tokens = (len(content) - len(truncated_msg.content or "")) // CHARS_PER_TOKEN_ESTIMATE  # noqa: E501
                 tokens_to_trim -= trimmed_tokens
                 result.append(truncated_msg)
             else:
@@ -331,7 +331,7 @@ def _truncate_tool_message_content(message: Message, tokens_to_trim: int) -> Mes
 class CompactionBudgetCalculator:
     """Calculates budgets and handles edge cases for compaction."""
 
-    def __init__(self, max_tokens: int) -> None:
+    def __init__(self: CompactionBudgetCalculator, max_tokens: int) -> None:
         """Initialize budget calculator.
 
         Args:
@@ -340,7 +340,7 @@ class CompactionBudgetCalculator:
         self.max_tokens = max_tokens
 
     def calculate_budget(
-        self,
+        self: CompactionBudgetCalculator,
         system_tokens: int,
         protected_tokens: int,
     ) -> int:
@@ -356,7 +356,7 @@ class CompactionBudgetCalculator:
         return self.max_tokens - system_tokens - protected_tokens
 
     def handle_edge_cases(
-        self,
+        self: CompactionBudgetCalculator,
         system_msgs: list[Message],
         system_tokens: int,
         protected_msgs: list[Message],
@@ -405,7 +405,7 @@ class MessageSequenceValidator:
             True if the sequence is valid, False otherwise.
         """
         for i, msg in enumerate(messages):
-            if msg.role == "tool" and not MessageSequenceValidator._is_valid_tool_message(messages, i, msg):
+            if msg.role == "tool" and not MessageSequenceValidator._is_valid_tool_message(messages, i, msg):  # noqa: E501
                 return False
 
         # Check that all tool calls have responses
@@ -505,7 +505,7 @@ class ContextCompactor:
     """
 
     def __init__(
-        self,
+        self: ContextCompactor,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         max_protected_ratio: float = DEFAULT_MAX_PROTECTED_RATIO,
     ) -> None:
@@ -524,7 +524,7 @@ class ContextCompactor:
         self.sequence_grouper = MessageSequenceGrouper()
         self.sequence_validator = MessageSequenceValidator()
 
-    def enforce_safety_limits(self, messages: list[Message]) -> list[Message]:
+    def enforce_safety_limits(self: ContextCompactor, messages: list[Message]) -> list[Message]:
         """Enforce limits on individual message size using tokens.
 
         This prevents context overflow from individual massive messages
@@ -539,7 +539,7 @@ class ContextCompactor:
         limit = int(self.max_tokens * SAFETY_LIMIT_RATIO)
         return [self._enforce_message_safety(msg, limit) for msg in messages]
 
-    def _enforce_message_safety(self, message: Message, limit: int) -> Message:
+    def _enforce_message_safety(self: ContextCompactor, message: Message, limit: int) -> Message:
         """Enforce safety limit on a single message.
 
         Args:
@@ -551,7 +551,7 @@ class ContextCompactor:
         """
         return _enforce_message_content_safety(message, limit)
 
-    def _group_into_sequences(self, messages: list[Message]) -> list[MessageSequence]:
+    def _group_into_sequences(self: ContextCompactor, messages: list[Message]) -> list[MessageSequence]:  # noqa: E501
         """Group messages into atomic sequences that must be kept together.
 
         Args:
@@ -563,7 +563,7 @@ class ContextCompactor:
         return self.sequence_grouper.group_into_sequences(messages)
 
     def compact(
-        self,
+        self: ContextCompactor,
         messages: list[Message],
         protect_from_index: int = -1,
     ) -> list[Message]:
@@ -600,7 +600,7 @@ class ContextCompactor:
         )
 
         # Handle protected zone truncation if needed
-        protected_msgs, protected_tokens = self.protected_zone_manager.truncate_if_needed(protected_msgs)
+        protected_msgs, protected_tokens = self.protected_zone_manager.truncate_if_needed(protected_msgs)  # noqa: E501
 
         # Extract system messages and group non-system messages into sequences
         system_msgs, system_tokens = self._extract_system_messages(unprotected_msgs)
@@ -628,7 +628,7 @@ class ContextCompactor:
 
 
     def _extract_system_messages(
-        self, unprotected_msgs: list[Message],
+        self: ContextCompactor, unprotected_msgs: list[Message],
     ) -> tuple[list[Message], int]:
         """Extract system messages from unprotected messages.
 
@@ -642,7 +642,7 @@ class ContextCompactor:
         system_tokens = TokenCounter.count_messages(system_msgs)
         return system_msgs, system_tokens
 
-    def _group_non_system_sequences(self, unprotected_msgs: list[Message]) -> list[MessageSequence]:
+    def _group_non_system_sequences(self: ContextCompactor, unprotected_msgs: list[Message]) -> list[MessageSequence]:  # noqa: E501
         """Group non-system unprotected messages into atomic sequences.
 
         Args:
@@ -657,7 +657,7 @@ class ContextCompactor:
 
 
     def _select_sequences_to_keep(
-        self,
+        self: ContextCompactor,
         sequences: list[MessageSequence],
         protected_msgs: list[Message],
         system_tokens: int,
@@ -676,7 +676,7 @@ class ContextCompactor:
         """
         # Identify the last unprotected sequence
         last_sequence = sequences[-1]
-        last_sequence_is_user = bool(last_sequence.messages) and last_sequence.messages[-1].role == "user"
+        last_sequence_is_user = bool(last_sequence.messages) and last_sequence.messages[-1].role == "user"  # noqa: E501
 
         # Calculate budget
         budget = self.budget_calculator.calculate_budget(system_tokens, protected_tokens)
@@ -705,7 +705,7 @@ class ContextCompactor:
         return kept_sequences, last_sequence, last_sequence_is_user
 
     def _reconstruct_result(
-        self,
+        self: ContextCompactor,
         system_msgs: list[Message],
         kept_sequences: list[MessageSequence],
         last_sequence: MessageSequence,
@@ -744,7 +744,7 @@ class ContextCompactor:
 
 
 
-    def validate_compacted_sequence(self, messages: list[Message]) -> bool:
+    def validate_compacted_sequence(self: ContextCompactor, messages: list[Message]) -> bool:
         """Validate that a message sequence follows OpenAI API rules.
 
         Args:
@@ -756,7 +756,7 @@ class ContextCompactor:
         return self.sequence_validator.validate_compacted_sequence(messages)
 
     def compact_with_result(
-        self,
+        self: ContextCompactor,
         messages: list[Message],
         protect_from_index: int = -1,
     ) -> CompactionResult:
@@ -866,7 +866,7 @@ Conversation:
 
 Summary:"""
 
-    def __init__(self, provider: ModelProvider | None = None) -> None:
+    def __init__(self: MessageSummarizer, provider: ModelProvider | None = None) -> None:
         """Initialize the summarizer.
 
         Args:
@@ -876,7 +876,7 @@ Summary:"""
         self.provider = provider
         self._cached_summary: str | None = None
 
-    def _format_messages_for_summary(self, messages: list[Message]) -> str:
+    def _format_messages_for_summary(self: MessageSummarizer, messages: list[Message]) -> str:
         """Format messages into a readable string for summarization.
 
         Args:
@@ -887,7 +887,7 @@ Summary:"""
         """
         return _format_messages_for_summary_content(messages)
 
-    async def summarize(self, messages: list[Message]) -> str | None:
+    async def summarize(self: MessageSummarizer, messages: list[Message]) -> str | None:
         """Generate a summary of the given messages.
 
         Args:
@@ -910,7 +910,7 @@ Summary:"""
         self._cached_summary = summary
         return summary
 
-    def create_summary_message(self, summary: str) -> Message:
+    def create_summary_message(self: MessageSummarizer, summary: str) -> Message:
         """Create a system message containing the conversation summary.
 
         Args:

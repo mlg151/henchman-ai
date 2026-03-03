@@ -109,8 +109,7 @@ def _extract_imports(source: str) -> list[str]:
 
     for node in ast.iter_child_nodes(tree):
         if isinstance(node, ast.Import):
-            for alias in node.names:
-                modules.append(alias.name.split(".")[0])
+            modules.extend(alias.name.split(".")[0] for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module:
             modules.append(node.module.split(".")[0])
     return list(set(modules))
@@ -169,6 +168,31 @@ def _get_package_entities(python_files: list[str]) -> dict[str, Entity]:
                 tags=["auto-scanned"],
             )
     return packages
+
+
+def _find_import_target(
+    mod: str,
+    file_eid: str,
+    python_files: list[str],
+) -> str | None:
+    """Find the entity ID of a file that matches the import module name.
+
+    Args:
+        mod: Module name being imported.
+        file_eid: Entity ID of the importing file (to avoid self-loops).
+        python_files: Relative paths of all Python files in the repo.
+
+    Returns:
+        Entity ID of the first matching file, or None if not found.
+    """
+    for other_path in python_files:
+        other_module = _path_to_module(other_path)
+        if other_module.split(".")[-1] == mod or other_module.startswith(mod):
+            other_eid = _path_to_entity_id(other_path)
+            if other_eid != file_eid:
+                return other_eid
+            break  # self-match — stop searching
+    return None
 
 
 def scan_repository(
@@ -266,20 +290,15 @@ def scan_repository(
         # Import relations (file-to-file within the repo)
         imports = _extract_imports(source)
         for mod in imports:
-            # Try to find a matching file entity in the repo
-            for other_path in python_files:
-                other_module = _path_to_module(other_path)
-                if other_module.split(".")[-1] == mod or other_module.startswith(mod):
-                    other_eid = _path_to_entity_id(other_path)
-                    if other_eid != file_eid:
-                        store.add_relation(
-                            Relation(
-                                source=file_eid,
-                                target=other_eid,
-                                relation_type="imports",
-                            ),
-                        )
-                    break  # first match only
+            target_eid = _find_import_target(mod, file_eid, python_files)
+            if target_eid:
+                store.add_relation(
+                    Relation(
+                        source=file_eid,
+                        target=target_eid,
+                        relation_type="imports",
+                    ),
+                )
 
         processed += 1
 

@@ -75,17 +75,20 @@ class CodeFormatTool(Tool):
                 error=f"Path not found: {path}",
             )
 
+        create_subprocess_exec = asyncio.create_subprocess_exec
+        PIPE = asyncio.subprocess.PIPE
+
         # First do a check to see what would change
         try:
-            check_proc = await asyncio.create_subprocess_exec(
+            check_proc = await create_subprocess_exec(
                 sys.executable,
                 "-m",
                 "ruff",
                 "format",
                 "--check",
                 path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stdout=PIPE,
+                stderr=PIPE,
             )
             _check_stdout, check_stderr = await asyncio.wait_for(
                 check_proc.communicate(),
@@ -101,14 +104,14 @@ class CodeFormatTool(Tool):
                 )
 
             # Apply formatting
-            fmt_proc = await asyncio.create_subprocess_exec(
+            fmt_proc = await create_subprocess_exec(
                 sys.executable,
                 "-m",
                 "ruff",
                 "format",
                 path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stdout=PIPE,
+                stderr=PIPE,
             )
             fmt_stdout, fmt_stderr = await asyncio.wait_for(
                 fmt_proc.communicate(),

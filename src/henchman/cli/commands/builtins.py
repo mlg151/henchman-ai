@@ -81,12 +81,13 @@ class HelpCommand(Command):
         Returns:
             True if command was found and help shown, False otherwise.
         """
+        console = ctx.console
         command_name = ctx.args[0].lower().removeprefix("/")
         if ctx.registry:
             cmd = ctx.registry.get(command_name)
             if cmd:
-                ctx.console.print(f"  [cyan]/{cmd.name}[/] - {cmd.description}")
-                ctx.console.print(f"  Usage: [yellow]{cmd.usage}[/]\n")
+                console.print(f"  [cyan]/{cmd.name}[/] - {cmd.description}")
+                console.print(f"  Usage: [yellow]{cmd.usage}[/]\n")
                 return True
 
         ctx.console.print(f"[red]Unknown command: /{command_name}[/]\n")
@@ -98,17 +99,18 @@ class HelpCommand(Command):
         Args:
             ctx: Command context.
         """
+        console = ctx.console
         if ctx.registry:
             # Sort commands by name
             commands = sorted(ctx.registry.get_commands(), key=lambda c: c.name)
             for cmd in commands:
-                ctx.console.print(f"  [cyan]/{cmd.name:10}[/] - {cmd.description}")
+                console.print(f"  [cyan]/{cmd.name:10}[/] - {cmd.description}")
         else:
             # Fallback if registry is missing
-            ctx.console.print("  /help     - Show this help message")
-            ctx.console.print("  /quit     - Exit the CLI")
+            console.print("  /help     - Show this help message")
+            console.print("  /quit     - Exit the CLI")
 
-        ctx.console.print("")
+        console.print("")
 
 
 class QuitCommand(Command):
@@ -235,7 +237,8 @@ class ToolsCommand(Command):
         Args:
             ctx: Command context.
         """
-        ctx.console.print("\n[bold blue]Available Tools[/]\n")
+        console = ctx.console
+        console.print("\n[bold blue]Available Tools[/]\n")
 
         # Get tools from registry if available
         tool_registry = ctx.tool_registry
@@ -267,8 +270,8 @@ class ToolsCommand(Command):
         # Sort tools alphabetically by name
         tools.sort(key=lambda x: x[0])
         for name, description in tools:
-            ctx.console.print(f"  [cyan]{name}[/] - {description}")
-        ctx.console.print("")
+            console.print(f"  [cyan]{name}[/] - {description}")
+        console.print("")
 
 
 def get_builtin_commands() -> list[Command]:

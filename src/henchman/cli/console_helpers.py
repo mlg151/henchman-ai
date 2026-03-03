@@ -66,7 +66,7 @@ class ConsoleHelper:
             console.print(f"[yellow]Usage:[/] {usage}")
 
     @staticmethod
-    def print_usage_help(console: Any, usage: str, commands: list[tuple[str, str]], header: str = "Commands:") -> None:
+    def print_usage_help(console: Any, usage: str, commands: list[tuple[str, str]], header: str = "Commands:") -> None:  # noqa: E501
         """Print usage help with command list.
 
         Args:
@@ -83,7 +83,7 @@ class ConsoleHelper:
         console.print("")
 
     @staticmethod
-    def print_parameter_list(console: Any, parameters: list[tuple[str, str]], header: str = "Parameters:") -> None:
+    def print_parameter_list(console: Any, parameters: list[tuple[str, str]], header: str = "Parameters:") -> None:  # noqa: E501
         """Print a list of parameters with descriptions.
 
         Args:

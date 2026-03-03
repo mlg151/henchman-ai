@@ -74,7 +74,7 @@ class ConversationTypeDetector:
         "debugging": _DEBUGGING_KEYWORDS,
     }
 
-    def detect(self, messages: list[Message]) -> str:
+    def detect(self: ConversationTypeDetector, messages: list[Message]) -> str:
         """Detect the type of conversation based on message content.
 
         Args:
@@ -91,7 +91,7 @@ class ConversationTypeDetector:
 
         return self._determine_conversation_type(keyword_counts)
 
-    def _extract_all_content(self, messages: list[Message]) -> str:
+    def _extract_all_content(self: ConversationTypeDetector, messages: list[Message]) -> str:
         """Extract and combine all message content.
 
         Args:
@@ -104,7 +104,7 @@ class ConversationTypeDetector:
             msg.content.lower() for msg in messages if msg.content
         )
 
-    def _count_keywords_by_type(self, content: str) -> dict[str, int]:
+    def _count_keywords_by_type(self: ConversationTypeDetector, content: str) -> dict[str, int]:
         """Count keyword occurrences by conversation type.
 
         Args:
@@ -118,7 +118,7 @@ class ConversationTypeDetector:
             for conversation_type, keywords in self._KEYWORD_SETS.items()
         }
 
-    def _count_keywords(self, content: str, keywords: list[str]) -> int:
+    def _count_keywords(self: ConversationTypeDetector, content: str, keywords: list[str]) -> int:
         """Count how many keywords appear in content.
 
         Args:
@@ -130,7 +130,7 @@ class ConversationTypeDetector:
         """
         return sum(1 for keyword in keywords if keyword in content)
 
-    def _determine_conversation_type(self, keyword_counts: dict[str, int]) -> str:
+    def _determine_conversation_type(self: ConversationTypeDetector, keyword_counts: dict[str, int]) -> str:  # noqa: E501
         """Determine conversation type based on keyword counts.
 
         Args:
@@ -179,14 +179,14 @@ class IntelligentContextConfig:
     max_tokens: int = IntelligentContextConstants.DEFAULT_MAX_TOKENS
     max_protected_ratio: float = IntelligentContextConstants.DEFAULT_MAX_PROTECTED_RATIO
     importance_threshold: float = IntelligentContextConstants.DEFAULT_IMPORTANCE_THRESHOLD
-    cluster_similarity_threshold: float = IntelligentContextConstants.DEFAULT_CLUSTER_SIMILARITY_THRESHOLD
+    cluster_similarity_threshold: float = IntelligentContextConstants.DEFAULT_CLUSTER_SIMILARITY_THRESHOLD  # noqa: E501
     adaptive_compression: bool = True
     safety_limit_ratio: float = IntelligentContextConstants.DEFAULT_SAFETY_LIMIT_RATIO
     minimum_word_length: int = IntelligentContextConstants.DEFAULT_MINIMUM_WORD_LENGTH
     minimum_shared_words: int = IntelligentContextConstants.DEFAULT_MINIMUM_SHARED_WORDS
     cluster_size_boost_factor: float = IntelligentContextConstants.DEFAULT_CLUSTER_SIZE_BOOST_FACTOR
-    compression_high_threshold: float = IntelligentContextConstants.DEFAULT_COMPRESSION_HIGH_THRESHOLD
-    compression_medium_threshold: float = IntelligentContextConstants.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD
+    compression_high_threshold: float = IntelligentContextConstants.DEFAULT_COMPRESSION_HIGH_THRESHOLD  # noqa: E501
+    compression_medium_threshold: float = IntelligentContextConstants.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD  # noqa: E501
 
 
 @dataclass
@@ -238,7 +238,7 @@ class IntelligentContextManager:
     """
 
     def __init__(
-        self,
+        self: IntelligentContextManager,
         max_tokens: int | None = None,
         max_protected_ratio: float | None = None,
         importance_threshold: float | None = None,
@@ -261,9 +261,9 @@ class IntelligentContextManager:
         # Use provided values or defaults from constants
         self.config = IntelligentContextConfig(
             max_tokens=max_tokens or IntelligentContextConstants.DEFAULT_MAX_TOKENS,
-            max_protected_ratio=max_protected_ratio or IntelligentContextConstants.DEFAULT_MAX_PROTECTED_RATIO,
-            importance_threshold=importance_threshold or IntelligentContextConstants.DEFAULT_IMPORTANCE_THRESHOLD,
-            cluster_similarity_threshold=cluster_similarity_threshold or IntelligentContextConstants.DEFAULT_CLUSTER_SIMILARITY_THRESHOLD,
+            max_protected_ratio=max_protected_ratio or IntelligentContextConstants.DEFAULT_MAX_PROTECTED_RATIO,  # noqa: E501
+            importance_threshold=importance_threshold or IntelligentContextConstants.DEFAULT_IMPORTANCE_THRESHOLD,  # noqa: E501
+            cluster_similarity_threshold=cluster_similarity_threshold or IntelligentContextConstants.DEFAULT_CLUSTER_SIMILARITY_THRESHOLD,  # noqa: E501
             adaptive_compression=adaptive_compression if adaptive_compression is not None else True,
         )
         self.max_protected_tokens = int(
@@ -278,7 +278,7 @@ class IntelligentContextManager:
             minimum_shared_words=self.config.minimum_shared_words,
         )
 
-    def enforce_safety_limits(self, messages: list[Message]) -> list[Message]:
+    def enforce_safety_limits(self: IntelligentContextManager, messages: list[Message]) -> list[Message]:  # noqa: E501
         """Enforce limits on individual message size using tokens.
 
         This prevents context overflow from individual massive messages
@@ -300,7 +300,7 @@ class IntelligentContextManager:
 
         return safe_messages
 
-    def _enforce_message_safety_limit(self, message: Message, limit: int) -> Message:
+    def _enforce_message_safety_limit(self: IntelligentContextManager, message: Message, limit: int) -> Message:  # noqa: E501
         """Enforce safety limit on a single message.
 
         Args:
@@ -333,10 +333,11 @@ class IntelligentContextManager:
             New Message with truncated content.
         """
         # Handle None content case
-        if not message.content:
+        message_content = message.content
+        if not message_content:
             return message
 
-        truncated_content = TokenCounter.truncate_text(message.content, limit)
+        truncated_content = TokenCounter.truncate_text(message_content, limit)
         new_content = (
             truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
         )
@@ -349,7 +350,7 @@ class IntelligentContextManager:
         )
 
     def compact(
-        self,
+        self: IntelligentContextManager,
         messages: list[Message],
         protect_from_index: int = -1,
     ) -> list[Message]:
@@ -371,7 +372,7 @@ class IntelligentContextManager:
         return messages
 
     def compact_with_result(
-        self,
+        self: IntelligentContextManager,
         messages: list[Message],
         protect_from_index: int = -1,
     ) -> IntelligentCompactionResult:
@@ -396,7 +397,7 @@ class IntelligentContextManager:
             compression_ratio=None,
         )
 
-    def validate_compacted_sequence(self, messages: list[Message]) -> bool:
+    def validate_compacted_sequence(self: IntelligentContextManager, messages: list[Message]) -> bool:  # noqa: E501
         """Validate that a message sequence follows OpenAI API rules.
 
         Args:
@@ -421,7 +422,7 @@ class IntelligentContextManager:
 
         return True
 
-    def _calculate_importance_scores(self, messages: list[Message]) -> dict[int, float]:
+    def _calculate_importance_scores(self: IntelligentContextManager, messages: list[Message]) -> dict[int, float]:  # noqa: E501
         """Calculate importance scores for each message.
 
         Importance is based on:
@@ -439,7 +440,7 @@ class IntelligentContextManager:
         """
         return self.importance_scorer.calculate_importance_scores(messages)
 
-    def _cluster_messages(self, messages: list[Message]) -> list[list[int]]:
+    def _cluster_messages(self: IntelligentContextManager, messages: list[Message]) -> list[list[int]]:  # noqa: E501
         """Cluster related messages based on semantic similarity.
 
         Groups messages that discuss the same topic or are part of the
@@ -454,7 +455,7 @@ class IntelligentContextManager:
         return self.message_clusterer.cluster_messages(messages)
 
     def _apply_adaptive_compression(
-        self,
+        self: IntelligentContextManager,
         messages: list[Message],
         importance_scores: dict[int, float],
         clusters: list[list[int]],
@@ -491,7 +492,7 @@ class IntelligentContextManager:
         strategy = CompressionStrategyFactory.create_for_conversation_type(conversation_type)
         return strategy.compress(messages, clusters, cluster_importance)
 
-    def _detect_conversation_type(self, messages: list[Message]) -> str:
+    def _detect_conversation_type(self: IntelligentContextManager, messages: list[Message]) -> str:
         """Detect the type of conversation based on message content.
 
         This method is kept for backward compatibility with tests.
@@ -507,7 +508,7 @@ class IntelligentContextManager:
         return detector.detect(messages)
 
     def _calculate_cluster_importance(
-        self,
+        self: IntelligentContextManager,
         clusters: list[list[int]],
         importance_scores: dict[int, float],
     ) -> dict[int, float]:
@@ -545,7 +546,7 @@ class IntelligentContextManager:
         return cluster_importance
 
     def _generate_intelligent_summary(
-        self, messages: list[Message], importance_scores: dict[int, float], clusters: list[list[int]],
+        self: IntelligentContextManager, messages: list[Message], importance_scores: dict[int, float], clusters: list[list[int]],  # noqa: E501
     ) -> str | None:
         """Generate intelligent summary of compressed/dropped content.
 
@@ -561,7 +562,7 @@ class IntelligentContextManager:
         return None
 
     def _preserve_critical_context(
-        self, messages: list[Message], importance_scores: dict[int, float],
+        self: IntelligentContextManager, messages: list[Message], importance_scores: dict[int, float],  # noqa: E501
     ) -> list[Message]:
         """Ensure critical context is preserved regardless of token limits.
 

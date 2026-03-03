@@ -1,5 +1,6 @@
 """Environment inspector tool implementation."""
 
+from __future__ import annotations
 import os
 import sys
 from pathlib import Path
@@ -29,12 +30,12 @@ class EnvInspectTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: EnvInspectTool) -> str:
         """Tool name."""
         return "env_inspect"
 
     @property
-    def description(self) -> str:
+    def description(self: EnvInspectTool) -> str:
         """Tool description."""
         return (
             "Inspect the Python environment: version, virtualenv, installed packages, "
@@ -42,7 +43,7 @@ class EnvInspectTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: EnvInspectTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -70,12 +71,12 @@ class EnvInspectTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: EnvInspectTool) -> ToolKind:
         """Tool kind - read-only inspection."""
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-        self,
+        self: EnvInspectTool,
         cwd: str | None = None,
         packages: list[str] | None = None,
         show_env_vars: bool = False,
@@ -95,59 +96,60 @@ class EnvInspectTool(Tool):
             ToolResult with environment information.
         """
         parts: list[str] = []
+        append_part = parts.append
         work_dir = Path(cwd) if cwd else Path.cwd()
 
         # Python info
-        parts.append("Python Environment:")
-        parts.append(f"  Version: {sys.version.split()[0]}")
-        parts.append(f"  Executable: {sys.executable}")
-        parts.append(f"  Platform: {sys.platform}")
+        append_part("Python Environment:")
+        append_part(f"  Version: {sys.version.split()[0]}")
+        append_part(f"  Executable: {sys.executable}")
+        append_part(f"  Platform: {sys.platform}")
 
         # Virtualenv
         venv = os.environ.get("VIRTUAL_ENV", "")
         conda = os.environ.get("CONDA_DEFAULT_ENV", "")
         if venv:
-            parts.append(f"  Virtual env: {venv}")
+            append_part(f"  Virtual env: {venv}")
         elif conda:
-            parts.append(f"  Conda env: {conda}")
+            append_part(f"  Conda env: {conda}")
         else:
-            parts.append("  Virtual env: (none)")
+            append_part("  Virtual env: (none)")
 
         # Package versions
         if packages:
-            parts.append("\nPackage Versions:")
+            append_part("\nPackage Versions:")
             for pkg_name in packages:
                 version = self._get_package_version(pkg_name)
-                parts.append(f"  {pkg_name}: {version}")
+                append_part(f"  {pkg_name}: {version}")
 
         # Project detection
-        parts.append(f"\nProject ({work_dir.name}):")
+        append_part(f"\nProject ({work_dir.name}):")
         project_files = self._detect_project(work_dir)
         if project_files:
             for pf in project_files:
-                parts.append(f"  {pf}")
+                append_part(f"  {pf}")
         else:
-            parts.append("  (no project files detected)")
+            append_part("  (no project files detected)")
 
         # sys.path
         if show_path:
-            parts.append("\nsys.path:")
+            append_part("\nsys.path:")
             for p in sys.path:
                 if p:
-                    parts.append(f"  {p}")
+                    append_part(f"  {p}")
 
         # Environment variables (filtered)
         if show_env_vars:
-            parts.append("\nEnvironment Variables (safe):")
+            append_part("\nEnvironment Variables (safe):")
             safe_vars = self._get_safe_env_vars()
             for key, value in sorted(safe_vars.items()):
-                parts.append(f"  {key}={value}")
+                append_part(f"  {key}={value}")
             if not safe_vars:
-                parts.append("  (none)")
+                append_part("  (none)")
 
         return ToolResult(content="\n".join(parts), success=True)
 
-    def _get_package_version(self, name: str) -> str:
+    def _get_package_version(self: EnvInspectTool, name: str) -> str:
         """Get installed version of a package.
 
         Args:
@@ -163,7 +165,7 @@ class EnvInspectTool(Tool):
         except Exception:  # noqa: BLE001
             return "not installed"
 
-    def _detect_project(self, directory: Path) -> list[str]:
+    def _detect_project(self: EnvInspectTool, directory: Path) -> list[str]:
         """Detect project type from config files.
 
         Args:
@@ -194,7 +196,7 @@ class EnvInspectTool(Tool):
 
         return indicators
 
-    def _get_safe_env_vars(self) -> dict[str, str]:
+    def _get_safe_env_vars(self: EnvInspectTool) -> dict[str, str]:
         """Get environment variables, filtering out secrets.
 
         Returns:

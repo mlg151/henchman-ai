@@ -78,7 +78,7 @@ class FilteredStream(io.StringIO):
 
             # Also check for common Python logging format variations
             if (
-                line_stripped.startswith(("INFO ", "DEBUG ", "INFO:", "DEBUG:")) or "[INFO]" in line_stripped or "[DEBUG]" in line_stripped
+                line_stripped.startswith(("INFO ", "DEBUG ", "INFO:", "DEBUG:")) or "[INFO]" in line_stripped or "[DEBUG]" in line_stripped  # noqa: E501
             ):
                 continue
 

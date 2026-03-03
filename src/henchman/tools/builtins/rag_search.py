@@ -26,7 +26,7 @@ class RagSearchTool(Tool):
     """
 
     def __init__(
-        self,
+        self: RagSearchTool,
         store: VectorStore,
         top_k: int = 5,
     ) -> None:
@@ -40,12 +40,12 @@ class RagSearchTool(Tool):
         self._top_k = top_k
 
     @property
-    def name(self) -> str:
+    def name(self: RagSearchTool) -> str:
         """Tool name."""
         return "rag_search"
 
     @property
-    def description(self) -> str:
+    def description(self: RagSearchTool) -> str:
         """Tool description."""
         return (
             "Search the codebase using semantic similarity. "
@@ -55,7 +55,7 @@ class RagSearchTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: RagSearchTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -79,12 +79,12 @@ class RagSearchTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: RagSearchTool) -> ToolKind:
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-        self,
+        self: RagSearchTool,
         query: str = "",
         top_k: int | None = None,
         **kwargs: object,  # noqa: ARG002
@@ -119,17 +119,20 @@ class RagSearchTool(Tool):
 
             # Format results for LLM
             formatted_parts = [f"Found {len(results)} relevant code chunks:\n"]
+            append_part = formatted_parts.append
             for i, result in enumerate(results, 1):
-                formatted_parts.append(
-                    f"\n[{i}] {result.file_path} "
+                result_file_path = result.file_path
+                result_content = result.content
+                append_part(
+                    f"\n[{i}] {result_file_path} "
                     f"(lines {result.start_line}-{result.end_line}, "
                     f"score: {result.score:.3f})\n",
                 )
-                formatted_parts.append("```\n")
-                formatted_parts.append(result.content)
-                if not result.content.endswith("\n"):
-                    formatted_parts.append("\n")
-                formatted_parts.append("```\n")
+                append_part("```\n")
+                append_part(result_content)
+                if not result_content.endswith("\n"):
+                    append_part("\n")
+                append_part("```\n")
 
             content = "".join(formatted_parts)
 

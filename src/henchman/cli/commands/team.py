@@ -35,7 +35,8 @@ class TeamCommand(Command):
             ctx: Command context.
         """
         if not ctx.repl or not hasattr(ctx.repl, "orchestrator") or not ctx.repl.orchestrator:
-            ctx.console.print("[red]Multi-agent system not initialized.[/]")
+            console = ctx.console
+            console.print("[red]Multi-agent system not initialized.[/]")
             return
 
         orchestrator: Orchestrator = ctx.repl.orchestrator
@@ -46,24 +47,25 @@ class TeamCommand(Command):
         elif args[0] == "reset":
             orchestrator.pool.reset_all()
             orchestrator.tech_lead.clear_history()
-            ctx.console.print("[green]All agent histories have been reset.[/]")
+            console.print("[green]All agent histories have been reset.[/]")
         else:
-            ctx.console.print(f"[red]Unknown team subcommand: {args[0]}[/]")
+            console.print(f"[red]Unknown team subcommand: {args[0]}[/]")
 
     def _show_status(self, ctx: CommandContext, orchestrator: Orchestrator) -> None:
         """Show detailed team status."""
-        ctx.console.print("\n[bold blue]Team Status[/]\n")
+        console = ctx.console
+        console.print("\n[bold blue]Team Status[/]\n")
 
         pool = orchestrator.pool
         active = pool.list_active_agents()
 
-        ctx.console.print(f"Active Agents: [bold green]{len(active)}[/] / {len(pool.configs)}")
+        console.print(f"Active Agents: [bold green]{len(active)}[/] / {len(pool.configs)}")
         for agent in active:
-            ctx.console.print(f"  - [cyan]{agent.name}[/] ([dim]{agent.role}[/])")
+            console.print(f"  - [cyan]{agent.name}[/] ([dim]{agent.role}[/])")
 
         if orchestrator.shared_context:
-            ctx.console.print("\n[bold yellow]Recent Shared Context Decisions:[/]")
+            console.print("\n[bold yellow]Recent Shared Context Decisions:[/]")
             for item in orchestrator.shared_context[-3:]:
-                ctx.console.print(
-                    f"  [dim]{item['timestamp']}[/] [[bold cyan]{item['agent']}[/]]: {item['summary'][:100]}...",
+                console.print(
+                    f"  [dim]{item['timestamp']}[/] [[bold cyan]{item['agent']}[/]]: {item['summary'][:100]}...",  # noqa: E501
                 )

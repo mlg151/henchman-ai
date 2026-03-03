@@ -372,7 +372,7 @@ class PluginManager(ExtensionManager):
         if installation.metadata.security.requires_sandbox:
             warnings.append("Plugin requires sandboxed execution")
 
-        risk_level = PluginConstants.DEFAULT_RISK_LEVEL if warnings else PluginConstants.LOW_RISK_LEVEL
+        risk_level = PluginConstants.DEFAULT_RISK_LEVEL if warnings else PluginConstants.LOW_RISK_LEVEL  # noqa: E501
 
         return SecurityReport(
             plugin_name=plugin_name,

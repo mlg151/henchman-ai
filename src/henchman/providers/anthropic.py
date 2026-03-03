@@ -142,8 +142,9 @@ class _AnthropicStreamProcessor:
                     event, pending_tool_calls, current_tool_id, total_output_tokens,
                 )
 
-                if chunk.current_tool_id is not None:
-                    current_tool_id = chunk.current_tool_id
+                chunk_current_tool_id = chunk.current_tool_id
+                if chunk_current_tool_id is not None:
+                    current_tool_id = chunk_current_tool_id
 
                 if chunk.total_output_tokens_delta > 0:
                     total_output_tokens += chunk.total_output_tokens_delta
@@ -187,9 +188,10 @@ class _AnthropicStreamProcessor:
         """Handle content_block_start event."""
         block = event.content_block
         if block.type == "tool_use":
-            current_tool_id = block.id
-            pending_tool_calls[block.id] = {
-                "id": block.id,
+            block_id = block.id
+            current_tool_id = block_id
+            pending_tool_calls[block_id] = {
+                "id": block_id,
                 "name": block.name,
                 "arguments": "",
             }
@@ -207,19 +209,20 @@ class _AnthropicStreamProcessor:
     ) -> "_EventProcessingResult":
         """Handle content_block_delta event."""
         delta = event.delta
+        delta_type = delta.type
         content: str | None = None
         thinking: str | None = None
         tokens_delta = 0
 
-        if delta.type == "text_delta":
+        if delta_type == "text_delta":
             content = delta.text
             if content:  # Only count if content is not None/empty
                 tokens_delta = TokenCounter.count_text(content, model=self._default_model)
-        elif delta.type == "thinking_delta":
+        elif delta_type == "thinking_delta":
             thinking = delta.thinking
             if thinking:  # Only count if thinking is not None/empty
                 tokens_delta = TokenCounter.count_text(thinking, model=self._default_model)
-        elif delta.type == "input_json_delta" and current_tool_id:
+        elif delta_type == "input_json_delta" and current_tool_id:
             pending_tool_calls[current_tool_id]["arguments"] += delta.partial_json
             tokens_delta = TokenCounter.count_text(delta.partial_json, model=self._default_model)
 
@@ -289,28 +292,19 @@ class AnthropicProvider(ModelProvider):
 
     def __init__(
         self,
-        api_key: str | None = None,
-        model: str = "claude-sonnet-4-20250514",
-        max_tokens: int = DEFAULT_MAX_TOKENS,
-        tokens_per_minute: int = DEFAULT_TOKENS_PER_MINUTE,
-        max_retries: int = DEFAULT_MAX_RETRIES,
+        config: AnthropicProviderConfig | None = None,
+        **kwargs: Any,
     ) -> None:
         """Initialize the Anthropic provider.
 
         Args:
-            api_key: API key for authentication. Defaults to ANTHROPIC_API_KEY env var.
-            model: Default model to use.
-            max_tokens: Maximum tokens in response.
-            tokens_per_minute: Maximum tokens per minute (rate limit).
-            max_retries: Maximum number of retries for rate limits.
+            config: Provider configuration. If None, one is built from ``kwargs``.
+            **kwargs: Keyword arguments forwarded to ``AnthropicProviderConfig`` when
+                ``config`` is not supplied (e.g. ``api_key``, ``model``,
+                ``max_tokens``, ``tokens_per_minute``, ``max_retries``).
         """
-        config = AnthropicProviderConfig(
-            api_key=api_key,
-            model=model,
-            max_tokens=max_tokens,
-            tokens_per_minute=tokens_per_minute,
-            max_retries=max_retries,
-        )
+        if config is None:
+            config = AnthropicProviderConfig(**kwargs)
         self._initialize_from_config(config)
 
     def _initialize_from_config(self, config: AnthropicProviderConfig) -> None:
@@ -434,15 +428,15 @@ class AnthropicProvider(ModelProvider):
         if message.content:
             content.append({"type": "text", "text": message.content})
 
-        for tc in message.tool_calls or []:
-            content.append(
-                {
-                    "type": "tool_use",
-                    "id": tc.id,
-                    "name": tc.name,
-                    "input": tc.arguments,
-                },
-            )
+        content.extend(
+            {
+                "type": "tool_use",
+                "id": tc.id,
+                "name": tc.name,
+                "input": tc.arguments,
+            }
+            for tc in (message.tool_calls or [])
+        )
 
         return {
             "role": message.role,

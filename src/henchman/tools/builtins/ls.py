@@ -1,5 +1,6 @@
 """List directory tool implementation."""
 
+from __future__ import annotations
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -15,17 +16,17 @@ class LsTool(Tool):
     MAX_ITEMS = 1000
 
     @property
-    def name(self) -> str:
+    def name(self: LsTool) -> str:
         """Tool name."""
         return "ls"
 
     @property
-    def description(self) -> str:
+    def description(self: LsTool) -> str:
         """Tool description."""
         return "List files and directories in a path."
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: LsTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -45,12 +46,12 @@ class LsTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: LsTool) -> ToolKind:
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-        self,
+        self: LsTool,
         path: str = ".",
         show_hidden: bool = False,
         **kwargs: object,  # noqa: ARG002

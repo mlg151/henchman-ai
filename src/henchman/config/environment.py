@@ -206,9 +206,10 @@ def _get_directory_snapshot(directory: Path, max_entries: int = 30) -> list[str]
             entries.append(name)
             if len(entries) >= max_entries:
                 break
-        return entries
     except OSError:
         return []
+    else:
+        return entries
 
 
 def _detect_available_tools() -> list[str]:
@@ -217,11 +218,7 @@ def _detect_available_tools() -> list[str]:
     Returns:
         List of available tool names.
     """
-    available: list[str] = []
-    for tool in _PROBE_TOOLS:
-        if shutil.which(tool) is not None:
-            available.append(tool)
-    return available
+    return [tool for tool in _PROBE_TOOLS if shutil.which(tool) is not None]
 
 
 def gather_environment(cwd: Path | None = None) -> EnvironmentContext:

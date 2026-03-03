@@ -1,5 +1,6 @@
 """Write file tool implementation."""
 
+from __future__ import annotations
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -13,17 +14,17 @@ class WriteFileTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: WriteFileTool) -> str:
         """Tool name."""
         return "write_file"
 
     @property
-    def description(self) -> str:
+    def description(self: WriteFileTool) -> str:
         """Tool description."""
         return "Write content to a file. Creates parent directories if needed."
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: WriteFileTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -41,12 +42,12 @@ class WriteFileTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: WriteFileTool) -> ToolKind:
         """Tool kind - WRITE requires confirmation."""
         return ToolKind.WRITE
 
     async def execute(  # type: ignore[override]
-        self,
+        self: WriteFileTool,
         path: str = "",
         content: str = "",
         **kwargs: object,  # noqa: ARG002

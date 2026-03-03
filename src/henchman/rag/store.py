@@ -19,6 +19,13 @@ if TYPE_CHECKING:
     from henchman.rag.chunker import Chunk
     from henchman.rag.embedder import EmbeddingProvider
 
+# Retry parameters for ChromaDB operations
+_RETRY_MAX_RETRIES: int = 3
+"""Default maximum retries for locked/concurrent ChromaDB operations."""
+
+_RETRY_DELAY: float = 0.1
+"""Default delay in seconds between retries for ChromaDB operations."""
+
 
 @dataclass
 class SearchResult:
@@ -40,7 +47,7 @@ class SearchResult:
     score: float
     chunk_id: str
 
-    def format_for_llm(self) -> str:
+    def format_for_llm(self: SearchResult) -> str:
         """Format result for LLM consumption.
 
         Returns:
@@ -62,7 +69,7 @@ class VectorStore:
     """
 
     def __init__(
-        self,
+        self: VectorStore,
         persist_path: Path | str,
         embedder: EmbeddingProvider,
         collection_name: str = "code_chunks",
@@ -121,8 +128,8 @@ class VectorStore:
             if last_error:
                 raise last_error
 
-    @retry_on_locked(max_retries=3, delay=0.1)
-    def add_chunks(self, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
+    @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
+    def add_chunks(self: VectorStore, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
         """Add chunks with their embeddings to the store.
 
         Args:
@@ -132,7 +139,8 @@ class VectorStore:
         if not chunks:
             return
 
-        self.collection.add(
+        collection = self.collection
+        collection.add(
             ids=[chunk.id for chunk in chunks],
             embeddings=embeddings,  # type: ignore[arg-type]
             documents=[chunk.content for chunk in chunks],
@@ -147,8 +155,8 @@ class VectorStore:
             ],
         )
 
-    @retry_on_locked(max_retries=3, delay=0.1)
-    def search(self, query: str, top_k: int = 5) -> list[SearchResult]:
+    @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
+    def search(self: VectorStore, query: str, top_k: int = 5) -> list[SearchResult]:
         """Search for similar chunks.
 
         Args:
@@ -201,8 +209,8 @@ class VectorStore:
 
         return search_results
 
-    @retry_on_locked(max_retries=3, delay=0.1)
-    def delete_by_file(self, file_path: str) -> None:
+    @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
+    def delete_by_file(self: VectorStore, file_path: str) -> None:
         """Delete all chunks from a specific file.
 
         Args:
@@ -217,8 +225,8 @@ class VectorStore:
         if results["ids"]:
             self.collection.delete(ids=results["ids"])
 
-    @retry_on_locked(max_retries=3, delay=0.1)
-    def delete_by_ids(self, chunk_ids: list[str]) -> None:
+    @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
+    def delete_by_ids(self: VectorStore, chunk_ids: list[str]) -> None:
         """Delete chunks by their IDs.
 
         Args:
@@ -227,8 +235,8 @@ class VectorStore:
         if chunk_ids:
             self.collection.delete(ids=chunk_ids)
 
-    @retry_on_locked(max_retries=3, delay=0.1)
-    def get_all_file_paths(self) -> set[str]:
+    @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
+    def get_all_file_paths(self: VectorStore) -> set[str]:
         """Get all unique file paths in the store.
 
         Returns:
@@ -242,8 +250,8 @@ class VectorStore:
                     file_paths.add(str(metadata["file_path"]))
         return file_paths
 
-    @retry_on_locked(max_retries=3, delay=0.1)
-    def count(self) -> int:
+    @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
+    def count(self: VectorStore) -> int:
         """Get the total number of chunks in the store.
 
         Returns:
@@ -251,8 +259,8 @@ class VectorStore:
         """
         return self.collection.count()
 
-    @retry_on_locked(max_retries=3, delay=0.1)
-    def clear(self) -> None:
+    @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
+    def clear(self: VectorStore) -> None:
         """Clear all chunks from the store."""
         # Delete and recreate the collection
         self.client.delete_collection(self.collection_name)

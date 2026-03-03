@@ -41,7 +41,7 @@ class KgQueryTool(Tool):
     repository if the graph is empty.
     """
 
-    def __init__(self, store: KnowledgeStore | None = None) -> None:
+    def __init__(self: KgQueryTool, store: KnowledgeStore | None = None) -> None:
         """Initialise the knowledge graph query tool.
 
         Args:
@@ -52,12 +52,12 @@ class KgQueryTool(Tool):
         self._initialised = store is not None
 
     @property
-    def name(self) -> str:
+    def name(self: KgQueryTool) -> str:
         """Tool name."""
         return "kg_query"
 
     @property
-    def description(self) -> str:
+    def description(self: KgQueryTool) -> str:
         """Tool description."""
         return (
             "Query the project knowledge graph. Supports actions: "
@@ -66,7 +66,7 @@ class KgQueryTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: KgQueryTool) -> dict[str, object]:
         """JSON Schema for tool parameters."""
         return {
             "type": "object",
@@ -108,11 +108,11 @@ class KgQueryTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: KgQueryTool) -> ToolKind:
         """Read-only tool — auto-approved."""
         return ToolKind.READ
 
-    def _ensure_initialised(self) -> KnowledgeStore | None:
+    def _ensure_initialised(self: KgQueryTool) -> KnowledgeStore | None:
         """Lazy init: discover git root, create store, auto-scan if empty."""
         if self._initialised:
             return self._store
@@ -131,7 +131,7 @@ class KgQueryTool(Tool):
         self._initialised = True
         return self._store
 
-    async def execute(self, **params: object) -> ToolResult:
+    async def execute(self: KgQueryTool, **params: object) -> ToolResult:
         """Execute a knowledge graph query.
 
         Args:
@@ -186,7 +186,7 @@ class KgQueryTool(Tool):
         return ToolResult(content=f"Unknown action: '{action}'.")
 
     def _handle_search(
-        self, store: KnowledgeStore, query: str, entity_type: object | None,
+        self: KgQueryTool, store: KnowledgeStore, query: str, entity_type: object | None,
     ) -> ToolResult:
         """Handle search action."""
         if not query:
@@ -200,7 +200,7 @@ class KgQueryTool(Tool):
 
         return ToolResult(content=store.format_for_llm(entities))
 
-    def _handle_get(self, store: KnowledgeStore, query: str) -> ToolResult:
+    def _handle_get(self: KgQueryTool, store: KnowledgeStore, query: str) -> ToolResult:
         """Handle get action."""
         if not query:
             return ToolResult(content="'query' (entity id) is required for get action.")
@@ -211,7 +211,7 @@ class KgQueryTool(Tool):
 
         return ToolResult(content=store.format_entity_for_llm(entity))
 
-    def _handle_neighbors(self, store: KnowledgeStore, query: str, depth: int) -> ToolResult:
+    def _handle_neighbors(self: KgQueryTool, store: KnowledgeStore, query: str, depth: int) -> ToolResult:  # noqa: E501
         """Handle neighbors action."""
         if not query:
             return ToolResult(content="'query' (entity id) is required for neighbors action.")
@@ -222,7 +222,7 @@ class KgQueryTool(Tool):
 
         return ToolResult(content=store.format_for_llm(neighbors))
 
-    def _handle_relations(self, store: KnowledgeStore, query: str) -> ToolResult:
+    def _handle_relations(self: KgQueryTool, store: KnowledgeStore, query: str) -> ToolResult:
         """Handle relations action."""
         if not query:
             return ToolResult(content="'query' (entity id) is required for relations action.")
@@ -233,14 +233,15 @@ class KgQueryTool(Tool):
 
         lines = [f"# Relations for `{query}`\n"]
         for rel in relations:
-            arrow = "→" if rel.source == query else "←"
-            other = rel.target if rel.source == query else rel.source
+            rel_source = rel.source
+            arrow = "→" if rel_source == query else "←"
+            other = rel.target if rel_source == query else rel_source
             desc = f" ({rel.description})" if rel.description else ""
             lines.append(f"- {arrow} **{rel.relation_type}**: `{other}`{desc}")
 
         return ToolResult(content="\n".join(lines))
 
-    def _handle_important(self, store: KnowledgeStore, top_k: int) -> ToolResult:
+    def _handle_important(self: KgQueryTool, store: KnowledgeStore, top_k: int) -> ToolResult:
         """Handle important action."""
         ranked = store.get_important_entities(top_k=top_k)
         if not ranked:
@@ -252,7 +253,7 @@ class KgQueryTool(Tool):
 
         return ToolResult(content="\n".join(lines))
 
-    def _handle_stats(self, store: KnowledgeStore) -> ToolResult:
+    def _handle_stats(self: KgQueryTool, store: KnowledgeStore) -> ToolResult:
         """Handle stats action."""
         components = store.get_connected_components()
         return ToolResult(

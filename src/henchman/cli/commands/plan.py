@@ -12,7 +12,7 @@ PLAN_MODE_PROMPT = """
 **PLAN MODE ACTIVE**
 You are currently in PLAN MODE.
 Your goal is to discuss, plan, and architect solutions without modifying the codebase.
-You can read files and explore the project, but you cannot write files or execute commands that modify state.
+You can read files and explore the project, but you cannot write files or execute commands that modify state.  # noqa: E501
 Focus on creating detailed implementation plans.
 ---
 """
@@ -43,7 +43,8 @@ class PlanCommand(Command):
             ctx: Command context.
         """
         if not ctx.session:
-            ctx.console.print("[yellow]No active session. Plan mode requires a session.[/]")
+            console = ctx.console
+            console.print("[yellow]No active session. Plan mode requires a session.[/]")
             return
 
         # Toggle mode
@@ -74,6 +75,6 @@ class PlanCommand(Command):
 
         state = "ENABLED" if new_mode else "DISABLED"
         style = "bold green" if new_mode else "bold yellow"
-        ctx.console.print(f"[{style}]Plan Mode {state}[/]")
+        console.print(f"[{style}]Plan Mode {state}[/]")
         if new_mode:
-            ctx.console.print("[dim]Write and Execute tools are now disabled.[/]")
+            console.print("[dim]Write and Execute tools are now disabled.[/]")

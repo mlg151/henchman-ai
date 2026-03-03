@@ -33,17 +33,19 @@ class MetricsReporter:
             A formatted markdown string with performance metrics.
         """
         report_lines = ["## Performance Metrics Dashboard", ""]
+        report_lines_extend = report_lines.extend
+        report_lines_append = report_lines.append
 
-        report_lines.extend(self._generate_efficiency_metrics())
-        report_lines.append("")
+        report_lines_extend(self._generate_efficiency_metrics())
+        report_lines_append("")
 
-        report_lines.extend(self._generate_quality_metrics())
-        report_lines.append("")
+        report_lines_extend(self._generate_quality_metrics())
+        report_lines_append("")
 
-        report_lines.extend(self._generate_target_metrics())
-        report_lines.append("")
+        report_lines_extend(self._generate_target_metrics())
+        report_lines_append("")
 
-        report_lines.extend(self._generate_detailed_statistics())
+        report_lines_extend(self._generate_detailed_statistics())
 
         return "\n".join(report_lines)
 

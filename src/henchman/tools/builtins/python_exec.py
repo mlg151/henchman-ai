@@ -86,13 +86,15 @@ class PythonExecTool(Tool):
 
         effective_timeout: float | None = None if timeout == 0 else timeout
 
+        create_subprocess_exec = asyncio.create_subprocess_exec
+        PIPE = asyncio.subprocess.PIPE
         try:
-            process = await asyncio.create_subprocess_exec(
+            process = await create_subprocess_exec(
                 sys.executable,
                 "-c",
                 code,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stdout=PIPE,
+                stderr=PIPE,
                 cwd=cwd,
             )
 

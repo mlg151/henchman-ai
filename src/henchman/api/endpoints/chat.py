@@ -460,7 +460,7 @@ async def chat_completion_stream(
 async def get_chat_history(
     api_key: Annotated[str | None, Depends(verify_api_key)],
     agent: Annotated[Agent, Depends(get_agent)],
-    limit: Annotated[int, Query(ge=1, le=1000, description="Maximum number of messages to return")] = 100,
+    limit: Annotated[int, Query(ge=1, le=1000, description="Maximum number of messages to return")] = 100,  # noqa: E501
 ) -> list[ChatMessage]:
     """Get chat history.
 
@@ -482,16 +482,15 @@ async def get_chat_history(
     messages = agent.get_messages_for_api()
 
     # Convert to response format
-    response_messages = []
-    for msg in messages[-limit:]:  # Return most recent messages
-        response_messages.append(
-            ChatMessage(
-                role=msg.role,
-                content=msg.content or "",
-                tool_calls=msg.tool_calls,
-                tool_call_id=msg.tool_call_id,
-            ),
+    response_messages = [
+        ChatMessage(
+            role=msg.role,
+            content=msg.content or "",
+            tool_calls=msg.tool_calls,
+            tool_call_id=msg.tool_call_id,
         )
+        for msg in messages[-limit:]
+    ]
 
     return response_messages
 

@@ -39,13 +39,14 @@ class MetricsExporter:
             TypeError: If metrics data can't be serialized to JSON.
         """
         # Get metrics based on filters
+        filters_get = filters.get
         metrics = self.metrics_storage.get_metrics(
-            metric_type=filters.get("metric_type"),
-            session_id=filters.get("session_id"),
-            agent_id=filters.get("agent_id"),
-            start_date=filters.get("start_date"),
-            end_date=filters.get("end_date"),
-            limit=filters.get("limit"),
+            metric_type=filters_get("metric_type"),
+            session_id=filters_get("session_id"),
+            agent_id=filters_get("agent_id"),
+            start_date=filters_get("start_date"),
+            end_date=filters_get("end_date"),
+            limit=filters_get("limit"),
         )
 
         # Create output directory if it doesn't exist
@@ -72,8 +73,8 @@ class MetricsExporter:
         Returns:
             ISO formatted timestamp string.
         """
-        from datetime import datetime
-        return datetime.now().isoformat()
+        from datetime import datetime, timezone
+        return datetime.now(tz=timezone.utc).isoformat()
 
     def export_to_csv(self, filepath: str, **filters: Any) -> None:
         """Export metrics to CSV file.

@@ -46,7 +46,7 @@ class ThemeCommand(Command):
         Returns:
             Usage string.
         """
-        return "/theme <subcommand> [args]\n\nSubcommands:\n  list     - Show available themes\n  set      - Change active theme\n  preview  - Show sample output with theme\n  create   - Stub for custom theme creation"
+        return "/theme <subcommand> [args]\n\nSubcommands:\n  list     - Show available themes\n  set      - Change active theme\n  preview  - Show sample output with theme\n  create   - Stub for custom theme creation"  # noqa: E501
 
     async def execute(self, ctx: CommandContext) -> None:
         """Execute the theme command.

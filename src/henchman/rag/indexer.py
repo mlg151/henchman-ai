@@ -39,7 +39,7 @@ class IndexManifest:
     model_name: str = ""
     chunk_size: int = 512
 
-    def save(self, path: Path) -> None:
+    def save(self: IndexManifest, path: Path) -> None:
         """Save manifest to disk.
 
         Args:
@@ -57,7 +57,7 @@ class IndexManifest:
         )
 
     @classmethod
-    def load(cls, path: Path) -> IndexManifest:
+    def load(cls: type[IndexManifest], path: Path) -> IndexManifest:
         """Load manifest from disk.
 
         Args:
@@ -114,7 +114,7 @@ class GitFileIndexer:
     """
 
     def __init__(
-        self,
+        self: GitFileIndexer,
         git_root: Path,
         store: VectorStore,
         embedder: EmbeddingProvider,
@@ -145,7 +145,7 @@ class GitFileIndexer:
         else:
             self.manifest_path = manifest_path
 
-    def get_tracked_files(self) -> list[Path]:
+    def get_tracked_files(self: GitFileIndexer) -> list[Path]:
         """Get list of git-tracked files.
 
         Returns:
@@ -166,11 +166,12 @@ class GitFileIndexer:
                 file_path = self.git_root / line
                 if self._should_index(file_path):
                     files.append(file_path)
-            return files
         except subprocess.CalledProcessError:
             return []
+        else:
+            return files
 
-    def _should_index(self, path: Path) -> bool:
+    def _should_index(self: GitFileIndexer, path: Path) -> bool:
         """Check if a file should be indexed.
 
         Args:
@@ -195,7 +196,7 @@ class GitFileIndexer:
 
         return True
 
-    def _compute_file_hash(self, path: Path) -> str:
+    def _compute_file_hash(self: GitFileIndexer, path: Path) -> str:
         """Compute content hash for a file.
 
         Args:
@@ -210,8 +211,8 @@ class GitFileIndexer:
         except OSError:
             return ""
 
-    def index(
-        self,
+    def index(  # noqa: C901
+        self: GitFileIndexer,
         console: Console | None = None,
         force: bool = False,
         progress_callback: Callable[[str, int, int], None] | None = None,
@@ -296,8 +297,24 @@ class GitFileIndexer:
         stats.total_chunks = self.store.count()
         return stats
 
+    def _index_single_file(self: GitFileIndexer, abs_path: Path, rel_path: str) -> None:
+        """Index a single file: chunk, embed, and store.
+
+        Args:
+            abs_path: Absolute path to the source file.
+            rel_path: Relative path used as the stored key.
+        """
+        self.store.delete_by_file(rel_path)
+        chunks = self.chunker.chunk_file(abs_path)
+        if not chunks:
+            return
+        for chunk in chunks:
+            chunk.file_path = rel_path
+        embeddings = self.embedder.embed([c.content for c in chunks])
+        self.store.add_chunks(chunks, embeddings)
+
     def _index_files(
-        self,
+        self: GitFileIndexer,
         files: list[tuple[Path, str]],
         console: Console | None = None,
         progress_callback: Callable[[str, int, int], None] | None = None,
@@ -320,47 +337,17 @@ class GitFileIndexer:
                 task = progress.add_task(f"Indexing {total} files...", total=total)
 
                 for i, (abs_path, rel_path) in enumerate(files):
-                    # Delete existing chunks for this file (if updating)
-                    self.store.delete_by_file(rel_path)
-
-                    # Chunk the file
-                    chunks = self.chunker.chunk_file(abs_path)
-                    if chunks:
-                        # Update chunk file paths to relative
-                        for chunk in chunks:
-                            chunk.file_path = rel_path
-
-                        # Generate embeddings
-                        embeddings = self.embedder.embed([c.content for c in chunks])
-
-                        # Add to store
-                        self.store.add_chunks(chunks, embeddings)
-
+                    self._index_single_file(abs_path, rel_path)
                     progress.update(task, advance=1)
                     if progress_callback:
                         progress_callback(rel_path, i + 1, total)
         else:
             for i, (abs_path, rel_path) in enumerate(files):
-                # Delete existing chunks for this file (if updating)
-                self.store.delete_by_file(rel_path)
-
-                # Chunk the file
-                chunks = self.chunker.chunk_file(abs_path)
-                if chunks:
-                    # Update chunk file paths to relative
-                    for chunk in chunks:
-                        chunk.file_path = rel_path
-
-                    # Generate embeddings
-                    embeddings = self.embedder.embed([c.content for c in chunks])
-
-                    # Add to store
-                    self.store.add_chunks(chunks, embeddings)
-
+                self._index_single_file(abs_path, rel_path)
                 if progress_callback:
                     progress_callback(rel_path, i + 1, total)
 
-    def get_stats(self) -> IndexStats:
+    def get_stats(self: GitFileIndexer) -> IndexStats:
         """Get current index statistics.
 
         Returns:

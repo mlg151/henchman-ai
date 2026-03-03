@@ -40,7 +40,7 @@ class ImportanceScorer:
     _TOOL_CONTENT_THRESHOLD: int = 20
     _MINIMUM_IMPORTANCE: float = 0.1
 
-    def calculate_importance_scores(self, messages: list[Message]) -> dict[int, float]:
+    def calculate_importance_scores(self: ImportanceScorer, messages: list[Message]) -> dict[int, float]:  # noqa: E501
         """Calculate importance scores for each message.
 
         Args:
@@ -61,7 +61,7 @@ class ImportanceScorer:
         return importance_scores
 
     def _calculate_message_importance(
-        self, message: Message, index: int, total_messages: int,
+        self: ImportanceScorer, message: Message, index: int, total_messages: int,
     ) -> float:
         """Calculate importance score for a single message.
 
@@ -89,7 +89,7 @@ class ImportanceScorer:
         return self._apply_minimum_score(score)
 
 
-    def _calculate_base_importance(self, message: Message) -> float:
+    def _calculate_base_importance(self: ImportanceScorer, message: Message) -> float:
         """Calculate base importance score based on message features.
 
         Considers:
@@ -117,7 +117,7 @@ class ImportanceScorer:
         return max(score, self._get_role_based_importance(message))
 
 
-    def _has_tool_calls(self, message: Message) -> bool:
+    def _has_tool_calls(self: ImportanceScorer, message: Message) -> bool:
         """Check if message has tool calls.
 
         Args:
@@ -128,7 +128,7 @@ class ImportanceScorer:
         """
         return bool(message.tool_calls and len(message.tool_calls) > 0)
 
-    def _contains_error_keywords(self, message: Message) -> bool:
+    def _contains_error_keywords(self: ImportanceScorer, message: Message) -> bool:
         """Check if message content contains error keywords.
 
         Args:
@@ -152,7 +152,7 @@ class ImportanceScorer:
 
         return any(indicator in content_lower for indicator in error_indicators)
 
-    def _get_role_based_importance(self, message: Message) -> float:
+    def _get_role_based_importance(self: ImportanceScorer, message: Message) -> float:
         """Get importance score based on message role.
 
         Args:
@@ -171,7 +171,7 @@ class ImportanceScorer:
             return self._get_tool_importance(message)
         return 0.0
 
-    def _get_assistant_importance(self, message: Message) -> float:
+    def _get_assistant_importance(self: ImportanceScorer, message: Message) -> float:
         """Get importance score for assistant messages.
 
         Args:
@@ -188,7 +188,7 @@ class ImportanceScorer:
             return self._ASSISTANT_LONG_CONTENT_IMPORTANCE
         return self._ASSISTANT_SHORT_CONTENT_IMPORTANCE
 
-    def _get_tool_importance(self, message: Message) -> float:
+    def _get_tool_importance(self: ImportanceScorer, message: Message) -> float:
         """Get importance score for tool messages.
 
         Args:
@@ -202,7 +202,7 @@ class ImportanceScorer:
         return self._TOOL_WITHOUT_CONTENT_IMPORTANCE
 
     def _apply_position_boost(
-        self, score: float, index: int, total_messages: int,
+        self: ImportanceScorer, score: float, index: int, total_messages: int,
     ) -> float:
         """Apply position-based boost to score.
 
@@ -223,7 +223,7 @@ class ImportanceScorer:
         position_boost = position_factor * self._POSITION_BOOST_MAX
         return min(1.0, score + position_boost)
 
-    def _apply_content_length_boost(self, score: float, message: Message) -> float:
+    def _apply_content_length_boost(self: ImportanceScorer, score: float, message: Message) -> float:  # noqa: E501
         """Apply content length boost to score.
 
         Longer messages might be more important.
@@ -246,7 +246,7 @@ class ImportanceScorer:
             return min(1.0, score + self._LONG_CONTENT_BOOST)
         return score
 
-    def _clamp_score(self, score: float) -> float:
+    def _clamp_score(self: ImportanceScorer, score: float) -> float:
         """Clamp score to valid range [0.0, 1.0].
 
         Args:
@@ -257,7 +257,7 @@ class ImportanceScorer:
         """
         return max(0.0, min(1.0, score))
 
-    def _apply_minimum_score(self, score: float) -> float:
+    def _apply_minimum_score(self: ImportanceScorer, score: float) -> float:
         """Apply minimum score if no other factors applied.
 
         Args:

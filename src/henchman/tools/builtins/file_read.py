@@ -1,5 +1,6 @@
 """Read file tool implementation."""
 
+from __future__ import annotations
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -16,12 +17,12 @@ class ReadFileTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: ReadFileTool) -> str:
         """Tool name."""
         return "read_file"
 
     @property
-    def description(self) -> str:
+    def description(self: ReadFileTool) -> str:
         """Tool description."""
         return (
             "Read the contents of a file. Supports optional line range for large files. "
@@ -30,7 +31,7 @@ class ReadFileTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: ReadFileTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -59,12 +60,12 @@ class ReadFileTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: ReadFileTool) -> ToolKind:
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-        self,
+        self: ReadFileTool,
         path: str = "",
         start_line: int = 1,
         end_line: int = -1,

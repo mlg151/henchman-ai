@@ -1,6 +1,6 @@
 """Model providers for different LLM backends."""
 
-from henchman.providers.anthropic import AnthropicProvider
+from henchman.providers.anthropic import AnthropicProvider, AnthropicProviderConfig
 from henchman.providers.base import (
     FinishReason,
     Message,
@@ -17,6 +17,7 @@ from henchman.providers.registry import ProviderRegistry, get_default_registry
 
 __all__ = [
     "AnthropicProvider",
+    "AnthropicProviderConfig",
     "DeepSeekProvider",
     "FinishReason",
     "Message",

@@ -1,5 +1,6 @@
 """Patch apply tool implementation."""
 
+from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,7 +38,7 @@ class HunkApplier:
     """Applies hunks to file content with fuzzy matching."""
 
     def apply_hunks(
-        self,
+        self: HunkApplier,
         original: str,
         hunks: list[dict[str, Any]],
         fuzz: int = DEFAULT_FUZZ_LINES,
@@ -63,7 +64,7 @@ class HunkApplier:
 
         return self._reconstruct_content(lines, original)
 
-    def _split_original_content(self, original: str) -> list[str]:
+    def _split_original_content(self: HunkApplier, original: str) -> list[str]:
         """Split original content into lines, handling trailing newline.
 
         Args:
@@ -79,7 +80,7 @@ class HunkApplier:
             lines = lines[:-1]
         return lines
 
-    def _reconstruct_content(self, lines: list[str], original: str) -> str:
+    def _reconstruct_content(self: HunkApplier, lines: list[str], original: str) -> str:
         """Reconstruct content from lines, preserving trailing newline.
 
         Args:
@@ -95,7 +96,7 @@ class HunkApplier:
         return result
 
     def _apply_single_hunk(
-        self,
+        self: HunkApplier,
         lines: list[str],
         hunk: dict[str, Any],
         hunk_idx: int,
@@ -126,7 +127,7 @@ class HunkApplier:
         )
         return self._apply_hunk_with_context(hunk_context)
 
-    def _apply_hunk_with_context(self, context: "HunkApplicationContext") -> int:
+    def _apply_hunk_with_context(self: HunkApplier, context: "HunkApplicationContext") -> int:
         """Apply hunk using structured context.
 
         Args:
@@ -138,27 +139,32 @@ class HunkApplier:
         Raises:
             ValueError: If hunk fails to apply.
         """
-        old_start = int(str(context.hunk["old_start"])) - 1 + context.offset
-        hunk_lines = self._extract_hunk_lines(context.hunk)
+        context_hunk = context.hunk
+        context_lines = context.lines
+        context_offset = context.offset
+        context_fuzz = context.fuzz
+        context_hunk_idx = context.hunk_idx
+        old_start = int(str(context_hunk["old_start"])) - 1 + context_offset
+        hunk_lines = self._extract_hunk_lines(context_hunk)
         old_lines, new_lines = self._extract_old_and_new_lines(hunk_lines)
 
-        matched_start = self._find_match(context.lines, old_lines, old_start, context.fuzz)
+        matched_start = self._find_match(context_lines, old_lines, old_start, context_fuzz)
         if matched_start is None:
-            msg = f"Hunk {context.hunk_idx + 1} failed to apply at line {old_start + 1}"
+            msg = f"Hunk {context_hunk_idx + 1} failed to apply at line {old_start + 1}"
             raise ValueError(msg)
 
         # Replace the old lines with new lines
-        context.lines[matched_start : matched_start + len(old_lines)] = new_lines
-        return context.offset + len(new_lines) - len(old_lines)
+        context_lines[matched_start : matched_start + len(old_lines)] = new_lines
+        return context_offset + len(new_lines) - len(old_lines)
 
-    def _extract_hunk_lines(self, hunk: dict[str, Any]) -> list[str]:
+    def _extract_hunk_lines(self: HunkApplier, hunk: dict[str, Any]) -> list[str]:
         """Extract lines from hunk dictionary."""
         lines_value = hunk.get("lines", [])
         if isinstance(lines_value, list):
             return [str(line) for line in lines_value]
         return []
 
-    def _extract_old_and_new_lines(self, hunk_lines: list[str]) -> tuple[list[str], list[str]]:
+    def _extract_old_and_new_lines(self: HunkApplier, hunk_lines: list[str]) -> tuple[list[str], list[str]]:  # noqa: E501
         """Extract old and new lines from hunk lines."""
         old_lines: list[str] = []
         new_lines: list[str] = []
@@ -175,7 +181,7 @@ class HunkApplier:
         return old_lines, new_lines
 
     def _find_match(
-        self,
+        self: HunkApplier,
         lines: list[str],
         old_lines: list[str],
         expected_start: int,
@@ -219,7 +225,7 @@ class HunkApplier:
         return None
 
     def _lines_match(
-        self,
+        self: HunkApplier,
         lines: list[str],
         old_lines: list[str],
         start: int,
@@ -242,7 +248,7 @@ class HunkApplier:
 class PatchParser:
     """Parser for unified diff patches."""
 
-    def __init__(self, patch: str, default_path: str | None = None) -> None:
+    def __init__(self: PatchParser, patch: str, default_path: str | None = None) -> None:
         """Initialize parser.
 
         Args:
@@ -257,7 +263,7 @@ class PatchParser:
         self.hunk_lines: list[str] = []
         self.index = 0
 
-    def parse(self) -> dict[str, list[dict[str, Any]]]:
+    def parse(self: PatchParser) -> dict[str, list[dict[str, Any]]]:
         """Parse the patch into file patches.
 
         Returns:
@@ -277,7 +283,7 @@ class PatchParser:
 
         return self.file_patches
 
-    def _process_line(self) -> None:
+    def _process_line(self: PatchParser) -> None:
         """Process the current line."""
         line = self.lines[self.index]
 
@@ -290,7 +296,7 @@ class PatchParser:
         else:
             self.index += 1
 
-    def _is_file_header(self, line: str) -> bool:
+    def _is_file_header(self: PatchParser, line: str) -> bool:
         """Check if line is part of a file header.
 
         Args:
@@ -305,7 +311,7 @@ class PatchParser:
             and self.lines[self.index + 1].startswith("+++ ")
         )
 
-    def _handle_file_header(self) -> None:
+    def _handle_file_header(self: PatchParser) -> None:
         """Handle a file header section."""
         if self.default_path is None:
             path_line = self.lines[self.index + 1]
@@ -315,7 +321,7 @@ class PatchParser:
             self.current_file = path_str
         self.index += 2
 
-    def _is_hunk_header(self, line: str) -> bool:
+    def _is_hunk_header(self: PatchParser, line: str) -> bool:
         """Check if line is a hunk header.
 
         Args:
@@ -326,7 +332,7 @@ class PatchParser:
         """
         return bool(re.match(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", line))
 
-    def _handle_hunk_header(self, line: str) -> None:
+    def _handle_hunk_header(self: PatchParser, line: str) -> None:
         """Handle a hunk header.
 
         Args:
@@ -349,7 +355,7 @@ class PatchParser:
         self.hunk_lines = []
         self.index += 1
 
-    def _parse_hunk_header(self, line: str) -> tuple[int, int, int, int] | None:
+    def _parse_hunk_header(self: PatchParser, line: str) -> tuple[int, int, int, int] | None:
         """Parse hunk header line into components.
 
         Args:
@@ -373,7 +379,7 @@ class PatchParser:
 
         return old_start, old_count, new_start, new_count
 
-    def _handle_hunk_content(self, line: str) -> None:
+    def _handle_hunk_content(self: PatchParser, line: str) -> None:
         """Handle hunk content line.
 
         Args:
@@ -388,7 +394,7 @@ class PatchParser:
 
         self.index += 1
 
-    def _save_current_hunk(self) -> None:
+    def _save_current_hunk(self: PatchParser) -> None:
         """Save the current hunk if it exists."""
         if self.current_hunk is not None and self.current_file:
             self.current_hunk["lines"] = self.hunk_lines
@@ -404,12 +410,12 @@ class PatchApplyTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: PatchApplyTool) -> str:
         """Tool name."""
         return "patch_apply"
 
     @property
-    def description(self) -> str:
+    def description(self: PatchApplyTool) -> str:
         """Tool description."""
         return (
             "Apply a unified diff patch to one or more files. "
@@ -418,7 +424,7 @@ class PatchApplyTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: PatchApplyTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -440,7 +446,7 @@ class PatchApplyTool(Tool):
                 },
                 "fuzz": {
                     "type": "integer",
-                    "description": f"Lines of fuzz for context matching (default {DEFAULT_FUZZ_LINES})",
+                    "description": f"Lines of fuzz for context matching (default {DEFAULT_FUZZ_LINES})",  # noqa: E501
                     "default": DEFAULT_FUZZ_LINES,
                 },
             },
@@ -448,12 +454,12 @@ class PatchApplyTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: PatchApplyTool) -> ToolKind:
         """Tool kind - WRITE because it modifies files."""
         return ToolKind.WRITE
 
     async def execute(  # type: ignore[override]
-        self,
+        self: PatchApplyTool,
         patch: str = "",
         path: str | None = None,
         dry_run: bool = False,
@@ -480,7 +486,7 @@ class PatchApplyTool(Tool):
         )
         return await self._execute_with_params(params)
 
-    async def _execute_with_params(self, params: PatchApplyParameters) -> ToolResult:
+    async def _execute_with_params(self: PatchApplyTool, params: PatchApplyParameters) -> ToolResult:  # noqa: E501
         """Apply patch using structured parameters."""
         if not params.patch.strip():
             return self._create_error_result("Empty patch", "Empty patch")
@@ -496,12 +502,12 @@ class PatchApplyTool(Tool):
         results = self._apply_patches_to_files(file_patches, params.dry_run, params.fuzz)
         return self._create_result_from_application_results(results)
 
-    def _create_error_result(self, content: str, error: str) -> ToolResult:
+    def _create_error_result(self: PatchApplyTool, content: str, error: str) -> ToolResult:
         """Create an error ToolResult."""
         return ToolResult(content=content, success=False, error=error)
 
     def _apply_patches_to_files(
-        self,
+        self: PatchApplyTool,
         file_patches: dict[str, list[dict[str, Any]]],
         dry_run: bool,
         fuzz: int,
@@ -514,7 +520,7 @@ class PatchApplyTool(Tool):
         return results
 
     def _apply_patch_to_single_file(
-        self,
+        self: PatchApplyTool,
         file_path: str,
         hunks: list[dict[str, Any]],
         dry_run: bool,
@@ -541,7 +547,7 @@ class PatchApplyTool(Tool):
         target.write_text(patched, encoding="utf-8")
         return f"OK {file_path} ({len(hunks)} hunks applied)"
 
-    def _create_result_from_application_results(self, results: list[str]) -> ToolResult:
+    def _create_result_from_application_results(self: PatchApplyTool, results: list[str]) -> ToolResult:  # noqa: E501
         """Create ToolResult from list of application results."""
         return ToolResult(
             content="\n".join(results),
@@ -549,7 +555,7 @@ class PatchApplyTool(Tool):
         )
 
     def _parse_patch(
-        self,
+        self: PatchApplyTool,
         patch: str,
         default_path: str | None = None,
     ) -> dict[str, list[dict[str, Any]]]:

@@ -1,5 +1,6 @@
 """Tool registry for managing and executing tools."""
 
+from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -45,7 +46,7 @@ class ToolRegistry:
     """
 
     def __init__(
-        self,
+        self: ToolRegistry,
         retry_config: RetryConfig | None = None,
     ) -> None:
         """Initialize an empty tool registry.
@@ -60,7 +61,7 @@ class ToolRegistry:
         self._plan_mode: bool = False
         self._retry_config = retry_config or RetryConfig()
 
-    def set_retry_config(self, config: RetryConfig) -> None:
+    def set_retry_config(self: ToolRegistry, config: RetryConfig) -> None:
         """Set the retry configuration for network tools.
 
         Args:
@@ -68,7 +69,7 @@ class ToolRegistry:
         """
         self._retry_config = config
 
-    def set_plan_mode(self, enabled: bool) -> None:
+    def set_plan_mode(self: ToolRegistry, enabled: bool) -> None:
         """Enable or disable Plan Mode (Read-Only).
 
         Args:
@@ -76,7 +77,7 @@ class ToolRegistry:
         """
         self._plan_mode = enabled
 
-    def register(self, tool: Tool) -> None:
+    def register(self: ToolRegistry, tool: Tool) -> None:
         """Register a tool with the registry.
 
         Args:
@@ -90,7 +91,7 @@ class ToolRegistry:
             raise ValueError(msg)
         self._tools[tool.name] = tool
 
-    def unregister(self, name: str) -> None:
+    def unregister(self: ToolRegistry, name: str) -> None:
         """Remove a tool from the registry.
 
         Args:
@@ -99,7 +100,7 @@ class ToolRegistry:
         """
         self._tools.pop(name, None)
 
-    def get(self, name: str) -> Tool | None:
+    def get(self: ToolRegistry, name: str) -> Tool | None:
         """Get a tool by name.
 
         Args:
@@ -110,7 +111,7 @@ class ToolRegistry:
         """
         return self._tools.get(name)
 
-    def __len__(self) -> int:
+    def __len__(self: ToolRegistry) -> int:
         """Return the number of registered tools.
 
         Returns:
@@ -118,7 +119,7 @@ class ToolRegistry:
         """
         return len(self._tools)
 
-    def list_tools(self) -> list[str]:
+    def list_tools(self: ToolRegistry) -> list[str]:
         """List all registered tool names.
 
         Returns:
@@ -126,7 +127,7 @@ class ToolRegistry:
         """
         return list(self._tools.keys())
 
-    def get_declarations(self) -> list[ToolDeclaration]:
+    def get_declarations(self: ToolRegistry) -> list[ToolDeclaration]:
         """Get tool declarations for the LLM.
 
         Returns:
@@ -134,7 +135,7 @@ class ToolRegistry:
         """
         return [tool.to_declaration() for tool in self._tools.values()]
 
-    def set_confirmation_handler(self, handler: ConfirmationHandler) -> None:
+    def set_confirmation_handler(self: ToolRegistry, handler: ConfirmationHandler) -> None:
         """Set the handler for tool confirmation requests.
 
         Args:
@@ -143,7 +144,7 @@ class ToolRegistry:
         """
         self._confirmation_handler = handler
 
-    def add_auto_approve_policy(self, tool_name: str) -> None:
+    def add_auto_approve_policy(self: ToolRegistry, tool_name: str) -> None:
         """Add an auto-approve policy for a tool.
 
         Tools with auto-approve policies skip confirmation, even if
@@ -154,7 +155,7 @@ class ToolRegistry:
         """
         self._auto_approve_policies.add(tool_name)
 
-    def remove_auto_approve_policy(self, tool_name: str) -> None:
+    def remove_auto_approve_policy(self: ToolRegistry, tool_name: str) -> None:
         """Remove an auto-approve policy for a tool.
 
         Args:
@@ -162,7 +163,7 @@ class ToolRegistry:
         """
         self._auto_approve_policies.discard(tool_name)
 
-    def list_auto_approve_policies(self) -> list[str]:
+    def list_auto_approve_policies(self: ToolRegistry) -> list[str]:
         """List all tools with auto-approve policies.
 
         Returns:
@@ -170,7 +171,7 @@ class ToolRegistry:
         """
         return list(self._auto_approve_policies)
 
-    async def execute(self, name: str, params: dict[str, object]) -> ToolResult:
+    async def execute(self: ToolRegistry, name: str, params: dict[str, object]) -> ToolResult:
         """Execute a tool by name with the given parameters.
 
         This method handles the full execution flow:
@@ -245,7 +246,7 @@ class ToolRegistry:
         return result
 
     async def execute_batch(
-        self,
+        self: ToolRegistry,
         calls: list[tuple[str, dict[str, object]]],
     ) -> BatchResult:
         """Execute multiple tools in parallel.

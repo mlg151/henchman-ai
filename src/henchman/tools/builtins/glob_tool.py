@@ -1,5 +1,6 @@
 """Glob tool implementation."""
 
+from __future__ import annotations
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -16,17 +17,17 @@ class GlobTool(Tool):
     MAX_MATCHES = 1000
 
     @property
-    def name(self) -> str:
+    def name(self: GlobTool) -> str:
         """Tool name."""
         return "glob"
 
     @property
-    def description(self) -> str:
+    def description(self: GlobTool) -> str:
         """Tool description."""
         return "Find files matching a glob pattern (e.g., '*.py', '**/*.txt')."
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: GlobTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -45,12 +46,12 @@ class GlobTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: GlobTool) -> ToolKind:
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-        self,
+        self: GlobTool,
         pattern: str = "",
         path: str = ".",
         **kwargs: object,  # noqa: ARG002

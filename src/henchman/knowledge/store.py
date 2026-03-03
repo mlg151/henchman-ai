@@ -474,8 +474,10 @@ class KnowledgeStore:
             parts.append(f"**Tags:** {', '.join(entity.tags)}")
         if entity.observations:
             parts.append("**Observations:**")
-            for obs in entity.observations:
-                parts.append(f"- {obs.content} _(source: {obs.source})_")
+            parts.extend(
+                f"- {obs.content} _(source: {obs.source})_"
+                for obs in entity.observations
+            )
 
         relations = self.get_relations(entity.id)
         if relations:

@@ -238,7 +238,7 @@ class UIRenderer:
         return self._is_thinking
 
     @contextmanager
-    def thinking_context(self, message: str | None = None, spinner: str = "dots") -> Generator[None, None, None]:
+    def thinking_context(self, message: str | None = None, spinner: str = "dots") -> Generator[None, None, None]:  # noqa: E501
         """Context manager for thinking indicator.
 
         Args:

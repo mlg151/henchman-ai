@@ -4,6 +4,7 @@ Provides structured access to common git queries without requiring
 the generic shell tool, enabling auto-approval for safe read operations.
 """
 
+from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
@@ -28,12 +29,12 @@ class GitOpsTool(Tool):
     )
 
     @property
-    def name(self) -> str:
+    def name(self: GitOpsTool) -> str:
         """Tool name."""
         return "git_ops"
 
     @property
-    def description(self) -> str:
+    def description(self: GitOpsTool) -> str:
         """Tool description."""
         return (
             "Run git operations: status, log, blame, show, branch_list, "
@@ -42,7 +43,7 @@ class GitOpsTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: GitOpsTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -99,12 +100,12 @@ class GitOpsTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: GitOpsTool) -> ToolKind:
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
     async def _run_git(
-        self, args: list[str], cwd: str | None = None,
+        self: GitOpsTool, args: list[str], cwd: str | None = None,
     ) -> tuple[bool, str]:
         """Execute a git command and return (success, output).
 
@@ -116,11 +117,13 @@ class GitOpsTool(Tool):
             Tuple of (success, output text).
         """
         cmd = ["git", "--no-pager", *args]
+        create_subprocess_exec = asyncio.create_subprocess_exec
+        PIPE = asyncio.subprocess.PIPE
         try:
-            process = await asyncio.create_subprocess_exec(
+            process = await create_subprocess_exec(
                 *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stdout=PIPE,
+                stderr=PIPE,
                 cwd=cwd,
             )
             stdout, stderr = await asyncio.wait_for(
@@ -130,14 +133,15 @@ class GitOpsTool(Tool):
             out = stdout.decode("utf-8", errors="replace")
             err = stderr.decode("utf-8", errors="replace")
             combined = (out + "\n" + err).strip()
-            return process.returncode == 0, combined
         except FileNotFoundError:
             return False, "Error: git is not installed"
         except (TimeoutError, asyncio.TimeoutError):
             return False, "Error: git command timed out after 30s"
+        else:
+            return process.returncode == 0, combined
 
     async def execute(  # type: ignore[override]
-        self,
+        self: GitOpsTool,
         action: str = "",
         path: str | None = None,
         ref: str | None = None,
@@ -212,12 +216,12 @@ class GitOpsTool(Tool):
 
         return ToolResult(content=output, success=ok, error=None if ok else output)
 
-    async def _status(self, cwd: str | None = None, **_: object) -> tuple[bool, str]:
+    async def _status(self: GitOpsTool, cwd: str | None = None, **_: object) -> tuple[bool, str]:
         """Get working tree status."""
         return await self._run_git(["status", "--short", "--branch"], cwd=cwd)
 
     async def _log(
-        self,
+        self: GitOpsTool,
         path: str | None = None,
         ref: str | None = None,
         max_count: int = 20,
@@ -236,7 +240,7 @@ class GitOpsTool(Tool):
         return await self._run_git(args, cwd=cwd)
 
     async def _blame(
-        self,
+        self: GitOpsTool,
         path: str | None = None,
         start_line: int | None = None,
         end_line: int | None = None,
@@ -253,7 +257,7 @@ class GitOpsTool(Tool):
         return await self._run_git(args, cwd=cwd)
 
     async def _show(
-        self,
+        self: GitOpsTool,
         ref: str | None = None,
         path: str | None = None,
         stat: bool = False,
@@ -272,13 +276,13 @@ class GitOpsTool(Tool):
         return await self._run_git(args, cwd=cwd)
 
     async def _branch_list(
-        self, cwd: str | None = None, **_: object,
+        self: GitOpsTool, cwd: str | None = None, **_: object,
     ) -> tuple[bool, str]:
         """List branches."""
         return await self._run_git(["branch", "-a", "-v"], cwd=cwd)
 
     async def _stash_list(
-        self, cwd: str | None = None, **_: object,
+        self: GitOpsTool, cwd: str | None = None, **_: object,
     ) -> tuple[bool, str]:
         """List stashes."""
         ok, output = await self._run_git(["stash", "list"], cwd=cwd)
@@ -287,7 +291,7 @@ class GitOpsTool(Tool):
         return ok, output
 
     async def _diff_branches(
-        self,
+        self: GitOpsTool,
         ref: str | None = None,
         ref2: str | None = None,
         stat: bool = False,

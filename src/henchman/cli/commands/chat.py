@@ -74,14 +74,15 @@ class ChatCommand(BaseCommand):
 
     async def _save(self, ctx: CommandContext) -> None:
         """Save the current session."""
+        console = ctx.console
         manager: SessionManager | None = getattr(ctx, "session_manager", None)
         if manager is None:
-            ctx.console.print("[red]Session manager not available[/]")
+            console.print("[red]Session manager not available[/]")
             return
 
         session = manager.current
         if session is None:
-            ctx.console.print("[yellow]No active session to save[/]")
+            console.print("[yellow]No active session to save[/]")
             return
 
         # Get tag from args if provided
@@ -91,29 +92,32 @@ class ChatCommand(BaseCommand):
 
         manager.save(session)
         tag_display = f" as '{session.tag}'" if session.tag else ""
-        ctx.console.print(f"[green]✓[/] Session saved{tag_display}")
+        console.print(f"[green]✓[/] Session saved{tag_display}")
 
     async def _list(self, ctx: CommandContext) -> None:
         """List saved sessions."""
+        console = ctx.console
         manager: SessionManager | None = getattr(ctx, "session_manager", None)
         if manager is None:
-            ctx.console.print("[red]Session manager not available[/]")
+            console.print("[red]Session manager not available[/]")
             return
 
         project_hash = getattr(ctx, "project_hash", None)
         sessions = manager.list_sessions(project_hash)
 
         if not sessions:
-            ctx.console.print("[dim]No saved sessions[/]")
+            console.print("[dim]No saved sessions[/]")
             return
 
-        ctx.console.print("\n[bold blue]Saved Sessions[/]\n")
+        console.print("\n[bold blue]Saved Sessions[/]\n")
         for meta in sessions:
-            tag_display = f"[cyan]{meta.tag}[/]" if meta.tag else f"[dim]{meta.id[:8]}[/]"
-            ctx.console.print(
-                f"  {tag_display} - {meta.message_count} messages, updated {meta.last_updated[:10]}",
+            meta_tag = meta.tag
+            meta_id = meta.id
+            tag_display = f"[cyan]{meta_tag}[/]" if meta_tag else f"[dim]{meta_id[:8]}[/]"
+            console.print(
+                f"  {tag_display} - {meta.message_count} messages, updated {meta.last_updated[:10]}",  # noqa: E501
             )
-        ctx.console.print("")
+        console.print("")
 
     async def _resume(self, ctx: CommandContext) -> None:
         """Resume a saved session."""
@@ -226,14 +230,15 @@ class ChatCommand(BaseCommand):
         for session_msg in session.messages:
             # Convert tool_calls from dicts to ToolCall objects if present
             tool_calls = None
-            if session_msg.tool_calls:
+            session_msg_tool_calls = session_msg.tool_calls
+            if session_msg_tool_calls:
                 tool_calls = [
                     ToolCall(
                         id=tc.get("id", ""),
                         name=tc.get("name", ""),
                         arguments=tc.get("arguments", {}),
                     )
-                    for tc in session_msg.tool_calls
+                    for tc in session_msg_tool_calls
                 ]
 
             msg = Message(

@@ -288,7 +288,7 @@ class ShellTool(Tool):
     # Kept as a class attr for backward-compat (tests reference it).
     MAX_OUTPUT_CHARS = MAX_OUTPUT_CHARS
 
-    def __init__(self, default_timeout: int = _DEFAULT_TIMEOUT) -> None:
+    def __init__(self: ShellTool, default_timeout: int = _DEFAULT_TIMEOUT) -> None:
         """Initialize the shell tool.
 
         Args:
@@ -299,7 +299,7 @@ class ShellTool(Tool):
         self._default_timeout = default_timeout
 
     # -- public helpers exposed for tests ------------------------------------
-    def _is_sudo_command(self, command: str) -> bool:
+    def _is_sudo_command(self: ShellTool, command: str) -> bool:
         """Check if a command is a sudo command.
 
         Args:
@@ -312,12 +312,12 @@ class ShellTool(Tool):
 
     # -- Tool interface ------------------------------------------------------
     @property
-    def name(self) -> str:
+    def name(self: ShellTool) -> str:
         """Tool name."""
         return "shell"
 
     @property
-    def description(self) -> str:
+    def description(self: ShellTool) -> str:
         """Tool description."""
         return (
             "Execute a shell command and return its output. "
@@ -326,7 +326,7 @@ class ShellTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: ShellTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -361,13 +361,13 @@ class ShellTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: ShellTool) -> ToolKind:
         """Tool kind - EXECUTE requires confirmation."""
         return ToolKind.EXECUTE
 
     # -- main entry point ----------------------------------------------------
     async def execute(  # type: ignore[override]
-        self,
+        self: ShellTool,
         command: str = "",
         timeout: int | None = None,
         cwd: str | None = None,
@@ -416,7 +416,7 @@ class ShellTool(Tool):
 
     # -- private orchestration -----------------------------------------------
     async def _create_process(
-        self,
+        self: ShellTool,
         command: str,
         env: dict[str, str],
         cwd: str | None,
@@ -450,7 +450,7 @@ class ShellTool(Tool):
         )
 
     async def _run_and_collect(
-        self,
+        self: ShellTool,
         process: asyncio.subprocess.Process,
         timeout: float | None,
     ) -> _ProcessOutcome:
@@ -497,7 +497,7 @@ class ShellTool(Tool):
 
     # -- interactive sudo via PTY -------------------------------------------
     async def _execute_interactive_sudo(
-        self,
+        self: ShellTool,
         command: str,
         env: dict[str, str],
         cwd: str | None,

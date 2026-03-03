@@ -58,7 +58,7 @@ class RagSystem:
     """
 
     def __init__(
-        self,
+        self: RagSystem,
         git_root: Path,
         settings: RagSettings,
         read_only: bool = False,
@@ -141,22 +141,22 @@ class RagSystem:
             self._init_lock_held = False
 
     @property
-    def store(self) -> VectorStore:
+    def store(self: RagSystem) -> VectorStore:
         """Get the vector store."""
         return self._store
 
     @property
-    def indexer(self) -> GitFileIndexer:
+    def indexer(self: RagSystem) -> GitFileIndexer:
         """Get the git file indexer."""
         return self._indexer
 
     @property
-    def search_tool(self) -> RagSearchTool:
+    def search_tool(self: RagSystem) -> RagSearchTool:
         """Get the RAG search tool."""
         return self._search_tool
 
     def index(
-        self,
+        self: RagSystem,
         console: Console | None = None,
         force: bool = False,
         skip_if_locked: bool = True,
@@ -202,7 +202,7 @@ class RagSystem:
             self.is_indexing = False
 
     async def index_async(
-        self,
+        self: RagSystem,
         console: Console | None = None,
         force: bool = False,
         skip_if_locked: bool = True,
@@ -223,7 +223,7 @@ class RagSystem:
             None, lambda: self.index(console=console, force=force, skip_if_locked=skip_if_locked),
         )
 
-    def get_stats(self) -> IndexStats:
+    def get_stats(self: RagSystem) -> IndexStats:
         """Get current index statistics.
 
         Returns:
@@ -231,7 +231,7 @@ class RagSystem:
         """
         return self._indexer.get_stats()
 
-    def clear(self) -> None:
+    def clear(self: RagSystem) -> None:
         """Clear the index."""
         self._store.clear()
         # Also clear the manifest
@@ -302,9 +302,9 @@ def initialize_rag(
                 f"{stats.total_chunks} chunks[/dim]",
             )
 
-        return rag_system
-
     except Exception as e:
         if console:
             console.print(f"[yellow]Warning: Failed to initialize RAG: {e}[/yellow]")
         return None
+    else:
+        return rag_system

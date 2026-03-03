@@ -8,7 +8,7 @@ import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -521,14 +521,20 @@ class MetricsStorage:
         Returns:
             Dictionary with base metric fields.
         """
+        metric_id = metric.id
+        metric_timestamp = metric.timestamp
+        metric_type = metric.metric_type
+        metric_session_id = metric.session_id
+        metric_agent_id = metric.agent_id
+        metric_metadata = metric.metadata
         return {
-            "id": metric.id,
-            "timestamp": metric.timestamp.isoformat(),
-            "metric_type": metric.metric_type.value,
-            "session_id": metric.session_id,
-            "agent_id": metric.agent_id,
+            "id": metric_id,
+            "timestamp": metric_timestamp.isoformat(),
+            "metric_type": metric_type.value,
+            "session_id": metric_session_id,
+            "agent_id": metric_agent_id,
             "user_id": metric.user_id,
-            "metadata": json.dumps(metric.metadata) if metric.metadata else None,
+            "metadata": json.dumps(metric_metadata) if metric_metadata else None,
         }
 
     # Class constant for field mappings
@@ -630,7 +636,7 @@ class MetricsStorage:
         if self.retention_days is None:
             return
 
-        cutoff_date = datetime.now() - timedelta(days=self.retention_days)
+        cutoff_date = datetime.now(tz=timezone.utc) - timedelta(days=self.retention_days)
         cutoff_str = cutoff_date.isoformat()
 
         with self._get_connection() as conn:
@@ -710,32 +716,38 @@ class MetricsStorage:
         """
         query = "SELECT * FROM metrics WHERE 1=1"
         params: list[Any] = []
+        qp_metric_type = query_params.metric_type
+        qp_session_id = query_params.session_id
+        qp_agent_id = query_params.agent_id
+        qp_start_date = query_params.start_date
+        qp_end_date = query_params.end_date
+        qp_limit = query_params.limit
 
-        if query_params.metric_type:
+        if qp_metric_type:
             query += " AND metric_type = ?"
-            params.append(query_params.metric_type.value)
+            params.append(qp_metric_type.value)
 
-        if query_params.session_id:
+        if qp_session_id:
             query += " AND session_id = ?"
-            params.append(query_params.session_id)
+            params.append(qp_session_id)
 
-        if query_params.agent_id:
+        if qp_agent_id:
             query += " AND agent_id = ?"
-            params.append(query_params.agent_id)
+            params.append(qp_agent_id)
 
-        if query_params.start_date:
+        if qp_start_date:
             query += " AND timestamp >= ?"
-            params.append(query_params.start_date.isoformat())
+            params.append(qp_start_date.isoformat())
 
-        if query_params.end_date:
+        if qp_end_date:
             query += " AND timestamp <= ?"
-            params.append(query_params.end_date.isoformat())
+            params.append(qp_end_date.isoformat())
 
         query += " ORDER BY timestamp DESC"
 
-        if query_params.limit:
+        if qp_limit:
             query += " LIMIT ?"
-            params.append(query_params.limit)
+            params.append(qp_limit)
 
         return query, params
 

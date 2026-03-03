@@ -1,5 +1,6 @@
 """Coverage map tool implementation."""
 
+from __future__ import annotations
 import json
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
@@ -19,7 +20,7 @@ class CoverageConfig:
     show_branches: bool = False
     per_function: bool = False
 
-    def has_filter(self) -> bool:
+    def has_filter(self: CoverageConfig) -> bool:
         """Check if a file filter is active."""
         return bool(self.file_filter.strip())
 
@@ -33,7 +34,7 @@ class CoverageRequest:
     show_branches: bool = False
     per_function: bool = False
 
-    def to_config(self) -> CoverageConfig:
+    def to_config(self: CoverageRequest) -> CoverageConfig:
         """Convert request to configuration object."""
         return CoverageConfig(
             file_filter=self.file_filter,
@@ -194,7 +195,7 @@ class CoverageFormatter:
 class BaseCoverageParser(ABC):
     """Base class for coverage parsers with common functionality."""
 
-    def __init__(self, formatter: CoverageFormatter | None = None):
+    def __init__(self: BaseCoverageParser, formatter: CoverageFormatter | None = None):
         """Initialize parser with optional formatter.
 
         Args:
@@ -203,7 +204,7 @@ class BaseCoverageParser(ABC):
         self.formatter = formatter or CoverageFormatter()
 
     @abstractmethod
-    def parse(self, target: Path, config: CoverageConfig) -> ToolResult:
+    def parse(self: BaseCoverageParser, target: Path, config: CoverageConfig) -> ToolResult:
         """Parse coverage file.
 
         Args:
@@ -242,9 +243,10 @@ class BaseCoverageParser(ABC):
         try:
             covered_b = int(nums[0])
             total_b = int(nums[1])
-            return covered_b, total_b
         except (ValueError, TypeError):
             return None
+        else:
+            return covered_b, total_b
 
     @staticmethod
     def _parse_functions_from_xml(
@@ -290,7 +292,7 @@ class BaseCoverageParser(ABC):
 class XmlCoverageParser(BaseCoverageParser):
     """Parser for Cobertura XML coverage format."""
 
-    def parse(self, target: Path, config: CoverageConfig) -> ToolResult:
+    def parse(self: XmlCoverageParser, target: Path, config: CoverageConfig) -> ToolResult:
         """Parse Cobertura XML format.
 
         Args:
@@ -324,7 +326,7 @@ class XmlCoverageParser(BaseCoverageParser):
         return self.formatter.format_results(results, config)
 
     def _parse_class(
-        self,
+        self: XmlCoverageParser,
         cls: ET.Element,
         config: CoverageConfig,
     ) -> dict[str, Any] | None:
@@ -367,7 +369,7 @@ class XmlCoverageParser(BaseCoverageParser):
         return entry
 
     def _parse_lines(
-        self,
+        self: XmlCoverageParser,
         cls: ET.Element,
         config: CoverageConfig,
     ) -> tuple[list[int], int, int, int]:
@@ -405,7 +407,7 @@ class XmlCoverageParser(BaseCoverageParser):
 class JsonCoverageParser(BaseCoverageParser):
     """Parser for coverage.py JSON format."""
 
-    def parse(self, target: Path, config: CoverageConfig) -> ToolResult:
+    def parse(self: JsonCoverageParser, target: Path, config: CoverageConfig) -> ToolResult:
         """Parse coverage.py JSON format.
 
         Args:
@@ -438,7 +440,7 @@ class JsonCoverageParser(BaseCoverageParser):
         return self.formatter.format_results(results, config)
 
     def _parse_file(
-        self,
+        self: JsonCoverageParser,
         filename: str,
         file_data: dict[str, Any],
         config: CoverageConfig,
@@ -481,7 +483,7 @@ class JsonCoverageParser(BaseCoverageParser):
         return entry
 
     def _add_branch_coverage(
-        self,
+        self: JsonCoverageParser,
         entry: dict[str, Any],
         summary: dict[str, Any],
     ) -> None:
@@ -508,12 +510,12 @@ class CoverageMapTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: CoverageMapTool) -> str:
         """Tool name."""
         return "coverage_map"
 
     @property
-    def description(self) -> str:
+    def description(self: CoverageMapTool) -> str:
         """Tool description."""
         return (
             "Parse a coverage report (XML or JSON) and show uncovered lines "
@@ -522,7 +524,7 @@ class CoverageMapTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: CoverageMapTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return create_path_parameter_schema(
             additional_params={
@@ -548,11 +550,11 @@ class CoverageMapTool(Tool):
         )
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: CoverageMapTool) -> ToolKind:
         """Tool kind - read-only analysis."""
         return ToolKind.READ
 
-    async def execute(self, **params: object) -> ToolResult:
+    async def execute(self: CoverageMapTool, **params: object) -> ToolResult:
         """Parse coverage report for uncovered lines.
 
         Args:
@@ -581,19 +583,20 @@ class CoverageMapTool(Tool):
             per_function=per_function,
         )
 
-        if not request.path:
+        request_path = request.path
+        if not request_path:
             return ToolResult(
                 content="Error: No path provided",
                 success=False,
                 error="Empty path",
             )
 
-        target = Path(request.path)
+        target = Path(request_path)
         if not target.exists():
             return ToolResult(
-                content=f"Error: File not found: {request.path}",
+                content=f"Error: File not found: {request_path}",
                 success=False,
-                error=f"File not found: {request.path}",
+                error=f"File not found: {request_path}",
             )
 
         config = request.to_config()

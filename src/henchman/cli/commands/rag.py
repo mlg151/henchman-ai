@@ -63,19 +63,15 @@ class RagCommand(BaseCommand):
             await self._show_help(ctx)
             return
 
-        subcommand = ctx.args[0].lower()
-        if subcommand == "status":
-            await self._status(ctx)
-        elif subcommand == "reindex":
-            await self._reindex(ctx)
-        elif subcommand == "clear":
-            await self._clear(ctx)
-        elif subcommand == "clear-all":
-            await self._clear_all(ctx)
-        elif subcommand == "cleanup":
-            await self._cleanup(ctx)
-        else:
-            await self._show_help(ctx)
+        _subcommands = {
+            "status": self._status,
+            "reindex": self._reindex,
+            "clear": self._clear,
+            "clear-all": self._clear_all,
+            "cleanup": self._cleanup,
+        }
+        handler = _subcommands.get(ctx.args[0].lower(), self._show_help)
+        await handler(ctx)
 
     def _get_rag_system(self, ctx: CommandContext) -> RagSystem | None:
         """Get the RAG system from context.
@@ -94,44 +90,48 @@ class RagCommand(BaseCommand):
 
     async def _status(self, ctx: CommandContext) -> None:
         """Show RAG index status."""
+        console = ctx.console
         rag_system = self._get_rag_system(ctx)
 
         if rag_system is None:
-            ctx.console.print(
+            console.print(
                 "[yellow]RAG not available. "
                 "Make sure you're in a git repository and RAG is enabled.[/]",
             )
             return
 
+        rag_git_root = rag_system.git_root
+        rag_settings = rag_system.settings
         stats = rag_system.get_stats()
-        ctx.console.print("\n[bold blue]RAG Index Status[/]\n")
-        ctx.console.print(f"  Git root: {rag_system.git_root}")
-        ctx.console.print(f"  Index directory: {rag_system.index_dir}")
-        ctx.console.print(f"  Embedding model: {rag_system.settings.embedding_model}")
-        ctx.console.print(f"  Chunk size: {rag_system.settings.chunk_size} tokens")
-        ctx.console.print(f"  Files indexed: {stats.files_unchanged}")
-        ctx.console.print(f"  Total chunks: {stats.total_chunks}")
-        ctx.console.print("")
+        console.print("\n[bold blue]RAG Index Status[/]\n")
+        console.print(f"  Git root: {rag_git_root}")
+        console.print(f"  Index directory: {rag_system.index_dir}")
+        console.print(f"  Embedding model: {rag_settings.embedding_model}")
+        console.print(f"  Chunk size: {rag_settings.chunk_size} tokens")
+        console.print(f"  Files indexed: {stats.files_unchanged}")
+        console.print(f"  Total chunks: {stats.total_chunks}")
+        console.print("")
 
     async def _reindex(self, ctx: CommandContext) -> None:
         """Force full reindex."""
+        console = ctx.console
         rag_system = self._get_rag_system(ctx)
 
         if rag_system is None:
-            ctx.console.print(
+            console.print(
                 "[yellow]RAG not available. "
                 "Make sure you're in a git repository and RAG is enabled.[/]",
             )
             return
 
         if getattr(rag_system, "is_indexing", False):
-            ctx.console.print("[yellow]RAG indexing is already in progress in the background.[/]")
+            console.print("[yellow]RAG indexing is already in progress in the background.[/]")
             return
 
-        ctx.console.print("[dim]Forcing full reindex...[/]")
+        console.print("[dim]Forcing full reindex...[/]")
         stats = rag_system.index(console=ctx.console, force=True)
         if stats:
-            ctx.console.print(
+            console.print(
                 f"[green]Reindex complete: {stats.files_added} files, "
                 f"{stats.total_chunks} chunks[/]",
             )
@@ -157,12 +157,13 @@ class RagCommand(BaseCommand):
         cache_dir = get_rag_cache_dir()
 
         if not cache_dir.exists():
-            ctx.console.print("[yellow]No RAG cache directory found[/]")
+            console = ctx.console
+            console.print("[yellow]No RAG cache directory found[/]")
             return
 
         # Ask for confirmation using simple input
-        ctx.console.print("[yellow]Warning: This will delete ALL RAG indices![/]")
-        ctx.console.print("Type 'yes' to confirm: ", end="")
+        console.print("[yellow]Warning: This will delete ALL RAG indices![/]")
+        console.print("Type 'yes' to confirm: ", end="")
         try:
             confirm = input()
         except (EOFError, KeyboardInterrupt):
@@ -171,11 +172,11 @@ class RagCommand(BaseCommand):
         if confirm.lower() in ("yes", "y"):
             try:
                 shutil.rmtree(cache_dir)
-                ctx.console.print(f"[green]Cleared all RAG indices from {cache_dir}[/]")
+                console.print(f"[green]Cleared all RAG indices from {cache_dir}[/]")
             except Exception as e:
-                ctx.console.print(f"[red]Error clearing indices: {e}[/]")
+                console.print(f"[red]Error clearing indices: {e}[/]")
         else:
-            ctx.console.print("[dim]Operation cancelled[/]")
+            console.print("[dim]Operation cancelled[/]")
 
     async def _cleanup(self, ctx: CommandContext) -> None:
         """Clean up old project-based RAG indices."""
@@ -184,7 +185,8 @@ class RagCommand(BaseCommand):
         # Find git root if we're in a repository
         git_root = find_git_root()
         if not git_root:
-            ctx.console.print("[yellow]Not in a git repository[/]")
+            console = ctx.console
+            console.print("[yellow]Not in a git repository[/]")
             return
 
         old_index_dir = git_root / ".henchman" / "rag_index"
@@ -197,18 +199,18 @@ class RagCommand(BaseCommand):
                 shutil.rmtree(old_index_dir)
                 removed.append(f"Index directory: {old_index_dir}")
             except Exception as e:
-                ctx.console.print(f"[yellow]Error removing {old_index_dir}: {e}[/]")
+                console.print(f"[yellow]Error removing {old_index_dir}: {e}[/]")
 
         if old_manifest.exists():
             try:
                 old_manifest.unlink()
                 removed.append(f"Manifest file: {old_manifest}")
             except Exception as e:
-                ctx.console.print(f"[yellow]Error removing {old_manifest}: {e}[/]")
+                console.print(f"[yellow]Error removing {old_manifest}: {e}[/]")
 
         if removed:
-            ctx.console.print("[green]Cleaned up old project-based RAG indices:[/]")
+            console.print("[green]Cleaned up old project-based RAG indices:[/]")
             for item in removed:
-                ctx.console.print(f"  • {item}")
+                console.print(f"  • {item}")
         else:
-            ctx.console.print("[dim]No old project-based RAG indices found[/]")
+            console.print("[dim]No old project-based RAG indices found[/]")

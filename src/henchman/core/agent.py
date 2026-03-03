@@ -218,7 +218,7 @@ class Agent:
         compactor = _build_compactor(self._config, self._max_tokens)
 
         # Calculate protect_from_index based on protected_count to match test expectations
-        protect_idx = max(0, len(self.messages) - protected_count) if protected_count > 0 else self.turn.start_index
+        protect_idx = max(0, len(self.messages) - protected_count) if protected_count > 0 else self.turn.start_index  # noqa: E501
 
         self.messages = compactor.compact(self.messages, protect_from_index=protect_idx)
         if not is_valid_message_sequence(self.messages):
