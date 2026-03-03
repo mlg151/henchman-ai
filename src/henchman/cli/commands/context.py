@@ -14,16 +14,72 @@ if TYPE_CHECKING:
     pass
 
 
+@dataclass
+class RangeParameterConfig:
+    """Configuration for range-validated parameters.
+
+    Attributes:
+        param_name: Name of the parameter.
+        min_val: Minimum allowed value.
+        max_val: Maximum allowed value (optional).
+        is_int: Whether the value should be an integer.
+        label: Display label for the parameter.
+    """
+
+    param_name: str
+    min_val: float
+    max_val: float | None = None
+    is_int: bool = False
+    label: str | None = None
+
+    def get_display_label(self) -> str:
+        """Get display label for the parameter.
+
+        Returns:
+            Display label.
+        """
+        return self.label or self.param_name.replace("_", " ").capitalize()
+
+    def validate_value(self, value: float | int) -> None:
+        """Validate value against range constraints.
+
+        Args:
+            value: Value to validate.
+
+        Raises:
+            ValueError: If value is outside valid range.
+        """
+        display_label = self.get_display_label()
+        if self.max_val is not None:
+            if not self.min_val <= value <= self.max_val:
+                raise ValueError(
+                    f"{display_label} must be between {self.min_val} and {self.max_val}"
+                )
+        elif value < self.min_val:
+            raise ValueError(f"{display_label} must be at least {self.min_val}")
+
+    def parse_value(self, value_str: str) -> float | int:
+        """Parse string value to appropriate type.
+
+        Args:
+            value_str: String value to parse.
+
+        Returns:
+            Parsed value as float or int.
+        """
+        return int(value_str) if self.is_int else float(value_str)
+
+
 class ContextConsoleHelper:
     """Helper class for context command console output operations.
-    
+
     Consolidates console output logic to eliminate duplication and feature envy.
     """
-    
+
     @staticmethod
     def print_status_info(console: Any, context_settings: Any) -> None:
         """Print intelligent context status information.
-        
+
         Args:
             console: Console for output.
             context_settings: Context settings to display.
@@ -31,20 +87,20 @@ class ContextConsoleHelper:
         ContextConsoleHelper._print_status_header(console)
         ContextConsoleHelper._print_status_values(console, context_settings)
         ContextConsoleHelper._print_status_commands(console)
-    
+
     @staticmethod
     def _print_status_header(console: Any) -> None:
         """Print status header.
-        
+
         Args:
             console: Console for output.
         """
         ConsoleHelper.print_status_header(console, "Intelligent Context Management")
-    
+
     @staticmethod
     def _print_status_values(console: Any, context_settings: Any) -> None:
         """Print status values.
-        
+
         Args:
             console: Console for output.
             context_settings: Context settings to display.
@@ -63,11 +119,11 @@ class ContextConsoleHelper:
         ConsoleHelper.print_status_value(
             console, "Cluster similarity", context_settings.cluster_similarity_threshold
         )
-    
+
     @staticmethod
     def _print_status_commands(console: Any) -> None:
         """Print available commands.
-        
+
         Args:
             console: Console for output.
         """
@@ -79,18 +135,16 @@ class ContextConsoleHelper:
         )
         ConsoleHelper.print_command_help(console, "/context stats", "view usage statistics")
         console.print("")
-    
+
     @staticmethod
     def print_strategy_usage(console: Any) -> None:
         """Print strategy command usage help.
-        
+
         Args:
             console: Console for output.
         """
         ConsoleHelper.print_error_message(
-            console,
-            "Missing parameter or value",
-            "/context strategy set <parameter> <value>"
+            console, "Missing parameter or value", "/context strategy set <parameter> <value>"
         )
         console.print("\nParameters:")
         console.print("  max_tokens <int>          - Maximum tokens before compaction")
@@ -98,11 +152,11 @@ class ContextConsoleHelper:
         console.print("  importance <float>        - Importance threshold (0.0-1.0)")
         console.print("  similarity <float>        - Cluster similarity threshold (0.0-1.0)")
         console.print("  adaptive <on|off>         - Enable/disable adaptive compression")
-    
+
     @staticmethod
     def print_strategy_status(console: Any, context_settings: Any) -> None:
         """Show current compression strategy settings.
-        
+
         Args:
             console: Console for output.
             context_settings: Context settings to display.
@@ -126,31 +180,6 @@ class ContextConsoleHelper:
             console, "/context strategy set <parameter> <value>", "change settings"
         )
         console.print("")
-
-
-@dataclass
-class RangeParameterConfig:
-    """Configuration for range-validated parameters.
-
-    Attributes:
-        param_name: Name of the parameter.
-        min_val: Minimum allowed value.
-        max_val: Maximum allowed value (optional).
-        is_int: Whether the value should be an integer.
-        label: Display label for the parameter.
-    """
-
-    param_name: str
-    min_val: float
-    max_val: float | None = None
-    is_int: bool = False
-    label: str | None = None
-
-    def get_display_label(self) -> str:
-        Returns:
-            Parsed value as float or int.
-        """
-        return int(value_str) if self.is_int else float(value_str)
 
 
 class ContextCommand(Command):
@@ -237,24 +266,9 @@ class ContextCommand(Command):
         Args:
             ctx: Command context.
         """
-        ConsoleHelper.print_status_value(
-            console, "Cluster similarity", context_settings.cluster_similarity_threshold
-        )
-
-    def _print_status_commands(self, console: Any) -> None:
-        """Print available commands.
-
-        Args:
-            console: Console for output.
-        """
-        console.print("")
-        ConsoleHelper.print_command_help(console, "/context enable", "enable intelligent context")
-        ConsoleHelper.print_command_help(console, "/context disable", "disable intelligent context")
-        ConsoleHelper.print_command_help(
-            console, "/context strategy", "manage compression strategies"
-        )
-        ConsoleHelper.print_command_help(console, "/context stats", "view usage statistics")
-        console.print("")
+        settings = load_settings()
+        context_settings = settings.context
+        ContextConsoleHelper.print_status_info(ctx.console, context_settings)
 
     async def _enable_intelligent_context(self, ctx: CommandContext) -> None:
         """Enable intelligent context management.
@@ -302,7 +316,7 @@ class ContextCommand(Command):
         action = args[self._STRATEGY_ACTION_IDX].lower()
         if action == "set":
             if len(args) < 3:  # Need at least 'set', 'parameter' and 'value'
-                self._print_strategy_usage(ctx.console)
+                ContextConsoleHelper.print_strategy_usage(ctx.console)
                 return
 
             param = args[self._STRATEGY_PARAM_IDX]
@@ -310,24 +324,6 @@ class ContextCommand(Command):
             await self._set_strategy_parameter(ctx, param, value)
         else:
             ctx.console.print("[yellow]Usage: /context strategy [set <parameter> <value>][/]")
-
-    def _print_strategy_usage(self, console: Any) -> None:
-        """Print strategy command usage help.
-
-        Args:
-            console: Console for output.
-        """
-        ConsoleHelper.print_error_message(
-            console,
-            "Missing parameter or value",
-            "/context strategy set <parameter> <value>"
-        )
-        console.print("\nParameters:")
-        console.print("  max_tokens <int>          - Maximum tokens before compaction")
-        console.print("  threshold <float>         - Compaction threshold (0.1-1.0)")
-        console.print("  importance <float>        - Importance threshold (0.0-1.0)")
-        console.print("  similarity <float>        - Cluster similarity threshold (0.0-1.0)")
-        console.print("  adaptive <on|off>         - Enable/disable adaptive compression")
 
     async def _show_strategy_status(self, ctx: CommandContext) -> None:
         """Show current compression strategy settings.
@@ -337,27 +333,7 @@ class ContextCommand(Command):
         """
         settings = load_settings()
         context_settings = settings.context
-        console = ctx.console
-
-        console.print("\n[bold blue]Compression Strategy Settings[/]\n")
-        ConsoleHelper.print_status_value(console, "Max tokens", context_settings.max_tokens)
-        ConsoleHelper.print_status_value(
-            console, "Compaction threshold", context_settings.compaction_threshold
-        )
-        ConsoleHelper.print_status_value(
-            console, "Importance threshold", context_settings.importance_threshold
-        )
-        ConsoleHelper.print_status_value(
-            console, "Cluster similarity", context_settings.cluster_similarity_threshold
-        )
-        ConsoleHelper.print_enabled_status(
-            console, "Adaptive compression", context_settings.adaptive_compression
-        )
-        console.print("")
-        ConsoleHelper.print_command_help(
-            console, "/context strategy set <parameter> <value>", "change settings"
-        )
-        console.print("")
+        ContextConsoleHelper.print_strategy_status(ctx.console, context_settings)
 
     async def _set_strategy_parameter(
         self, ctx: CommandContext, param: str, value: str | None
@@ -376,30 +352,29 @@ class ContextCommand(Command):
             ctx.console.print(f"[yellow]Missing value for parameter '{param}'[/]")
             return
 
-        # Define parameter handlers
-        handlers = {
-            "max_tokens": self._handle_max_tokens_parameter,
-            "threshold": self._handle_threshold_parameter,
-            "importance": lambda c, v: self._handle_zero_to_one_parameter(
-                c, v, "importance_threshold"
+        # Define parameter handlers using RangeParameterConfig for range validation
+        parameter_configs = {
+            "max_tokens": RangeParameterConfig(param_name="max_tokens", min_val=1000, is_int=True),
+            "threshold": RangeParameterConfig(
+                param_name="compaction_threshold", min_val=0.1, max_val=1.0, label="Threshold"
             ),
-            "similarity": lambda c, v: self._handle_zero_to_one_parameter(
-                c, v, "cluster_similarity_threshold"
+            "importance": RangeParameterConfig(
+                param_name="importance_threshold", min_val=0.0, max_val=1.0
             ),
-            "adaptive": self._handle_adaptive_parameter,
+            "similarity": RangeParameterConfig(
+                param_name="cluster_similarity_threshold", min_val=0.0, max_val=1.0
+            ),
         }
 
-        handler = handlers.get(param)
-        if handler is None:
+        if param in parameter_configs:
+            await self._handle_range_parameter(ctx, value, parameter_configs[param])
+        elif param == "adaptive":
+            await self._handle_adaptive_parameter(ctx, value)
+        else:
             ctx.console.print(f"[red]Unknown parameter: {param}[/]")
             ctx.console.print("\nValid parameters:")
             ctx.console.print("  max_tokens, threshold, importance, similarity, adaptive")
             return
-
-        try:
-            await handler(ctx, value)
-        except ValueError as e:
-            ctx.console.print(f"[red]Invalid value: {e}[/]")
 
     async def _update_context_setting(
         self, ctx: CommandContext, param_name: str, value: Any, display_value: str
@@ -426,31 +401,6 @@ class ContextCommand(Command):
         val = config.parse_value(value)
         config.validate_value(val)
         await self._update_context_setting(ctx, config.param_name, val, str(val))
-
-    async def _handle_max_tokens_parameter(self, ctx: CommandContext, value: str) -> None:
-        """Handle max_tokens parameter setting."""
-        config = RangeParameterConfig(param_name="max_tokens", min_val=1000, is_int=True)
-        await self._handle_range_parameter(ctx, value, config)
-
-    async def _handle_threshold_parameter(self, ctx: CommandContext, value: str) -> None:
-        """Handle threshold parameter setting."""
-        config = RangeParameterConfig(
-            param_name="compaction_threshold", min_val=0.1, max_val=1.0, label="Threshold"
-        )
-        await self._handle_range_parameter(ctx, value, config)
-
-    async def _handle_zero_to_one_parameter(
-        self, ctx: CommandContext, value: str, param_name: str
-    ) -> None:
-        """Handle parameter with range 0.0 to 1.0.
-
-        Args:
-            ctx: Command context.
-            value: Parameter value as string.
-            param_name: Name of the parameter.
-        """
-        config = RangeParameterConfig(param_name=param_name, min_val=0.0, max_val=1.0)
-        await self._handle_range_parameter(ctx, value, config)
 
     async def _handle_adaptive_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle adaptive parameter setting."""
