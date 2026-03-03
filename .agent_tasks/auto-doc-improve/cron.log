@@ -6805,3 +6805,227 @@ INFO    -  Documentation built in 0.71 seconds
 }
 [2026-03-03T05:30:01Z] Verification passed.
 Committing changes...
+[main 2aec579] docs(auto-improve): automated documentation improvement
+ 10 files changed, 1326 insertions(+), 2195 deletions(-)
+[2026-03-03T05:30:01Z] Done.
+[2026-03-03T05:45:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by addressing the highest-priority issue from the smell report: **No mkdocs.yml found — documentation site is not configured**. This is a HIGH severity config issue that needs to be fixed first.
+
+Let me check if there's already an mkdocs.yml file:
+[tool] ls({'path': '.', 'show_hidden': False})
+
+
+[result] CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+MagicMock/
+README.md
+RELEASE_CHECKLIST.md
+__pycache__/
+coverage.json
+dist/
+docs/
+evals/
+htmlcov/
+mkdocs.yml
+pyproject.toml
+scripts/
+site/
+src/
+test_compatibility.p...
+Good! There is an `mkdocs.yml` file. Let me examine its current content to understand what needs to be fixed:
+[tool] read_file({'path': 'mkdocs.yml'})
+
+[result] site_name: Henchman-AI
+site_url: https://github.com/mlg151/henchman-ai
+site_description: A Model-Agnostic AI Agent CLI in Python
+site_author: Matthew
+
+repo_name: mlg151/henchman-ai
+repo_...
+Now let me check what documentation files exist in the `docs/` directory to see if the navigation is complete:
+[tool] ls({'path': 'docs', 'show_hidden': False})
+
+[result] agents.md
+api.md
+architecture.md
+configuration.md
+extensions.md
+getting-started.md
+index.md
+intelligent-context-management.md
+javascripts/
+mcp.md
+providers.md
+tools.md...
+Good! All the files referenced in the nav exist. However, I notice that the smell report says "No mkdocs.yml found" which suggests the detection script might have had an issue. Let me check if there are any other documentation files that should be included in the navigation. Let me also check the last improvement file to see what was done previously:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T05:35:00Z
+
+## Files Changed
+1. `RELEASE_CHECKLIST.md` - Updated coverage requirement from 80% to 100%
+
+## Smell Category Addressed
+- **Consi...
+I see! The last improvement noted that the "No mkdocs.yml found" issue is a false positive. However, looking at the smell report again, I notice there's still a **HIGH severity** issue listed for mkdocs.yml. Let me check if there's something specific about the configuration that needs fixing. 
+
+Looking at the mkdocs.yml content, I notice it uses a Python YAML tag: `!!python/name:pymdownx.superfences.fence_code_format`. This is valid for mkdocs but might cause issues with some YAML parsers. However, the real issue might be that the smell detection script is looking for mkdocs.yml in the wrong place or having trouble parsing it.
+
+Actually, wait - I should check if there's a **Config Issue** mentioned in the smell report. Looking back at the report, it says "No mkdocs.yml found — documentation site is not configured". But we can see the file exists. This suggests the smell detection might have run from a different directory or had a path issue.
+
+Let me check if there are any other documentation files that should be in the navigation but aren't. Let me look for other markdown files in the project root:
+[tool] glob({'pattern': '*.md', 'path': '.'})
+
+[result] CHANGELOG.md
+CONTRIBUTING.md
+README.md
+RELEASE_CHECKLIST.md...
+Let me check if these root-level markdown files should be included in the documentation navigation. Looking at the current nav, it only includes files from the `docs/` directory. However, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, and `RELEASE_CHECKLIST.md` are important project documentation files that should be accessible from the documentation site.
+
+Let me check what's in the `docs/index.md` to see if it references these files:
+[tool] read_file({'path': 'docs/index.md'})
+
+[result] # Henchman-AI
+
+**A Model-Agnostic AI Agent CLI in Python**
+
+Henchman-AI is a powerful terminal-based AI agent that supports multiple LLM 
+providers through a unified interface. Inspired by gemini-cli, ...
+The index page looks good. Now, looking at the smell report again, I see there's also a **Consistency Error** in `pyproject.toml:65` about coverage thresholds. Let me check that:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+Let me search for the coverage threshold in pyproject.toml:
+[tool] grep({'pattern': 'coverage', 'path': 'pyproject.toml', 'line_numbers': 
+True})
+
+[result] 145:[tool.coverage.run]
+149:[tool.coverage.report]...
+Let me check the coverage configuration in pyproject.toml:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 140, 'end_line': 160})
+
+[result]     "integration: marks tests as integration tests (deselect with '-m 
+\"not integration\"')",
+    "always_passes: marks behavioral eval as expected to always pass (run in 
+CI)",
+    "usually_passes: ma...
+I don't see a coverage threshold percentage in pyproject.toml. Let me check if there's a coverage threshold elsewhere:
+[tool] grep({'pattern': '4%', 'path': '.', 'line_numbers': True})
+
+[result] .agent_tasks/auto-doc-improve/cron.log:3674:mismatch: 4% vs 80%)\n\nThe
+stale docstrings should be addressed next as they 
+.agent_tasks/auto-doc-improve/cron.log:3881:mismatch: 4% vs 80%)\n\nThe stale...
+I can see the issue now. Looking at the smell report and the grep results, the "4%" mentioned in the smell report appears to be a false positive - it's referring to the pytest-cov version requirement `"pytest-cov>=4.0"` on line 65 of pyproject.toml, not a coverage threshold. The smell detection script is incorrectly interpreting the version number "4.0" as a coverage threshold "4%".
+
+However, looking at the current smell report, it says "States coverage threshold of 4% but other files require 100%." This suggests there might still be an inconsistency. Let me check if there are any actual coverage threshold settings in the project:
+[tool] grep({'pattern': 'cov-fail-under', 'path': '.', 'line_numbers': True})
+
+[result] .agent_tasks/auto-doc-improve/cron.log:6251:[tool] grep({'pattern': 
+'cov-fail-under', 'path': 'pyproject.toml', 
+.agent_tasks/auto-doc-improve/cron.log:6317:I see the issue! The pytest 
+configuration h...
+Good! I can see that the `--cov-fail-under=100` flag is already in `pyproject.toml` line 138. Let me check the current content of that line:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 135, 'end_line': 145})
+
+[result] testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-v --cov=henchman --cov-report=term-missing --cov-fail-under=100"
+markers = [
+    "integration: m...
+Perfect! The `--cov-fail-under=100` flag is already there. So the consistency error mentioned in the smell report about "4% vs 100%" appears to be a false positive - it's misinterpreting the `pytest-cov>=4.0` version requirement as a coverage threshold.
+
+Now, looking back at the prioritised fix queue, the #1 issue is "No mkdocs.yml found" which we know is a false positive (the file exists and is properly configured). The #2 issue is the consistency error about "4% vs 100%" which is also a false positive.
+
+Let me check the #3 issue: "Missing Docstring in src/henchman/agents/config.py:1". This is a legitimate documentation issue that needs fixing. Let me examine that file:
+[tool] read_file({'path': 'src/henchman/agents/config.py'})
+
+[result] from henchman.config.schema import AgentConfig
+
+__all__ = ["AgentConfig"]
+...
+This file is just re-exporting `AgentConfig` from another module. It should have a module-level docstring. This is a legitimate documentation issue that I should fix. Let me add a proper docstring:
+[tool] edit_file({'path': 'src/henchman/agents/config.py', 'old_str': 'from 
+henchman.config.schema import AgentConfig\n\n__all__ = ["AgentConfig"]', 
+'new_str': '"""Agent configuration module.\n\nThis module provides the 
+AgentConfig class for configuring AI agents.\nIt re-exports the AgentConfig from
+the main configuration schema for\nconvenient access within the agents 
+package.\n"""\n\nfrom henchman.config.schema import AgentConfig\n\n__all__ = 
+["AgentConfig"]'})
+
+[result] Successfully edited src/henchman/agents/config.py...
+Now let me create the improvement record:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T05:50:00Z\n\n## Files Changed\n1. 
+`src/henchman/agents/config.py` - Added missing module-level docstring\n\n## 
+Smell Category Addressed\n- **Missing Docstring** (MEDIUM): Module was missing a
+docstring\n\n## Rationale for Change\nThe documentation smell report identified 
+a missing docstring in `src/henchman/agents/config.py:1`. The file is a 
+re-export module that provides `AgentConfig` from the main configuration schema 
+for convenient access within the agents package. All Python modules should have 
+docstrings to explain their purpose.\n\n## Changes Made\nAdded a module-level 
+docstring to `src/henchman/agents/config.py`:\n```python\n"""Agent configuration
+module.\n\nThis module provides the AgentConfig class for configuring AI 
+agents.\nIt re-exports the AgentConfig from the main configuration schema 
+for\nconvenient access within the agents package.\n"""\n```\n\n## Technical 
+Details\nThe change ensures:\n1. The module has proper documentation explaining 
+its purpose\n2. The docstring follows Google-style documentation conventions\n3.
+The module\'s role as a re-export is clearly explained\n4. Users understand why 
+AgentConfig is available in the agents package\n\n## What to Verify\n1. The 
+module now has a complete docstring\n2. The docstring accurately describes the 
+module\'s purpose\n3. The module still correctly re-exports AgentConfig\n4. The 
+missing docstring smell should be resolved in the next smell report\n\n## 
+Testing Instructions\nTo verify the fix:\n```bash\n# Check that the module now 
+has a docstring\npython -c "import src.henchman.agents.config; 
+print(src.henchman.agents.config.__doc__)"\n\n# Verify the module still works 
+correctly\npython -c "from src.henchman.agents.config import AgentConfig; 
+print(AgentConfig.__name__)"\n```\n\n## Next Priority\nThe next highest-priority
+issues are:\n1. **Missing Docstring** in `src/henchman/agents/identity.py:1` 
+(module missing docstring)\n2. **Incomplete Docstring** in 
+`src/henchman/agents/metrics.py:91` (\'PerformanceMetrics.track_file_access\' 
+has 1 parameter but no Args section)\n3. **Incomplete Docstring** in 
+`src/henchman/agents/metrics.py:95` (\'PerformanceMetrics.track_tool_usage\' has
+1 parameter but no Args section)\n4. **Incomplete Docstring** in 
+`src/henchman/agents/metrics.py:152` (\'ToolMetrics.track_tool_call\' has 2 
+parameters but no Args section)\n5. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator.py:76` (\'Orchestrator.run\' has 1 parameter 
+but no Args section)\n\n## Notes on False Positives\nThe smell report listed two
+false positives that don\'t need fixing:\n1. **"No mkdocs.yml found"** (HIGH) - 
+The file exists and is properly configured at the project root\n2. **"coverage 
+threshold of 4% vs 100%"** (MEDIUM) - This misinterprets `pytest-cov>=4.0` 
+(version requirement) as a coverage threshold'})
+
+[result] Successfully wrote 2812 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I've successfully addressed the #3 priority issue from the smell report. I added a missing module-level docstring to `src/henchman/agents/config.py`. The change is minimal and focused, addressing a legitimate documentation issue while noting the false positives in the smell report.
+
+The improvement record documents what was changed, why it was changed, and what to verify. The next agent can continue with the next priority issue.
+[tech_lead] completed work
+[2026-03-03T05:45:02Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.70 seconds
+[2026-03-03T05:45:02Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T05:45:02Z] Verification passed.
+Committing changes...

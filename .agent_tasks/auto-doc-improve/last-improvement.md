@@ -1,68 +1,60 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-03-03T05:35:00Z
+2026-03-03T05:50:00Z
 
 ## Files Changed
-1. `RELEASE_CHECKLIST.md` - Updated coverage requirement from 80% to 100%
+1. `src/henchman/agents/config.py` - Added missing module-level docstring
 
 ## Smell Category Addressed
-- **Consistency Error** (MEDIUM): Coverage threshold mismatch between RELEASE_CHECKLIST.md and other files
+- **Missing Docstring** (MEDIUM): Module was missing a docstring
 
 ## Rationale for Change
-The documentation smell report identified a consistency error: "States coverage threshold of 80% but other files require 100%. Found thresholds: 100%, 80%, 4%".
-
-The actual issue was:
-1. The RELEASE_CHECKLIST.md file stated "Ensure test coverage > 80%"
-2. The project actually requires 100% test coverage according to:
-   - Copilot instructions (.github/copilot-instructions.md): "100% test coverage - All code must be tested"
-   - CI workflow (.github/workflows/ci.yml): Uses `--cov-fail-under=100`
-   - Pyproject.toml: Already fixed in previous improvement to include `--cov-fail-under=100`
-   - Quality requirements: Project mandates 100% test coverage
+The documentation smell report identified a missing docstring in `src/henchman/agents/config.py:1`. The file is a re-export module that provides `AgentConfig` from the main configuration schema for convenient access within the agents package. All Python modules should have docstrings to explain their purpose.
 
 ## Changes Made
-Updated line 9 in RELEASE_CHECKLIST.md:
-- From: `- [ ] Ensure test coverage > 80%: `pytest --cov=henchman --cov-report=term-missing``
-- To: `- [ ] Ensure test coverage = 100%: `pytest --cov=henchman --cov-report=term-missing --cov-fail-under=100``
+Added a module-level docstring to `src/henchman/agents/config.py`:
+```python
+"""Agent configuration module.
+
+This module provides the AgentConfig class for configuring AI agents.
+It re-exports the AgentConfig from the main configuration schema for
+convenient access within the agents package.
+"""
+```
 
 ## Technical Details
 The change ensures:
-1. Consistency across all project documentation
-2. The release checklist matches actual project requirements
-3. The command includes the `--cov-fail-under=100` flag for explicit failure threshold
-4. Clear expectation that coverage must be exactly 100% (not "greater than 80%")
+1. The module has proper documentation explaining its purpose
+2. The docstring follows Google-style documentation conventions
+3. The module's role as a re-export is clearly explained
+4. Users understand why AgentConfig is available in the agents package
 
 ## What to Verify
-1. All documentation now consistently states 100% coverage requirement
-2. The release checklist provides the correct command for checking coverage
-3. No other files reference 80% coverage threshold (checked via grep)
-4. The consistency error should be resolved in the next smell report
+1. The module now has a complete docstring
+2. The docstring accurately describes the module's purpose
+3. The module still correctly re-exports AgentConfig
+4. The missing docstring smell should be resolved in the next smell report
 
 ## Testing Instructions
 To verify the fix:
 ```bash
-# Check that RELEASE_CHECKLIST.md now has correct coverage requirement
-grep -n "test coverage" RELEASE_CHECKLIST.md
+# Check that the module now has a docstring
+python -c "import src.henchman.agents.config; print(src.henchman.agents.config.__doc__)"
 
-# Verify no other documentation files mention 80% coverage
-grep -r "80%" docs/ *.md 2>/dev/null | grep -v ".agent_tasks" | grep -v "log"
-
-# Test the actual coverage check command
-pytest --cov=henchman --cov-report=term-missing --cov-fail-under=100
+# Verify the module still works correctly
+python -c "from src.henchman.agents.config import AgentConfig; print(AgentConfig.__name__)"
 ```
 
 ## Next Priority
 The next highest-priority issues are:
-1. **Missing Docstring** in `src/henchman/agents/config.py:1` (module missing docstring)
-2. **Missing Docstring** in `src/henchman/agents/identity.py:1` (module missing docstring)
-3. **Incomplete Docstring** in `src/henchman/agents/metrics.py:91` ('PerformanceMetrics.track_file_access' has 1 parameter but no Args section)
-4. **Incomplete Docstring** in `src/henchman/agents/metrics.py:95` ('PerformanceMetrics.track_tool_usage' has 1 parameter but no Args section)
-5. **Incomplete Docstring** in `src/henchman/agents/metrics.py:152` ('ToolMetrics.track_tool_call' has 2 parameters but no Args section)
+1. **Missing Docstring** in `src/henchman/agents/identity.py:1` (module missing docstring)
+2. **Incomplete Docstring** in `src/henchman/agents/metrics.py:91` ('PerformanceMetrics.track_file_access' has 1 parameter but no Args section)
+3. **Incomplete Docstring** in `src/henchman/agents/metrics.py:95` ('PerformanceMetrics.track_tool_usage' has 1 parameter but no Args section)
+4. **Incomplete Docstring** in `src/henchman/agents/metrics.py:152` ('ToolMetrics.track_tool_call' has 2 parameters but no Args section)
+5. **Incomplete Docstring** in `src/henchman/agents/orchestrator.py:76` ('Orchestrator.run' has 1 parameter but no Args section)
 
-## Notes on mkdocs.yml Issue
-The smell report listed "No mkdocs.yml found" as HIGH priority, but this appears to be a false positive:
-1. mkdocs.yml file exists and is properly configured
-2. The file contains valid mkdocs configuration with Python YAML tags (`!!python/name:pymdownx.superfences.fence_code_format`)
-3. These tags are valid for mkdocs but cause issues with strict YAML parsers
-4. The documentation site builds correctly with the current configuration
-5. This is not an actual documentation issue that needs fixing
+## Notes on False Positives
+The smell report listed two false positives that don't need fixing:
+1. **"No mkdocs.yml found"** (HIGH) - The file exists and is properly configured at the project root
+2. **"coverage threshold of 4% vs 100%"** (MEDIUM) - This misinterprets `pytest-cov>=4.0` (version requirement) as a coverage threshold
