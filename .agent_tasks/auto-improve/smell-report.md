@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 53.4/100)
+# Code Smell Report — ❌ F (Score: 53.6/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T11:30:21.297973+00:00_
+_Generated: 2026-03-03T12:00:21.224178+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 53.4/100 |
+| **Overall Score** | 53.6/100 |
 | **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 34,530 |
-| **Total Smells** | 2131 |
+| **Total Lines (non-blank)** | 34,559 |
+| **Total Smells** | 2129 |
 | **Avg Maintainability Index** | 71.9 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,17 +20,17 @@ _Generated: 2026-03-03T11:30:21.297973+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1629 |
-| medium | 447 |
-| high | 55 |
+| low | 1630 |
+| medium | 445 |
+| high | 54 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1147 |
+| Missing Type Hint | 1148 |
 | Feature Envy | 291 |
-| Duplicate Code | 230 |
+| Duplicate Code | 227 |
 | Magic Number | 128 |
 | Long Method | 107 |
 | Deep Nesting | 98 |
@@ -58,48 +58,48 @@ These are the highest-impact smells to address first:
    Function '__init__' has 105 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-5. **cli/textual_bridge.py:377** — 🟠 HIGH — Duplicate Code  
-   Function '_on_deleg_dec' is an exact duplicate of '_on_reflection' at cli/textual_bridge.py:381  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
-
-6. **cli/textual_widgets.py:924** — 🟠 HIGH — Duplicate Code  
+5. **cli/textual_widgets.py:924** — 🟠 HIGH — Duplicate Code  
    Function 'add_user_message' is an exact duplicate of 'add_system_message' at cli/textual_widgets.py:932  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-7. **cli/textual_widgets.py:924** — 🟠 HIGH — Duplicate Code  
+6. **cli/textual_widgets.py:924** — 🟠 HIGH — Duplicate Code  
    Function 'add_user_message' is an exact duplicate of 'add_error_message' at cli/textual_widgets.py:940  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-8. **cli/textual_widgets.py:932** — 🟠 HIGH — Duplicate Code  
+7. **cli/textual_widgets.py:932** — 🟠 HIGH — Duplicate Code  
    Function 'add_system_message' is an exact duplicate of 'add_error_message' at cli/textual_widgets.py:940  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-9. **cli/ui_renderer.py:45** — 🟠 HIGH — Primitive Obsession  
+8. **cli/ui_renderer.py:45** — 🟠 HIGH — Primitive Obsession  
    Repeated primitive parameter group appears in: 'start_task' (line 45), 'start_task' (line 356)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-10. **cli/ui_renderer.py:69** — 🟠 HIGH — Primitive Obsession  
+9. **cli/ui_renderer.py:69** — 🟠 HIGH — Primitive Obsession  
    Repeated primitive parameter group appears in: 'update_task' (line 69), 'update_task' (line 369)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-11. **extensions/plugin_manager.py:47** — 🟠 HIGH — Duplicate Code  
+10. **extensions/plugin_manager.py:47** — 🟠 HIGH — Duplicate Code  
    Function '__init__' is an exact duplicate of '__init__' at extensions/plugin_manager_refactored.py:48  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-12. **extensions/plugin_manager.py:68** — 🟠 HIGH — Duplicate Code  
+11. **extensions/plugin_manager.py:68** — 🟠 HIGH — Duplicate Code  
    Function 'initialize' is an exact duplicate of 'initialize' at extensions/plugin_manager_refactored.py:69  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-13. **extensions/plugin_manager.py:104** — 🟠 HIGH — Duplicate Code  
+12. **extensions/plugin_manager.py:104** — 🟠 HIGH — Duplicate Code  
    Function 'close' is an exact duplicate of 'close' at extensions/plugin_manager_refactored.py:105  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-14. **extensions/plugin_manager.py:113** — 🟠 HIGH — Duplicate Code  
+13. **extensions/plugin_manager.py:113** — 🟠 HIGH — Duplicate Code  
    Function 'search_plugins' is an exact duplicate of 'search_plugins' at extensions/plugin_manager_refactored.py:114  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-15. **extensions/plugin_manager.py:145** — 🟠 HIGH — Duplicate Code  
+14. **extensions/plugin_manager.py:145** — 🟠 HIGH — Duplicate Code  
    Function 'get_plugin_info' is an exact duplicate of 'get_plugin_info' at extensions/plugin_manager_refactored.py:146  
+   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
+
+15. **extensions/plugin_manager.py:168** — 🟠 HIGH — Duplicate Code  
+   Function 'install_plugin' is an exact duplicate of 'install_plugin' at extensions/plugin_manager_refactored.py:169  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_bridge.py | ❌ F | 15.6 | 47 | 338 | 52 | 0.0 |
+| 1 | cli/textual_bridge.py | ❌ F | 15.5 | 47 | 350 | 52 | 0.0 |
 | 2 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
 | 3 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
 | 4 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
@@ -122,27 +122,27 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 169 additional files omitted._
 
-### cli/textual_bridge.py — ❌ F (15.6/100)
+### cli/textual_bridge.py — ❌ F (15.5/100)
 
-LOC: 338 | Classes: 2 | Functions: 2 | MI: 52 | Avg CC: 0.0
+LOC: 350 | Classes: 2 | Functions: 2 | MI: 52 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 377 | 🟠 HIGH | Duplicate Code | Function '_on_deleg_dec' is an exact duplicate of '_on_reflection' at cli/textual_bridge.py:381 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 100 | 🟡 MEDIUM | Large Class | Class 'EventBridge' has 30 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 225 | 🟡 MEDIUM | Duplicate Code | Function '_post_status_message' is 94% similar to '_on_finished' at cli/textual_bridge.py:307 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 234 | 🟡 MEDIUM | Duplicate Code | Function '_post_simple_status' is 100% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 234 | 🟡 MEDIUM | Duplicate Code | Function '_post_simple_status' is 100% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 234 | 🟡 MEDIUM | Duplicate Code | Function '_post_simple_status' is 100% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 234 | 🟡 MEDIUM | Duplicate Code | Function '_post_simple_status' is 100% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 65 | 🟢 LOW | Missing Type Hint | Function 'console' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 73 | 🟢 LOW | Missing Type Hint | Function 'flush_to_chat' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 81 | 🟢 LOW | Missing Type Hint | Function 'print' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 107 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 120 | 🟢 LOW | Missing Type Hint | Function 'forward_events' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 140 | 🟢 LOW | Missing Type Hint | Function '_post' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 148 | 🟢 LOW | Missing Type Hint | Function '_dispatch' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 101 | 🟡 MEDIUM | Large Class | Class 'EventBridge' has 31 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 230 | 🟡 MEDIUM | Duplicate Code | Function '_post_prefixed_message' is 100% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 230 | 🟡 MEDIUM | Duplicate Code | Function '_post_prefixed_message' is 100% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 230 | 🟡 MEDIUM | Duplicate Code | Function '_post_prefixed_message' is 100% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 230 | 🟡 MEDIUM | Duplicate Code | Function '_post_prefixed_message' is 100% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 248 | 🟡 MEDIUM | Duplicate Code | Function '_post_status_message' is 94% similar to '_on_finished' at cli/textual_bridge.py:323 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 49 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 66 | 🟢 LOW | Missing Type Hint | Function 'console' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 74 | 🟢 LOW | Missing Type Hint | Function 'flush_to_chat' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 82 | 🟢 LOW | Missing Type Hint | Function 'print' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 108 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 121 | 🟢 LOW | Missing Type Hint | Function 'forward_events' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 141 | 🟢 LOW | Missing Type Hint | Function '_post' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 149 | 🟢 LOW | Missing Type Hint | Function '_dispatch' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 149 | 🟢 LOW | Feature Envy | Method 'EventBridge._dispatch' accesses 'event' 3 times but 'self' only 2 times | Move Method — consider moving '_dispatch' to the class that owns 'event'. |
 
 _... and 32 more smells._
 
