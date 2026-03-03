@@ -9563,3 +9563,315 @@ INFO    -  Documentation built in 0.69 seconds
 }
 [2026-03-03T07:30:02Z] Verification passed.
 Committing changes...
+[main 4a524bd] docs(auto-improve): automated documentation improvement
+ 8 files changed, 1962 insertions(+), 78 deletions(-)
+[2026-03-03T07:30:02Z] Done.
+[2026-03-03T07:45:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by examining the highest-priority issue from the smell report: the consistency error in `pyproject.toml` where it states a coverage threshold of 4% while other files require 100%.
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
+
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+Let me look for the coverage threshold configuration:
+[tool] grep({'pattern': 'cov-fail-under', 'path': 'pyproject.toml', 
+'line_numbers': True})
+
+[result] 138:addopts = "-v --cov=henchman --cov-report=term-missing 
+--cov-fail-under=100"...
+Good, so line 138 shows `--cov-fail-under=100`. Let me check around line 65 mentioned in the report:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 80})
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+I see - line 65 is `"pytest-cov>=4.0"` which is the version requirement for pytest-cov, not a coverage threshold. The smell detector is misinterpreting this. Let me check the CI script to see what coverage threshold it uses:
+[tool] read_file({'path': 'scripts/ci.sh'})
+
+✗ \[error] Error: File not found: scripts/ci.sh
+
+[tool] ls({'path': '.'})
+
+[result] CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+MagicMock/
+README.md
+RELEASE_CHECKLIST.md
+__pycache__/
+coverage.json
+dist/
+docs/
+evals/
+htmlcov/
+mkdocs.yml
+pyproject.toml
+scripts/
+site/
+src/
+test_compatibility.p...
+
+[tool] ls({'path': 'scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+run_evals.sh
+smell_detector/...
+Let me check the copilot instructions to see what coverage threshold is mentioned:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 1, 
+'end_line': 50})
+
+[result] # Henchman-AI Copilot Instructions
+
+Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by 
+gemini-cli. It supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, 
+Ollama) via a u...
+The copilot instructions say "100% test coverage" and "100% documentation coverage". Let me check the Development Workflow section:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 200, 
+'end_line': 250})
+
+[result] ```
+### Configuration System (Implemented)
+Settings are loaded hierarchically with later sources overriding earlier ones:
+```python
+from henchman.config import load_settings, Settings, ContextLoader
+#...
+Let me check what the actual issue is. The smell report says "pyproject.toml:65 — 🟡 MEDIUM — Consistency Error: States coverage threshold of 4% but other files require 100%. Found thresholds: 100%, 4%". This appears to be a false positive - `pytest-cov>=4.0` is the version requirement, not a coverage threshold. However, let me verify if there are any other files that might mention 4%:
+[tool] grep({'pattern': '4%', 'path': '.', 'glob': '*.md', 'line_numbers': 
+True})
+
+[result] No matches found...
+
+[tool] grep({'pattern': '4%', 'path': '.', 'glob': '*.toml', 'line_numbers': 
+True})
+
+[result] No matches found...
+
+[tool] grep({'pattern': '4%', 'path': '.', 'glob': '*.py', 'line_numbers': 
+True})
+
+[result] No matches found...
+Let me check the last improvement file to see what was done before:
+[tool] ls({'path': '.agent_tasks'})
+
+[result] agent-coordinator-extraction/
+agent-refactoring/
+api-server-mode/
+auto-doc-improve/
+auto-improve/
+bug-hunt/
+bug-hunt-2/
+continuous-refactoring/
+coverage-improvement/
+debug-scripts/
+delegation-runner-e...
+
+[tool] ls({'path': '.agent_tasks/auto-doc-improve'})
+
+[result] cron.log
+doc-smell-report.md
+last-improvement.md
+last-run.log...
+
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T07:30:45Z
+
+## Files Changed
+1. `src/henchman/agents/orchestrator_components.py` - Added missing Args and 
+Returns sections to docstrings
+
+## ...
+Good! The last improvement note confirms my suspicion: "The #1 issue in the smell report (consistency error about "4% coverage threshold") appears to be a false positive - it's misinterpreting `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". The actual coverage threshold in the project is 100% as specified in `--cov-fail-under=100`."
+
+So this is actually a false positive in the smell detector. However, looking at the prioritised fix queue, the #2 issue is a real documentation issue that needs fixing. Let me address that instead:
+
+**#2: `src/henchman/agents/orchestrator_delegation_ctrl.py:55` — 🟡 MEDIUM — Incomplete Docstring: 'DelegationController.execute_delegation_tool' has 3 parameter(s) but no Args: section in docstring**
+
+Let me examine this file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_delegation_ctrl.py',
+'start_line': 50, 'end_line': 70})
+
+[result] 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    async def execute_delegation_to...
+I can see the function has parameters `agent`, `tool_call`, and `depth` but the docstring doesn't have an `Args:` section. Let me look at the full function to understand what it returns:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_delegation_ctrl.py',
+'start_line': 55, 'end_line': 100})
+
+[result]     async def execute_delegation_tool(
+        self: DelegationController,
+        agent: Agent,
+        tool_call: ToolCall,
+        depth: int,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute...
+Now I'll fix the incomplete docstring by adding the missing `Args:` section and also add a `Yields:` section since it returns an `AsyncIterator[AgentEvent]`. Let me first check the imports to understand the types:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_delegation_ctrl.py',
+'start_line': 1, 'end_line': 30})
+
+[result] """Delegation controller for the orchestrator module.
+
+Manages the execution of delegation tool calls and result processing.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, ...
+Perfect. Now I'll update the docstring to include the `Args:` and `Yields:` sections:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_delegation_ctrl.py',
+'old_str': '    async def execute_delegation_tool(\n        self: 
+DelegationController,\n        agent: Agent,\n        tool_call: ToolCall,\n    
+depth: int,\n    ) -> AsyncIterator[AgentEvent]:\n        """Execute a 
+delegation tool call.\n\n        Records metrics, creates a ledger entry, then 
+streams the\n        delegated agent run back to the caller.\n        """', 
+'new_str': '    async def execute_delegation_tool(\n        self: 
+DelegationController,\n        agent: Agent,\n        tool_call: ToolCall,\n    
+depth: int,\n    ) -> AsyncIterator[AgentEvent]:\n        """Execute a 
+delegation tool call.\n\n        Records metrics, creates a ledger entry, then 
+streams the\n        delegated agent run back to the caller.\n\n        Args:\n 
+agent: The agent that initiated the delegation.\n            tool_call: The tool
+call containing delegation parameters.\n            depth: The current 
+delegation depth (for recursion tracking).\n\n        Yields:\n            
+AgentEvent: Stream of events from the delegated agent execution.\n        """'})
+
+[result] Successfully edited 
+src/henchman/agents/orchestrator_delegation_ctrl.py...
+Now let me verify the change by looking at the updated function:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_delegation_ctrl.py',
+'start_line': 55, 'end_line': 75})
+
+[result]     async def execute_delegation_tool(
+        self: DelegationController,
+        agent: Agent,
+        tool_call: ToolCall,
+        depth: int,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute...
+Good! Now let me create the improvement record:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T08:15:00Z\n\n## Files Changed\n1. 
+`src/henchman/agents/orchestrator_delegation_ctrl.py` - Added missing Args and 
+Yields sections to docstring\n\n## Smell Category Addressed\n- **Incomplete 
+Docstring** (MEDIUM): Function had parameters but no Args section in 
+docstring\n\n## Rationale for Change\nThe documentation smell report identified 
+a function in `src/henchman/agents/orchestrator_delegation_ctrl.py` with 
+incomplete docstring:\n\n**Line 55**: 
+`DelegationController.execute_delegation_tool` function has 3 parameters 
+(`agent`, `tool_call`, `depth`) but no `Args:` section in docstring.\n\nThis is 
+a **medium severity** documentation smell that violates the project\'s 
+requirement for 100% documentation coverage and Google-style docstrings. 
+Incomplete docstrings make the code harder to understand, maintain, and use 
+correctly, especially for complex delegation logic.\n\n## Changes Made\n1. 
+**Updated `execute_delegation_tool` function docstring** (lines 55-75):\n   - 
+Added `Args:` section documenting:\n     - `agent`: The agent that initiated the
+delegation.\n     - `tool_call`: The tool call containing delegation 
+parameters.\n     - `depth`: The current delegation depth (for recursion 
+tracking).\n   - Added `Yields:` section explaining: `AgentEvent` (Stream of 
+events from the delegated agent execution).\n\n## Technical Details\n- The 
+function now follows Google-style docstring format with proper `Args:` and 
+`Yields:` sections\n- Parameter descriptions are clear and concise, explaining 
+the purpose of each parameter\n- Return value description explains that it 
+yields a stream of `AgentEvent` objects\n- No functional changes were made - 
+only documentation improvements\n- The changes improve code maintainability and 
+developer experience for the delegation system\n\n## What to Verify\n1. The 
+function now has a complete Google-style docstring with `Args:` section\n2. All 
+three parameters (`agent`, `tool_call`, `depth`) are properly documented\n3. The
+`Yields:` section correctly describes the return type as `AgentEvent` stream\n4.
+The documentation accurately describes the function behavior\n5. No other 
+documentation issues were introduced\n\n## Testing Instructions\nTo verify the 
+fix:\n```bash\n# Check the updated docstrings\ngrep -n "Args:" 
+src/henchman/agents/orchestrator_delegation_ctrl.py\ngrep -n "Yields:" 
+src/henchman/agents/orchestrator_delegation_ctrl.py\n\n# Verify all parameters 
+are documented\npython -c "\nimport ast\nwith 
+open(\'src/henchman/agents/orchestrator_delegation_ctrl.py\') as f:\n    tree = 
+ast.parse(f.read())\n    \nfor node in ast.walk(tree):\n    if isinstance(node, 
+ast.FunctionDef):\n        if node.name == \'execute_delegation_tool\':\n       
+print(f\'Function: {node.name}\')\n            args = [arg.arg for arg in 
+node.args.args if arg.arg != \'self\']\n            print(f\'  Parameters: 
+{args}\')\n"\n\n# Check the next smell report should show this issue 
+resolved\n```\n\n## Next Priority\nThe next highest-priority issues from the 
+smell report are:\n1. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_events.py:26` (\'extract_brief_fields\' has 1 
+parameter but no Args section)\n2. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_events.py:31` (\'create_delegation_event\' has
+3 parameters but no Args section)\n3. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_events.py:48` (\'create_tool_result_event\' 
+has 3 parameters but no Args section)\n4. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_events.py:66` (\'update_ledger\' has 4 
+parameters but no Args section)\n\n## Notes\nThis improvement addresses a 
+genuine documentation quality issue in the delegation controller module. The #1 
+issue in the smell report (consistency error about "4% coverage threshold") is a
+false positive as noted in the previous improvement - it misinterprets 
+`pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage 
+threshold".\n\nThe project maintains strict quality standards with 100% 
+documentation coverage requirement, and all public functions must have complete 
+Google-style docstrings with `Args:`, `Returns:`, `Yields:`, and `Raises:` 
+sections where applicable.\n\nThe fix is minimal and focused, adding only the 
+missing documentation sections without changing any functionality or other 
+documentation. The delegation system is a critical component of the multi-agent 
+architecture, so clear documentation is essential for maintainability.'})
+
+[result] Successfully wrote 4447 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I've successfully addressed the #2 priority issue from the smell report. Here's a summary of what I did:
+
+## Summary
+
+I fixed an **incomplete docstring** issue in the `src/henchman/agents/orchestrator_delegation_ctrl.py` file. The `execute_delegation_tool` function had 3 parameters but was missing the required `Args:` section in its docstring.
+
+### Changes Made:
+1. **Added `Args:` section** documenting:
+   - `agent`: The agent that initiated the delegation
+   - `tool_call`: The tool call containing delegation parameters  
+   - `depth`: The current delegation depth (for recursion tracking)
+
+2. **Added `Yields:` section** explaining that the function yields a stream of `AgentEvent` objects from the delegated agent execution.
+
+### Why This Matters:
+- The delegation system is a critical component of the multi-agent architecture
+- Clear documentation is essential for maintainability and developer experience
+- The project requires 100% documentation coverage with Google-style docstrings
+- This was a medium severity issue in the smell report
+
+The fix is minimal and focused, adding only the missing documentation sections without changing any functionality. The documentation now accurately describes what each parameter does and what the function returns.
+[tech_lead] completed work
+[2026-03-03T07:45:02Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.80 seconds
+[2026-03-03T07:45:02Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T07:45:02Z] Verification passed.
+Committing changes...

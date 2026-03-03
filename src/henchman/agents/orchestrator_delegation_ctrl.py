@@ -62,6 +62,14 @@ class DelegationController(OrchestratorComponent):
 
         Records metrics, creates a ledger entry, then streams the
         delegated agent run back to the caller.
+
+        Args:
+            agent: The agent that initiated the delegation.
+            tool_call: The tool call containing delegation parameters.
+            depth: The current delegation depth (for recursion tracking).
+
+        Yields:
+            AgentEvent: Stream of events from the delegated agent execution.
         """
         tc_args = tool_call.arguments
         target = tc_args.get("agent", "")
