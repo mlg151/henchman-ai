@@ -143,7 +143,7 @@ class ContextConsoleHelper:
             console: Console for output.
             context_settings: Context settings to display.
         """
-        console.print("\n[bold blue]Compression Strategy Settings[/]\n")
+        self._console_helper.print_status_header(console, "Compression Strategy Settings")
         self._print_context_settings(console, context_settings, show_intelligent_context=False)
         console.print("")
         self._console_helper.print_command_help(
@@ -174,7 +174,7 @@ class ContextConsoleHelper:
         )
         self._console_helper.print_status_value(console, "Max tokens", context_settings.max_tokens)
         self._console_helper.print_status_value(
-            console, "Compaction threshold", 
+            console, "Compaction threshold",
             f"{context_settings.compaction_threshold * _PERCENTAGE_MULTIPLIER:.0f}%"
         )
         self._console_helper.print_status_value(

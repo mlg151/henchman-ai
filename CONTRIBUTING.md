@@ -55,7 +55,7 @@ pre-commit install
 pytest
 
 # Run with coverage
-pytest --cov=henchman --cov-report=term-missing
+pytest --cov=henchman --cov-report=term-missing --cov-fail-under=100
 
 # Run specific test files
 pytest tests/test_cli.py -v
