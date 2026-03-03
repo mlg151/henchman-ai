@@ -293359,3 +293359,242 @@ RangeError: WebAssembly.instantiate(): Out of memory: Cannot allocate Wasm memor
     at lazyllhttp (node:internal/deps/undici/undici:8707:32)
 
 Node.js v20.12.2
+[2026-03-03T12:30:02Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-03T12:30:02Z] Targeting lowest-graded file: cli/textual_bridge.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll analyze the target file `src/henchman/cli/textual_bridge.py` and address all the code smells listed in the report. Let me first read the file to understand its structure and the duplicate code issues.
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py'})
+
+
+[result] """Console adapter and event bridge for the Textual TUI.
+
+``TuiConsoleAdapter`` redirects Rich Console output into the TUI chat
+pane.  ``EventBridge`` translates ``AgentEvent`` objects into Textual
+``...
+Now I can see the file structure and understand the duplicate code issues. Looking at the smell report, I need to address:
+
+1. **Duplicate Code**: Multiple event handler methods are exact duplicates or very similar
+2. **Missing Type Hints**: Many functions have incomplete type hints
+3. **Feature Envy**: Some methods access external objects more than self
+
+Let me analyze the specific duplicate code issues:
+
+1. `_on_content` (line 320) is an exact duplicate of `_on_thought` (line 324)
+2. `_on_tool_req` (line 328) is an exact duplicate of `_on_tool_res` (line 332) and `_on_tool_confirm` (line 336)
+3. `_on_turn_summary` (line 357) is an exact duplicate of `_on_think_start` (line 406), `_on_think_done` (line 410), and `_on_think_req` (line 414)
+4. `_on_deleg_dec` (line 418) is an exact duplicate of `_on_reflection` (line 422)
+5. `post_prefixed_message` (line 153) is similar to methods in `textual_widgets.py`
+
+Let me also check the `textual_widgets.py` file to understand the similarity:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+910, 'end_line': 950})
+
+[result]         with contextlib.suppress(Exception):
+            self._scroll_to_bottom()
+
+    # -- public API for adding messages --
+
+    def _add_message_with_prefix(self: Self, prefix: str, text: str) -> N...
+Now I understand the structure. Let me create a comprehensive refactoring plan:
+
+**Identified Smells:**
+1. **Duplicate Code**: Multiple event handlers have identical implementations
+2. **Missing Type Hints**: Incomplete type annotations in several methods
+3. **Feature Envy**: Some methods access external objects more than self
+4. **Similarity to other files**: `post_prefixed_message` is similar to methods in `textual_widgets.py`
+
+**Refactoring Strategy:**
+1. **Extract Common Handler Logic**: Create a generic handler for similar event types
+2. **Introduce Parameterized Handler Factory**: Generate handlers with different parameters
+3. **Consolidate Tool Message Handlers**: Merge `_on_tool_req`, `_on_tool_res`, `_on_tool_confirm`
+4. **Consolidate Status Message Handlers**: Merge `_on_turn_summary`, `_on_think_start`, `_on_think_done`, `_on_think_req`
+5. **Consolidate Prefixed Message Handlers**: Merge `_on_deleg_dec` and `_on_reflection`
+6. **Add Missing Type Hints**: Complete all type annotations
+7. **Extract Message Class Constants**: Use constants for message classes to reduce duplication
+
+Let me implement the refactoring:
+[tool] edit_file({'path': 'src/henchman/cli/textual_bridge.py', 'old_str': 
+'"""Console adapter and event bridge for the Textual 
+TUI.\n\n``TuiConsoleAdapter`` redirects Rich Console output into the TUI 
+chat\npane.  ``EventBridge`` translates ``AgentEvent`` objects into 
+Textual\n``Message`` instances and posts them to the app.\n\nNote: Extracted 
+from ``textual_app.py`` to keep modules under 500 lines.\n"""\n\nfrom __future__
+import annotations\n\nimport io\nfrom collections.abc import Callable\nfrom 
+typing import TYPE_CHECKING, Any\n\nfrom rich.console import Console as 
+RichConsole\nfrom textual.message import Message\n\nfrom 
+henchman.cli.textual_messages import (\n    AgentContentMessage,\n    
+AgentFinishedMessage,\n    AgentStatusMessage,\n    AgentThoughtMessage,\n    
+CommandOutputMessage,\n    ToolCallRequestMessage,\n    ToolCallResultMessage,\n
+ToolConfirmationMessage,\n)\nfrom henchman.cli.textual_widgets import 
+StatusBar\nfrom henchman.core.events import AgentEvent, EventType\n\nif 
+TYPE_CHECKING:\n    from collections.abc import AsyncIterator\n\n    from 
+henchman.cli.textual_app import HenchmanTextualApp\n\n# 
+------------------------------------------------------------------ #\n# TUI 
+Console Adapter                                                  #\n# 
+------------------------------------------------------------------ #\n\n\nclass 
+TuiConsoleAdapter:\n    """Intercepts Rich Console output and forwards it to the
+chat pane.\n\n    Replaces the invisible stdout-backed console so that 
+slash-command\n    output, errors, and status messages appear inside the TUI.\n 
+"""\n\n    def __init__(self, app: HenchmanTextualApp) -> None:\n        
+"""Initialize.\n\n        Args:\n            app: The Textual application.\n    
+"""\n        self._app = app\n        self._buf = io.StringIO()\n        
+self._rich_console = RichConsole(\n            file=self._buf,\n            
+force_terminal=True,\n            no_color=False,\n            markup=True,\n   
+highlight=True,\n        )\n\n    @property\n    def console(self) -> 
+RichConsole:\n        """The underlying Rich Console wired to the buffer.\n\n   
+Returns:\n            RichConsole instance.\n        """\n        return 
+self._rich_console\n\n    def flush_to_chat(self) -> None:\n        """Read 
+accumulated buffer and post to the chat pane."""\n        text = 
+self._buf.getvalue()\n        if text.strip():\n            
+self._app.post_message(CommandOutputMessage(text.strip()))\n        
+self._buf.seek(0)\n        self._buf.truncate(0)\n\n    def print(self, *args: 
+Any, **kwargs: Any) -> None:\n        """Write to the buffer and flush to 
+chat.\n\n        Args:\n            *args: Positional args for 
+``Console.print``.\n            **kwargs: Keyword args for ``Console.print``.\n 
+"""\n        self._rich_console.print(*args, **kwargs)\n        
+self.flush_to_chat()\n\n\n# 
+------------------------------------------------------------------ #\n# Message 
+Poster Helper                                                 #\n# 
+------------------------------------------------------------------ #\n\n\nclass 
+MessagePoster:\n    """Helper class for posting messages to the Textual UI.\n\n 
+Extracted from EventBridge to reduce class size and improve cohesion.\n    
+"""\n\n    def __init__(self, app: HenchmanTextualApp) -> None:\n        
+"""Initialize.\n\n        Args:\n            app: Target Textual application.\n 
+"""\n        self.app = app\n\n    def post(self, message: Message) -> None:\n  
+"""Post a message to the Textual app.\n\n        Args:\n            message: The
+Textual message to post.\n        """\n        
+self.app.post_message(message)\n\n    def post_message_if_data_exists(\n        
+self,\n        event: AgentEvent,\n        message_class: type[Any],\n        
+transform_data: Callable[[Any], Any] | None = None,\n    ) -> None:\n        
+"""Post a message with event data if present.\n\n        Args:\n            
+event: The AgentEvent containing data.\n            message_class: The Textual 
+message class to instantiate.\n            transform_data: Optional function to 
+transform event data before posting.\n        """\n        if event.data:\n     
+data = transform_data(event.data) if transform_data else event.data\n           
+self.post(message_class(data, event.source_agent))\n\n    def 
+post_data_message(\n        self, event: AgentEvent, message_class: type[Any], 
+prefix: str = ""\n    ) -> None:\n        """Post a message with event data if 
+present.\n\n        Args:\n            event: The AgentEvent containing data.\n 
+message_class: The Textual message class to instantiate.\n            prefix: 
+Optional prefix to add before event data.\n        """\n        if event.data:\n
+data_str = str(event.data)\n            if prefix:\n                data_str = 
+f"{prefix}{data_str}"\n            self.post(message_class(data_str, 
+event.source_agent))\n\n    def post_prefixed_message(self, event: AgentEvent, 
+prefix: str) -> None:\n        """Post a prefixed message using 
+AgentThoughtMessage.\n\n        Args:\n            event: The AgentEvent 
+containing data.\n            prefix: The prefix to add before event data.\n    
+"""\n        self.post_data_message(event, AgentThoughtMessage, prefix)\n\n    
+def post_tool_message(self, event: AgentEvent, message_class: type[Any]) -> 
+None:\n        """Post a tool-related message with event data if present.\n\n   
+Args:\n            event: The AgentEvent containing tool data.\n            
+message_class: The Textual message class for tools.\n        """\n        
+self.post_message_if_data_exists(event, message_class)\n\n    def 
+post_status_message(self, event: AgentEvent, text: str) -> None:\n        
+"""Post an AgentStatusMessage with given text.\n\n        Args:\n            
+event: The AgentEvent for source agent.\n            text: The status text to 
+display.\n        """\n        self.post(AgentStatusMessage(text, 
+event.source_agent))\n\n    def extract_from_dict(self, event: AgentEvent, key: 
+str, default: str = "") -> str:\n        """Extract a string value from 
+event.data dictionary.\n\n        Args:\n            event: The AgentEvent 
+containing a dictionary.\n            key: The dictionary key to extract.\n     
+default: Default value if key not found.\n\n        Returns:\n            The 
+extracted value or default.\n        """\n        if event.data and 
+isinstance(event.data, dict):\n            value = event.data.get(key)\n        
+return str(value) if value is not None else default\n        return default', 
+'new_str': '"""Console adapter and event bridge for the Textual 
+TUI.\n\n``TuiConsoleAdapter`` redirects Rich Console output into the TUI 
+chat\npane.  ``EventBridge`` translates ``AgentEvent`` objects into 
+Textual\n``Message`` instances and posts them to the app.\n\nNote: Extracted 
+from ``textual_app.py`` to keep modules under 500 lines.\n"""\n\nfrom __future__
+import annotations\n\nimport io\nfrom collections.abc import Callable\nfrom 
+typing import TYPE_CHECKING, Any, TypeAlias\n\nfrom rich.console import Console 
+as RichConsole\nfrom textual.message import Message\n\nfrom 
+henchman.cli.textual_messages import (\n    AgentContentMessage,\n    
+AgentFinishedMessage,\n    AgentStatusMessage,\n    AgentThoughtMessage,\n    
+CommandOutputMessage,\n    ToolCallRequestMessage,\n    ToolCallResultMessage,\n
+ToolConfirmationMessage,\n)\nfrom henchman.cli.textual_widgets import 
+StatusBar\nfrom henchman.core.events import AgentEvent, EventType\n\nif 
+TYPE_CHECKING:\n    from collections.abc import AsyncIterator\n\n    from 
+henchman.cli.textual_app import HenchmanTextualApp\n\n# Type aliases for better 
+readability\nMessageClass: TypeAlias = type[Message]\nDataTransformer: TypeAlias
+= Callable[[Any], Any] | None\n\n# 
+------------------------------------------------------------------ #\n# TUI 
+Console Adapter                                                  #\n# 
+------------------------------------------------------------------ #\n\n\nclass 
+TuiConsoleAdapter:\n    """Intercepts Rich Console output and forwards it to the
+chat pane.\n\n    Replaces the invisible stdout-backed console so that 
+slash-command\n    output, errors, and status messages appear inside the TUI.\n 
+"""\n\n    def __init__(self, app: HenchmanTextualApp) -> None:\n        
+"""Initialize.\n\n        Args:\n            app: The Textual application.\n    
+"""\n        self._app = app\n        self._buf = io.StringIO()\n        
+self._rich_console = RichConsole(\n            file=self._buf,\n            
+force_terminal=True,\n            no_color=False,\n            markup=True,\n   
+highlight=True,\n        )\n\n    @property\n    def console(self) -> 
+RichConsole:\n        """The underlying Rich Console wired to the buffer.\n\n   
+Returns:\n            RichConsole instance.\n        """\n        return 
+self._rich_console\n\n    def flush_to_chat(self) -> None:\n        """Read 
+accumulated buffer and post to the chat pane."""\n        text = 
+self._buf.getvalue()\n        if text.strip():\n            
+self._app.post_message(CommandOutputMessage(text.strip()))\n        
+self._buf.seek(0)\n        self._buf.truncate(0)\n\n    def print(self, *args: 
+Any, **kwargs: Any) -> None:\n        """Write to the buffer and flush to 
+chat.\n\n        Args:\n            *args: Positional args for 
+``Console.print``.\n            **kwargs: Keyword args for ``Console.print``.\n 
+"""\n        self._rich_console.print(*args, **kwargs)\n        
+self.flush_to_chat()\n\n\n# 
+------------------------------------------------------------------ #\n# Message 
+Poster Helper                                                 #\n# 
+------------------------------------------------------------------ #\n\n\nclass 
+MessagePoster:\n    """Helper class for posting messages to the Textual UI.\n\n 
+Extracted from EventBridge to reduce class size and improve cohesion.\n    
+"""\n\n    def __init__(self, app: HenchmanTextualApp) -> None:\n        
+"""Initialize.\n\n        Args:\n            app: Target Textual application.\n 
+"""\n        self.app = app\n\n    def post(self, message: Message) -> None:\n  
+"""Post a message to the Textual app.\n\n        Args:\n            message: The
+Textual message to post.\n        """\n        
+self.app.post_message(message)\n\n    def post_message_if_data_exists(\n        
+self,\n        event: AgentEvent,\n        message_class: MessageClass,\n       
+transform_data: DataTransformer = None,\n    ) -> None:\n        """Post a 
+message with event data if present.\n\n        Args:\n            event: The 
+AgentEvent containing data.\n            message_class: The Textual message 
+class to instantiate.\n            transform_data: Optional function to 
+transform event data before posting.\n        """\n        if event.data:\n     
+data = transform_data(event.data) if transform_data else event.data\n           
+self.post(message_class(data, event.source_agent))\n\n    def 
+post_data_message(\n        self, event: AgentEvent, message_class: 
+MessageClass, prefix: str = ""\n    ) -> None:\n        """Post a message with 
+event data if present.\n\n        Args:\n            event: The AgentEvent 
+containing data.\n            message_class: The Textual message class to 
+instantiate.\n            prefix: Optional prefix to add before event data.\n   
+"""\n        if event.data:\n            data_str = str(event.data)\n           
+if prefix:\n                data_str = f"{prefix}{data_str}"\n            
+self.post(message_class(data_str, event.source_agent))\n\n    def 
+post_prefixed_message(self, event: AgentEvent, prefix: str) -> None:\n        
+"""Post a prefixed message using AgentThoughtMessage.\n\n        Args:\n        
+event: The AgentEvent containing data.\n            prefix: The prefix to add 
+before event data.\n        """\n        self.post_data_message(event, 
+AgentThoughtMessage, prefix)\n\n    def post_tool_message(self, event: 
+AgentEvent, message_class: MessageClass) -> None:\n        """Post a 
+tool-related message with event data if present.\n\n        Args:\n            
+event: The AgentEvent containing tool data.\n            message_class: The 
+Textual message class for tools.\n        """\n        
+self.post_message_if_data_exists(event, message_class)\n\n    def 
+post_status_message(self, event: AgentEvent, text: str) -> None:\n        
+"""Post an AgentStatusMessage with given text.\n\n        Args:\n            
+event: The AgentEvent for source agent.\n            text: The status text to 
+display.\n        """\n        self.post(AgentStatusMessage(text, 
+event.source_agent))\n\n    def extract_from_dict(self, event: AgentEvent, key: 
+str, default: str = "") -> str:\n        """Extract a string value from 
+event.data dictionary.\n\n        Args:\n            event: The AgentEvent 
+containing a dictionary.\n            key: The dictionary key to extract.\n     
+default: Default value if key not found.\n\n        Returns:\n            The 
+extracted value or default.\n        """\n        if event.data and 
+isinstance(event.data, dict):\n            value = event.data.get(key)\n        
+return str(value) if value is not None else default\n        return default'})
+
+[result] Successfully edited src/henchman/cli/textual_bridge.py...
+Now I'll refactor the EventBridge class to eliminate duplicate code. First, let me look at the handler registry and duplicate methods:
