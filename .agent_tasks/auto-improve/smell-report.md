@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 53.4/100)
+# Code Smell Report — ❌ F (Score: 53.5/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T05:30:21.221537+00:00_
+_Generated: 2026-03-03T06:00:20.245318+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 53.4/100 |
+| **Overall Score** | 53.5/100 |
 | **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 34,244 |
-| **Total Smells** | 2150 |
+| **Total Lines (non-blank)** | 34,242 |
+| **Total Smells** | 2137 |
 | **Avg Maintainability Index** | 71.6 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,17 +20,17 @@ _Generated: 2026-03-03T05:30:21.221537+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1631 |
-| medium | 454 |
+| low | 1625 |
+| medium | 447 |
 | high | 65 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1138 |
-| Feature Envy | 305 |
-| Duplicate Code | 240 |
+| Missing Type Hint | 1130 |
+| Feature Envy | 307 |
+| Duplicate Code | 233 |
 | Magic Number | 131 |
 | Long Method | 108 |
 | Deep Nesting | 97 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/context.py | ❌ F | 15.3 | 62 | 417 | 51 | 0.0 |
+| 1 | cli/commands/context.py | ❌ F | 15.4 | 49 | 410 | 51 | 0.0 |
 | 2 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
 | 3 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
 | 4 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 169 additional files omitted._
 
-### cli/commands/context.py — ❌ F (15.3/100)
+### cli/commands/context.py — ❌ F (15.4/100)
 
-LOC: 417 | Classes: 2 | Functions: 0 | MI: 51 | Avg CC: 0.0
+LOC: 410 | Classes: 3 | Functions: 0 | MI: 51 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 161 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'print_usage' at cli/commands/session.py:138 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 161 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 161 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 161 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 161 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 180 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_values' accesses 'ConsoleHelper' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'ConsoleHelper'. |
-| 180 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_values' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'context_settings'. |
-| 202 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_commands' is 100% similar to '_print_strategy_usage' at cli/commands/context.py:272 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 202 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_commands' is 95% similar to '_print_logging_help' at cli/commands/mcp.py:133 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 272 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_strategy_usage' accesses 'console' 6 times but 'self' only 0 times | Move Method — consider moving '_print_strategy_usage' to the class that owns 'console'. |
-| 272 | 🟡 MEDIUM | Duplicate Code | Function '_print_strategy_usage' is 95% similar to '_print_logging_help' at cli/commands/mcp.py:133 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 290 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'ConsoleHelper' 6 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'ConsoleHelper'. |
-| 290 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'context_settings' 5 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'context_settings'. |
-| 388 | 🟡 MEDIUM | Duplicate Code | Function '_handle_max_tokens_parameter' is 100% similar to '_handle_threshold_parameter' at cli/commands/context.py:393 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 101 | 🟡 MEDIUM | Feature Envy | Method 'ContextConsoleHelper._print_status_values' accesses 'ConsoleHelper' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'ConsoleHelper'. |
+| 101 | 🟡 MEDIUM | Feature Envy | Method 'ContextConsoleHelper._print_status_values' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'context_settings'. |
+| 124 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_commands' is 100% similar to 'print_strategy_usage' at cli/commands/context.py:140 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 140 | 🟡 MEDIUM | Feature Envy | Method 'ContextConsoleHelper.print_strategy_usage' accesses 'console' 6 times but 'self' only 0 times | Move Method — consider moving 'print_strategy_usage' to the class that owns 'console'. |
+| 157 | 🟡 MEDIUM | Feature Envy | Method 'ContextConsoleHelper.print_strategy_status' accesses 'ConsoleHelper' 6 times but 'self' only 0 times | Move Method — consider moving 'print_strategy_status' to the class that owns 'ConsoleHelper'. |
+| 157 | 🟡 MEDIUM | Feature Envy | Method 'ContextConsoleHelper.print_strategy_status' accesses 'context_settings' 5 times but 'self' only 0 times | Move Method — consider moving 'print_strategy_status' to the class that owns 'context_settings'. |
+| 263 | 🟡 MEDIUM | Duplicate Code | Function '_show_status' is 100% similar to '_show_strategy_status' at cli/commands/context.py:328 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 35 | 🟢 LOW | Missing Type Hint | Function 'get_display_label' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 43 | 🟢 LOW | Missing Type Hint | Function 'validate_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 61 | 🟢 LOW | Missing Type Hint | Function 'parse_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 80 | 🟢 LOW | Feature Envy | Method 'ContextConsoleHelper.print_status_info' accesses 'ContextConsoleHelper' 3 times but 'self' only 0 times | Move Method — consider moving 'print_status_info' to the class that owns 'ContextConsoleHelper'. |
+| 114 | 🟢 LOW | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 124 | 🟢 LOW | Feature Envy | Method 'ContextConsoleHelper._print_status_commands' accesses 'ConsoleHelper' 4 times but 'self' only 0 times | Move Method — consider moving '_print_status_commands' to the class that owns 'ConsoleHelper'. |
+| 157 | 🟢 LOW | Feature Envy | Method 'ContextConsoleHelper.print_strategy_status' accesses 'console' 3 times but 'self' only 0 times | Move Method — consider moving 'print_strategy_status' to the class that owns 'console'. |
+| 185 | 🟢 LOW | Large Class | Class 'ContextCommand' spans 318 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
 
-_... and 47 more smells._
+_... and 34 more smells._
 
 ### cli/textual_bridge.py — ❌ F (15.7/100)
 
