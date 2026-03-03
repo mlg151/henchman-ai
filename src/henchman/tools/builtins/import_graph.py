@@ -477,7 +477,14 @@ class ImportGraphTool(Tool):
         """Analyze imports of a Python file.
 
         Args:
-            **params: Tool parameters including path, scan_dir, detect_cycles, classify.
+            params: Tool parameters passed as keyword arguments.
+                Expected parameters:
+                    path (str): Path to the Python file to analyze.
+                    scan_dir (str, optional): Directory to scan for reverse imports.
+                    detect_cycles (bool, optional): Scan for circular import chains.
+                        Defaults to False.
+                    classify (bool, optional): Classify imports as stdlib/local/third-party.
+                        Defaults to False.
 
         Returns:
             ToolResult with import analysis.

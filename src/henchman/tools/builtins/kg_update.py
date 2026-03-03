@@ -187,7 +187,25 @@ class KgUpdateTool(Tool):
         """Execute a knowledge graph update.
 
         Args:
-            **params: Tool parameters (action, entity_id, etc.).
+            params: Tool parameters passed as keyword arguments.
+                Expected parameters:
+                    action (str): Update action: 'add_entity', 'add_observation', 
+                        'add_relation', or 'remove_entity'.
+                    entity_id (str): Entity id (slug) for all actions.
+                    entity_type (str, optional): Type for add_entity: 'class', 
+                        'config', 'convention', 'decision', 'file', 'function', 
+                        'module', 'package', 'pattern', or 'service'.
+                    name (str, optional): Human-readable name for add_entity.
+                    description (str, optional): Description for add_entity or 
+                        add_observation content.
+                    file_path (str, optional): Source file path for add_entity.
+                    tags (list[str], optional): Tags for add_entity.
+                    observation (str, optional): Observation text for add_observation.
+                    source (str, optional): Source citation for add_observation.
+                    target_id (str, optional): Target entity id for add_relation.
+                    relation_type (str, optional): Relation type for add_relation:
+                        'configures', 'contains', 'decided_by', 'depends_on',
+                        'extends', 'implements', 'imports', 'related_to', 'tests'.
 
         Returns:
             Confirmation message.

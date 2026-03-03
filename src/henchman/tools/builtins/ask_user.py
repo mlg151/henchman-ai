@@ -74,7 +74,11 @@ class AskUserTool(Tool):
         """Execute the ask_user tool.
 
         Args:
-            **params: Tool parameters including 'question' and optional 'timeout'.
+            params: Tool parameters passed as keyword arguments.
+                Expected parameters:
+                    question (str): The question to ask the user.
+                    timeout (int, optional): Timeout in seconds (0 for no timeout).
+                        Defaults to 0.
 
         Returns:
             A ToolResult containing the user's response.

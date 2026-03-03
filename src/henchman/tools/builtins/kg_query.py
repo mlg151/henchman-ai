@@ -135,7 +135,18 @@ class KgQueryTool(Tool):
         """Execute a knowledge graph query.
 
         Args:
-            **params: Tool parameters (action, query, etc.).
+            params: Tool parameters passed as keyword arguments.
+                Expected parameters:
+                    action (str): Query action: 'search', 'get', 'neighbors', 
+                        'relations', 'important', or 'stats'.
+                    query (str): Search term for 'search' action, or entity id for 
+                        'get'/'neighbors'/'relations'.
+                    entity_type (str, optional): Filter by entity type: 'class', 
+                        'config', 'convention', 'decision', 'file', 'function', 
+                        'module', 'package', 'pattern', or 'service'.
+                    depth (int, optional): Hop depth for 'neighbors'. Defaults to 1.
+                    top_k (int, optional): Number of results for 'important'. 
+                        Defaults to 10.
 
         Returns:
             Formatted query results.

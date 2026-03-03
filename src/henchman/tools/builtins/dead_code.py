@@ -22,6 +22,10 @@ DEFAULT_WHITELIST: frozenset[str] = frozenset(
     }
 )
 
+# Constants for AST node types
+_ALL_NAME = "__all__"
+_PRIVATE_PREFIX = "_"
+
 
 class DeadCodeTool(Tool):
     """Detect unused imports, functions, and classes in Python code.
@@ -47,6 +51,10 @@ class DeadCodeTool(Tool):
     @property
     def parameters(self) -> dict[str, object]:
         """JSON Schema for parameters."""
+        return self._build_parameter_schema()
+
+    def _build_parameter_schema(self) -> dict[str, object]:
+        """Build the parameter schema for dead code detection."""
         return {
             "type": "object",
             "properties": {
@@ -137,6 +145,22 @@ class DeadCodeTool(Tool):
         Returns:
             ToolResult with findings.
         """
+        tree = self._parse_file(path)
+        if isinstance(tree, ToolResult):
+            return tree
+
+        analysis_result = self._perform_analysis(tree, path.name, check_imports, check_functions, whitelist)
+        return ToolResult(content=analysis_result, success=True)
+
+    def _parse_file(self, path: Path) -> ast.Module | ToolResult:
+        """Parse a Python file into AST.
+
+        Args:
+            path: Path to the file.
+
+        Returns:
+            AST module or ToolResult with error.
+        """
         try:
             source = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as exc:
@@ -147,7 +171,7 @@ class DeadCodeTool(Tool):
             )
 
         try:
-            tree = ast.parse(source, filename=str(path))
+            return ast.parse(source, filename=str(path))
         except SyntaxError as exc:
             return ToolResult(
                 content=f"Syntax error in {path}: {exc}",
@@ -155,29 +179,75 @@ class DeadCodeTool(Tool):
                 error=str(exc),
             )
 
-        parts: list[str] = [f"Dead code analysis: {path.name}"]
-        found_any = False
+    def _perform_analysis(
+        self,
+        tree: ast.Module,
+        filename: str,
+        check_imports: bool,
+        check_functions: bool,
+        whitelist: frozenset[str],
+    ) -> str:
+        """Perform dead code analysis on parsed AST.
+
+        Args:
+            tree: Parsed AST module.
+            filename: Name of the file being analyzed.
+            check_imports: Check for unused imports.
+            check_functions: Check for unused functions/classes.
+            whitelist: Names to ignore.
+
+        Returns:
+            Formatted analysis results.
+        """
+        parts: list[str] = [f"Dead code analysis: {filename}"]
+        findings: list[str] = []
 
         if check_imports:
-            unused = self._find_unused_imports(tree, whitelist)
-            if unused:
-                found_any = True
-                parts.append("\nUnused imports:")
-                for name, line in unused:
-                    parts.append(f"  line {line}: {name}")
+            unused_imports = self._find_unused_imports(tree, whitelist)
+            if unused_imports:
+                findings.extend(self._format_import_findings(unused_imports))
 
         if check_functions:
             unused_defs = self._find_unused_definitions(tree, whitelist)
             if unused_defs:
-                found_any = True
-                parts.append("\nPossibly unused definitions:")
-                for kind, name, line in unused_defs:
-                    parts.append(f"  line {line}: {kind} {name}")
+                findings.extend(self._format_definition_findings(unused_defs))
 
-        if not found_any:
+        if findings:
+            parts.extend(findings)
+        else:
             parts.append("\n  No dead code detected.")
 
-        return ToolResult(content="\n".join(parts), success=True)
+        return "\n".join(parts)
+
+    def _format_import_findings(self, unused_imports: list[tuple[str, int]]) -> list[str]:
+        """Format unused import findings for output.
+
+        Args:
+            unused_imports: List of (name, line) tuples.
+
+        Returns:
+            Formatted findings lines.
+        """
+        formatted: list[str] = ["\nUnused imports:"]
+        for name, line in unused_imports:
+            formatted.append(f"  line {line}: {name}")
+        return formatted
+
+    def _format_definition_findings(
+        self, unused_defs: list[tuple[str, str, int]]
+    ) -> list[str]:
+        """Format unused definition findings for output.
+
+        Args:
+            unused_defs: List of (kind, name, line) tuples.
+
+        Returns:
+            Formatted findings lines.
+        """
+        formatted: list[str] = ["\nPossibly unused definitions:"]
+        for kind, name, line in unused_defs:
+            formatted.append(f"  line {line}: {kind} {name}")
+        return formatted
 
     def _analyze_directory(
         self,
@@ -234,39 +304,104 @@ class DeadCodeTool(Tool):
         Returns:
             List of (import_name, line_number) tuples.
         """
-        # Collect imported names
+        imported = self._collect_imported_names(tree)
+        used_names = self._collect_used_names(tree)
+        return self._identify_unused_imports(imported, used_names, whitelist)
+
+    def _collect_imported_names(self, tree: ast.Module) -> dict[str, int]:
+        """Collect all imported names from AST.
+
+        Args:
+            tree: Parsed AST module.
+
+        Returns:
+            Dictionary mapping imported name to line number.
+        """
         imported: dict[str, int] = {}
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
-                for alias in node.names:
-                    name = alias.asname or alias.name.split(".")[0]
-                    imported[name] = node.lineno
+                self._collect_import_names(node, imported)
             elif isinstance(node, ast.ImportFrom):
-                for alias in node.names:
-                    if alias.name == "*":
-                        continue
-                    name = alias.asname or alias.name
-                    imported[name] = node.lineno
+                self._collect_import_from_names(node, imported)
+        return imported
 
-        # Collect all used names (excluding import nodes)
+    def _collect_import_names(self, node: ast.Import, imported: dict[str, int]) -> None:
+        """Collect names from ast.Import node.
+
+        Args:
+            node: Import AST node.
+            imported: Dictionary to update with imported names.
+        """
+        for alias in node.names:
+            name = alias.asname or alias.name.split(".")[0]
+            imported[name] = node.lineno
+
+    def _collect_import_from_names(self, node: ast.ImportFrom, imported: dict[str, int]) -> None:
+        """Collect names from ast.ImportFrom node.
+
+        Args:
+            node: ImportFrom AST node.
+            imported: Dictionary to update with imported names.
+        """
+        for alias in node.names:
+            if alias.name == "*":
+                continue
+            name = alias.asname or alias.name
+            imported[name] = node.lineno
+
+    def _collect_used_names(self, tree: ast.Module) -> set[str]:
+        """Collect all used names from AST (excluding import context).
+
+        Args:
+            tree: Parsed AST module.
+
+        Returns:
+            Set of used names.
+        """
         used_names: set[str] = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Name) and not self._is_import_context(node, tree):
                 used_names.add(node.id)
             elif isinstance(node, ast.Attribute):
-                # Check if root of attribute chain is used
-                root = node
-                while isinstance(root, ast.Attribute):
-                    root = root.value  # type: ignore[assignment]
-                if isinstance(root, ast.Name):
-                    used_names.add(root.id)
+                root_name = self._extract_attribute_root_name(node)
+                if root_name:
+                    used_names.add(root_name)
+        return used_names
 
-        # Find unused
+    def _extract_attribute_root_name(self, node: ast.Attribute) -> str | None:
+        """Extract the root name from an attribute chain.
+
+        Args:
+            node: Attribute AST node.
+
+        Returns:
+            Root name if found, None otherwise.
+        """
+        current = node
+        while isinstance(current, ast.Attribute):
+            current = current.value
+        return current.id if isinstance(current, ast.Name) else None
+
+    def _identify_unused_imports(
+        self,
+        imported: dict[str, int],
+        used_names: set[str],
+        whitelist: frozenset[str],
+    ) -> list[tuple[str, int]]:
+        """Identify unused imports from collected data.
+
+        Args:
+            imported: Dictionary mapping imported name to line number.
+            used_names: Set of used names.
+            whitelist: Names to ignore.
+
+        Returns:
+            List of (import_name, line_number) tuples.
+        """
         unused: list[tuple[str, int]] = []
         for name, line in sorted(imported.items(), key=lambda x: x[1]):
             if name not in used_names and name not in whitelist:
                 unused.append((name, line))
-
         return unused
 
     def _is_import_context(self, node: ast.Name, tree: ast.Module) -> bool:
@@ -304,33 +439,70 @@ class DeadCodeTool(Tool):
         Returns:
             List of (kind, name, line_number) tuples.
         """
-        # Collect top-level definitions
+        definitions = self._collect_top_level_definitions(tree)
+        used_names = self._collect_all_references(tree)
+        all_names = self._get_all_names(tree)
+        
+        if all_names is not None:
+            used_names.update(all_names)
+            
+        return self._identify_unused_definitions(definitions, used_names, whitelist)
+
+    def _collect_top_level_definitions(self, tree: ast.Module) -> dict[str, tuple[str, int]]:
+        """Collect top-level function and class definitions.
+
+        Args:
+            tree: Parsed AST module.
+
+        Returns:
+            Dictionary mapping name to (kind, line_number).
+        """
         definitions: dict[str, tuple[str, int]] = {}
         for node in ast.iter_child_nodes(tree):
             if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-                if not node.name.startswith("_"):
+                if not node.name.startswith(_PRIVATE_PREFIX):
                     definitions[node.name] = ("function", node.lineno)
-            elif isinstance(node, ast.ClassDef) and not node.name.startswith("_"):
+            elif isinstance(node, ast.ClassDef) and not node.name.startswith(_PRIVATE_PREFIX):
                 definitions[node.name] = ("class", node.lineno)
+        return definitions
 
-        # Collect all references
+    def _collect_all_references(self, tree: ast.Module) -> set[str]:
+        """Collect all name references from AST.
+
+        Args:
+            tree: Parsed AST module.
+
+        Returns:
+            Set of referenced names.
+        """
         used: set[str] = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Name):
                 used.add(node.id)
             elif isinstance(node, ast.Attribute):
                 used.add(node.attr)
+        return used
 
-        # Check __all__ for exported names
-        all_names = self._get_all_names(tree)
-        if all_names is not None:
-            used.update(all_names)
+    def _identify_unused_definitions(
+        self,
+        definitions: dict[str, tuple[str, int]],
+        used_names: set[str],
+        whitelist: frozenset[str],
+    ) -> list[tuple[str, str, int]]:
+        """Identify unused definitions from collected data.
 
+        Args:
+            definitions: Dictionary mapping name to (kind, line_number).
+            used_names: Set of used names.
+            whitelist: Names to ignore.
+
+        Returns:
+            List of (kind, name, line_number) tuples.
+        """
         unused: list[tuple[str, str, int]] = []
         for name, (kind, line) in sorted(definitions.items(), key=lambda x: x[1][1]):
-            if name not in whitelist and name not in used:
+            if name not in whitelist and name not in used_names:
                 unused.append((kind, name, line))
-
         return unused
 
     def _get_all_names(self, tree: ast.Module) -> set[str] | None:
@@ -343,18 +515,45 @@ class DeadCodeTool(Tool):
             Set of names in __all__, or None if not defined.
         """
         for node in ast.iter_child_nodes(tree):
-            if isinstance(node, ast.Assign):
-                for target in node.targets:
-                    if (
-                        isinstance(target, ast.Name)
-                        and target.id == "__all__"
-                        and isinstance(node.value, ast.List | ast.Tuple)
-                    ):
-                        names: set[str] = set()
-                        for elt in node.value.elts:
-                            if isinstance(elt, ast.Constant) and isinstance(
-                                elt.value, str
-                            ):
-                                names.add(elt.value)
-                        return names
+            if self._is_all_assignment(node):
+                return self._extract_names_from_all(node.value)
         return None
+
+    def _is_all_assignment(self, node: ast.AST) -> bool:
+        """Check if node is an assignment to __all__.
+
+        Args:
+            node: AST node to check.
+
+        Returns:
+            True if node assigns to __all__ with a list/tuple value.
+        """
+        if not isinstance(node, ast.Assign):
+            return False
+        
+        for target in node.targets:
+            if (
+                isinstance(target, ast.Name)
+                and target.id == _ALL_NAME
+                and isinstance(node.value, ast.List | ast.Tuple)
+            ):
+                return True
+        return False
+
+    def _extract_names_from_all(self, value: ast.expr) -> set[str] | None:
+        """Extract string names from __all__ list/tuple.
+
+        Args:
+            value: AST expression (list or tuple).
+
+        Returns:
+            Set of string names, or None if extraction fails.
+        """
+        if not isinstance(value, ast.List | ast.Tuple):
+            return None
+        
+        names: set[str] = set()
+        for element in value.elts:
+            if isinstance(element, ast.Constant) and isinstance(element.value, str):
+                names.add(element.value)
+        return names if names else None

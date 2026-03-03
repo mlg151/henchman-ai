@@ -145,7 +145,9 @@ class Tool(ABC):
         """Execute the tool with the given parameters.
 
         Args:
-            **params: Tool-specific parameters.
+            params: Tool-specific parameters passed as keyword arguments.
+                   Each concrete tool implementation defines its own
+                   expected parameters.
 
         Returns:
             A ToolResult containing the execution result.
