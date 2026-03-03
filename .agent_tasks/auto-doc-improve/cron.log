@@ -12044,3 +12044,129 @@ INFO    -  Documentation built in 0.67 seconds
 Now}
 [2026-03-03T09:00:02Z] Verification passed.
 Committing changes...
+[main 3b2de26] docs(auto-improve): automated documentation improvement
+ 9 files changed, 1853 insertions(+), 277 deletions(-)
+[2026-03-03T09:00:02Z] Done.
+ let me verify the change was made correctly:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_loop.py', 
+'start_line': 80, 'end_line': 105})
+
+[result] 
+
+async def collect_events(
+    generator: AsyncIterator[AgentEvent],
+    pending: list[ToolCall],
+) -> AsyncIterator[AgentEvent]:
+    """Collect events from generator and extract pending tool calls.
+...
+Excellent! Now I need to update the improvement record:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T09:15:45Z\n\n## Files Changed\n1. 
+`src/henchman/agents/orchestrator_loop.py` - Added missing Args and Yields 
+sections to `collect_events` function\n\n## Smell Category Addressed\n- 
+**Incomplete Docstring** (MEDIUM): Function had 2 parameters but no Args section
+in docstring\n\n## Rationale for Change\nThe documentation smell report 
+identified the `collect_events` function in 
+`src/henchman/agents/orchestrator_loop.py:82` as having an incomplete docstring.
+The function has 2 parameters (`generator`, `pending`) but no `Args:` section in
+its docstring.\n\nThis is a **medium severity** documentation smell that 
+violates the project\'s requirement for 100% documentation coverage and 
+Google-style docstrings. The `collect_events` function is a critical helper in 
+the orchestrator loop that processes agent event streams and extracts tool call 
+requests, and incomplete documentation makes it harder to understand how event 
+collection works in the multi-agent system.\n\n## Changes Made\n**Updated 
+`collect_events` function docstring** (lines 82-98):\n- Added `Args:` section 
+documenting both parameters:\n  - `generator`: Async iterator yielding 
+AgentEvent objects from agent execution\n  - `pending`: List to accumulate tool 
+call requests encountered during iteration\n- Added `Yields:` section explaining
+the `AgentEvent` return values (since this is an async generator function)\n- 
+Maintained the original brief description: "Collect events from generator and 
+extract pending tool calls."\n- Used proper Google-style docstring format with 
+clear parameter descriptions\n- Note: Used `Yields:` instead of `Returns:` 
+because this is an async generator function\n\n## Technical Details\n- The 
+function is part of the orchestrator loop helpers module\n- It processes an 
+async generator of AgentEvent objects\n- It extracts TOOL_CALL_REQUEST events 
+and adds them to the pending list\n- It yields all events from the generator 
+while accumulating tool calls\n- It handles StopAsyncIteration gracefully\n- No 
+functional changes were made - only documentation improvements\n- The changes 
+improve code maintainability and developer experience for the agent execution 
+system\n\n## What to Verify\n1. The `collect_events` function now has a complete
+Google-style docstring with `Args:` and `Yields:` sections\n2. Both parameters 
+are properly documented with clear descriptions\n3. The yield values are 
+documented as `AgentEvent` with explanation\n4. The documentation accurately 
+describes the function\'s behavior in collecting events and extracting tool 
+calls\n5. No other documentation issues were introduced\n\n## Testing 
+Instructions\nTo verify the fix:\n```bash\n# Check the updated docstring\ngrep 
+-n -A15 "def collect_events" src/henchman/agents/orchestrator_loop.py\n\n# 
+Verify the function signature and parameters\npython -c "\nimport ast\nwith 
+open(\'src/henchman/agents/orchestrator_loop.py\') as f:\n    tree = 
+ast.parse(f.read())\n    \nfor node in ast.walk(tree):\n    if isinstance(node, 
+ast.FunctionDef):\n        if node.name == \'collect_events\':\n            
+print(f\'Function: {node.name}\')\n            args = [arg.arg for arg in 
+node.args.args]\n            print(f\'  Parameters: {args}\')\n            
+print(f\'  Has docstring: {bool(ast.get_docstring(node))}\')\n            
+docstring = ast.get_docstring(node)\n            if docstring:\n                
+print(f\'  Docstring length: {len(docstring)} chars\')\n                if 
+\'Args:\' in docstring:\n                    print(f\'  Has Args section: 
+Yes\')\n                if \'Yields:\' in docstring:\n                    
+print(f\'  Has Yields section: Yes\')\n"\n\n# Check the next smell report should
+show this issue resolved\n```\n\n## Next Priority\nThe next highest-priority 
+issues from the smell report are:\n1. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_loop.py:101` (\'check_turn_limits\' has 3 
+parameters but no Args section)\n2. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_loop.py:118` (\'finalize_loop\' has 3 
+parameters but no Args section)\n3. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_loop.py:133` (\'check_colon_stall\' has 2 
+parameters but no Args section)\n4. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_loop.py:148` (\'last_assistant_content\' has 1
+parameter but no Args section)\n\n## Notes\nThis improvement addresses a genuine
+documentation quality issue in the orchestrator loop module. The #1 issue in the
+smell report (consistency error about "4% coverage threshold") is a false 
+positive as it misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov 
+package) as a "4% coverage threshold".\n\nThe `collect_events` function is a key
+component of the orchestrator that handles event streaming and tool call 
+extraction in the agent loop. Clear documentation is essential for understanding
+how the multi-agent system processes event streams, accumulates pending tool 
+calls, and manages asynchronous iteration.\n\nThe fix ensures that the 
+function\'s purpose, parameters, and yield values are clearly documented, 
+improving the overall quality and maintainability of the codebase. Using 
+`Yields:` instead of `Returns:` correctly reflects that this is an async 
+generator function.'})
+
+[result] Successfully wrote 5200 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I have successfully addressed the #2 issue from the documentation smell report. Here's a summary of what I accomplished:
+
+## Summary
+
+I fixed the **Incomplete Docstring** issue for the `collect_events` function in `src/henchman/agents/orchestrator_loop.py`. 
+
+**The Problem**: The function had 2 parameters (`generator`, `pending`) but no `Args:` section in its docstring, which is a medium severity documentation smell.
+
+**The Solution**: I added:
+1. An `Args:` section documenting both parameters with clear descriptions
+2. A `Yields:` section (since this is an async generator function) explaining what the function yields
+3. Maintained the original brief description
+
+**Key Improvements**:
+- ✅ Added missing `Args:` section for both parameters
+- ✅ Added appropriate `Yields:` section for the async generator
+- ✅ Used proper Google-style docstring format
+- ✅ No functional changes - only documentation improvements
+- ✅ Improved code maintainability and developer experience
+
+**Files Changed**:
+- `src/henchman/agents/orchestrator_loop.py` - Updated docstring for `collect_events` function
+- `.agent_tasks/auto-doc-improve/last-improvement.md` - Updated improvement record
+
+This addresses a genuine documentation quality issue in a critical component of the orchestrator loop that handles event streaming and tool call extraction in the multi-agent system.
+[tech_lead] completed work
+[2026-03-03T09:15:01Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.69 seconds
+[2026-03-03T09:15:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T09:15:01Z] Verification passed.
+Committing changes...
