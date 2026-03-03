@@ -81,3 +81,16 @@ class ConsoleHelper:
             for command, description in commands:
                 console.print(f"  {command} - {description}")
         console.print("")
+
+    @staticmethod
+    def print_parameter_list(console: Any, parameters: list[tuple[str, str]], header: str = "Parameters:") -> None:
+        """Print a list of parameters with descriptions.
+
+        Args:
+            console: Console for output.
+            parameters: List of (parameter, description) tuples.
+            header: Header text for the parameters section (default: "Parameters:").
+        """
+        console.print(f"\n{header}")
+        for param, description in parameters:
+            console.print(f"  {param:<25} - {description}")

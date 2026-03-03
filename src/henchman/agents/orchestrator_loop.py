@@ -55,7 +55,18 @@ async def run_tools_and_collect(
     params: AgentLoopParams,
     state: LoopState,
 ) -> list[AgentEvent]:
-    """Execute pending tool calls and collect events."""
+    """Execute pending tool calls and collect events.
+    
+    Args:
+        orchestrator: The orchestrator instance containing tool controller.
+        agent: The agent instance to process tool calls for.
+        pending: List of pending tool calls to execute.
+        params: Agent loop parameters including depth and other settings.
+        state: Current loop state including tool errors and call count.
+    
+    Returns:
+        list[AgentEvent]: List of events generated during tool execution.
+    """
     tool_ctrl = orchestrator.tool_controller
     events = [
         event
@@ -72,7 +83,16 @@ async def collect_events(
     generator: AsyncIterator[AgentEvent],
     pending: list[ToolCall],
 ) -> AsyncIterator[AgentEvent]:
-    """Collect events from generator and extract pending tool calls."""
+    """Collect events from generator and extract pending tool calls.
+    
+    Args:
+        generator: Async iterator yielding AgentEvent objects from agent execution
+        pending: List to accumulate tool call requests encountered during iteration
+        
+    Yields:
+        AgentEvent: Each event from the generator, with tool call requests
+            also added to the pending list
+    """
     try:
         async for event in generator:
             if event.type == EventType.TOOL_CALL_REQUEST:
