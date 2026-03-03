@@ -1,17 +1,17 @@
-# Documentation Smell Report — ✅ A (Score: 95.4/100)
+# Documentation Smell Report — ✅ A (Score: 95.5/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T04:15:02.952393+00:00_
+_Generated: 2026-03-03T04:30:02.541338+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ✅ A |
-| **Overall Score** | 95.4/100 |
+| **Overall Score** | 95.5/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 167 |
-| **Total Smells** | 419 |
+| **Total Smells** | 418 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
@@ -20,14 +20,14 @@ _Generated: 2026-03-03T04:15:02.952393+00:00_
 |:---------|------:|
 | low | 323 |
 | medium | 89 |
-| high | 7 |
+| high | 6 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
 | Incomplete Docstring | 401 |
-| Stale Docstring | 7 |
+| Stale Docstring | 6 |
 | Missing Docstring | 5 |
 | Stale Content | 2 |
 | Config Issue | 2 |
@@ -38,84 +38,84 @@ _Generated: 2026-03-03T04:15:02.952393+00:00_
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/mcp/tool.py:84** — 🟠 HIGH — Stale Docstring  
-   'McpTool.execute' has undocumented parameters: params  
-   → _Add these parameters to the Args: section: params_
-
-2. **src/henchman/tools/base.py:144** — 🟠 HIGH — Stale Docstring  
+1. **src/henchman/tools/base.py:144** — 🟠 HIGH — Stale Docstring  
    'Tool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-3. **src/henchman/tools/builtins/ask_user.py:73** — 🟠 HIGH — Stale Docstring  
+2. **src/henchman/tools/builtins/ask_user.py:73** — 🟠 HIGH — Stale Docstring  
    'AskUserTool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-4. **src/henchman/tools/builtins/coverage_map.py:557** — 🟠 HIGH — Stale Docstring  
+3. **src/henchman/tools/builtins/coverage_map.py:557** — 🟠 HIGH — Stale Docstring  
    'CoverageMapTool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-5. **src/henchman/tools/builtins/import_graph.py:473** — 🟠 HIGH — Stale Docstring  
+4. **src/henchman/tools/builtins/import_graph.py:473** — 🟠 HIGH — Stale Docstring  
    'ImportGraphTool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-6. **src/henchman/tools/builtins/kg_query.py:134** — 🟠 HIGH — Stale Docstring  
+5. **src/henchman/tools/builtins/kg_query.py:134** — 🟠 HIGH — Stale Docstring  
    'KgQueryTool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-7. **src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Stale Docstring  
+6. **src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Stale Docstring  
    'KgUpdateTool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-8. **docs/intelligent-context-management.md:474** — 🟡 MEDIUM — Broken Link  
+7. **docs/intelligent-context-management.md:474** — 🟡 MEDIUM — Broken Link  
    Link to 'configuration.md#performance-tuning' — file exists but anchor '#performance-tuning' not found  
    → _Verify the heading exists in 'docs/configuration.md' or fix the fragment._
 
-9. **mkdocs.yml:1** — 🟡 MEDIUM — Config Issue  
+8. **mkdocs.yml:1** — 🟡 MEDIUM — Config Issue  
    Markdown files contain ```mermaid blocks but pymdownx.superfences is not configured with mermaid custom fences — diagrams won't render  
    → _Add custom_fences mermaid configuration to pymdownx.superfences in mkdocs.yml, or install mkdocs-mermaid2-plugin._
 
-10. **pyproject.toml:65** — 🟡 MEDIUM — Consistency Error  
+9. **pyproject.toml:65** — 🟡 MEDIUM — Consistency Error  
    States coverage threshold of 4% but other files require 80%. Found thresholds: 80%, 4%  
    → _Align all coverage requirements to 80% (the strictest value)._
 
-11. **src/henchman/agents/config.py:1** — 🟡 MEDIUM — Missing Docstring  
+10. **src/henchman/agents/config.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-12. **src/henchman/agents/identity.py:1** — 🟡 MEDIUM — Missing Docstring  
+11. **src/henchman/agents/identity.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-13. **src/henchman/agents/metrics.py:91** — 🟡 MEDIUM — Incomplete Docstring  
+12. **src/henchman/agents/metrics.py:91** — 🟡 MEDIUM — Incomplete Docstring  
    'PerformanceMetrics.track_file_access' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: file_path_
 
-14. **src/henchman/agents/metrics.py:95** — 🟡 MEDIUM — Incomplete Docstring  
+13. **src/henchman/agents/metrics.py:95** — 🟡 MEDIUM — Incomplete Docstring  
    'PerformanceMetrics.track_tool_usage' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: tool_name_
 
-15. **src/henchman/agents/metrics.py:152** — 🟡 MEDIUM — Incomplete Docstring  
+14. **src/henchman/agents/metrics.py:152** — 🟡 MEDIUM — Incomplete Docstring  
    'ToolMetrics.track_tool_call' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: tool_name, success_
 
-16. **src/henchman/agents/orchestrator.py:76** — 🟡 MEDIUM — Incomplete Docstring  
+15. **src/henchman/agents/orchestrator.py:76** — 🟡 MEDIUM — Incomplete Docstring  
    'Orchestrator.run' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: user_input_
 
-17. **src/henchman/agents/orchestrator.py:94** — 🟡 MEDIUM — Incomplete Docstring  
+16. **src/henchman/agents/orchestrator.py:94** — 🟡 MEDIUM — Incomplete Docstring  
    'Orchestrator.run_direct' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: role, user_input_
 
-18. **src/henchman/agents/orchestrator_anchoring.py:19** — 🟡 MEDIUM — Incomplete Docstring  
+17. **src/henchman/agents/orchestrator_anchoring.py:19** — 🟡 MEDIUM — Incomplete Docstring  
    'inject_role_anchor' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: orchestrator, agent, tool_call_count_
 
-19. **src/henchman/agents/orchestrator_anchoring.py:42** — 🟡 MEDIUM — Incomplete Docstring  
+18. **src/henchman/agents/orchestrator_anchoring.py:42** — 🟡 MEDIUM — Incomplete Docstring  
    'assess_agent_completion' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: orchestrator, agent_
 
-20. **src/henchman/agents/orchestrator_components.py:39** — 🟡 MEDIUM — Incomplete Docstring  
+19. **src/henchman/agents/orchestrator_components.py:39** — 🟡 MEDIUM — Incomplete Docstring  
    'AgentValidator.check_thinking_pattern' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: agent_
+
+20. **src/henchman/agents/orchestrator_components.py:57** — 🟡 MEDIUM — Incomplete Docstring  
+   'AgentValidator.check_stall_failure' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent_
 
 
@@ -543,7 +543,7 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 | 146 | 🟢 LOW | Incomplete Docstring | 'ToolRegistry.add_auto_approve_policy' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ToolRegistry.add_auto_approve_policy'. |
 | 157 | 🟢 LOW | Incomplete Docstring | 'ToolRegistry.remove_auto_approve_policy' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ToolRegistry.remove_auto_approve_policy'. |
 
-## ✨ Clean Files (89 files with no smells)
+## ✨ Clean Files (90 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -593,6 +593,7 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 - src/henchman/knowledge/models.py — ✅ A
 - src/henchman/knowledge/scanner.py — ✅ A
 - src/henchman/mcp/config.py — ✅ A
+- src/henchman/mcp/tool.py — ✅ A
 - src/henchman/metrics/models.py — ✅ A
 - src/henchman/providers/anthropic.py — ✅ A
 - src/henchman/providers/base.py — ✅ A

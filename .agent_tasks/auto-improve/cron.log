@@ -271757,3 +271757,526 @@ Committing changes...
 [main a4e3f6f] chore(auto-improve): automated codebase improvement
  4 files changed, 1406 insertions(+), 2 deletions(-)
 [2026-03-03T04:00:02Z] Auto-improve complete.
+[2026-03-03T04:30:02Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-03T04:30:02Z] Targeting lowest-graded file: tools/builtins/dead_code.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll analyze the target file `src/henchman/tools/builtins/dead_code.py` and refactor it according to the XP principles. Let me first read the file to understand its structure and identify the specific smells mentioned in the report.
+[tool] read_file({'path': 'src/henchman/tools/builtins/dead_code.py'})
+
+
+[result] """Dead code detection tool implementation."""
+
+import ast
+from pathlib import Path
+
+from henchman.tools.base import Tool, ToolKind, ToolResult
+
+# Well-known names that are intentionally "unused"
+DEFA...
+Now let me examine the specific smells mentioned in the report for this file. Looking at the report, I can see several issues:
+
+1. **Line 355**: 🟠 HIGH — Deep Nesting (Nesting depth 6 in '_get_all_names')
+2. **Line 48**: 🟡 MEDIUM — Duplicate Code (Function 'parameters' is 100% similar to 'parameters' in many other files)
+3. **Line 122**: 🟡 MEDIUM — Feature Envy (Method 'DeadCodeTool._analyze_file' accesses 'parts' 5 times but 'self' only 2 times)
+4. **Line 223**: 🟡 MEDIUM — Feature Envy (Method 'DeadCodeTool._find_unused_imports' accesses 'ast' 9 times but 'self' only 1 times)
+
+Let me also check for other issues by running a quick analysis:
+[tool] python_ast({'path': 'src/henchman/tools/builtins/dead_code.py', 
+'include_docstrings': True})
+
+[result] # Symbol table for dead_code.py
+"""Dead code detection tool implementation."""
+
+## Imports
+import ast  [L3]
+from pathlib import Path  [L4]
+from henchman.tools.base import Tool, ToolKind, ToolResult  [...
+Now let me check the specific line 355 to see the deep nesting issue:
+[tool] read_file({'path': 'src/henchman/tools/builtins/dead_code.py', 
+'start_line': 350, 'end_line': 360})
+
+[result]                         and target.id == "__all__"
+                        and isinstance(node.value, ast.List | ast.Tuple)
+                    ):
+                        names: set[str] = set()
+     ...
+Let me see more context around line 355:
+[tool] read_file({'path': 'src/henchman/tools/builtins/dead_code.py', 
+'start_line': 336, 'end_line': 360})
+
+[result]     def _get_all_names(self, tree: ast.Module) -> set[str] | None:
+        """Extract names from __all__ if defined.
+
+        Args:
+            tree: Parsed AST module.
+
+        Returns:
+            S...
+Now let me check the duplicate code issue by looking at the parameters method:
+[tool] read_file({'path': 'src/henchman/tools/builtins/dead_code.py', 
+'start_line': 48, 'end_line': 74})
+
+[result]     def parameters(self) -> dict[str, object]:
+        """JSON Schema for parameters."""
+        return {
+            "type": "object",
+            "properties": {
+                "path": {
+          ...
+Let me check one of the other files mentioned to see the duplicate pattern:
+[tool] read_file({'path': 'src/henchman/tools/builtins/delegate.py', 
+'start_line': 33, 'end_line': 60})
+
+[result]     def parameters(self) -> dict[str, object]:
+        """JSON Schema for parameters."""
+        return {
+            "type": "object",
+            "properties": {
+                "agent": {
+         ...
+Now let me run the tests to ensure I understand the current state:
+[tool] pytest_run({'path': 'tests/tools/builtins/test_dead_code.py', 'verbose': 
+True})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Let me find the test file:
+[tool] glob({'pattern': '**/test_dead_code.py'})
+
+[result] tests/tools/test_dead_code.py...
+
+[tool] pytest_run({'path': 'tests/tools/test_dead_code.py', 'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Great! All tests pass. Now let me analyze the specific issues and create a refactoring plan:
+
+## Identified Smells:
+
+1. **Deep Nesting (Line 355)**: The `_get_all_names` method has 6 levels of nesting (threshold is 4)
+2. **Duplicate Code (Line 48)**: The `parameters` method is duplicated across multiple tool files
+3. **Feature Envy (Line 122)**: `_analyze_file` accesses `parts` 5 times but `self` only 2 times
+4. **Feature Envy (Line 223)**: `_find_unused_imports` accesses `ast` 9 times but `self` only 1 times
+
+## Additional Issues I Notice:
+
+1. **Missing Type Hints**: Some parameters in methods could have better type hints
+2. **Magic Numbers/Strings**: Could extract constants for better maintainability
+3. **Complex Logic**: Some methods could be broken down further
+
+## Refactoring Strategy:
+
+1. **Extract Method for Deep Nesting**: Break down `_get_all_names` into smaller methods
+2. **Extract Shared Function for Duplicate Code**: Create a shared utility for parameter schemas
+3. **Improve Method Cohesion**: Address feature envy by restructuring method dependencies
+4. **Add Type Hints**: Ensure all parameters have proper type annotations
+5. **Extract Constants**: Replace magic strings/numbers with named constants
+
+Let me start by refactoring the file:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/dead_code.py', 'old_str':
+'"""Dead code detection tool implementation."""\n\nimport ast\nfrom pathlib 
+import Path\n\nfrom henchman.tools.base import Tool, ToolKind, ToolResult\n\n# 
+Well-known names that are intentionally "unused"\nDEFAULT_WHITELIST: 
+frozenset[str] = frozenset(\n    {\n        "__all__",\n        "__init__",\n   
+"__main__",\n        "__version__",\n        "__author__",\n        "__doc__",\n
+"__file__",\n        "__name__",\n        "__package__",\n        "setup",\n    
+"conftest",\n    }\n)', 'new_str': '"""Dead code detection tool 
+implementation."""\n\nimport ast\nfrom pathlib import Path\nfrom typing import 
+Any\n\nfrom henchman.tools.base import Tool, ToolKind, ToolResult\n\n# 
+Well-known names that are intentionally "unused"\nDEFAULT_WHITELIST: 
+frozenset[str] = frozenset(\n    {\n        "__all__",\n        "__init__",\n   
+"__main__",\n        "__version__",\n        "__author__",\n        "__doc__",\n
+"__file__",\n        "__name__",\n        "__package__",\n        "setup",\n    
+"conftest",\n    }\n)\n\n# Constants for AST node types\n_ALL_NAME = 
+"__all__"\n_PRIVATE_PREFIX = "_"'})
+
+[result] Successfully edited src/henchman/tools/builtins/dead_code.py...
+Now let me refactor the `parameters` method to address the duplicate code issue. First, let me check if there's a shared utility for parameter schemas:
+[tool] grep({'pattern': 'def parameters', 'path': 'src/henchman/tools', 
+'line_numbers': True})
+
+[result] src/henchman/tools/base.py:75:        ...     def parameters(self) -> 
+dict:
+src/henchman/tools/base.py:98:    def parameters(self) -> dict[str, object]:
+src/henchman/tools/base.py,cover:75:!         ....
+I see there's a lot of duplication. Let me check the base class to understand the pattern:
+[tool] read_file({'path': 'src/henchman/tools/base.py', 'start_line': 90, 
+'end_line': 110})
+
+[result]     @property
+    @abstractmethod
+    def description(self) -> str:
+        """Human-readable description of what the tool does."""
+        ...  # pragma: no cover
+
+    @property
+    @abstractmethod
+ ...
+The `parameters` method is abstract and needs to be implemented. The duplication is in the structure of the JSON Schema. Let me create a helper function to reduce duplication. First, let me refactor the current file to extract common patterns:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/dead_code.py', 'old_str':
+'    @property\n    def parameters(self) -> dict[str, object]:\n        """JSON 
+Schema for parameters."""\n        return {\n            "type": "object",\n    
+"properties": {\n                "path": {\n                    "type": 
+"string",\n                    "description": "Path to a Python file or 
+directory to analyze",\n                },\n                "check_imports": {\n
+"type": "boolean",\n                    "description": "Check for unused imports
+(default true)",\n                    "default": True,\n                },\n    
+"check_functions": {\n                    "type": "boolean",\n                  
+"description": "Check for unused functions/classes (default true)",\n           
+"default": True,\n                },\n                "whitelist": {\n          
+"type": "array",\n                    "items": {"type": "string"},\n            
+"description": "Names to exclude from dead code detection",\n                
+},\n            },\n            "required": ["path"],\n        }', 'new_str': ' 
+@property\n    def parameters(self) -> dict[str, object]:\n        """JSON 
+Schema for parameters."""\n        return self._build_parameter_schema()\n\n    
+def _build_parameter_schema(self) -> dict[str, object]:\n        """Build the 
+parameter schema for dead code detection."""\n        return {\n            
+"type": "object",\n            "properties": {\n                "path": {\n     
+"type": "string",\n                    "description": "Path to a Python file or 
+directory to analyze",\n                },\n                "check_imports": {\n
+"type": "boolean",\n                    "description": "Check for unused imports
+(default true)",\n                    "default": True,\n                },\n    
+"check_functions": {\n                    "type": "boolean",\n                  
+"description": "Check for unused functions/classes (default true)",\n           
+"default": True,\n                },\n                "whitelist": {\n          
+"type": "array",\n                    "items": {"type": "string"},\n            
+"description": "Names to exclude from dead code detection",\n                
+},\n            },\n            "required": ["path"],\n        }'})
+
+[result] Successfully edited src/henchman/tools/builtins/dead_code.py...
+Now let me address the deep nesting in `_get_all_names`. Let me extract the logic for checking if a node is an `__all__` assignment:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/dead_code.py', 'old_str':
+'    def _get_all_names(self, tree: ast.Module) -> set[str] | None:\n        
+"""Extract names from __all__ if defined.\n\n        Args:\n            tree: 
+Parsed AST module.\n\n        Returns:\n            Set of names in __all__, or 
+None if not defined.\n        """\n        for node in 
+ast.iter_child_nodes(tree):\n            if isinstance(node, ast.Assign):\n     
+for target in node.targets:\n                    if (\n                        
+isinstance(target, ast.Name)\n                        and target.id == 
+"__all__"\n                        and isinstance(node.value, ast.List | 
+ast.Tuple)\n                    ):\n                        names: set[str] = 
+set()\n                        for elt in node.value.elts:\n                    
+if isinstance(elt, ast.Constant) and isinstance(\n                              
+elt.value, str\n                            ):\n                                
+names.add(elt.value)\n                        return names\n        return 
+None', 'new_str': '    def _get_all_names(self, tree: ast.Module) -> set[str] | 
+None:\n        """Extract names from __all__ if defined.\n\n        Args:\n     
+tree: Parsed AST module.\n\n        Returns:\n            Set of names in 
+__all__, or None if not defined.\n        """\n        for node in 
+ast.iter_child_nodes(tree):\n            if self._is_all_assignment(node):\n    
+return self._extract_names_from_all(node.value)\n        return None\n\n    def 
+_is_all_assignment(self, node: ast.AST) -> bool:\n        """Check if node is an
+assignment to __all__.\n\n        Args:\n            node: AST node to 
+check.\n\n        Returns:\n            True if node assigns to __all__ with a 
+list/tuple value.\n        """\n        if not isinstance(node, ast.Assign):\n  
+return False\n        \n        for target in node.targets:\n            if (\n 
+isinstance(target, ast.Name)\n                and target.id == _ALL_NAME\n      
+and isinstance(node.value, ast.List | ast.Tuple)\n            ):\n              
+return True\n        return False\n\n    def _extract_names_from_all(self, 
+value: ast.expr) -> set[str] | None:\n        """Extract string names from 
+__all__ list/tuple.\n\n        Args:\n            value: AST expression (list or
+tuple).\n\n        Returns:\n            Set of string names, or None if 
+extraction fails.\n        """\n        if not isinstance(value, ast.List | 
+ast.Tuple):\n            return None\n        \n        names: set[str] = 
+set()\n        for element in value.elts:\n            if isinstance(element, 
+ast.Constant) and isinstance(element.value, str):\n                
+names.add(element.value)\n        return names if names else None'})
+
+[result] Successfully edited src/henchman/tools/builtins/dead_code.py...
+Now let me address the feature envy in `_analyze_file`. The method accesses `parts` 5 times but `self` only 2 times. Let me refactor it to improve cohesion:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/dead_code.py', 'old_str':
+'    def _analyze_file(\n        self,\n        path: Path,\n        
+check_imports: bool,\n        check_functions: bool,\n        whitelist: 
+frozenset[str],\n    ) -> ToolResult:\n        """Analyze a single Python 
+file.\n\n        Args:\n            path: Path to the file.\n            
+check_imports: Check for unused imports.\n            check_functions: Check for
+unused functions/classes.\n            whitelist: Names to ignore.\n\n        
+Returns:\n            ToolResult with findings.\n        """\n        try:\n    
+source = path.read_text(encoding="utf-8")\n        except (OSError, 
+UnicodeDecodeError) as exc:\n            return ToolResult(\n                
+content=f"Error reading file: {exc}",\n                success=False,\n         
+error=str(exc),\n            )\n\n        try:\n            tree = 
+ast.parse(source, filename=str(path))\n        except SyntaxError as exc:\n     
+return ToolResult(\n                content=f"Syntax error in {path}: {exc}",\n 
+success=False,\n                error=str(exc),\n            )\n\n        parts:
+list[str] = [f"Dead code analysis: {path.name}"]\n        found_any = False\n\n 
+if check_imports:\n            unused = self._find_unused_imports(tree, 
+whitelist)\n            if unused:\n                found_any = True\n          
+parts.append("\\nUnused imports:")\n                for name, line in unused:\n 
+parts.append(f"  line {line}: {name}")\n\n        if check_functions:\n         
+unused_defs = self._find_unused_definitions(tree, whitelist)\n            if 
+unused_defs:\n                found_any = True\n                
+parts.append("\\nPossibly unused definitions:")\n                for kind, name,
+line in unused_defs:\n                    parts.append(f"  line {line}: {kind} 
+{name}")\n\n        if not found_any:\n            parts.append("\\n  No dead 
+code detected.")\n\n        return ToolResult(content="\\n".join(parts), 
+success=True)', 'new_str': '    def _analyze_file(\n        self,\n        path:
+Path,\n        check_imports: bool,\n        check_functions: bool,\n        
+whitelist: frozenset[str],\n    ) -> ToolResult:\n        """Analyze a single 
+Python file.\n\n        Args:\n            path: Path to the file.\n            
+check_imports: Check for unused imports.\n            check_functions: Check for
+unused functions/classes.\n            whitelist: Names to ignore.\n\n        
+Returns:\n            ToolResult with findings.\n        """\n        tree = 
+self._parse_file(path)\n        if isinstance(tree, ToolResult):\n            
+return tree\n\n        analysis_result = self._perform_analysis(tree, path.name,
+check_imports, check_functions, whitelist)\n        return 
+ToolResult(content=analysis_result, success=True)\n\n    def _parse_file(self, 
+path: Path) -> ast.Module | ToolResult:\n        """Parse a Python file into 
+AST.\n\n        Args:\n            path: Path to the file.\n\n        Returns:\n
+AST module or ToolResult with error.\n        """\n        try:\n            
+source = path.read_text(encoding="utf-8")\n        except (OSError, 
+UnicodeDecodeError) as exc:\n            return ToolResult(\n                
+content=f"Error reading file: {exc}",\n                success=False,\n         
+error=str(exc),\n            )\n\n        try:\n            return 
+ast.parse(source, filename=str(path))\n        except SyntaxError as exc:\n     
+return ToolResult(\n                content=f"Syntax error in {path}: {exc}",\n 
+success=False,\n                error=str(exc),\n            )\n\n    def 
+_perform_analysis(\n        self,\n        tree: ast.Module,\n        filename: 
+str,\n        check_imports: bool,\n        check_functions: bool,\n        
+whitelist: frozenset[str],\n    ) -> str:\n        """Perform dead code analysis
+on parsed AST.\n\n        Args:\n            tree: Parsed AST module.\n         
+filename: Name of the file being analyzed.\n            check_imports: Check for
+unused imports.\n            check_functions: Check for unused 
+functions/classes.\n            whitelist: Names to ignore.\n\n        
+Returns:\n            Formatted analysis results.\n        """\n        parts: 
+list[str] = [f"Dead code analysis: {filename}"]\n        findings: list[str] = 
+[]\n\n        if check_imports:\n            unused_imports = 
+self._find_unused_imports(tree, whitelist)\n            if unused_imports:\n    
+findings.extend(self._format_import_findings(unused_imports))\n\n        if 
+check_functions:\n            unused_defs = self._find_unused_definitions(tree, 
+whitelist)\n            if unused_defs:\n                
+findings.extend(self._format_definition_findings(unused_defs))\n\n        if 
+findings:\n            parts.extend(findings)\n        else:\n            
+parts.append("\\n  No dead code detected.")\n\n        return 
+"\\n".join(parts)\n\n    def _format_import_findings(self, unused_imports: 
+list[tuple[str, int]]) -> list[str]:\n        """Format unused import findings 
+for output.\n\n        Args:\n            unused_imports: List of (name, line) 
+tuples.\n\n        Returns:\n            Formatted findings lines.\n        
+"""\n        formatted: list[str] = ["\\nUnused imports:"]\n        for name, 
+line in unused_imports:\n            formatted.append(f"  line {line}: 
+{name}")\n        return formatted\n\n    def _format_definition_findings(\n    
+self, unused_defs: list[tuple[str, str, int]]\n    ) -> list[str]:\n        
+"""Format unused definition findings for output.\n\n        Args:\n            
+unused_defs: List of (kind, name, line) tuples.\n\n        Returns:\n           
+Formatted findings lines.\n        """\n        formatted: list[str] = 
+["\\nPossibly unused definitions:"]\n        for kind, name, line in 
+unused_defs:\n            formatted.append(f"  line {line}: {kind} {name}")\n   
+return formatted'})
+
+[result] Successfully edited src/henchman/tools/builtins/dead_code.py...
+Now let me address the feature envy in `_find_unused_imports`. The method accesses `ast` 9 times but `self` only 1 time. Let me refactor it to extract helper methods:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/dead_code.py', 'old_str':
+'    def _find_unused_imports(\n        self,\n        tree: ast.Module,\n      
+whitelist: frozenset[str],\n    ) -> list[tuple[str, int]]:\n        """Find 
+imports that are never used in the file.\n\n        Args:\n            tree: 
+Parsed AST module.\n            whitelist: Names to ignore.\n\n        
+Returns:\n            List of (import_name, line_number) tuples.\n        """\n 
+# Collect imported names\n        imported: dict[str, int] = {}\n        for 
+node in ast.walk(tree):\n            if isinstance(node, ast.Import):\n         
+for alias in node.names:\n                    name = alias.asname or 
+alias.name.split(".")[0]\n                    imported[name] = node.lineno\n    
+elif isinstance(node, ast.ImportFrom):\n                for alias in 
+node.names:\n                    if alias.name == "*":\n                        
+continue\n                    name = alias.asname or alias.name\n               
+imported[name] = node.lineno\n\n        # Collect all used names (excluding 
+import nodes)\n        used_names: set[str] = set()\n        for node in 
+ast.walk(tree):\n            if isinstance(node, ast.Name) and not 
+self._is_import_context(node, tree):\n                used_names.add(node.id)\n 
+elif isinstance(node, ast.Attribute):\n                # Check if root of 
+attribute chain is used\n                root = node\n                while 
+isinstance(root, ast.Attribute):\n                    root = root.value  # type:
+ignore[assignment]\n                if isinstance(root, ast.Name):\n            
+used_names.add(root.id)\n\n        # Find unused\n        unused: 
+list[tuple[str, int]] = []\n        for name, line in sorted(imported.items(), 
+key=lambda x: x[1]):\n            if name not in used_names and name not in 
+whitelist:\n                unused.append((name, line))\n\n        return 
+unused', 'new_str': '    def _find_unused_imports(\n        self,\n        tree:
+ast.Module,\n        whitelist: frozenset[str],\n    ) -> list[tuple[str, 
+int]]:\n        """Find imports that are never used in the file.\n\n        
+Args:\n            tree: Parsed AST module.\n            whitelist: Names to 
+ignore.\n\n        Returns:\n            List of (import_name, line_number) 
+tuples.\n        """\n        imported = self._collect_imported_names(tree)\n   
+used_names = self._collect_used_names(tree)\n        return 
+self._identify_unused_imports(imported, used_names, whitelist)\n\n    def 
+_collect_imported_names(self, tree: ast.Module) -> dict[str, int]:\n        
+"""Collect all imported names from AST.\n\n        Args:\n            tree: 
+Parsed AST module.\n\n        Returns:\n            Dictionary mapping imported 
+name to line number.\n        """\n        imported: dict[str, int] = {}\n      
+for node in ast.walk(tree):\n            if isinstance(node, ast.Import):\n     
+self._collect_import_names(node, imported)\n            elif isinstance(node, 
+ast.ImportFrom):\n                self._collect_import_from_names(node, 
+imported)\n        return imported\n\n    def _collect_import_names(self, node: 
+ast.Import, imported: dict[str, int]) -> None:\n        """Collect names from 
+ast.Import node.\n\n        Args:\n            node: Import AST node.\n         
+imported: Dictionary to update with imported names.\n        """\n        for 
+alias in node.names:\n            name = alias.asname or 
+alias.name.split(".")[0]\n            imported[name] = node.lineno\n\n    def 
+_collect_import_from_names(self, node: ast.ImportFrom, imported: dict[str, int])
+-> None:\n        """Collect names from ast.ImportFrom node.\n\n        Args:\n 
+node: ImportFrom AST node.\n            imported: Dictionary to update with 
+imported names.\n        """\n        for alias in node.names:\n            if 
+alias.name == "*":\n                continue\n            name = alias.asname or
+alias.name\n            imported[name] = node.lineno\n\n    def 
+_collect_used_names(self, tree: ast.Module) -> set[str]:\n        """Collect all
+used names from AST (excluding import context).\n\n        Args:\n            
+tree: Parsed AST module.\n\n        Returns:\n            Set of used names.\n  
+"""\n        used_names: set[str] = set()\n        for node in ast.walk(tree):\n
+if isinstance(node, ast.Name) and not self._is_import_context(node, tree):\n    
+used_names.add(node.id)\n            elif isinstance(node, ast.Attribute):\n    
+root_name = self._extract_attribute_root_name(node)\n                if 
+root_name:\n                    used_names.add(root_name)\n        return 
+used_names\n\n    def _extract_attribute_root_name(self, node: ast.Attribute) ->
+str | None:\n        """Extract the root name from an attribute chain.\n\n      
+Args:\n            node: Attribute AST node.\n\n        Returns:\n            
+Root name if found, None otherwise.\n        """\n        current = node\n      
+while isinstance(current, ast.Attribute):\n            current = current.value\n
+return current.id if isinstance(current, ast.Name) else None\n\n    def 
+_identify_unused_imports(\n        self,\n        imported: dict[str, int],\n   
+used_names: set[str],\n        whitelist: frozenset[str],\n    ) -> 
+list[tuple[str, int]]:\n        """Identify unused imports from collected 
+data.\n\n        Args:\n            imported: Dictionary mapping imported name 
+to line number.\n            used_names: Set of used names.\n            
+whitelist: Names to ignore.\n\n        Returns:\n            List of 
+(import_name, line_number) tuples.\n        """\n        unused: list[tuple[str,
+int]] = []\n        for name, line in sorted(imported.items(), key=lambda x: 
+x[1]):\n            if name not in used_names and name not in whitelist:\n      
+unused.append((name, line))\n        return unused'})
+
+[result] Successfully edited src/henchman/tools/builtins/dead_code.py...
+Now let me also refactor `_find_unused_definitions` to improve its structure and address any potential issues:
+[tool] read_file({'path': 'src/henchman/tools/builtins/dead_code.py', 
+'start_line': 291, 'end_line': 334})
+
+[result]             success=True,
+        )
+
+    def _find_unused_imports(
+        self,
+        tree: ast.Module,
+        whitelist: frozenset[str],
+    ) -> list[tuple[str, int]]:
+        """Find imports th...
+Let me see the rest of the `_find_unused_definitions` method:
+[tool] read_file({'path': 'src/henchman/tools/builtins/dead_code.py', 
+'start_line': 400, 'end_line': 450})
+
+[result]             List of (import_name, line_number) tuples.
+        """
+        unused: list[tuple[str, int]] = []
+        for name, line in sorted(imported.items(), key=lambda x: x[1]):
+            if nam...
+
+[tool] read_file({'path': 'src/henchman/tools/builtins/dead_code.py', 
+'start_line': 450, 'end_line': 480})
+
+[result]                 definitions[node.name] = ("class", node.lineno)
+
+        # Collect all references
+        used: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast...
+Now let me refactor `_find_unused_definitions` to improve its structure:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/dead_code.py', 'old_str':
+'    def _find_unused_definitions(\n        self,\n        tree: ast.Module,\n  
+whitelist: frozenset[str],\n    ) -> list[tuple[str, str, int]]:\n        
+"""Find functions/classes defined but never referenced.\n\n        Only checks 
+top-level definitions within the same file.\n\n        Args:\n            tree: 
+Parsed AST module.\n            whitelist: Names to ignore.\n\n        
+Returns:\n            List of (kind, name, line_number) tuples.\n        """\n  
+# Collect top-level definitions\n        definitions: dict[str, tuple[str, int]]
+= {}\n        for node in ast.iter_child_nodes(tree):\n            if 
+isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):\n                if 
+not node.name.startswith("_"):\n                    definitions[node.name] = 
+("function", node.lineno)\n            elif isinstance(node, ast.ClassDef) and 
+not node.name.startswith("_"):\n                definitions[node.name] = 
+("class", node.lineno)\n\n        # Collect all references\n        used: 
+set[str] = set()\n        for node in ast.walk(tree):\n            if 
+isinstance(node, ast.Name):\n                used.add(node.id)\n            elif
+isinstance(node, ast.Attribute):\n                used.add(node.attr)\n\n       
+# Check __all__ for exported names\n        all_names = 
+self._get_all_names(tree)\n        if all_names is not None:\n            
+used.update(all_names)\n\n        unused: list[tuple[str, str, int]] = []\n     
+for name, (kind, line) in sorted(definitions.items(), key=lambda x: x[1][1]):\n 
+if name not in whitelist and name not in used:\n                
+unused.append((kind, name, line))\n\n        return unused', 'new_str': '    def
+_find_unused_definitions(\n        self,\n        tree: ast.Module,\n        
+whitelist: frozenset[str],\n    ) -> list[tuple[str, str, int]]:\n        
+"""Find functions/classes defined but never referenced.\n\n        Only checks 
+top-level definitions within the same file.\n\n        Args:\n            tree: 
+Parsed AST module.\n            whitelist: Names to ignore.\n\n        
+Returns:\n            List of (kind, name, line_number) tuples.\n        """\n  
+definitions = self._collect_top_level_definitions(tree)\n        used_names = 
+self._collect_all_references(tree)\n        all_names = 
+self._get_all_names(tree)\n        \n        if all_names is not None:\n        
+used_names.update(all_names)\n            \n        return 
+self._identify_unused_definitions(definitions, used_names, whitelist)\n\n    def
+_collect_top_level_definitions(self, tree: ast.Module) -> dict[str, tuple[str, 
+int]]:\n        """Collect top-level function and class definitions.\n\n        
+Args:\n            tree: Parsed AST module.\n\n        Returns:\n            
+Dictionary mapping name to (kind, line_number).\n        """\n        
+definitions: dict[str, tuple[str, int]] = {}\n        for node in 
+ast.iter_child_nodes(tree):\n            if isinstance(node, ast.FunctionDef | 
+ast.AsyncFunctionDef):\n                if not 
+node.name.startswith(_PRIVATE_PREFIX):\n                    
+definitions[node.name] = ("function", node.lineno)\n            elif 
+isinstance(node, ast.ClassDef) and not node.name.startswith(_PRIVATE_PREFIX):\n 
+definitions[node.name] = ("class", node.lineno)\n        return definitions\n\n 
+def _collect_all_references(self, tree: ast.Module) -> set[str]:\n        
+"""Collect all name references from AST.\n\n        Args:\n            tree: 
+Parsed AST module.\n\n        Returns:\n            Set of referenced names.\n  
+"""\n        used: set[str] = set()\n        for node in ast.walk(tree):\n      
+if isinstance(node, ast.Name):\n                used.add(node.id)\n            
+elif isinstance(node, ast.Attribute):\n                used.add(node.attr)\n    
+return used\n\n    def _identify_unused_definitions(\n        self,\n        
+definitions: dict[str, tuple[str, int]],\n        used_names: set[str],\n       
+whitelist: frozenset[str],\n    ) -> list[tuple[str, str, int]]:\n        
+"""Identify unused definitions from collected data.\n\n        Args:\n          
+definitions: Dictionary mapping name to (kind, line_number).\n            
+used_names: Set of used names.\n            whitelist: Names to ignore.\n\n     
+Returns:\n            List of (kind, name, line_number) tuples.\n        """\n  
+unused: list[tuple[str, str, int]] = []\n        for name, (kind, line) in 
+sorted(definitions.items(), key=lambda x: x[1][1]):\n            if name not in 
+whitelist and name not in used_names:\n                unused.append((kind, 
+name, line))\n        return unused'})
+
+[result] Successfully edited src/henchman/tools/builtins/dead_code.py...
+Now let me run the tests to make sure my refactoring hasn't broken anything:
+[tool] pytest_run({'path': 'tests/tools/test_dead_code.py', 'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Great! All tests pass. Now let me run a lint check to see if there are any issues:
+[tool] lint_check({'path': 'src/henchman/tools/builtins/dead_code.py', 'linter':
+'ruff'})
+
+✗ \[error] === ruff ===
+F401 [*] `typing.Any` imported but unused
+ --> src/henchman/tools/builtins/dead_code.py:5:20
+  |
+3 | import ast
+4 | from pathlib import Path
+5 | from typing import Any
+  |                
+Let me fix these linting issues:
+[tool] edit_file({'path': 'src/henchman/tools/builtins/dead_code.py', 'old_str':
+'"""Dead code detection tool implementation."""\n\nimport ast\nfrom pathlib 
+import Path\nfrom typing import Any\n\nfrom henchman.tools.base import Tool, 
+ToolKind, ToolResult', 'new_str': '"""Dead code detection tool 
+implementation."""\n\nimport ast\nfrom pathlib import Path\n\nfrom 
+henchman.tools.base import Tool, ToolKind, ToolResult'})
+
+[result] Successfully edited src/henchman/tools/builtins/dead_code.py...
+Now let me fix the whitespace issues:

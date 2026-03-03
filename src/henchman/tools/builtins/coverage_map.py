@@ -558,11 +558,14 @@ class CoverageMapTool(Tool):
         """Parse coverage report for uncovered lines.
 
         Args:
-            **params: Tool parameters including:
-                - path: Path to coverage.xml or coverage.json.
-                - file_filter: Optional filename substring filter.
-                - show_branches: Include branch coverage in output.
-                - per_function: Show per-function coverage breakdown.
+            params: Tool parameters passed as keyword arguments.
+                Expected parameters:
+                    path (str): Path to coverage.xml or coverage.json file.
+                    file_filter (str, optional): Optional filename substring filter.
+                    show_branches (bool, optional): Include branch coverage in output.
+                        Defaults to False.
+                    per_function (bool, optional): Show per-function coverage breakdown.
+                        Defaults to False.
 
         Returns:
             ToolResult with coverage information.
