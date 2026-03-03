@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 95.7/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T06:15:02.381479+00:00_
+_Generated: 2026-03-03T06:30:03.029897+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-03T06:15:02.381479+00:00_
 | **Overall Score** | 95.7/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 166 |
-| **Total Smells** | 421 |
+| **Total Smells** | 420 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
@@ -19,14 +19,14 @@ _Generated: 2026-03-03T06:15:02.381479+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 335 |
-| medium | 86 |
+| medium | 85 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
 | Incomplete Docstring | 413 |
-| Missing Docstring | 4 |
+| Missing Docstring | 3 |
 | Stale Content | 2 |
 | Config Issue | 1 |
 | Consistency Error | 1 |
@@ -39,81 +39,81 @@ These are the highest-impact documentation smells to address first:
    States coverage threshold of 4% but other files require 100%. Found thresholds: 100%, 4%  
    → _Align all coverage requirements to 100% (the strictest value)._
 
-2. **src/henchman/agents/identity.py:1** — 🟡 MEDIUM — Missing Docstring  
-   Module is missing a docstring  
-   → _Add a module-level docstring describing the module's purpose._
-
-3. **src/henchman/agents/metrics.py:91** — 🟡 MEDIUM — Incomplete Docstring  
+2. **src/henchman/agents/metrics.py:91** — 🟡 MEDIUM — Incomplete Docstring  
    'PerformanceMetrics.track_file_access' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: file_path_
 
-4. **src/henchman/agents/metrics.py:95** — 🟡 MEDIUM — Incomplete Docstring  
+3. **src/henchman/agents/metrics.py:95** — 🟡 MEDIUM — Incomplete Docstring  
    'PerformanceMetrics.track_tool_usage' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: tool_name_
 
-5. **src/henchman/agents/metrics.py:152** — 🟡 MEDIUM — Incomplete Docstring  
+4. **src/henchman/agents/metrics.py:152** — 🟡 MEDIUM — Incomplete Docstring  
    'ToolMetrics.track_tool_call' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: tool_name, success_
 
-6. **src/henchman/agents/orchestrator.py:76** — 🟡 MEDIUM — Incomplete Docstring  
+5. **src/henchman/agents/orchestrator.py:76** — 🟡 MEDIUM — Incomplete Docstring  
    'Orchestrator.run' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: user_input_
 
-7. **src/henchman/agents/orchestrator.py:94** — 🟡 MEDIUM — Incomplete Docstring  
+6. **src/henchman/agents/orchestrator.py:94** — 🟡 MEDIUM — Incomplete Docstring  
    'Orchestrator.run_direct' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: role, user_input_
 
-8. **src/henchman/agents/orchestrator_anchoring.py:19** — 🟡 MEDIUM — Incomplete Docstring  
+7. **src/henchman/agents/orchestrator_anchoring.py:19** — 🟡 MEDIUM — Incomplete Docstring  
    'inject_role_anchor' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: orchestrator, agent, tool_call_count_
 
-9. **src/henchman/agents/orchestrator_anchoring.py:42** — 🟡 MEDIUM — Incomplete Docstring  
+8. **src/henchman/agents/orchestrator_anchoring.py:42** — 🟡 MEDIUM — Incomplete Docstring  
    'assess_agent_completion' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: orchestrator, agent_
 
-10. **src/henchman/agents/orchestrator_components.py:39** — 🟡 MEDIUM — Incomplete Docstring  
+9. **src/henchman/agents/orchestrator_components.py:39** — 🟡 MEDIUM — Incomplete Docstring  
    'AgentValidator.check_thinking_pattern' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent_
 
-11. **src/henchman/agents/orchestrator_components.py:57** — 🟡 MEDIUM — Incomplete Docstring  
+10. **src/henchman/agents/orchestrator_components.py:57** — 🟡 MEDIUM — Incomplete Docstring  
    'AgentValidator.check_stall_failure' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent_
 
-12. **src/henchman/agents/orchestrator_delegation_ctrl.py:55** — 🟡 MEDIUM — Incomplete Docstring  
+11. **src/henchman/agents/orchestrator_delegation_ctrl.py:55** — 🟡 MEDIUM — Incomplete Docstring  
    'DelegationController.execute_delegation_tool' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent, tool_call, depth_
 
-13. **src/henchman/agents/orchestrator_events.py:26** — 🟡 MEDIUM — Incomplete Docstring  
+12. **src/henchman/agents/orchestrator_events.py:26** — 🟡 MEDIUM — Incomplete Docstring  
    'extract_brief_fields' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: arguments_
 
-14. **src/henchman/agents/orchestrator_events.py:31** — 🟡 MEDIUM — Incomplete Docstring  
+13. **src/henchman/agents/orchestrator_events.py:31** — 🟡 MEDIUM — Incomplete Docstring  
    'create_delegation_event' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent, target, task_
 
-15. **src/henchman/agents/orchestrator_events.py:48** — 🟡 MEDIUM — Incomplete Docstring  
+14. **src/henchman/agents/orchestrator_events.py:48** — 🟡 MEDIUM — Incomplete Docstring  
    'create_tool_result_event' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent, tool_call, result_content_
 
-16. **src/henchman/agents/orchestrator_events.py:66** — 🟡 MEDIUM — Incomplete Docstring  
+15. **src/henchman/agents/orchestrator_events.py:66** — 🟡 MEDIUM — Incomplete Docstring  
    'update_ledger' has 4 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: ledger, record, result, had_error_
 
-17. **src/henchman/agents/orchestrator_execution.py:60** — 🟡 MEDIUM — Incomplete Docstring  
+16. **src/henchman/agents/orchestrator_execution.py:60** — 🟡 MEDIUM — Incomplete Docstring  
    'ExecutionController.run_agent_loop' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: params_
 
-18. **src/henchman/agents/orchestrator_execution.py:117** — 🟡 MEDIUM — Incomplete Docstring  
+17. **src/henchman/agents/orchestrator_execution.py:117** — 🟡 MEDIUM — Incomplete Docstring  
    'ExecutionController.assess_completion' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent_
 
-19. **src/henchman/agents/orchestrator_loop.py:51** — 🟡 MEDIUM — Incomplete Docstring  
+18. **src/henchman/agents/orchestrator_loop.py:51** — 🟡 MEDIUM — Incomplete Docstring  
    'run_tools_and_collect' has 5 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: orchestrator, agent, pending, params, state_
 
-20. **src/henchman/agents/orchestrator_loop.py:71** — 🟡 MEDIUM — Incomplete Docstring  
+19. **src/henchman/agents/orchestrator_loop.py:71** — 🟡 MEDIUM — Incomplete Docstring  
    'collect_events' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: generator, pending_
+
+20. **src/henchman/agents/orchestrator_loop.py:90** — 🟡 MEDIUM — Incomplete Docstring  
+   'check_turn_limits' has 3 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: agent, params, state_
 
 
 ## 📊 Files Ranked by Quality
@@ -551,7 +551,7 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 | 146 | 🟢 LOW | Incomplete Docstring | 'ToolRegistry.add_auto_approve_policy' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ToolRegistry.add_auto_approve_policy'. |
 | 157 | 🟢 LOW | Incomplete Docstring | 'ToolRegistry.remove_auto_approve_policy' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ToolRegistry.remove_auto_approve_policy'. |
 
-## ✨ Clean Files (96 files with no smells)
+## ✨ Clean Files (97 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -571,6 +571,7 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 - evals/README.md — ✅ A
 - tests/ui_integration/INTERACTIVE_SESSION_TESTS.md — ✅ A
 - src/henchman/agents/delegation.py — ✅ A
+- src/henchman/agents/identity.py — ✅ A
 - src/henchman/agents/metrics_reporter.py — ✅ A
 - src/henchman/agents/orchestrator_prompts.py — ✅ A
 - src/henchman/agents/orchestrator_timeout.py — ✅ A
