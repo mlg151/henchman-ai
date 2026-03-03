@@ -1,81 +1,47 @@
-# Refactoring Summary: dead_code.py
+# Refactoring Improvement Summary
 
-**Date/Time**: 2026-03-03 (Current)
-**Files Changed**: `src/henchman/tools/builtins/dead_code.py`
-**Rationale**: Address all code smells identified in the smell report for the dead_code.py file.
+**Date/Time**: 2026-03-03 05:30 UTC
+**Target File**: `src/henchman/cli/commands/context.py`
+**Status**: In Progress
 
-## Identified Smells Addressed:
+## Identified Smells to Address
 
-### 1. 🟠 HIGH - Primitive Obsession
-**Problem**: Repeated primitive parameter group in `execute()` and `_perform_analysis()` methods.
-**Solution**: Introduced `AnalysisParameters` dataclass to group related parameters (`check_imports`, `check_functions`, `whitelist`).
+### 1. Duplicate Code Issues
+- `_print_status_info` is 94% similar to functions in `session.py`, `textual_widgets.py`
+- `_print_status_commands` is 100% similar to `_print_strategy_usage`
+- `_handle_max_tokens_parameter` is 100% similar to `_handle_threshold_parameter`
 
-### 2. 🟡 MEDIUM - Large Class
-**Problem**: Class 'DeadCodeTool' spanned 532 lines (threshold: 300).
-**Solution**: Extracted 3 helper classes:
-- `ASTAnalyzer`: AST-specific operations (`is_import_context`, `collect_top_level_definitions`, `find_all_assignment`)
-- `ImportAnalyzer`: Import analysis operations (`collect_imported_names`, `collect_used_names`)
-- `DefinitionAnalyzer`: Function/class definition analysis (`collect_all_references`, `get_all_names`)
+### 2. Feature Envy Issues
+- `_print_status_values` accesses `ConsoleHelper` 6 times but `self` only 0 times
+- `_print_strategy_usage` accesses `console` 6 times but `self` only 0 times  
+- `_show_strategy_status` accesses `ConsoleHelper` 6 times but `self` only 0 times
 
-### 3. 🟡 MEDIUM - Duplicate Code
-**Problem**: `_format_import_findings` was 100% similar to `_format_definition_findings`.
-**Solution**: Created unified `_format_findings()` method with parameterized behavior.
+### 3. Type Hint Issues
+- `get_display_label` reported as having incomplete type hints (though it only has `self` parameter)
 
-**Problem**: `_identify_unused_imports` was 93% similar to `_identify_unused_definitions`.
-**Solution**: Created `_identify_unused_items()` for common logic, kept specialized `_identify_unused_definitions()` for definitions.
+## Refactoring Strategy
 
-### 4. 🟡 MEDIUM - Feature Envy
-**Problem**: Multiple methods accessing AST nodes more than self (`_is_import_context`, `_collect_top_level_definitions`, `_find_all_assignment`).
-**Solution**: Moved these methods to appropriate utility classes (`ASTAnalyzer`, `ImportAnalyzer`, `DefinitionAnalyzer`).
+### Phase 1: Extract Console Output Patterns
+Create a `ContextConsoleHelper` class within the module to consolidate console output logic and reduce duplication.
 
-### 5. 🟢 LOW - Large Class (Method Count)
-**Problem**: Class had 27 methods (threshold: 20).
-**Solution**: Reduced to 16 methods in main class by extracting helper classes.
+### Phase 2: Eliminate Duplicate Parameter Handlers  
+Refactor `_handle_max_tokens_parameter` and `_handle_threshold_parameter` to use a shared configuration-driven approach.
 
-### 6. 🟢 LOW - Missing Type Hints
-**Problem**: Multiple functions had incomplete type hints.
-**Solution**: Added complete type annotations for all methods using modern Python typing (`List`, `Dict`, `Set`, `Optional`, `Tuple`, `FrozenSet`).
+### Phase 3: Move Feature Envy Methods
+Refactor methods that heavily depend on `ConsoleHelper` to either:
+1. Move logic to `ConsoleHelper` class
+2. Create instance methods that properly use `self`
 
-## Refactoring Strategy Applied:
+### Phase 4: Improve Type Safety
+Ensure all methods have proper type hints and follow Python best practices.
 
-1. **Introduce Parameter Object**: Created `AnalysisParameters` dataclass
-2. **Extract Class**: Split large class into 4 cohesive classes
-3. **Extract Method**: Unified duplicate formatting logic
-4. **Move Method**: Relocated AST-heavy methods to utility classes
-5. **Add Type Annotations**: Full type hint coverage
+## Expected Benefits
+1. **Reduced Code Duplication**: Eliminate 3+ duplicate code patterns
+2. **Improved Maintainability**: Centralized console output logic
+3. **Better Separation of Concerns**: Console output logic separated from business logic
+4. **Enhanced Type Safety**: Complete type hints throughout
 
-## Testing Implications:
-
-- **All existing tests pass**: 17/17 tests pass with refactored code
-- **No API changes**: Public interface (`execute()`, properties) unchanged
-- **Behavior preserved**: Same dead code detection results
-- **Coverage maintained**: 92% test coverage preserved
-
-## Code Quality Improvements:
-
-- **Reduced class size**: From 532 to ~207 lines in main class
-- **Improved cohesion**: Each class has single responsibility
-- **Better abstraction**: Clear separation of concerns
-- **Enhanced readability**: Modern type hints and descriptive class names
-- **Maintainability**: Easier to test and modify individual components
-- **Type safety**: Full type hint coverage with mypy validation
-- **Code style**: Ruff formatting compliance
-
-## Performance Impact:
-
-- **No performance degradation**: Same algorithmic complexity
-- **Memory usage similar**: Dataclasses are lightweight
-- **Execution time unchanged**: Same AST traversal patterns
-
-## Final Validation:
-
-- **All tests pass**: 17/17 tests pass with refactored code
-- **Linting passes**: Ruff and mypy report no issues
-- **Code coverage**: 92% test coverage maintained
-- **Formatting**: Consistent code style applied
-
-The refactoring successfully addresses all identified code smells while preserving functionality and maintaining test coverage. All XP principles have been applied:
-- **YAGNI**: Removed speculative abstractions, kept only what's needed
-- **DRY**: Eliminated duplicate code patterns
-- **Simplicity**: Clear, intention-revealing code structure
-- **Once and Only Once**: Shared logic extracted to utility classes
+## Testing Implications
+- Existing tests should continue to pass (8 tests in `test_context.py`)
+- Console output formatting should remain identical
+- Command behavior should not change
