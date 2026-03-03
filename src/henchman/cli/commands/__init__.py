@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -116,7 +116,7 @@ class BaseCommand(Command):
 
     # Subclasses must override these
     _help_command_name: str = ""
-    _help_lines: list[str] = []
+    _help_lines: ClassVar[list[str]] = []
 
     async def _show_help(self, ctx: CommandContext) -> None:
         """Show help for this command.

@@ -234,10 +234,13 @@ class KgQueryTool(Tool):
         lines = [f"# Relations for `{query}`\n"]
         for rel in relations:
             rel_source = rel.source
+            rel_target = rel.target
+            rel_description = rel.description
+            rel_type = rel.relation_type
             arrow = "→" if rel_source == query else "←"
-            other = rel.target if rel_source == query else rel_source
-            desc = f" ({rel.description})" if rel.description else ""
-            lines.append(f"- {arrow} **{rel.relation_type}**: `{other}`{desc}")
+            other = rel_target if rel_source == query else rel_source
+            desc = f" ({rel_description})" if rel_description else ""
+            lines.append(f"- {arrow} **{rel_type}**: `{other}`{desc}")
 
         return ToolResult(content="\n".join(lines))
 

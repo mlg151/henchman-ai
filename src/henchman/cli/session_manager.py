@@ -39,6 +39,7 @@ class ReplSessionManager:
     def __init__(
         self: Self,
         session_manager: SessionManager | None = None,
+        *,
         auto_save: bool = True,
     ) -> None:
         """Initialize the REPL session manager.

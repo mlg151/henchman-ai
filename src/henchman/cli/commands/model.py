@@ -12,6 +12,8 @@ from henchman.providers import get_default_registry
 class ModelCommand(Command):
     """Show or change the model and provider."""
 
+    _MIN_SET_ARGS = 2
+
     @property
     def name(self) -> str:
         """Command name.
@@ -50,8 +52,8 @@ class ModelCommand(Command):
             await self._show_current(ctx)
         elif args[0] == "list":
             await self._list_providers(ctx)
-        elif args[0] == "set" and len(args) >= 2:
-            await self._set_provider(ctx, args[1], args[2] if len(args) > 2 else None)
+        elif args[0] == "set" and len(args) >= self._MIN_SET_ARGS:
+            await self._set_provider(ctx, args[1], args[2] if len(args) > self._MIN_SET_ARGS else None)  # noqa: E501
         else:
             ctx.console.print(f"[yellow]Usage: {self.usage}[/]")
 
@@ -129,7 +131,7 @@ class ModelCommand(Command):
                     console.print(f"    [yellow]Env vars:[/] {env_vars}")
 
                 console.print("")
-            except Exception as e:  # noqa: PERF203
+            except Exception as e:  # noqa: BLE001, PERF203
                 console.print(f"  [red]{provider_name}[/] - Error: {e}")
 
     async def _set_provider(
@@ -170,7 +172,7 @@ class ModelCommand(Command):
             # Show any configuration needed
             self._show_configuration_warnings(ctx, provider_name, api_key)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             ctx.console.print(f"[red]Failed to switch provider: {e}[/]")
             ctx.console.print("[dim]Check that the provider is properly configured.[/]")
 
@@ -233,7 +235,7 @@ class ModelCommand(Command):
                     console.print(f"[green]✓ Using default model: {provider.default_model}[/]")
             else:
                 console.print(f"[green]✓ Connected to {provider_name}[/]")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             console.print(f"[yellow]⚠ Connection test failed: {e}[/]")
             console.print("[yellow]Provider created but may not work correctly.[/]")
 
@@ -310,7 +312,7 @@ class ModelCommand(Command):
         Returns:
             Environment variable names.
         """
-        from henchman.providers.utils import get_env_var_for_provider
+        from henchman.providers.utils import get_env_var_for_provider  # noqa: PLC0415
 
         # Special case for ollama since it doesn't need an API key
         if provider_name == "ollama":
@@ -348,7 +350,7 @@ class ModelCommand(Command):
         Returns:
             Environment variable name.
         """
-        from henchman.providers.utils import get_env_var_for_provider
+        from henchman.providers.utils import get_env_var_for_provider  # noqa: PLC0415
 
         return get_env_var_for_provider(provider_name)
 
@@ -362,7 +364,7 @@ class ModelCommand(Command):
             API key if found, None otherwise.
         """
         # Try environment variables first using utility function
-        from henchman.providers.utils import get_api_key_for_provider
+        from henchman.providers.utils import get_api_key_for_provider  # noqa: PLC0415
 
         api_key = get_api_key_for_provider(provider_name)
         if api_key:
@@ -376,7 +378,7 @@ class ModelCommand(Command):
                 val = getattr(provider_settings, "api_key", None)
                 if val is not None:
                     return str(val)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         return None

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
 # ---------------------------------------------------------------------------
-# Constants – replace magic numbers with named values
+# Constants – replace magic numbers with named values  # noqa: RUF003
 # ---------------------------------------------------------------------------
 _READ_CHUNK_SIZE = 64 * 1024
 """Bytes to read per chunk from subprocess pipes."""
@@ -116,7 +116,7 @@ def _format_output(stdout: str, stderr: str) -> str:
 def _make_result(
     output: str,
     returncode: int | None,
-    timed_out: bool,
+    timed_out: bool,  # noqa: FBT001
     timeout_value: float | None,
 ) -> ToolResult:
     """Build the final :class:`ToolResult` from process outcome.
@@ -189,7 +189,7 @@ async def _poll_until_exit(
                 process.kill()
             return True, elapsed
 
-        # Linux-specific zombie check – avoids waiting on open pipes.
+        # Linux-specific zombie check – avoids waiting on open pipes.  # noqa: RUF003
         if _is_process_dead(process.pid):
             return False, loop.time() - start
 
@@ -206,7 +206,7 @@ def _is_process_dead(pid: int) -> bool:
         ``True`` when the process can be considered finished.
     """
     try:
-        with open(f"/proc/{pid}/stat") as fh:
+        with open(f"/proc/{pid}/stat") as fh:  # noqa: PTH123
             return fh.read().split()[2] == "Z"
     except (FileNotFoundError, ProcessLookupError):
         return True
@@ -237,7 +237,7 @@ def _force_close_pipes(process: asyncio.subprocess.Process) -> None:
         process: The subprocess whose pipes should be closed.
     """
     try:
-        trans = process._transport  # type: ignore[attr-defined]
+        trans = process._transport  # type: ignore[attr-defined]  # noqa: SLF001
         if trans is None:
             return
         for fd_num in (1, 2):
@@ -407,7 +407,7 @@ class ShellTool(Tool):
             output = _format_output(outcome.stdout, outcome.stderr)
             return _make_result(output, outcome.returncode, outcome.timed_out, effective_timeout)
 
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error executing command: {e}",
                 success=False,
@@ -420,7 +420,7 @@ class ShellTool(Tool):
         command: str,
         env: dict[str, str],
         cwd: str | None,
-        is_sudo: bool,
+        is_sudo: bool,  # noqa: FBT001
     ) -> asyncio.subprocess.Process:
         """Create a subprocess for *command*.
 
@@ -519,10 +519,10 @@ class ShellTool(Tool):
         Returns:
             ToolResult with command output or error.
         """
-        import errno
-        import fcntl
-        import pty
-        import select
+        import errno  # noqa: PLC0415
+        import fcntl  # noqa: PLC0415
+        import pty  # noqa: PLC0415
+        import select  # noqa: PLC0415
 
         try:
             master_fd, slave_fd = pty.openpty()
@@ -586,7 +586,7 @@ class ShellTool(Tool):
                 termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_settings)
                 os.close(master_fd)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return ToolResult(
                 content=f"Error executing sudo command: {e}",
                 success=False,

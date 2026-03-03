@@ -5,6 +5,7 @@ the agent to read-only operations for planning and architectural discussions
 without modifying the codebase.
 """
 
+
 from henchman.cli.commands import Command, CommandContext
 
 PLAN_MODE_PROMPT = """
@@ -12,7 +13,8 @@ PLAN_MODE_PROMPT = """
 **PLAN MODE ACTIVE**
 You are currently in PLAN MODE.
 Your goal is to discuss, plan, and architect solutions without modifying the codebase.
-You can read files and explore the project, but you cannot write files or execute commands that modify state.  # noqa: E501
+You can read files and explore the project, but you cannot write files or
+execute commands that modify state.
 Focus on creating detailed implementation plans.
 ---
 """
@@ -53,7 +55,7 @@ class PlanCommand(Command):
 
         # Apply to ToolRegistry
         if ctx.tool_registry:
-            ctx.tool_registry.set_plan_mode(new_mode)
+            ctx.tool_registry.set_plan_mode(enabled=new_mode)
 
         # Apply to Agent System Prompt
         if ctx.agent:

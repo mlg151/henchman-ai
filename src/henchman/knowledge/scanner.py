@@ -198,6 +198,7 @@ def _find_import_target(
 def scan_repository(  # noqa: C901, PLR0912
     store: KnowledgeStore,
     git_root: Path,
+    *,
     incremental: bool = True,
 ) -> int:
     """Scan a git repository and populate the knowledge graph.

@@ -192,6 +192,7 @@ def _handle_finish(
 async def generate_stream_events(
     ctx: StreamContext,
     state: StreamState,
+    *,
     compacted: bool,
 ) -> AsyncIterator[AgentEvent]:
     """Generate agent events from a provider streaming response.

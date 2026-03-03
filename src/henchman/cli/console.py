@@ -858,7 +858,7 @@ class AsyncOutputRenderer:
                 *args: Either (old, new, filename) strings or a DiffParams object.
                 **kwargs: Keyword arguments for backward compatibility.
             """
-            params = self.renderer._parse_diff_args(*args, **kwargs)
-            await anyio.to_thread.run_sync(self.renderer._render_diff, params)
+            params = self.renderer._parse_diff_args(*args, **kwargs)  # noqa: SLF001
+            await anyio.to_thread.run_sync(self.renderer._render_diff, params)  # noqa: SLF001
 
         return async_diff

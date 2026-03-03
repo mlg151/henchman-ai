@@ -113,7 +113,7 @@ class GitFileIndexer:
         file_extensions: File extensions to index.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self: GitFileIndexer,
         git_root: Path,
         store: VectorStore,
@@ -214,6 +214,7 @@ class GitFileIndexer:
     def index(  # noqa: C901
         self: GitFileIndexer,
         console: Console | None = None,
+        *,
         force: bool = False,
         progress_callback: Callable[[str, int, int], None] | None = None,
     ) -> IndexStats:

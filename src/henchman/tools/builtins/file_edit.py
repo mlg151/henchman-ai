@@ -1,6 +1,7 @@
 """Edit file tool implementation."""
 
 from __future__ import annotations
+
 import difflib
 from pathlib import Path
 
@@ -69,13 +70,14 @@ class EditFileTool(Tool):
         """Tool kind - WRITE requires confirmation."""
         return ToolKind.WRITE
 
-    async def execute(  # type: ignore[override]  # noqa: PLR0911
+    async def execute(  # type: ignore[override]  # noqa: PLR0911, PLR0913
         self: EditFileTool,
         path: str = "",
         old_str: str | None = None,
         new_str: str = "",
         start_line: int | None = None,
         end_line: int | None = None,
+        *,
         dry_run: bool = False,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
@@ -96,14 +98,14 @@ class EditFileTool(Tool):
         try:
             file_path = Path(path)
 
-            if not file_path.exists():
+            if not file_path.exists():  # noqa: ASYNC240
                 return ToolResult(
                     content=f"Error: File not found: {path}",
                     success=False,
                     error=f"File not found: {path}",
                 )
 
-            content = file_path.read_text()
+            content = file_path.read_text()  # noqa: ASYNC240
 
             # Determine mode
             has_line_range = start_line is not None and end_line is not None
@@ -127,10 +129,10 @@ class EditFileTool(Tool):
                 assert start_line is not None
                 assert end_line is not None
                 return self._edit_line_range(
-                    file_path, content, start_line, end_line, new_str, dry_run,
+                    file_path, content, start_line, end_line, new_str, dry_run=dry_run,
                 )
             assert old_str is not None
-            return self._edit_string(file_path, content, old_str, new_str, dry_run)
+            return self._edit_string(file_path, content, old_str, new_str, dry_run=dry_run)
 
         except PermissionError:
             return ToolResult(
@@ -138,7 +140,7 @@ class EditFileTool(Tool):
                 success=False,
                 error=f"Permission denied: {path}",
             )
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error editing file: {e}",
                 success=False,
@@ -151,6 +153,7 @@ class EditFileTool(Tool):
         content: str,
         old_str: str,
         new_str: str,
+        *,
         dry_run: bool,
     ) -> ToolResult:
         """Replace a unique string in the file.
@@ -189,13 +192,14 @@ class EditFileTool(Tool):
         file_path.write_text(new_content)
         return ToolResult(content=f"Successfully edited {file_path}", success=True)
 
-    def _edit_line_range(
+    def _edit_line_range(  # noqa: PLR0913
         self: EditFileTool,
         file_path: Path,
         content: str,
         start_line: int,
         end_line: int,
         new_str: str,
+        *,
         dry_run: bool,
     ) -> ToolResult:
         """Replace a range of lines in the file.

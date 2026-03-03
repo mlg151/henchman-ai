@@ -1,7 +1,10 @@
 """Web fetch tool implementation."""
 
 from __future__ import annotations
+
 from henchman.tools.base import Tool, ToolKind, ToolResult
+
+_HTTP_ERROR_THRESHOLD = 400
 
 
 class WebFetchTool(Tool):
@@ -68,7 +71,7 @@ class WebFetchTool(Tool):
             ToolResult with URL content or error.
         """
         try:
-            import aiohttp
+            import aiohttp  # noqa: PLC0415
         except ImportError:
             return ToolResult(
                 content="Error: aiohttp is required for web_fetch",
@@ -81,7 +84,7 @@ class WebFetchTool(Tool):
                 aiohttp.ClientSession() as session,
                 session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as response,
             ):
-                if response.status >= 400:
+                if response.status >= _HTTP_ERROR_THRESHOLD:
                     return ToolResult(
                         content=f"HTTP Error: {response.status}",
                         success=False,
@@ -105,7 +108,7 @@ class WebFetchTool(Tool):
                 success=False,
                 error=f"Timeout after {timeout} seconds",
             )
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error fetching URL: {e}",
                 success=False,

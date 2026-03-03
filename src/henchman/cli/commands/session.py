@@ -390,10 +390,10 @@ class TemplateSaveExecutor(SessionCommandExecutor):
 
     async def execute(self: TemplateSaveExecutor, manager: SessionManager) -> None:
         """Execute template save operation.
-        
+
         Args:
             manager: SessionManager instance for managing session operations.
-        
+
         Returns:
             None
         """

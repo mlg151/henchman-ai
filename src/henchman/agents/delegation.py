@@ -66,7 +66,7 @@ class DelegationRunner:
         assess_completion: Callback to assess agent completion status.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         pool: AgentPool,
         settings: Settings,
@@ -246,7 +246,7 @@ class DelegationRunner:
         Yields:
             AgentEvents from the specialist agent.
         """
-        from henchman.agents.orchestrator import AgentLoopParams
+        from henchman.agents.orchestrator import AgentLoopParams  # noqa: PLC0415
 
         max_turns = self.settings.agents.max_delegation_turns
         loop_params = AgentLoopParams(
@@ -359,7 +359,7 @@ class DelegationRunner:
 
     def _process_delegation_results(
         self,
-        target_role: str,
+        target_role: str,  # noqa: ARG002
         target_agent: Agent,
         msg_start: int,
     ) -> tuple[str, dict[str, str], CompletionStatus]:

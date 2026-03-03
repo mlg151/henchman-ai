@@ -123,10 +123,13 @@ class RagSearchTool(Tool):
             for i, result in enumerate(results, 1):
                 result_file_path = result.file_path
                 result_content = result.content
+                result_start_line = result.start_line
+                result_end_line = result.end_line
+                result_score = result.score
                 append_part(
                     f"\n[{i}] {result_file_path} "
-                    f"(lines {result.start_line}-{result.end_line}, "
-                    f"score: {result.score:.3f})\n",
+                    f"(lines {result_start_line}-{result_end_line}, "
+                    f"score: {result_score:.3f})\n",
                 )
                 append_part("```\n")
                 append_part(result_content)
@@ -141,7 +144,7 @@ class RagSearchTool(Tool):
                 success=True,
             )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return ToolResult(
                 content=f"Error searching: {e}",
                 success=False,

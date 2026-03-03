@@ -101,7 +101,7 @@ async def expand_at_references(text: str) -> str:
 
         # Security: Prevent path traversal attacks
         try:
-            resolved = path.resolve()
+            resolved = path.resolve()  # noqa: ASYNC240
             # For relative paths, always verify they stay within cwd
             # (catches both '..' traversal and symlink escapes)
             if not path.is_absolute() and not resolved.is_relative_to(Path.cwd()):
@@ -110,10 +110,10 @@ async def expand_at_references(text: str) -> str:
             # If path resolution fails, skip this reference
             continue
 
-        if path.exists() and path.is_file():
+        if path.exists() and path.is_file():  # noqa: ASYNC240
             try:
                 # Security: Check file size before reading
-                file_size = path.stat().st_size
+                file_size = path.stat().st_size  # noqa: ASYNC240
                 if file_size > MAX_FILE_SIZE_BYTES:
                     # File too large, skip with warning
                     replacement = f"\n--- File: {filepath} ---\n[File too large ({file_size} bytes > {MAX_FILE_SIZE_BYTES} limit)]\n---\n"  # noqa: E501
@@ -121,7 +121,7 @@ async def expand_at_references(text: str) -> str:
                     continue
 
                 # Read with explicit encoding and size limit
-                content = path.read_text(encoding="utf-8", errors="replace")
+                content = path.read_text(encoding="utf-8", errors="replace")  # noqa: ASYNC240
                 # Format the replacement with context
                 replacement = f"\n--- File: {filepath} ---\n{content}\n---\n"
                 result = result[: match.start()] + replacement + result[match.end() :]
@@ -208,7 +208,7 @@ class InputHandler:
     def __init__(
         self: Self,
         history_file: Path | None = None,
-        prompt: str = "❯ ",
+        prompt: str = "❯ ",  # noqa: RUF001
     ) -> None:
         """Initialize the input handler.
 
@@ -239,7 +239,7 @@ class ToolForm:
         """
         self.console = console
 
-    def prompt_for_parameters(self: Self, tool_name: str, parameters: dict[str, Any]) -> dict[str, Any]:
+    def prompt_for_parameters(self: Self, tool_name: str, parameters: dict[str, Any]) -> dict[str, Any]:  # noqa: E501
         """Prompt user for tool parameters.
 
         Args:
@@ -298,7 +298,7 @@ class KeyMonitor:
 
     def __init__(self: Self) -> None:
         """Initialize the key monitor."""
-        from prompt_toolkit.input import create_input
+        from prompt_toolkit.input import create_input  # noqa: PLC0415
 
         self.input = create_input()
         self._stop_event = asyncio.Event()
@@ -311,7 +311,7 @@ class KeyMonitor:
         """Suspend monitoring to allow other input reading."""
         self._suspended.clear()
         # Wait for the monitor loop to exit the raw mode block
-        while self._in_raw_mode:
+        while self._in_raw_mode:  # noqa: ASYNC110
             await asyncio.sleep(0.01)
 
     def resume(self: Self) -> None:

@@ -58,7 +58,7 @@ class ReplConfig:
         agent_role: Target a specific agent role for all inputs.
     """
 
-    prompt: str = "❯ "
+    prompt: str = "❯ "  # noqa: RUF001
     system_prompt: str = ""
     auto_save: bool = True
     history_file: Path | None = None
@@ -80,7 +80,7 @@ class Repl:
         >>> await repl.run()
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self: Self,
         provider: ModelProvider,
         console: Console | None = None,
@@ -116,7 +116,7 @@ class Repl:
 
         # Initialize tool manager
         self.tool_manager = ToolManager(settings=settings)
-        self.tool_manager.set_auto_approve(self.config.auto_approve_tools)
+        self.tool_manager.set_auto_approve(auto_approve=self.config.auto_approve_tools)
         self.tool_manager.register_builtin_tools()
         self.tool_registry = self.tool_manager.registry  # Backwards compatibility
 
@@ -124,7 +124,9 @@ class Repl:
         self.mcp_manager: McpManager | None = None
         if settings and settings.mcp_servers:
             mcp_logging = settings.ui.mcp_logging if settings.ui else False
-            self.mcp_manager = McpManager.create_from_settings(settings, mcp_logging)
+            self.mcp_manager = McpManager.create_from_settings(
+                settings, mcp_logging_enabled=mcp_logging,
+            )
 
         # Initialize Plugin Manager
         self.plugin_manager = PluginManager(self)
@@ -245,7 +247,7 @@ class Repl:
                     self.renderer.success(
                         f"Connected to {len(self.mcp_manager.clients)} MCP server(s) with {len(self.mcp_manager.get_all_tools())} tools",  # noqa: E501
                     )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 # Always show errors, regardless of logging setting
                 self.renderer.error(f"Failed to connect to MCP servers: {e}")
 
@@ -369,7 +371,7 @@ class Repl:
             assistant_content: List to collect assistant content.
             status_msg: Status message to display.
         """
-        from henchman.cli.input import KeyMonitor
+        from henchman.cli.input import KeyMonitor  # noqa: PLC0415
 
         monitor = KeyMonitor()
         self.current_monitor = monitor
@@ -406,12 +408,12 @@ class Repl:
             with contextlib.suppress(asyncio.CancelledError):
                 await agent_task
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.renderer.error(f"Error: {e}")
         finally:
             # Signal monitor to stop
             if hasattr(monitor, "_stop_event"):
-                monitor._stop_event.set()
+                monitor._stop_event.set()  # noqa: SLF001
 
             # Wait for monitor task to complete with timeout
             try:

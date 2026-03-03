@@ -87,7 +87,7 @@ class PythonExecTool(Tool):
         effective_timeout: float | None = None if timeout == 0 else timeout
 
         create_subprocess_exec = asyncio.create_subprocess_exec
-        PIPE = asyncio.subprocess.PIPE
+        PIPE = asyncio.subprocess.PIPE  # noqa: N806
         try:
             process = await create_subprocess_exec(
                 sys.executable,
@@ -118,8 +118,8 @@ class PythonExecTool(Tool):
                     error=f"Timeout after {timeout}s",
                 )
             except asyncio.CancelledError:
-                process.kill()
-                await process.wait()
+                proc_kill()
+                await proc_wait()
                 raise
 
             stdout_text = stdout.decode("utf-8", errors="replace")
@@ -144,7 +144,7 @@ class PythonExecTool(Tool):
                 error=(f"Exit code: {process.returncode}" if process.returncode != 0 else None),
             )
 
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error executing Python code: {e}",
                 success=False,

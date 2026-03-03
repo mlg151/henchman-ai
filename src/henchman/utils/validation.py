@@ -102,7 +102,7 @@ def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
     Returns:
         A repaired message sequence that passes validation.
     """
-    from henchman.providers.base import Message as Msg
+    from henchman.providers.base import Message as Msg  # noqa: PLC0415
 
     if not messages:
         return messages
@@ -196,9 +196,10 @@ def is_valid_message_sequence(messages: list["Message"]) -> bool:
     """
     try:
         validate_message_sequence(messages)
-        return True
     except ValueError:
         return False
+    else:
+        return True
 
 
 def format_message_sequence_for_debug(messages: list["Message"]) -> str:

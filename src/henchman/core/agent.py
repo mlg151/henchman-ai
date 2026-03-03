@@ -204,10 +204,11 @@ class Agent:
     async def _check_for_stalling(
         self: Agent,
         content: str,
+        *,
         had_tool_calls: bool,
     ) -> str | None:
         """Backward-compat: Check for stalling patterns in response."""
-        return await self._stall.check(content, had_tool_calls)
+        return await self._stall.check(content, had_tool_calls=had_tool_calls)
 
     async def _apply_simple_compaction(self: Agent, protected_count: int = 0) -> bool:
         """Apply context compaction directly, bypassing token check.
@@ -364,10 +365,10 @@ class Agent:
                     api_messages = repair_message_sequence(api_messages)
                 state = StreamState()
                 ctx = self._build_stream_context(api_messages)
-                async for event in generate_stream_events(ctx, state, compacted):
+                async for event in generate_stream_events(ctx, state, compacted=compacted):
                     yield event
                 self._last_stream_state = state
-                nudge = await self._stall.check(state.content, bool(state.tool_calls))
+                nudge = await self._stall.check(state.content, had_tool_calls=bool(state.tool_calls))  # noqa: E501
                 if nudge:
                     self.messages.append(Message(role="user", content=nudge))
                     continue

@@ -113,6 +113,7 @@ class UIRenderer:
         self,
         console: Console | None = None,
         renderer: OutputRenderer | None = None,
+        *,
         accessible_mode: bool = False,
         style_overrides: dict[str, str] | None = None,
         layout_settings: object | None = None,
@@ -161,7 +162,7 @@ class UIRenderer:
         Returns:
             Formatted status message string.
         """
-        from henchman.utils.tokens import TokenCounter
+        from henchman.utils.tokens import TokenCounter  # noqa: PLC0415
 
         parts = []
 
@@ -175,7 +176,7 @@ class UIRenderer:
                 msgs = agent.get_messages_for_api()
                 tokens = TokenCounter.count_messages(msgs)
                 parts.append(f"Tokens: ~[cyan]{tokens}[/]")
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
         # RAG Status
@@ -214,14 +215,14 @@ class UIRenderer:
         try:
             self._thinking_status.__enter__()
             self._is_thinking = True
-        except Exception:
+        except Exception:  # noqa: BLE001
             self._thinking_status = None
             self._is_thinking = False
 
     def stop_thinking(self) -> None:
         """Stop the current thinking indicator."""
         if self._thinking_status and self._is_thinking:
-            import contextlib
+            import contextlib  # noqa: PLC0415
             with contextlib.suppress(Exception):
                 self._thinking_status.__exit__(None, None, None)
 
@@ -319,9 +320,9 @@ class UIRenderer:
         """Display a tool call."""
         self.renderer.tool_call(name, arguments)
 
-    def tool_result(self, content: str, success: bool = True, error: str | None = None) -> None:
+    def tool_result(self, content: str, *, success: bool = True, error: str | None = None) -> None:
         """Display a tool result."""
-        self.renderer.tool_result(content, success, error)
+        self.renderer.tool_result(content, success=success, error=error)
 
     def tool_summary(self, name: str, duration: float | None = None) -> None:
         """Display a summary of tool execution."""

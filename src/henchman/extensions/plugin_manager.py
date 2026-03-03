@@ -171,6 +171,7 @@ class PluginManager(ExtensionManager):
         self,
         plugin_name: str,
         version: str | None = None,
+        *,
         confirm_permissions: bool = True,
     ) -> PluginInstallation:
         """Install a plugin from the registry.
@@ -266,10 +267,10 @@ class PluginManager(ExtensionManager):
         # Remove from filesystem
         if installation.installation_path:
             try:
-                import shutil
+                import shutil  # noqa: PLC0415
 
                 shutil.rmtree(installation.installation_path, ignore_errors=True)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("Failed to remove plugin files: %s", e)
 
         # Remove from database
@@ -315,7 +316,7 @@ class PluginManager(ExtensionManager):
             return await self.install_plugin(plugin_name, confirm_permissions=False)
         except Exception as e:
             # Try to reinstall old version on failure
-            logger.exception("Failed to update plugin '%s': %s", plugin_name, e)
+            logger.exception("Failed to update plugin '%s': %s", plugin_name, e)  # noqa: TRY401
             # TODO: Implement rollback to previous version
             raise
 
@@ -400,7 +401,7 @@ class PluginManager(ExtensionManager):
         if ext_file.exists():
             try:
                 self._load_extension_from_file(ext_file, installation.metadata.name)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(
                     "Failed to load extension for plugin '%s': %s",
                     installation.metadata.name,

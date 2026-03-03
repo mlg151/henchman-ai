@@ -1,6 +1,7 @@
 """Pytest runner tool implementation."""
 
 from __future__ import annotations
+
 import asyncio
 import sys
 from dataclasses import dataclass
@@ -102,17 +103,17 @@ class PytestRunTool(Tool):
         """Tool kind - EXECUTE requires confirmation."""
         return ToolKind.EXECUTE
 
-    async def execute(  # type: ignore[override]
+    async def execute(  # type: ignore[override]  # noqa: PLR0913
         self: PytestRunTool,
         path: str = "",
         keyword: str | None = None,
         markers: str | None = None,
-        verbose: bool = False,
+        verbose: bool = False,  # noqa: FBT001, FBT002
         timeout: int = 300,
-        coverage: bool = False,
+        coverage: bool = False,  # noqa: FBT001, FBT002
         coverage_source: str | None = None,
         parallel: int | None = None,
-        collect_only: bool = False,
+        collect_only: bool = False,  # noqa: FBT001, FBT002
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
         """Run pytest on the given path.
@@ -159,7 +160,7 @@ class PytestRunTool(Tool):
 
         try:
             return await self._execute_pytest_command(cmd, config)
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error running pytest: {e}",
                 success=False,
@@ -168,24 +169,31 @@ class PytestRunTool(Tool):
 
     def _build_pytest_command(self: PytestRunTool, config: PytestConfig) -> list[str]:
         """Build the pytest command line arguments."""
-        cmd = [sys.executable, "-m", "pytest", config.path]
+        config_path = config.path
+        config_verbose = config.verbose
+        config_keyword = config.keyword
+        config_markers = config.markers
+        config_coverage = config.coverage
+        config_coverage_source = config.coverage_source
+        config_parallel = config.parallel
+        config_collect_only = config.collect_only
+        cmd = [sys.executable, "-m", "pytest", config_path]
         cmd_append = cmd.append
         cmd_extend = cmd.extend
-        config_collect_only = config.collect_only
 
         if not config_collect_only:
             cmd_append("-x")
-        if config.verbose:
+        if config_verbose:
             cmd_append("-v")
-        if config.keyword:
-            cmd_extend(["-k", config.keyword])
-        if config.markers:
-            cmd_extend(["-m", config.markers])
-        if config.coverage:
-            cov_arg = f"--cov={config.coverage_source}" if config.coverage_source else "--cov"
+        if config_keyword:
+            cmd_extend(["-k", config_keyword])
+        if config_markers:
+            cmd_extend(["-m", config_markers])
+        if config_coverage:
+            cov_arg = f"--cov={config_coverage_source}" if config_coverage_source else "--cov"
             cmd_extend([cov_arg, "--cov-report=term-missing"])
-        if config.parallel is not None and config.parallel > 0:
-            cmd_extend(["-n", str(config.parallel)])
+        if config_parallel is not None and config_parallel > 0:
+            cmd_extend(["-n", str(config_parallel)])
         if config_collect_only:
             cmd_append("--collect-only")
             cmd_append("-q")
@@ -195,7 +203,7 @@ class PytestRunTool(Tool):
     async def _execute_pytest_command(self: PytestRunTool, cmd: list[str], config: PytestConfig) -> ToolResult:  # noqa: E501
         """Execute the pytest command and handle timeout."""
         create_subprocess_exec = asyncio.create_subprocess_exec
-        PIPE = asyncio.subprocess.PIPE
+        PIPE = asyncio.subprocess.PIPE  # noqa: N806
         process = await create_subprocess_exec(
             *cmd,
             stdout=PIPE,

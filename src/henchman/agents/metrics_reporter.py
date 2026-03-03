@@ -194,7 +194,7 @@ class MetricsReporter:
 
     def _format_file_re_reads(self) -> str:
         """Format file re-reads with target comparison."""
-        from henchman.agents.metrics import PerformanceMetrics
+        from henchman.agents.metrics import PerformanceMetrics  # noqa: PLC0415
 
         file_re_reads = self.metrics.performance.file_re_reads
         target = PerformanceMetrics.FILE_RE_READS_TARGET
@@ -205,7 +205,7 @@ class MetricsReporter:
 
     def _format_delegation_target(self) -> str:
         """Format delegation rate with target comparison."""
-        from henchman.agents.metrics import PerformanceMetrics
+        from henchman.agents.metrics import PerformanceMetrics  # noqa: PLC0415
 
         delegation_rate = self.metrics.performance.delegation_rate
         target = PerformanceMetrics.DELEGATION_RATE_TARGET
@@ -217,7 +217,7 @@ class MetricsReporter:
 
     def _format_error_rate_target(self) -> str:
         """Format error rate with target comparison."""
-        from henchman.agents.metrics import PerformanceMetrics
+        from henchman.agents.metrics import PerformanceMetrics  # noqa: PLC0415
 
         error_rate = self.metrics.performance.error_rate
         target = PerformanceMetrics.ERROR_RATE_TARGET
@@ -226,7 +226,7 @@ class MetricsReporter:
 
     def _format_context_window_target(self) -> str:
         """Format context window usage with target comparison."""
-        from henchman.agents.metrics import PerformanceMetrics
+        from henchman.agents.metrics import PerformanceMetrics  # noqa: PLC0415
 
         context_usage = self.metrics.performance.context_window_usage
         target = PerformanceMetrics.CONTEXT_WINDOW_TARGET

@@ -23,7 +23,7 @@ class McpManager:
     tools across multiple MCP servers.
     """
 
-    def __init__(self, configs: dict[str, McpServerConfig], verbose: bool = False) -> None:
+    def __init__(self, configs: dict[str, McpServerConfig], *, verbose: bool = False) -> None:
         """Initialize the manager.
 
         Args:
@@ -58,7 +58,7 @@ class McpManager:
 
     async def connect_all(self) -> None:
         """Connect to all configured servers."""
-        from henchman.mcp.tool import McpTool
+        from henchman.mcp.tool import McpTool  # noqa: PLC0415
 
         for name, config in self.configs.items():
             client = McpClient(name=name, config=config, verbose=self.verbose)
@@ -76,7 +76,7 @@ class McpManager:
                             trusted=config.trusted,
                         ),
                     )
-            except Exception:  # pragma: no cover
+            except Exception:  # pragma: no cover  # noqa: BLE001
                 # Log error but continue with other servers
                 pass
 
@@ -174,7 +174,7 @@ class McpManager:
 
     @staticmethod
     def create_from_settings(
-        settings: Settings | None, mcp_logging_enabled: bool = False,
+        settings: Settings | None, *, mcp_logging_enabled: bool = False,
     ) -> McpManager | None:
         """Create McpManager from application settings.
 
@@ -188,7 +188,7 @@ class McpManager:
         if not settings or not hasattr(settings, "mcp_servers") or not settings.mcp_servers:
             return None
 
-        from henchman.mcp.config import McpServerConfig
+        from henchman.mcp.config import McpServerConfig  # noqa: PLC0415
 
         mcp_configs: dict[str, McpServerConfig] = {}
         for name, server_config in settings.mcp_servers.items():

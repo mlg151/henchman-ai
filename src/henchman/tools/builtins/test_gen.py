@@ -1,6 +1,7 @@
 """Test generator tool implementation."""
 
 from __future__ import annotations
+
 import ast
 import textwrap
 from pathlib import Path
@@ -84,7 +85,7 @@ class TestGenTool(Tool):
             )
 
         target = Path(path)
-        if not target.exists():
+        if not target.exists():  # noqa: ASYNC240
             return ToolResult(
                 content=f"Error: File not found: {path}",
                 success=False,
@@ -92,7 +93,7 @@ class TestGenTool(Tool):
             )
 
         try:
-            source = target.read_text(encoding="utf-8")
+            source = target.read_text(encoding="utf-8")  # noqa: ASYNC240
         except (OSError, UnicodeDecodeError) as exc:
             return ToolResult(
                 content=f"Error reading file: {exc}",
@@ -127,7 +128,7 @@ class TestGenTool(Tool):
         if output_path:
             out = Path(output_path)
             out.parent.mkdir(parents=True, exist_ok=True)
-            out.write_text(test_code, encoding="utf-8")
+            out.write_text(test_code, encoding="utf-8")  # noqa: ASYNC240
             return ToolResult(
                 content=f"Test stubs written to {output_path}\n\n{test_code}",
                 success=True,
@@ -174,9 +175,9 @@ class TestGenTool(Tool):
             List of symbol dicts with name, kind, args, is_async, decorators.
         """
         symbols: list[dict[str, object]] = []
-        FunctionDef = ast.FunctionDef
-        AsyncFunctionDef = ast.AsyncFunctionDef
-        ClassDef = ast.ClassDef
+        FunctionDef = ast.FunctionDef  # noqa: N806
+        AsyncFunctionDef = ast.AsyncFunctionDef  # noqa: N806
+        ClassDef = ast.ClassDef  # noqa: N806
         iter_child_nodes = ast.iter_child_nodes
 
         for node in iter_child_nodes(tree):
@@ -319,7 +320,7 @@ class TestGenTool(Tool):
                 cls_name = str(sym["name"])
                 imports.add(cls_name)
                 method_tests, cls_async = self._build_method_test_stubs(
-                    cls_name, sym.get("methods", [])
+                    cls_name, sym.get("methods", []),
                 )
                 has_async = has_async or cls_async
                 body = (

@@ -1,5 +1,7 @@
 """Default system prompts for Henchman."""
 
+# ruff: noqa: E501
+
 # --- Composable Prompt Parts ---
 
 BASE_IDENTITY = """\
@@ -31,7 +33,7 @@ BASE_RULES = """\
 - **One message = one action minimum.** Every response must include at least one tool call if the user is asking for work to be done.  # noqa: E501
 - **Read before write**: Always read file contents to understand existing code before modifications.
 - **Structured Delegation**: When delegating or summarizing a delegated task, use the required schema (Objective, Actions Taken, Result, Next Steps).  # noqa: E501
-- **Automated Lint-on-Write**: After every file edit, you must run appropriate linting or type-checking commands (e.g., `ruff`, `mypy`, `tsc`) if available in the project.\  # noqa: E501
+- **Automated Lint-on-Write**: After every file edit, you must run appropriate linting or type-checking commands (e.g., `ruff`, `mypy`, `tsc`) if available in the project.\\  # noqa: E501
 """
 
 BASE_CONSTRAINTS = """\

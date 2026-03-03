@@ -1,6 +1,7 @@
 """Dead code detection tool implementation."""
 
 from __future__ import annotations
+
 import ast
 from dataclasses import dataclass
 from pathlib import Path
@@ -59,8 +60,8 @@ def is_import_context(name_node: ast.Name, tree: ast.Module) -> bool:
         True if the node is within an import statement.
     """
     ast_walk = ast.walk
-    Import = ast.Import
-    ImportFrom = ast.ImportFrom
+    Import = ast.Import  # noqa: N806
+    ImportFrom = ast.ImportFrom  # noqa: N806
     for import_node in ast_walk(tree):
         if (
             isinstance(import_node, (Import, ImportFrom))
@@ -82,9 +83,9 @@ def collect_top_level_definitions(tree: ast.Module) -> dict[str, tuple[str, int]
     """
     definitions: dict[str, tuple[str, int]] = {}
     iter_child_nodes = ast.iter_child_nodes
-    FunctionDef = ast.FunctionDef
-    AsyncFunctionDef = ast.AsyncFunctionDef
-    ClassDef = ast.ClassDef
+    FunctionDef = ast.FunctionDef  # noqa: N806
+    AsyncFunctionDef = ast.AsyncFunctionDef  # noqa: N806
+    ClassDef = ast.ClassDef  # noqa: N806
     for node in iter_child_nodes(tree):
         node_name = node.name if hasattr(node, "name") else ""
         if isinstance(node, (FunctionDef, AsyncFunctionDef)):
@@ -105,10 +106,10 @@ def find_all_assignment(node: ast.AST) -> ast.expr | None:
         The value expression if node assigns to __all__ with list/tuple,
         None otherwise.
     """
-    Assign = ast.Assign
-    Name = ast.Name
-    List = ast.List
-    Tuple = ast.Tuple
+    Assign = ast.Assign  # noqa: N806
+    Name = ast.Name  # noqa: N806
+    List = ast.List  # noqa: N806
+    Tuple = ast.Tuple  # noqa: N806
     if not isinstance(node, Assign):
         return None
 
@@ -358,7 +359,7 @@ class DeadCodeTool(Tool):
                     "items": {"type": "string"},
                     "description": "Names to exclude from dead code detection",
                 },
-            }
+            },
         )
 
     @property
@@ -369,6 +370,7 @@ class DeadCodeTool(Tool):
     async def execute(  # type: ignore[override]
         self: DeadCodeTool,
         path: str = "",
+        *,
         check_imports: bool = True,
         check_functions: bool = True,
         whitelist: list[str] | None = None,
@@ -394,7 +396,7 @@ class DeadCodeTool(Tool):
             )
 
         target = Path(path)
-        if not target.exists():
+        if not target.exists():  # noqa: ASYNC240
             return ToolResult(
                 content=f"Error: Path not found: {path}",
                 success=False,
@@ -407,7 +409,7 @@ class DeadCodeTool(Tool):
             whitelist=DEFAULT_WHITELIST | frozenset(whitelist or []),
         )
 
-        if target.is_file():
+        if target.is_file():  # noqa: ASYNC240
             return self._analyze_file(target, params)
         return self._analyze_directory(target, params)
 

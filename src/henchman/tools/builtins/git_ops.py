@@ -5,6 +5,7 @@ the generic shell tool, enabling auto-approval for safe read operations.
 """
 
 from __future__ import annotations
+
 import asyncio
 from typing import TYPE_CHECKING
 
@@ -118,7 +119,7 @@ class GitOpsTool(Tool):
         """
         cmd = ["git", "--no-pager", *args]
         create_subprocess_exec = asyncio.create_subprocess_exec
-        PIPE = asyncio.subprocess.PIPE
+        PIPE = asyncio.subprocess.PIPE  # noqa: N806
         try:
             process = await create_subprocess_exec(
                 *cmd,
@@ -140,7 +141,7 @@ class GitOpsTool(Tool):
         else:
             return process.returncode == 0, combined
 
-    async def execute(  # type: ignore[override]
+    async def execute(  # type: ignore[override]  # noqa: PLR0913
         self: GitOpsTool,
         action: str = "",
         path: str | None = None,
@@ -149,7 +150,7 @@ class GitOpsTool(Tool):
         max_count: int = 20,
         start_line: int | None = None,
         end_line: int | None = None,
-        stat: bool = False,
+        stat: bool = False,  # noqa: FBT001, FBT002
         cwd: str | None = None,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
@@ -184,7 +185,7 @@ class GitOpsTool(Tool):
                 error=f"Unknown action: {action}",
             )
 
-        from typing import Any
+        from typing import Any  # noqa: PLC0415
 
         handler_map: dict[str, Callable[..., Coroutine[Any, Any, tuple[bool, str]]]] = {
             "status": self._status,
@@ -225,7 +226,7 @@ class GitOpsTool(Tool):
         path: str | None = None,
         ref: str | None = None,
         max_count: int = 20,
-        stat: bool = False,
+        stat: bool = False,  # noqa: FBT001, FBT002
         cwd: str | None = None,
         **_: object,
     ) -> tuple[bool, str]:
@@ -260,7 +261,7 @@ class GitOpsTool(Tool):
         self: GitOpsTool,
         ref: str | None = None,
         path: str | None = None,
-        stat: bool = False,
+        stat: bool = False,  # noqa: FBT001, FBT002
         cwd: str | None = None,
         **_: object,
     ) -> tuple[bool, str]:
@@ -294,7 +295,7 @@ class GitOpsTool(Tool):
         self: GitOpsTool,
         ref: str | None = None,
         ref2: str | None = None,
-        stat: bool = False,
+        stat: bool = False,  # noqa: FBT001, FBT002
         path: str | None = None,
         cwd: str | None = None,
         **_: object,

@@ -158,6 +158,7 @@ class ContextConsoleHelper:
         self,
         console: Console,
         context_settings: ContextSettings,
+        *,
         show_intelligent_context: bool = False,
     ) -> None:
         """Print context settings with consistent formatting.
@@ -169,11 +170,11 @@ class ContextConsoleHelper:
         """
         if show_intelligent_context:
             self._console_helper.print_enabled_status(
-                console, "Status", context_settings.intelligent_context,
+                console, "Status", is_enabled=context_settings.intelligent_context,
             )
 
         self._console_helper.print_enabled_status(
-            console, "Adaptive compression", context_settings.adaptive_compression,
+            console, "Adaptive compression", is_enabled=context_settings.adaptive_compression,
         )
         self._console_helper.print_status_value(console, "Max tokens", context_settings.max_tokens)
         self._console_helper.print_status_value(
@@ -227,6 +228,7 @@ class StrategyManager:
     _STRATEGY_ACTION_IDX = 0
     _STRATEGY_PARAM_IDX = 1
     _STRATEGY_VALUE_IDX = 2
+    _MIN_SET_ARGS = 3
 
     def __init__(self) -> None:
         """Initialize strategy manager."""
@@ -262,7 +264,7 @@ class StrategyManager:
 
         action = args[self._STRATEGY_ACTION_IDX].lower()
         if action == "set":
-            if len(args) < 3:  # Need at least 'set', 'parameter' and 'value'
+            if len(args) < self._MIN_SET_ARGS:  # Need at least 'set', 'parameter' and 'value'
                 self._console_helper.print_strategy_usage(ctx.console)
                 return
 
@@ -318,7 +320,7 @@ class StrategyManager:
             return
 
     async def _update_context_setting(
-        self, ctx: CommandContext, param_name: str, value: float | bool, display_value: str,
+        self, ctx: CommandContext, param_name: str, *, value: float | bool, display_value: str,
     ) -> None:
         """Helper to update a context setting and save it.
 
@@ -341,15 +343,15 @@ class StrategyManager:
         """Generic handler for range-validated parameters (DRY)."""
         val = config.parse_value(value)
         config.validate_value(val)
-        await self._update_context_setting(ctx, config.param_name, val, str(val))
+        await self._update_context_setting(ctx, config.param_name, value=val, display_value=str(val))  # noqa: E501
 
     async def _handle_adaptive_parameter(self, ctx: CommandContext, value: str) -> None:
         """Handle adaptive parameter setting."""
         lower_value = value.lower()
         if lower_value in ["on", "true", "yes", "1"]:
-            await self._update_context_setting(ctx, "adaptive_compression", True, "enabled")
+            await self._update_context_setting(ctx, "adaptive_compression", value=True, display_value="enabled")  # noqa: E501
         elif lower_value in ["off", "false", "no", "0"]:
-            await self._update_context_setting(ctx, "adaptive_compression", False, "disabled")
+            await self._update_context_setting(ctx, "adaptive_compression", value=False, display_value="disabled")  # noqa: E501
         else:
             msg = "Value must be 'on' or 'off'"
             raise ValueError(msg)
@@ -514,7 +516,9 @@ class StatisticsManager:
         """
         # Try to get statistics from the agent's context manager
         try:
-            from henchman.utils.intelligent_context import IntelligentContextManager
+            from henchman.utils.intelligent_context import (  # noqa: PLC0415
+                IntelligentContextManager,
+            )
 
             if hasattr(agent, "compactor") and isinstance(
                 agent.compactor, IntelligentContextManager,
@@ -527,7 +531,7 @@ class StatisticsManager:
 
         except ImportError:
             console.print("[yellow]Intelligent context module not available.[/]")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             console.print(f"[yellow]Could not retrieve statistics: {e}[/]")
 
     def _print_stats_with_compactor(

@@ -6,7 +6,7 @@ This module provides the /rag command for managing the RAG index.
 from __future__ import annotations
 
 import shutil
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from henchman.cli.commands import BaseCommand, CommandContext
 
@@ -18,7 +18,7 @@ class RagCommand(BaseCommand):
     """/rag command for RAG index management."""
 
     _help_command_name = "RAG Index"
-    _help_lines = [
+    _help_lines: ClassVar[list[str]] = [
         "  /rag status     - Show index statistics",
         "  /rag reindex    - Force full reindex of all files",
         "  /rag clear      - Clear current project's index",
@@ -152,7 +152,7 @@ class RagCommand(BaseCommand):
 
     async def _clear_all(self, ctx: CommandContext) -> None:
         """Clear ALL RAG indices from the cache directory."""
-        from henchman.rag.repo_id import get_rag_cache_dir
+        from henchman.rag.repo_id import get_rag_cache_dir  # noqa: PLC0415
 
         console = ctx.console
         cache_dir = get_rag_cache_dir()
@@ -165,7 +165,7 @@ class RagCommand(BaseCommand):
         console.print("[yellow]Warning: This will delete ALL RAG indices![/]")
         console.print("Type 'yes' to confirm: ", end="")
         try:
-            confirm = input()
+            confirm = input()  # noqa: ASYNC250
         except (EOFError, KeyboardInterrupt):
             confirm = ""
 
@@ -173,14 +173,14 @@ class RagCommand(BaseCommand):
             try:
                 shutil.rmtree(cache_dir)
                 console.print(f"[green]Cleared all RAG indices from {cache_dir}[/]")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 console.print(f"[red]Error clearing indices: {e}[/]")
         else:
             console.print("[dim]Operation cancelled[/]")
 
     async def _cleanup(self, ctx: CommandContext) -> None:
         """Clean up old project-based RAG indices."""
-        from henchman.rag.system import find_git_root
+        from henchman.rag.system import find_git_root  # noqa: PLC0415
 
         console = ctx.console
         # Find git root if we're in a repository
@@ -198,14 +198,14 @@ class RagCommand(BaseCommand):
             try:
                 shutil.rmtree(old_index_dir)
                 removed.append(f"Index directory: {old_index_dir}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 console.print(f"[yellow]Error removing {old_index_dir}: {e}[/]")
 
         if old_manifest.exists():
             try:
                 old_manifest.unlink()
                 removed.append(f"Manifest file: {old_manifest}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 console.print(f"[yellow]Error removing {old_manifest}: {e}[/]")
 
         if removed:

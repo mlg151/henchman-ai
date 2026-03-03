@@ -1,6 +1,7 @@
 """Grep tool implementation."""
 
 from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -103,7 +104,7 @@ class ResultFormatter:
         self: ResultFormatter,
         lines: list[str],
         match_indices: set[int],
-        line_numbers: bool,
+        line_numbers: bool,  # noqa: FBT001
         file_prefix: str,
     ) -> list[str]:
         """Format matches without context.
@@ -167,8 +168,8 @@ class FileSearcher:
         self: FileSearcher,
         pattern: str,
         path: str,
-        ignore_case: bool,
-        whole_word: bool,
+        ignore_case: bool,  # noqa: FBT001
+        whole_word: bool,  # noqa: FBT001
         glob: str | None = None,
     ) -> tuple[re.Pattern[str], list[Path]] | ToolResult:
         """Validate inputs and setup for search.
@@ -213,7 +214,7 @@ class FileSearcher:
         self: FileSearcher,
         lines: list[str],
         regex: re.Pattern[str],
-        invert_match: bool,
+        invert_match: bool,  # noqa: FBT001
     ) -> set[int]:
         """Find indices of lines matching the pattern.
 
@@ -260,6 +261,8 @@ class FileSearcher:
             config_invert_match = config.invert_match
             config_has_context = config.has_context
             config_line_numbers = config.line_numbers
+            config_context_before = config.context_before
+            config_context_after = config.context_after
             match_indices = self._find_matching_indices(
                 file_lines, regex, config_invert_match,
             )
@@ -270,8 +273,8 @@ class FileSearcher:
             # Format results
             if config_has_context:
                 context_config = ContextConfig(
-                    context_before=config.context_before,
-                    context_after=config.context_after,
+                    context_before=config_context_before,
+                    context_after=config_context_after,
                     line_numbers=config_line_numbers,
                     file_prefix=file_prefix,
                 )
@@ -294,7 +297,7 @@ class FileSearcher:
         self: FileSearcher,
         files: list[Path],
         regex: re.Pattern[str],
-        invert_match: bool,
+        invert_match: bool,  # noqa: FBT001
     ) -> ToolResult:
         """Count matches per file.
 
@@ -484,18 +487,18 @@ class GrepTool(Tool):
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]
+    async def execute(  # type: ignore[override]  # noqa: PLR0913
         self: GrepTool,
         pattern: str = "",
         path: str = ".",
-        ignore_case: bool = False,
-        line_numbers: bool = False,
+        ignore_case: bool = False,  # noqa: FBT001, FBT002
+        line_numbers: bool = False,  # noqa: FBT001, FBT002
         glob: str | None = None,
         context_before: int = 0,
         context_after: int = 0,
-        invert_match: bool = False,
-        whole_word: bool = False,
-        count_only: bool = False,
+        invert_match: bool = False,  # noqa: FBT001, FBT002
+        whole_word: bool = False,  # noqa: FBT001, FBT002
+        count_only: bool = False,  # noqa: FBT001, FBT002
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
         """Search for pattern in files.
@@ -532,7 +535,7 @@ class GrepTool(Tool):
             )
 
             return await self._execute_with_params(params)
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error searching: {e}",
                 success=False,
@@ -559,7 +562,7 @@ class GrepTool(Tool):
         p_invert_match = params.invert_match
         p_line_numbers = params.line_numbers
 
-        validation_result = self.searcher._validate_and_setup(
+        validation_result = self.searcher._validate_and_setup(  # noqa: SLF001
             pattern=p_pattern,
             path=p_path,
             ignore_case=p_ignore_case,
@@ -586,8 +589,9 @@ class GrepTool(Tool):
         )
 
         # Count-only mode
-        if params.count_only:
-            return self.searcher._count_matches(files, regex, p_invert_match)
+        p_count_only = params.count_only
+        if p_count_only:
+            return self.searcher._count_matches(files, regex, p_invert_match)  # noqa: SLF001
 
         # Search files
         return self.searcher.search_files(files, regex, search_config)

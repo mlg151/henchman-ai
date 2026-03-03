@@ -1,6 +1,7 @@
 """Coverage map tool implementation."""
 
 from __future__ import annotations
+
 import json
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
@@ -10,6 +11,8 @@ from typing import Any, cast
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.utils import create_path_parameter_schema
+
+_EXPECTED_BRANCH_PARTS = 2
 
 
 @dataclass
@@ -237,7 +240,7 @@ class BaseCoverageParser(ABC):
             return None
 
         nums = paren[1].rstrip(")").split("/")
-        if len(nums) != 2:
+        if len(nums) != _EXPECTED_BRANCH_PARTS:
             return None
 
         try:
@@ -250,7 +253,7 @@ class BaseCoverageParser(ABC):
 
     @staticmethod
     def _parse_functions_from_xml(
-        cls: ET.Element,
+        cls: ET.Element,  # noqa: PLW0211
     ) -> list[dict[str, str]]:
         """Parse function/method elements from XML class.
 
@@ -592,7 +595,7 @@ class CoverageMapTool(Tool):
             )
 
         target = Path(request_path)
-        if not target.exists():
+        if not target.exists():  # noqa: ASYNC240
             return ToolResult(
                 content=f"Error: File not found: {request_path}",
                 success=False,

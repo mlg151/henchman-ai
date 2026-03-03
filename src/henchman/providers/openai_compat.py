@@ -26,6 +26,8 @@ __all__ = ["OpenAICompatibleProvider"]
 
 logger = logging.getLogger(__name__)
 
+_HTTP_REQUEST_TOO_LARGE = 413
+
 
 class OpenAICompatibleProvider(ModelProvider):
     """Base provider for OpenAI-compatible APIs."""
@@ -153,7 +155,7 @@ class OpenAICompatibleProvider(ModelProvider):
         except (ValueError, ContextTooLargeError, APIStatusError):
             # Re-raise validation, context too large, and API status errors
             raise
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             yield self._create_error_chunk(e)
 
     def _validate_messages(self, messages: list[Message]) -> None:
@@ -176,7 +178,7 @@ class OpenAICompatibleProvider(ModelProvider):
         Returns:
             The repaired message sequence.
         """
-        from henchman.utils.validation import (
+        from henchman.utils.validation import (  # noqa: PLC0415
             is_valid_message_sequence,
             repair_message_sequence,
         )
@@ -229,7 +231,7 @@ class OpenAICompatibleProvider(ModelProvider):
         try:
             return await self._client.chat.completions.create(**params)
         except APIStatusError as e:
-            if e.status_code == 413:
+            if e.status_code == _HTTP_REQUEST_TOO_LARGE:
                 msg = (
                     "Request too large. Try using start_line/end_line when reading "
                     "files to limit context size, or start a new conversation."
@@ -368,7 +370,7 @@ class OpenAICompatibleProvider(ModelProvider):
             An error StreamChunk.
         """
         logger.debug("OpenAICompatibleProvider: Caught exception: %s", error)
-        from henchman.providers.base import FinishReason
+        from henchman.providers.base import FinishReason  # noqa: PLC0415
         return StreamChunk(
             content=f"❌ Provider Error: {error}",
             finish_reason=FinishReason.STOP,

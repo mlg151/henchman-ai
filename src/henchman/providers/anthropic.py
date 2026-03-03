@@ -133,7 +133,7 @@ class _AnthropicStreamProcessor:
             StreamChunk objects as the response is generated.
         """
         total_output_tokens = 0
-        async with self._provider._client.messages.stream(**params) as stream:
+        async with self._provider._client.messages.stream(**params) as stream:  # noqa: SLF001
             pending_tool_calls: dict[str, dict[str, Any]] = {}
             current_tool_id: str | None = None
 
@@ -159,7 +159,7 @@ class _AnthropicStreamProcessor:
                     )
 
         # Record final usage
-        await self._provider._rate_limiter.add_usage(input_tokens + total_output_tokens)
+        await self._provider._rate_limiter.add_usage(input_tokens + total_output_tokens)  # noqa: SLF001
 
     async def _process_event(
         self,
@@ -206,7 +206,7 @@ class _AnthropicStreamProcessor:
         event: Any,
         current_tool_id: str | None,
         pending_tool_calls: dict[str, dict[str, Any]],
-        total_output_tokens: int,
+        total_output_tokens: int,  # noqa: ARG002
     ) -> "_EventProcessingResult":
         """Handle content_block_delta event."""
         delta = event.delta
@@ -246,7 +246,7 @@ class _AnthropicStreamProcessor:
         pending_tool_calls: dict[str, dict[str, Any]],
     ) -> "_EventProcessingResult":
         """Handle message_delta event."""
-        finish_reason = self._provider._parse_finish_reason(event.delta.stop_reason)
+        finish_reason = self._provider._parse_finish_reason(event.delta.stop_reason)  # noqa: SLF001
         tool_calls: list[ToolCall] | None = None
 
         if finish_reason == FinishReason.TOOL_CALLS and pending_tool_calls:
@@ -506,11 +506,11 @@ class AnthropicProvider(ModelProvider):
     def _validate_and_repair_message_sequence(
         self,
         messages: list[Message],
-        system_prompt: str | None,
-        formatted_messages: list[dict[str, Any]],
+        system_prompt: str | None,  # noqa: ARG002
+        formatted_messages: list[dict[str, Any]],  # noqa: ARG002
     ) -> list[Message]:
         """Validate and repair message sequence if needed."""
-        from henchman.utils.validation import (
+        from henchman.utils.validation import (  # noqa: PLC0415
             is_valid_message_sequence,
             repair_message_sequence,
         )

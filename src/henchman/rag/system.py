@@ -61,6 +61,7 @@ class RagSystem:
         self: RagSystem,
         git_root: Path,
         settings: RagSettings,
+        *,
         read_only: bool = False,
     ) -> None:
         """Initialize the RAG system.
@@ -70,11 +71,11 @@ class RagSystem:
             settings: RAG settings from configuration.
             read_only: If True, skip indexing (for concurrent instances).
         """
-        from henchman.rag.chunker import TextChunker
-        from henchman.rag.embedder import FastEmbedProvider
-        from henchman.rag.indexer import GitFileIndexer
-        from henchman.rag.store import VectorStore
-        from henchman.tools.builtins.rag_search import RagSearchTool
+        from henchman.rag.chunker import TextChunker  # noqa: PLC0415
+        from henchman.rag.embedder import FastEmbedProvider  # noqa: PLC0415
+        from henchman.rag.indexer import GitFileIndexer  # noqa: PLC0415
+        from henchman.rag.store import VectorStore  # noqa: PLC0415
+        from henchman.tools.builtins.rag_search import RagSearchTool  # noqa: PLC0415
 
         self.git_root = git_root
         self.settings = settings
@@ -158,6 +159,7 @@ class RagSystem:
     def index(
         self: RagSystem,
         console: Console | None = None,
+        *,
         force: bool = False,
         skip_if_locked: bool = True,
     ) -> IndexStats | None:
@@ -204,6 +206,7 @@ class RagSystem:
     async def index_async(
         self: RagSystem,
         console: Console | None = None,
+        *,
         force: bool = False,
         skip_if_locked: bool = True,
     ) -> IndexStats | None:
@@ -243,6 +246,7 @@ def initialize_rag(
     settings: RagSettings,
     console: Console | None = None,
     git_root: Path | None = None,
+    *,
     index: bool = True,
 ) -> RagSystem | None:
     """Initialize the RAG system if in a git repository.
@@ -302,7 +306,7 @@ def initialize_rag(
                 f"{stats.total_chunks} chunks[/dim]",
             )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         if console:
             console.print(f"[yellow]Warning: Failed to initialize RAG: {e}[/yellow]")
         return None

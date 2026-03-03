@@ -157,7 +157,7 @@ class ToolMetrics:
         self.git_ops_calls = 0
         self.other_tool_calls = 0
 
-    def track_tool_call(self, tool_name: str, success: bool) -> None:
+    def track_tool_call(self, tool_name: str, *, success: bool) -> None:
         """Track a tool call with its category.
 
         Args:
@@ -259,7 +259,7 @@ class OrchestratorMetrics:
         # Calculate file re-reads
         self.performance.calculate_file_re_reads()
 
-    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], success: bool) -> None:
+    def update_tool_metrics(self, tool_name: str, arguments: dict[str, Any], *, success: bool) -> None:  # noqa: E501
         """Update metrics for a tool call.
 
         Args:
@@ -268,7 +268,7 @@ class OrchestratorMetrics:
             success: Whether the tool call succeeded.
         """
         # Update tool metrics
-        self.tools.track_tool_call(tool_name, success)
+        self.tools.track_tool_call(tool_name, success=success)
 
         # Update performance metrics
         self.performance.track_tool_usage(tool_name)

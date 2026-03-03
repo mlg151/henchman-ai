@@ -1,6 +1,7 @@
 """Read file tool implementation."""
 
 from __future__ import annotations
+
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -84,11 +85,11 @@ class ReadFileTool(Tool):
         Returns:
             ToolResult with file contents or error.
         """
-        import anyio
+        import anyio  # noqa: PLC0415
 
         try:
             file_path = Path(path)
-            if not file_path.exists():
+            if not file_path.exists():  # noqa: ASYNC240
                 return ToolResult(
                     content=f"Error: File not found: {path}",
                     success=False,
@@ -134,7 +135,7 @@ class ReadFileTool(Tool):
                 success=False,
                 error=f"Permission denied: {path}",
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return ToolResult(
                 content=f"Error reading file: {e}",
                 success=False,

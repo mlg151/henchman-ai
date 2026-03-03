@@ -5,7 +5,7 @@ This module provides the /mcp command for listing and managing MCP servers.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from henchman.cli.commands import BaseCommand, CommandContext
 from henchman.cli.console_helpers import ConsoleHelper
@@ -18,8 +18,11 @@ if TYPE_CHECKING:
 class McpCommand(BaseCommand):
     """/mcp command for MCP server management."""
 
+    _MAX_TOOLS_DISPLAY = 10
+    _MIN_LOGGING_ARGS = 2
+
     _help_command_name = "MCP Server"
-    _help_lines = [
+    _help_lines: ClassVar[list[str]] = [
         "  /mcp list      - List configured MCP servers",
         "  /mcp status    - Show connection status and tools",
         "  /mcp logging   - Control MCP logging (on/off/status)",
@@ -113,10 +116,10 @@ class McpCommand(BaseCommand):
 
         if tools:
             console.print("\n[bold blue]Available Tools[/]\n")
-            for tool in tools[:10]:  # Show first 10
+            for tool in tools[:self._MAX_TOOLS_DISPLAY]:  # Show first 10
                 console.print(f"  • {tool.name}")
-            if len(tools) > 10:
-                console.print(f"  ... and {len(tools) - 10} more")
+            if len(tools) > self._MAX_TOOLS_DISPLAY:
+                console.print(f"  ... and {len(tools) - self._MAX_TOOLS_DISPLAY} more")
         console.print("")
 
     async def _logging(self, ctx: CommandContext) -> None:
@@ -125,7 +128,7 @@ class McpCommand(BaseCommand):
         Args:
             ctx: Command context.
         """
-        if len(ctx.args) < 2:
+        if len(ctx.args) < self._MIN_LOGGING_ARGS:
             self._print_logging_help(ctx.console)
             return
 

@@ -1,6 +1,7 @@
 """Patch apply tool implementation."""
 
 from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -127,7 +128,7 @@ class HunkApplier:
         )
         return self._apply_hunk_with_context(hunk_context)
 
-    def _apply_hunk_with_context(self: HunkApplier, context: "HunkApplicationContext") -> int:
+    def _apply_hunk_with_context(self: HunkApplier, context: HunkApplicationContext) -> int:
         """Apply hunk using structured context.
 
         Args:
@@ -462,7 +463,7 @@ class PatchApplyTool(Tool):
         self: PatchApplyTool,
         patch: str = "",
         path: str | None = None,
-        dry_run: bool = False,
+        dry_run: bool = False,  # noqa: FBT001, FBT002
         fuzz: int = DEFAULT_FUZZ_LINES,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
@@ -509,7 +510,7 @@ class PatchApplyTool(Tool):
     def _apply_patches_to_files(
         self: PatchApplyTool,
         file_patches: dict[str, list[dict[str, Any]]],
-        dry_run: bool,
+        dry_run: bool,  # noqa: FBT001
         fuzz: int,
     ) -> list[str]:
         """Apply patches to multiple files and collect results."""
@@ -523,7 +524,7 @@ class PatchApplyTool(Tool):
         self: PatchApplyTool,
         file_path: str,
         hunks: list[dict[str, Any]],
-        dry_run: bool,
+        dry_run: bool,  # noqa: FBT001
         fuzz: int,
     ) -> str:
         """Apply patch to a single file and return result message."""

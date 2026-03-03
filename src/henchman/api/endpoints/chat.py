@@ -443,7 +443,7 @@ async def chat_completion_stream(
             )
             yield f"data: {done_chunk.model_dump_json()}\n\n"
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             yield _handle_stream_error(e, index)
 
     return StreamingResponse(
@@ -482,7 +482,7 @@ async def get_chat_history(
     messages = agent.get_messages_for_api()
 
     # Convert to response format
-    response_messages = [
+    return [
         ChatMessage(
             role=msg.role,
             content=msg.content or "",
@@ -492,7 +492,6 @@ async def get_chat_history(
         for msg in messages[-limit:]
     ]
 
-    return response_messages
 
 
 @router.delete("/history")

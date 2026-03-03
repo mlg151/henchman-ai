@@ -57,7 +57,7 @@ class AgentConfig(BaseModel):
     can_delegate_to: list[str] = Field(
         default_factory=list, description="Roles this agent can delegate to",
     )
-    enabled: bool = Field(True, description="Whether this agent is active")
+    enabled: bool = Field(default=True, description="Whether this agent is active")
 
     @field_validator("tools")
     @classmethod

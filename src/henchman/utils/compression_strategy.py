@@ -24,6 +24,7 @@ class CompressionStrategyConstants:
     # Default compression thresholds
     DEFAULT_COMPRESSION_HIGH_THRESHOLD: float = 0.6
     DEFAULT_COMPRESSION_MEDIUM_THRESHOLD: float = 0.3
+    CLUSTER_PREVIEW_LENGTH: int = 50
 
 
 @dataclass
@@ -59,7 +60,7 @@ class CompressionStrategy:
         """
         self.config = config
 
-    def compress(  # noqa: C901
+    def compress(
         self: CompressionStrategy,
         messages: list[Message],
         clusters: list[list[int]],
@@ -164,8 +165,8 @@ class CompressionStrategy:
         for msg in cluster_messages:
             if msg.content:
                 # Take first 50 characters as preview
-                preview = msg.content[:50]
-                if len(msg.content) > 50:
+                preview = msg.content[:CompressionStrategyConstants.CLUSTER_PREVIEW_LENGTH]
+                if len(msg.content) > CompressionStrategyConstants.CLUSTER_PREVIEW_LENGTH:
                     preview += "..."
                 key_phrases.append(f"{msg.role}: {preview}")
 
@@ -228,7 +229,7 @@ class CompressionStrategyFactory:
         Returns:
             Compression strategy instance.
         """
-        CSC = CompressionStrategyConstants
+        CSC = CompressionStrategyConstants  # noqa: N806
         if conversation_type == "coding":
             config = CompressionStrategyConfig(
                 name="coding",

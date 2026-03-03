@@ -103,12 +103,12 @@ class AgentCommand(Command):
             # We need to run this through the REPL's agent run logic
             # but target a specific agent.
             if hasattr(ctx.repl, "_run_agent_direct"):
-                await ctx.repl._run_agent_direct(role, message)
+                await ctx.repl._run_agent_direct(role, message)  # noqa: SLF001
             else:
                 ctx.console.print(
                     "[red]Direct agent targeting not supported in this REPL version.[/]",
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             ctx.console.print(f"[red]Error talking to agent '{role}': {e}[/]")
 
     def _list_agents(self, ctx: CommandContext, orchestrator: Orchestrator) -> None:

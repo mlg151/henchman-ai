@@ -30,7 +30,7 @@ class FilteredStream(io.StringIO):
     INFO and DEBUG logs while still capturing errors.
     """
 
-    def __init__(self, verbose: bool = False) -> None:
+    def __init__(self, *, verbose: bool = False) -> None:
         """Initialize the filtered stream.
 
         Args:
@@ -128,7 +128,7 @@ class McpClient:
     Manages the connection lifecycle and tool discovery/execution.
     """
 
-    def __init__(self, name: str, config: McpServerConfig, verbose: bool = False) -> None:
+    def __init__(self, name: str, config: McpServerConfig, *, verbose: bool = False) -> None:
         """Initialize the client.
 
         Args:

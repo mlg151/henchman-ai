@@ -39,6 +39,7 @@ from henchman.config import load_settings
 def serve_command(
     host: str,
     port: int,
+    *,
     reload: bool,
     workers: int,
 ) -> None:
@@ -87,7 +88,7 @@ def serve_command(
         )
     except KeyboardInterrupt:
         console.print("\n[yellow]Server stopped by user[/]")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         console.print(f"\n[red]Error starting server: {e}[/]")
         msg = f"Failed to start server: {e}"
-        raise click.ClickException(msg)
+        raise click.ClickException(msg)  # noqa: B904

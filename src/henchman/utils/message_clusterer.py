@@ -19,6 +19,8 @@ class MessageClusterer:
     same conversational thread.
     """
 
+    _MIN_MESSAGES_TO_CLUSTER = 2
+
     def __init__(
         self: MessageClusterer,
         cluster_similarity_threshold: float = 0.7,
@@ -80,7 +82,7 @@ class MessageClusterer:
         Returns:
             Updated clusters with tool sequences merged.
         """
-        if len(messages) < 2:
+        if len(messages) < self._MIN_MESSAGES_TO_CLUSTER:
             return clusters
 
         # Find assistant messages with tool calls
@@ -118,7 +120,7 @@ class MessageClusterer:
         Returns:
             Updated clusters with temporally adjacent messages merged.
         """
-        if len(clusters) < 2:
+        if len(clusters) < self._MIN_MESSAGES_TO_CLUSTER:
             return clusters
 
         i = 0
@@ -192,7 +194,7 @@ class MessageClusterer:
         Returns:
             Updated clusters with similar topics merged.
         """
-        if len(clusters) < 2:
+        if len(clusters) < self._MIN_MESSAGES_TO_CLUSTER:
             return clusters
 
         # Extract keywords for each cluster
@@ -252,7 +254,7 @@ class MessageClusterer:
                 words = msg.content.lower().split()
                 for word in words:
                     # Remove punctuation
-                    word = word.strip(".,!?;:\"'()[]{}")
+                    word = word.strip(".,!?;:\"'()[]{}")  # noqa: PLW2901
                     if len(word) > self.minimum_word_length and not word.startswith("http"):
                         keywords.add(word)
         return keywords
@@ -271,7 +273,7 @@ class MessageClusterer:
         Returns:
             Updated clusters with role patterns merged.
         """
-        if len(clusters) < 2:
+        if len(clusters) < self._MIN_MESSAGES_TO_CLUSTER:
             return clusters
 
         i = 0
@@ -385,7 +387,7 @@ class MessageClusterer:
         words = set()
         for word in text.split():
             # Remove punctuation
-            word = word.strip(".,!?;:\"'()[]{}")
+            word = word.strip(".,!?;:\"'()[]{}")  # noqa: PLW2901
             if len(word) > self.minimum_word_length and not word.startswith("http"):
                 words.add(word)
         return words

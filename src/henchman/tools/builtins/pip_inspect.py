@@ -102,7 +102,7 @@ class PipInspectTool(Tool):
 
             return ToolResult(content=output, success=True)
 
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error querying pip: {e}",
                 success=False,

@@ -132,7 +132,7 @@ class ComponentInitializer:
 
     def _initialize_tui_adapter(self: Self) -> None:
         """Create the TUI console adapter."""
-        from henchman.cli.textual_bridge import TuiConsoleAdapter
+        from henchman.cli.textual_bridge import TuiConsoleAdapter  # noqa: PLC0415
 
         self._tui_adapter = TuiConsoleAdapter(self.config.app)
 
@@ -153,7 +153,7 @@ class ComponentInitializer:
 
     def _initialize_renderer(self: Self) -> None:
         """Create the UI renderer with the configured theme."""
-        from henchman.cli.console import OutputRenderer, ThemeManager
+        from henchman.cli.console import OutputRenderer, ThemeManager  # noqa: PLC0415
 
         if not self._tui_adapter:
             msg = "TUI adapter must be initialized first"
@@ -207,7 +207,7 @@ class ComponentInitializer:
             msg = "Core context and output handler required"
             raise RuntimeError(msg)
         if not self._command_processor_cls:
-            from henchman.cli.command_processor import (
+            from henchman.cli.command_processor import (  # noqa: PLC0415
                 CommandProcessor,
             )
 
@@ -239,7 +239,7 @@ class ComponentInitializer:
             msg = "Renderer must be initialized first"
             raise RuntimeError(msg)
         if not self._input_handler_cls:
-            from henchman.cli.input_handler import (
+            from henchman.cli.input_handler import (  # noqa: PLC0415
                 InputHandler,
             )
 

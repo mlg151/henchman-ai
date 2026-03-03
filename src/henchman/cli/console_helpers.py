@@ -29,7 +29,7 @@ class ConsoleHelper:
         console.print(f"  {label}: [{color}]{value}[/]")
 
     @staticmethod
-    def print_enabled_status(console: Any, label: str, is_enabled: bool) -> None:
+    def print_enabled_status(console: Any, label: str, *, is_enabled: bool) -> None:
         """Print enabled/disabled status with appropriate colors.
 
         Args:

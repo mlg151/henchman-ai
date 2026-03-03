@@ -247,8 +247,8 @@ class EventBridge:
         try:
             async for event in event_stream:
                 self._dispatch(event)
-        except Exception as exc:
-            import traceback
+        except Exception as exc:  # noqa: BLE001
+            import traceback  # noqa: PLC0415
 
             details = traceback.format_exc()
             # Escape triple backticks in traceback to prevent code fence breakout
@@ -333,7 +333,7 @@ class EventBridge:
                     bar.tokens = int(tokens)
                 if cost:
                     bar.cost = float(cost)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
     # -- factory methods for event handlers --
@@ -392,7 +392,7 @@ class EventBridge:
         """
         return self._create_handler(message_class=message_class)
 
-    def _create_status_message_handler(self: Self, status_text: str) -> Callable[[AgentEvent], None]:
+    def _create_status_message_handler(self: Self, status_text: str) -> Callable[[AgentEvent], None]:  # noqa: E501
         """Create a handler that posts a status message.
 
         Args:
@@ -440,7 +440,7 @@ class EventBridge:
     def _on_ctx_compact(self: Self, event: AgentEvent) -> None:
         """Handle CONTEXT_COMPACTED events."""
         self._message_poster.post_status_message(event, "Context compacted to fit model limits")
-        self._post(CommandOutputMessage("[dim]ℹ Context window was compacted.[/dim]"))
+        self._post(CommandOutputMessage("[dim]ℹ Context window was compacted.[/dim]"))  # noqa: RUF001
 
     def _on_turn_status(self: Self, event: AgentEvent) -> None:
         """Handle TURN_STATUS events."""

@@ -83,7 +83,7 @@ class VectorStore:
             collection_name: Name of the ChromaDB collection.
             max_retries: Maximum retries for ChromaDB initialization.
         """
-        import time
+        import time  # noqa: PLC0415
 
         self.persist_path = Path(persist_path)
         self.embedder = embedder

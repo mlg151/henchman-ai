@@ -155,7 +155,7 @@ class Dashboard:
 
         return stats
 
-    def export_data(self, format: str = "json") -> str:
+    def export_data(self, format: str = "json") -> str:  # noqa: A002
         """Export dashboard data in specified format.
 
         Args:
@@ -170,8 +170,8 @@ class Dashboard:
             return json.dumps(stats, indent=2, default=str)
         if format.lower() == "csv":
             # Simple CSV export of key metrics
-            import csv
-            import io
+            import csv  # noqa: PLC0415
+            import io  # noqa: PLC0415
 
             output = io.StringIO()
             writer = csv.writer(output)

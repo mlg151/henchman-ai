@@ -709,7 +709,7 @@ class ContextCompactor:
         system_msgs: list[Message],
         kept_sequences: list[MessageSequence],
         last_sequence: MessageSequence,
-        last_sequence_is_user: bool,
+        last_sequence_is_user: bool,  # noqa: FBT001
         protected_msgs: list[Message],
     ) -> list[Message]:
         """Reconstruct final message list from components.
@@ -843,7 +843,7 @@ async def _generate_summary_with_provider(
         summary = "".join(summary_parts).strip()
         if summary:
             return summary
-    except Exception:
+    except Exception:  # noqa: BLE001
         # Summarization failed, return None to fall back to simple dropping
         pass
 
@@ -925,11 +925,11 @@ Summary:"""
         )
 
 
-async def compact_with_summarization(
+async def compact_with_summarization(  # noqa: PLR0913
     messages: list[Message],
     max_tokens: int,
     provider: ModelProvider | None = None,
-    summarize: bool = True,
+    summarize: bool = True,  # noqa: FBT001, FBT002
     protect_from_index: int = -1,
     max_protected_ratio: float = 0.3,
 ) -> CompactionResult:
@@ -1030,7 +1030,7 @@ async def _attempt_summarization(
 
             result.messages = [*system_msgs, summary_msg, *non_system]
             result.summary = summary
-    except Exception:
+    except Exception:  # noqa: BLE001
         # Summarization failed, continue with simple dropping
         pass
 

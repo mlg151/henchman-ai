@@ -1,6 +1,7 @@
 """Glob tool implementation."""
 
 from __future__ import annotations
+
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -69,7 +70,7 @@ class GlobTool(Tool):
         try:
             base_path = Path(path)
 
-            if not base_path.exists():
+            if not base_path.exists():  # noqa: ASYNC240
                 return ToolResult(
                     content=f"Error: Path not found: {path}",
                     success=False,
@@ -79,7 +80,7 @@ class GlobTool(Tool):
             # Find matching files
             # Use a generator approach to avoid loading all files into memory if possible
             # But glob() returns a generator anyway.
-            matches_iter = base_path.glob(pattern)
+            matches_iter = base_path.glob(pattern)  # noqa: ASYNC240
 
             matches = []
             truncated = False
@@ -118,7 +119,7 @@ class GlobTool(Tool):
                 content="\n".join(results),
                 success=True,
             )
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error searching files: {e}",
                 success=False,

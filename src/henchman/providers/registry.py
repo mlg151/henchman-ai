@@ -81,17 +81,17 @@ def get_default_registry() -> ProviderRegistry:
     Returns:
         The default ProviderRegistry instance.
     """
-    global _default_registry
+    global _default_registry  # noqa: PLW0603
 
     if _default_registry is None:
         _default_registry = ProviderRegistry()
 
         # Register built-in providers
-        from henchman.providers.anthropic import AnthropicProvider
-        from henchman.providers.deepseek import DeepSeekProvider
-        from henchman.providers.ollama import OllamaProvider
-        from henchman.providers.openai_compat import OpenAICompatibleProvider
-        from henchman.providers.openrouter import OpenRouterProvider
+        from henchman.providers.anthropic import AnthropicProvider  # noqa: PLC0415
+        from henchman.providers.deepseek import DeepSeekProvider  # noqa: PLC0415
+        from henchman.providers.ollama import OllamaProvider  # noqa: PLC0415
+        from henchman.providers.openai_compat import OpenAICompatibleProvider  # noqa: PLC0415
+        from henchman.providers.openrouter import OpenRouterProvider  # noqa: PLC0415
 
         _default_registry.register("deepseek", DeepSeekProvider)
         _default_registry.register("anthropic", AnthropicProvider)

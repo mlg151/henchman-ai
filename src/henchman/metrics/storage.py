@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from henchman.metrics.models import (
     BaseMetric,
@@ -55,7 +55,7 @@ class SessionMetricsAnalyzer:
         Returns:
             Dictionary with session metrics summary.
         """
-        with self.storage._get_connection() as conn:
+        with self.storage._get_connection() as conn:  # noqa: SLF001
             cursor = conn.cursor()
 
             token_stats = self._get_session_metric_by_type(cursor, session_id, "token_usage")
@@ -174,7 +174,7 @@ class DatabaseSchemaManager:
     """Manages database schema creation and indexing."""
 
     # SQL column definitions as constants for better maintainability
-    _METRICS_TABLE_COLUMNS = [
+    _METRICS_TABLE_COLUMNS: ClassVar[list[str]] = [
         "id TEXT PRIMARY KEY",
         "timestamp DATETIME NOT NULL",
         "metric_type TEXT NOT NULL",
@@ -308,7 +308,7 @@ class MetricsAggregator:
         return time_formats[group_by]
 
     # Metric aggregation definitions as a class constant
-    _METRIC_AGGREGATIONS: dict[MetricType, str] = {
+    _METRIC_AGGREGATIONS: ClassVar[dict[MetricType, str]] = {
         MetricType.TOKEN_USAGE: """
             SUM(prompt_tokens) as total_prompt_tokens,
             SUM(completion_tokens) as total_completion_tokens,
@@ -391,7 +391,7 @@ class MetricsAggregator:
             ORDER BY period DESC
         """
 
-        with self.storage._get_connection() as conn:
+        with self.storage._get_connection() as conn:  # noqa: SLF001
             cursor = conn.cursor()
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -424,7 +424,7 @@ class MetricsStorage:
         """
         if db_path is None:
             # Default to user data directory
-            import appdirs
+            import appdirs  # noqa: PLC0415
 
             data_dir = Path(appdirs.user_data_dir("henchman"))
             data_dir.mkdir(parents=True, exist_ok=True)
@@ -538,7 +538,7 @@ class MetricsStorage:
         }
 
     # Class constant for field mappings
-    _FIELD_MAPPINGS = {
+    _FIELD_MAPPINGS: ClassVar[dict] = {
         TokenMetric: {
             "model": "model",
             "provider": "provider",
@@ -644,7 +644,7 @@ class MetricsStorage:
             cursor.execute("DELETE FROM metrics WHERE timestamp < ?", (cutoff_str,))
             conn.commit()
 
-    def get_metrics(
+    def get_metrics(  # noqa: PLR0913
         self,
         metric_type: MetricType | None = None,
         session_id: str | None = None,

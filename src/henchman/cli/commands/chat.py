@@ -6,7 +6,7 @@ This module provides the /chat command for saving, listing, and resuming session
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from henchman.cli.commands import BaseCommand, CommandContext
 from henchman.providers.base import Message, ToolCall
@@ -18,8 +18,10 @@ if TYPE_CHECKING:
 class ChatCommand(BaseCommand):
     """/chat command for session management."""
 
+    _MIN_RESUME_ARGS = 2
+
     _help_command_name = "Chat Session"
-    _help_lines = [
+    _help_lines: ClassVar[list[str]] = [
         "  /chat save [tag]       - Save current session",
         "  /chat list             - List saved sessions",
         "  /chat resume <tag|id>  - Resume a saved session",
@@ -160,7 +162,7 @@ class ChatCommand(BaseCommand):
         Returns:
             True if arguments are valid, False otherwise.
         """
-        if len(ctx.args) < 2:
+        if len(ctx.args) < self._MIN_RESUME_ARGS:
             ctx.console.print("[yellow]Usage: /chat resume <tag|id>[/]")
             return False
         return True

@@ -1,6 +1,7 @@
 """Write file tool implementation."""
 
 from __future__ import annotations
+
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -69,7 +70,7 @@ class WriteFileTool(Tool):
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Write content
-            file_path.write_text(content)
+            file_path.write_text(content)  # noqa: ASYNC240
 
             return ToolResult(
                 content=f"Successfully wrote {len(content)} bytes to {path}",
@@ -81,7 +82,7 @@ class WriteFileTool(Tool):
                 success=False,
                 error=f"Permission denied: {path}",
             )
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error writing file: {e}",
                 success=False,

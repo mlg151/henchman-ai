@@ -8,6 +8,7 @@ and adaptive compression techniques.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 from henchman.providers.base import Message
 from henchman.utils.compression_strategy import CompressionStrategyFactory
@@ -46,21 +47,21 @@ class ConversationTypeDetector:
     """Detects the type of conversation based on message content."""
 
     # Define keyword sets as class constants to eliminate duplicate method structure
-    _CODING_KEYWORDS: list[str] = [
+    _CODING_KEYWORDS: ClassVar[list[str]] = [
         "def ", "class ", "import ", "function", "code", "python", "javascript",
         "java", "typescript", "variable", "loop", "if ", "else", "return",
         "print(", "console.log", "git", "commit", "branch", "merge",
         "api", "endpoint", "request", "response", "json", "xml",
     ]
 
-    _RESEARCH_KEYWORDS: list[str] = [
+    _RESEARCH_KEYWORDS: ClassVar[list[str]] = [
         "research", "study", "analysis", "analyze", "investigate", "explore",
         "find", "search", "look up", "information", "data", "statistics",
         "report", "document", "summary", "conclusion", "findings",
         "according to", "source", "reference", "citation", "paper",
     ]
 
-    _DEBUGGING_KEYWORDS: list[str] = [
+    _DEBUGGING_KEYWORDS: ClassVar[list[str]] = [
         "error", "bug", "debug", "fix", "issue", "problem", "crash",
         "exception", "traceback", "stack trace", "log", "warning",
         "failed", "failure", "broken", "doesn't work", "not working",
@@ -68,7 +69,7 @@ class ConversationTypeDetector:
     ]
 
     # Map conversation types to their keyword sets
-    _KEYWORD_SETS: dict[str, list[str]] = {
+    _KEYWORD_SETS: ClassVar[dict[str, list[str]]] = {
         "coding": _CODING_KEYWORDS,
         "research": _RESEARCH_KEYWORDS,
         "debugging": _DEBUGGING_KEYWORDS,
@@ -243,7 +244,7 @@ class IntelligentContextManager:
         max_protected_ratio: float | None = None,
         importance_threshold: float | None = None,
         cluster_similarity_threshold: float | None = None,
-        adaptive_compression: bool | None = None,
+        adaptive_compression: bool | None = None,  # noqa: FBT001
     ) -> None:
         """Initialize intelligent context manager.
 
@@ -352,7 +353,7 @@ class IntelligentContextManager:
     def compact(
         self: IntelligentContextManager,
         messages: list[Message],
-        protect_from_index: int = -1,
+        protect_from_index: int = -1,  # noqa: ARG002
     ) -> list[Message]:
         """Compact messages to fit within max_tokens using intelligent techniques.
 
@@ -374,7 +375,7 @@ class IntelligentContextManager:
     def compact_with_result(
         self: IntelligentContextManager,
         messages: list[Message],
-        protect_from_index: int = -1,
+        protect_from_index: int = -1,  # noqa: ARG002
     ) -> IntelligentCompactionResult:
         """Compact messages and return detailed result with intelligence metrics.
 
@@ -546,7 +547,7 @@ class IntelligentContextManager:
         return cluster_importance
 
     def _generate_intelligent_summary(
-        self: IntelligentContextManager, messages: list[Message], importance_scores: dict[int, float], clusters: list[list[int]],  # noqa: E501
+        self: IntelligentContextManager, messages: list[Message], importance_scores: dict[int, float], clusters: list[list[int]],  # noqa: ARG002, E501
     ) -> str | None:
         """Generate intelligent summary of compressed/dropped content.
 
@@ -562,7 +563,7 @@ class IntelligentContextManager:
         return None
 
     def _preserve_critical_context(
-        self: IntelligentContextManager, messages: list[Message], importance_scores: dict[int, float],  # noqa: E501
+        self: IntelligentContextManager, messages: list[Message], importance_scores: dict[int, float],  # noqa: ARG002, E501
     ) -> list[Message]:
         """Ensure critical context is preserved regardless of token limits.
 

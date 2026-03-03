@@ -1,13 +1,17 @@
 """Tool registry for managing and executing tools."""
 
 from __future__ import annotations
+
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from henchman.providers.base import ToolDeclaration
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 from henchman.utils.retry import RetryConfig, retry_async
+
+if TYPE_CHECKING:
+    from henchman.providers.base import ToolDeclaration
 
 # Type alias for confirmation handler
 ConfirmationHandler = Callable[[ConfirmationRequest], Awaitable[bool]]
@@ -69,7 +73,7 @@ class ToolRegistry:
         """
         self._retry_config = config
 
-    def set_plan_mode(self: ToolRegistry, enabled: bool) -> None:
+    def set_plan_mode(self: ToolRegistry, enabled: bool) -> None:  # noqa: FBT001
         """Enable or disable Plan Mode (Read-Only).
 
         Args:
@@ -225,7 +229,7 @@ class ToolRegistry:
                 )
             else:
                 result = await tool.execute(**params)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return ToolResult(
                 content=f"Error executing tool '{name}': {exc}",
                 success=False,

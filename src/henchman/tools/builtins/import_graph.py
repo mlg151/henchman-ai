@@ -1,6 +1,7 @@
 """Import graph analysis tool implementation."""
 
 from __future__ import annotations
+
 import ast
 import sys
 from dataclasses import dataclass
@@ -554,14 +555,14 @@ class ImportGraphTool(Tool):
         """
         return request.extract_params()
 
-    def _build_analysis_result(
+    def _build_analysis_result(  # noqa: PLR0913
         self: ImportGraphTool,
         target_path: Path,
         scan_path: Path | None,
         imports: list[str],
         analyzer: ImportAnalyzer,
-        should_classify: bool,
-        should_detect_cycles: bool,
+        should_classify: bool,  # noqa: FBT001
+        should_detect_cycles: bool,  # noqa: FBT001
     ) -> ToolResult:
         """Build the analysis result from extracted data.
 
@@ -629,7 +630,7 @@ class ImportGraphTool(Tool):
         parts: list[str],
         filename: str,
         imports: list[str],
-        classify: bool,
+        classify: bool,  # noqa: FBT001
         analyzer: ImportAnalyzer,
     ) -> None:
         """Add imports analysis to result parts.

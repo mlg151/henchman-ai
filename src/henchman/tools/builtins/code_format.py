@@ -68,7 +68,7 @@ class CodeFormatTool(Tool):
             )
 
         target = Path(path)
-        if not target.exists():
+        if not target.exists():  # noqa: ASYNC240
             return ToolResult(
                 content=f"Error: Path not found: {path}",
                 success=False,
@@ -76,7 +76,7 @@ class CodeFormatTool(Tool):
             )
 
         create_subprocess_exec = asyncio.create_subprocess_exec
-        PIPE = asyncio.subprocess.PIPE
+        PIPE = asyncio.subprocess.PIPE  # noqa: N806
         wait_for = asyncio.wait_for
 
         # First do a check to see what would change

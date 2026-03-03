@@ -31,7 +31,7 @@ def create_scoped_registry(
     Returns:
         A new ToolRegistry instance.
     """
-    new_registry = ToolRegistry(retry_config=parent._retry_config)
+    new_registry = ToolRegistry(retry_config=parent._retry_config)  # noqa: SLF001
 
     # Copy allowed tools
     for name in allowed_tools:
@@ -48,8 +48,8 @@ def create_scoped_registry(
             new_registry.register(tool)
 
     # Copy confirmation handler
-    if parent._confirmation_handler:
-        new_registry.set_confirmation_handler(parent._confirmation_handler)
+    if parent._confirmation_handler:  # noqa: SLF001
+        new_registry.set_confirmation_handler(parent._confirmation_handler)  # noqa: SLF001
 
     # Apply auto-approve policies
     if auto_approve:
@@ -62,7 +62,7 @@ def create_scoped_registry(
 class AgentPool:
     """Manages a pool of agents, providing lazy instantiation and lifecycle management."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         configs: dict[str, "AgentConfig"],
         default_provider: "ModelProvider",
@@ -70,6 +70,7 @@ class AgentPool:
         parent_tool_registry: ToolRegistry,
         event_bus: "EventBus",
         environment_context: str | None = None,
+        *,
         intelligent_context: bool = False,
         importance_threshold: float = 0.5,
         cluster_similarity_threshold: float = 0.7,
@@ -140,7 +141,7 @@ class AgentPool:
         )
 
         # Get role-specific system prompt
-        from henchman.agents.prompts import get_agent_prompt
+        from henchman.agents.prompts import get_agent_prompt  # noqa: PLC0415
 
         team_members = [f"{c.name} ({c.role})" for c in self.configs.values() if c.enabled]
 

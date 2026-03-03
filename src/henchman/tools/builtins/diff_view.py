@@ -76,9 +76,10 @@ class DiffViewTool(Tool):
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]
+    async def execute(  # type: ignore[override]  # noqa: PLR0913
         self,
         path: str | None = None,
+        *,
         staged: bool = False,
         compare: str | None = None,
         stat: bool = False,
@@ -112,7 +113,7 @@ class DiffViewTool(Tool):
         )
         return await self._run_git(cmd, cwd=cwd)
 
-    def _build_command(
+    def _build_command(  # noqa: PLR0913
         self,
         *,
         path: str | None,
@@ -167,7 +168,7 @@ class DiffViewTool(Tool):
             ToolResult with command output.
         """
         create_subprocess_exec = asyncio.create_subprocess_exec
-        PIPE = asyncio.subprocess.PIPE
+        PIPE = asyncio.subprocess.PIPE  # noqa: N806
         try:
             process = await create_subprocess_exec(
                 *cmd,

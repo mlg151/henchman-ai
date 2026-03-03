@@ -1,6 +1,7 @@
 """Delegate task tool implementation."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -111,17 +112,17 @@ class DelegateTaskTool(Tool):
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]
+    async def execute(  # type: ignore[override]  # noqa: PLR0913
         self: DelegateTaskTool,
-        agent: str = "",
-        task: str = "",
-        done_when: str | None = None,
-        context: str | None = None,
-        files: list[str] | None = None,
-        background: str | None = None,
-        requirements: str | None = None,
-        depends_on: str | None = None,
-        **kwargs: Any,
+        agent: str = "",  # noqa: ARG002
+        task: str = "",  # noqa: ARG002
+        done_when: str | None = None,  # noqa: ARG002
+        context: str | None = None,  # noqa: ARG002
+        files: list[str] | None = None,  # noqa: ARG002
+        background: str | None = None,  # noqa: ARG002
+        requirements: str | None = None,  # noqa: ARG002
+        depends_on: str | None = None,  # noqa: ARG002
+        **kwargs: Any,  # noqa: ARG002
     ) -> ToolResult:
         """Stub execution - should be intercepted by Orchestrator.
 

@@ -19,6 +19,8 @@ from henchman.extensions.models import PluginMetadata, PluginSource
 
 logger = logging.getLogger(__name__)
 
+_HTTP_OK = 200
+
 
 class PluginInstaller:
     """Handles plugin installation from various sources."""
@@ -234,11 +236,11 @@ class PluginInstaller:
                 if result.returncode != 0:
                     error_msg = stderr.decode() if stderr else "Unknown error"
                     msg = f"Failed to clone repository: {error_msg}"
-                    raise RuntimeError(msg)
+                    raise RuntimeError(msg)  # noqa: TRY301
 
                 # Copy files to target directory
                 temp_path = Path(temp_dir)
-                for item in temp_path.iterdir():
+                for item in temp_path.iterdir():  # noqa: ASYNC240
                     if item.name == ".git":
                         continue
                     dest = target_dir / item.name
@@ -299,9 +301,9 @@ class PluginInstaller:
         """
         try:
             async with aiohttp.ClientSession() as session, session.get(url) as response:
-                if response.status != 200:
+                if response.status != _HTTP_OK:
                     msg = f"Failed to download from URL: HTTP {response.status}"
-                    raise RuntimeError(msg)
+                    raise RuntimeError(msg)  # noqa: TRY301
 
                 # Create temporary file for download
                 with tempfile.NamedTemporaryFile(suffix=".archive", delete=False) as temp_file:
@@ -363,17 +365,17 @@ class PluginInstaller:
 
         source_path = Path(metadata.source_url)
 
-        if not source_path.exists():
+        if not source_path.exists():  # noqa: ASYNC240
             msg = f"Local path does not exist: {source_path}"
             raise RuntimeError(msg)
 
         try:
-            if source_path.is_file():
+            if source_path.is_file():  # noqa: ASYNC240
                 # Copy single file
                 shutil.copy2(source_path, target_dir / source_path.name)
             else:
                 # Copy directory
-                for item in source_path.iterdir():
+                for item in source_path.iterdir():  # noqa: ASYNC240
                     dest = target_dir / item.name
                     if item.is_dir():
                         shutil.copytree(item, dest, dirs_exist_ok=True)
@@ -422,6 +424,6 @@ class PluginInstaller:
             else:
                 logger.info("Successfully installed dependencies")
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning("Error installing dependencies: %s", e)
             # Continue with plugin installation even if dependencies fail

@@ -35,7 +35,7 @@ class ToolManager:
 
     def register_builtin_tools(self) -> None:
         """Register all built-in tools with the registry."""
-        from henchman.tools.builtins import (
+        from henchman.tools.builtins import (  # noqa: PLC0415
             AskUserTool,
             CodeFormatTool,
             CoverageMapTool,
@@ -134,7 +134,7 @@ class ToolManager:
             self._confirmation_handler = handler
         self.registry.set_confirmation_handler(self.handle_confirmation)
 
-    def set_auto_approve(self, auto_approve: bool) -> None:
+    def set_auto_approve(self, *, auto_approve: bool) -> None:
         """Set auto-approve mode for tools.
 
         Args:
@@ -142,10 +142,10 @@ class ToolManager:
         """
         self.auto_approve = auto_approve
 
-    def set_plan_mode(self, plan_mode: bool) -> None:
+    def set_plan_mode(self, *, plan_mode: bool) -> None:
         """Set plan mode on the registry.
 
         Args:
             plan_mode: If True, tools are in plan mode (read-only).
         """
-        self.registry.set_plan_mode(plan_mode)
+        self.registry.set_plan_mode(enabled=plan_mode)

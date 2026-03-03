@@ -156,7 +156,7 @@ class ThemeCommand(Command):
                 ctx.repl.renderer.renderer.theme = theme_manager.current
             else:
                 # Fallback: create new renderer with theme
-                from henchman.cli.console import OutputRenderer
+                from henchman.cli.console import OutputRenderer  # noqa: PLC0415
 
                 ctx.repl.renderer.renderer = OutputRenderer(
                     console=ctx.repl.renderer.console, theme=theme_manager.current,
@@ -175,12 +175,12 @@ class ThemeCommand(Command):
                 ctx.repl.settings.ui.theme = theme_name
 
                 # Persist settings
-                from henchman.config.settings import save_settings
+                from henchman.config.settings import save_settings  # noqa: PLC0415
 
                 save_settings(ctx.repl.settings)
 
                 ctx.console.print("[dim]Theme saved to settings[/]")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 ctx.console.print(f"[red]Warning:[/] Failed to save settings: {e}")
 
     async def _preview_theme(self, ctx: CommandContext, args: list[str]) -> None:
@@ -205,7 +205,7 @@ class ThemeCommand(Command):
             return
 
         # Create a temporary renderer with the preview theme
-        from henchman.cli.console import OutputRenderer
+        from henchman.cli.console import OutputRenderer  # noqa: PLC0415
 
         preview_theme = theme_manager.get_theme(theme_name)
         preview_renderer = OutputRenderer(console=ctx.console, theme=preview_theme)
@@ -222,7 +222,7 @@ class ThemeCommand(Command):
 
         ctx.console.print()
 
-    async def _create_theme(self, ctx: CommandContext, args: list[str]) -> None:
+    async def _create_theme(self, ctx: CommandContext, args: list[str]) -> None:  # noqa: ARG002
         """Stub for future custom theme creation.
 
         Args:

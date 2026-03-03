@@ -37,8 +37,9 @@ class MetricsCollector:
         user_id_hash: Anonymized user identifier.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
+        *,
         enabled: bool = True,
         anonymize: bool = True,
         sampling_rate: float = 1.0,
@@ -75,7 +76,7 @@ class MetricsCollector:
 
     def _generate_session_id(self) -> str:
         """Generate a unique session identifier."""
-        import uuid
+        import uuid  # noqa: PLC0415
         return str(uuid.uuid4())
 
     def _hash_user_id(self, user_id: str) -> str:
@@ -88,10 +89,10 @@ class MetricsCollector:
             return False
         if self.sampling_rate >= 1.0:
             return True
-        import random
+        import random  # noqa: PLC0415
         return random.random() < self.sampling_rate
 
-    def start_command(self, command: str, subcommand: str | None = None) -> None:
+    def start_command(self, command: str, subcommand: str | None = None) -> None:  # noqa: ARG002
         """Start tracking a command execution.
 
         Args:
@@ -107,7 +108,7 @@ class MetricsCollector:
         self._agent_switches = 0
         self._context_compactions = 0
 
-    def end_command(self, success: bool = True) -> UsageMetric | None:
+    def end_command(self, *, success: bool = True) -> UsageMetric | None:
         """End tracking of current command and return usage metric.
 
         Args:
@@ -158,20 +159,27 @@ class MetricsCollector:
         if not self.should_sample():
             return None
 
-        total_tokens = usage.prompt_tokens + usage.completion_tokens
-        token_ratio = total_tokens / usage.token_limit if usage.token_limit else None
+        usage_agent_id = usage.agent_id
+        usage_model = usage.model
+        usage_provider = usage.provider
+        usage_prompt_tokens = usage.prompt_tokens
+        usage_completion_tokens = usage.completion_tokens
+        usage_token_limit = usage.token_limit
+        usage_cached_tokens = usage.cached_tokens
+        total_tokens = usage_prompt_tokens + usage_completion_tokens
+        token_ratio = total_tokens / usage_token_limit if usage_token_limit else None
 
         metric = TokenMetric(
             session_id=self.session_id,
             user_id=self.user_id_hash,
-            agent_id=usage.agent_id,
-            model=usage.model,
-            provider=usage.provider,
-            prompt_tokens=usage.prompt_tokens,
-            completion_tokens=usage.completion_tokens,
+            agent_id=usage_agent_id,
+            model=usage_model,
+            provider=usage_provider,
+            prompt_tokens=usage_prompt_tokens,
+            completion_tokens=usage_completion_tokens,
             total_tokens=total_tokens,
-            cached_tokens=usage.cached_tokens,
-            token_limit=usage.token_limit,
+            cached_tokens=usage_cached_tokens,
+            token_limit=usage_token_limit,
             token_ratio=token_ratio,
         )
 
@@ -179,7 +187,7 @@ class MetricsCollector:
             self.storage.store_metric(metric)
 
         # Update accumulators for cost calculation
-        key = f"{usage.provider}:{usage.model}"
+        key = f"{usage_provider}:{usage_model}"
         self._token_counts[key] += total_tokens
 
         return metric
@@ -199,27 +207,35 @@ class MetricsCollector:
         if not self.should_sample():
             return None
 
-        total_cost = cost.prompt_cost + cost.completion_cost
+        cost_agent_id = cost.agent_id
+        cost_model = cost.model
+        cost_provider = cost.provider
+        cost_prompt_cost = cost.prompt_cost
+        cost_completion_cost = cost.completion_cost
+        cost_currency = cost.currency
+        cost_per_token = cost.cost_per_token
+        cost_estimated_cost = cost.estimated_cost
+        total_cost = cost_prompt_cost + cost_completion_cost
 
         metric = CostMetric(
             session_id=self.session_id,
             user_id=self.user_id_hash,
-            agent_id=cost.agent_id,
-            model=cost.model,
-            provider=cost.provider,
-            prompt_cost=cost.prompt_cost,
-            completion_cost=cost.completion_cost,
+            agent_id=cost_agent_id,
+            model=cost_model,
+            provider=cost_provider,
+            prompt_cost=cost_prompt_cost,
+            completion_cost=cost_completion_cost,
             total_cost=total_cost,
-            currency=cost.currency,
-            cost_per_token=cost.cost_per_token,
-            estimated_cost=cost.estimated_cost,
+            currency=cost_currency,
+            cost_per_token=cost_per_token,
+            estimated_cost=cost_estimated_cost,
         )
 
         if self.storage:
             self.storage.store_metric(metric)
 
         # Update cost accumulator
-        key = f"{cost.provider}:{cost.model}"
+        key = f"{cost_provider}:{cost_model}"
         self._cost_accumulator[key] += total_cost
 
         return metric
@@ -378,7 +394,7 @@ class MetricsCollector:
             latency_ms=0.0,  # Would need actual timing
         )
 
-    async def process_agent_event(self, event: AgentEvent) -> None:  # noqa: C901
+    async def process_agent_event(self, event: AgentEvent) -> None:
         """Process an agent event for metrics collection.
 
         Args:

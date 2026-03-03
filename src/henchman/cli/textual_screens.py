@@ -9,7 +9,7 @@ Note: Extracted from ``textual_app.py`` to keep modules under 500 lines.
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from textual.containers import Vertical
 from textual.screen import ModalScreen
@@ -78,7 +78,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
     }
     """
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[tuple[str, str, str]]] = [
         ("y", "approve", "Yes"),
         ("n", "deny", "No"),
         ("escape", "deny", "No"),
@@ -99,7 +99,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         Returns:
             ComposeResult with the dialog layout.
         """
-        from rich.markup import escape
+        from rich.markup import escape  # noqa: PLC0415
 
         colour = _RISK_COLOURS.get(self._request.risk_level, _DEFAULT_RISK_COLOUR)
         tool = escape(self._request.tool_name)
@@ -141,7 +141,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         Returns:
             List containing zero or one ``Label`` widgets.
         """
-        from rich.markup import escape
+        from rich.markup import escape  # noqa: PLC0415
 
         if not self._request.params:
             return []
@@ -162,11 +162,11 @@ class ConfirmToolScreen(ModalScreen[bool]):
 
     def action_approve(self) -> None:
         """Approve the tool call."""
-        self.dismiss(True)
+        self.dismiss(result=True)
 
     def action_deny(self) -> None:
         """Deny the tool call."""
-        self.dismiss(False)
+        self.dismiss(result=False)
 
 
 # ------------------------------------------------------------------ #
@@ -190,7 +190,7 @@ class HelpScreen(ModalScreen[None]):
         align: center middle;
     }
     """
-    BINDINGS = [("escape", "app.pop_screen", "Close")]
+    BINDINGS: ClassVar[list[tuple[str, str, str]]] = [("escape", "app.pop_screen", "Close")]
 
     def compose(self) -> ComposeResult:
         """Compose the help dialog.
@@ -259,7 +259,7 @@ class ProviderScreen(ModalScreen[None]):
         margin: 1 0;
     }
     """
-    BINDINGS = [("escape", "app.pop_screen", "Close")]
+    BINDINGS: ClassVar[list[tuple[str, str, str]]] = [("escape", "app.pop_screen", "Close")]
 
     def compose(self) -> ComposeResult:
         """Compose the provider dialog.
@@ -393,7 +393,7 @@ class SessionScreen(ModalScreen[str | None]):
     }
     """
 
-    BINDINGS = [("escape", "cancel", "Close")]
+    BINDINGS: ClassVar[list[tuple[str, str, str]]] = [("escape", "cancel", "Close")]
 
     def __init__(self, sessions: list[Any] | None = None) -> None:
         """Initialize with an optional pre-loaded session list.

@@ -90,7 +90,7 @@ class LintCheckTool(Tool):
             Tuple of (success, formatted output).
         """
         create_subprocess_exec = asyncio.create_subprocess_exec
-        PIPE = asyncio.subprocess.PIPE
+        PIPE = asyncio.subprocess.PIPE  # noqa: N806
         try:
             process = await create_subprocess_exec(
                 *cmd,
@@ -105,19 +105,20 @@ class LintCheckTool(Tool):
             stderr_text = stderr.decode("utf-8", errors="replace")
             combined = (stdout_text + "\n" + stderr_text).strip()
             ok = process.returncode == 0
-            if ok and not combined:
-                return True, f"=== {label} ===\nNo issues found ✓"
-            return ok, f"=== {label} ===\n{combined}"
         except FileNotFoundError:
             return False, f"=== {label} ===\n{label} is not installed"
         except (TimeoutError, asyncio.TimeoutError):
             return False, f"=== {label} ===\nTimed out after 120s"
+        else:
+            if ok and not combined:
+                return True, f"=== {label} ===\nNo issues found ✓"
+            return ok, f"=== {label} ===\n{combined}"
 
     async def execute(  # type: ignore[override]
         self,
         path: str = "",
         linter: str = "both",
-        fix: bool = False,
+        fix: bool = False,  # noqa: FBT001, FBT002
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
         """Run lint checks on the given path.
@@ -139,7 +140,7 @@ class LintCheckTool(Tool):
             )
 
         target = Path(path)
-        if not target.exists():
+        if not target.exists():  # noqa: ASYNC240
             return ToolResult(
                 content=f"Error: Path not found: {path}",
                 success=False,

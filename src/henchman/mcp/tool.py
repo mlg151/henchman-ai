@@ -4,6 +4,7 @@ This module provides the McpTool class that wraps MCP server
 tools as internal Tool instances.
 """
 
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -25,6 +26,7 @@ class McpTool(Tool):
         mcp_tool: McpToolDefinition,
         client: McpClient,
         server_name: str,
+        *,
         trusted: bool = False,
     ) -> None:
         """Initialize the tool wrapper.
@@ -85,7 +87,8 @@ class McpTool(Tool):
         """Execute the tool via MCP.
 
         Args:
-            params: Tool parameters as keyword arguments. These are passed directly to the MCP server tool.  # noqa: E501
+            params: Tool parameters as keyword arguments. Passed directly
+                to the MCP server tool.
 
         Returns:
             Tool execution result.

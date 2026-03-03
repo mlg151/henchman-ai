@@ -388,7 +388,7 @@ class HenchmanTextArea(TextArea):
             # Cast app to HenchmanTextualApp to access its methods
 
             app = cast("HenchmanTextualApp", self.app)
-            app._navigate_history(-1)
+            app._navigate_history(-1)  # noqa: SLF001
         else:
             self.action_cursor_up()
 
@@ -399,7 +399,7 @@ class HenchmanTextArea(TextArea):
             # Cast app to HenchmanTextualApp to access its methods
 
             app = cast("HenchmanTextualApp", self.app)
-            app._navigate_history(1)
+            app._navigate_history(1)  # noqa: SLF001
         else:
             self.action_cursor_down()
 
@@ -697,7 +697,7 @@ class ToolMessage(CollapsibleMessage):
             return ",".join(f"{k}={v}" for k, v in args.items())
         return str(args)
 
-    def _format_tool_arguments(self: Self, pretty: bool = True) -> str:
+    def _format_tool_arguments(self: Self, *, pretty: bool = True) -> str:
         """Format tool arguments as JSON.
 
         Args:
@@ -724,7 +724,7 @@ class ToolMessage(CollapsibleMessage):
         """
         return self._format_tool_arguments(pretty=True)
 
-    def _build_header_text(self: Self, apply_markup: bool = True) -> str:
+    def _build_header_text(self: Self, *, apply_markup: bool = True) -> str:
         """Build header text for display.
 
         Args:
@@ -769,7 +769,7 @@ class ToolMessage(CollapsibleMessage):
         """
         return self._build_header_text_for_ui()
 
-    def _build_body_parts(self: Self, for_ui: bool = True) -> list[str]:
+    def _build_body_parts(self: Self, *, for_ui: bool = True) -> list[str]:
         """Build the parts that make up the body content.
 
         Args:
@@ -902,7 +902,7 @@ class ChatPane(VerticalScroll):
             self.mount(widget)
         except (RuntimeError, AttributeError, MountError):
             # Widget not attached to an app — store as child directly
-            self._nodes._append(widget)
+            self._nodes._append(widget)  # noqa: SLF001
 
     def _try_scroll(self: Self) -> None:
         """Scroll to bottom, ignoring errors when not mounted."""
@@ -989,9 +989,9 @@ class ChatPane(VerticalScroll):
         """
         widget = self._active.pop(agent_name, None)
         if widget is None:
-            import logging
+            import logging  # noqa: PLC0415
 
-            logging.debug(f"Attempted to finish non-existent agent stream: {agent_name}")
+            logging.debug(f"Attempted to finish non-existent agent stream: {agent_name}")  # noqa: G004, LOG015
             return
         widget.finalize_as_markdown()
 
@@ -1090,7 +1090,7 @@ class ChatPane(VerticalScroll):
             try:
                 widget.remove()
             except (RuntimeError, AttributeError, MountError):  # noqa: PERF203
-                self._nodes._remove(widget)
+                self._nodes._remove(widget)  # noqa: SLF001
 
     def clear_messages(self: Self) -> None:
         """Remove all messages from the pane."""
@@ -1099,7 +1099,7 @@ class ChatPane(VerticalScroll):
         try:
             self.remove_children()
         except (RuntimeError, AttributeError, MountError):
-            self._nodes._clear()
+            self._nodes._clear()  # noqa: SLF001
 
 
 # ------------------------------------------------------------------ #

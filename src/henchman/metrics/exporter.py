@@ -54,7 +54,7 @@ class MetricsExporter:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Write metrics to JSON file with pretty formatting
-        with open(output_path, "w", encoding="utf-8") as f:
+        with open(output_path, "w", encoding="utf-8") as f:  # noqa: PTH123
             json.dump(
                 {
                     "metrics": metrics,
@@ -73,7 +73,7 @@ class MetricsExporter:
         Returns:
             ISO formatted timestamp string.
         """
-        from datetime import datetime, timezone
+        from datetime import datetime, timezone  # noqa: PLC0415
         return datetime.now(tz=timezone.utc).isoformat()
 
     def export_to_csv(self, filepath: str, **filters: Any) -> None:

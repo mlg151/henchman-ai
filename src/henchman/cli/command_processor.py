@@ -114,9 +114,9 @@ class CommandProcessor:
 
         try:
             await cmd.execute(ctx)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.output_handler.error(f"Error executing command /{cmd_name}: {e}")
-            import traceback
+            import traceback  # noqa: PLC0415
             self.output_handler.muted(f"Details: {traceback.format_exc()}")
         return True
 

@@ -59,7 +59,7 @@ class AskUserTool(Tool):
         """Return the tool kind."""
         return ToolKind.READ  # Always auto-approved since it's just asking
 
-    def needs_confirmation(self, params: dict[str, object]) -> ConfirmationRequest | None:
+    def needs_confirmation(self, params: dict[str, object]) -> ConfirmationRequest | None:  # noqa: ARG002
         """Check if this tool needs confirmation.
 
         Args:

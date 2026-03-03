@@ -136,7 +136,7 @@ class ExtensionManager:
                     logger.info("Loaded extension from entry point: %s", ep.name)
                 else:
                     logger.warning("Entry point %s is not an Extension subclass", ep.name)
-            except Exception as e:  # noqa: PERF203
+            except Exception as e:  # noqa: BLE001, PERF203
                 logger.warning("Failed to load extension %s: %s", ep.name, e)
 
     def discover_directory(self, directory: Path) -> None:
@@ -161,7 +161,7 @@ class ExtensionManager:
 
             try:
                 self._load_extension_from_file(ext_file, ext_dir.name)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("Failed to load extension from %s: %s", ext_dir.name, e)
 
     def _load_extension_from_file(self, ext_file: Path, ext_name: str) -> None:
@@ -181,7 +181,7 @@ class ExtensionManager:
 
         try:
             spec.loader.exec_module(module)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning("Error executing extension module %s: %s", ext_name, e)
             del sys.modules[spec.name]
             return
@@ -201,5 +201,5 @@ class ExtensionManager:
         try:
             self.register(ext_class())
             logger.info("Loaded extension from directory: %s", ext_name)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning("Failed to instantiate extension %s: %s", ext_name, e)

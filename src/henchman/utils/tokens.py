@@ -6,7 +6,7 @@ models, with model-specific limits and fallback to cl100k_base encoding.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import tiktoken
 
@@ -170,11 +170,12 @@ class TokenCounter:
                 total += len(encoding_encode(msg_content))
 
             # Count tool calls (JSON serialized)
-            if msg.tool_calls:
-                for tc in msg.tool_calls:
+            msg_tool_calls = msg.tool_calls
+            if msg_tool_calls:
+                for tc in msg_tool_calls:
                     # Approximate: function name + arguments as JSON
                     total += len(encoding.encode(tc.name))
-                    import json
+                    import json  # noqa: PLC0415
 
                     total += len(encoding.encode(json.dumps(tc.arguments)))
                     total += 10  # Overhead for tool call structure
