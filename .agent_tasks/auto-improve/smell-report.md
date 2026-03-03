@@ -1,41 +1,41 @@
-# Code Smell Report — ⚠️ C (Score: 70.3/100)
+# Code Smell Report — ⚠️ C (Score: 70.7/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T17:30:26.030810+00:00_
+_Generated: 2026-03-03T18:00:30.264785+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ⚠️ C |
-| **Overall Score** | 70.3/100 |
-| **Files Scanned** | 190 |
-| **Total Lines (non-blank)** | 35,862 |
-| **Total Smells** | 1059 |
+| **Overall Score** | 70.7/100 |
+| **Files Scanned** | 191 |
+| **Total Lines (non-blank)** | 36,143 |
+| **Total Smells** | 1042 |
 | **Avg Maintainability Index** | 71.4 |
-| **Avg Cyclomatic Complexity** | 13.5 |
+| **Avg Cyclomatic Complexity** | 13.6 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 773 |
-| medium | 255 |
+| low | 757 |
+| medium | 254 |
 | high | 31 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 379 |
-| Feature Envy | 213 |
-| Duplicate Code | 163 |
-| Long Method | 102 |
+| Missing Type Hint | 368 |
+| Feature Envy | 204 |
+| Duplicate Code | 158 |
+| Long Method | 106 |
 | Magic Number | 68 |
-| Deep Nesting | 50 |
+| Deep Nesting | 52 |
 | Primitive Obsession | 43 |
-| Complex Function | 25 |
+| Complex Function | 27 |
 | Large Class | 16 |
 
 ## 🎯 Prioritised Refactoring Queue
@@ -83,7 +83,7 @@ These are the highest-impact smells to address first:
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
 11. **tools/builtins/delegate.py:157** — 🟠 HIGH — Duplicate Code  
-   Function 'parameters' is an exact duplicate of 'parameters' at tools/builtins/file_edit.py:151  
+   Function 'parameters' is an exact duplicate of 'parameters' at tools/builtins/file_edit.py:158  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 12. **tools/builtins/delegate.py:157** — 🟠 HIGH — Duplicate Code  
@@ -95,7 +95,7 @@ These are the highest-impact smells to address first:
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 14. **tools/builtins/delegate.py:157** — 🟠 HIGH — Duplicate Code  
-   Function 'parameters' is an exact duplicate of 'parameters' at tools/builtins/shell.py:634  
+   Function 'parameters' is an exact duplicate of 'parameters' at tools/builtins/shell.py:639  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 15. **tools/builtins/diff_view.py:79** — 🟠 HIGH — Primitive Obsession  
@@ -108,19 +108,19 @@ These are the highest-impact smells to address first:
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
 | 1 | tools/security/shell_secure.py | ❌ F | 15.4 | 32 | 359 | 51 | 15.5 |
-| 2 | cli/commands/__init__.py | ❌ F | 28.0 | 24 | 159 | 63 | 0.0 |
-| 3 | extensions/plugin_installer.py | ❌ F | 41.3 | 32 | 320 | 54 | 0.0 |
-| 4 | knowledge/store.py | ❌ F | 41.7 | 23 | 470 | 46 | 0.0 |
-| 5 | extensions/manager.py | ❌ F | 42.7 | 24 | 159 | 63 | 0.0 |
-| 6 | cli/textual_widgets.py | ❌ F | 43.1 | 7 | 956 | 27 | 0.0 |
-| 7 | tools/builtins/grep.py | ❌ F | 44.2 | 16 | 494 | 47 | 0.0 |
-| 8 | cli/console.py | ❌ F | 46.2 | 14 | 670 | 42 | 0.0 |
-| 9 | tools/builtins/test_gen.py | ❌ F | 46.4 | 16 | 362 | 52 | 11.0 |
-| 10 | cli/commands/theme.py | ❌ F | 47.6 | 23 | 196 | 61 | 0.0 |
+| 2 | extensions/plugin_installer.py | ❌ F | 41.3 | 32 | 320 | 54 | 0.0 |
+| 3 | knowledge/store.py | ❌ F | 41.7 | 23 | 470 | 46 | 0.0 |
+| 4 | extensions/manager.py | ❌ F | 42.7 | 24 | 159 | 63 | 0.0 |
+| 5 | cli/textual_widgets.py | ❌ F | 43.1 | 7 | 956 | 27 | 0.0 |
+| 6 | tools/builtins/grep.py | ❌ F | 44.2 | 16 | 494 | 47 | 0.0 |
+| 7 | cli/console.py | ❌ F | 46.2 | 14 | 670 | 42 | 0.0 |
+| 8 | tools/builtins/test_gen.py | ❌ F | 46.4 | 16 | 362 | 52 | 11.0 |
+| 9 | cli/commands/theme.py | ❌ F | 47.6 | 23 | 196 | 61 | 0.0 |
+| 10 | providers/openai_compat.py | ❌ F | 47.7 | 27 | 303 | 59 | 0.0 |
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 170 additional files omitted._
+_Showing 20 worst files. 171 additional files omitted._
 
 ### tools/security/shell_secure.py — ❌ F (15.4/100)
 
@@ -145,30 +145,6 @@ LOC: 359 | Classes: 3 | Functions: 0 | MI: 51 | Avg CC: 15.5
 | 114 | 🟢 LOW | Long Method | Function 'validate_command' has 35 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 
 _... and 17 more smells._
-
-### cli/commands/__init__.py — ❌ F (28.0/100)
-
-LOC: 159 | Classes: 4 | Functions: 2 | MI: 63 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 138 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at extensions/manager.py:40 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 142 | 🟡 MEDIUM | Duplicate Code | Function 'register' is 100% similar to 'register_theme' at cli/console.py:356 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 150 | 🟡 MEDIUM | Duplicate Code | Function 'get' is 100% similar to 'get' at extensions/manager.py:68 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 150 | 🟡 MEDIUM | Duplicate Code | Function 'get' is 95% similar to 'get' at tools/registry.py:107 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 161 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_commands' at cli/commands/__init__.py:169 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 161 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_extensions' at extensions/manager.py:79 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 161 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 161 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_providers' at providers/registry.py:47 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 161 | 🟡 MEDIUM | Duplicate Code | Function 'get_commands' is 100% similar to 'list_tools' at tools/registry.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 169 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_extensions' at extensions/manager.py:79 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 169 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 169 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_providers' at providers/registry.py:47 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 169 | 🟡 MEDIUM | Duplicate Code | Function 'list_commands' is 100% similar to 'list_tools' at tools/registry.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 76 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 85 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 9 more smells._
 
 ### extensions/plugin_installer.py — ❌ F (41.3/100)
 
@@ -224,10 +200,10 @@ LOC: 159 | Classes: 1 | Functions: 0 | MI: 63 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 68 | 🟡 MEDIUM | Duplicate Code | Function 'get' is 95% similar to 'get' at tools/registry.py:107 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 68 | 🟡 MEDIUM | Duplicate Code | Function 'get' is 95% similar to 'get' at tools/registry.py:108 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 79 | 🟡 MEDIUM | Duplicate Code | Function 'list_extensions' is 100% similar to 'get_server_names' at mcp/manager.py:38 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 79 | 🟡 MEDIUM | Duplicate Code | Function 'list_extensions' is 100% similar to 'list_providers' at providers/registry.py:47 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 79 | 🟡 MEDIUM | Duplicate Code | Function 'list_extensions' is 100% similar to 'list_tools' at tools/registry.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 79 | 🟡 MEDIUM | Duplicate Code | Function 'list_extensions' is 100% similar to 'list_tools' at tools/registry.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 87 | 🟡 MEDIUM | Duplicate Code | Function 'get_all_tools' is 100% similar to 'get_all_commands' at extensions/manager.py:98 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 167 | 🟡 MEDIUM | Feature Envy | Method 'ExtensionManager._load_extension_from_file' accesses 'logger' 5 times but 'self' only 1 times | Move Method — consider moving '_load_extension_from_file' to the class that owns 'logger'. |
 | 40 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
@@ -286,7 +262,7 @@ LOC: 670 | Classes: 9 | Functions: 4 | MI: 42 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 348 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_auto_approve_policies' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 348 | 🟡 MEDIUM | Duplicate Code | Function 'list_themes' is 100% similar to 'list_auto_approve_policies' at tools/registry.py:171 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 433 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'info' at cli/console.py:443 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 433 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/console.py:453 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 433 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/console.py:463 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -307,7 +283,7 @@ LOC: 362 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 11.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/web_fetch.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/web_fetch.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/web_search.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/security/shell_secure.py:315 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 62 | 🟡 MEDIUM | Long Method | Function 'execute' has 58 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
@@ -493,7 +469,7 @@ LOC: 238 | Classes: 2 | Functions: 0 | MI: 52 | Avg CC: 0.0
 | 106 | 🟠 HIGH | Primitive Obsession | Function 'execute' has 9 primitive-typed parameters: path: Name(id='str', ctx=Load()), keyword: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), markers: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), verbose: Name(id='bool', ctx=Load()), timeout: Name(id='int', ctx=Load()), coverage: Name(id='bool', ctx=Load()), coverage_source: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), parallel: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), collect_only: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 | 52 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 52 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/test_gen.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 52 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 52 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 171 | 🟡 MEDIUM | Feature Envy | Method 'PytestRunTool._build_pytest_command' accesses 'config' 8 times but 'self' only 0 times | Move Method — consider moving '_build_pytest_command' to the class that owns 'config'. |
 | 204 | 🟡 MEDIUM | Feature Envy | Method 'PytestRunTool._execute_pytest_command' accesses 'process' 5 times but 'self' only 3 times | Move Method — consider moving '_execute_pytest_command' to the class that owns 'process'. |
 | 21 | 🟢 LOW | Magic Number | Magic number 300 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
@@ -560,7 +536,31 @@ LOC: 836 | Classes: 17 | Functions: 13 | MI: 34 | Avg CC: 0.0
 | 261 | 🟡 MEDIUM | Duplicate Code | Function '_ensure_args' is 100% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 983 | 🟡 MEDIUM | Duplicate Code | Function '_validate_min_args' is 100% similar to '_enforce_message_safety' at utils/compaction.py:542 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-## ✨ Clean Files (57 files with no smells)
+### extensions/plugin_manager.py — ❌ F (56.6/100)
+
+LOC: 293 | Classes: 1 | Functions: 0 | MI: 56 | Avg CC: 12.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 113 | 🟡 MEDIUM | Primitive Obsession | Function 'search_plugins' has 4 primitive-typed parameters: query: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), page: Name(id='int', ctx=Load()), page_size: Name(id='int', ctx=Load()), category: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 170 | 🟡 MEDIUM | Long Method | Function 'install_plugin' has 57 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 170 | 🟡 MEDIUM | Complex Function | Function 'install_plugin' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 30 | 🟢 LOW | Large Class | Class 'PluginManager' spans 380 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 47 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 68 | 🟢 LOW | Missing Type Hint | Function 'initialize' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 104 | 🟢 LOW | Missing Type Hint | Function 'close' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 113 | 🟢 LOW | Missing Type Hint | Function 'search_plugins' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 146 | 🟢 LOW | Missing Type Hint | Function 'get_plugin_info' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 170 | 🟢 LOW | Missing Type Hint | Function 'install_plugin' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 170 | 🟢 LOW | Primitive Obsession | Function 'install_plugin' has 3 primitive-typed parameters: plugin_name: Name(id='str', ctx=Load()), version: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), confirm_permissions: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 249 | 🟢 LOW | Missing Type Hint | Function 'uninstall_plugin' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 284 | 🟢 LOW | Missing Type Hint | Function 'update_plugin' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 323 | 🟢 LOW | Missing Type Hint | Function 'check_updates' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 345 | 🟢 LOW | Missing Type Hint | Function 'scan_security' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 2 more smells._
+
+## ✨ Clean Files (58 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -586,6 +586,7 @@ LOC: 836 | Classes: 17 | Functions: 13 | MI: 34 | Avg CC: 0.0
 - api/auth.py — ✅ A
 - api/endpoints/__init__.py — ✅ A
 - cli/__init__.py — ✅ A
+- cli/commands/model.py — 👍 B
 - cli/prompts.py — ✅ A
 - cli/stream_event_handlers.py — 👍 B
 - cli/tool_executor.py — 👍 B

@@ -368,49 +368,47 @@ class StrategyManager:
         settings = load_settings()
         return settings.context
 
-    async def _set_strategy_parameter(
-        self: StrategyManager,
-        ctx: CommandContext,
-        param: str,
-        value: str | None,
-    ) -> None:
-        """Set a strategy parameter.
-
-        Args:
-            ctx: Command context.
-            param: Parameter name.
-            value: Parameter value.
-
-        Raises:
-            ValueError: If value is invalid.
-        """
-        if value is None:
-            ctx.console.print(f"[yellow]Missing value for parameter '{param}'[/]")
-            return
-
-        if param in self._parameter_configs:
-            config = self._parameter_configs[param]
-            val = config.parse_value(value)
-            config.validate_value(val)
-            await _update_context_setting(
-                ctx,
-                ContextSettingUpdate(config.param_name, val, str(val)),
-            )
-        elif param == "adaptive":
-            await _handle_adaptive_parameter(ctx, value)
-        else:
-            ctx.console.print(f"[red]Unknown parameter: {param}[/]")
-            ctx.console.print("\nValid parameters:")
-            ctx.console.print(
-                "  max_tokens, threshold, importance, similarity, adaptive",
-            )
-            return
-
 
 # ── Module-level context helpers (not class methods → no Feature Envy) ──────────
 
 
-async def _update_context_setting(ctx: CommandContext, update: ContextSettingUpdate) -> None:
+async def _set_strategy_parameter(
+    ctx: CommandContext,
+    param: str,
+    value: str | None,
+    parameter_configs: dict[str, RangeParameterConfig],
+) -> None:
+    """Set a strategy parameter by name.
+
+    Args:
+        ctx: Command context.
+        param: Parameter name.
+        value: Parameter value string.
+        parameter_configs: Map of param name to range config.
+    """
+    if value is None:
+        ctx.console.print(f"[yellow]Missing value for parameter '{param}'[/]")
+        return
+
+    if param in parameter_configs:
+        config = parameter_configs[param]
+        val = config.parse_value(value)
+        config.validate_value(val)
+        await _update_context_setting(
+            ctx,
+            ContextSettingUpdate(config.param_name, val, str(val)),
+        )
+    elif param == "adaptive":
+        await _handle_adaptive_parameter(ctx, value)
+    else:
+        ctx.console.print(f"[red]Unknown parameter: {param}[/]")
+        ctx.console.print("\nValid parameters:")
+        ctx.console.print("  max_tokens, threshold, importance, similarity, adaptive")
+
+
+async def _update_context_setting(
+    ctx: CommandContext, update: ContextSettingUpdate,
+) -> None:
     """Update a context setting and save it."""
     settings = load_settings()
     setattr(settings.context, update.param_name, update.value)
@@ -427,12 +425,16 @@ async def _handle_adaptive_parameter(ctx: CommandContext, value: str) -> None:
     if lower_value in ["on", "true", "yes", "1"]:
         await _update_context_setting(
             ctx,
-            ContextSettingUpdate("adaptive_compression", value=True, display_value="enabled"),
+            ContextSettingUpdate(
+                "adaptive_compression", value=True, display_value="enabled",
+            ),
         )
     elif lower_value in ["off", "false", "no", "0"]:
         await _update_context_setting(
             ctx,
-            ContextSettingUpdate("adaptive_compression", value=False, display_value="disabled"),
+            ContextSettingUpdate(
+                "adaptive_compression", value=False, display_value="disabled",
+            ),
         )
     else:
         msg = "Value must be 'on' or 'off'"

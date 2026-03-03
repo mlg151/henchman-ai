@@ -91,7 +91,9 @@ def _get_api_key_for_provider(provider_name: str) -> str | None:
 
 
 def _print_current_configuration(
-    console: Any, provider: Any, available: list[str],
+    console: Any,
+    provider: Any,
+    available: list[str],
 ) -> None:
     """Print current provider and model configuration."""
     console.print("\n[bold blue]Current Configuration[/]\n")
@@ -105,7 +107,9 @@ def _print_current_configuration(
 
 
 def _print_provider_entry(
-    console: Any, provider_name: str, provider_class: Any,
+    console: Any,
+    provider_name: str,
+    provider_class: Any,
 ) -> None:
     """Print a single provider entry in the listing."""
     console.print(f"  [cyan]{provider_name}[/]")

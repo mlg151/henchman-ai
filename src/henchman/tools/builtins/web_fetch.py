@@ -118,11 +118,12 @@ class WebFetchTool(Tool):
                 )
 
         except TimeoutError:
-            sanitized_error = sanitize_error_message(f"Request timed out after {timeout} seconds")
+            # TimeoutError has empty string representation, create our own message
+            error_msg = f"Request timeout after {timeout} seconds"
             return ToolResult(
-                content=sanitized_error,
+                content=error_msg,
                 success=False,
-                error=sanitized_error,
+                error=error_msg,
             )
         except Exception as e:  # pragma: no cover  # noqa: BLE001
             sanitized_error = sanitize_error_message(e)

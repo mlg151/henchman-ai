@@ -260,8 +260,12 @@ def sanitize_error_message(error: Exception | str) -> str:
         return "File not found"
     elif "Connection refused" in error_msg:
         return "Connection refused"
-    elif "Timeout" in error_msg.lower():
-        return "Operation timed out"
+    elif "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+        # Preserve timeout messages but sanitize any paths
+        return re.sub(r"/[^\s]+", "[PATH]", error_msg)
+    elif "network" in error_msg.lower() or "connection" in error_msg.lower():
+        # Preserve network/connection error messages
+        return re.sub(r"/[^\s]+", "[PATH]", error_msg)
 
     # Return generic message for other errors
     return "An error occurred"
@@ -285,6 +289,11 @@ def atomic_write(
         OSError: If file operation fails.
     """
     path_obj = Path(path)
+
+    # Check write permissions on existing file before attempting write
+    if path_obj.exists() and not os.access(str(path_obj), os.W_OK):
+        raise PermissionError(f"Permission denied: {path_obj}")
+
     temp_path = path_obj.with_suffix(f"{path_obj.suffix}.tmp")
 
     try:

@@ -351,7 +351,15 @@ async def handle_post_stream_processing(
 
 
 def build_confirmation_message(request: ConfirmationRequest) -> str:
-    """Build a rich-markup confirmation prompt for *request*."""
+    """Build a rich-markup confirmation prompt for *request*.
+    
+    Args:
+        request: The confirmation request containing tool name, parameters,
+            and description for building the confirmation message.
+    
+    Returns:
+        A formatted confirmation message string with rich markup for display.
+    """
     tool_name = _escape(request.tool_name)
     msg = f"Allow tool [bold cyan]{tool_name}[/] to "
     match request.tool_name:
