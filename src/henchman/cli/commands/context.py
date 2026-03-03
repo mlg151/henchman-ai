@@ -162,12 +162,27 @@ class ContextConsoleHelper:
         self._console_helper.print_error_message(
             console, "Missing parameter or value", "/context strategy set <parameter> <value>"
         )
+
+        # Use helper method to print parameter list
+        self._print_parameter_list(console)
+
+    def _print_parameter_list(self, console: Console) -> None:
+        """Print parameter list for strategy command.
+
+        Args:
+            console: Console for output.
+        """
+        parameters = [
+            ("max_tokens <int>", "Maximum tokens before compaction"),
+            ("threshold <float>", "Compaction threshold (0.1-1.0)"),
+            ("importance <float>", "Importance threshold (0.0-1.0)"),
+            ("similarity <float>", "Cluster similarity threshold (0.0-1.0)"),
+            ("adaptive <on|off>", "Enable/disable adaptive compression"),
+        ]
+
         console.print("\nParameters:")
-        console.print("  max_tokens <int>          - Maximum tokens before compaction")
-        console.print("  threshold <float>         - Compaction threshold (0.1-1.0)")
-        console.print("  importance <float>        - Importance threshold (0.0-1.0)")
-        console.print("  similarity <float>        - Cluster similarity threshold (0.0-1.0)")
-        console.print("  adaptive <on|off>         - Enable/disable adaptive compression")
+        for param, description in parameters:
+            console.print(f"  {param:<25} - {description}")
 
     def print_strategy_status(self, console: Console, context_settings: ContextSettings) -> None:
         """Show current compression strategy settings.
@@ -267,9 +282,17 @@ class StrategyManager:
         Args:
             ctx: Command context.
         """
-        settings = load_settings()
-        context_settings = settings.context
+        context_settings = self._load_context_settings()
         self._console_helper.print_strategy_status(ctx.console, context_settings)
+
+    def _load_context_settings(self) -> ContextSettings:
+        """Load context settings from configuration.
+
+        Returns:
+            Context settings object.
+        """
+        settings = load_settings()
+        return settings.context
 
     async def _set_strategy_parameter(
         self, ctx: CommandContext, param: str, value: str | None
