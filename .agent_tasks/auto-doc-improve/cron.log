@@ -10906,3 +10906,167 @@ INFO    -  Documentation built in 0.67 seconds
 }
 [2026-03-03T08:15:01Z] Verification passed.
 Committing changes...
+[main 49efa8c] docs(auto-improve): automated documentation improvement
+ 8 files changed, 1166 insertions(+), 1926 deletions(-)
+[2026-03-03T08:15:01Z] Done.
+Let me check the `CompletionStatus` enum definition:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_types.py', 
+'start_line': 70, 'end_line': 90})
+
+[result] 
+    events_to_yield: list[AgentEvent] = field(default_factory=list)
+    colon_stall_detected: bool = False
+    colon_stall_result: tuple[AsyncIterator[AgentEvent], int] | None = None
+
+
+class Completi...
+Now I have all the information I need. The `assess_completion` function needs a complete docstring with `Args:` and `Returns:` sections. Let me fix this documentation issue:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_execution.py', 
+'old_str': '    def assess_completion(\n        self: ExecutionController,\n    
+agent: Agent,\n    ) -> CompletionStatus:\n        """Assess whether an agent 
+performed meaningful work."""\n        return 
+assess_agent_completion(self.orchestrator, agent)', 'new_str': '    def 
+assess_completion(\n        self: ExecutionController,\n        agent: Agent,\n 
+) -> CompletionStatus:\n        """Assess whether an agent performed meaningful 
+work.\n        \n        Args:\n            agent: The agent instance to assess 
+for completion status.\n            \n        Returns:\n            
+CompletionStatus: The completion status of the agent, which can be:\n           
+- COMPLETED: Agent performed meaningful tool calls and finished normally\n      
+- NO_WORK_DONE: Agent stopped without making any tool calls\n                - 
+STALLED: Agent announced intent repeatedly but never acted\n        """\n       
+return assess_agent_completion(self.orchestrator, agent)'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_execution.py...
+Now let me verify the change by checking the updated file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_execution.py', 
+'start_line': 115, 'end_line': 140})
+
+[result]         stall_event = 
+self.orchestrator.validator.check_stall_failure(agent)
+        if stall_event:
+            events.append(stall_event)
+
+        colon_result = check_colon_stall(agent, state.colon...
+Perfect! Now I need to create the improvement record. First, let me check if the `.agent_tasks/auto-doc-improve` directory exists:
+[tool] ls({'path': '.agent_tasks'})
+
+[result] agent-coordinator-extraction/
+agent-refactoring/
+api-server-mode/
+auto-doc-improve/
+auto-improve/
+bug-hunt/
+bug-hunt-2/
+continuous-refactoring/
+coverage-improvement/
+debug-scripts/
+delegation-runner-e...
+Good, the directory exists. Now let me create the improvement record:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T08:30:03Z\n\n## Files Changed\n1. 
+`src/henchman/agents/orchestrator_execution.py` - Added missing Args and Returns
+sections to `assess_completion` function\n\n## Smell Category Addressed\n- 
+**Incomplete Docstring** (MEDIUM): Function had parameters but no Args section 
+in docstring\n\n## Rationale for Change\nThe documentation smell report 
+identified the `assess_completion` function in 
+`src/henchman/agents/orchestrator_execution.py:117` as having an incomplete 
+docstring. The function has 1 parameter (`agent`) but no `Args:` section in its 
+docstring.\n\nThis is a **medium severity** documentation smell that violates 
+the project\'s requirement for 100% documentation coverage and Google-style 
+docstrings. The `assess_completion` function is a critical component of the 
+ExecutionController that determines whether an agent has performed meaningful 
+work, and incomplete documentation makes it harder to understand how agent 
+completion is assessed.\n\n## Changes Made\n**Updated `assess_completion` 
+function docstring** (lines 117-135):\n- Added `Args:` section documenting the 
+`agent` parameter\n- Added `Returns:` section explaining the `CompletionStatus` 
+enum return value\n- Documented the three possible completion statuses: 
+COMPLETED, NO_WORK_DONE, and STALLED\n- Provided clear descriptions of what each
+status means in the context of agent work assessment\n\n## Technical Details\n- 
+The function now follows Google-style docstring format with proper `Args:` and 
+`Returns:` sections\n- Parameter description is clear and concise, explaining 
+that it\'s "The agent instance to assess for completion status"\n- Return value 
+description explains the `CompletionStatus` enum and what each value 
+represents\n- No functional changes were made - only documentation 
+improvements\n- The changes improve code maintainability and developer 
+experience for the agent execution system\n\n## What to Verify\n1. The 
+`assess_completion` function now has a complete Google-style docstring with 
+`Args:` and `Returns:` sections\n2. The `agent` parameter is properly documented
+with a clear description\n3. The return value is documented with explanations of
+all possible `CompletionStatus` values\n4. The documentation accurately 
+describes the function\'s behavior in assessing agent work completion\n5. No 
+other documentation issues were introduced\n\n## Testing Instructions\nTo verify
+the fix:\n```bash\n# Check the updated docstring\ngrep -n -A5 "def 
+assess_completion" src/henchman/agents/orchestrator_execution.py\n\n# Verify the
+function signature and parameters\npython -c "\nimport ast\nwith 
+open(\'src/henchman/agents/orchestrator_execution.py\') as f:\n    tree = 
+ast.parse(f.read())\n    \nfor node in ast.walk(tree):\n    if isinstance(node, 
+ast.FunctionDef):\n        if node.name == \'assess_completion\':\n            
+print(f\'Function: {node.name}\')\n            args = [arg.arg for arg in 
+node.args.args]\n            print(f\'  Parameters: {args}\')\n            # 
+Check for self parameter\n            if args and args[0] == \'self\':\n        
+print(f\'  Instance method with parameters: {args[1:]}\')\n"\n\n# Check the next
+smell report should show this issue resolved\n```\n\n## Next Priority\nThe next 
+highest-priority issues from the smell report are:\n1. **Incomplete Docstring** 
+in `src/henchman/agents/orchestrator_loop.py:51` (\'run_tools_and_collect\' has 
+5 parameters but no Args section)\n2. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_loop.py:71` (\'collect_events\' has 2 
+parameters but no Args section)\n3. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_loop.py:90` (\'check_turn_limits\' has 3 
+parameters but no Args section)\n4. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_loop.py:107` (\'finalize_loop\' has 3 
+parameters but no Args section)\n\n## Notes\nThis improvement addresses a 
+genuine documentation quality issue in the orchestrator execution module. The #1
+issue in the smell report (consistency error about "4% coverage threshold") 
+remains a false positive as it misinterprets `pytest-cov>=4.0` (version 4.0 of 
+the pytest-cov package) as a "4% coverage threshold".\n\nThe `assess_completion`
+function is a key component of the ExecutionController that determines whether 
+agents have completed meaningful work. Clear documentation is essential for 
+understanding how the multi-agent system evaluates agent performance and 
+determines completion status.\n\nThe fix ensures that the function\'s purpose, 
+parameters, and return values are clearly documented, improving the overall 
+quality and maintainability of the codebase.'})
+
+[result] Successfully wrote 4577 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+[2026-03-03T08:45:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+Perfect! I have successfully completed one documentation improvement. Here's a summary of what I accomplished:
+
+## Documentation Improvement Completed
+
+**Issue Addressed**: Incomplete Docstring in `src/henchman/agents/orchestrator_execution.py:117`
+
+**Problem**: The `assess_completion` function had a brief docstring description but was missing the required `Args:` and `Returns:` sections, violating the project's 100% documentation coverage requirement.
+
+**Solution**: Added complete Google-style docstring with:
+- `Args:` section documenting the `agent` parameter
+- `Returns:` section explaining the `CompletionStatus` enum return value
+- Clear descriptions of all three possible completion statuses (COMPLETED, NO_WORK_DONE, STALLED)
+
+**Files Changed**:
+1. `src/henchman/agents/orchestrator_execution.py` - Updated docstring for `assess_completion` function
+2. `.agent_tasks/auto-doc-improve/last-improvement.md` - Created detailed improvement record
+
+**Why This Matters**:
+- The `assess_completion` function is critical for determining whether agents have performed meaningful work in the multi-agent system
+- Complete documentation improves code maintainability and developer experience
+- Addresses a medium severity documentation smell identified in the report
+- Maintains the project's strict 100% documentation coverage standard
+
+**Note on #1 Issue**: The #1 issue in the smell report (consistency error about "4% coverage threshold") is a false positive - it misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". The actual coverage threshold in the project is correctly set to 100% via `--cov-fail-under=100` in the pytest configuration.
+
+The improvement has been documented in `.agent_tasks/auto-doc-improve/last-improvement.md` with all necessary details for verification and tracking.
+[tech_lead] completed work
+[2026-03-03T08:30:02Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.75 seconds
+[2026-03-03T08:30:02Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T08:30:02Z] Verification passed.
+Committing changes...
