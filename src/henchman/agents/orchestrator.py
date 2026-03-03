@@ -77,7 +77,15 @@ class Orchestrator:
         self: Orchestrator,
         user_input: str,
     ) -> AsyncIterator[AgentEvent]:
-        """Run the orchestrator with user input."""
+        """Run the orchestrator with user input.
+
+        Args:
+            user_input: The user's input or task description.
+
+        Yields:
+            AgentEvent: Stream of agent events including content, tool calls,
+                and completion status.
+        """
         prepare_run(self, user_input)
         yield AgentEvent(
             type=EventType.AGENT_STARTED,
@@ -96,7 +104,16 @@ class Orchestrator:
         role: str,
         user_input: str,
     ) -> AsyncIterator[AgentEvent]:
-        """Run a specific agent directly, bypassing the Tech Lead."""
+        """Run a specific agent directly, bypassing the Tech Lead.
+
+        Args:
+            role: The role of the agent to run (e.g., "coder", "architect").
+            user_input: The user's input or task description.
+
+        Yields:
+            AgentEvent: Stream of agent events including content, tool calls,
+                and completion status.
+        """
         agent = self.pool.get_agent(role)
         yield AgentEvent(
             type=EventType.AGENT_STARTED,

@@ -278173,3 +278173,377 @@ All checks passed!...
 src/henchman/cli/commands/context.py:393: error: Call to untyped function 
 (unknown) in typed context  \[no-untyped-call]
 Found 1 error in 1 file (checked 1 source file)
+There's a type hint issue. Let me check line 393:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+390, 'end_line': 400})
+
+[result] 
+        handler = dispatch.get(subcommand)
+        if handler:
+            await handler(ctx)
+        else:
+            await self._show_help_message(ctx)
+
+    async def _show_help_message(self, ctx:...
+The issue is that `self._print_help_message` is called but it's not typed. Let me check the method signature:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+410, 'end_line': 420})
+
+[result]             ("strategy", "Set compression strategy"),
+            ("stats", "Show context usage statistics"),
+        ]
+        ConsoleHelper.print_usage_help(console, self.usage, commands, 
+header="Su...
+I need to see the `_print_help_message` method:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+400, 'end_line': 415})
+
+[result] 
+    def _print_help_message(self, console: Console) -> None:
+        """Print detailed help message to console.
+
+        Args:
+            console: Console for output.
+        """
+        commands = ...
+The method is typed correctly. The issue might be that mypy doesn't see the type of `Console`. Let me check if `Console` is properly imported in the TYPE_CHECKING block. Actually, looking at the error, it says "Call to untyped function (unknown) in typed context". The issue is that `self._print_help_message` is being called but mypy might not see its type. Let me add a return type annotation to make it explicit:
+
+Actually, wait. The method `_print_help_message` already has a return type annotation `-> None`. Let me check if there's an issue with the import. Actually, the error is on line 393 which is `await self._show_help_message(ctx)`. Let me check that method:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+390, 'end_line': 400})
+
+[result] 
+        handler = dispatch.get(subcommand)
+        if handler:
+            await handler(ctx)
+        else:
+            await self._show_help_message(ctx)
+
+    async def _show_help_message(self, ctx:...
+The method `_show_help_message` is typed correctly. The issue might be that mypy doesn't recognize `self._print_help_message` as typed. Let me run mypy with more verbose output:
+[tool] shell({'command': 'python -m mypy src/henchman/cli/commands/context.py 
+--show-error-codes', 'timeout': 10})
+
+✗ \[error] src/henchman/cli/commands/context.py:393: error: Call to untyped 
+function (unknown) in typed context  \[no-untyped-call]
+Found 1 error in 1 file (checked 1 source file)
+
+THINKING: The mypy error indicates that `self._print_help_message` is being called but mypy doesn't recognize it as a typed function. Looking at the code, `_print_help_message` is defined with type hints. However, mypy might be confused because it's a regular method (not async) being called from an async method. Let me check if there's an issue with the method signature. Actually, looking more carefully, the error is on line 393 which is `await self._show_help_message(ctx)`. Wait, that's calling `_show_help_message`, not `_print_help_message`. 
+
+Actually, I think the issue might be that mypy doesn't see the type of `ctx.console` in `_print_help_message`. Let me check the imports again. The issue might be that `Console` is only imported in TYPE_CHECKING block. Let me look at the full file to understand the structure better:
+
+Actually, I think I see the issue. In the `_print_help_message` method, the parameter is `console: Console`, but `Console` is only imported in the TYPE_CHECKING block. Mypy might not be able to resolve the type during normal type checking. Let me check if we need to import `Console` properly or if there's another issue.
+
+Actually, looking at the error message again: "Call to untyped function (unknown) in typed context". The function being called is `self._print_help_message`. Even though it has type hints, mypy might not be recognizing it because of the TYPE_CHECKING import issue.
+
+Let me fix this by ensuring proper type annotations. Actually, I think the issue might be simpler. Let me check if `Console` is properly imported. Looking at the TYPE_CHECKING block:
+
+```python
+if TYPE_CHECKING:
+    from rich.console import Console
+    from henchman.config.schema import ContextSettings
+    from henchman.core.agent import Agent
+```
+
+This should be fine for mypy. But wait, `_print_help_message` is not using `Console` from the TYPE_CHECKING import directly in its signature... actually it is: `def _print_help_message(self, console: Console) -> None:`. So mypy should see this during type checking.
+
+Let me run a simpler test to see what's happening:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -c "from 
+src.henchman.cli.commands.context import ContextCommand; print(\'Import 
+successful\')"'})
+
+[result] Import successful
+...
+The import works. Let me check if there's a circular import issue or something else. Actually, I think I should just add an explicit type annotation to help mypy. Let me check the actual mypy configuration. Actually, let me first try to fix the issue by being more explicit with types. The issue might be that `ctx.console` needs a type annotation.
+
+Actually, looking more carefully at the code flow:
+1. `_show_help_message(ctx: CommandContext)` calls `self._print_help_message(ctx.console)`
+2. `_print_help_message(self, console: Console)` is typed
+
+The issue might be that mypy doesn't know the type of `ctx.console`. Let me check the `CommandContext` class definition:
+[tool] read_file({'path': 'src/henchman/cli/commands/__init__.py', 'start_line':
+1, 'end_line': 50})
+
+[result] """Slash command system for the CLI.
+
+This module provides command parsing, registration, and execution.
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from dataclasses i...
+
+[tool] read_file({'path': 'src/henchman/cli/commands/__init__.py', 'start_line':
+50, 'end_line': 100})
+
+[result]         settings: Application settings.
+        agent: Agent instance if available.
+        tool_registry: ToolRegistry instance if available.
+        session: Current Session if available.
+        re...
+Good, so `CommandContext.console` is typed as `Console`. The issue might be that in the TYPE_CHECKING block in `context.py`, we import `Console` from `rich.console`, but in `commands/__init__.py`, it's also imported in TYPE_CHECKING. This should be fine.
+
+Actually, I think the issue might be that mypy is running on the entire file and there might be other issues. Let me check if there are other mypy errors in the file. Actually, let me try a different approach. Let me add an explicit type annotation to the `console` parameter in the method that's causing issues, or better yet, let me check if we need to import `Console` outside of TYPE_CHECKING for mypy to properly resolve it.
+
+Actually, looking at the error again: "Call to untyped function (unknown) in typed context". The function being called is `self._print_help_message`. Even though it has type hints, mypy might not be recognizing it because of some issue with the TYPE_CHECKING import.
+
+Let me try a simple fix: add `from rich.console import Console` outside of TYPE_CHECKING block, or use `Any` type. Actually, let me check what other files do. Let me look at another command file:
+[tool] read_file({'path': 'src/henchman/cli/commands/chat.py', 'start_line': 1, 
+'end_line': 30})
+
+[result] """Chat session management command.
+
+This module provides the /chat command for saving, listing, and resuming 
+sessions.
+"""
+
+from __future__ import annotations
+
+import contextlib
+from typing import TY...
+I see, other files use `BaseCommand` not `Command`. Let me check what `BaseCommand` is:
+[tool] grep({'pattern': 'class BaseCommand', 'path': 
+'src/henchman/cli/commands'})
+
+[result] src/henchman/cli/commands/__init__.py:class BaseCommand(Command):...
+
+[tool] read_file({'path': 'src/henchman/cli/commands/__init__.py', 'start_line':
+100, 'end_line': 150})
+
+[result] 
+    @abstractmethod
+    async def execute(self, ctx: CommandContext) -> None:
+        """Execute the command.
+
+        Args:
+            ctx: Command context with console and arguments.
+        """
+
+...
+I see, `BaseCommand` is a convenience class. Our `ContextCommand` inherits from `Command` directly. That's fine. The issue is with mypy type checking. Let me try to fix the mypy error by being more explicit. Actually, let me check if the issue is that `Console` needs to be imported properly. Let me look at how other files handle this. Actually, I think the real issue might be simpler. Let me check if we're using the correct import pattern.
+
+Actually, I think I should just fix the mypy error by ensuring the type is properly recognized. One approach is to use `from rich.console import Console` directly instead of in TYPE_CHECKING. But that would create a runtime dependency. Another approach is to use `Any` type. Let me check what's the standard pattern in the codebase.
+
+Actually, let me look at the `console_helpers.py` file which also uses `Console`:
+[tool] read_file({'path': 'src/henchman/cli/console_helpers.py', 'start_line': 
+1, 'end_line': 20})
+
+[result] """Shared console helper functions for CLI commands."""
+
+from typing import Any
+
+
+class ConsoleHelper:
+    """Helper class for console output operations."""
+
+    @staticmethod
+    def print_status_hea...
+Ah! `ConsoleHelper` uses `Any` for the console parameter, not `Console`. That's because it's a shared helper that shouldn't depend on `rich` at runtime. So the issue is that in `context.py`, we're using `Console` type but we should probably use `Any` to match the pattern used in `ConsoleHelper`.
+
+Actually, that makes sense. `ConsoleHelper` methods take `console: Any` because they're static methods that just call `console.print()`. In `context.py`, we're calling `ConsoleHelper` methods, so the console parameter we pass should match what `ConsoleHelper` expects.
+
+But wait, in `ContextConsoleHelper`, we're calling `ConsoleHelper` methods with `console: Console`. That should be fine since `Console` is a subtype of `Any`. The real issue might be in `_print_help_message` method which takes `console: Console` but then passes it to `ConsoleHelper.print_usage_help` which expects `console: Any`.
+
+Actually, I think the mypy error is complaining about `self._print_help_message` not being recognized as typed. Let me try a different fix. Let me add a `# type: ignore` comment to suppress the error since this seems to be a mypy false positive:
+
+Actually, before doing that, let me check if there's a simpler fix. The issue is on line 393: `await self._show_help_message(ctx)`. The method `_show_help_message` is typed. Let me check if the issue is actually with the `dispatch.get(subcommand)` call. Actually, looking at the code again:
+
+```python
+handler = dispatch.get(subcommand)
+if handler:
+    await handler(ctx)
+else:
+    await self._show_help_message(ctx)
+```
+
+The error might be on `await handler(ctx)` not `await self._show_help_message(ctx)`. Because `handler` comes from `dispatch.get(subcommand)` and the values in `dispatch` are lambdas. Mypy might not be able to infer the type of those lambdas.
+
+Let me check the `dispatch` dictionary:
+
+```python
+dispatch = {
+    "enable": self._enable_intelligent_context,
+    "disable": self._disable_intelligent_context,
+    "strategy": lambda c: self._strategy_manager.manage_strategy(c, c.args[1:]),
+    "stats": lambda c: self._statistics_manager.show_stats(c),
+}
+```
+
+The lambdas might not have type annotations. Let me fix this by adding type annotations to the lambdas or by restructuring the code. Actually, let me first try to see if adding type annotations to the lambdas helps:
+
+Actually, I think the cleanest fix is to restructure the code to avoid lambdas. Let me refactor this:
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': '  
+async def execute(self, ctx: CommandContext) -> None:\n        """Execute the 
+context command.\n\n        Args:\n            ctx: Command context.\n        
+"""\n        if not ctx.args:\n            await self._show_status(ctx)\n       
+return\n\n        subcommand = ctx.args[self._SUBCOMMAND_IDX].lower()\n        
+dispatch = {\n            "enable": self._enable_intelligent_context,\n         
+"disable": self._disable_intelligent_context,\n            "strategy": lambda c:
+self._strategy_manager.manage_strategy(c, c.args[1:]),\n            "stats": 
+lambda c: self._statistics_manager.show_stats(c),\n        }\n\n        handler 
+= dispatch.get(subcommand)\n        if handler:\n            await 
+handler(ctx)\n        else:\n            await self._show_help_message(ctx)', 
+'new_str': '    async def execute(self, ctx: CommandContext) -> None:\n        
+"""Execute the context command.\n\n        Args:\n            ctx: Command 
+context.\n        """\n        if not ctx.args:\n            await 
+self._show_status(ctx)\n            return\n\n        subcommand = 
+ctx.args[self._SUBCOMMAND_IDX].lower()\n        \n        if subcommand == 
+"enable":\n            await self._enable_intelligent_context(ctx)\n        elif
+subcommand == "disable":\n            await 
+self._disable_intelligent_context(ctx)\n        elif subcommand == "strategy":\n
+await self._strategy_manager.manage_strategy(ctx, ctx.args[1:])\n        elif 
+subcommand == "stats":\n            await 
+self._statistics_manager.show_stats(ctx)\n        else:\n            await 
+self._show_help_message(ctx)'})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...
+THINKING: I've refactored the code to use explicit if-elif statements instead of a dispatch dictionary with lambdas. This should resolve the mypy type checking issue because there are no untyped lambdas anymore. Now let me run mypy again to see if the error is fixed:
+[tool] lint_check({'path': 'src/henchman/cli/commands/context.py', 'linter': 
+'mypy'})
+
+[result] === mypy ===
+Success: no issues found in 1 source file...
+Great! The mypy error is fixed. Now let me run the tests again to make sure my refactoring didn't break anything:
+[tool] pytest_run({'path': 'tests/cli/commands/test_context.py', 'verbose': 
+True})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Excellent! All tests pass. Now let me run ruff to check for any linting issues:
+[tool] lint_check({'path': 'src/henchman/cli/commands/context.py', 'linter': 
+'both'})
+
+✗ \[error] === ruff ===
+W293 [*] Blank line contains whitespace
+   --> src/henchman/cli/commands/context.py:384:1
+    |
+383 |         subcommand = ctx.args\[self._SUBCOMMAND_IDX].lower()
+384 |         
+    | ^^^^
+There's a whitespace issue. Let me fix it:
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': '  
+subcommand = ctx.args[self._SUBCOMMAND_IDX].lower()\n        \n        if 
+subcommand == "enable":', 'new_str': '        subcommand = 
+ctx.args[self._SUBCOMMAND_IDX].lower()\n\n        if subcommand == "enable":'})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...
+Now let me run ruff again to make sure it's fixed:
+[tool] lint_check({'path': 'src/henchman/cli/commands/context.py', 'linter': 
+'ruff'})
+
+[result] === ruff ===
+All checks passed!...
+Perfect! Now let me run the tests one more time to ensure everything still works:
+[tool] pytest_run({'path': 'tests/cli/commands/test_context.py'})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Perfect! All tests pass. Now let me create a summary of the refactoring changes I made:
+[tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
+'content': '# Refactoring Summary: 
+src/henchman/cli/commands/context.py\n\n**Date/Time:** 2026-03-03  \n**Files 
+Changed:** `src/henchman/cli/commands/context.py`\n\n## Identified Smells\n1. 
+**Duplicate Code**: `ConsoleOutputHelper` class had 6 methods that were 94-100% 
+similar to each other and were thin wrappers around `ConsoleHelper` methods\n2. 
+**Feature Envy**: `ConsoleOutputHelper` methods mostly called `ConsoleHelper` 
+methods, showing feature envy\n3. **Missing Type Hints**: Mypy reported "Call to
+untyped function (unknown) in typed context" due to untyped lambda functions in 
+dispatch dictionary\n\n## Refactoring Strategy\n1. **Removed 
+`ConsoleOutputHelper` class entirely** - Eliminated unnecessary indirection and 
+duplication\n2. **Updated `ContextConsoleHelper` to use `ConsoleHelper` 
+directly** - Removed dependency on the removed wrapper class\n3. **Replaced 
+dispatch dictionary with explicit if-elif statements** - Eliminated untyped 
+lambda functions causing mypy errors\n4. **Fixed whitespace issues** - Removed 
+trailing whitespace from blank lines\n\n## Refactored Code Changes\n- **Lines 
+removed**: ~50 lines (entire `ConsoleOutputHelper` class)\n- **Lines changed**: 
+Updated `ContextConsoleHelper` static methods to call `ConsoleHelper` methods 
+directly\n- **Structure improved**: Simplified `execute` method from dispatch 
+dictionary to explicit if-elif chain\n\n## Testing Implications\n- **All 
+existing tests pass** (8/8 tests)\n- **No API changes** - External behavior 
+remains identical\n- **Type checking passes** - Mypy now reports "Success: no 
+issues found"\n- **Linting passes** - Ruff reports "All checks passed"\n\n## 
+Performance & Maintainability Benefits\n1. **Reduced code duplication**: 
+Eliminated 6 redundant wrapper methods\n2. **Improved type safety**: Fixed mypy 
+type checking issues\n3. **Simplified architecture**: Removed unnecessary 
+abstraction layer\n4. **Better adherence to DRY principle**: Direct use of 
+shared `ConsoleHelper` utilities\n5. **Enhanced readability**: Explicit if-elif 
+chain is clearer than dispatch dictionary with lambdas\n\n## XP Principles 
+Applied\n- **YAGNI**: Removed `ConsoleOutputHelper` class that wasn\'t needed 
+(ConsoleHelper already existed)\n- **Once and Only Once (DRY)**: Eliminated 
+duplicate wrapper methods\n- **Simplicity**: Simplified architecture by removing
+unnecessary indirection\n- **Intention-Revealing Code**: Explicit if-elif chain 
+clearly shows command dispatch logic'})
+
+[result] Successfully wrote 2408 bytes to 
+.agent_tasks/auto-improve/last-improvement.md...
+Now let me provide the final output in the required format:
+
+**Identified Smells:**
+- Duplicate Code: `ConsoleOutputHelper` class had 6 methods that were 94-100% similar thin wrappers around `ConsoleHelper` methods
+- Feature Envy: `ConsoleOutputHelper` methods mostly accessed `ConsoleHelper` methods instead of `self`
+- Missing Type Hints: Mypy reported "Call to untyped function (unknown) in typed context" due to untyped lambda functions
+
+**Refactoring Strategy:**
+1. Removed `ConsoleOutputHelper` class entirely (Extract Method / Remove Middle Man)
+2. Updated `ContextConsoleHelper` to use `ConsoleHelper` directly (Inline Class)
+3. Replaced dispatch dictionary with explicit if-elif statements (Replace Conditional with Polymorphism / Simplify)
+4. Fixed whitespace issues (Code Cleanup)
+
+**Refactored Code:** The complete refactored code is now in `src/henchman/cli/commands/context.py` with:
+- 50+ lines removed (entire `ConsoleOutputHelper` class)
+- Direct calls to `ConsoleHelper` methods
+- Explicit if-elif command dispatch instead of dictionary with lambdas
+- All type hints properly resolved
+
+**Testing Implications:**
+- All 8 existing tests pass without modification
+- No API changes - external behavior identical
+- Mypy type checking now passes (no issues found)
+- Ruff linting passes (all checks passed)
+- Coverage remains at 66% (unchanged, not related to refactoring)
+
+The refactoring successfully eliminated code smells while maintaining full backward compatibility and passing all tests.
+[tech_lead] completed work
+[2026-03-03T06:30:03Z] Running pytest to verify tests pass...
+============================= test session starts ==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+plugins: asyncio-1.3.0, dash-3.3.0, mock-3.15.1, cov-7.0.0, typeguard-4.4.4, anyio-4.12.1, hypothesis-6.148.7, playwright-0.7.2, base-url-2.1.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 2591 items
+
+tests/agents/test_completion_status.py .......................           [  0%]
+tests/agents/test_config.py ..                                           [  0%]
+tests/agents/test_delegation_e2e.py ...........                          [  1%]
+tests/agents/test_identity.py ..                                         [  1%]
+tests/agents/test_ledger.py ............................                 [  2%]
+tests/agents/test_metrics_reporter.py ...........................        [  3%]
+tests/agents/test_orchestrator.py ...................................... [  5%]
+...............                                                          [  5%]
+tests/agents/test_pool.py ..........                                     [  6%]
+tests/agents/test_presets.py ......                                      [  6%]
+tests/agents/test_prompts.py ........................................... [  7%]
+.........                                                                [  8%]
+tests/agents/test_thinking_protocol.py .......                           [  8%]
+tests/cli/commands/test_context.py ........                              [  8%]
+tests/cli/commands/test_model.py .............                           [  9%]
+tests/cli/commands/test_model_integration.py ...                         [  9%]
+tests/cli/commands/test_plan.py .......                                  [  9%]
+tests/cli/commands/test_plan_branch.py ...                               [  9%]
+tests/cli/commands/test_session.py .....                                 [ 10%]
+tests/cli/commands/test_session_resume_id.py .                           [ 10%]
+tests/cli/commands/test_unlimited.py ..............                      [ 10%]
+tests/cli/test_agent_command.py ...........                              [ 11%]
+tests/cli/test_app.py ....................                               [ 11%]
+tests/cli/test_app_extended.py .....                                     [ 12%]
+tests/cli/test_builtins.py .......................                       [ 12%]
+tests/cli/test_chat_command.py ...................                       [ 13%]
+tests/cli/test_cli_smoke.py 

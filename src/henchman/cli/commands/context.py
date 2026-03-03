@@ -381,16 +381,15 @@ class ContextCommand(Command):
             return
 
         subcommand = ctx.args[self._SUBCOMMAND_IDX].lower()
-        dispatch = {
-            "enable": self._enable_intelligent_context,
-            "disable": self._disable_intelligent_context,
-            "strategy": lambda c: self._strategy_manager.manage_strategy(c, c.args[1:]),
-            "stats": lambda c: self._statistics_manager.show_stats(c),
-        }
 
-        handler = dispatch.get(subcommand)
-        if handler:
-            await handler(ctx)
+        if subcommand == "enable":
+            await self._enable_intelligent_context(ctx)
+        elif subcommand == "disable":
+            await self._disable_intelligent_context(ctx)
+        elif subcommand == "strategy":
+            await self._strategy_manager.manage_strategy(ctx, ctx.args[1:])
+        elif subcommand == "stats":
+            await self._statistics_manager.show_stats(ctx)
         else:
             await self._show_help_message(ctx)
 
