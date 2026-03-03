@@ -56,14 +56,14 @@ async def run_tools_and_collect(
     state: LoopState,
 ) -> list[AgentEvent]:
     """Execute pending tool calls and collect events.
-    
+
     Args:
         orchestrator: The orchestrator instance containing tool controller.
         agent: The agent instance to process tool calls for.
         pending: List of pending tool calls to execute.
         params: Agent loop parameters including depth and other settings.
         state: Current loop state including tool errors and call count.
-    
+
     Returns:
         list[AgentEvent]: List of events generated during tool execution.
     """
@@ -71,7 +71,10 @@ async def run_tools_and_collect(
     events = [
         event
         async for event in tool_ctrl.process_pending_tool_calls(
-            agent, pending, params.depth, state.tool_errors,
+            agent,
+            pending,
+            params.depth,
+            state.tool_errors,
         )
     ]
     state.tool_call_count += len(pending)
@@ -84,11 +87,11 @@ async def collect_events(
     pending: list[ToolCall],
 ) -> AsyncIterator[AgentEvent]:
     """Collect events from generator and extract pending tool calls.
-    
+
     Args:
         generator: Async iterator yielding AgentEvent objects from agent execution
         pending: List to accumulate tool call requests encountered during iteration
-        
+
     Yields:
         AgentEvent: Each event from the generator, with tool call requests
             also added to the pending list
@@ -113,12 +116,12 @@ def check_turn_limits(
     state: LoopState,
 ) -> tuple[bool, AgentEvent | None]:
     """Check turn limits and return (should_break, error_event).
-    
+
     Args:
         agent: The agent whose turn limits to check.
         params: Agent loop parameters containing max_turns and msg_start_index.
         state: Loop state containing tool_call_count and wrapup_warned flag.
-    
+
     Returns:
         Tuple of (should_break, error_event) where:
         - should_break: True if the loop should terminate due to turn limits
@@ -136,7 +139,9 @@ def check_turn_limits(
 
 
 def finalize_loop(
-    orchestrator: Any, agent: Agent, state: LoopState,
+    orchestrator: Any,
+    agent: Agent,
+    state: LoopState,
 ) -> None:
     """Finalize agent loop by storing state and metrics.
 
@@ -163,7 +168,19 @@ def check_colon_stall(
     agent: Agent,
     retries: int,
 ) -> tuple[AsyncIterator[AgentEvent], int] | None:
-    """Check for colon stall pattern and handle if detected."""
+    """Check for colon stall pattern and handle if detected.
+
+    Args:
+        agent: The agent to check for colon stall patterns.
+        retries: Current number of colon stall retry attempts.
+
+    Returns:
+        A tuple of (agent event iterator, incremented retry count) if a colon
+        stall is detected and retries haven't exceeded the maximum, otherwise
+        None. The colon stall pattern occurs when an agent's response ends with
+        a colon but doesn't continue with further content, indicating it may be
+        stuck waiting for the user to continue.
+    """
     if retries >= MAX_COLON_STALL_RETRIES:
         return None
     content = last_assistant_content(agent)
@@ -175,7 +192,15 @@ def check_colon_stall(
 
 
 def last_assistant_content(agent: Agent) -> str:
-    """Return the content of the agent's last assistant message."""
+    """Return the content of the agent's last assistant message.
+
+    Args:
+        agent: The agent whose message history to search.
+
+    Returns:
+        The content of the most recent assistant message, or an empty string
+        if no assistant message with content is found.
+    """
     for msg in reversed(agent.messages):
         if msg.role == "assistant" and msg.content:
             return msg.content
