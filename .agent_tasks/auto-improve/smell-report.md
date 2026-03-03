@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 53.5/100)
+# Code Smell Report — ❌ F (Score: 53.6/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T10:00:21.064788+00:00_
+_Generated: 2026-03-03T10:30:19.897134+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 53.5/100 |
+| **Overall Score** | 53.6/100 |
 | **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 34,480 |
-| **Total Smells** | 2147 |
+| **Total Lines (non-blank)** | 34,473 |
+| **Total Smells** | 2137 |
 | **Avg Maintainability Index** | 71.8 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,17 +20,17 @@ _Generated: 2026-03-03T10:00:21.064788+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1635 |
-| medium | 447 |
+| low | 1631 |
+| medium | 441 |
 | high | 65 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1145 |
+| Missing Type Hint | 1141 |
 | Feature Envy | 299 |
-| Duplicate Code | 238 |
+| Duplicate Code | 232 |
 | Magic Number | 129 |
 | Long Method | 108 |
 | Deep Nesting | 98 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/context.py | ❌ F | 14.1 | 59 | 507 | 47 | 0.0 |
+| 1 | cli/commands/context.py | ❌ F | 14.3 | 49 | 466 | 48 | 0.0 |
 | 2 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
 | 3 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
 | 4 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 169 additional files omitted._
 
-### cli/commands/context.py — ❌ F (14.1/100)
+### cli/commands/context.py — ❌ F (14.3/100)
 
-LOC: 507 | Classes: 6 | Functions: 0 | MI: 47 | Avg CC: 0.0
+LOC: 466 | Classes: 6 | Functions: 0 | MI: 48 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 108 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at cli/json_output.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 116 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'print_usage' at cli/commands/session.py:138 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 116 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 116 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 116 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 116 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 127 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_header' is 100% similar to 'unregister' at tools/registry.py:93 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 64 | 🟢 LOW | Missing Type Hint | Function 'get_display_label' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 72 | 🟢 LOW | Missing Type Hint | Function 'validate_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 90 | 🟢 LOW | Missing Type Hint | Function 'parse_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 108 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 116 | 🟢 LOW | Missing Type Hint | Function 'print_status_info' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 127 | 🟢 LOW | Missing Type Hint | Function '_print_status_header' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 135 | 🟢 LOW | Missing Type Hint | Function '_print_status_values' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 146 | 🟢 LOW | Missing Type Hint | Function '_print_context_settings_values' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 127 | 🟢 LOW | Missing Type Hint | Function 'print_strategy_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 138 | 🟢 LOW | Missing Type Hint | Function 'print_strategy_status' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 138 | 🟢 LOW | Feature Envy | Method 'ContextConsoleHelper.print_strategy_status' accesses 'console' 3 times but 'self' only 2 times | Move Method — consider moving 'print_strategy_status' to the class that owns 'console'. |
+| 153 | 🟢 LOW | Missing Type Hint | Function '_print_context_settings' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 176 | 🟢 LOW | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 185 | 🟢 LOW | Missing Type Hint | Function '_print_available_commands' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 202 | 🟢 LOW | Missing Type Hint | Function '_print_strategy_parameters' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 226 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 247 | 🟢 LOW | Missing Type Hint | Function 'manage_strategy' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 44 more smells._
+_... and 34 more smells._
 
 ### cli/textual_bridge.py — ❌ F (15.7/100)
 

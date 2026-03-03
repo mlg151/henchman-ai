@@ -42,7 +42,13 @@ class ToolController(OrchestratorComponent):
         *,
         success: bool = True,
     ) -> None:
-        """Delegate to metrics controller for backward compat."""
+        """Delegate to metrics controller for backward compat.
+        
+        Args:
+            tool_name: Name of the tool that was called.
+            args: Dictionary of arguments passed to the tool.
+            success: Whether the tool call was successful. Defaults to True.
+        """
         self._metrics_controller.update_tool_metrics(
             tool_name, args, success=success,
         )
