@@ -46,7 +46,7 @@ class CodeFormatTool(Tool):
         """Tool kind - WRITE modifies files."""
         return ToolKind.WRITE
 
-    async def execute(  # type: ignore[override]
+    async def execute(  # type: ignore[override]  # noqa: PLR0911
         self,
         path: str = "",
         **kwargs: object,  # noqa: ARG002
@@ -77,6 +77,7 @@ class CodeFormatTool(Tool):
 
         create_subprocess_exec = asyncio.create_subprocess_exec
         PIPE = asyncio.subprocess.PIPE
+        wait_for = asyncio.wait_for
 
         # First do a check to see what would change
         try:
@@ -90,7 +91,7 @@ class CodeFormatTool(Tool):
                 stdout=PIPE,
                 stderr=PIPE,
             )
-            _check_stdout, check_stderr = await asyncio.wait_for(
+            _check_stdout, check_stderr = await wait_for(
                 check_proc.communicate(),
                 timeout=60,
             )
@@ -113,7 +114,7 @@ class CodeFormatTool(Tool):
                 stdout=PIPE,
                 stderr=PIPE,
             )
-            fmt_stdout, fmt_stderr = await asyncio.wait_for(
+            fmt_stdout, fmt_stderr = await wait_for(
                 fmt_proc.communicate(),
                 timeout=60,
             )

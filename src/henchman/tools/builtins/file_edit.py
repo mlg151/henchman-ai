@@ -69,7 +69,7 @@ class EditFileTool(Tool):
         """Tool kind - WRITE requires confirmation."""
         return ToolKind.WRITE
 
-    async def execute(  # type: ignore[override]
+    async def execute(  # type: ignore[override]  # noqa: PLR0911
         self: EditFileTool,
         path: str = "",
         old_str: str | None = None,

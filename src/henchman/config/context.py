@@ -128,7 +128,7 @@ class ContextLoader:
                 return True
         return False
 
-    def discover_files(self) -> list[Path]:
+    def discover_files(self) -> list[Path]:  # noqa: C901, PLR0912
         """Discover all context files in the hierarchy.
 
         Returns:

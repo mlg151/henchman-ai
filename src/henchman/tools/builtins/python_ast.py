@@ -389,8 +389,7 @@ class PythonAstTool(Tool):
         ]
         if imports:
             sections.append("\n## Imports")
-            for imp in imports:
-                sections.append(self._format_import(imp))
+            sections.extend(self._format_import(imp) for imp in imports)
 
     def _add_assignments_section(self: PythonAstTool, sections: list[str], tree: ast.Module) -> None:  # noqa: E501
         """Add assignments section to sections if assignments exist.

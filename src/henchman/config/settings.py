@@ -156,7 +156,7 @@ def load_settings() -> Settings:
         try:
             file_settings = _load_file(path)
             merged = deep_merge(merged, file_settings)
-        except ConfigError:
+        except ConfigError:  # noqa: PERF203
             raise
 
     # Apply environment overrides

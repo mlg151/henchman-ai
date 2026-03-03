@@ -669,8 +669,7 @@ class ImportGraphTool(Tool):
         reverse = self._find_reverse_imports(scan_path, module_name, target)
         parts.append(f"\nFiles importing {module_name}:")
         if reverse:
-            for rev in sorted(reverse):
-                parts.append(f"  {rev}")
+            parts.extend(f"  {rev}" for rev in sorted(reverse))
         else:
             parts.append("  (none)")
 
@@ -689,8 +688,7 @@ class ImportGraphTool(Tool):
         cycles = builder.detect_cycles()
         parts.append("\nCircular imports:")
         if cycles:
-            for cycle in cycles:
-                parts.append(f"  {' -> '.join(cycle)}")
+            parts.extend(f"  {' -> '.join(cycle)}" for cycle in cycles)
         else:
             parts.append("  (none detected)")
 

@@ -183,7 +183,7 @@ class KgUpdateTool(Tool):
         self._initialised = True
         return self._store
 
-    async def execute(self: KgUpdateTool, **params: object) -> ToolResult:
+    async def execute(self: KgUpdateTool, **params: object) -> ToolResult:  # noqa: PLR0911
         """Execute a knowledge graph update.
 
         Args:

@@ -465,27 +465,32 @@ class KnowledgeStore:
         Returns:
             Markdown-formatted string.
         """
-        parts = [f"## {entity.name} ({entity.entity_type})"]
+        entity_id = entity.id
+        entity_name = entity.name
+        entity_type = entity.entity_type
+        parts = [f"## {entity_name} ({entity_type})"]
+        parts_append = parts.append
         if entity.file_path:
-            parts.append(f"**File:** `{entity.file_path}`")
+            parts_append(f"**File:** `{entity.file_path}`")
         if entity.description:
-            parts.append(entity.description)
+            parts_append(entity.description)
         if entity.tags:
-            parts.append(f"**Tags:** {', '.join(entity.tags)}")
+            parts_append(f"**Tags:** {', '.join(entity.tags)}")
         if entity.observations:
-            parts.append("**Observations:**")
+            parts_append("**Observations:**")
             parts.extend(
                 f"- {obs.content} _(source: {obs.source})_"
                 for obs in entity.observations
             )
 
-        relations = self.get_relations(entity.id)
+        relations = self.get_relations(entity_id)
         if relations:
-            parts.append("**Relations:**")
+            parts_append("**Relations:**")
             for rel in relations:
-                arrow = "→" if rel.source == entity.id else "←"
-                other = rel.target if rel.source == entity.id else rel.source
-                parts.append(f"- {arrow} {rel.relation_type}: `{other}`")
+                rel_source = rel.source
+                arrow = "→" if rel_source == entity_id else "←"
+                other = rel.target if rel_source == entity_id else rel_source
+                parts_append(f"- {arrow} {rel.relation_type}: `{other}`")
 
         return "\n".join(parts)
 

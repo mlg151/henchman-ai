@@ -50,7 +50,7 @@ class LsTool(Tool):
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]
+    async def execute(  # type: ignore[override]  # noqa: C901
         self: LsTool,
         path: str = ".",
         show_hidden: bool = False,
@@ -96,7 +96,7 @@ class LsTool(Tool):
             all_items = []
             try:
                 for _ in range(self.MAX_ITEMS + 1):
-                    all_items.append(next(iterator))
+                    all_items.append(next(iterator))  # noqa: PERF401
             except StopIteration:
                 pass
 

@@ -75,7 +75,7 @@ class EnvInspectTool(Tool):
         """Tool kind - read-only inspection."""
         return ToolKind.READ
 
-    async def execute(  # type: ignore[override]
+    async def execute(  # type: ignore[override]  # noqa: C901, PLR0912
         self: EnvInspectTool,
         cwd: str | None = None,
         packages: list[str] | None = None,

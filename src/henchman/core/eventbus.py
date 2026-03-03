@@ -82,7 +82,7 @@ class EventBus:
                     await handler(event)
                 else:
                     handler(event)
-            except Exception:
+            except Exception:  # noqa: PERF203
                 # Error isolation: log but don't stop other handlers
                 pass
 

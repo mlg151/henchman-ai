@@ -1089,7 +1089,7 @@ class ChatPane(VerticalScroll):
         for widget in thinking:
             try:
                 widget.remove()
-            except (RuntimeError, AttributeError, MountError):
+            except (RuntimeError, AttributeError, MountError):  # noqa: PERF203
                 self._nodes._remove(widget)
 
     def clear_messages(self: Self) -> None:

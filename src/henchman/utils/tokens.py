@@ -64,7 +64,7 @@ class TokenCounter:
     """
 
     # Cache encodings to avoid repeated initialization
-    _encodings: dict[str, tiktoken.Encoding] = {}
+    _encodings: ClassVar[dict[str, tiktoken.Encoding]] = {}
 
     @classmethod
     def _get_encoding(cls, model: str | None = None) -> tiktoken.Encoding:

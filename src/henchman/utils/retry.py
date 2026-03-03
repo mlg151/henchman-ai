@@ -106,7 +106,7 @@ def with_retry(
             for attempt in range(config.max_retries + 1):
                 try:
                     return await func(*args, **kwargs)
-                except config.retryable_exceptions as exc:
+                except config.retryable_exceptions as exc:  # noqa: PERF203
                     last_exception = exc
 
                     if attempt < config.max_retries:

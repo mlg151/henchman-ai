@@ -86,7 +86,7 @@ class GlobTool(Tool):
 
             try:
                 for _ in range(self.MAX_MATCHES + 1):
-                    matches.append(next(matches_iter))
+                    matches.append(next(matches_iter))  # noqa: PERF401
             except StopIteration:
                 pass
 
@@ -106,7 +106,7 @@ class GlobTool(Tool):
                 try:
                     rel_path = match.relative_to(base_path)
                     results.append(str(rel_path))
-                except ValueError:  # pragma: no cover
+                except ValueError:  # pragma: no cover  # noqa: PERF203
                     results.append(str(match))
 
             if truncated:

@@ -44,15 +44,17 @@ class PluginInstaller:
             RuntimeError: If installation fails.
         """
         # Create installation directory
-        plugin_dir = self.data_dir / "installed" / metadata.name
+        metadata_name = metadata.name
+        metadata_source = metadata.source
+        plugin_dir = self.data_dir / "installed" / metadata_name
         plugin_dir.mkdir(parents=True, exist_ok=True)
 
         # Install based on source type
-        if metadata.source == PluginSource.PYPI:
+        if metadata_source == PluginSource.PYPI:
             return await self._install_from_pypi(metadata, plugin_dir)
-        if metadata.source == PluginSource.GITHUB:
+        if metadata_source == PluginSource.GITHUB:
             return await self._install_from_github(metadata, plugin_dir)
-        if metadata.source == PluginSource.GIT:
+        if metadata_source == PluginSource.GIT:
             return await self._install_from_git(metadata, plugin_dir)
         if metadata.source == PluginSource.URL:
             return await self._install_from_url(metadata, plugin_dir)

@@ -146,8 +146,9 @@ class _AnthropicStreamProcessor:
                 if chunk_current_tool_id is not None:
                     current_tool_id = chunk_current_tool_id
 
-                if chunk.total_output_tokens_delta > 0:
-                    total_output_tokens += chunk.total_output_tokens_delta
+                chunk_tokens_delta = chunk.total_output_tokens_delta
+                if chunk_tokens_delta > 0:
+                    total_output_tokens += chunk_tokens_delta
 
                 if chunk.should_yield:
                     yield StreamChunk(
@@ -223,7 +224,8 @@ class _AnthropicStreamProcessor:
             if thinking:  # Only count if thinking is not None/empty
                 tokens_delta = TokenCounter.count_text(thinking, model=self._default_model)
         elif delta_type == "input_json_delta" and current_tool_id:
-            pending_tool_calls[current_tool_id]["arguments"] += delta.partial_json
+            delta_partial_json = delta.partial_json
+            pending_tool_calls[current_tool_id]["arguments"] += delta_partial_json
             tokens_delta = TokenCounter.count_text(delta.partial_json, model=self._default_model)
 
         params = EventProcessingResultParams(

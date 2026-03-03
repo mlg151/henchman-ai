@@ -83,12 +83,15 @@ class PluginRegistryClient:
             msg = "Registry client not initialized"
             raise RuntimeError(msg)
 
+        sp_page = search_params.page
+        sp_page_size = search_params.page_size
+        sp_query = search_params.query
         params: dict[str, Any] = {
-            "page": search_params.page,
-            "page_size": search_params.page_size,
+            "page": sp_page,
+            "page_size": sp_page_size,
         }
-        if search_params.query:
-            params["q"] = search_params.query
+        if sp_query:
+            params["q"] = sp_query
         if category:
             params["category"] = category
 
