@@ -425,7 +425,11 @@ class TemplateCreateExecutor(SessionCommandExecutor):
     """Executor for template create operations."""
 
     async def execute(self: TemplateCreateExecutor, manager: SessionManager) -> None:
-        """Execute template create operation."""
+        """Execute template create operation.
+
+        Args:
+            manager: The session manager to use for the command execution.
+        """
         if not self._ensure_args(
             DEFAULT_MIN_ARGS_FOR_TEMPLATE_CREATE,
             "/session template create <template_id> [tag]",
