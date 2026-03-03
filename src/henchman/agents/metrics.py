@@ -89,11 +89,19 @@ class PerformanceMetrics:
                 self.file_re_reads = total_accesses - unique_files
 
     def track_file_access(self, file_path: str) -> None:
-        """Track a file access for re-read analysis."""
+        """Track a file access for re-read analysis.
+
+        Args:
+            file_path: The path of the file that was accessed.
+        """
         self.files_accessed[file_path] = self.files_accessed.get(file_path, 0) + 1
 
     def track_tool_usage(self, tool_name: str) -> None:
-        """Track tool usage by type."""
+        """Track tool usage by type.
+
+        Args:
+            tool_name: The name of the tool that was used.
+        """
         self.tool_usage_by_type[tool_name] = self.tool_usage_by_type.get(tool_name, 0) + 1
 
 
@@ -150,7 +158,12 @@ class ToolMetrics:
         self.other_tool_calls = 0
 
     def track_tool_call(self, tool_name: str, success: bool) -> None:
-        """Track a tool call with its category."""
+        """Track a tool call with its category.
+
+        Args:
+            tool_name: The name of the tool that was called.
+            success: Whether the tool call was successful.
+        """
         self.total_tool_calls += 1
 
         if success:
