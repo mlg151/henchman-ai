@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 95.7/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T05:00:03.769398+00:00_
+_Generated: 2026-03-03T05:15:03.160476+00:00_
 
 ## Executive Summary
 
@@ -11,15 +11,16 @@ _Generated: 2026-03-03T05:00:03.769398+00:00_
 | **Overall Score** | 95.7/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 167 |
-| **Total Smells** | 411 |
+| **Total Smells** | 410 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 323 |
-| medium | 88 |
+| low | 322 |
+| medium | 87 |
+| high | 1 |
 
 ### Smells by Category
 
@@ -28,16 +29,16 @@ _Generated: 2026-03-03T05:00:03.769398+00:00_
 | Incomplete Docstring | 401 |
 | Missing Docstring | 5 |
 | Stale Content | 2 |
-| Config Issue | 2 |
+| Config Issue | 1 |
 | Consistency Error | 1 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **mkdocs.yml:1** — 🟡 MEDIUM — Config Issue  
-   Markdown files contain ```mermaid blocks but pymdownx.superfences is not configured with mermaid custom fences — diagrams won't render  
-   → _Add custom_fences mermaid configuration to pymdownx.superfences in mkdocs.yml, or install mkdocs-mermaid2-plugin._
+1. **mkdocs.yml:1** — 🟠 HIGH — Config Issue  
+   No mkdocs.yml found — documentation site is not configured  
+   → _Create a mkdocs.yml with site_name, theme, and nav._
 
 2. **pyproject.toml:65** — 🟡 MEDIUM — Consistency Error  
    States coverage threshold of 4% but other files require 80%. Found thresholds: 80%, 4%  
