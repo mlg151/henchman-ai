@@ -199,9 +199,7 @@ class ContextConsoleHelper:
             ("adaptive <on|off>", "Enable/disable adaptive compression"),
         ]
 
-        console.print("\nParameters:")
-        for param, description in parameters:
-            console.print(f"  {param:<25} - {description}")
+        ConsoleHelper.print_parameter_list(console, parameters)
 
     def print_strategy_status(self, console: Console, context_settings: ContextSettings) -> None:
         """Show current compression strategy settings.

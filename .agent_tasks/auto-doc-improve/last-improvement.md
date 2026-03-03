@@ -1,69 +1,87 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-03-03T08:45:15Z
+2026-03-03T09:00:03Z
 
 ## Files Changed
-1. `CONTRIBUTING.md` - Fixed inconsistent coverage threshold from "> 80%" to "100% test coverage (required by CI)"
+1. `src/henchman/agents/orchestrator_loop.py` - Added missing Args and Returns sections to `run_tools_and_collect` function
 
 ## Smell Category Addressed
-- **Consistency Error** (MEDIUM): Inconsistent coverage thresholds across documentation files
+- **Incomplete Docstring** (MEDIUM): Function had 5 parameters but no Args section in docstring
 
 ## Rationale for Change
-The documentation smell report identified a consistency error regarding coverage thresholds. While the #1 issue in the report (pyproject.toml:65) was a false positive (misinterpreting `pytest-cov>=4.0` as a "4% coverage threshold" when it's actually the package version requirement), I discovered a genuine inconsistency:
+The documentation smell report identified the `run_tools_and_collect` function in `src/henchman/agents/orchestrator_loop.py:51` as having an incomplete docstring. The function has 5 parameters (`orchestrator`, `agent`, `pending`, `params`, `state`) but no `Args:` section in its docstring.
 
-1. **pyproject.toml**: Requires 100% coverage (`--cov-fail-under=100`)
-2. **CI workflow**: Requires 100% coverage (`--cov-fail-under=100`)
-3. **RELEASE_CHECKLIST.md**: Correctly states 100% coverage
-4. **README.md**: Correctly states "100% test coverage for core components"
-5. **CONTRIBUTING.md**: Incorrectly stated "Aim for high coverage (> 80%)"
-
-This inconsistency could mislead contributors about the actual test coverage requirements. The project has a strict 100% test coverage requirement as documented in multiple places and enforced by CI.
+This is a **medium severity** documentation smell that violates the project's requirement for 100% documentation coverage and Google-style docstrings. The `run_tools_and_collect` function is a critical component of the orchestrator loop that executes pending tool calls and collects events, and incomplete documentation makes it harder to understand how tool execution works in the multi-agent system.
 
 ## Changes Made
-**Updated CONTRIBUTING.md line 142**:
-- Changed from: "Aim for high coverage (> 80%)"
-- Changed to: "Aim for 100% test coverage (required by CI)"
+**Updated `run_tools_and_collect` function docstring** (lines 51-75):
+- Added `Args:` section documenting all 5 parameters:
+  - `orchestrator`: The orchestrator instance containing tool controller
+  - `agent`: The agent instance to process tool calls for
+  - `pending`: List of pending tool calls to execute
+  - `params`: Agent loop parameters including depth and other settings
+  - `state`: Current loop state including tool errors and call count
+- Added `Returns:` section explaining the `list[AgentEvent]` return value
+- Maintained the original brief description: "Execute pending tool calls and collect events"
+- Used proper Google-style docstring format with clear parameter descriptions
 
 ## Technical Details
-- The change aligns CONTRIBUTING.md with the actual project requirements
-- All other documentation files already correctly state 100% coverage requirements
-- The CI workflow (`--cov-fail-under=100`) and pytest configuration enforce 100% coverage
-- No functional changes were made - only documentation consistency improvement
-- The change ensures contributors understand the strict quality standards
+- The function is part of the orchestrator loop helpers module
+- It coordinates tool execution by calling the tool controller's `process_pending_tool_calls` method
+- It updates the tool call count in the loop state
+- It injects role anchors for agent identity management
+- No functional changes were made - only documentation improvements
+- The changes improve code maintainability and developer experience for the agent execution system
 
 ## What to Verify
-1. CONTRIBUTING.md now correctly states "100% test coverage (required by CI)"
-2. All documentation files now consistently state 100% test coverage requirement
-3. The CI workflow continues to enforce 100% coverage
-4. No other documentation inconsistencies were introduced
+1. The `run_tools_and_collect` function now has a complete Google-style docstring with `Args:` and `Returns:` sections
+2. All 5 parameters are properly documented with clear descriptions
+3. The return value is documented as `list[AgentEvent]` with explanation
+4. The documentation accurately describes the function's behavior in executing tool calls and collecting events
+5. No other documentation issues were introduced
 
 ## Testing Instructions
 To verify the fix:
 ```bash
-# Check the updated line in CONTRIBUTING.md
-grep -n "test coverage" CONTRIBUTING.md
+# Check the updated docstring
+grep -n -A10 "def run_tools_and_collect" src/henchman/agents/orchestrator_loop.py
 
-# Verify consistency across documentation
-grep -r "coverage" pyproject.toml .github/workflows/ci.yml RELEASE_CHECKLIST.md README.md CONTRIBUTING.md | grep -v "pytest-cov>=4.0"
+# Verify the function signature and parameters
+python -c "
+import ast
+with open('src/henchman/agents/orchestrator_loop.py') as f:
+    tree = ast.parse(f.read())
+    
+for node in ast.walk(tree):
+    if isinstance(node, ast.FunctionDef):
+        if node.name == 'run_tools_and_collect':
+            print(f'Function: {node.name}')
+            args = [arg.arg for arg in node.args.args]
+            print(f'  Parameters: {args}')
+            print(f'  Has docstring: {bool(ast.get_docstring(node))}')
+            docstring = ast.get_docstring(node)
+            if docstring:
+                print(f'  Docstring length: {len(docstring)} chars')
+                if 'Args:' in docstring:
+                    print(f'  Has Args section: Yes')
+                if 'Returns:' in docstring:
+                    print(f'  Has Returns section: Yes')
+"
 
-# Run a quick test to ensure CI would still pass
-python -c "import sys; print('Coverage thresholds are consistent: 100% required')"
+# Check the next smell report should show this issue resolved
 ```
 
 ## Next Priority
 The next highest-priority issues from the smell report are:
-1. **Incomplete Docstring** in `src/henchman/agents/orchestrator_loop.py:51` ('run_tools_and_collect' has 5 parameters but no Args section)
-2. **Incomplete Docstring** in `src/henchman/agents/orchestrator_loop.py:71` ('collect_events' has 2 parameters but no Args section)
-3. **Incomplete Docstring** in `src/henchman/agents/orchestrator_loop.py:90` ('check_turn_limits' has 3 parameters but no Args section)
-4. **Incomplete Docstring** in `src/henchman/agents/orchestrator_loop.py:107` ('finalize_loop' has 3 parameters but no Args section)
+1. **Incomplete Docstring** in `src/henchman/agents/orchestrator_loop.py:71` ('collect_events' has 2 parameters but no Args section)
+2. **Incomplete Docstring** in `src/henchman/agents/orchestrator_loop.py:90` ('check_turn_limits' has 3 parameters but no Args section)
+3. **Incomplete Docstring** in `src/henchman/agents/orchestrator_loop.py:107` ('finalize_loop' has 3 parameters but no Args section)
+4. **Incomplete Docstring** in `src/henchman/agents/orchestrator_loop.py:122` ('check_colon_stall' has 2 parameters but no Args section)
 
 ## Notes
-This improvement addresses a genuine documentation consistency issue. The smell detector correctly identified a consistency error, though it misattributed it to the wrong line in pyproject.toml. The actual issue was in CONTRIBUTING.md where the coverage threshold was incorrectly stated as "> 80%" instead of the project's actual 100% requirement.
+This improvement addresses a genuine documentation quality issue in the orchestrator loop module. The #1 issue in the smell report (consistency error about "4% coverage threshold") remains a false positive as it misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold".
 
-The fix ensures that all documentation consistently communicates the project's strict quality standards, which include:
-- 100% test coverage requirement (enforced by CI)
-- 100% documentation coverage for public APIs
-- Strict linting and type checking requirements
+The `run_tools_and_collect` function is a key component of the orchestrator that handles tool execution in the agent loop. Clear documentation is essential for understanding how the multi-agent system processes tool calls, collects events, and manages agent state during execution.
 
-Consistent documentation helps maintain high code quality and ensures all contributors understand the project standards.
+The fix ensures that the function's purpose, parameters, and return values are clearly documented, improving the overall quality and maintainability of the codebase.
