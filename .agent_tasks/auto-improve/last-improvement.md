@@ -1,91 +1,38 @@
-# Refactoring Summary: `src/henchman/cli/textual_bridge.py`
-
-**Date/Time**: 2026-03-03 (Current refactoring session)
-**Files Changed**: `src/henchman/cli/textual_bridge.py`
-**Rationale**: Address code smells identified in the smell report (F grade: 15.1/100)
-
-## Identified Smells Addressed
-
-### 1. HIGH Priority - Duplicate Code
-- **Issue**: `_create_data_message_handler` (line 381) was an exact duplicate of `_create_tool_message_handler` (line 392)
-- **Solution**: Removed `_create_tool_message_handler` and updated all references to use `_create_data_message_handler`
-- **Impact**: Eliminated 11 lines of duplicate code
-
-### 2. MEDIUM Priority - Duplicate Code in MessagePoster
-- **Issue**: Three similar methods with overlapping functionality:
-  - `post_message_if_data_exists` (100% similar to `post_data_message`)
-  - `post_message_if_data_exists` (94% similar to `post_prefixed_message`)
-  - `post_data_message` (94% similar to `post_prefixed_message`)
-- **Solution**: Consolidated into a single unified `post_message` method with flexible parameters
-- **Impact**: Reduced 3 methods to 1, eliminating 20+ lines of redundant code
-
-### 3. Code Quality Improvements
-- **Type Hints**: Verified all methods have proper type annotations (no missing type hints found)
-- **Formatting**: Ran ruff formatter to ensure consistent code style
-- **Testing**: All existing tests pass (5/5 tests in `test_textual_bridge_bugs.py`)
-
-## Refactoring Strategy Applied
-
-### 1. Extract Method & Consolidate (DRY Principle)
-- Created unified `post_message` method in `MessagePoster` class
-- Parameters: `event`, `message_class`, `prefix="", transform_data=None`
-- Replaces: `post_message_if_data_exists`, `post_data_message`, `post_prefixed_message`
-
-### 2. Remove Exact Duplicates
-- Removed `_create_tool_message_handler` (identical to `_create_data_message_handler`)
-- Updated handler registry to use `_create_data_message_handler` for tool events
-
-### 3. Maintain Backward Compatibility
-- Kept public API intact (`post_tool_message`, `post_status_message` remain)
-- Internal refactoring only - no breaking changes to external interfaces
-
-## Testing Implications
-
-### Existing Tests
-- All 5 existing tests in `test_textual_bridge_bugs.py` pass
-- Tests cover error formatting, turn status formatting, and exception handling
-- No test modifications required
-
-### New Test Considerations
-- **Edge Cases**: Unified `post_message` method should handle all parameter combinations
-- **Null Safety**: `transform_data` parameter properly handles `None` values
-- **Prefix Handling**: Empty prefix vs. non-empty prefix behavior
-
-## Code Metrics Improvement
-
-### Before Refactoring:
-- **Lines of Code**: 411
-- **Smell Count**: 46 (15.1/100 score)
-- **Duplicate Code**: Multiple exact and near-duplicate methods
-
-### After Refactoring:
-- **Lines Reduced**: ~30 lines eliminated
-- **Duplicate Code**: Major reduction in method duplication
-- **Maintainability**: Improved cohesion, reduced cognitive load
-
-## XP Principles Applied
-
-1. **Once and Only Once (DRY)**: Eliminated duplicate handler creation logic
-2. **YAGNI**: Removed speculative abstraction (`_create_tool_message_handler`)
-3. **Simplicity**: Unified message posting into single flexible method
-4. **Intention-Revealing**: Method names clearly indicate purpose
+# Grep Tool Refactoring - 2026-03-03 14:15:00
 
 ## Files Changed
-- `src/henchman/cli/textual_bridge.py`: Primary refactoring target
-- **No other files affected**: Changes are localized to the target module
+- `src/henchman/tools/builtins/grep.py` - Complete refactoring
 
-## Verification
-- ✅ All tests pass
-- ✅ Linting passes (ruff + mypy)
-- ✅ Code formatting applied
-- ✅ No breaking changes to public API
-- ✅ Maintains backward compatibility
+## Rationale
+Refactored the GrepTool to address all code smells from the smell report:
 
-## Remaining Smells (Not Addressed in This Session)
+### Identified Smells Addressed:
+1. **Primitive Obsession (HIGH)** - Created parameter objects:
+   - `GrepParameters` for main execute method (10 parameters → 1 object)
+   - `SearchConfig` for search configuration (6 parameters → 1 object)
+   - `ContextConfig` for context formatting (4 parameters → 1 object)
 
-The smell report listed additional issues that were not addressed because they either:
-1. Were incorrect (e.g., `_create_status_message_handler` is NOT identical to `_create_prefixed_message_handler`)
-2. Involve external file comparisons (e.g., similarity to `textual_widgets.py` methods)
-3. Are low-priority missing type hints that were already present
+2. **Large Class (MEDIUM)** - Split 517-line class into 3 cohesive classes:
+   - `GrepTool` (main class, ~180 lines)
+   - `FileSearcher` (search logic, ~180 lines)
+   - `ResultFormatter` (formatting logic, ~160 lines)
 
-**Next Steps**: Consider further refactoring to inline thin wrapper methods or address external file duplication in a separate session.
+3. **Long Method (MEDIUM)** - Broke down:
+   - `parameters` method from 54 to 30 lines
+   - `_search_files_with_results` from 50 to 35 lines
+
+4. **Duplicate Code (MEDIUM)** - Created `_build_parameters_schema` helper to reduce duplication with other tools
+
+5. **Missing Type Hints (LOW)** - Added complete type hints to all methods
+
+### Refactoring Patterns Applied:
+- **Introduce Parameter Object** - Grouped related primitives into dataclasses
+- **Extract Class** - Split large class by responsibility (SRP)
+- **Extract Method** - Broke down complex methods
+- **Once and Only Once (DRY)** - Reduced parameter schema duplication
+
+### Testing Implications:
+- All existing tests should pass (21 tests)
+- No API changes - external behavior preserved
+- New internal classes need unit tests (to be added separately)
+- Edge cases around parameter validation remain covered
