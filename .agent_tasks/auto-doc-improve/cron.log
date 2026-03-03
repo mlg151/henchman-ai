@@ -12170,3 +12170,404 @@ INFO    -  Documentation built in 0.69 seconds
 }
 [2026-03-03T09:15:01Z] Verification passed.
 Committing changes...
+[main ce970d5] docs(auto-improve): automated documentation improvement
+ 5 files changed, 319 insertions(+), 34 deletions(-)
+[2026-03-03T09:15:01Z] Done.
+[2026-03-03T09:30:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by examining the highest-priority issue from the smell report: the consistency error in pyproject.toml where coverage thresholds are inconsistent (4% vs 100% in other files).
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
+
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+Let me look for the coverage threshold configuration:
+[tool] grep({'pattern': 'cov-fail-under', 'path': 'pyproject.toml', 
+'line_numbers': True})
+
+[result] 138:addopts = "-v --cov=henchman --cov-report=term-missing 
+--cov-fail-under=100"...
+Good, so line 138 has the correct 100% threshold. Let me check line 65 mentioned in the report:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 75})
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+Line 65 is `"pytest-cov>=4.0"` - this is a version requirement for the pytest-cov package (version 4.0 or higher), not a coverage threshold. The smell detector is misinterpreting this. However, let me check if there are any other coverage threshold references in the project:
+[tool] grep({'pattern': '4%', 'path': '.', 'glob': '*.md', 'line_numbers': 
+True})
+
+[result] No matches found...
+
+[tool] grep({'pattern': '4.*%', 'path': '.', 'glob': '*.md', 'line_numbers': 
+True})
+
+[result] CHANGELOG.md:216:- 49 new tests for environment detection with 100% 
+coverage on the new module....
+Let me check the CI script to see if there are any coverage thresholds there:
+[tool] read_file({'path': 'scripts/ci.sh'})
+
+✗ \[error] Error: File not found: scripts/ci.sh
+
+[tool] ls({'path': '.'})
+
+[result] CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+MagicMock/
+README.md
+RELEASE_CHECKLIST.md
+__pycache__/
+coverage.json
+dist/
+docs/
+evals/
+htmlcov/
+mkdocs.yml
+pyproject.toml
+scripts/
+site/
+src/
+test_compatibility.p...
+
+[tool] ls({'path': 'scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+run_evals.sh
+smell_detector/...
+Let me check the auto-doc-improve script since that's what generated the report:
+[tool] read_file({'path': 'scripts/auto-doc-improve.sh'})
+
+[result] #!/usr/bin/env bash
+# auto-doc-improve.sh — Run Henchman to make one documentation improvement, then
+commit.
+set -euo pipefail
+alias pytest='prlimit --as=16G --rss=16G python -m pytest'
+# Limit memory...
+Now let me check what was last improved to avoid repeating:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T09:15:45Z
+
+## Files Changed
+1. `src/henchman/agents/orchestrator_loop.py` - Added missing Args and Yields 
+sections to `collect_events` funct...
+Now let me check the actual issue. Looking at the smell report, the #1 issue is a false positive - it's interpreting `pytest-cov>=4.0` as a "4% coverage threshold" when it's actually a version requirement. However, let me check if there are any actual consistency issues with coverage thresholds. Let me look at the actual coverage configuration in pyproject.toml more carefully:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 135, 'end_line': 145})
+
+[result] testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-v --cov=henchman --cov-report=term-missing --cov-fail-under=100"
+markers = [
+    "integration: m...
+Good, the coverage threshold is correctly set to 100% in line 138. Let me check if there are any other references to coverage thresholds in documentation files:
+[tool] grep({'pattern': 'coverage.*threshold', 'path': '.', 'glob': '*.md', 
+'ignore_case': True, 'line_numbers': True})
+
+[result] No matches found...
+
+[tool] grep({'pattern': 'fail-under', 'path': '.', 'glob': '*.md', 
+'line_numbers': True})
+
+[result] RELEASE_CHECKLIST.md:9:- [ ] Ensure test coverage = 100%: `pytest 
+--cov=henchman --cov-report=term-missing --cov-fail-under=100`...
+Good, RELEASE_CHECKLIST.md also correctly references 100%. Let me check the CONTRIBUTING.md file:
+[tool] grep({'pattern': 'coverage', 'path': 'CONTRIBUTING.md', 'ignore_case': 
+True, 'line_numbers': True})
+
+[result] 57:# Run with coverage
+142:- Aim for 100% test coverage (required by CI)...
+
+[tool] read_file({'path': 'CONTRIBUTING.md', 'start_line': 55, 'end_line': 65})
+
+[result] pytest
+
+# Run with coverage
+pytest --cov=henchman --cov-report=term-missing
+
+# Run specific test files
+pytest tests/test_cli.py -v
+
+# Run integration tests
+pytest -m integration
+```
+...
+The CONTRIBUTING.md file doesn't include the `--cov-fail-under=100` flag, but it does mention "Aim for 100% test coverage (required by CI)" on line 142. Let me check that:
+[tool] read_file({'path': 'CONTRIBUTING.md', 'start_line': 140, 'end_line': 
+145})
+
+[result] - Use descriptive test names
+- Mock external dependencies
+- Aim for 100% test coverage (required by CI)
+
+### Integration Tests
+- Test end-to-end functionality
+...
+Now I need to address the actual #1 issue from the smell report. Looking at the prioritised fix queue, the first real issue (not the false positive) is:
+
+**2. `src/henchman/agents/orchestrator_loop.py:110` — 🟡 MEDIUM — Incomplete Docstring**
+`'check_turn_limits' has 3 parameter(s) but no Args: section in docstring`
+
+Let me examine this function:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_loop.py', 
+'start_line': 105, 'end_line': 125})
+
+[result] # 
+---------------------------------------------------------------------------
+# Turn limit enforcement
+# ---------------------------------------------------------------------------
+
+
+def check_turn_li...
+Perfect! I can see the issue. The function `check_turn_limits` has 3 parameters (`agent`, `params`, `state`) but the docstring only has a brief description and no `Args:` section. Also, it returns a tuple but has no `Returns:` section. Let me fix this by adding proper Google-style docstring with `Args:` and `Returns:` sections.
+
+First, let me check what the function returns more carefully by looking at the `TurnEnforcementParams` class:
+[tool] grep({'pattern': 'class TurnEnforcementParams', 'path': 'src/henchman', 
+'line_numbers': True})
+
+[result] src/henchman/agents/orchestrator_turns.py:22:class 
+TurnEnforcementParams:...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_turns.py', 
+'start_line': 20, 'end_line': 40})
+
+[result] 
+@dataclass
+class TurnEnforcementParams:
+    """Parameters for enforcing turn limits."""
+
+    agent: Agent
+    max_turns: int
+    tool_call_count: int
+    msg_start_index: int
+    wrapup_warned: bool
+...
+Good, so `enforce_limits()` returns a tuple of `(should_break, new_wrapup_warned, error_event)`. Now let me update the `check_turn_limits` function with a proper docstring:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_loop.py', 'old_str':
+'def check_turn_limits(\n    agent: Agent,\n    params: AgentLoopParams,\n    
+state: LoopState,\n) -> tuple[bool, AgentEvent | None]:\n    """Check turn 
+limits and return (should_break, error_event)."""\n    enforcement = 
+TurnEnforcementParams(\n        agent=agent,\n        
+max_turns=params.max_turns,\n        tool_call_count=state.tool_call_count,\n   
+msg_start_index=params.msg_start_index,\n        
+wrapup_warned=state.wrapup_warned,\n    )\n    should_break, 
+state.wrapup_warned, err = enforcement.enforce_limits()\n    return 
+should_break, err', 'new_str': 'def check_turn_limits(\n    agent: Agent,\n    
+params: AgentLoopParams,\n    state: LoopState,\n) -> tuple[bool, AgentEvent | 
+None]:\n    """Check turn limits and return (should_break, error_event).\n    \n
+Args:\n        agent: The agent whose turn limits to check.\n        params: 
+Agent loop parameters containing max_turns and msg_start_index.\n        state: 
+Loop state containing tool_call_count and wrapup_warned flag.\n    \n    
+Returns:\n        Tuple of (should_break, error_event) where:\n        - 
+should_break: True if the loop should terminate due to turn limits\n        - 
+error_event: AgentEvent with error message if limits exceeded, None otherwise\n 
+"""\n    enforcement = TurnEnforcementParams(\n        agent=agent,\n        
+max_turns=params.max_turns,\n        tool_call_count=state.tool_call_count,\n   
+msg_start_index=params.msg_start_index,\n        
+wrapup_warned=state.wrapup_warned,\n    )\n    should_break, 
+state.wrapup_warned, err = enforcement.enforce_limits()\n    return 
+should_break, err'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_loop.py...
+Now let me verify the change was made correctly:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_loop.py', 
+'start_line': 105, 'end_line': 135})
+
+[result] # 
+---------------------------------------------------------------------------
+# Turn limit enforcement
+# ---------------------------------------------------------------------------
+
+
+def check_turn_li...
+Perfect! Now I need to create the improvement summary in the required location:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T09:30:15Z\n\n## Files Changed\n1. 
+`src/henchman/agents/orchestrator_loop.py` - Added missing Args and Returns 
+sections to `check_turn_limits` function\n\n## Smell Category Addressed\n- 
+**Incomplete Docstring** (MEDIUM): Function had 3 parameters but no Args section
+in docstring\n\n## Rationale for Change\nThe documentation smell report 
+identified the `check_turn_limits` function in 
+`src/henchman/agents/orchestrator_loop.py:110` as having an incomplete 
+docstring. The function has 3 parameters (`agent`, `params`, `state`) but no 
+`Args:` section in its docstring, and it returns a tuple but has no `Returns:` 
+section.\n\nThis is a **medium severity** documentation smell that violates the 
+project\'s requirement for 100% documentation coverage and Google-style 
+docstrings. The `check_turn_limits` function is a critical component of the 
+orchestrator loop that enforces turn limits on agent execution, and incomplete 
+documentation makes it harder to understand how turn limit enforcement works in 
+the multi-agent system.\n\n## Changes Made\n**Updated `check_turn_limits` 
+function docstring** (lines 110-130):\n- Added `Args:` section documenting all 
+three parameters:\n  - `agent`: The agent whose turn limits to check\n  - 
+`params`: Agent loop parameters containing max_turns and msg_start_index\n  - 
+`state`: Loop state containing tool_call_count and wrapup_warned flag\n- Added 
+`Returns:` section explaining the tuple return value:\n  - `should_break`: True 
+if the loop should terminate due to turn limits\n  - `error_event`: AgentEvent 
+with error message if limits exceeded, None otherwise\n- Maintained the original
+brief description: "Check turn limits and return (should_break, 
+error_event)."\n- Used proper Google-style docstring format with clear parameter
+and return value descriptions\n- The function signature shows it returns 
+`tuple[bool, AgentEvent | None]` which matches the documented return types\n\n##
+Technical Details\n- The function is part of the orchestrator loop turn limit 
+enforcement module\n- It creates a `TurnEnforcementParams` object from the 
+provided parameters\n- It calls `enforce_limits()` which handles warnings and 
+hard stops for turn limits\n- It updates the `state.wrapup_warned` flag based on
+enforcement results\n- It returns a tuple indicating whether to break the loop 
+and any error event\n- No functional changes were made - only documentation 
+improvements\n- The changes improve code maintainability and developer 
+experience for the agent execution system\n\n## What to Verify\n1. The 
+`check_turn_limits` function now has a complete Google-style docstring with 
+`Args:` and `Returns:` sections\n2. All three parameters are properly documented
+with clear descriptions\n3. The return tuple components are documented with 
+their meanings\n4. The documentation accurately describes the function\'s 
+behavior in checking turn limits\n5. No other documentation issues were 
+introduced\n\n## Testing Instructions\nTo verify the fix:\n```bash\n# Check the 
+updated docstring\ngrep -n -A20 "def check_turn_limits" 
+src/henchman/agents/orchestrator_loop.py\n\n# Verify the function signature and 
+parameters\npython -c "\nimport ast\nwith 
+open(\'src/henchman/agents/orchestrator_loop.py\') as f:\n    tree = 
+ast.parse(f.read())\n    \nfor node in ast.walk(tree):\n    if isinstance(node, 
+ast.FunctionDef):\n        if node.name == \'check_turn_limits\':\n            
+print(f\'Function: {node.name}\')\n            args = [arg.arg for arg in 
+node.args.args]\n            print(f\'  Parameters: {args}\')\n            
+print(f\'  Has docstring: {bool(ast.get_docstring(node))}\')\n            
+docstring = ast.get_docstring(node)\n            if docstring:\n                
+print(f\'  Docstring length: {len(docstring)} chars\')\n                if 
+\'Args:\' in docstring:\n                    print(f\'  Has Args section: 
+Yes\')\n                if \'Returns:\' in docstring:\n                    
+print(f\'  Has Returns section: Yes\')\n"\n\n# Check the next smell report 
+should show this issue resolved\n```\n\n## Next Priority\nThe next 
+highest-priority issues from the smell report are:\n1. **Incomplete Docstring** 
+in `src/henchman/agents/orchestrator_loop.py:127` (\'finalize_loop\' has 3 
+parameters but no Args section)\n2. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_loop.py:142` (\'check_colon_stall\' has 2 
+parameters but no Args section)\n3. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_loop.py:157` (\'last_assistant_content\' has 1
+parameter but no Args section)\n4. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_metrics_ctrl.py:17` 
+(\'ToolMetricsController.update_tool_metrics\' has 3 parameters but no Args 
+section)\n\n## Notes\nThis improvement addresses a genuine documentation quality
+issue in the orchestrator loop module. The #1 issue in the smell report 
+(consistency error about "4% coverage threshold") is a false positive as it 
+misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4%
+coverage threshold".\n\nThe `check_turn_limits` function is a key component of 
+the orchestrator that ensures agents don\'t exceed their allocated turn limits, 
+preventing infinite loops and resource exhaustion. Clear documentation is 
+essential for understanding how the multi-agent system manages turn-based 
+execution, enforces limits, and handles termination conditions.\n\nThe fix 
+ensures that the function\'s purpose, parameters, and return values are clearly 
+documented, improving the overall quality and maintainability of the codebase. 
+The documentation now accurately reflects that the function returns a tuple with
+a boolean flag and optional error event, which is critical for understanding the
+control flow of the agent loop.'})
+
+[result] Successfully wrote 5685 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Now let me run a quick verification to ensure the documentation is syntactically correct and the file can be parsed:
+[tool] python_exec({'code': 'import ast\nimport sys\n\nwith 
+open(\'src/henchman/agents/orchestrator_loop.py\', \'r\') as f:\n    content = 
+f.read()\n\ntry:\n    tree = ast.parse(content)\n    print("✅ File parses 
+successfully with Python AST")\n    \n    # Find the check_turn_limits 
+function\n    for node in ast.walk(tree):\n        if isinstance(node, 
+ast.FunctionDef):\n            if node.name == \'check_turn_limits\':\n         
+print(f"\\n✅ Found function: {node.name}")\n                args = [arg.arg for
+arg in node.args.args]\n                print(f"  Parameters: {args}")\n        
+\n                docstring = ast.get_docstring(node)\n                if 
+docstring:\n                    print(f"  Has docstring: Yes ({len(docstring)} 
+chars)")\n                    if \'Args:\' in docstring:\n                      
+print(f"  Has Args section: Yes")\n                    else:\n                  
+print(f"  ❌ Missing Args section")\n                    if \'Returns:\' in 
+docstring:\n                        print(f"  Has Returns section: Yes")\n      
+else:\n                        print(f"  ❌ Missing Returns section")\n         
+else:\n                    print(f"  ❌ No docstring found")\n                
+break\n    else:\n        print("❌ Function \'check_turn_limits\' not found")\n
+\nexcept SyntaxError as e:\n    print(f"❌ Syntax error in file: {e}")\n    
+sys.exit(1)'})
+
+[result] ✅ File parses successfully with Python AST
+
+✅ Found function: check_turn_limits
+  Parameters: ['agent', 'params', 'state']
+  Has docstring: Yes (477 chars)
+  Has Args section: Yes
+  Has Returns sectio...
+Excellent! The documentation improvement has been successfully implemented. Let me also verify that the change doesn't break any imports or dependencies by checking if the module can be imported:
+[tool] python_exec({'code': 'import sys\nsys.path.insert(0, \'src\')\n\ntry:\n  
+# Try to import the module to check for syntax errors\n    import 
+henchman.agents.orchestrator_loop\n    print("✅ Module imports successfully")\n
+\n    # Check if the function exists\n    if 
+hasattr(henchman.agents.orchestrator_loop, \'check_turn_limits\'):\n        
+print("✅ Function \'check_turn_limits\' exists in module")\n        func = 
+henchman.agents.orchestrator_loop.check_turn_limits\n        print(f"  Function 
+signature: {func}")\n    else:\n        print("❌ Function \'check_turn_limits\'
+not found in module")\n        \nexcept ImportError as e:\n    print(f"❌ Import
+error: {e}")\nexcept Exception as e:\n    print(f"❌ Error: {e}")'})
+
+[result] ✅ Module imports successfully
+✅ Function 'check_turn_limits' exists in module
+  Function signature: <function check_turn_limits at 0x7512ccd782c0>
+...
+Perfect! I have successfully completed one documentation improvement. Let me create a final summary of what was done:
+
+## Summary
+
+I have successfully addressed the **#2 priority issue** from the documentation smell report:
+
+**Issue**: `src/henchman/agents/orchestrator_loop.py:110` — 🟡 MEDIUM — Incomplete Docstring  
+`'check_turn_limits' has 3 parameter(s) but no Args: section in docstring`
+
+**Fix Applied**: Added complete Google-style docstring with `Args:` and `Returns:` sections to the `check_turn_limits` function.
+
+**Changes Made**:
+1. **File**: `src/henchman/agents/orchestrator_loop.py` (lines 110-130)
+2. **Added `Args:` section** documenting:
+   - `agent`: The agent whose turn limits to check
+   - `params`: Agent loop parameters containing max_turns and msg_start_index  
+   - `state`: Loop state containing tool_call_count and wrapup_warned flag
+3. **Added `Returns:` section** explaining:
+   - `should_break`: True if the loop should terminate due to turn limits
+   - `error_event`: AgentEvent with error message if limits exceeded, None otherwise
+4. **Maintained** the original brief description
+5. **Verified** the fix with Python AST parsing and module import tests
+
+**Note**: The #1 issue in the smell report (consistency error about "4% coverage threshold") is a false positive - it misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". The actual coverage threshold in `pyproject.toml` is correctly set to 100% (`--cov-fail-under=100`).
+
+The improvement has been recorded in `.agent_tasks/auto-doc-improve/last-improvement.md` as required, and the next highest-priority issues are ready for the next run.
+[tech_lead] completed work
+[2026-03-03T09:30:01Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.68 seconds
+[2026-03-03T09:30:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T09:30:01Z] Verification passed.
+Committing changes...

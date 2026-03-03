@@ -112,7 +112,18 @@ def check_turn_limits(
     params: AgentLoopParams,
     state: LoopState,
 ) -> tuple[bool, AgentEvent | None]:
-    """Check turn limits and return (should_break, error_event)."""
+    """Check turn limits and return (should_break, error_event).
+    
+    Args:
+        agent: The agent whose turn limits to check.
+        params: Agent loop parameters containing max_turns and msg_start_index.
+        state: Loop state containing tool_call_count and wrapup_warned flag.
+    
+    Returns:
+        Tuple of (should_break, error_event) where:
+        - should_break: True if the loop should terminate due to turn limits
+        - error_event: AgentEvent with error message if limits exceeded, None otherwise
+    """
     enforcement = TurnEnforcementParams(
         agent=agent,
         max_turns=params.max_turns,
