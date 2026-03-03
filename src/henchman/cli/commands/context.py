@@ -120,53 +120,43 @@ class ContextConsoleHelper:
             console: Console for output.
             context_settings: Context settings to display.
         """
-        self._print_status_header(console)
-        self._print_status_values(console, context_settings)
-        self._print_status_commands(console)
-
-    def _print_status_header(self, console: Console) -> None:
-        """Print status header.
-
-        Args:
-            console: Console for output.
-        """
         self._console_helper.print_status_header(console, "Intelligent Context Management")
+        self._print_context_settings(console, context_settings, show_intelligent_context=True)
+        self._print_available_commands(console)
 
-    def _print_status_values(self, console: Console, context_settings: ContextSettings) -> None:
-        """Print status values.
+    def print_strategy_usage(self, console: Console) -> None:
+        """Print strategy command usage help.
+
+        Args:
+            console: Console for output.
+        """
+        self._console_helper.print_error_message(
+            console, "Missing parameter or value", "/context strategy set <parameter> <value>"
+        )
+        self._print_strategy_parameters(console)
+
+    def print_strategy_status(self, console: Console, context_settings: ContextSettings) -> None:
+        """Show current compression strategy settings.
 
         Args:
             console: Console for output.
             context_settings: Context settings to display.
         """
-        self._print_context_settings_values(
-            console, context_settings, show_intelligent_context=True
+        console.print("\n[bold blue]Compression Strategy Settings[/]\n")
+        self._print_context_settings(console, context_settings, show_intelligent_context=False)
+        console.print("")
+        self._console_helper.print_command_help(
+            console, "/context strategy set <parameter> <value>", "change settings"
         )
+        console.print("")
 
-    def _print_context_settings_values(
+    def _print_context_settings(
         self,
         console: Console,
         context_settings: ContextSettings,
         show_intelligent_context: bool = False,
     ) -> None:
-        """Print context settings values with consistent formatting.
-
-        Args:
-            console: Console for output.
-            context_settings: Context settings to display.
-            show_intelligent_context: Whether to show intelligent context status.
-        """
-        self._print_settings_section(
-            console, context_settings, show_intelligent_context=show_intelligent_context
-        )
-
-    def _print_settings_section(
-        self,
-        console: Console,
-        context_settings: ContextSettings,
-        show_intelligent_context: bool = False,
-    ) -> None:
-        """Print a section of context settings (extracted for reuse).
+        """Print context settings with consistent formatting.
 
         Args:
             console: Console for output.
@@ -192,36 +182,24 @@ class ContextConsoleHelper:
             console, "Cluster similarity", context_settings.cluster_similarity_threshold
         )
 
-    def _print_status_commands(self, console: Console) -> None:
-        """Print available commands.
+    def _print_available_commands(self, console: Console) -> None:
+        """Print available context commands.
 
         Args:
             console: Console for output.
         """
-        self._print_command_list(
-            console,
-            [
-                ("/context enable", "enable intelligent context"),
-                ("/context disable", "disable intelligent context"),
-                ("/context strategy", "manage compression strategies"),
-                ("/context stats", "view usage statistics"),
-            ],
-        )
+        console.print("")
+        commands = [
+            ("/context enable", "enable intelligent context"),
+            ("/context disable", "disable intelligent context"),
+            ("/context strategy", "manage compression strategies"),
+            ("/context stats", "view usage statistics"),
+        ]
+        for command, description in commands:
+            self._console_helper.print_command_help(console, command, description)
+        console.print("")
 
-    def print_strategy_usage(self, console: Console) -> None:
-        """Print strategy command usage help.
-
-        Args:
-            console: Console for output.
-        """
-        self._console_helper.print_error_message(
-            console, "Missing parameter or value", "/context strategy set <parameter> <value>"
-        )
-
-        # Use helper method to print parameter list
-        self._print_parameter_list(console)
-
-    def _print_parameter_list(self, console: Console) -> None:
+    def _print_strategy_parameters(self, console: Console) -> None:
         """Print parameter list for strategy command.
 
         Args:
@@ -234,37 +212,7 @@ class ContextConsoleHelper:
             ("similarity <float>", "Cluster similarity threshold (0.0-1.0)"),
             ("adaptive <on|off>", "Enable/disable adaptive compression"),
         ]
-
         ConsoleHelper.print_parameter_list(console, parameters)
-
-    def print_strategy_status(self, console: Console, context_settings: ContextSettings) -> None:
-        """Show current compression strategy settings.
-
-        Args:
-            console: Console for output.
-            context_settings: Context settings to display.
-        """
-        console.print("\n[bold blue]Compression Strategy Settings[/]\n")
-        self._print_context_settings_values(
-            console, context_settings, show_intelligent_context=False
-        )
-        console.print("")
-        self._console_helper.print_command_help(
-            console, "/context strategy set <parameter> <value>", "change settings"
-        )
-        console.print("")
-
-    def _print_command_list(self, console: Console, commands: list[tuple[str, str]]) -> None:
-        """Print a list of commands (shared logic to eliminate duplication).
-
-        Args:
-            console: Console for output.
-            commands: List of (command, description) tuples.
-        """
-        console.print("")
-        for command, description in commands:
-            self._console_helper.print_command_help(console, command, description)
-        console.print("")
 
 
 class StrategyManager:

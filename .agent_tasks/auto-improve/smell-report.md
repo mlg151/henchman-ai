@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T09:30:22.915238+00:00_
+_Generated: 2026-03-03T10:00:21.064788+00:00_
 
 ## Executive Summary
 
@@ -11,16 +11,16 @@ _Generated: 2026-03-03T09:30:22.915238+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 53.5/100 |
 | **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 34,434 |
-| **Total Smells** | 2145 |
-| **Avg Maintainability Index** | 71.7 |
+| **Total Lines (non-blank)** | 34,480 |
+| **Total Smells** | 2147 |
+| **Avg Maintainability Index** | 71.8 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1633 |
+| low | 1635 |
 | medium | 447 |
 | high | 65 |
 
@@ -28,13 +28,13 @@ _Generated: 2026-03-03T09:30:22.915238+00:00_
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1144 |
+| Missing Type Hint | 1145 |
 | Feature Envy | 299 |
 | Duplicate Code | 238 |
 | Magic Number | 129 |
 | Long Method | 108 |
 | Deep Nesting | 98 |
-| Primitive Obsession | 72 |
+| Primitive Obsession | 73 |
 | Complex Function | 30 |
 | Large Class | 27 |
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/context.py | ❌ F | 14.3 | 57 | 477 | 48 | 0.0 |
+| 1 | cli/commands/context.py | ❌ F | 14.1 | 59 | 507 | 47 | 0.0 |
 | 2 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
 | 3 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
 | 4 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 169 additional files omitted._
 
-### cli/commands/context.py — ❌ F (14.3/100)
+### cli/commands/context.py — ❌ F (14.1/100)
 
-LOC: 477 | Classes: 5 | Functions: 0 | MI: 48 | Avg CC: 0.0
+LOC: 507 | Classes: 6 | Functions: 0 | MI: 47 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 89 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at cli/json_output.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 97 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'print_usage' at cli/commands/session.py:138 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 97 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 97 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 97 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 97 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 108 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_header' is 100% similar to 'unregister' at tools/registry.py:93 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 45 | 🟢 LOW | Missing Type Hint | Function 'get_display_label' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 53 | 🟢 LOW | Missing Type Hint | Function 'validate_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 71 | 🟢 LOW | Missing Type Hint | Function 'parse_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 89 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 97 | 🟢 LOW | Missing Type Hint | Function 'print_status_info' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 108 | 🟢 LOW | Missing Type Hint | Function '_print_status_header' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 116 | 🟢 LOW | Missing Type Hint | Function '_print_status_values' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 127 | 🟢 LOW | Missing Type Hint | Function '_print_context_settings_values' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 108 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at cli/json_output.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 116 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'print_usage' at cli/commands/session.py:138 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 116 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 116 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 116 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 116 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_info' is 94% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 127 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_header' is 100% similar to 'unregister' at tools/registry.py:93 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 64 | 🟢 LOW | Missing Type Hint | Function 'get_display_label' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 72 | 🟢 LOW | Missing Type Hint | Function 'validate_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 90 | 🟢 LOW | Missing Type Hint | Function 'parse_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 108 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 116 | 🟢 LOW | Missing Type Hint | Function 'print_status_info' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 127 | 🟢 LOW | Missing Type Hint | Function '_print_status_header' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 135 | 🟢 LOW | Missing Type Hint | Function '_print_status_values' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 146 | 🟢 LOW | Missing Type Hint | Function '_print_context_settings_values' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 42 more smells._
+_... and 44 more smells._
 
 ### cli/textual_bridge.py — ❌ F (15.7/100)
 
