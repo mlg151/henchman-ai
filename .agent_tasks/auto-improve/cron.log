@@ -279403,3 +279403,386 @@ param_name="cluster_similarity_threshold", min_val=0.0, max_val=1.0\n
 
 [result] Successfully edited src/henchman/cli/commands/context.py...
 Now let me address the Feature Envy issues. The main issue is that `ContextConsoleHelper` methods are static and call `ConsoleHelper` methods. One approach is to make `ContextConsoleHelper` an instance class that takes dependencies. Let me refactor it:
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': 
+'class ContextConsoleHelper:\n    """Helper class for context command console 
+output operations.\n\n    Consolidates console output logic to eliminate 
+duplication and feature envy.\n    """\n\n    @staticmethod\n    def 
+print_status_info(console: Console, context_settings: ContextSettings) -> 
+None:\n        """Print intelligent context status information.\n\n        
+Args:\n            console: Console for output.\n            context_settings: 
+Context settings to display.\n        """\n        
+ContextConsoleHelper._print_status_header(console)\n        
+ContextConsoleHelper._print_status_values(console, context_settings)\n        
+ContextConsoleHelper._print_status_commands(console)\n\n    @staticmethod\n    
+def _print_status_header(console: Console) -> None:\n        """Print status 
+header.\n\n        Args:\n            console: Console for output.\n        
+"""\n        ConsoleHelper.print_status_header(console, "Intelligent Context 
+Management")\n\n    @staticmethod\n    def _print_status_values(\n        
+console: Console, context_settings: ContextSettings\n    ) -> None:\n        
+"""Print status values.\n\n        Args:\n            console: Console for 
+output.\n            context_settings: Context settings to display.\n        
+"""\n        ConsoleHelper.print_enabled_status(console, "Status", 
+context_settings.intelligent_context)\n        
+ConsoleHelper.print_enabled_status(\n            console, "Adaptive 
+compression", context_settings.adaptive_compression\n        )\n        
+ConsoleHelper.print_status_value(console, "Max tokens", 
+context_settings.max_tokens)\n        ConsoleHelper.print_status_value(\n       
+console, "Compaction threshold", f"{context_settings.compaction_threshold * 
+100:.0f}%"\n        )\n        ConsoleHelper.print_status_value(\n            
+console, "Importance threshold", context_settings.importance_threshold\n        
+)\n        ConsoleHelper.print_status_value(\n            console, "Cluster 
+similarity", context_settings.cluster_similarity_threshold\n        )\n\n    
+@staticmethod\n    def _print_status_commands(console: Console) -> None:\n      
+"""Print available commands.\n\n        Args:\n            console: Console for 
+output.\n        """\n        ContextConsoleHelper._print_command_list(\n       
+console,\n            [\n                ("/context enable", "enable intelligent
+context"),\n                ("/context disable", "disable intelligent 
+context"),\n                ("/context strategy", "manage compression 
+strategies"),\n                ("/context stats", "view usage statistics"),\n   
+],\n        )\n\n    @staticmethod\n    def print_strategy_usage(console: 
+Console) -> None:\n        """Print strategy command usage help.\n\n        
+Args:\n            console: Console for output.\n        """\n        
+ConsoleHelper.print_error_message(\n            console, "Missing parameter or 
+value", "/context strategy set <parameter> <value>"\n        )\n        
+console.print("\\nParameters:")\n        console.print("  max_tokens <int>      
+- Maximum tokens before compaction")\n        console.print("  threshold <float>
+- Compaction threshold (0.1-1.0)")\n        console.print("  importance <float> 
+- Importance threshold (0.0-1.0)")\n        console.print(\n            "  
+similarity <float>        - Cluster similarity threshold (0.0-1.0)"\n        )\n
+console.print(\n            "  adaptive <on|off>         - Enable/disable 
+adaptive compression"\n        )\n\n    @staticmethod\n    def 
+print_strategy_status(console: Console, context_settings: ContextSettings) -> 
+None:\n        """Show current compression strategy settings.\n\n        Args:\n
+console: Console for output.\n            context_settings: Context settings to 
+display.\n        """\n        console.print("\\n[bold blue]Compression Strategy
+Settings[/]\\n")\n        ConsoleHelper.print_status_value(console, "Max 
+tokens", context_settings.max_tokens)\n        
+ConsoleHelper.print_status_value(\n            console, "Compaction threshold", 
+context_settings.compaction_threshold\n        )\n        
+ConsoleHelper.print_status_value(\n            console, "Importance threshold", 
+context_settings.importance_threshold\n        )\n        
+ConsoleHelper.print_status_value(\n            console, "Cluster similarity", 
+context_settings.cluster_similarity_threshold\n        )\n        
+ConsoleHelper.print_enabled_status(\n            console, "Adaptive 
+compression", context_settings.adaptive_compression\n        )\n        
+console.print("")\n        ConsoleHelper.print_command_help(\n            
+console, "/context strategy set <parameter> <value>", "change settings"\n       
+)\n        console.print("")\n\n    @staticmethod\n    def 
+_print_command_list(\n        console: Console, commands: list[tuple[str, 
+str]]\n    ) -> None:\n        """Print a list of commands (shared logic to 
+eliminate duplication).\n\n        Args:\n            console: Console for 
+output.\n            commands: List of (command, description) tuples.\n        
+"""\n        console.print("")\n        for command, description in commands:\n 
+ConsoleHelper.print_command_help(console, command, description)\n        
+console.print("")', 'new_str': 'class ContextConsoleHelper:\n    """Helper class
+for context command console output operations.\n\n    Consolidates console 
+output logic to eliminate duplication and feature envy.\n    """\n\n    def 
+__init__(self, console_helper: ConsoleHelper | None = None):\n        
+"""Initialize the context console helper.\n\n        Args:\n            
+console_helper: Console helper instance to use. If None, creates a new one.\n   
+"""\n        self._console_helper = console_helper or ConsoleHelper()\n\n    def
+print_status_info(self, console: Console, context_settings: ContextSettings) -> 
+None:\n        """Print intelligent context status information.\n\n        
+Args:\n            console: Console for output.\n            context_settings: 
+Context settings to display.\n        """\n        
+self._print_status_header(console)\n        self._print_status_values(console, 
+context_settings)\n        self._print_status_commands(console)\n\n    def 
+_print_status_header(self, console: Console) -> None:\n        """Print status 
+header.\n\n        Args:\n            console: Console for output.\n        
+"""\n        self._console_helper.print_status_header(console, "Intelligent 
+Context Management")\n\n    def _print_status_values(\n        self, console: 
+Console, context_settings: ContextSettings\n    ) -> None:\n        """Print 
+status values.\n\n        Args:\n            console: Console for output.\n     
+context_settings: Context settings to display.\n        """\n        
+self._console_helper.print_enabled_status(console, "Status", 
+context_settings.intelligent_context)\n        
+self._console_helper.print_enabled_status(\n            console, "Adaptive 
+compression", context_settings.adaptive_compression\n        )\n        
+self._console_helper.print_status_value(console, "Max tokens", 
+context_settings.max_tokens)\n        self._console_helper.print_status_value(\n
+console, "Compaction threshold", f"{context_settings.compaction_threshold * 
+100:.0f}%"\n        )\n        self._console_helper.print_status_value(\n       
+console, "Importance threshold", context_settings.importance_threshold\n        
+)\n        self._console_helper.print_status_value(\n            console, 
+"Cluster similarity", context_settings.cluster_similarity_threshold\n        
+)\n\n    def _print_status_commands(self, console: Console) -> None:\n        
+"""Print available commands.\n\n        Args:\n            console: Console for 
+output.\n        """\n        self._print_command_list(\n            console,\n 
+[\n                ("/context enable", "enable intelligent context"),\n         
+("/context disable", "disable intelligent context"),\n                ("/context
+strategy", "manage compression strategies"),\n                ("/context stats",
+"view usage statistics"),\n            ],\n        )\n\n    def 
+print_strategy_usage(self, console: Console) -> None:\n        """Print strategy
+command usage help.\n\n        Args:\n            console: Console for output.\n
+"""\n        self._console_helper.print_error_message(\n            console, 
+"Missing parameter or value", "/context strategy set <parameter> <value>"\n     
+)\n        console.print("\\nParameters:")\n        console.print("  max_tokens 
+<int>          - Maximum tokens before compaction")\n        console.print("  
+threshold <float>         - Compaction threshold (0.1-1.0)")\n        
+console.print("  importance <float>        - Importance threshold (0.0-1.0)")\n 
+console.print(\n            "  similarity <float>        - Cluster similarity 
+threshold (0.0-1.0)"\n        )\n        console.print(\n            "  adaptive
+<on|off>         - Enable/disable adaptive compression"\n        )\n\n    def 
+print_strategy_status(self, console: Console, context_settings: ContextSettings)
+-> None:\n        """Show current compression strategy settings.\n\n        
+Args:\n            console: Console for output.\n            context_settings: 
+Context settings to display.\n        """\n        console.print("\\n[bold 
+blue]Compression Strategy Settings[/]\\n")\n        
+self._console_helper.print_status_value(console, "Max tokens", 
+context_settings.max_tokens)\n        self._console_helper.print_status_value(\n
+console, "Compaction threshold", context_settings.compaction_threshold\n        
+)\n        self._console_helper.print_status_value(\n            console, 
+"Importance threshold", context_settings.importance_threshold\n        )\n      
+self._console_helper.print_status_value(\n            console, "Cluster 
+similarity", context_settings.cluster_similarity_threshold\n        )\n        
+self._console_helper.print_enabled_status(\n            console, "Adaptive 
+compression", context_settings.adaptive_compression\n        )\n        
+console.print("")\n        self._console_helper.print_command_help(\n           
+console, "/context strategy set <parameter> <value>", "change settings"\n       
+)\n        console.print("")\n\n    def _print_command_list(\n        self, 
+console: Console, commands: list[tuple[str, str]]\n    ) -> None:\n        
+"""Print a list of commands (shared logic to eliminate duplication).\n\n        
+Args:\n            console: Console for output.\n            commands: List of 
+(command, description) tuples.\n        """\n        console.print("")\n        
+for command, description in commands:\n            
+self._console_helper.print_command_help(console, command, description)\n        
+console.print("")'})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...
+Now I need to update the calls to `ContextConsoleHelper` methods to create instances. Let me check where they're called:
+[tool] grep({'pattern': 'ContextConsoleHelper\\.', 'path': 
+'src/henchman/cli/commands/context.py', 'line_numbers': True})
+
+[result] 259:                
+ContextConsoleHelper.print_strategy_usage(ctx.console)
+274:        self._show_context_info(ctx, 
+ContextConsoleHelper.print_strategy_status)
+441:        self._show_context_info(ctx,...
+I need to create instances of `ContextConsoleHelper`. Let me update the `StrategyManager` class first:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+255, 'end_line': 265})
+
+[result] 
+        action = args[self._STRATEGY_ACTION_IDX].lower()
+        if action == "set":
+            if len(args) < 3:  # Need at least 'set', 'parameter' and 'value'
+                ContextConsoleHelper...
+
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': '  
+def __init__(self) -> None:\n        """Initialize strategy manager."""\n       
+self._parameter_configs = {\n            "max_tokens": RangeParameterConfig(\n  
+param_name="max_tokens", min_val=_MAX_TOKENS_MIN_VALUE, is_int=True\n           
+),\n            "threshold": RangeParameterConfig(\n                
+param_name="compaction_threshold", \n                
+min_val=_COMPACTION_THRESHOLD_MIN_VALUE, \n                max_val=1.0, \n      
+label="Threshold"\n            ),\n            "importance": 
+RangeParameterConfig(\n                param_name="importance_threshold", 
+min_val=0.0, max_val=1.0\n            ),\n            "similarity": 
+RangeParameterConfig(\n                
+param_name="cluster_similarity_threshold", min_val=0.0, max_val=1.0\n           
+),\n        }', 'new_str': '    def __init__(self) -> None:\n        
+"""Initialize strategy manager."""\n        self._parameter_configs = {\n       
+"max_tokens": RangeParameterConfig(\n                param_name="max_tokens", 
+min_val=_MAX_TOKENS_MIN_VALUE, is_int=True\n            ),\n            
+"threshold": RangeParameterConfig(\n                
+param_name="compaction_threshold", \n                
+min_val=_COMPACTION_THRESHOLD_MIN_VALUE, \n                max_val=1.0, \n      
+label="Threshold"\n            ),\n            "importance": 
+RangeParameterConfig(\n                param_name="importance_threshold", 
+min_val=0.0, max_val=1.0\n            ),\n            "similarity": 
+RangeParameterConfig(\n                
+param_name="cluster_similarity_threshold", min_val=0.0, max_val=1.0\n           
+),\n        }\n        self._console_helper = ContextConsoleHelper()'})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...
+Now update the call to `print_strategy_usage`:
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': "  
+if len(args) < 3:  # Need at least 'set', 'parameter' and 'value'\n             
+ContextConsoleHelper.print_strategy_usage(ctx.console)\n                return",
+'new_str': "            if len(args) < 3:  # Need at least 'set', 'parameter' 
+and 'value'\n                
+self._console_helper.print_strategy_usage(ctx.console)\n                
+return"})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...
+Now I need to update the `ContextCommand` class to use an instance of `ContextConsoleHelper`. Let me check the `ContextCommand` class:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+370, 'end_line': 385})
+
+[result] 
+    @property
+    def usage(self) -> str:
+        """Command usage.
+
+        Returns:
+            Usage string.
+        """
+        return "/context [enable|disable|strategy|stats]"
+
+    async def ex...
+Let me find the `__init__` method of `ContextCommand`:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+355, 'end_line': 375})
+
+[result]         """Command name.
+
+        Returns:
+            Command name string.
+        """
+        return "context"
+
+    @property
+    def description(self) -> str:
+        """Command description.
+
+     ...
+Let me search for the `__init__` method:
+[tool] grep({'pattern': 'def __init__', 'path': 
+'src/henchman/cli/commands/context.py', 'line_numbers': True})
+
+[result] 88:    def __init__(self, console_helper: ConsoleHelper | None = None):
+225:    def __init__(self) -> None:
+347:    def __init__(self) -> None:...
+Line 347 is the `ContextCommand.__init__`. Let me look at it:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+345, 'end_line': 355})
+
+[result]     _SUBCOMMAND_IDX = 0
+
+    def __init__(self) -> None:
+        """Initialize context command."""
+        super().__init__()
+        self._strategy_manager = StrategyManager()
+        self._statistic...
+I need to add a `ContextConsoleHelper` instance to `ContextCommand` and update the calls. Let me update the `__init__` method:
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': '  
+def __init__(self) -> None:\n        """Initialize context command."""\n        
+super().__init__()\n        self._strategy_manager = StrategyManager()\n        
+self._statistics_manager = StatisticsManager()', 'new_str': '    def 
+__init__(self) -> None:\n        """Initialize context command."""\n        
+super().__init__()\n        self._console_helper = ContextConsoleHelper()\n     
+self._strategy_manager = StrategyManager()\n        self._statistics_manager = 
+StatisticsManager()'})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...
+Now I need to update the `_show_context_info` method to use the instance method. The issue is that `_show_context_info` expects a function that takes `(Console, ContextSettings)`, but now `print_strategy_status` and `print_status_info` are instance methods. Let me check the current implementation:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+415, 'end_line': 435})
+
+[result]             ("enable", "Enable intelligent context management"),
+            ("disable", "Disable intelligent context management"),
+            ("strategy", "Set compression strategy"),
+            ("...
+I need to update the calls to pass bound methods. Let me update the `_show_strategy_status` and `_show_status` methods:
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': '  
+async def _show_strategy_status(self, ctx: CommandContext) -> None:\n        
+"""Show current compression strategy settings.\n\n        Args:\n            
+ctx: Command context.\n        """\n        self._show_context_info(ctx, 
+ContextConsoleHelper.print_strategy_status)', 'new_str': '    async def 
+_show_strategy_status(self, ctx: CommandContext) -> None:\n        """Show 
+current compression strategy settings.\n\n        Args:\n            ctx: 
+Command context.\n        """\n        self._show_context_info(ctx, 
+self._console_helper.print_strategy_status)'})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...
+
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': '  
+async def _show_status(self, ctx: CommandContext) -> None:\n        """Show 
+current intelligent context status.\n\n        Args:\n            ctx: Command 
+context.\n        """\n        self._show_context_info(ctx, 
+ContextConsoleHelper.print_status_info)', 'new_str': '    async def 
+_show_status(self, ctx: CommandContext) -> None:\n        """Show current 
+intelligent context status.\n\n        Args:\n            ctx: Command 
+context.\n        """\n        self._show_context_info(ctx, 
+self._console_helper.print_status_info)'})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...
+Now I need to run the tests to make sure everything still works:
+[tool] pytest_run({'path': 'tests/cli/commands/test_context.py', 'verbose': 
+True})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+I see the issue. The `StrategyManager` class is trying to call `_show_context_info` but that method is in the `ContextCommand` class. I need to fix this. The `StrategyManager` should use its own `_console_helper`. Let me check the `_show_strategy_status` method in `StrategyManager`:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+270, 'end_line': 280})
+
+[result]         """Show current compression strategy settings.
+
+        Args:
+            ctx: Command context.
+        """
+        self._show_context_info(ctx, self._console_helper.print_strategy_status)
+
+  ...
+[2026-03-03T07:30:03Z] Starting auto-improve run...
+Running code smell detector...
+The `StrategyManager._show_strategy_status` method is calling `self._show_context_info` but that method doesn't exist in `StrategyManager`. I need to fix this. Actually, looking at the code, `_show_strategy_status` should just use the console helper directly. Let me fix it:Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-03T07:30:03Z] Targeting lowest-graded file: cli/commands/context.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': '  
+async def _show_strategy_status(self, ctx: CommandContext) -> None:\n        
+"""Show current compression strategy settings.\n\n        Args:\n            
+ctx: Command context.\n        """\n        self._show_context_info(ctx, 
+self._console_helper.print_strategy_status)', 'new_str': '    async def 
+_show_strategy_status(self, ctx: CommandContext) -> None:\n        """Show 
+current compression strategy settings.\n\n        Args:\n            ctx: 
+Command context.\n        """\n        settings = load_settings()\n        
+context_settings = settings.context\n        
+self._console_helper.print_strategy_status(ctx.console, context_settings)'})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...
+Now let me run the tests again:I'll analyze the target file `src/henchman/cli/commands/context.py` and refactor it according to the XP principles. Let
+[tool] pytest_run({'path': 'tests/cli/commands/test_context.py', 'verbose': 
+True})
+
+ me first read the file to understand its structure and the specific smells mentioned in the report.
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py'})
+
+
+[result] """Intelligent context management commands."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Callable
+
+from henchman.cli.commands import...
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Now let me check the specific smells mentioned in the report for this file. Looking at the report, I can see the main issues:
+
+**Identified Smells from the report:**
+1. **Duplicate Code**: Multiple functions have high similarity with functions in other files
+2. **Feature Envy**: Methods accessing external objects more than self
+3. **Missing Type Hints**: Many functions have incomplete type hints
+4. **Long methods**: Some methods are too long
+
+Let me run a quick test to see if the current tests pass before refactoring:Great! All tests pass. Now let me run a lint check to see if there are any issues:
+[tool] pytest_run({'path': 'tests/cli/commands/test_context.py', 'verbose': 
+True})
+
+
+[tool] lint_check({'path': 'src/henchman/cli/commands/context.py', 'linter': 
+'both'})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+✗ \[error] === ruff ===
+UP035 [*] Import from `collections.abc` instead: `Callable`
+ --> src/henchman/cli/commands/context.py:6:1
+  |
+5 | from dataclasses import dataclass
+6 | from typing import TYPE_CHECKING, A

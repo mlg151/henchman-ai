@@ -1,17 +1,24 @@
-[2026-03-03T07:15:01Z] Starting auto-doc-improve run...
+[2026-03-03T07:30:02Z] Starting auto-doc-improve run...
 Running documentation smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
-Perfect! The documentation now consistently states 100% test coverage, which matches the actual project configuration. Let me also do a final check to ensure there are no other references to 99%:
-[tool] shell({'command': 'grep -r "99%" . --include="*.md" --include="*.toml" 
---include="*.yml" --include="*.yaml" --include="*.py" 2>/dev/null || true'})
+Perfect! The formatting has been applied. Let me verify the final state of the file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_anchoring.py', 
+'start_line': 15, 'end_line': 35})
 
-[result] ./.venv/lib/python3.12/site-packages/pygments/lexers/configs.py:       
-# Attention: this is not perfect, but works for 99% of "normal"
-./.venv/lib/python3.12/site-packages/mypy/checkexpr.py:     ...
-I'll start by addressing the highest-priority issue from the documentation smell report: the consistency error in `pyproject.toml` where it states a coverage threshold of 4% while other files require 100%. Let me first examine the current state of the file.
+[result] if TYPE_CHECKING:
+    from henchman.core.agent import Agent
+
+
+def inject_role_anchor(
+    orchestrator: Any,
+    agent: Agent,
+    tool_call_count: int,
+) -> None:
+    """Inject periodic role anchorin...
+I'll start by examining the highest-priority issue from the smell report: the consistency error in pyproject.toml regarding coverage thresholds.
 [tool] read_file({'path': 'pyproject.toml'})
 
 
@@ -23,59 +30,60 @@ build-backend = "hatchling.build"
 name = "henchman-ai"
 version = "0.3.12"
 description = "A model-agnostic AI agent CLI - your AI henchman for the ter...
-I see there are some historical task files that mention 99% coverage. These are historical records and don't need to be updated since they reflect the state at the time those tasks were completed. The important thing is that the current project documentation and configuration are consistent.
 
-Let me do a final verification that my change is correct by checking the specific line I changed:
-[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 16, 
-'end_line': 18})
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_anchoring.py', 
+'start_line': 50, 'end_line': 70})
 
-[result] - **Phase 11**: Advanced Features ✅ (Multiple Providers, Headless 
-mode, JSON output)
-- **Phase 12**: Polish & Release ✅ (100% test coverage, all core features 
-implemented)
-- **Phase 13**: Multi-Agent ...
+[result]     agent.messages.append(Message(role="user", content=anchor_msg))
+
+
+def assess_agent_completion(orchestrator: Any, agent: Agent) -> 
+CompletionStatus:
+    """Assess whether an agent performed meaning...
 Now let me check the CI script to see what coverage threshold it uses:
 [tool] read_file({'path': 'scripts/ci.sh'})
 
 ✗ \[error] Error: File not found: scripts/ci.sh
-Perfect! The documentation improvement is complete. I have:
+Excellent! The documentation improvement is complete. Let me run a final lint check to ensure everything is clean:
+[tool] lint_check({'path': 'src/henchman/agents/orchestrator_anchoring.py', 
+'linter': 'ruff'})
 
-1. **Identified the real consistency error**: While the smell detector flagged a false positive about `pytest-cov>=4.0`, I discovered the actual inconsistency where line 17 said "99% test coverage" while all other references and the actual configuration require "100% test coverage".
+[result] === ruff ===
+All checks passed!...
+Let me check what scripts are available:
+[tool] ls({'path': 'scripts'})
 
-2. **Made the minimal fix**: Changed only line 17 from "99% test coverage" to "100% test coverage" to align with the project's actual requirements.
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+run_evals.sh
+smell_detector/...
+Perfect! The documentation improvement has been successfully completed. 
 
-3. **Documented the change**: Created a comprehensive improvement record in `.agent_tasks/auto-doc-improve/last-improvement.md` with all required details.
+## Summary
 
-4. **Verified the fix**: Confirmed that the change is correct and that the documentation nowLet consistently states 100% test coverage requirement.
+I have successfully addressed the #2 priority issue from the documentation smell report by fixing incomplete docstrings in `src/henchman/agents/orchestrator_anchoring.py`. 
 
-This improvement addresses the **Consistency me Error** check if smell category there's by ensuring a different all documentation CI script uniformly or look states for coverage the correct requirements in other files test coverage requirement, which matches: the actual project configuration (`--cov-fail-under=100` in `pyproject.toml`).
+**Changes made:**
+1. Added proper `Args:` sections to both functions that were missing them
+2. Added `Returns:` sections to both functions
+3. Formatted the file to fix whitespace issues
+4. Verified the changes don't break linting
+
+**Key improvements:**
+- `inject_role_anchor` now has complete documentation for its 3 parameters
+- `assess_agent_completion` now has complete documentation for its 2 parameters
+- Both functions follow Google-style docstring format
+- The code is now more maintainable and easier to understand
+
+This addresses the **Incomplete Docstring** smell category (medium severity) and improves the overall documentation quality of the project. The fix is minimal, focused, and only improves documentation without changing any functionality.
 [tech_lead] completed work
-
-[tool] ls({'path': '.'})
-
-[result] CHANGELOG.md
-CONTRIBUTING.md
-LICENSE
-MagicMock/
-README.md
-RELEASE_CHECKLIST.md
-__pycache__/
-coverage.json
-dist/
-docs/
-evals/
-htmlcov/
-mkdocs.yml
-pyproject.toml
-scripts/
-site/
-src/
-test_compatibility.p...
-[2026-03-03T07:00:02Z] Running mkdocs build to verify documentation...
+[2026-03-03T07:15:01Z] Running mkdocs build to verify documentation...
 INFO    -  Cleaning site directory
 INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
-INFO    -  Documentation built in 0.66 seconds
-[2026-03-03T07:00:02Z] Re-running doc smell detector to verify improvement...
+INFO    -  Documentation built in 0.68 seconds
+[2026-03-03T07:15:01Z] Re-running doc smell detector to verify improvement...
 }
-[2026-03-03T07:00:02Z] Verification passed.
+[2026-03-03T07:15:01Z] Verification passed.
 Committing changes...

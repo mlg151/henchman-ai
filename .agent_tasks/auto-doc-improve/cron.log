@@ -8946,3 +8946,347 @@ INFO    -  Documentation built in 0.66 seconds
 }
 [2026-03-03T07:00:02Z] Verification passed.
 Committing changes...
+Auto packing the repository in background for optimum performance.
+See "git help gc" for manual housekeeping.
+[main 1783ab0] docs(auto-improve): automated documentation improvement
+ 9 files changed, 2074 insertions(+), 1305 deletions(-)
+[2026-03-03T07:00:02Z] Done.
+
+[tool] ls({'path': 'scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+run_evals.sh
+smell_detector/...
+Let me check the copilot instructions to see what coverage threshold is mentioned:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 1, 
+'end_line': 50})
+
+[result] # Henchman-AI Copilot Instructions
+
+Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by 
+gemini-cli. It supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, 
+Ollama) via a u...
+Now let me check the pytest configuration in pyproject.toml more carefully. I see there's a line `addopts = "-v --cov=henchman --cov-report=term-missing --cov-fail-under=100"` which sets the coverage threshold to 100%. However, I need to check if there's a 4% threshold mentioned elsewhere. Let me search for it:
+[tool] grep({'pattern': '4%', 'path': '.', 'line_numbers': True})
+
+[result] .agent_tasks/auto-doc-improve/cron.log:3674:mismatch: 4% vs 80%)\n\nThe
+stale docstrings should be addressed next as they 
+.agent_tasks/auto-doc-improve/cron.log:3881:mismatch: 4% vs 80%)\n\nThe stale...
+Now let me check the last improvement record to see what was done previously:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T07:00:00Z
+
+## Files Changed
+1. `.github/copilot-instructions.md` - Fixed consistency error in coverage 
+threshold documentation
+
+## Smell Cat...
+Now I understand the situation. Looking at the last improvement record, I can see that the #1 issue in the smell report (consistency error about "4% coverage threshold") was a false positive. However, looking at the current smell report, it still lists this as the #1 issue. Let me examine the actual issue more carefully.
+
+Looking at the smell report, it says: "pyproject.toml:65 — 🟡 MEDIUM — Consistency Error — States coverage threshold of 4% but other files require 100%. Found thresholds: 100%, 4%"
+
+Line 65 of pyproject.toml is indeed `"pytest-cov>=4.0",` which is a version requirement for the pytest-cov package (version 4.0 or higher). This is **not** a coverage threshold percentage. The smell detector is incorrectly interpreting "4.0" as "4%".
+
+However, I should check if there's actually an issue here. Let me look at the actual pytest configuration more carefully. The smell report says "Found thresholds: 100%, 4%". The "100%" is from `--cov-fail-under=100` in the pytest configuration. The "4%" is from misinterpreting `pytest-cov>=4.0`.
+
+Let me check if there are any other references to coverage thresholds in the project:
+[tool] grep({'pattern': 'cov-fail-under', 'path': '.', 'line_numbers': True})
+
+[result] .agent_tasks/auto-doc-improve/cron.log:6251:[tool] grep({'pattern': 
+'cov-fail-under', 'path': 'pyproject.toml', 
+.agent_tasks/auto-doc-improve/cron.log:6317:I see the issue! The pytest 
+configuration h...
+Now I understand the situation completely. The smell detector is incorrectly interpreting `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". This is a **false positive** in the smell detection. However, since this is still listed as the #1 issue in the smell report, I should address it by documenting this clearly to prevent confusion.
+
+Looking at the prioritised fix queue, the #1 issue is actually a false positive (misinterpreting `pytest-cov>=4.0` as "4% coverage threshold"). The #2 issue is "Missing Docstring" in `src/henchman/agents/orchestrator_anchoring.py:19`. This is a **medium severity** issue that I should address.
+
+Let me check the orchestrator_anchoring.py file to see what needs to be fixed:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_anchoring.py'})
+
+[result] """Role anchoring and completion assessment helpers.
+
+Provides periodic role-identity reminders during long agent loops
+and evaluates whether an agent performed meaningful work.
+"""
+
+from __future__ i...
+Now I can see the issue. The function `inject_role_anchor` has 3 parameters (`orchestrator`, `agent`, `tool_call_count`) but the docstring doesn't have an `Args:` section. Similarly, `assess_agent_completion` has 2 parameters (`orchestrator`, `agent`) but no `Args:` section.
+
+According to the smell report, this is the #2 priority issue. Let me fix this by adding proper Google-style docstrings with `Args:` sections:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_anchoring.py', 
+'old_str': 'def inject_role_anchor(\n    orchestrator: Any, agent: Agent, 
+tool_call_count: int,\n) -> None:\n    """Inject periodic role anchoring 
+reminder if needed."""\n    if tool_call_count <= 0 or tool_call_count % 
+ROLE_ANCHOR_INTERVAL != 0:\n        return\n    if not agent.identity:\n        
+return\n    role_id = agent.identity.role or agent.identity.id\n    mission_note
+= ""\n    ledger = orchestrator.ledger\n    if ledger:\n        recap = 
+ledger.mission_recap()\n        if recap:\n            mission_note = f" 
+Mission: {recap}"\n    anchor_msg = (\n        f"[Role Anchor] You are the 
+{role_id.upper()}. "\n        f"Stay focused on your assigned responsibilities. 
+"\n        f"Do not overstep your role boundaries.{mission_note}"\n    )\n    
+agent.messages.append(Message(role="user", content=anchor_msg))', 'new_str': 
+'def inject_role_anchor(\n    orchestrator: Any, agent: Agent, tool_call_count: 
+int,\n) -> None:\n    """Inject periodic role anchoring reminder if needed.\n   
+\n    Args:\n        orchestrator: The orchestrator instance managing the 
+agent.\n        agent: The agent to inject the role anchor message to.\n        
+tool_call_count: Current count of tool calls in the loop.\n    \n    Returns:\n 
+None: The function modifies the agent\'s messages in-place.\n    """\n    if 
+tool_call_count <= 0 or tool_call_count % ROLE_ANCHOR_INTERVAL != 0:\n        
+return\n    if not agent.identity:\n        return\n    role_id = 
+agent.identity.role or agent.identity.id\n    mission_note = ""\n    ledger = 
+orchestrator.ledger\n    if ledger:\n        recap = ledger.mission_recap()\n   
+if recap:\n            mission_note = f" Mission: {recap}"\n    anchor_msg = (\n
+f"[Role Anchor] You are the {role_id.upper()}. "\n        f"Stay focused on your
+assigned responsibilities. "\n        f"Do not overstep your role 
+boundaries.{mission_note}"\n    )\n    
+agent.messages.append(Message(role="user", content=anchor_msg))'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_anchoring.py...
+Now let me fix the `assess_agent_completion` function:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_anchoring.py', 
+'old_str': 'def assess_agent_completion(orchestrator: Any, agent: Agent) -> 
+CompletionStatus:\n    """Assess whether an agent performed meaningful 
+work."""\n    tool_calls = getattr(orchestrator, "_last_loop_tool_call_count", 
+0)\n    \n    # Check for stall failure in new StallDetector or legacy 
+attribute.\n    # We use \'is True\' to avoid MagicMock truthiness in tests.\n  
+stalled = False\n    stall_detector = getattr(agent, "_stall", None)\n    if 
+stall_detector is not None and getattr(stall_detector, "failure", False) is 
+True:\n        stalled = True\n    \n    # Fallback to legacy attribute if not 
+already found to be stalled\n    if not stalled and getattr(agent, 
+"_stall_failure", False) is True:\n        stalled = True\n\n    if stalled:\n  
+return CompletionStatus.STALLED\n    if tool_calls == 0:\n        return 
+CompletionStatus.NO_WORK_DONE\n    return CompletionStatus.COMPLETED', 
+'new_str': 'def assess_agent_completion(orchestrator: Any, agent: Agent) -> 
+CompletionStatus:\n    """Assess whether an agent performed meaningful work.\n  
+\n    Args:\n        orchestrator: The orchestrator instance managing the 
+agent.\n        agent: The agent to assess completion status for.\n    \n    
+Returns:\n        CompletionStatus: The completion status of the agent (STALLED,
+NO_WORK_DONE, or COMPLETED).\n    """\n    tool_calls = getattr(orchestrator, 
+"_last_loop_tool_call_count", 0)\n    \n    # Check for stall failure in new 
+StallDetector or legacy attribute.\n    # We use \'is True\' to avoid MagicMock 
+truthiness in tests.\n    stalled = False\n    stall_detector = getattr(agent, 
+"_stall", None)\n    if stall_detector is not None and getattr(stall_detector, 
+"failure", False) is True:\n        stalled = True\n    \n    # Fallback to 
+legacy attribute if not already found to be stalled\n    if not stalled and 
+getattr(agent, "_stall_failure", False) is True:\n        stalled = True\n\n    
+if stalled:\n        return CompletionStatus.STALLED\n    if tool_calls == 0:\n 
+return CompletionStatus.NO_WORK_DONE\n    return CompletionStatus.COMPLETED'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_anchoring.py...
+Now let me verify the changes by reading the updated file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_anchoring.py'})
+
+[result] """Role anchoring and completion assessment helpers.
+
+Provides periodic role-identity reminders during long agent loops
+and evaluates whether an agent performed meaningful work.
+"""
+
+from __future__ i...
+Perfect! Now let me create the improvement record in the `.agent_tasks/auto-doc-improve/` directory:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T07:15:30Z\n\n## Files Changed\n1. 
+`src/henchman/agents/orchestrator_anchoring.py` - Added missing Args sections to
+docstrings\n\n## Smell Category Addressed\n- **Incomplete Docstring** (MEDIUM): 
+Functions had parameters but no Args sections in docstrings\n\n## Rationale for 
+Change\nThe documentation smell report identified two functions in 
+`src/henchman/agents/orchestrator_anchoring.py` with incomplete 
+docstrings:\n\n1. **Line 19**: `inject_role_anchor` function has 3 parameters 
+(`orchestrator`, `agent`, `tool_call_count`) but no `Args:` section in 
+docstring\n2. **Line 42**: `assess_agent_completion` function has 2 parameters 
+(`orchestrator`, `agent`) but no `Args:` section in docstring\n\nThese are 
+**medium severity** documentation smells that violate the project\'s requirement
+for 100% documentation coverage and Google-style docstrings. Incomplete 
+docstrings make the code harder to understand, maintain, and use 
+correctly.\n\n## Changes Made\n1. **Updated `inject_role_anchor` function 
+docstring** (lines 19-31):\n   - Added `Args:` section documenting: 
+`orchestrator`, `agent`, `tool_call_count`\n   - Added `Returns:` section 
+explaining the function modifies agent\'s messages in-place\n\n2. **Updated 
+`assess_agent_completion` function docstring** (lines 42-55):\n   - Added 
+`Args:` section documenting: `orchestrator`, `agent`\n   - Added `Returns:` 
+section explaining the `CompletionStatus` return value\n\n## Technical 
+Details\n- Both functions now follow Google-style docstring format with proper 
+`Args:` and `Returns:` sections\n- Parameter descriptions are clear and 
+concise\n- Return value descriptions explain what the function returns\n- No 
+functional changes were made - only documentation improvements\n- The changes 
+improve code maintainability and developer experience\n\n## What to Verify\n1. 
+Both functions now have complete Google-style docstrings with `Args:` 
+sections\n2. All parameters are properly documented\n3. Return values are 
+clearly explained\n4. The documentation accurately describes the function 
+behavior\n5. No other documentation issues were introduced\n\n## Testing 
+Instructions\nTo verify the fix:\n```bash\n# Check the updated docstrings\ngrep 
+-n "Args:" src/henchman/agents/orchestrator_anchoring.py\ngrep -n "Returns:" 
+src/henchman/agents/orchestrator_anchoring.py\n\n# Verify all parameters are 
+documented\npython -c "\nimport ast\nwith 
+open(\'src/henchman/agents/orchestrator_anchoring.py\') as f:\n    tree = 
+ast.parse(f.read())\n    \nfor node in ast.walk(tree):\n    if isinstance(node, 
+ast.FunctionDef):\n        print(f\'Function: {node.name}\')\n        args = 
+[arg.arg for arg in node.args.args]\n        print(f\'  Parameters: 
+{args}\')\n"\n\n# Check the next smell report should show these issues 
+resolved\n```\n\n## Next Priority\nThe next highest-priority issues from the 
+smell report are:\n1. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_components.py:39` 
+(\'AgentValidator.check_thinking_pattern\' has 1 parameter but no Args 
+section)\n2. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_components.py:57` 
+(\'AgentValidator.check_stall_failure\' has 1 parameter but no Args section)\n3.
+**Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_delegation_ctrl.py:55` 
+(\'DelegationController.execute_delegation_tool\' has 3 parameters but no Args 
+section)\n4. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_events.py:26` (\'extract_brief_fields\' has 1 
+parameter but no Args section)\n\n## Notes\nThis improvement addresses genuine 
+documentation quality issues. While the #1 issue in the smell report 
+(consistency error about "4% coverage threshold") was a false positive, the #2 
+issue (incomplete docstrings) was a real documentation smell that needed 
+fixing.\n\nThe project maintains strict quality standards with 100% 
+documentation coverage requirement, and all public functions must have complete 
+Google-style docstrings with `Args:`, `Returns:`, and `Raises:` sections where 
+applicable.\n\nThe fix is minimal and focused, adding only the missing 
+documentation sections without changing any functionality or other 
+documentation.'})
+
+[result] Successfully wrote 4120 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Now let me run a quick test to verify the changes don't break anything:
+[tool] python_exec({'code': 'import ast\nimport sys\n\n# Test that the file can 
+be parsed and the docstrings are correct\nwith 
+open(\'src/henchman/agents/orchestrator_anchoring.py\') as f:\n    content = 
+f.read()\n    \n# Parse the AST\ntree = ast.parse(content)\n\n# Check for 
+functions and their docstrings\nfunctions_found = []\nfor node in 
+ast.walk(tree):\n    if isinstance(node, ast.FunctionDef):\n        func_name = 
+node.name\n        docstring = ast.get_docstring(node)\n        args = [arg.arg 
+for arg in node.args.args]\n        \n        functions_found.append({\n        
+\'name\': func_name,\n            \'has_docstring\': docstring is not None,\n   
+\'args\': args,\n            \'docstring\': docstring\n        
+})\n\nprint(f"Found {len(functions_found)} functions:")\nfor func in 
+functions_found:\n    print(f"\\nFunction: {func[\'name\']}")\n    print(f"  Has
+docstring: {func[\'has_docstring\']}")\n    print(f"  Parameters: 
+{func[\'args\']}")\n    if func[\'docstring\']:\n        # Check for Args 
+section\n        has_args = \'Args:\' in func[\'docstring\']\n        print(f"  
+Has Args section: {has_args}")\n        \n        # Check for Returns section\n 
+has_returns = \'Returns:\' in func[\'docstring\']\n        print(f"  Has Returns
+section: {has_returns}")'})
+
+[result] Found 2 functions:
+
+Function: inject_role_anchor
+  Has docstring: True
+  Parameters: ['orchestrator', 'agent', 'tool_call_count']
+  Has Args section: True
+  Has Returns section: True
+
+Function: assess...
+Excellent! The fix is complete and verified. Let me also check if there are any linting issues with the changes:
+[tool] lint_check({'path': 'src/henchman/agents/orchestrator_anchoring.py', 
+'linter': 'ruff'})
+
+✗ \[error] === ruff ===
+W293 Blank line contains whitespace
+  --> src/henchman/agents/orchestrator_anchoring.py:23:1
+   |
+21 | ) -> None:
+22 |     """Inject periodic role anchoring reminder if needed.
+23 |     
+
+There are some whitespace issues in the docstrings. Let me fix them:
+[tool] code_format({'path': 'src/henchman/agents/orchestrator_anchoring.py'})
+
+[result] Formatted: src/henchman/agents/orchestrator_anchoring.py...
+[2026-03-03T07:30:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+Perfect! The formatting has been applied. Let me verify the final state of the file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_anchoring.py', 
+'start_line': 15, 'end_line': 35})
+
+[result] if TYPE_CHECKING:
+    from henchman.core.agent import Agent
+
+
+def inject_role_anchor(
+    orchestrator: Any,
+    agent: Agent,
+    tool_call_count: int,
+) -> None:
+    """Inject periodic role anchorin...
+I'll start by examining the highest-priority issue from the smell report: the consistency error in pyproject.toml regarding coverage thresholds.
+[tool] read_file({'path': 'pyproject.toml'})
+
+
+[result] [build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "henchman-ai"
+version = "0.3.12"
+description = "A model-agnostic AI agent CLI - your AI henchman for the ter...
+
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_anchoring.py', 
+'start_line': 50, 'end_line': 70})
+
+[result]     agent.messages.append(Message(role="user", content=anchor_msg))
+
+
+def assess_agent_completion(orchestrator: Any, agent: Agent) -> 
+CompletionStatus:
+    """Assess whether an agent performed meaning...
+Now let me check the CI script to see what coverage threshold it uses:
+[tool] read_file({'path': 'scripts/ci.sh'})
+
+✗ \[error] Error: File not found: scripts/ci.sh
+Excellent! The documentation improvement is complete. Let me run a final lint check to ensure everything is clean:
+[tool] lint_check({'path': 'src/henchman/agents/orchestrator_anchoring.py', 
+'linter': 'ruff'})
+
+[result] === ruff ===
+All checks passed!...
+Let me check what scripts are available:
+[tool] ls({'path': 'scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+run_evals.sh
+smell_detector/...
+Perfect! The documentation improvement has been successfully completed. 
+
+## Summary
+
+I have successfully addressed the #2 priority issue from the documentation smell report by fixing incomplete docstrings in `src/henchman/agents/orchestrator_anchoring.py`. 
+
+**Changes made:**
+1. Added proper `Args:` sections to both functions that were missing them
+2. Added `Returns:` sections to both functions
+3. Formatted the file to fix whitespace issues
+4. Verified the changes don't break linting
+
+**Key improvements:**
+- `inject_role_anchor` now has complete documentation for its 3 parameters
+- `assess_agent_completion` now has complete documentation for its 2 parameters
+- Both functions follow Google-style docstring format
+- The code is now more maintainable and easier to understand
+
+This addresses the **Incomplete Docstring** smell category (medium severity) and improves the overall documentation quality of the project. The fix is minimal, focused, and only improves documentation without changing any functionality.
+[tech_lead] completed work
+[2026-03-03T07:15:01Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.68 seconds
+[2026-03-03T07:15:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T07:15:01Z] Verification passed.
+Committing changes...
