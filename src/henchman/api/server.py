@@ -73,7 +73,14 @@ def _get_provider_settings(provider_name: str, settings: Any) -> dict[str, Any]:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-    """Lifespan context manager for FastAPI app."""
+    """Lifespan context manager for FastAPI app.
+    
+    Args:
+        _app: The FastAPI application instance.
+    
+    Yields:
+        None: This is a context manager that yields control during the app's lifetime.
+    """
     # Startup
     print("Starting Henchman-AI API server...")
 
@@ -146,7 +153,15 @@ async def root() -> dict[str, str]:
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    """Handle HTTP exceptions."""
+    """Handle HTTP exceptions.
+    
+    Args:
+        request: The incoming HTTP request.
+        exc: The HTTP exception that was raised.
+    
+    Returns:
+        JSONResponse: A JSON response with error details.
+    """
     return JSONResponse(
         status_code=exc.status_code,
         content=ErrorResponse(
@@ -159,7 +174,15 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, _exc: Exception) -> JSONResponse:
-    """Handle generic exceptions."""
+    """Handle generic exceptions.
+    
+    Args:
+        request: The incoming HTTP request.
+        _exc: The exception that was raised (unused in this handler).
+    
+    Returns:
+        JSONResponse: A JSON response with internal server error details.
+    """
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=ErrorResponse(

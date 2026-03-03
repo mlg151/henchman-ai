@@ -212,6 +212,15 @@ class EventBridge:
                 data_str = f"{prefix}{data_str}"
             self._post(message_class(data_str, event.source_agent))
 
+    def _post_prefixed_message(self, event: AgentEvent, prefix: str) -> None:
+        """Post a prefixed message using AgentThoughtMessage.
+
+        Args:
+            event: The AgentEvent containing data.
+            prefix: The prefix to add before event data.
+        """
+        self._post_data_message(event, AgentThoughtMessage, prefix)
+
     def _post_tool_message(self, event: AgentEvent, message_class: type[Any]) -> None:
         """Post a tool-related message with event data if present.
 
@@ -231,14 +240,7 @@ class EventBridge:
         """
         self._post(AgentStatusMessage(text, event.source_agent))
 
-    def _post_simple_status(self, event: AgentEvent, text: str) -> None:
-        """Post a simple status message without checking event data.
 
-        Args:
-            event: The AgentEvent for source agent.
-            text: The status text to display.
-        """
-        self._post_status_message(event, text)
 
     def _update_status_bar(self, event_data: dict[str, Any]) -> None:
         """Update status bar with token and cost information.
@@ -310,12 +312,12 @@ class EventBridge:
 
     def _on_ctx_compact(self, event: AgentEvent) -> None:
         """Handle CONTEXT_COMPACTED events."""
-        self._post_simple_status(event, "Context compacted to fit model limits")
+        self._post_status_message(event, "Context compacted to fit model limits")
         self._post(CommandOutputMessage("[dim]ℹ Context window was compacted.[/dim]"))
 
     def _on_turn_summary(self, event: AgentEvent) -> None:
         """Handle TURN_SUMMARIZED events."""
-        self._post_simple_status(event, "Previous turn summarized")
+        self._post_status_message(event, "Previous turn summarized")
 
     def _on_turn_status(self, event: AgentEvent) -> None:
         """Handle TURN_STATUS events."""
@@ -364,23 +366,23 @@ class EventBridge:
 
     def _on_think_start(self, event: AgentEvent) -> None:
         """Handle THINKING_STARTED events."""
-        self._post_simple_status(event, "Thinking…")
+        self._post_status_message(event, "Thinking…")
 
     def _on_think_done(self, event: AgentEvent) -> None:
         """Handle THINKING_COMPLETED events."""
-        self._post_simple_status(event, "Thinking complete")
+        self._post_status_message(event, "Thinking complete")
 
     def _on_think_req(self, event: AgentEvent) -> None:
         """Handle THINKING_REQUIRED events."""
-        self._post_simple_status(event, "⚠ Thinking pattern missing in response")
+        self._post_status_message(event, "⚠ Thinking pattern missing in response")
 
     def _on_deleg_dec(self, event: AgentEvent) -> None:
         """Handle DELEGATION_DECISION events."""
-        self._post_data_message(event, AgentThoughtMessage, "Delegation decision: ")
+        self._post_prefixed_message(event, "Delegation decision: ")
 
     def _on_reflection(self, event: AgentEvent) -> None:
         """Handle REFLECTION events."""
-        self._post_data_message(event, AgentThoughtMessage, "Reflection: ")
+        self._post_prefixed_message(event, "Reflection: ")
 
 
 # ------------------------------------------------------------------ #

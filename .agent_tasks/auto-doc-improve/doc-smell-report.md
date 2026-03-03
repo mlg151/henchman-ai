@@ -1,31 +1,31 @@
-# Documentation Smell Report — ✅ A (Score: 96.4/100)
+# Documentation Smell Report — ✅ A (Score: 96.5/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T11:15:02.658469+00:00_
+_Generated: 2026-03-03T11:30:02.755625+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ✅ A |
-| **Overall Score** | 96.4/100 |
+| **Overall Score** | 96.5/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 166 |
-| **Total Smells** | 368 |
+| **Total Smells** | 361 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 310 |
-| medium | 58 |
+| low | 307 |
+| medium | 54 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 361 |
+| Incomplete Docstring | 354 |
 | Missing Docstring | 3 |
 | Stale Content | 2 |
 | Config Issue | 1 |
@@ -39,80 +39,80 @@ These are the highest-impact documentation smells to address first:
    States coverage threshold of 4% but other files require 100%. Found thresholds: 100%, 4%  
    → _Align all coverage requirements to 100% (the strictest value)._
 
-2. **src/henchman/agents/orchestrator_validation.py:23** — 🟡 MEDIUM — Incomplete Docstring  
-   'should_check_thinking' has 2 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: orchestrator, agent_
-
-3. **src/henchman/agents/orchestrator_validation.py:32** — 🟡 MEDIUM — Incomplete Docstring  
-   'handle_valid_thinking' has 2 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: metrics, content_
-
-4. **src/henchman/agents/orchestrator_validation.py:45** — 🟡 MEDIUM — Incomplete Docstring  
-   'handle_missing_thinking' has 1 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: agent_
-
-5. **src/henchman/agents/orchestrator_validation.py:64** — 🟡 MEDIUM — Incomplete Docstring  
-   'check_stall_failure' has 2 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: orchestrator, agent_
-
-6. **src/henchman/api/server.py:75** — 🟡 MEDIUM — Incomplete Docstring  
+2. **src/henchman/api/server.py:75** — 🟡 MEDIUM — Incomplete Docstring  
    'lifespan' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: _app_
 
-7. **src/henchman/api/server.py:148** — 🟡 MEDIUM — Incomplete Docstring  
+3. **src/henchman/api/server.py:148** — 🟡 MEDIUM — Incomplete Docstring  
    'http_exception_handler' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: request, exc_
 
-8. **src/henchman/api/server.py:161** — 🟡 MEDIUM — Incomplete Docstring  
+4. **src/henchman/api/server.py:161** — 🟡 MEDIUM — Incomplete Docstring  
    'generic_exception_handler' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: request, _exc_
 
-9. **src/henchman/cli/app.py:600** — 🟡 MEDIUM — Incomplete Docstring  
+5. **src/henchman/cli/app.py:600** — 🟡 MEDIUM — Incomplete Docstring  
    'cli' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: ctx_
 
-10. **src/henchman/cli/app.py:645** — 🟡 MEDIUM — Incomplete Docstring  
+6. **src/henchman/cli/app.py:645** — 🟡 MEDIUM — Incomplete Docstring  
    'chat_command' has 8 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: prompt, agent, team, output_format, plan, yes, tui, debug_
 
-11. **src/henchman/cli/commands/plan.py:1** — 🟡 MEDIUM — Missing Docstring  
+7. **src/henchman/cli/commands/plan.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-12. **src/henchman/cli/commands/session.py:126** — 🟡 MEDIUM — Incomplete Docstring  
+8. **src/henchman/cli/commands/session.py:126** — 🟡 MEDIUM — Incomplete Docstring  
    'CommandOperationContext.print_success' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: message_
 
-13. **src/henchman/cli/commands/session.py:130** — 🟡 MEDIUM — Incomplete Docstring  
+9. **src/henchman/cli/commands/session.py:130** — 🟡 MEDIUM — Incomplete Docstring  
    'CommandOperationContext.print_error' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: message_
 
-14. **src/henchman/cli/commands/session.py:134** — 🟡 MEDIUM — Incomplete Docstring  
+10. **src/henchman/cli/commands/session.py:134** — 🟡 MEDIUM — Incomplete Docstring  
    'CommandOperationContext.print_info' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: message_
 
-15. **src/henchman/cli/commands/session.py:138** — 🟡 MEDIUM — Incomplete Docstring  
+11. **src/henchman/cli/commands/session.py:138** — 🟡 MEDIUM — Incomplete Docstring  
    'CommandOperationContext.print_usage' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: usage_
 
-16. **src/henchman/cli/commands/session.py:237** — 🟡 MEDIUM — Incomplete Docstring  
+12. **src/henchman/cli/commands/session.py:237** — 🟡 MEDIUM — Incomplete Docstring  
    'SessionCommandExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: manager_
 
-17. **src/henchman/cli/commands/session.py:257** — 🟡 MEDIUM — Incomplete Docstring  
+13. **src/henchman/cli/commands/session.py:257** — 🟡 MEDIUM — Incomplete Docstring  
    'BranchExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: manager_
 
-18. **src/henchman/cli/commands/session.py:338** — 🟡 MEDIUM — Incomplete Docstring  
+14. **src/henchman/cli/commands/session.py:338** — 🟡 MEDIUM — Incomplete Docstring  
    'MergeExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: manager_
 
-19. **src/henchman/cli/commands/session.py:363** — 🟡 MEDIUM — Incomplete Docstring  
+15. **src/henchman/cli/commands/session.py:363** — 🟡 MEDIUM — Incomplete Docstring  
    'TemplateSaveExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: manager_
 
-20. **src/henchman/cli/commands/session.py:392** — 🟡 MEDIUM — Incomplete Docstring  
+16. **src/henchman/cli/commands/session.py:392** — 🟡 MEDIUM — Incomplete Docstring  
    'TemplateCreateExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: manager_
+
+17. **src/henchman/cli/commands/session.py:421** — 🟡 MEDIUM — Incomplete Docstring  
+   'TemplateListExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: manager_
+
+18. **src/henchman/cli/commands/session.py:445** — 🟡 MEDIUM — Incomplete Docstring  
+   'TemplateDeleteExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: manager_
+
+19. **src/henchman/cli/commands/session.py:469** — 🟡 MEDIUM — Incomplete Docstring  
+   'ExportExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: manager_
+
+20. **src/henchman/cli/commands/session.py:498** — 🟡 MEDIUM — Incomplete Docstring  
+   'ImportExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: manager_
 
 
@@ -126,15 +126,15 @@ These are the highest-impact documentation smells to address first:
 | 4 | src/henchman/core/session_manager.py | ❌ F | 49.0 | 15 | 2026-02-28 |
 | 5 | src/henchman/cli/console.py | ❌ F | 56.0 | 22 | 2026-03-03 |
 | 6 | src/henchman/cli/stream_event_handlers.py | 🔶 D | 65.0 | 10 | 2026-03-01 |
-| 7 | src/henchman/agents/orchestrator_validation.py | ⚠️ C | 72.0 | 8 | 2026-02-28 |
-| 8 | src/henchman/cli/output_handler.py | ⚠️ C | 74.0 | 13 | 2026-02-27 |
-| 9 | src/henchman/api/server.py | ⚠️ C | 75.0 | 8 | 2026-02-26 |
-| 10 | src/henchman/agents/metrics.py | ⚠️ C | 76.0 | 12 | 2026-03-03 |
-| 11 | src/henchman/metrics/storage.py | 👍 B | 82.0 | 6 | 2026-03-03 |
-| 12 | src/henchman/utils/validation.py | 👍 B | 83.0 | 4 | 2026-02-20 |
-| 13 | src/henchman/cli/app.py | 👍 B | 84.0 | 5 | 2026-02-27 |
-| 14 | src/henchman/cli/commands/context.py | 👍 B | 86.0 | 7 | 2026-03-03 |
-| 15 | src/henchman/cli/console_helpers.py | 👍 B | 86.0 | 7 | 2026-03-03 |
+| 7 | src/henchman/cli/output_handler.py | ⚠️ C | 74.0 | 13 | 2026-02-27 |
+| 8 | src/henchman/api/server.py | ⚠️ C | 75.0 | 8 | 2026-02-26 |
+| 9 | src/henchman/agents/metrics.py | ⚠️ C | 76.0 | 12 | 2026-03-03 |
+| 10 | src/henchman/metrics/storage.py | 👍 B | 82.0 | 6 | 2026-03-03 |
+| 11 | src/henchman/utils/validation.py | 👍 B | 83.0 | 4 | 2026-02-20 |
+| 12 | src/henchman/cli/app.py | 👍 B | 84.0 | 5 | 2026-02-27 |
+| 13 | src/henchman/cli/commands/context.py | 👍 B | 86.0 | 7 | 2026-03-03 |
+| 14 | src/henchman/cli/console_helpers.py | 👍 B | 86.0 | 7 | 2026-03-03 |
+| 15 | src/henchman/cli/textual_screens.py | 👍 B | 86.0 | 7 | 2026-02-24 |
 
 ## 📁 Per-File Details
 
@@ -274,21 +274,6 @@ Public APIs: 6 | Documented: 6 | Coverage: 100.0%
 | 241 | 🟢 LOW | Incomplete Docstring | 'dispatch_event' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'dispatch_event'. |
 | 276 | 🟢 LOW | Incomplete Docstring | 'handle_post_stream_processing' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'handle_post_stream_processing'. |
 | 319 | 🟢 LOW | Incomplete Docstring | 'build_confirmation_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'build_confirmation_message'. |
-
-### src/henchman/agents/orchestrator_validation.py — ⚠️ C (72.0/100) (last modified 2026-02-28)
-
-Public APIs: 4 | Documented: 4 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 23 | 🟡 MEDIUM | Incomplete Docstring | 'should_check_thinking' has 2 parameter(s) but no Args: section in docstring | Add an Args: section documenting: orchestrator, agent |
-| 32 | 🟡 MEDIUM | Incomplete Docstring | 'handle_valid_thinking' has 2 parameter(s) but no Args: section in docstring | Add an Args: section documenting: metrics, content |
-| 45 | 🟡 MEDIUM | Incomplete Docstring | 'handle_missing_thinking' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: agent |
-| 64 | 🟡 MEDIUM | Incomplete Docstring | 'check_stall_failure' has 2 parameter(s) but no Args: section in docstring | Add an Args: section documenting: orchestrator, agent |
-| 23 | 🟢 LOW | Incomplete Docstring | 'should_check_thinking' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'should_check_thinking'. |
-| 32 | 🟢 LOW | Incomplete Docstring | 'handle_valid_thinking' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'handle_valid_thinking'. |
-| 45 | 🟢 LOW | Incomplete Docstring | 'handle_missing_thinking' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'handle_missing_thinking'. |
-| 64 | 🟢 LOW | Incomplete Docstring | 'check_stall_failure' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'check_stall_failure'. |
 
 ### src/henchman/cli/output_handler.py — ⚠️ C (74.0/100) (last modified 2026-02-27)
 
@@ -529,6 +514,17 @@ Public APIs: 21 | Documented: 21 | Coverage: 100.0%
 | 145 | 🟢 LOW | Incomplete Docstring | 'QuitCommand.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'QuitCommand.execute'. |
 | 188 | 🟢 LOW | Incomplete Docstring | 'ClearCommand.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ClearCommand.execute'. |
 | 233 | 🟢 LOW | Incomplete Docstring | 'ToolsCommand.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ToolsCommand.execute'. |
+
+### src/henchman/cli/plugins.py — ✅ A (92.0/100) (last modified 2026-02-20)
+
+Public APIs: 8 | Documented: 8 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 37 | 🟢 LOW | Incomplete Docstring | 'UIPlugin.register' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'UIPlugin.register'. |
+| 45 | 🟢 LOW | Incomplete Docstring | 'UIPlugin.render' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'UIPlugin.render'. |
+| 66 | 🟢 LOW | Incomplete Docstring | 'PluginManager.load_plugins_from_directory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.load_plugins_from_directory'. |
+| 117 | 🟢 LOW | Incomplete Docstring | 'PluginManager.register_plugin' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.register_plugin'. |
 
 ## ✨ Clean Files (102 files with no smells)
 
