@@ -9290,3 +9290,276 @@ INFO    -  Documentation built in 0.68 seconds
 }
 [2026-03-03T07:15:01Z] Verification passed.
 Committing changes...
+[main 75470d8] docs(auto-improve): automated documentation improvement
+ 9 files changed, 1022 insertions(+), 992 deletions(-)
+[2026-03-03T07:15:01Z] Done.
+Let me check the copilot instructions to understand the coverage requirement:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 1, 
+'end_line': 50})
+
+[result] # Henchman-AI Copilot Instructions
+
+Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by 
+gemini-cli. It supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, 
+Ollama) via a u...
+Now let me check what the actual coverage threshold is in the pytest configuration. Looking at line 65 in pyproject.toml:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+Let me check the pytest configuration section:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 95, 'end_line': 110})
+
+[result] [tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8...
+Let me find the pytest configuration:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 110, 'end_line': 130})
+
+[result]     "C901",   # too complex
+    "ARG002", # Unused method argument - needed for pytest fixtures with side 
+effects
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["henchman"]
+
+[tool.mypy]
+python_version...
+
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 130, 'end_line': 150})
+
+[result] module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"...
+I can see the issue. In the pytest configuration at line 65 (actually line 142 in the file), it shows `--cov-fail-under=100` which means 100% coverage is required. However, the smell report says there's a consistency error stating "coverage threshold of 4% but other files require 100%". Let me check if there are any other files that mention a 4% threshold.
+
+Let me search for "4%" in the codebase:
+[tool] grep({'pattern': '4%', 'path': '.', 'ignore_case': False})
+
+[result] .agent_tasks/auto-doc-improve/cron.log:mismatch: 4% vs 80%)\n\nThe 
+stale docstrings should be addressed next as they 
+.agent_tasks/auto-doc-improve/cron.log:mismatch: 4% vs 80%)\n\nThe stale 
+docstring...
+Now let me check the last improvement record to see what was done previously:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T07:15:30Z
+
+## Files Changed
+1. `src/henchman/agents/orchestrator_anchoring.py` - Added missing Args sections
+to docstrings
+
+## Smell Categor...
+Now I understand the situation. Looking at the last improvement record, it mentions that the #1 issue in the smell report (consistency error about "4% coverage threshold") was a false positive. However, looking at the current smell report, it still lists this as the #1 issue. Let me examine the actual issue more carefully.
+
+Looking at the smell report, it says: "pyproject.toml:65 — 🟡 MEDIUM — Consistency Error — States coverage threshold of 4% but other files require 100%. Found thresholds: 100%, 4%"
+
+Line 65 of pyproject.toml is indeed `"pytest-cov>=4.0",` which is a version requirement for the pytest-cov package (version 4.0 or higher). This is **not** a coverage threshold percentage. The smell detector is incorrectly interpreting "4.0" as "4%".
+
+However, I should check if there's actually an issue here. Let me look at the actual pytest configuration more carefully. The smell report says "Found thresholds: 100%, 4%". The "100%" is from `--cov-fail-under=100` in the pytest configuration. The "4%" is from misinterpreting `pytest-cov>=4.0`.
+
+Now I understand the situation completely. The smell detector is incorrectly interpreting `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". This is a **false positive** in the smell detection. However, since this is still listed as the #1 issue in the smell report, I should address it by documenting this clearly to prevent confusion.
+
+Actually, looking at the prioritised fix queue in the smell report, the #1 issue is actually a false positive (misinterpreting `pytest-cov>=4.0` as "4% coverage threshold"). The #2 issue is "Missing Docstring" in `src/henchman/agents/orchestrator_components.py:39`. This is a **medium severity** issue that I should address.
+
+Let me check what the actual issue is:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_components.py', 
+'start_line': 35, 'end_line': 45})
+
+[result] 
+class AgentValidator(OrchestratorComponent):
+    """Validates agent behavior and patterns."""
+
+    def check_thinking_pattern(
+        self: AgentValidator,
+        agent: Any,
+    ) -> AgentEvent | ...
+Let me see more of this function:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_components.py', 
+'start_line': 35, 'end_line': 60})
+
+[result] 
+class AgentValidator(OrchestratorComponent):
+    """Validates agent behavior and patterns."""
+
+    def check_thinking_pattern(
+        self: AgentValidator,
+        agent: Any,
+    ) -> AgentEvent | ...
+Now I can see the issue. The function `check_thinking_pattern` has a parameter `agent` but no `Args:` section in the docstring. Let me check the full function to understand what it does:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_components.py', 
+'start_line': 35, 'end_line': 80})
+
+[result] 
+class AgentValidator(OrchestratorComponent):
+    """Validates agent behavior and patterns."""
+
+    def check_thinking_pattern(
+        self: AgentValidator,
+        agent: Any,
+    ) -> AgentEvent | ...
+Perfect! Now I can see both functions that need documentation fixes. Let me fix the #2 issue from the smell report: adding missing `Args:` sections to these functions.
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_components.py', 
+'old_str': '    def check_thinking_pattern(\n        self: AgentValidator,\n    
+agent: Any,\n    ) -> AgentEvent | None:\n        """Validate Tech Lead thinking
+patterns and update metrics."""\n        if not 
+should_check_thinking(self.orchestrator, agent):\n            return None\n\n   
+content = agent.messages[-1].content or ""\n        stripped = 
+content.strip()\n\n        if stripped.startswith("THINKING:"):\n            
+handle_valid_thinking(self.metrics, content)\n            return None\n        
+if stripped:\n            return handle_missing_thinking(agent)\n        return 
+None', 'new_str': '    def check_thinking_pattern(\n        self: 
+AgentValidator,\n        agent: Any,\n    ) -> AgentEvent | None:\n        
+"""Validate Tech Lead thinking patterns and update metrics.\n        \n        
+Args:\n            agent: The agent to validate thinking patterns for.\n        
+\n        Returns:\n            AgentEvent | None: An event if thinking pattern 
+is missing, None otherwise.\n        """\n        if not 
+should_check_thinking(self.orchestrator, agent):\n            return None\n\n   
+content = agent.messages[-1].content or ""\n        stripped = 
+content.strip()\n\n        if stripped.startswith("THINKING:"):\n            
+handle_valid_thinking(self.metrics, content)\n            return None\n        
+if stripped:\n            return handle_missing_thinking(agent)\n        return 
+None'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_components.py...
+Now let me fix the second function:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_components.py', 
+'old_str': '    def check_stall_failure(\n        self: AgentValidator,\n       
+agent: Any,\n    ) -> AgentEvent | None:\n        """Check if agent has stalled 
+and report failure."""\n        return check_stall_failure(self.orchestrator, 
+agent)', 'new_str': '    def check_stall_failure(\n        self: 
+AgentValidator,\n        agent: Any,\n    ) -> AgentEvent | None:\n        
+"""Check if agent has stalled and report failure.\n        \n        Args:\n    
+agent: The agent to check for stall failure.\n            \n        Returns:\n  
+AgentEvent | None: An event if agent has stalled, None otherwise.\n        """\n
+return check_stall_failure(self.orchestrator, agent)'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_components.py...
+Now let me verify the changes by reading the updated file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_components.py', 
+'start_line': 35, 'end_line': 85})
+
+[result] 
+class AgentValidator(OrchestratorComponent):
+    """Validates agent behavior and patterns."""
+
+    def check_thinking_pattern(
+        self: AgentValidator,
+        agent: Any,
+    ) -> AgentEvent | ...
+Perfect! Now let me create the improvement record:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T07:30:45Z\n\n## Files Changed\n1. 
+`src/henchman/agents/orchestrator_components.py` - Added missing Args and 
+Returns sections to docstrings\n\n## Smell Category Addressed\n- **Incomplete 
+Docstring** (MEDIUM): Functions had parameters but no Args sections in 
+docstrings\n\n## Rationale for Change\nThe documentation smell report identified
+two functions in `src/henchman/agents/orchestrator_components.py` with 
+incomplete docstrings:\n\n1. **Line 39**: 
+`AgentValidator.check_thinking_pattern` function has 1 parameter (`agent`) but 
+no `Args:` section in docstring\n2. **Line 57**: 
+`AgentValidator.check_stall_failure` function has 1 parameter (`agent`) but no 
+`Args:` section in docstring\n\nThese are **medium severity** documentation 
+smells that violate the project\'s requirement for 100% documentation coverage 
+and Google-style docstrings. Incomplete docstrings make the code harder to 
+understand, maintain, and use correctly.\n\n## Changes Made\n1. **Updated 
+`check_thinking_pattern` function docstring** (lines 39-52):\n   - Added `Args:`
+section documenting: `agent` (The agent to validate thinking patterns for)\n   -
+Added `Returns:` section explaining: `AgentEvent | None` (An event if thinking 
+pattern is missing, None otherwise)\n\n2. **Updated `check_stall_failure` 
+function docstring** (lines 57-70):\n   - Added `Args:` section documenting: 
+`agent` (The agent to check for stall failure)\n   - Added `Returns:` section 
+explaining: `AgentEvent | None` (An event if agent has stalled, None 
+otherwise)\n\n## Technical Details\n- Both functions now follow Google-style 
+docstring format with proper `Args:` and `Returns:` sections\n- Parameter 
+descriptions are clear and concise\n- Return value descriptions explain what the
+function returns\n- No functional changes were made - only documentation 
+improvements\n- The changes improve code maintainability and developer 
+experience\n\n## What to Verify\n1. Both functions now have complete 
+Google-style docstrings with `Args:` sections\n2. All parameters are properly 
+documented\n3. Return values are clearly explained\n4. The documentation 
+accurately describes the function behavior\n5. No other documentation issues 
+were introduced\n\n## Testing Instructions\nTo verify the fix:\n```bash\n# Check
+the updated docstrings\ngrep -n "Args:" 
+src/henchman/agents/orchestrator_components.py\ngrep -n "Returns:" 
+src/henchman/agents/orchestrator_components.py\n\n# Verify all parameters are 
+documented\npython -c "\nimport ast\nwith 
+open(\'src/henchman/agents/orchestrator_components.py\') as f:\n    tree = 
+ast.parse(f.read())\n    \nfor node in ast.walk(tree):\n    if isinstance(node, 
+ast.FunctionDef):\n        print(f\'Function: {node.name}\')\n        args = 
+[arg.arg for arg in node.args.args]\n        print(f\'  Parameters: 
+{args}\')\n"\n\n# Check the next smell report should show these issues 
+resolved\n```\n\n## Next Priority\nThe next highest-priority issues from the 
+smell report are:\n1. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_delegation_ctrl.py:55` 
+(\'DelegationController.execute_delegation_tool\' has 3 parameters but no Args 
+section)\n2. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_events.py:26` (\'extract_brief_fields\' has 1 
+parameter but no Args section)\n3. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_events.py:31` (\'create_delegation_event\' has
+3 parameters but no Args section)\n4. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_events.py:48` (\'create_tool_result_event\' 
+has 3 parameters but no Args section)\n\n## Notes\nThis improvement addresses 
+genuine documentation quality issues. The #1 issue in the smell report 
+(consistency error about "4% coverage threshold") appears to be a false positive
+- it\'s misinterpreting `pytest-cov>=4.0` (version 4.0 of the pytest-cov 
+package) as a "4% coverage threshold". The actual coverage threshold in the 
+project is 100% as specified in `--cov-fail-under=100`.\n\nThe project maintains
+strict quality standards with 100% documentation coverage requirement, and all 
+public functions must have complete Google-style docstrings with `Args:`, 
+`Returns:`, and `Raises:` sections where applicable.\n\nThe fix is minimal and 
+focused, adding only the missing documentation sections without changing any 
+functionality or other documentation.'})
+
+[result] Successfully wrote 4301 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+## Summary
+
+I have successfully addressed the #2 priority issue from the documentation smell report. The improvement focused on:
+
+**Files Changed**: `src/henchman/agents/orchestrator_components.py`
+
+**Smell Category**: Incomplete Docstring (MEDIUM severity)
+
+**Changes Made**:
+1. Added `Args:` and `Returns:` sections to `AgentValidator.check_thinking_pattern` function
+2. Added `Args:` and `Returns:` sections to `AgentValidator.check_stall_failure` function
+
+**Rationale**: These functions had parameters but were missing proper Google-style docstring sections, violating the project's 100% documentation coverage requirement. The fixes improve code maintainability and developer experience without changing any functionality.
+
+**Note on #1 Issue**: The #1 issue in the smell report (consistency error about "4% coverage threshold") appears to be a false positive - it's misinterpreting `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". The actual coverage threshold in the project is correctly set to 100% via `--cov-fail-under=100` in the pytest configuration.
+
+The improvement follows the documentation improvement principles: accuracy, completeness, and consistency, while maintaining minimal, focused changes that don't alter source code behavior.
+[tech_lead] completed work
+[2026-03-03T07:30:02Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.69 seconds
+[2026-03-03T07:30:02Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T07:30:02Z] Verification passed.
+Committing changes...

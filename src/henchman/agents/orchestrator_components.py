@@ -40,7 +40,14 @@ class AgentValidator(OrchestratorComponent):
         self: AgentValidator,
         agent: Any,
     ) -> AgentEvent | None:
-        """Validate Tech Lead thinking patterns and update metrics."""
+        """Validate Tech Lead thinking patterns and update metrics.
+        
+        Args:
+            agent: The agent to validate thinking patterns for.
+            
+        Returns:
+            AgentEvent | None: An event if thinking pattern is missing, None otherwise.
+        """
         if not should_check_thinking(self.orchestrator, agent):
             return None
 
@@ -58,5 +65,12 @@ class AgentValidator(OrchestratorComponent):
         self: AgentValidator,
         agent: Any,
     ) -> AgentEvent | None:
-        """Check if agent has stalled and report failure."""
+        """Check if agent has stalled and report failure.
+        
+        Args:
+            agent: The agent to check for stall failure.
+            
+        Returns:
+            AgentEvent | None: An event if agent has stalled, None otherwise.
+        """
         return check_stall_failure(self.orchestrator, agent)
