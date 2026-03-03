@@ -617,3 +617,398 @@ class ThemeManager:
     def get_theme(self, name: str) -> Theme | None:
         """Get a theme by name."""
 ```
+
+## Agents (Multi-Agent System)
+
+```python
+from henchman.agents import (
+    AgentConfig,
+    AgentIdentity,
+    AgentPool,
+    Orchestrator,
+    CompletionStatus,
+    TaskLedger,
+    DelegationRecord,
+    DelegationStatus,
+    ChecklistItem,
+)
+```
+
+### Orchestrator
+
+```python
+class Orchestrator:
+    def __init__(
+        self,
+        provider: ModelProvider,
+        tools: list[ToolDeclaration] | None = None,
+        config: AgentConfig | None = None
+    ) -> None:
+        """Initialize the orchestrator."""
+    
+    async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
+        """Run the orchestrator with user input."""
+    
+    async def run_direct(self, role: str, user_input: str) -> AsyncIterator[AgentEvent]:
+        """Run a specific agent role directly."""
+    
+    def get_metrics_report(self) -> dict[str, Any]:
+        """Get performance metrics report."""
+    
+    def get_pool(self) -> AgentPool:
+        """Get the agent pool."""
+    
+    def get_event_bus(self) -> EventBus:
+        """Get the event bus."""
+```
+
+### AgentPool
+
+```python
+class AgentPool:
+    def get_agent(self, role: str) -> Agent:
+        """Get an agent by role."""
+    
+    def list_agents(self) -> list[str]:
+        """List all available agent roles."""
+    
+    def register_agent(self, role: str, agent: Agent) -> None:
+        """Register an agent for a role."""
+```
+
+### AgentIdentity
+
+```python
+@dataclass
+class AgentIdentity:
+    id: str
+    name: str
+    role: str
+    description: str
+    capabilities: list[str]
+```
+
+### TaskLedger
+
+```python
+class TaskLedger:
+    def add_delegation(self, record: DelegationRecord) -> None:
+        """Add a delegation record."""
+    
+    def update_status(self, delegation_id: str, status: DelegationStatus) -> None:
+        """Update delegation status."""
+    
+    def get_delegations(self) -> list[DelegationRecord]:
+        """Get all delegation records."""
+```
+
+## Extensions
+
+```python
+from henchman.extensions import (
+    Extension,
+    ExtensionManager,
+    PluginManager,
+    PluginMetadata,
+    PluginInstallation,
+    PluginSource,
+    PluginCompatibility,
+    PluginPermission,
+    PluginSearchResult,
+    PluginStats,
+    PluginUpdateInfo,
+    SecurityReport,
+)
+```
+
+### Extension
+
+```python
+class Extension(ABC):
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Extension name."""
+    
+    @property
+    @abstractmethod
+    def version(self) -> str:
+        """Extension version."""
+    
+    @property
+    @abstractmethod
+    def description(self) -> str:
+        """Extension description."""
+    
+    def get_tools(self) -> list[Tool]:
+        """Get tools provided by this extension."""
+    
+    def get_commands(self) -> list[Command]:
+        """Get commands provided by this extension."""
+    
+    def get_context(self) -> str:
+        """Get context provided by this extension."""
+```
+
+### ExtensionManager
+
+```python
+class ExtensionManager:
+    def discover_entry_points(self) -> None:
+        """Discover extensions from installed packages."""
+    
+    def discover_directory(self, path: Path) -> None:
+        """Discover extensions from directory."""
+    
+    def load_extension(self, name: str) -> Extension:
+        """Load an extension by name."""
+    
+    def list_extensions(self) -> list[str]:
+        """List all loaded extensions."""
+```
+
+### PluginManager
+
+```python
+class PluginManager:
+    async def search(self, query: str) -> list[PluginSearchResult]:
+        """Search for plugins."""
+    
+    async def install(self, plugin_id: str) -> PluginInstallation:
+        """Install a plugin."""
+    
+    async def uninstall(self, plugin_id: str) -> bool:
+        """Uninstall a plugin."""
+    
+    async def update(self, plugin_id: str) -> PluginUpdateInfo:
+        """Update a plugin."""
+    
+    async def check_security(self, plugin_id: str) -> SecurityReport:
+        """Check plugin security."""
+```
+
+## MCP (Model Context Protocol)
+
+```python
+from henchman.mcp import (
+    McpClient,
+    McpManager,
+    McpServerConfig,
+    McpTool,
+    McpToolDefinition,
+    McpToolResult,
+)
+```
+
+### McpClient
+
+```python
+class McpClient:
+    def __init__(self, name: str, config: McpServerConfig) -> None:
+        """Initialize MCP client."""
+    
+    async def connect(self) -> None:
+        """Connect to the MCP server."""
+    
+    async def disconnect(self) -> None:
+        """Disconnect from the MCP server."""
+    
+    async def discover_tools(self) -> list[McpToolDefinition]:
+        """Discover tools from the server."""
+    
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> McpToolResult:
+        """Call a tool on the server."""
+```
+
+### McpManager
+
+```python
+class McpManager:
+    def __init__(self, configs: dict[str, McpServerConfig]) -> None:
+        """Initialize MCP manager with server configurations."""
+    
+    async def connect_all(self) -> None:
+        """Connect to all configured servers."""
+    
+    async def disconnect_all(self) -> None:
+        """Disconnect from all servers."""
+    
+    def get_all_tools(self) -> list[McpTool]:
+        """Get all tools from all connected servers."""
+    
+    def get_client(self, name: str) -> McpClient | None:
+        """Get a client by name."""
+```
+
+### McpTool
+
+```python
+class McpTool(Tool):
+    """Wrapper for MCP tools as internal Tool instances."""
+```
+
+## RAG (Retrieval-Augmented Generation)
+
+```python
+from henchman.rag import (
+    CodeChunker,
+    Embedder,
+    RepositoryIdentifier,
+)
+```
+
+### CodeChunker
+
+```python
+class CodeChunker:
+    def chunk_file(self, path: Path, content: str) -> list[dict[str, Any]]:
+        """Chunk a code file into semantic segments."""
+    
+    def chunk_directory(self, directory: Path) -> list[dict[str, Any]]:
+        """Chunk all files in a directory."""
+```
+
+### Embedder
+
+```python
+class Embedder:
+    async def embed(self, text: str) -> list[float]:
+        """Generate embeddings for text."""
+    
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        """Generate embeddings for multiple texts."""
+```
+
+## Knowledge Graph
+
+```python
+from henchman.knowledge import (
+    KnowledgeGraph,
+    Entity,
+    Relation,
+    EntityType,
+    RelationType,
+)
+```
+
+### KnowledgeGraph
+
+```python
+class KnowledgeGraph:
+    def add_entity(self, entity: Entity) -> None:
+        """Add an entity to the graph."""
+    
+    def add_relation(self, relation: Relation) -> None:
+        """Add a relation to the graph."""
+    
+    def query(self, query: str, entity_type: EntityType | None = None) -> list[Entity]:
+        """Query the knowledge graph."""
+    
+    def get_neighbors(self, entity_id: str, depth: int = 1) -> list[Entity]:
+        """Get neighboring entities."""
+```
+
+## Metrics
+
+```python
+from henchman.metrics import (
+    MetricsStorage,
+    PerformanceMetrics,
+    QualityMetrics,
+    ToolMetrics,
+    OrchestratorMetrics,
+    MetricsExporter,
+)
+```
+
+### MetricsStorage
+
+```python
+class MetricsStorage:
+    def store_metric(self, metric: dict[str, Any]) -> None:
+        """Store a metric."""
+    
+    def query_metrics(
+        self,
+        filters: dict[str, Any] | None = None,
+        limit: int = 100
+    ) -> list[dict[str, Any]]:
+        """Query metrics with filters."""
+    
+    def clear_metrics(self) -> None:
+        """Clear all metrics."""
+```
+
+### MetricsExporter
+
+```python
+class MetricsExporter:
+    def export_to_json(self, filepath: str, **filters: Any) -> None:
+        """Export metrics to JSON file."""
+    
+    def export_to_csv(self, filepath: str, **filters: Any) -> None:
+        """Export metrics to CSV file."""
+    
+    def export_to_prometheus(self, endpoint: str, **filters: Any) -> None:
+        """Export metrics to Prometheus endpoint."""
+    
+    def export_summary(self, **filters: Any) -> dict[str, Any]:
+        """Export summary statistics."""
+    
+    def get_available_formats(self) -> list[str]:
+        """Get list of available export formats."""
+```
+
+## Utilities
+
+```python
+from henchman.utils import (
+    TokenCounter,
+    IntelligentContextManager,
+    ContextCompactor,
+    MessageClusterer,
+    ImportanceScorer,
+    RetryManager,
+    validate_message_sequence,
+    repair_message_sequence,
+    is_valid_message_sequence,
+    format_message_sequence_for_debug,
+)
+```
+
+### TokenCounter
+
+```python
+class TokenCounter:
+    def count_tokens(self, text: str) -> int:
+        """Count tokens in text."""
+    
+    def count_messages(self, messages: list[Message]) -> int:
+        """Count tokens in messages."""
+```
+
+### IntelligentContextManager
+
+```python
+class IntelligentContextManager:
+    def compact(
+        self,
+        messages: list[Message],
+        protect_from_index: int = 0
+    ) -> list[Message]:
+        """Compact messages using intelligent strategies."""
+```
+
+### RetryManager
+
+```python
+class RetryManager:
+    async def execute_with_retry(
+        self,
+        func: Callable[..., Awaitable[T]],
+        max_attempts: int = 3,
+        delay: float = 1.0,
+        backoff: float = 2.0
+    ) -> T:
+        """Execute a function with retry logic."""
+```
