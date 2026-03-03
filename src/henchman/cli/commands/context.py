@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.console_helpers import ConsoleHelper
@@ -12,12 +12,14 @@ from henchman.config.settings import save_settings
 
 if TYPE_CHECKING:
     from rich.console import Console
+
+    from henchman.config.schema import ContextSettings
     from henchman.core.agent import Agent
-    from henchman.config.schema import ContextSettings, Settings
 
 
 # Constants
 _MAX_TOKENS_THRESHOLD: int = 100
+
 
 @dataclass
 class RangeParameterConfig:
@@ -236,8 +238,12 @@ class ContextConsoleHelper:
         output_helper.print_line("  max_tokens <int>          - Maximum tokens before compaction")
         output_helper.print_line("  threshold <float>         - Compaction threshold (0.1-1.0)")
         output_helper.print_line("  importance <float>        - Importance threshold (0.0-1.0)")
-        output_helper.print_line("  similarity <float>        - Cluster similarity threshold (0.0-1.0)")
-        output_helper.print_line("  adaptive <on|off>         - Enable/disable adaptive compression")
+        output_helper.print_line(
+            "  similarity <float>        - Cluster similarity threshold (0.0-1.0)"
+        )
+        output_helper.print_line(
+            "  adaptive <on|off>         - Enable/disable adaptive compression"
+        )
 
     @staticmethod
     def print_strategy_status(console: Console, context_settings: ContextSettings) -> None:
@@ -284,14 +290,137 @@ class ContextConsoleHelper:
         output_helper.print_line("")
 
 
+class StrategyManager:
+    """Manages compression strategy settings to reduce ContextCommand size."""
+
+    # Command argument indices
+    _STRATEGY_ACTION_IDX = 0
+    _STRATEGY_PARAM_IDX = 1
+    _STRATEGY_VALUE_IDX = 2
+
+    def __init__(self) -> None:
+        """Initialize strategy manager."""
+        self._parameter_configs = {
+            "max_tokens": RangeParameterConfig(param_name="max_tokens", min_val=1000, is_int=True),
+            "threshold": RangeParameterConfig(
+                param_name="compaction_threshold", min_val=0.1, max_val=1.0, label="Threshold"
+            ),
+            "importance": RangeParameterConfig(
+                param_name="importance_threshold", min_val=0.0, max_val=1.0
+            ),
+            "similarity": RangeParameterConfig(
+                param_name="cluster_similarity_threshold", min_val=0.0, max_val=1.0
+            ),
+        }
+
+    async def manage_strategy(self, ctx: CommandContext, args: list[str]) -> None:
+        """Manage compression strategy settings.
+
+        Args:
+            ctx: Command context.
+            args: Strategy command arguments.
+        """
+        if not args:
+            await self._show_strategy_status(ctx)
+            return
+
+        action = args[self._STRATEGY_ACTION_IDX].lower()
+        if action == "set":
+            if len(args) < 3:  # Need at least 'set', 'parameter' and 'value'
+                ContextConsoleHelper.print_strategy_usage(ctx.console)
+                return
+
+            param = args[self._STRATEGY_PARAM_IDX]
+            value = args[self._STRATEGY_VALUE_IDX]
+            await self._set_strategy_parameter(ctx, param, value)
+        else:
+            ctx.console.print("[yellow]Usage: /context strategy [set <parameter> <value>][/]")
+
+    async def _show_strategy_status(self, ctx: CommandContext) -> None:
+        """Show current compression strategy settings.
+
+        Args:
+            ctx: Command context.
+        """
+        settings = load_settings()
+        context_settings = settings.context
+        ContextConsoleHelper.print_strategy_status(ctx.console, context_settings)
+
+    async def _set_strategy_parameter(
+        self, ctx: CommandContext, param: str, value: str | None
+    ) -> None:
+        """Set a strategy parameter.
+
+        Args:
+            ctx: Command context.
+            param: Parameter name.
+            value: Parameter value.
+
+        Raises:
+            ValueError: If value is invalid.
+        """
+        if value is None:
+            ctx.console.print(f"[yellow]Missing value for parameter '{param}'[/]")
+            return
+
+        if param in self._parameter_configs:
+            await self._handle_range_parameter(ctx, value, self._parameter_configs[param])
+        elif param == "adaptive":
+            await self._handle_adaptive_parameter(ctx, value)
+        else:
+            ctx.console.print(f"[red]Unknown parameter: {param}[/]")
+            ctx.console.print("\nValid parameters:")
+            ctx.console.print("  max_tokens, threshold, importance, similarity, adaptive")
+            return
+
+    async def _update_context_setting(
+        self, ctx: CommandContext, param_name: str, value: Any, display_value: str
+    ) -> None:
+        """Helper to update a context setting and save it.
+
+        Args:
+            ctx: Command context.
+            param_name: Name of the setting in ContextSettings.
+            value: New value for the setting.
+            display_value: Formatted value string for success message.
+        """
+        settings = load_settings()
+        setattr(settings.context, param_name, value)
+        save_settings(settings)
+        ctx.console.print(
+            f"[green]✓ {param_name.replace('_', ' ').capitalize()} set to {display_value}[/]"
+        )
+
+    async def _handle_range_parameter(
+        self, ctx: CommandContext, value: str, config: RangeParameterConfig
+    ) -> None:
+        """Generic handler for range-validated parameters (DRY)."""
+        val = config.parse_value(value)
+        config.validate_value(val)
+        await self._update_context_setting(ctx, config.param_name, val, str(val))
+
+    async def _handle_adaptive_parameter(self, ctx: CommandContext, value: str) -> None:
+        """Handle adaptive parameter setting."""
+        lower_value = value.lower()
+        if lower_value in ["on", "true", "yes", "1"]:
+            await self._update_context_setting(ctx, "adaptive_compression", True, "enabled")
+        elif lower_value in ["off", "false", "no", "0"]:
+            await self._update_context_setting(ctx, "adaptive_compression", False, "disabled")
+        else:
+            raise ValueError("Value must be 'on' or 'off'")
+
+
 class ContextCommand(Command):
     """Manage intelligent context settings."""
 
     # Command argument indices
     _SUBCOMMAND_IDX = 0
-    _STRATEGY_ACTION_IDX = 0
-    _STRATEGY_PARAM_IDX = 1
-    _STRATEGY_VALUE_IDX = 2
+
+    def __init__(self) -> None:
+        """Initialize context command."""
+        super().__init__()
+        self._strategy_manager = StrategyManager()
+        self._statistics_manager = StatisticsManager()
 
     @property
     def name(self) -> str:
@@ -334,8 +463,8 @@ class ContextCommand(Command):
         dispatch = {
             "enable": self._enable_intelligent_context,
             "disable": self._disable_intelligent_context,
-            "strategy": lambda c: self._manage_strategy(c, c.args[1:]),
-            "stats": self._show_stats,
+            "strategy": lambda c: self._strategy_manager.manage_strategy(c, c.args[1:]),
+            "stats": lambda c: self._statistics_manager.show_stats(c),
         }
 
         handler = dispatch.get(subcommand)
@@ -348,7 +477,7 @@ class ContextCommand(Command):
         """Show detailed help message."""
         self._print_help_message(ctx.console)
 
-    def _print_help_message(self, console: Any) -> None:
+    def _print_help_message(self, console: Console) -> None:
         """Print detailed help message to console.
 
         Args:
@@ -404,117 +533,11 @@ class ContextCommand(Command):
         ctx.console.print("[green]✓ Intelligent context management disabled.[/]")
         ctx.console.print("[dim]Note: This setting will take effect in new sessions.[/]")
 
-    async def _manage_strategy(self, ctx: CommandContext, args: list[str]) -> None:
-        """Manage compression strategy settings.
 
-        Args:
-            ctx: Command context.
-            args: Strategy command arguments.
-        """
-        if not args:
-            await self._show_strategy_status(ctx)
-            return
+class StatisticsManager:
+    """Manages context usage statistics display to reduce ContextCommand size."""
 
-        action = args[self._STRATEGY_ACTION_IDX].lower()
-        if action == "set":
-            if len(args) < 3:  # Need at least 'set', 'parameter' and 'value'
-                ContextConsoleHelper.print_strategy_usage(ctx.console)
-                return
-
-            param = args[self._STRATEGY_PARAM_IDX]
-            value = args[self._STRATEGY_VALUE_IDX]
-            await self._set_strategy_parameter(ctx, param, value)
-        else:
-            ctx.console.print("[yellow]Usage: /context strategy [set <parameter> <value>][/]")
-
-    async def _show_strategy_status(self, ctx: CommandContext) -> None:
-        """Show current compression strategy settings.
-
-        Args:
-            ctx: Command context.
-        """
-        settings = load_settings()
-        context_settings = settings.context
-        ContextConsoleHelper.print_strategy_status(ctx.console, context_settings)
-
-    async def _set_strategy_parameter(
-        self, ctx: CommandContext, param: str, value: str | None
-    ) -> None:
-        """Set a strategy parameter.
-
-        Args:
-            ctx: Command context.
-            param: Parameter name.
-            value: Parameter value.
-
-        Raises:
-            ValueError: If value is invalid.
-        """
-        if value is None:
-            ctx.console.print(f"[yellow]Missing value for parameter '{param}'[/]")
-            return
-
-        # Define parameter handlers using RangeParameterConfig for range validation
-        parameter_configs = {
-            "max_tokens": RangeParameterConfig(param_name="max_tokens", min_val=1000, is_int=True),
-            "threshold": RangeParameterConfig(
-                param_name="compaction_threshold", min_val=0.1, max_val=1.0, label="Threshold"
-            ),
-            "importance": RangeParameterConfig(
-                param_name="importance_threshold", min_val=0.0, max_val=1.0
-            ),
-            "similarity": RangeParameterConfig(
-                param_name="cluster_similarity_threshold", min_val=0.0, max_val=1.0
-            ),
-        }
-
-        if param in parameter_configs:
-            await self._handle_range_parameter(ctx, value, parameter_configs[param])
-        elif param == "adaptive":
-            await self._handle_adaptive_parameter(ctx, value)
-        else:
-            ctx.console.print(f"[red]Unknown parameter: {param}[/]")
-            ctx.console.print("\nValid parameters:")
-            ctx.console.print("  max_tokens, threshold, importance, similarity, adaptive")
-            return
-
-    async def _update_context_setting(
-        self, ctx: CommandContext, param_name: str, value: Any, display_value: str
-    ) -> None:
-        """Helper to update a context setting and save it.
-
-        Args:
-            ctx: Command context.
-            param_name: Name of the setting in ContextSettings.
-            value: New value for the setting.
-            display_value: Formatted value string for success message.
-        """
-        settings = load_settings()
-        setattr(settings.context, param_name, value)
-        save_settings(settings)
-        ctx.console.print(
-            f"[green]✓ {param_name.replace('_', ' ').capitalize()} set to {display_value}[/]"
-        )
-
-    async def _handle_range_parameter(
-        self, ctx: CommandContext, value: str, config: RangeParameterConfig
-    ) -> None:
-        """Generic handler for range-validated parameters (DRY)."""
-        val = config.parse_value(value)
-        config.validate_value(val)
-        await self._update_context_setting(ctx, config.param_name, val, str(val))
-
-    async def _handle_adaptive_parameter(self, ctx: CommandContext, value: str) -> None:
-        """Handle adaptive parameter setting."""
-        lower_value = value.lower()
-        if lower_value in ["on", "true", "yes", "1"]:
-            await self._update_context_setting(ctx, "adaptive_compression", True, "enabled")
-        elif lower_value in ["off", "false", "no", "0"]:
-            await self._update_context_setting(ctx, "adaptive_compression", False, "disabled")
-        else:
-            raise ValueError("Value must be 'on' or 'off'")
-
-    async def _show_stats(self, ctx: CommandContext) -> None:
+    async def show_stats(self, ctx: CommandContext) -> None:
         """Show context usage statistics.
 
         Args:
@@ -526,7 +549,7 @@ class ContextCommand(Command):
 
         self._print_stats_info(ctx.console, ctx.agent)
 
-    def _print_stats_info(self, console: Any, agent: Any) -> None:
+    def _print_stats_info(self, console: Console, agent: Agent) -> None:
         """Print context usage statistics.
 
         Args:
@@ -551,7 +574,9 @@ class ContextCommand(Command):
         except Exception as e:
             console.print(f"[yellow]Could not retrieve statistics: {e}[/]")
 
-    def _print_stats_with_compactor(self, console: Any, agent: Any, stats: dict[str, Any]) -> None:
+    def _print_stats_with_compactor(
+        self, console: Console, agent: Agent, stats: dict[str, Any]
+    ) -> None:
         """Print statistics when compactor is available.
 
         Args:
@@ -571,7 +596,7 @@ class ContextCommand(Command):
 
         console.print("")
 
-    def _print_statistics_values(self, console: Any, stats: dict[str, Any]) -> None:
+    def _print_statistics_values(self, console: Console, stats: dict[str, Any]) -> None:
         """Print statistics values.
 
         Args:
@@ -583,7 +608,7 @@ class ContextCommand(Command):
         console.print(f"  Compression ratio: [cyan]{stats.get('compression_ratio', 'N/A')}[/]")
         console.print(f"  Tokens saved: [cyan]{stats.get('tokens_saved', 'N/A')}[/]")
 
-    def _print_current_context_size(self, console: Any, agent: Any) -> None:
+    def _print_current_context_size(self, console: Console, agent: Agent) -> None:
         """Print current context size.
 
         Args:
@@ -594,7 +619,7 @@ class ContextCommand(Command):
             messages = agent.session.messages if hasattr(agent.session, "messages") else []
             console.print(f"  Current messages in session: [cyan]{len(messages)}[/]")
 
-    def _print_no_compactor_message(self, console: Any) -> None:
+    def _print_no_compactor_message(self, console: Console) -> None:
         """Print message when no compactor is active.
 
         Args:
