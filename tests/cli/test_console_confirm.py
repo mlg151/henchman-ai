@@ -16,7 +16,7 @@ async def test_confirm_method():
     output_renderer = OutputRenderer(console=console, theme=theme)
 
     # Mock the Confirm.ask to return True
-    with patch("rich.prompt.Confirm") as mock_confirm:
+    with patch("henchman.cli.console.Confirm") as mock_confirm:
         mock_confirm.ask.return_value = True
 
         # Test confirmation
@@ -36,7 +36,7 @@ async def test_confirm_method_false():
     output_renderer = OutputRenderer(console=console, theme=theme)
 
     # Mock the Confirm.ask to return False
-    with patch("rich.prompt.Confirm") as mock_confirm:
+    with patch("henchman.cli.console.Confirm") as mock_confirm:
         mock_confirm.ask.return_value = False
 
         # Test confirmation
@@ -55,7 +55,7 @@ async def test_confirm_with_different_messages():
     theme.muted = "dim"
     output_renderer = OutputRenderer(console=console, theme=theme)
 
-    with patch("rich.prompt.Confirm") as mock_confirm:
+    with patch("henchman.cli.console.Confirm") as mock_confirm:
         mock_confirm.ask.return_value = True
 
         # Test with different messages

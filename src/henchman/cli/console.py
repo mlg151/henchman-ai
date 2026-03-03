@@ -5,6 +5,8 @@ This module provides Rich-based console output with theming support.
 
 from __future__ import annotations
 
+import difflib
+import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -15,6 +17,7 @@ from rich import box
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.markup import escape
+from rich.prompt import Confirm
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
@@ -25,11 +28,20 @@ R = TypeVar("R")  # For return values
 AsyncMethod = Callable[P, Awaitable[R]]
 SyncMethod = Callable[P, R]
 
+# Self type for Python < 3.11 compatibility
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
+
 # Safety limit: truncate content before Rich parses it to prevent
 # excessive memory / CPU usage on pathologically large payloads.
 _MAX_MARKDOWN_LEN = 200_000
 # Maximum length for tool result content before truncation
 _MAX_TOOL_RESULT_LEN = 1000
+# Constants for diff argument parsing
+_MIN_DIFF_ARGS = 2
+_MAX_DIFF_ARGS = 3
 
 
 def list_dict_keys(items_dict: dict[str, Any]) -> list[str]:
@@ -77,22 +89,22 @@ class StatusType(Enum):
     """Status message types with their styling configuration."""
 
     SUCCESS = StatusTypeConfig("success", "✓", "[OK]")
-    INFO = StatusTypeConfig("primary", "ℹ", "[INFO]")
+    INFO = StatusTypeConfig("primary", "ℹ", "[INFO]")  # noqa: RUF001
     WARNING = StatusTypeConfig("warning", "⚠", "[WARN]")
     ERROR = StatusTypeConfig("error", "✗", "[ERR]")
 
     @property
-    def style(self) -> str:
+    def style(self: Self) -> str:
         """Get the style for this status type."""
         return self.value.style
 
     @property
-    def icon(self) -> str:
+    def icon(self: Self) -> str:
         """Get the icon for this status type."""
         return self.value.icon
 
     @property
-    def accessible_icon(self) -> str:
+    def accessible_icon(self: Self) -> str:
         """Get the accessible icon for this status type."""
         return self.value.accessible_icon
 
@@ -136,10 +148,9 @@ class OutputRendererConfig:
         """
         if self.theme is None:
             return get_theme("dark", overrides=self.style_overrides)
-        elif self.style_overrides:
+        if self.style_overrides:
             return self.theme.with_overrides(self.style_overrides)
-        else:
-            return self.theme
+        return self.theme
 
 
 @dataclass
@@ -279,7 +290,9 @@ def get_theme(name: str = "dark", overrides: dict[str, str] | None = None) -> Th
 
 
 def _get_theme_from_dict(
-    themes_dict: dict[str, Theme], name: str, overrides: dict[str, str] | None = None
+    themes_dict: dict[str, Theme],
+    name: str,
+    overrides: dict[str, str] | None = None,
 ) -> Theme:
     """Get a theme from a dictionary with optional overrides.
 
@@ -373,9 +386,10 @@ class OutputRenderer:
         self,
         console: Console | None = None,
         theme: Theme | None = None,
+        *,
         accessible_mode: bool = False,
         style_overrides: dict[str, str] | None = None,
-        layout_settings: Any | None = None,  # Avoid circular import, pass as object or dict
+        layout_settings: Any | None = None,  # Avoid circular import, pass as object or dict  # noqa: ANN401
     ) -> None:
         """Initialize the output renderer.
 
@@ -393,7 +407,7 @@ class OutputRenderer:
                 accessible_mode=accessible_mode,
                 style_overrides=style_overrides,
                 layout_settings=layout_settings,
-            )
+            ),
         )
 
     def _initialize_from_config(self, config: OutputRendererConfig) -> None:
@@ -456,7 +470,7 @@ class OutputRenderer:
             message: Message text.
         """
         self._print_status_message(
-            StatusMessageParams(message=message, status_type=status_type)
+            StatusMessageParams(message=message, status_type=status_type),
         )
 
     def _print_status_message(self, params: StatusMessageParams) -> None:
@@ -538,15 +552,13 @@ class OutputRenderer:
             name: Tool name.
             arguments: Tool arguments.
         """
-        import json
-
         args_str = json.dumps(arguments, indent=2)
         # Escape backticks in tool name to prevent markdown code-fence breakout
         safe_name = name.replace("`", "\\`")
         content = f"### 🛠️ Tool Call: `{safe_name}`\n\n```json\n{args_str}\n```"
         self.markdown(content)
 
-    def tool_result(self, content: str, success: bool = True, error: str | None = None) -> None:
+    def tool_result(self, content: str, *, success: bool = True, error: str | None = None) -> None:
         """Display a tool result.
 
         Args:
@@ -596,7 +608,10 @@ class OutputRenderer:
             table_box = box.ASCII if self.accessible_mode else box.HEAVY_HEAD
 
         table = Table(
-            title=title, show_header=True, header_style=f"bold {self.theme.primary}", box=table_box
+            title=title,
+            show_header=True,
+            header_style=f"bold {self.theme.primary}",
+            box=table_box,
         )
 
         # Add columns from first row keys
@@ -670,16 +685,16 @@ class OutputRenderer:
         """
         if len(args) == 1 and isinstance(args[0], DiffParams):
             return args[0]
-        elif 2 <= len(args) <= 3:
+        if _MIN_DIFF_ARGS <= len(args) <= _MAX_DIFF_ARGS:
             old = str(args[0])
             new = str(args[1])
-            filename = str(args[2]) if len(args) > 2 else kwargs.get("filename", "")
+            filename = str(args[2]) if len(args) > _MIN_DIFF_ARGS else kwargs.get("filename", "")
             return DiffParams(old, new, filename)
-        else:
-            raise TypeError(
-                "diff() takes either a DiffParams object or 2-3 string arguments "
-                "(old, new, filename)"
-            )
+        error_msg = (
+            "diff() takes either a DiffParams object or 2-3 string arguments "
+            "(old, new, filename)"
+        )
+        raise TypeError(error_msg)
 
     def _render_diff(self, params: DiffParams) -> None:
         """Render diff using DiffParams object.
@@ -687,8 +702,6 @@ class OutputRenderer:
         Args:
             params: Diff parameters.
         """
-        import difflib
-
         diff_lines = difflib.unified_diff(
             params.old.splitlines(keepends=True),
             params.new.splitlines(keepends=True),
@@ -740,8 +753,6 @@ class OutputRenderer:
         # Escape content to prevent rich markup interpretation
         # Note: We should eventually render markdown properly, but for now
         # escape to show raw content including markdown symbols
-        from rich.markup import escape
-
         self.console.print(escape(content), style=self.theme.muted, end="")
 
     async def confirm_tool_execution(self, message: str) -> bool:
@@ -753,8 +764,6 @@ class OutputRenderer:
         Returns:
             True if confirmed.
         """
-        from rich.prompt import Confirm
-
         return await anyio.to_thread.run_sync(lambda: Confirm.ask(message, console=self.console))
 
 
@@ -803,10 +812,12 @@ class AsyncOutputRenderer:
             AttributeError: If method is invalid.
         """
         if not hasattr(self.renderer, name):
-            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+            error_msg = f"'{type(self).__name__}' object has no attribute '{name}'"
+            raise AttributeError(error_msg)
 
         if name.startswith("_"):
-            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+            error_msg = f"'{type(self).__name__}' object has no attribute '{name}'"
+            raise AttributeError(error_msg)
 
     def _create_async_wrapper(self, name: str) -> Callable[..., Any]:
         """Create an async wrapper for a sync method.
@@ -824,8 +835,8 @@ class AsyncOutputRenderer:
             return self._create_async_diff_wrapper()
 
         # Generic async wrapper for other methods
-        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-            def sync_wrapper() -> Any:
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+            def sync_wrapper() -> Any:  # noqa: ANN401
                 return sync_method(*args, **kwargs)
 
             return await anyio.to_thread.run_sync(sync_wrapper)

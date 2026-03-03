@@ -51,8 +51,25 @@ Make surgical edits to a file using search and replace.
   "kind": "WRITE",
   "parameters": {
     "path": "string (required) - Path to the file",
-    "old_text": "string (required) - Text to replace",
-    "new_text": "string (required) - Replacement text"
+    "old_str": "string (required) - Text to replace",
+    "new_str": "string (required) - Replacement text"
+  }
+}
+```
+
+#### patch_apply
+
+Apply a unified diff patch to one or more files.
+
+```json
+{
+  "name": "patch_apply",
+  "kind": "WRITE",
+  "parameters": {
+    "patch": "string (required) - Unified diff patch content",
+    "path": "string (optional) - Target file path",
+    "dry_run": "boolean (optional) - Preview changes without applying",
+    "fuzz": "integer (optional) - Lines of fuzz for context matching"
   }
 }
 ```
@@ -68,7 +85,8 @@ List directory contents.
   "name": "ls",
   "kind": "READ",
   "parameters": {
-    "path": "string (optional) - Directory path, defaults to current"
+    "path": "string (optional) - Directory path, defaults to current",
+    "show_hidden": "boolean (optional) - Whether to show hidden files"
   }
 }
 ```
@@ -82,7 +100,8 @@ Find files matching a pattern.
   "name": "glob",
   "kind": "READ",
   "parameters": {
-    "pattern": "string (required) - Glob pattern (e.g., **/*.py)"
+    "pattern": "string (required) - Glob pattern (e.g., **/*.py)",
+    "path": "string (optional) - Base path to search in"
   }
 }
 ```
@@ -96,9 +115,263 @@ Search file contents with regular expressions.
   "name": "grep",
   "kind": "READ",
   "parameters": {
-    "pattern": "string (required) - Regex pattern",
-    "path": "string (optional) - Path to search",
-    "include": "string (optional) - File pattern to include"
+    "pattern": "string (required) - Text or regex pattern to search for",
+    "path": "string (optional) - File or directory to search in",
+    "ignore_case": "boolean (optional) - Case insensitive search",
+    "line_numbers": "boolean (optional) - Include line numbers in output",
+    "glob": "string (optional) - File glob pattern to filter files",
+    "context_before": "integer (optional) - Lines before each match",
+    "context_after": "integer (optional) - Lines after each match",
+    "invert_match": "boolean (optional) - Select non-matching lines",
+    "whole_word": "boolean (optional) - Match whole words only",
+    "count_only": "boolean (optional) - Only show match counts per file"
+  }
+}
+```
+
+### Code Analysis & Quality
+
+#### code_format
+
+Run ruff format on Python files.
+
+```json
+{
+  "name": "code_format",
+  "kind": "WRITE",
+  "parameters": {
+    "path": "string (required) - Path to Python file or directory to format"
+  }
+}
+```
+
+#### lint_check
+
+Run ruff and/or mypy on Python code.
+
+```json
+{
+  "name": "lint_check",
+  "kind": "READ",
+  "parameters": {
+    "path": "string (required) - Path to Python file or directory to lint",
+    "linter": "string (optional) - Which linter to run: 'ruff', 'mypy', or 'both'",
+    "fix": "boolean (optional) - Auto-fix safe ruff issues"
+  }
+}
+```
+
+#### dead_code
+
+Detect unused imports, functions, and classes.
+
+```json
+{
+  "name": "dead_code",
+  "kind": "READ",
+  "parameters": {
+    "path": "string (required) - Path to Python file or directory to analyze",
+    "check_imports": "boolean (optional) - Check for unused imports",
+    "check_functions": "boolean (optional) - Check for unused functions/classes",
+    "whitelist": "array (optional) - Names to exclude from detection"
+  }
+}
+```
+
+#### python_ast
+
+Parse Python file and return symbol table.
+
+```json
+{
+  "name": "python_ast",
+  "kind": "READ",
+  "parameters": {
+    "path": "string (required) - Path to Python file to analyze",
+    "include_docstrings": "boolean (optional) - Include docstrings in output"
+  }
+}
+```
+
+#### import_graph
+
+Analyze import dependencies of a Python file.
+
+```json
+{
+  "name": "import_graph",
+  "kind": "READ",
+  "parameters": {
+    "path": "string (required) - Path to Python file to analyze",
+    "scan_dir": "string (optional) - Directory to scan for reverse imports",
+    "detect_cycles": "boolean (optional) - Scan for circular import chains",
+    "classify": "boolean (optional) - Classify imports as stdlib/local/third-party"
+  }
+}
+```
+
+### Testing & Coverage
+
+#### pytest_run
+
+Run pytest on test files.
+
+```json
+{
+  "name": "pytest_run",
+  "kind": "EXECUTE",
+  "parameters": {
+    "path": "string (required) - Test path: file, directory, or file::test_name",
+    "keyword": "string (optional) - Filter tests by keyword expression",
+    "markers": "string (optional) - Filter tests by marker expression",
+    "verbose": "boolean (optional) - Enable verbose output",
+    "timeout": "integer (optional) - Timeout in seconds",
+    "coverage": "boolean (optional) - Collect coverage",
+    "coverage_source": "string (optional) - Source directory for coverage",
+    "parallel": "integer (optional) - Number of parallel workers",
+    "collect_only": "boolean (optional) - List tests without running"
+  }
+}
+```
+
+#### coverage_map
+
+Parse coverage report and show uncovered lines.
+
+```json
+{
+  "name": "coverage_map",
+  "kind": "READ",
+  "parameters": {
+    "path": "string (required) - Path to coverage.xml or coverage.json file",
+    "file_filter": "string (optional) - Filter to show only matching files",
+    "show_branches": "boolean (optional) - Include branch coverage information",
+    "per_function": "boolean (optional) - Show per-function coverage breakdown"
+  }
+}
+```
+
+#### test_gen
+
+Generate pytest test stubs from Python signatures.
+
+```json
+{
+  "name": "test_gen",
+  "kind": "WRITE",
+  "parameters": {
+    "path": "string (required) - Path to Python source file",
+    "output_path": "string (optional) - Path to write generated test file",
+    "style": "string (optional) - Test style: 'class' or 'function'"
+  }
+}
+```
+
+### Git Operations
+
+#### git_ops
+
+Run git operations: status, log, blame, show, etc.
+
+```json
+{
+  "name": "git_ops",
+  "kind": "READ",
+  "parameters": {
+    "action": "string (required) - Git action: 'status', 'log', 'blame', 'show', 'branch_list', 'stash_list', 'diff_branches'",
+    "path": "string (optional) - File path for blame/log",
+    "ref": "string (optional) - Git ref/commit for show/log",
+    "ref2": "string (optional) - Second ref for diff_branches",
+    "max_count": "integer (optional) - Max entries for log",
+    "start_line": "integer (optional) - Start line for blame range",
+    "end_line": "integer (optional) - End line for blame range",
+    "stat": "boolean (optional) - Show diffstat summary",
+    "cwd": "string (optional) - Working directory"
+  }
+}
+```
+
+#### diff_view
+
+Show git diff of current changes or compare branches.
+
+```json
+{
+  "name": "diff_view",
+  "kind": "READ",
+  "parameters": {
+    "path": "string (optional) - File path to limit diff to",
+    "staged": "boolean (optional) - Show staged changes",
+    "compare": "string (optional) - Compare two refs, e.g., 'main..feature'",
+    "stat": "boolean (optional) - Show file summary",
+    "name_only": "boolean (optional) - Show only names of changed files",
+    "context_lines": "integer (optional) - Number of context lines around changes",
+    "cwd": "string (optional) - Working directory"
+  }
+}
+```
+
+### Environment & Package Management
+
+#### env_inspect
+
+Inspect Python environment: version, packages, project type.
+
+```json
+{
+  "name": "env_inspect",
+  "kind": "READ",
+  "parameters": {
+    "cwd": "string (optional) - Working directory to inspect",
+    "packages": "array (optional) - Specific packages to check versions for",
+    "show_env_vars": "boolean (optional) - Include environment variables",
+    "show_path": "boolean (optional) - Include sys.path entries"
+  }
+}
+```
+
+#### pip_inspect
+
+Query installed Python packages.
+
+```json
+{
+  "name": "pip_inspect",
+  "kind": "READ",
+  "parameters": {
+    "package": "string (optional) - Specific package name to inspect"
+  }
+}
+```
+
+### Python Execution
+
+#### python_exec
+
+Execute Python code in a subprocess.
+
+```json
+{
+  "name": "python_exec",
+  "kind": "EXECUTE",
+  "parameters": {
+    "code": "string (required) - Python code to execute",
+    "timeout": "integer (optional) - Execution timeout in seconds",
+    "cwd": "string (optional) - Working directory for execution"
+  }
+}
+```
+
+#### traceback_parse
+
+Parse Python traceback into structured data.
+
+```json
+{
+  "name": "traceback_parse",
+  "kind": "READ",
+  "parameters": {
+    "traceback": "string (required) - The traceback text to parse"
   }
 }
 ```
@@ -114,7 +387,10 @@ Execute shell commands.
   "name": "shell",
   "kind": "EXECUTE",
   "parameters": {
-    "command": "string (required) - Command to execute"
+    "command": "string (required) - Command to execute",
+    "timeout": "integer (optional) - Command timeout in seconds",
+    "cwd": "string (optional) - Working directory",
+    "interactive": "boolean (optional) - Enable interactive mode"
   }
 }
 ```
@@ -133,7 +409,121 @@ Fetch content from a URL.
   "name": "web_fetch",
   "kind": "NETWORK",
   "parameters": {
-    "url": "string (required) - URL to fetch"
+    "url": "string (required) - URL to fetch",
+    "max_length": "integer (optional) - Maximum content length",
+    "timeout": "integer (optional) - Request timeout in seconds"
+  }
+}
+```
+
+#### web_search
+
+Search the web for information.
+
+```json
+{
+  "name": "web_search",
+  "kind": "NETWORK",
+  "parameters": {
+    "query": "string (required) - The search query",
+    "max_results": "integer (optional) - Maximum number of results"
+  }
+}
+```
+
+### Knowledge Graph & RAG
+
+#### kg_query
+
+Query the project knowledge graph.
+
+```json
+{
+  "name": "kg_query",
+  "kind": "READ",
+  "parameters": {
+    "action": "string (required) - Query action: 'search', 'get', 'neighbors', 'relations', 'important', 'stats'",
+    "query": "string (required) - Search term or entity id",
+    "entity_type": "string (optional) - Filter by entity type",
+    "depth": "integer (optional) - Hop depth for neighbors",
+    "top_k": "integer (optional) - Number of results for important"
+  }
+}
+```
+
+#### kg_update
+
+Update the project knowledge graph.
+
+```json
+{
+  "name": "kg_update",
+  "kind": "WRITE",
+  "parameters": {
+    "action": "string (required) - Update action: 'add_entity', 'add_observation', 'add_relation', 'remove_entity'",
+    "entity_id": "string (required) - Entity id for all actions",
+    "entity_type": "string (optional) - Type for add_entity",
+    "name": "string (optional) - Human-readable name for add_entity",
+    "description": "string (optional) - Description for add_entity or observation",
+    "file_path": "string (optional) - Source file path for add_entity",
+    "tags": "array (optional) - Tags for add_entity",
+    "observation": "string (optional) - Observation text for add_observation",
+    "source": "string (optional) - Source citation for add_observation",
+    "target_id": "string (optional) - Target entity id for add_relation",
+    "relation_type": "string (optional) - Relation type for add_relation"
+  }
+}
+```
+
+#### rag_search
+
+Search the codebase using semantic similarity.
+
+```json
+{
+  "name": "rag_search",
+  "kind": "READ",
+  "parameters": {
+    "query": "string (required) - Natural language query to search for",
+    "top_k": "integer (optional) - Number of results to return"
+  }
+}
+```
+
+### Agent Interaction
+
+#### ask_user
+
+Ask the user a question and wait for response.
+
+```json
+{
+  "name": "ask_user",
+  "kind": "READ",
+  "parameters": {
+    "question": "string (required) - The question to ask the user",
+    "timeout": "integer (optional) - Timeout in seconds (0 for no timeout)"
+  }
+}
+```
+
+#### delegate_task
+
+Delegate a task to a specialist agent.
+
+```json
+{
+  "name": "delegate_task",
+  "kind": "EXECUTE",
+  "parameters": {
+    "agent": "string (required) - Specialist agent role: 'planner', 'explorer', 'engineer', 'data_engineer'",
+    "task": "string (required) - Precise description of the task",
+    "done_when": "string (required) - Explicit exit condition",
+    "context": "string (optional) - Free-form context",
+    "files": "array (optional) - List of file paths to read/modify",
+    "background": "string (optional) - Summary of prior work",
+    "requirements": "string (optional) - Explicit acceptance criteria",
+    "depends_on": "string (optional) - Description of dependencies"
   }
 }
 ```
