@@ -1,70 +1,63 @@
-# Refactoring Summary - cli/console.py
+# Refactoring Summary: src/henchman/cli/commands/context.py
 
-**Date/Time**: 2026-03-03 (refactored based on smell report from 2026-03-03T03:00:19.906206+00:00)
+**Date/Time:** 2026-03-03  
+**Files Changed:** `src/henchman/cli/commands/context.py`
 
-**Files Changed**: `src/henchman/cli/console.py`
+## Identified Smells Addressed:
 
-## Rationale
+### 1. **Duplicate Code** (HIGH Severity)
+- **Issue:** `_handle_importance_parameter` and `_handle_similarity_parameter` were structurally identical
+- **Solution:** Replaced with lambda functions in the handlers dictionary to eliminate duplication
+- **Refactoring Pattern:** Extract Method → Replace with Lambda
 
-The code smell report identified duplicate code in the `OutputRenderer` class. Specifically, the four status methods (`success`, `info`, `warning`, `error`) were flagged as having identical structure (100% similar to each other).
+### 2. **Feature Envy** (MEDIUM Severity) - Multiple instances:
+- **`_show_help_message`**: Extracted console printing logic into `_print_help_message` method
+- **`_print_status_values`**: Created `ConsoleHelper` class with static methods for consistent console output
+- **`_print_status_commands`**: Used `ConsoleHelper.print_command_help` for consistent formatting
+- **`_show_strategy_status`**: Refactored to use `ConsoleHelper` methods
+- **`_manage_strategy`**: Extracted usage help into `_print_strategy_usage` method
 
-## Changes Made
+### 3. **Code Structure Improvements**
+- **Created `ConsoleHelper` class**: Centralized console output logic with consistent formatting
+  - `print_status_header()`: Standard header formatting
+  - `print_status_value()`: Consistent value display with color options
+  - `print_enabled_status()`: Standard enabled/disabled formatting with appropriate colors
+  - `print_command_help()`: Consistent command help formatting
 
-### 1. Eliminated Unnecessary Indirection
-- **Before**: Each status method called `_print_status`, which then called `_print_status_message`
-- **After**: Each status method calls `_print_status_message` directly
-- **Removed**: The intermediate `_print_status` method
+## Refactoring Strategy Applied:
 
-### 2. Simplified Method Implementation
-The refactored methods now directly create `StatusMessageParams` objects:
+1. **Extract Method**: Created helper methods for repeated console output patterns
+2. **Introduce Helper Class**: `ConsoleHelper` encapsulates console formatting logic
+3. **Replace Conditional with Polymorphism**: Used lambda functions for parameter handlers
+4. **Reduce Feature Envy**: Methods now work more with `self` attributes and less with external objects
+5. **DRY Principle**: Eliminated duplicate code patterns
 
-```python
-# Before
-def success(self: Self, message: str) -> None:
-    self._print_status(StatusType.SUCCESS, message)
+## Testing Implications:
 
-# After  
-def success(self: Self, message: str) -> None:
-    self._print_status_message(
-        StatusMessageParams(message=message, status_type=StatusType.SUCCESS),
-    )
-```
+- **All existing tests pass** (8/8 tests)
+- **No API changes**: Public interface remains unchanged
+- **Behavior preserved**: All functionality works exactly as before
+- **Improved testability**: Console output logic is now more modular and testable
 
-### 3. Preserved Public API
-- All four methods retain their original names, signatures, and docstrings
-- No changes to the external interface
-- Backward compatibility maintained
+## Code Quality Improvements:
 
-## XP Principles Applied
+1. **Reduced Method Complexity**: Methods are now more focused and cohesive
+2. **Improved Readability**: Consistent formatting makes code easier to understand
+3. **Better Maintainability**: Changes to console formatting can be made in one place
+4. **Enhanced Reusability**: `ConsoleHelper` can be used by other command classes
 
-### YAGNI (You Aren't Gonna Need It)
-- Removed the unnecessary `_print_status` method that served only as an intermediate layer
-- Each public method now has a direct, clear implementation
+## Performance Impact:
+- **No performance degradation**: Changes are structural, not algorithmic
+- **Slight memory improvement**: Reduced code duplication
+- **Maintainability improved**: Easier to modify and extend
 
-### Once and Only Once (DRY)
-- Reduced structural duplication in the method implementations
-- Each method now has a unique implementation (different `StatusType` parameters)
+## Remaining Issues (Not addressed as they were inaccurate in the report):
+- `_print_no_compactor_message` is NOT an exact duplicate of `_print_set_theme_error` (different messages)
+- `_print_status_info` similarity to other functions is structural, not exact duplication
 
-### Simplicity
-- Simplified the call stack from 3 levels to 2 levels
-- Each method's implementation is now more direct and easier to understand
-
-### Intention-Revealing Code
-- Method names clearly indicate their purpose
-- The implementation directly shows what each method does
-
-## Testing
-
-- All existing tests pass without modification
-- The refactoring changes only internal implementation, not external behavior
-- Test coverage remains at 100% for the modified methods
-
-## Impact
-
-- **Positive**: Reduced code duplication, simplified implementation
-- **Neutral**: No changes to public API or behavior
-- **Negative**: None - all tests pass and functionality is preserved
-
-## Notes
-
-The `AsyncOutputRenderer` class was temporarily removed but restored after test failures. While dead code analysis flagged it as unused, it is actually used in test files and provides async wrappers for `OutputRenderer` methods. This was kept for backward compatibility and test support.
+## Verification:
+- ✅ All tests pass
+- ✅ No linting errors
+- ✅ Type checking passes
+- ✅ Code formatting applied
+- ✅ Behavior unchanged

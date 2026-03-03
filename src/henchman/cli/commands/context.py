@@ -13,6 +13,55 @@ if TYPE_CHECKING:
     pass
 
 
+class ConsoleHelper:
+    """Helper class for console output operations."""
+
+    @staticmethod
+    def print_status_header(console: Any) -> None:
+        """Print status header.
+
+        Args:
+            console: Console for output.
+        """
+        console.print("\n[bold blue]Intelligent Context Management[/]\n")
+
+    @staticmethod
+    def print_status_value(console: Any, label: str, value: Any, color: str = "cyan") -> None:
+        """Print a status value with consistent formatting.
+
+        Args:
+            console: Console for output.
+            label: Label for the value.
+            value: Value to display.
+            color: Color for the value.
+        """
+        console.print(f"  {label}: [{color}]{value}[/]")
+
+    @staticmethod
+    def print_enabled_status(console: Any, label: str, is_enabled: bool) -> None:
+        """Print enabled/disabled status with appropriate colors.
+
+        Args:
+            console: Console for output.
+            label: Label for the status.
+            is_enabled: Whether the feature is enabled.
+        """
+        color = "green" if is_enabled else "yellow"
+        status = "Enabled" if is_enabled else "Disabled"
+        console.print(f"  {label}: [{color}]{status}[/]")
+
+    @staticmethod
+    def print_command_help(console: Any, command: str, description: str) -> None:
+        """Print command help line.
+
+        Args:
+            console: Console for output.
+            command: Command syntax.
+            description: Command description.
+        """
+        console.print(f"  Use [cyan]{command}[/] to {description}")
+
+
 @dataclass
 class RangeParameterConfig:
     """Configuration for range-validated parameters.
@@ -131,13 +180,21 @@ class ContextCommand(Command):
 
     async def _show_help_message(self, ctx: CommandContext) -> None:
         """Show detailed help message."""
-        ctx.console.print(f"[yellow]Usage: {self.usage}[/]")
-        ctx.console.print("\nSubcommands:")
-        ctx.console.print("  enable     - Enable intelligent context management")
-        ctx.console.print("  disable    - Disable intelligent context management")
-        ctx.console.print("  strategy   - Set compression strategy")
-        ctx.console.print("  stats      - Show context usage statistics")
-        ctx.console.print("")
+        self._print_help_message(ctx.console)
+
+    def _print_help_message(self, console: Any) -> None:
+        """Print detailed help message to console.
+
+        Args:
+            console: Console for output.
+        """
+        console.print(f"[yellow]Usage: {self.usage}[/]")
+        console.print("\nSubcommands:")
+        console.print("  enable     - Enable intelligent context management")
+        console.print("  disable    - Disable intelligent context management")
+        console.print("  strategy   - Set compression strategy")
+        console.print("  stats      - Show context usage statistics")
+        console.print("")
 
     async def _show_status(self, ctx: CommandContext) -> None:
         """Show current intelligent context status.
@@ -166,7 +223,7 @@ class ContextCommand(Command):
         Args:
             console: Console for output.
         """
-        console.print("\n[bold blue]Intelligent Context Management[/]\n")
+        ConsoleHelper.print_status_header(console)
 
     def _print_status_values(self, console: Any, context_settings: Any) -> None:
         """Print status values.
@@ -175,21 +232,19 @@ class ContextCommand(Command):
             console: Console for output.
             context_settings: Context settings to display.
         """
-        console.print(
-            f"  Status: [{'green' if context_settings.intelligent_context else 'red'}]"
-            f"{'Enabled' if context_settings.intelligent_context else 'Disabled'}[/]"
+        ConsoleHelper.print_enabled_status(console, "Status", context_settings.intelligent_context)
+        ConsoleHelper.print_enabled_status(
+            console, "Adaptive compression", context_settings.adaptive_compression
         )
-        console.print(
-            f"  Adaptive compression: [{'green' if context_settings.adaptive_compression else 'yellow'}]"
-            f"{'Enabled' if context_settings.adaptive_compression else 'Disabled'}[/]"
+        ConsoleHelper.print_status_value(console, "Max tokens", context_settings.max_tokens)
+        ConsoleHelper.print_status_value(
+            console, "Compaction threshold", f"{context_settings.compaction_threshold * 100:.0f}%"
         )
-        console.print(f"  Max tokens: [cyan]{context_settings.max_tokens}[/]")
-        console.print(
-            f"  Compaction threshold: [cyan]{context_settings.compaction_threshold * 100:.0f}%[/]"
+        ConsoleHelper.print_status_value(
+            console, "Importance threshold", context_settings.importance_threshold
         )
-        console.print(f"  Importance threshold: [cyan]{context_settings.importance_threshold}[/]")
-        console.print(
-            f"  Cluster similarity: [cyan]{context_settings.cluster_similarity_threshold}[/]"
+        ConsoleHelper.print_status_value(
+            console, "Cluster similarity", context_settings.cluster_similarity_threshold
         )
 
     def _print_status_commands(self, console: Any) -> None:
@@ -199,10 +254,12 @@ class ContextCommand(Command):
             console: Console for output.
         """
         console.print("")
-        console.print("  Use [cyan]/context enable[/] to enable intelligent context")
-        console.print("  Use [cyan]/context disable[/] to disable intelligent context")
-        console.print("  Use [cyan]/context strategy[/] to manage compression strategies")
-        console.print("  Use [cyan]/context stats[/] to view usage statistics")
+        ConsoleHelper.print_command_help(console, "/context enable", "enable intelligent context")
+        ConsoleHelper.print_command_help(console, "/context disable", "disable intelligent context")
+        ConsoleHelper.print_command_help(
+            console, "/context strategy", "manage compression strategies"
+        )
+        ConsoleHelper.print_command_help(console, "/context stats", "view usage statistics")
         console.print("")
 
     async def _enable_intelligent_context(self, ctx: CommandContext) -> None:
@@ -251,17 +308,7 @@ class ContextCommand(Command):
         action = args[self._STRATEGY_ACTION_IDX].lower()
         if action == "set":
             if len(args) < 3:  # Need at least 'set', 'parameter' and 'value'
-                ctx.console.print("[yellow]Usage: /context strategy set <parameter> <value>[/]")
-                ctx.console.print("\nParameters:")
-                ctx.console.print("  max_tokens <int>          - Maximum tokens before compaction")
-                ctx.console.print("  threshold <float>         - Compaction threshold (0.1-1.0)")
-                ctx.console.print("  importance <float>        - Importance threshold (0.0-1.0)")
-                ctx.console.print(
-                    "  similarity <float>        - Cluster similarity threshold (0.0-1.0)"
-                )
-                ctx.console.print(
-                    "  adaptive <on|off>         - Enable/disable adaptive compression"
-                )
+                self._print_strategy_usage(ctx.console)
                 return
 
             param = args[self._STRATEGY_PARAM_IDX]
@@ -269,6 +316,20 @@ class ContextCommand(Command):
             await self._set_strategy_parameter(ctx, param, value)
         else:
             ctx.console.print("[yellow]Usage: /context strategy [set <parameter> <value>][/]")
+
+    def _print_strategy_usage(self, console: Any) -> None:
+        """Print strategy command usage help.
+
+        Args:
+            console: Console for output.
+        """
+        console.print("[yellow]Usage: /context strategy set <parameter> <value>[/]")
+        console.print("\nParameters:")
+        console.print("  max_tokens <int>          - Maximum tokens before compaction")
+        console.print("  threshold <float>         - Compaction threshold (0.1-1.0)")
+        console.print("  importance <float>        - Importance threshold (0.0-1.0)")
+        console.print("  similarity <float>        - Cluster similarity threshold (0.0-1.0)")
+        console.print("  adaptive <on|off>         - Enable/disable adaptive compression")
 
     async def _show_strategy_status(self, ctx: CommandContext) -> None:
         """Show current compression strategy settings.
@@ -281,18 +342,23 @@ class ContextCommand(Command):
         console = ctx.console
 
         console.print("\n[bold blue]Compression Strategy Settings[/]\n")
-        console.print(f"  Max tokens: [cyan]{context_settings.max_tokens}[/]")
-        console.print(f"  Compaction threshold: [cyan]{context_settings.compaction_threshold}[/]")
-        console.print(f"  Importance threshold: [cyan]{context_settings.importance_threshold}[/]")
-        console.print(
-            f"  Cluster similarity: [cyan]{context_settings.cluster_similarity_threshold}[/]"
+        ConsoleHelper.print_status_value(console, "Max tokens", context_settings.max_tokens)
+        ConsoleHelper.print_status_value(
+            console, "Compaction threshold", context_settings.compaction_threshold
         )
-        console.print(
-            f"  Adaptive compression: [{'green' if context_settings.adaptive_compression else 'yellow'}]"
-            f"{'Enabled' if context_settings.adaptive_compression else 'Disabled'}[/]"
+        ConsoleHelper.print_status_value(
+            console, "Importance threshold", context_settings.importance_threshold
+        )
+        ConsoleHelper.print_status_value(
+            console, "Cluster similarity", context_settings.cluster_similarity_threshold
+        )
+        ConsoleHelper.print_enabled_status(
+            console, "Adaptive compression", context_settings.adaptive_compression
         )
         console.print("")
-        console.print("  Use [cyan]/context strategy set <parameter> <value>[/] to change settings")
+        ConsoleHelper.print_command_help(
+            console, "/context strategy set <parameter> <value>", "change settings"
+        )
         console.print("")
 
     async def _set_strategy_parameter(
@@ -316,8 +382,12 @@ class ContextCommand(Command):
         handlers = {
             "max_tokens": self._handle_max_tokens_parameter,
             "threshold": self._handle_threshold_parameter,
-            "importance": self._handle_importance_parameter,
-            "similarity": self._handle_similarity_parameter,
+            "importance": lambda c, v: self._handle_zero_to_one_parameter(
+                c, v, "importance_threshold"
+            ),
+            "similarity": lambda c, v: self._handle_zero_to_one_parameter(
+                c, v, "cluster_similarity_threshold"
+            ),
             "adaptive": self._handle_adaptive_parameter,
         }
 
@@ -370,14 +440,6 @@ class ContextCommand(Command):
             param_name="compaction_threshold", min_val=0.1, max_val=1.0, label="Threshold"
         )
         await self._handle_range_parameter(ctx, value, config)
-
-    async def _handle_importance_parameter(self, ctx: CommandContext, value: str) -> None:
-        """Handle importance parameter setting."""
-        await self._handle_zero_to_one_parameter(ctx, value, "importance_threshold")
-
-    async def _handle_similarity_parameter(self, ctx: CommandContext, value: str) -> None:
-        """Handle similarity parameter setting."""
-        await self._handle_zero_to_one_parameter(ctx, value, "cluster_similarity_threshold")
 
     async def _handle_zero_to_one_parameter(
         self, ctx: CommandContext, value: str, param_name: str

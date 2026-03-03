@@ -3916,3 +3916,151 @@ INFO    -  Documentation built in 0.76 seconds
 }
 [2026-03-03T03:30:02Z] Verification passed.
 Committing changes...
+[main 1e577bb] docs(auto-improve): automated documentation improvement
+ 8 files changed, 658 insertions(+), 1916 deletions(-)
+[2026-03-03T03:30:02Z] Done.
+[2026-03-03T03:45:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by addressing the highest-priority documentation smell from the report. Looking at the prioritized fix queue, the first item is:
+
+**src/henchman/mcp/tool.py:84** — 🟠 HIGH — Stale Docstring  
+'McpTool.execute' has undocumented parameters: params  
+→ _Add these parameters to the Args: section: params_
+
+This is a high-severity stale docstring issue where the `execute` method has a parameter `params` that's not documented in the docstring. Let me first examine the current state of this file.
+[tool] read_file({'path': 'src/henchman/mcp/tool.py', 'start_line': 70, 
+'end_line': 100})
+
+
+[result]     @property
+    def kind(self) -> ToolKind:
+        """Tool kind based on trust level.
+
+        Trusted servers get READ kind (auto-approved).
+        Untrusted servers get NETWORK kind (requires co...
+I can see the issue. The docstring already has `**params: Tool parameters.` in the Args section, but the smell detector is flagging it as undocumented. Let me check the full method to see if there's something else missing.
+[tool] read_file({})
+
+✗ \[error] Error reading file: [Errno 21] Is a directory: '.'
+
+[tool] read_file({'path': 'src/henchman/mcp/tool.py'})
+
+[result] """MCP tool wrapper.
+
+This module provides the McpTool class that wraps MCP server
+tools as internal Tool instances.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+fro...
+The docstring looks correct to me - it has `**params: Tool parameters.` in the Args section. However, looking at the smell report more carefully, I notice this is a "Stale Docstring" issue, not "Incomplete Docstring". The detector might be comparing against a different signature or expecting a different format. Let me check if there's a mismatch between the function signature and the docstring.
+
+Actually, wait. Looking at the line numbers in the report (line 84), and looking at the file, line 84 is the `async def execute(self, **params: object) -> ToolResult:` line. The docstring starts on line 85. The issue might be that the docstring doesn't explicitly list `params` as a parameter in the Args section with a type annotation.
+
+Let me check the Google-style docstring format. In Google style, parameters should be listed with their types. The current docstring has `**params: Tool parameters.` which might not be recognized as a proper parameter documentation because it doesn't have a type annotation like `params (dict): Tool parameters.`
+
+Actually, looking more carefully at the Google style, for `**kwargs` it should be documented as `**kwargs: Additional keyword arguments.` So the current format `**params: Tool parameters.` should be correct.
+
+Let me check what other similar tools are doing to see the pattern:
+[tool] read_file({'path': 'src/henchman/tools/base.py', 'start_line': 140, 
+'end_line': 160})
+
+[result]             parameters=self.parameters,
+        )
+
+    @abstractmethod
+    async def execute(self, **params: object) -> ToolResult:
+        """Execute the tool with the given parameters.
+
+        Args...
+The base class has the same format. Let me check one of the other tools flagged in the report to see if there's a pattern:
+[tool] read_file({'path': 'src/henchman/tools/builtins/ask_user.py', 
+'start_line': 70, 'end_line': 90})
+
+[result]         """
+        return None  # Never needs confirmation
+
+    async def execute(self, **params: object) -> ToolResult:
+        """Execute the ask_user tool.
+
+        Args:
+            **params: Too...
+This one also has `**params` documented. Let me check if maybe the issue is that these need to be documented as individual parameters rather than `**params`. Actually, looking at the smell report again, it says "has undocumented parameters: params" - singular "params" not "**params". The detector might be expecting the parameter to be documented as `params` not `**params`.
+
+But actually, the function signature is `**params: object`, so it's keyword arguments. The docstring should document it as `**params`. 
+
+Wait, I think I see the issue. The smell detector might be parsing the docstring and not recognizing `**params: Tool parameters.` as a valid parameter documentation because it doesn't match the expected Google style format exactly. Let me check the Google style guide...
+
+Actually, looking at the actual error message again: "has undocumented parameters: params" - it's saying the parameter `params` is undocumented. But the function has `**params`, which is a keyword argument. The docstring has `**params: Tool parameters.` which should be correct.
+
+Let me check if maybe the issue is that the docstring needs to be more specific about what `params` contains. Or maybe the detector wants it documented as:
+
+```
+Args:
+    params (dict): Tool parameters.
+```
+
+But that would be wrong since it's `**params`, not `params`.
+
+Actually, I think the issue might be with the smell detector itself. But since my task is to fix documentation smells, I should try to fix it in a way that satisfies the detector. Let me look at a tool that doesn't have this issue to see the pattern:
+[tool] read_file({'path': 'src/henchman/tools/builtins/file_read.py', 
+'start_line': 70, 'end_line': 100})
+
+[result]         end_line: int = -1,
+        max_chars: int = DEFAULT_MAX_CHARS,
+        **kwargs: object,  # noqa: ARG002
+    ) -> ToolResult:
+        """Read file contents.
+
+        Args:
+            path: P...
+This one has `**kwargs: Additional arguments (ignored).` in the docstring. The function signature has `**kwargs: object`. So the pattern seems correct.
+
+Let me check if maybe the issue is that the McpTool.execute method doesn't have a `Raises:` section or something else missing. Actually, looking back at the report, it specifically says "Stale Docstring" not "Incomplete Docstring". A stale docstring means the documentation doesn't match the code. Maybe at some point the signature was different?
+
+Let me check the git history or see if there are any other clues. Actually, I think the best approach is to just fix it by making sure the docstring matches what the detector expects. Since multiple tools have the same issue, maybe there's a pattern issue.
+
+Looking at the Google style guide, for `**kwargs` it should be documented as:
+```
+**kwargs: Additional keyword arguments.
+```
+
+But the McpTool has `**params: Tool parameters.` which is similar but uses `params` instead of `kwargs`. Maybe the detector expects `kwargs` not `params`? But that doesn't make sense since the parameter name is `params`.
+
+Actually, I think I should just update the docstring to be more explicit and see if that fixes it. Let me update it to:
+
+```
+Args:
+    **params (dict): Tool parameters to pass to the MCP server.
+```
+
+Actually no, `**params` is not a dict, it's keyword arguments. In Google style, it should be:
+```
+**params: Tool parameters to pass to the MCP server.
+```
+
+Which is what it already has. Hmm.
+
+Wait, let me re-examine. The function signature is `async def execute(self, **params: object) -> ToolResult:`. The parameter is `**params` with type `object`. But in the docstring, we're not specifying the type. Maybe it should be:
+
+```
+Args:
+    **params (object): Tool parameters.
+```
+
+But `object` is too vague. Actually, `**params` means it accepts keyword arguments, so the type should be something like `dict[str, Any]` but it's typed as `object`.
+
+Actually, looking at the implementation, it does `arguments: dict[str, Any] = dict(params)`, so `params` is treated as a dict. So maybe the type annotation should be `**params: dict[str, Any]` but it's `**params: object`.
+
+I think the issue might be the type annotation mismatch. The docstring says `Tool parameters` but doesn't specify the type. Maybe the detector wants it to match the type annotation?
+
+Let me check if changing the type annotation would help. Actually, I can't change the code, only documentation. So I need to update the docstring to match.
+
+Actually, I just realized something. The smell report says "Stale Docstring" and lists 11 high-severity issues,
