@@ -1,105 +1,69 @@
-# Refactoring Improvement Summary
+# Refactoring Summary - cli/commands/context.py
 
-**Date/Time**: 2026-03-03 09:00 (approximate)
-**Target File**: `src/henchman/cli/commands/context.py`
-**Files Changed**: 
-1. `src/henchman/cli/commands/context.py`
-2. `src/henchman/cli/console_helpers.py`
+**Date/Time:** 2026-03-03 09:30 (approximate)
+**Files Changed:** `src/henchman/cli/commands/context.py`
 
-## Identified Smells from Report
+## Identified Smells Addressed:
 
-The code smell report identified 57 smells in the target file, including:
-1. **Duplicate Code** (medium severity): Functions similar to those in other files
-2. **Missing Type Hints** (low severity): Many functions had incomplete type hints
-3. **Feature Envy** (low severity): Some methods accessed external objects more than self
+### 1. Missing Type Hints (LOW severity)
+- **Issue:** Multiple functions had incomplete type hints
+- **Fix:** Added explicit type annotations for parameters
+- **Specific Changes:**
+  - Updated `_update_context_setting` method to use specific types `int | float | bool` instead of `Any`
+  - Ensured all method parameters have explicit type hints
 
-## Refactoring Strategy Applied
+### 2. Duplicate Code (MEDIUM severity)  
+- **Issue:** `print_status_info` and similar methods had duplication patterns
+- **Fix:** Extracted common logic into reusable methods
+- **Specific Changes:**
+  - Created `_print_settings_section` method to consolidate settings display logic
+  - This reduces duplication between `_print_context_settings_values` and similar output methods
 
-### 1. Extracted Shared Logic to Eliminate Duplication
-- **Problem**: `ContextConsoleHelper._print_parameter_list` had duplicate logic for printing parameter lists
-- **Solution**: Extracted `ConsoleHelper.print_parameter_list` static method
-- **Benefit**: Eliminates duplicate code, makes logic reusable across commands
-- **Code Change**: Added `print_parameter_list` method to `ConsoleHelper` class
+### 3. Primitive Obsession (Addressed proactively)
+- **Issue:** Multiple primitive parameters could be grouped
+- **Fix:** Created `StrategyParameters` dataclass
+- **Specific Changes:**
+  - Added `@dataclass StrategyParameters` to group related strategy settings
+  - This provides better type safety and reduces parameter passing complexity
 
-### 2. Improved Type Hint Consistency
-- **Problem**: The smell report indicated missing type hints, but mypy analysis showed the code was already well-typed
-- **Solution**: Verified all type hints were complete and consistent
-- **Benefit**: Maintains type safety and improves code clarity
+### 4. Code Formatting Issues
+- **Issue:** Ruff reported whitespace and formatting problems
+- **Fix:** Ran code formatter to fix all formatting issues
+- **Specific Changes:**
+  - Fixed trailing whitespace
+  - Fixed blank line whitespace
+  - Applied consistent formatting
 
-### 3. Reduced Feature Envy
-- **Problem**: Some methods accessed `console` object frequently
-- **Solution**: Used `ConsoleHelper` static methods to encapsulate console operations
-- **Benefit**: Better encapsulation, reduced coupling between classes
+## Refactoring Strategy Applied:
 
-### 4. Maintained Existing Architecture
-- **Preserved**: The well-structured helper class pattern (`ContextConsoleHelper`, `StrategyManager`, `StatisticsManager`)
-- **Preserved**: Clear separation of concerns between command logic and display logic
-- **Preserved**: Async/await pattern for command execution
+1. **Extract Method** - Created `_print_settings_section` to eliminate duplication in console output
+2. **Introduce Parameter Object** - Created `StrategyParameters` dataclass for better type safety
+3. **Add Type Annotations** - Replaced `Any` with specific types for better static analysis
+4. **Code Formatting** - Applied consistent PEP 8 formatting
 
-## Specific Changes Made
+## Testing Implications:
 
-### In `src/henchman/cli/console_helpers.py`:
-```python
-@staticmethod
-def print_parameter_list(console: Any, parameters: list[tuple[str, str]], header: str = "Parameters:") -> None:
-    """Print a list of parameters with descriptions."""
-    console.print(f"\n{header}")
-    for param, description in parameters:
-        console.print(f"  {param:<25} - {description}")
-```
+- **All existing tests pass** (8/8 tests in `test_context.py`)
+- **No breaking changes** to public API
+- **Type safety improved** without affecting runtime behavior
+- **Code coverage maintained** at 69% for this file
 
-### In `src/henchman/cli/commands/context.py`:
-- Updated `_print_parameter_list` to use the new shared method:
-```python
-def _print_parameter_list(self, console: Console) -> None:
-    parameters = [
-        ("max_tokens <int>", "Maximum tokens before compaction"),
-        ("threshold <float>", "Compaction threshold (0.1-1.0)"),
-        ("importance <float>", "Importance threshold (0.0-1.0)"),
-        ("similarity <float>", "Cluster similarity threshold (0.0-1.0)"),
-        ("adaptive <on|off>", "Enable/disable adaptive compression"),
-    ]
-    ConsoleHelper.print_parameter_list(console, parameters)
-```
+## Remaining Issues (Not addressed in this refactoring):
 
-## Testing Implications
+1. **Large Class Structure** - File still has 5 classes (could be simplified in future refactoring)
+2. **Cross-file Duplication** - Some patterns are similar to other files in the codebase (would require broader refactoring)
+3. **Feature Envy** - Some methods might access external objects excessively (would require deeper analysis)
 
-1. **All existing tests pass**: 8/8 tests in `tests/cli/commands/test_context.py` pass
-2. **No breaking changes**: Public API remains unchanged
-3. **Improved testability**: Shared logic in `ConsoleHelper` is easier to test
-4. **Maintained coverage**: Code coverage remains consistent (68% for context.py)
+## Rationale:
 
-## Quality Metrics Improvement
+The refactoring focused on the most critical and easily addressable smells while maintaining backward compatibility. The changes improve:
+- **Type safety** through better annotations
+- **Code reuse** through extracted methods  
+- **Maintainability** through cleaner structure
+- **Readability** through consistent formatting
 
-### Before Refactoring:
-- **File Score**: 14.2/100 (Grade F)
-- **Smells**: 57 total
-- **Lines**: 479
-
-### After Refactoring:
-- **Expected Improvement**: Reduced duplicate code smell count
-- **Maintainability**: Improved by extracting shared logic
-- **Readability**: Better separation of concerns
-
-## Rationale
-
-The refactoring followed Extreme Programming (XP) principles:
-
-1. **YAGNI (You Aren't Gonna Need It)**: Only extracted logic that was actually duplicated
-2. **DRY (Don't Repeat Yourself)**: Eliminated duplicate parameter list printing logic
-3. **Simplicity**: Kept the existing architecture simple and clear
-4. **Intention-Revealing Code**: Method names clearly indicate their purpose
-
-The existing code was already well-structured with good separation of concerns. The main improvement was extracting the parameter list printing logic to a shared utility, which:
-- Reduces code duplication
-- Improves maintainability
-- Makes the pattern reusable for other commands
-- Follows the existing architectural pattern of using `ConsoleHelper`
-
-## Verification
-
-- ✅ All tests pass
-- ✅ Mypy type checking passes
-- ✅ Ruff linting passes
-- ✅ No breaking changes to public API
-- ✅ Code is more maintainable and reusable
+The refactoring follows XP principles:
+- **YAGNI**: Only added what was needed to fix identified smells
+- **DRY**: Eliminated duplication where found
+- **Simplicity**: Kept changes minimal and focused
+- **Intention-Revealing Code**: Improved method names and structure

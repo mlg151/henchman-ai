@@ -138,7 +138,16 @@ def check_turn_limits(
 def finalize_loop(
     orchestrator: Any, agent: Agent, state: LoopState,
 ) -> None:
-    """Finalize agent loop by storing state and metrics."""
+    """Finalize agent loop by storing state and metrics.
+
+    Args:
+        orchestrator: The orchestrator instance managing the agent execution.
+        agent: The agent whose loop is being finalized.
+        state: The current loop state containing metrics and errors.
+
+    Returns:
+        None
+    """
     if not hasattr(agent, "_delegation_tool_errors"):
         agent._delegation_tool_errors = []  # type: ignore[attr-defined]  # noqa: SLF001
     agent._delegation_tool_errors = state.tool_errors  # type: ignore[attr-defined]  # noqa: SLF001
