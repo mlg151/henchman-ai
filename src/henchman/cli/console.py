@@ -752,7 +752,7 @@ class OutputRenderer:
         # escape to show raw content including markdown symbols
         self.console.print(escape(content), style=self.theme.muted, end="")
 
-    async def confirm_tool_execution(self, message: str) -> bool:
+    async def confirm_tool_execution(self: Self, message: str) -> bool:
         """Ask user for confirmation.
 
         Args:

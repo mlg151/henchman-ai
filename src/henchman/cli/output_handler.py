@@ -19,6 +19,11 @@ if TYPE_CHECKING:
     from henchman.providers.base import ModelProvider
 
 
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
+
 class OutputHandler:
     """Handles output and event streaming for the REPL.
 
@@ -30,7 +35,7 @@ class OutputHandler:
     """
 
     def __init__(
-        self,
+        self: Self,
         renderer: UIRenderer,
         tool_manager: ToolManager,
         session_manager: ReplSessionManager,
@@ -58,7 +63,7 @@ class OutputHandler:
         self.rag_system = rag_system
         self.mcp_manager = mcp_manager
 
-    def get_toolbar_status(self, agent: Agent | None = None) -> list[tuple[str, str]]:
+    def get_toolbar_status(self: Self, agent: Agent | None = None) -> list[tuple[str, str]]:
         """Get status bar content.
 
         Args:
@@ -78,7 +83,7 @@ class OutputHandler:
 
         return status
 
-    def _add_plan_mode_status(self, status: list[tuple[str, str]]) -> None:
+    def _add_plan_mode_status(self: Self, status: list[tuple[str, str]]) -> None:
         """Add plan mode status to the status list.
 
         Args:
@@ -91,7 +96,7 @@ class OutputHandler:
         else:
             status.append(("bg:blue fg:white bold", " CHAT "))
 
-    def _add_provider_status(self, status: list[tuple[str, str]]) -> None:
+    def _add_provider_status(self: Self, status: list[tuple[str, str]]) -> None:
         """Add provider and model status to the status list.
 
         Args:
@@ -104,7 +109,7 @@ class OutputHandler:
         except Exception:
             pass
 
-    def _add_token_status(self, status: list[tuple[str, str]], agent: Agent | None) -> None:
+    def _add_token_status(self: Self, status: list[tuple[str, str]], agent: Agent | None) -> None:
         """Add token usage status to the status list.
 
         Args:
@@ -128,7 +133,7 @@ class OutputHandler:
         except Exception:
             pass
 
-    def _get_max_tokens(self) -> int:
+    def _get_max_tokens(self: Self) -> int:
         """Get the maximum token limit from settings.
 
         Returns:
@@ -167,7 +172,7 @@ class OutputHandler:
 
         status.append((f"fg:{color}", f" Tokens: {percentage:.0f}% "))
 
-    def _add_tool_status(self, status: list[tuple[str, str]]) -> None:
+    def _add_tool_status(self: Self, status: list[tuple[str, str]]) -> None:
         """Add tool count status to the status list.
 
         Args:
@@ -180,7 +185,7 @@ class OutputHandler:
         except Exception:
             pass
 
-    def _add_mcp_status(self, status: list[tuple[str, str]]) -> None:
+    def _add_mcp_status(self: Self, status: list[tuple[str, str]]) -> None:
         """Add MCP connection status to the status list.
 
         Args:
@@ -199,7 +204,7 @@ class OutputHandler:
         except Exception:
             pass
 
-    def _count_connected_mcp_clients(self) -> int:
+    def _count_connected_mcp_clients(self: Self) -> int:
         """Count the number of connected MCP clients.
 
         Returns:
@@ -213,7 +218,7 @@ class OutputHandler:
             if hasattr(client, "is_connected") and client.is_connected
         )
 
-    def _add_rag_status(self, status: list[tuple[str, str]]) -> None:
+    def _add_rag_status(self: Self, status: list[tuple[str, str]]) -> None:
         """Add RAG status to the status list.
 
         Args:
@@ -222,7 +227,7 @@ class OutputHandler:
         if self.rag_system and getattr(self.rag_system, "is_indexing", False):
             status.append(("bg:cyan fg:black", " RAG: Indexing... "))
 
-    def get_rich_status_message(self, agent: Agent) -> str:
+    def get_rich_status_message(self: Self, agent: Agent) -> str:
         """Get rich status message for persistent display.
 
         Args:
@@ -235,19 +240,19 @@ class OutputHandler:
             self.session_manager.current, agent, self.rag_system,
         )
 
-    def print_welcome(self) -> None:
+    def print_welcome(self: Self) -> None:
         """Print welcome message."""
         self.renderer.print_welcome()
 
-    def print_goodbye(self) -> None:
+    def print_goodbye(self: Self) -> None:
         """Print goodbye message."""
         self.renderer.print_goodbye()
 
-    def print_newline(self) -> None:
+    def print_newline(self: Self) -> None:
         """Print a newline."""
         self.renderer.print_newline()
 
-    def success(self, message: str) -> None:
+    def success(self: Self, message: str) -> None:
         """Print success message.
 
         Args:
@@ -255,7 +260,7 @@ class OutputHandler:
         """
         self.renderer.success(message)
 
-    def error(self, message: str) -> None:
+    def error(self: Self, message: str) -> None:
         """Print error message.
 
         Args:
@@ -263,7 +268,7 @@ class OutputHandler:
         """
         self.renderer.error(message)
 
-    def warning(self, message: str) -> None:
+    def warning(self: Self, message: str) -> None:
         """Print warning message.
 
         Args:
@@ -271,7 +276,7 @@ class OutputHandler:
         """
         self.renderer.warning(message)
 
-    def muted(self, message: str) -> None:
+    def muted(self: Self, message: str) -> None:
         """Print muted message.
 
         Args:
@@ -279,7 +284,7 @@ class OutputHandler:
         """
         self.renderer.muted(message)
 
-    def thinking(self, message: str) -> None:
+    def thinking(self: Self, message: str) -> None:
         """Print thinking message.
 
         Args:
@@ -287,7 +292,7 @@ class OutputHandler:
         """
         self.renderer.thinking(message)
 
-    def print_agent_content(self, content: str) -> None:
+    def print_agent_content(self: Self, content: str) -> None:
         """Print agent content.
 
         Args:
@@ -295,7 +300,7 @@ class OutputHandler:
         """
         self.renderer.print_agent_content(content)
 
-    def create_status(self, message: str, spinner: str = "dots") -> Status:
+    def create_status(self: Self, message: str, spinner: str = "dots") -> Status:
         """Create a status context manager.
 
         Args:
@@ -307,7 +312,7 @@ class OutputHandler:
         """
         return self.renderer.create_status(message, spinner=spinner)
 
-    def show_turn_status(self, agent: Agent, base_iterations: int) -> None:
+    def show_turn_status(self: Self, agent: Agent, base_iterations: int) -> None:
         """Display current turn status.
 
         Args:
@@ -329,7 +334,7 @@ class OutputHandler:
             if self.rag_system and hasattr(self.rag_system, "index_async"):
                 self._safe_create_task(self.rag_system.index_async())
 
-    def start_task(self, task_id: str, description: str, total: int = 100) -> Any:
+    def start_task(self: Self, task_id: str, description: str, total: int = 100) -> Any:
         """Start a new progress task.
 
         Args:
@@ -342,7 +347,7 @@ class OutputHandler:
         """
         return self.renderer.start_task(task_id, description, total)
 
-    def update_task(self, task_id: str, advance: int = 1, description: str | None = None) -> None:
+    def update_task(self: Self, task_id: str, advance: int = 1, description: str | None = None) -> None:
         """Update progress for a task.
 
         Args:
@@ -352,7 +357,7 @@ class OutputHandler:
         """
         self.renderer.update_task(task_id, advance, description)
 
-    def complete_task(self, task_id: str) -> None:
+    def complete_task(self: Self, task_id: str) -> None:
         """Complete and remove a task.
 
         Args:
@@ -360,7 +365,7 @@ class OutputHandler:
         """
         self.renderer.complete_task(task_id)
 
-    def start_background_indexing(self) -> None:
+    def start_background_indexing(self: Self) -> None:
         """Start background indexing if RAG is available."""
         if self.rag_system and hasattr(self.rag_system, "index_async"):
             self._safe_create_task(self.rag_system.index_async())

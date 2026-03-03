@@ -1,6 +1,12 @@
 """Input handler for REPL.
 
 This module handles user input processing including prompt sessions,
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
+
 @file expansion, and shell command detection.
 """
 
@@ -34,7 +40,7 @@ class InputHandler:
     """
 
     def __init__(
-        self,
+        self: Self,
         config: ReplConfig,
         renderer: object,
         history_file: Path | None = None,
@@ -82,7 +88,7 @@ class InputHandler:
             completer=completer,
         )
 
-    async def get_input(self) -> str:
+    async def get_input(self: Self) -> str:
         """Get input from the user.
 
         Returns:
@@ -107,7 +113,7 @@ class InputHandler:
             self.renderer.print_newline()
         return await self.prompt_session.prompt_async(self.config.prompt)
 
-    def is_slash_command(self, input_text: str) -> bool:
+    def is_slash_command(self: Self, input_text: str) -> bool:
         """Check if input is a slash command.
 
         Args:
@@ -118,7 +124,7 @@ class InputHandler:
         """
         return is_slash_command(input_text)
 
-    async def expand_at_references(self, input_text: str) -> str:
+    async def expand_at_references(self: Self, input_text: str) -> str:
         """Expand @file references in input.
 
         Args:
@@ -129,7 +135,7 @@ class InputHandler:
         """
         return await expand_at_references(input_text)
 
-    async def process_input(self, user_input: str) -> tuple[str, bool, bool]:
+    async def process_input(self: Self, user_input: str) -> tuple[str, bool, bool]:
         """Process user input to determine if it's a command or regular input.
 
         Args:

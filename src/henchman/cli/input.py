@@ -21,6 +21,11 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
+
 def is_slash_command(text: str) -> bool:
     """Check if input is a slash command.
 
@@ -201,7 +206,7 @@ class InputHandler:
     """
 
     def __init__(
-        self,
+        self: Self,
         history_file: Path | None = None,
         prompt: str = "❯ ",
     ) -> None:
@@ -214,7 +219,7 @@ class InputHandler:
         self.history_file = history_file or Path.home() / ".henchman_history"
         self._prompt = prompt
 
-    def get_prompt(self) -> str:
+    def get_prompt(self: Self) -> str:
         """Get the prompt string.
 
         Returns:
@@ -226,7 +231,7 @@ class InputHandler:
 class ToolForm:
     """Interactive form for tool parameter input."""
 
-    def __init__(self, console: Console):
+    def __init__(self: Self, console: Console):
         """Initialize the tool form.
 
         Args:
@@ -234,7 +239,7 @@ class ToolForm:
         """
         self.console = console
 
-    def prompt_for_parameters(self, tool_name: str, parameters: dict[str, Any]) -> dict[str, Any]:
+    def prompt_for_parameters(self: Self, tool_name: str, parameters: dict[str, Any]) -> dict[str, Any]:
         """Prompt user for tool parameters.
 
         Args:
@@ -291,7 +296,7 @@ class KeyMonitor:
     This is used to detect Escape or Ctrl+C while the agent is generating output.
     """
 
-    def __init__(self) -> None:
+    def __init__(self: Self) -> None:
         """Initialize the key monitor."""
         from prompt_toolkit.input import create_input
 
@@ -302,18 +307,18 @@ class KeyMonitor:
         self._suspended.set()  # Not suspended initially
         self._in_raw_mode = False
 
-    async def suspend(self) -> None:
+    async def suspend(self: Self) -> None:
         """Suspend monitoring to allow other input reading."""
         self._suspended.clear()
         # Wait for the monitor loop to exit the raw mode block
         while self._in_raw_mode:
             await asyncio.sleep(0.01)
 
-    def resume(self) -> None:
+    def resume(self: Self) -> None:
         """Resume monitoring."""
         self._suspended.set()
 
-    async def monitor(self) -> None:
+    async def monitor(self: Self) -> None:
         """Monitor input for keys. Run this in a background task."""
         while not self._should_stop_monitoring():
             if not self._suspended.is_set():
@@ -322,7 +327,7 @@ class KeyMonitor:
 
             await self._monitor_in_raw_mode()
 
-    def _should_stop_monitoring(self) -> bool:
+    def _should_stop_monitoring(self: Self) -> bool:
         """Check if monitoring should stop.
 
         Returns:
@@ -330,7 +335,7 @@ class KeyMonitor:
         """
         return self._stop_event.is_set() or self._exit_event.is_set()
 
-    async def _monitor_in_raw_mode(self) -> None:
+    async def _monitor_in_raw_mode(self: Self) -> None:
         """Monitor keys while in raw mode."""
         try:
             with self.input.raw_mode():
@@ -343,14 +348,14 @@ class KeyMonitor:
             if not self._suspended.is_set():
                 await asyncio.sleep(0.1)
 
-    async def _active_monitoring_loop(self) -> None:
+    async def _active_monitoring_loop(self: Self) -> None:
         """Active monitoring loop that reads and processes keys."""
         while self._should_continue_monitoring():
             keys = self.input.read_keys()
             self._process_keys(keys)
             await asyncio.sleep(0.01)
 
-    def _should_continue_monitoring(self) -> bool:
+    def _should_continue_monitoring(self: Self) -> bool:
         """Check if active monitoring should continue.
 
         Returns:
@@ -362,7 +367,7 @@ class KeyMonitor:
             and self._suspended.is_set()
         )
 
-    def _process_keys(self, keys: list[KeyPress]) -> None:
+    def _process_keys(self: Self, keys: list[KeyPress]) -> None:
         """Process a list of keys.
 
         Args:
@@ -375,11 +380,11 @@ class KeyMonitor:
                 self._exit_event.set()
 
     @property
-    def stop_requested(self) -> bool:
+    def stop_requested(self: Self) -> bool:
         """Check if Escape was pressed."""
         return self._stop_event.is_set()
 
     @property
-    def exit_requested(self) -> bool:
+    def exit_requested(self: Self) -> bool:
         """Check if Ctrl+C was pressed."""
         return self._exit_event.is_set()

@@ -29,6 +29,11 @@ if TYPE_CHECKING:
 _DEFAULT_THEME_NAME = "dark"
 
 
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
+
 @dataclass
 class TextualConfig(ReplConfig):
     """Configuration for the Textual TUI.
@@ -74,7 +79,7 @@ class ComponentInitializer:
     """
 
     def __init__(
-        self,
+        self: Self,
         config: ComponentConfig,
         class_overrides: dict[str, Any] | None = None,
     ) -> None:
@@ -107,7 +112,7 @@ class ComponentInitializer:
         self._tui_adapter: TuiConsoleAdapter | None = None
         self._ui_renderer: UIRenderer | None = None
 
-    def initialize_all(self) -> None:
+    def initialize_all(self: Self) -> None:
         """Initialize all core components in dependency order.
 
         Note:
@@ -125,13 +130,13 @@ class ComponentInitializer:
 
     # -- private helpers (one responsibility each) --
 
-    def _initialize_tui_adapter(self) -> None:
+    def _initialize_tui_adapter(self: Self) -> None:
         """Create the TUI console adapter."""
         from henchman.cli.textual_bridge import TuiConsoleAdapter
 
         self._tui_adapter = TuiConsoleAdapter(self.config.app)
 
-    def _initialize_core_context(self) -> None:
+    def _initialize_core_context(self: Self) -> None:
         """Create the core context and register UI instance."""
         self.core_context = self._create_context_fn(
             provider=self.config.provider,
@@ -146,7 +151,7 @@ class ComponentInitializer:
         if hasattr(plugin_manager, "ui_instance"):
             plugin_manager.ui_instance = self.config.app
 
-    def _initialize_renderer(self) -> None:
+    def _initialize_renderer(self: Self) -> None:
         """Create the UI renderer with the configured theme."""
         from henchman.cli.console import OutputRenderer, ThemeManager
 
@@ -163,7 +168,7 @@ class ComponentInitializer:
             console=console, renderer=output_renderer,
         )
 
-    def _resolve_theme_name(self, theme_manager: Any) -> str:
+    def _resolve_theme_name(self: Self, theme_manager: Any) -> str:
         """Determine the effective theme name.
 
         Falls back to the default if the configured name is invalid.
@@ -181,7 +186,7 @@ class ComponentInitializer:
             return _DEFAULT_THEME_NAME
         return name
 
-    def _initialize_output_handler(self) -> None:
+    def _initialize_output_handler(self: Self) -> None:
         """Create the output handler."""
         if not self.core_context or not self._ui_renderer:
             msg = "Core context and renderer must be initialized"
@@ -196,7 +201,7 @@ class ComponentInitializer:
             mcp_manager=self.core_context.mcp_manager,
         )
 
-    def _initialize_command_processor(self) -> None:
+    def _initialize_command_processor(self: Self) -> None:
         """Create the command processor."""
         if not self.core_context or not self.output_handler:
             msg = "Core context and output handler required"
@@ -215,7 +220,7 @@ class ComponentInitializer:
             mcp_manager=self.core_context.mcp_manager,
         )
 
-    def _initialize_tool_executor(self) -> None:
+    def _initialize_tool_executor(self: Self) -> None:
         """Create the tool executor."""
         if not self.core_context or not self.output_handler:
             msg = "Core context and output handler required"
@@ -228,7 +233,7 @@ class ComponentInitializer:
             max_tool_calls_per_turn=(self.config.config.max_tool_calls_per_turn),
         )
 
-    def _initialize_input_handler(self) -> None:
+    def _initialize_input_handler(self: Self) -> None:
         """Create the input handler."""
         if not self._ui_renderer:
             msg = "Renderer must be initialized first"
@@ -250,7 +255,7 @@ class ComponentInitializer:
             keybindings=keybindings,
         )
 
-    def _get_keybindings(self) -> Any:
+    def _get_keybindings(self: Self) -> Any:
         """Extract keybindings from settings.
 
         Returns:
@@ -261,7 +266,7 @@ class ComponentInitializer:
             return settings.ui.keybindings
         return None
 
-    def _initialize_mcp(self) -> None:
+    def _initialize_mcp(self: Self) -> None:
         """Initialize MCP if a manager is available."""
         if self.core_context and self.core_context.mcp_manager:
             initialize_mcp(self.core_context)
