@@ -17,6 +17,11 @@ if TYPE_CHECKING:
     from henchman.cli.repl import Repl
 
 
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
+
 class UIPlugin(ABC):
     """Base class for UI plugins.
 
@@ -25,23 +30,23 @@ class UIPlugin(ABC):
 
     @property
     @abstractmethod
-    def name(self) -> str:
+    def name(self: Self) -> str:
         """Name of the plugin."""
 
     @property
-    def description(self) -> str:
+    def description(self: Self) -> str:
         """Description of the plugin."""
         return ""
 
     @abstractmethod
-    def register(self, repl: Repl) -> None:
+    def register(self: Self, repl: Repl) -> None:
         """Register the plugin with the REPL.
 
         Args:
             repl: The REPL instance.
         """
 
-    def render(self, data: Any) -> None:  # noqa: B027
+    def render(self: Self, data: Any) -> None:  # noqa: B027
         """Render data using this plugin (optional).
 
         Args:
@@ -52,7 +57,7 @@ class UIPlugin(ABC):
 class PluginManager:
     """Manages loading and registration of UI plugins."""
 
-    def __init__(self, repl: Repl | None) -> None:
+    def __init__(self: Self, repl: Repl | None) -> None:
         """Initialize the plugin manager.
 
         Args:
@@ -61,7 +66,7 @@ class PluginManager:
         self.repl = repl
         self.plugins: dict[str, UIPlugin] = {}
 
-    def load_plugins_from_directory(self, directory: Path) -> None:
+    def load_plugins_from_directory(self: Self, directory: Path) -> None:
         """Load plugins from a directory.
 
         Args:
@@ -81,7 +86,7 @@ class PluginManager:
                 if self.repl and self.repl.settings and self.repl.settings.ui.mcp_logging:
                     self.repl.renderer.warning(f"Failed to load plugin {path.name}: {e}")
 
-    def _try_register_plugin_class(self, attr_name: str, attr: object) -> bool:
+    def _try_register_plugin_class(self: Self, attr_name: str, attr: object) -> bool:
         """Attempt to instantiate and register a single plugin class.
 
         Args:
@@ -102,7 +107,7 @@ class PluginManager:
         else:
             return True
 
-    def _load_plugin_from_file(self, path: Path) -> None:
+    def _load_plugin_from_file(self: Self, path: Path) -> None:
         """Load a plugin from a python file.
 
         Args:
@@ -126,7 +131,7 @@ class PluginManager:
         if found_plugin and self.repl and self.repl.settings and self.repl.settings.ui.mcp_logging:
             self.repl.renderer.info(f"Loaded plugins from {path.name}")
 
-    def register_plugin(self, plugin: UIPlugin) -> None:
+    def register_plugin(self: Self, plugin: UIPlugin) -> None:
         """Register a plugin instance.
 
         Args:

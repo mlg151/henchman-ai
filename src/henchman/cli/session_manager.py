@@ -18,6 +18,11 @@ if TYPE_CHECKING:
     from henchman.agents.orchestrator import Orchestrator
 
 
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
+
 class ReplSessionManager:
     """Manages session state and persistence for the REPL.
 
@@ -32,7 +37,7 @@ class ReplSessionManager:
     """
 
     def __init__(
-        self,
+        self: Self,
         session_manager: SessionManager | None = None,
         auto_save: bool = True,
     ) -> None:
@@ -48,11 +53,11 @@ class ReplSessionManager:
         self.auto_save = auto_save
 
     @property
-    def current(self) -> Session | None:
+    def current(self: Self) -> Session | None:
         """Get the current session (alias for session attribute)."""
         return self.session
 
-    def set_session(self, session: Session, agent: Orchestrator | None = None) -> None:
+    def set_session(self: Self, session: Session, agent: Orchestrator | None = None) -> None:
         """Set the current session and sync with agent history.
 
         Args:
@@ -65,7 +70,7 @@ class ReplSessionManager:
         if agent:
             self._sync_session_to_agent(session, agent)
 
-    def _sync_session_to_agent(self, session: Session, agent: Orchestrator) -> None:
+    def _sync_session_to_agent(self: Self, session: Session, agent: Orchestrator) -> None:
         """Restore session messages to agent history.
 
         Args:
@@ -97,7 +102,7 @@ class ReplSessionManager:
             )
             agent.tech_lead.messages.append(msg)
 
-    def auto_save_session(self) -> None:
+    def auto_save_session(self: Self) -> None:
         """Auto-save the session if enabled and session has content."""
         if not self.auto_save:
             return
@@ -109,7 +114,7 @@ class ReplSessionManager:
         self.session_manager.save(self.session)
 
     def create_session(
-        self,
+        self: Self,
         project_hash: str,
         tag: str | None = None,
     ) -> Session:
@@ -124,7 +129,7 @@ class ReplSessionManager:
         """
         return self.session_manager.create_session(project_hash, tag)
 
-    def load(self, session_id: str) -> Session:
+    def load(self: Self, session_id: str) -> Session:
         """Load a session from disk.
 
         Args:
@@ -139,7 +144,7 @@ class ReplSessionManager:
         return self.session_manager.load(session_id)
 
     def load_by_tag(
-        self,
+        self: Self,
         tag: str,
         project_hash: str | None = None,
     ) -> Session | None:
@@ -154,7 +159,7 @@ class ReplSessionManager:
         """
         return self.session_manager.load_by_tag(tag, project_hash)
 
-    def save(self, session: Session | None = None) -> Path:
+    def save(self: Self, session: Session | None = None) -> Path:
         """Save a session to disk.
 
         Args:
@@ -174,7 +179,7 @@ class ReplSessionManager:
         return self.session_manager.save(session_to_save)
 
     def list_sessions(
-        self,
+        self: Self,
         project_hash: str | None = None,
     ) -> list[SessionMetadata]:
         """List saved sessions.
@@ -187,7 +192,7 @@ class ReplSessionManager:
         """
         return self.session_manager.list_sessions(project_hash)
 
-    def delete(self, session_id: str) -> None:
+    def delete(self: Self, session_id: str) -> None:
         """Delete a session.
 
         Args:
@@ -198,7 +203,7 @@ class ReplSessionManager:
         """
         self.session_manager.delete(session_id)
 
-    def compute_project_hash(self, directory: Path) -> str:
+    def compute_project_hash(self: Self, directory: Path) -> str:
         """Compute a hash for a project directory.
 
         Args:
@@ -209,7 +214,7 @@ class ReplSessionManager:
         """
         return self.session_manager.compute_project_hash(directory)
 
-    def record_user_message(self, content: str) -> None:
+    def record_user_message(self: Self, content: str) -> None:
         """Record a user message to the current session.
 
         Args:
@@ -219,7 +224,7 @@ class ReplSessionManager:
             self.session.messages.append(SessionMessage(role="user", content=content))
 
     def record_agent_message(
-        self,
+        self: Self,
         content: str | None = None,
         tool_calls: list[dict[str, Any]] | None = None,
         agent_id: str | None = None,
@@ -241,7 +246,7 @@ class ReplSessionManager:
                 ),
             )
 
-    def record_tool_result(self, tool_call_id: str, content: str) -> None:
+    def record_tool_result(self: Self, tool_call_id: str, content: str) -> None:
         """Record a tool result to the current session.
 
         Args:

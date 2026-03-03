@@ -38,6 +38,11 @@ if TYPE_CHECKING:
     from henchman.tools.base import ConfirmationRequest
 
 
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
+
 @dataclass
 class ReplConfig:
     """Configuration for the REPL.
@@ -76,7 +81,7 @@ class Repl:
     """
 
     def __init__(
-        self,
+        self: Self,
         provider: ModelProvider,
         console: Console | None = None,
         config: ReplConfig | None = None,
@@ -200,7 +205,7 @@ class Repl:
             bottom_toolbar=lambda: self.output_handler.get_toolbar_status(self.agent),
         )
 
-    def set_session(self, session: Session) -> None:
+    def set_session(self: Self, session: Session) -> None:
         """Set the current session and sync with agent history.
 
         Args:
@@ -208,7 +213,7 @@ class Repl:
         """
         self.session_manager.set_session(session, self.orchestrator)
 
-    async def _handle_confirmation(self, request: ConfirmationRequest) -> bool:
+    async def _handle_confirmation(self: Self, request: ConfirmationRequest) -> bool:
         """Handle a tool confirmation request from the registry.
 
         Args:
@@ -219,7 +224,7 @@ class Repl:
         """
         return await self.tool_executor.handle_confirmation(request)
 
-    async def initialize_mcp(self) -> None:
+    async def initialize_mcp(self: Self) -> None:
         """Initialize MCP servers and register tools.
 
         This method can be called separately for headless mode.
@@ -244,7 +249,7 @@ class Repl:
                 # Always show errors, regardless of logging setting
                 self.renderer.error(f"Failed to connect to MCP servers: {e}")
 
-    async def run(self) -> None:
+    async def run(self: Self) -> None:
         """Run the main REPL loop.
 
         This method runs until the user exits with /quit, Ctrl+C, or Ctrl+D.
@@ -276,11 +281,11 @@ class Repl:
             self._auto_save_session()
             self.output_handler.print_goodbye()
 
-    def _auto_save_session(self) -> None:
+    def _auto_save_session(self: Self) -> None:
         """Auto-save the session if enabled and session has content."""
         self.session_manager.auto_save_session()
 
-    async def _get_input(self) -> str:
+    async def _get_input(self: Self) -> str:
         """Get input from the user.
 
         Returns:
@@ -292,7 +297,7 @@ class Repl:
         """
         return await self.input_handler.get_input()
 
-    async def process_input(self, user_input: str) -> bool:
+    async def process_input(self: Self, user_input: str) -> bool:
         """Process a single user input.
 
         Args:
@@ -321,7 +326,7 @@ class Repl:
         await self._run_agent(processed_input)
         return True
 
-    async def _run_agent(self, user_input: str) -> None:
+    async def _run_agent(self: Self, user_input: str) -> None:
         """Run the agent with user input.
 
         Args:
@@ -334,7 +339,7 @@ class Repl:
             self.orchestrator.run(user_input), self.agent, assistant_content, status_msg,
         )
 
-    async def _run_agent_direct(self, role: str, user_input: str) -> None:
+    async def _run_agent_direct(self: Self, role: str, user_input: str) -> None:
         """Run a specific agent directly.
 
         Args:
@@ -350,7 +355,7 @@ class Repl:
         )
 
     async def _run_agent_with_monitor(
-        self,
+        self: Self,
         event_stream: AsyncIterator[AgentEvent],
         agent: Agent,
         assistant_content: list[str],
@@ -430,7 +435,7 @@ class Repl:
         elif event.type == EventType.CONTENT and content_collector is not None and event.data:
             content_collector.append(event.data)
 
-    async def _handle_tool_call(self, tool_call: ToolCall) -> None:
+    async def _handle_tool_call(self: Self, tool_call: ToolCall) -> None:
         """Handle a single tool call from the agent.
 
         DEPRECATED: Use ToolExecutor.execute_tool_calls for proper batched handling.

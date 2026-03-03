@@ -14,6 +14,11 @@ if TYPE_CHECKING:
     from henchman.core.events import AgentEvent
 
 
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
+
 class JsonOutputRenderer:
     """Renderer for JSON output formats.
 
@@ -27,7 +32,7 @@ class JsonOutputRenderer:
         {"type": "content", "data": "Hello"}
     """
 
-    def __init__(self, console: Console | None = None) -> None:
+    def __init__(self: Self, console: Console | None = None) -> None:
         """Initialize the JSON output renderer.
 
         Args:
@@ -35,7 +40,7 @@ class JsonOutputRenderer:
         """
         self.console = console or Console()
 
-    def render(self, event: AgentEvent) -> None:
+    def render(self: Self, event: AgentEvent) -> None:
         """Render an agent event as JSON.
 
         Args:
@@ -44,7 +49,7 @@ class JsonOutputRenderer:
         output = self._event_to_dict(event)
         self.console.print(json.dumps(output, ensure_ascii=False))
 
-    def _event_to_dict(self, event: AgentEvent) -> dict[str, Any]:
+    def _event_to_dict(self: Self, event: AgentEvent) -> dict[str, Any]:
         """Convert an agent event to a dictionary.
 
         Args:
@@ -69,7 +74,7 @@ class JsonOutputRenderer:
 
         return result
 
-    def render_stream_json(self, event: AgentEvent) -> None:
+    def render_stream_json(self: Self, event: AgentEvent) -> None:
         """Render an agent event as streaming JSON (one event per line).
 
         Args:
@@ -78,7 +83,7 @@ class JsonOutputRenderer:
         output = self._event_to_dict(event)
         self.console.print(json.dumps(output, ensure_ascii=False))
 
-    def render_final_json(self, events: list[AgentEvent]) -> None:
+    def render_final_json(self: Self, events: list[AgentEvent]) -> None:
         """Render a list of agent events as a single JSON array.
 
         Args:
