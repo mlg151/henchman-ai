@@ -104,7 +104,7 @@ class CommandProcessor:
         )
         # Add session_manager and project_hash for /chat command
         # Handle both ReplSessionManager and any wrapper that has a session_manager attribute
-        if hasattr(self.session_manager, 'session_manager'):
+        if hasattr(self.session_manager, "session_manager"):
             ctx.session_manager = self.session_manager.session_manager
         else:
             ctx.session_manager = self.session_manager

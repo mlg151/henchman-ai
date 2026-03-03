@@ -87,7 +87,7 @@ class CodeFormatTool(Tool):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            check_stdout, check_stderr = await asyncio.wait_for(
+            _check_stdout, check_stderr = await asyncio.wait_for(
                 check_proc.communicate(),
                 timeout=60,
             )

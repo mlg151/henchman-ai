@@ -159,7 +159,7 @@ class ThemeCommand(Command):
                 from henchman.cli.console import OutputRenderer
 
                 ctx.repl.renderer.renderer = OutputRenderer(
-                    console=ctx.repl.renderer.console, theme=theme_manager.current
+                    console=ctx.repl.renderer.console, theme=theme_manager.current,
                 )
 
     def _persist_theme_settings(self, ctx: CommandContext, theme_name: str) -> None:

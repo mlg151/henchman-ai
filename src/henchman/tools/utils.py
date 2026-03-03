@@ -117,7 +117,7 @@ def create_path_parameter_schema(
         "path": {
             "type": "string",
             "description": "Path to the file or directory",
-        }
+        },
     }
 
     if additional_params:

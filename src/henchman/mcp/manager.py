@@ -9,10 +9,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from henchman.mcp.client import McpClient, McpToolResult
-from henchman.mcp.config import McpServerConfig
 
 if TYPE_CHECKING:
     from henchman.config.schema import Settings
+    from henchman.mcp.config import McpServerConfig
     from henchman.mcp.tool import McpTool
 
 
@@ -74,7 +74,7 @@ class McpManager:
                             client=client,
                             server_name=name,
                             trusted=config.trusted,
-                        )
+                        ),
                     )
             except Exception:  # pragma: no cover
                 # Log error but continue with other servers
@@ -115,13 +115,14 @@ class McpManager:
             KeyError: If server not found.
         """
         if server_name not in self.clients:
-            raise KeyError(f"Unknown MCP server: {server_name}")
+            msg = f"Unknown MCP server: {server_name}"
+            raise KeyError(msg)
 
         return await self.clients[server_name].call_tool(tool_name, arguments)
 
     @staticmethod
     def create_from_settings(
-        settings: Settings | None, mcp_logging_enabled: bool = False
+        settings: Settings | None, mcp_logging_enabled: bool = False,
     ) -> McpManager | None:
         """Create McpManager from application settings.
 

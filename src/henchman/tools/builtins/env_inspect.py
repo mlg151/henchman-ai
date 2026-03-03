@@ -17,7 +17,7 @@ SECRET_PATTERNS: frozenset[str] = frozenset(
         "CREDENTIAL",
         "AUTH",
         "PRIVATE",
-    }
+    },
 )
 
 

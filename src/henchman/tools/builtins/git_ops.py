@@ -5,8 +5,12 @@ the generic shell tool, enabling auto-approval for safe read operations.
 """
 
 import asyncio
+from typing import TYPE_CHECKING
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
 
 MAX_OUTPUT_CHARS = 100_000
 
@@ -20,7 +24,7 @@ class GitOpsTool(Tool):
     """
 
     READ_ACTIONS = frozenset(
-        {"status", "log", "blame", "show", "branch_list", "stash_list", "diff_branches"}
+        {"status", "log", "blame", "show", "branch_list", "stash_list", "diff_branches"},
     )
 
     @property
@@ -100,7 +104,7 @@ class GitOpsTool(Tool):
         return ToolKind.READ
 
     async def _run_git(
-        self, args: list[str], cwd: str | None = None
+        self, args: list[str], cwd: str | None = None,
     ) -> tuple[bool, str]:
         """Execute a git command and return (success, output).
 
@@ -176,7 +180,6 @@ class GitOpsTool(Tool):
                 error=f"Unknown action: {action}",
             )
 
-        from collections.abc import Callable, Coroutine
         from typing import Any
 
         handler_map: dict[str, Callable[..., Coroutine[Any, Any, tuple[bool, str]]]] = {
@@ -269,13 +272,13 @@ class GitOpsTool(Tool):
         return await self._run_git(args, cwd=cwd)
 
     async def _branch_list(
-        self, cwd: str | None = None, **_: object
+        self, cwd: str | None = None, **_: object,
     ) -> tuple[bool, str]:
         """List branches."""
         return await self._run_git(["branch", "-a", "-v"], cwd=cwd)
 
     async def _stash_list(
-        self, cwd: str | None = None, **_: object
+        self, cwd: str | None = None, **_: object,
     ) -> tuple[bool, str]:
         """List stashes."""
         ok, output = await self._run_git(["stash", "list"], cwd=cwd)

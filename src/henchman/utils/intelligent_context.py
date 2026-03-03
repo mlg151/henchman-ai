@@ -8,17 +8,12 @@ and adaptive compression techniques.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from henchman.providers.base import Message
 from henchman.utils.compression_strategy import CompressionStrategyFactory
 from henchman.utils.importance_scorer import ImportanceScorer
 from henchman.utils.message_clusterer import MessageClusterer
 from henchman.utils.tokens import TokenCounter
-
-if TYPE_CHECKING:
-    # For type checking only
-    from henchman.providers.base import Message
 
 
 class IntelligentContextConstants:
@@ -152,12 +147,11 @@ class ConversationTypeDetector:
 
         if debugging_count > max(coding_count, research_count, min_count):
             return "debugging"
-        elif coding_count > max(research_count, debugging_count, min_count):
+        if coding_count > max(research_count, debugging_count, min_count):
             return "coding"
-        elif research_count > max(coding_count, debugging_count, min_count):
+        if research_count > max(coding_count, debugging_count, min_count):
             return "research"
-        else:
-            return "general"
+        return "general"
 
 
 @dataclass
@@ -273,7 +267,7 @@ class IntelligentContextManager:
             adaptive_compression=adaptive_compression if adaptive_compression is not None else True,
         )
         self.max_protected_tokens = int(
-            self.config.max_tokens * self.config.max_protected_ratio
+            self.config.max_tokens * self.config.max_protected_ratio,
         )
 
         # Initialize component classes
@@ -324,8 +318,7 @@ class IntelligentContextManager:
 
         if TokenCounter.count_text(message.content) > limit:
             return self._create_truncated_message(message, limit)
-        else:
-            return message
+        return message
 
     @staticmethod
     @staticmethod
@@ -491,7 +484,7 @@ class IntelligentContextManager:
 
         # Calculate cluster importance scores
         cluster_importance = self._calculate_cluster_importance(
-            clusters, importance_scores
+            clusters, importance_scores,
         )
 
         # Apply compression strategy based on conversation type
@@ -552,7 +545,7 @@ class IntelligentContextManager:
         return cluster_importance
 
     def _generate_intelligent_summary(
-        self, messages: list[Message], importance_scores: dict[int, float], clusters: list[list[int]]
+        self, messages: list[Message], importance_scores: dict[int, float], clusters: list[list[int]],
     ) -> str | None:
         """Generate intelligent summary of compressed/dropped content.
 
@@ -568,7 +561,7 @@ class IntelligentContextManager:
         return None
 
     def _preserve_critical_context(
-        self, messages: list[Message], importance_scores: dict[int, float]
+        self, messages: list[Message], importance_scores: dict[int, float],
     ) -> list[Message]:
         """Ensure critical context is preserved regardless of token limits.
 

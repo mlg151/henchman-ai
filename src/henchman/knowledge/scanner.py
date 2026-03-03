@@ -13,10 +13,14 @@ import hashlib
 import logging
 import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from henchman.knowledge.models import Entity, Observation, Relation
-from henchman.knowledge.store import KnowledgeStore
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from henchman.knowledge.store import KnowledgeStore
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +210,7 @@ def scan_repository(
                         source=parent_id,
                         target=eid,
                         relation_type="contains",
-                    )
+                    ),
                 )
 
     for rel_path in python_files:
@@ -241,7 +245,7 @@ def scan_repository(
                 first_line = docstring.strip().split("\n")[0]
                 summary += f": {first_line}"
             file_entity.observations.append(
-                Observation(content=summary, source=rel_path, author="auto")
+                Observation(content=summary, source=rel_path, author="auto"),
             )
 
         store.add_entity(file_entity)
@@ -256,7 +260,7 @@ def scan_repository(
                     source=parent_id,
                     target=file_eid,
                     relation_type="contains",
-                )
+                ),
             )
 
         # Import relations (file-to-file within the repo)
@@ -273,7 +277,7 @@ def scan_repository(
                                 source=file_eid,
                                 target=other_eid,
                                 relation_type="imports",
-                            )
+                            ),
                         )
                     break  # first match only
 

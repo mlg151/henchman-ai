@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from henchman.cli.commands import Command, CommandContext
 from henchman.config import load_settings
 from henchman.providers import get_default_registry
-
-if TYPE_CHECKING:
-    pass
 
 
 class ModelCommand(Command):
@@ -76,7 +73,7 @@ class ModelCommand(Command):
         self._print_current_configuration(ctx.console, provider, available)
 
     def _print_current_configuration(
-        self, console: Any, provider: Any, available: list[str]
+        self, console: Any, provider: Any, available: list[str],
     ) -> None:
         """Print current provider and model configuration.
 
@@ -135,7 +132,7 @@ class ModelCommand(Command):
                 ctx.console.print(f"  [red]{provider_name}[/] - Error: {e}")
 
     async def _set_provider(
-        self, ctx: CommandContext, provider_name: str, model_name: str | None = None
+        self, ctx: CommandContext, provider_name: str, model_name: str | None = None,
     ) -> None:
         """Switch to a different provider.
 
@@ -194,7 +191,7 @@ class ModelCommand(Command):
         return True
 
     def _create_provider_instance(
-        self, provider_name: str, model_name: str | None, api_key: str | None
+        self, provider_name: str, model_name: str | None, api_key: str | None,
     ) -> Any:
         """Create a new provider instance.
 
@@ -213,7 +210,7 @@ class ModelCommand(Command):
         return registry.create(provider_name, **provider_kwargs)
 
     def _test_provider_connection(
-        self, ctx: CommandContext, provider: Any, provider_name: str, model_name: str | None
+        self, ctx: CommandContext, provider: Any, provider_name: str, model_name: str | None,
     ) -> None:
         """Test provider connection and print results.
 
@@ -260,12 +257,12 @@ class ModelCommand(Command):
             ctx.repl.provider = new_provider
 
         ctx.console.print(
-            f"\n[bold green]✓ Switched from {old_provider.name} to {new_provider.name}[/]"
+            f"\n[bold green]✓ Switched from {old_provider.name} to {new_provider.name}[/]",
         )
         return True
 
     def _show_configuration_warnings(
-        self, ctx: CommandContext, provider_name: str, api_key: str | None
+        self, ctx: CommandContext, provider_name: str, api_key: str | None,
     ) -> None:
         """Show configuration warnings if API key is missing.
 

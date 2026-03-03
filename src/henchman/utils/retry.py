@@ -10,9 +10,11 @@ from __future__ import annotations
 import asyncio
 import functools
 import random
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import ParamSpec, TypeVar
+from typing import TYPE_CHECKING, ParamSpec, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -67,7 +69,7 @@ def calculate_delay(attempt: int, config: RetryConfig) -> float:
 
     if config.jitter:
         # Add random jitter between 0-50% of the delay
-        jitter_amount = delay * random.uniform(0, 0.5)  # noqa: S311
+        jitter_amount = delay * random.uniform(0, 0.5)
         delay += jitter_amount
 
     return delay

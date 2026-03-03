@@ -11,16 +11,11 @@ import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import aiohttp
 
 from henchman.extensions.constants import PluginConstants
 from henchman.extensions.models import PluginMetadata, PluginSource
-
-if TYPE_CHECKING:
-    from packaging.specifiers import SpecifierSet
-    from packaging.version import Version
 
 logger = logging.getLogger(__name__)
 
@@ -55,16 +50,16 @@ class PluginInstaller:
         # Install based on source type
         if metadata.source == PluginSource.PYPI:
             return await self._install_from_pypi(metadata, plugin_dir)
-        elif metadata.source == PluginSource.GITHUB:
+        if metadata.source == PluginSource.GITHUB:
             return await self._install_from_github(metadata, plugin_dir)
-        elif metadata.source == PluginSource.GIT:
+        if metadata.source == PluginSource.GIT:
             return await self._install_from_git(metadata, plugin_dir)
-        elif metadata.source == PluginSource.URL:
+        if metadata.source == PluginSource.URL:
             return await self._install_from_url(metadata, plugin_dir)
-        elif metadata.source == PluginSource.LOCAL:
+        if metadata.source == PluginSource.LOCAL:
             return await self._install_from_local(metadata, plugin_dir)
-        else:
-            raise RuntimeError(f"Unsupported plugin source: {metadata.source}")
+        msg = f"Unsupported plugin source: {metadata.source}"
+        raise RuntimeError(msg)
 
     async def _install_from_pypi(self, metadata: PluginMetadata, target_dir: Path) -> Path:
         """Install plugin from PyPI.
@@ -90,7 +85,8 @@ class PluginInstaller:
                 self._copy_installed_files(temp_dir, target_dir)
                 logger.info("Successfully installed package to: %s", target_dir)
             except Exception as e:
-                raise RuntimeError(f"Failed to install from PyPI: {e}") from e
+                msg = f"Failed to install from PyPI: {e}"
+                raise RuntimeError(msg) from e
 
         return target_dir
 
@@ -122,11 +118,12 @@ class PluginInstaller:
             stderr=asyncio.subprocess.PIPE,
         )
 
-        stdout, stderr = await result.communicate()
+        _stdout, stderr = await result.communicate()
 
         if result.returncode != 0:
             error_msg = stderr.decode() if stderr else "Unknown error"
-            raise RuntimeError(f"Failed to install package: {error_msg}")
+            msg = f"Failed to install package: {error_msg}"
+            raise RuntimeError(msg)
 
     def _copy_installed_files(self, source_dir: str, target_dir: Path) -> None:
         """Copy installed files from source to target directory.
@@ -158,7 +155,8 @@ class PluginInstaller:
             RuntimeError: If installation fails.
         """
         if not metadata.source_url:
-            raise RuntimeError("GitHub source URL is required")
+            msg = "GitHub source URL is required"
+            raise RuntimeError(msg)
 
         # Parse GitHub URL
         # Expected format: https://github.com/user/repo or https://github.com/user/repo/tree/branch
@@ -166,7 +164,8 @@ class PluginInstaller:
         match = re.search(github_pattern, metadata.source_url)
 
         if not match:
-            raise RuntimeError(f"Invalid GitHub URL: {metadata.source_url}")
+            msg = f"Invalid GitHub URL: {metadata.source_url}"
+            raise RuntimeError(msg)
 
         user, repo, branch = match.groups()
         branch = branch or PluginConstants.DEFAULT_GITHUB_BRANCH
@@ -189,7 +188,8 @@ class PluginInstaller:
             RuntimeError: If installation fails.
         """
         if not metadata.source_url:
-            raise RuntimeError("Git source URL is required")
+            msg = "Git source URL is required"
+            raise RuntimeError(msg)
 
         return await self._clone_and_copy_git_repo(metadata.source_url, None, target_dir)
 
@@ -227,11 +227,12 @@ class PluginInstaller:
                     stderr=asyncio.subprocess.PIPE,
                 )
 
-                stdout, stderr = await result.communicate()
+                _stdout, stderr = await result.communicate()
 
                 if result.returncode != 0:
                     error_msg = stderr.decode() if stderr else "Unknown error"
-                    raise RuntimeError(f"Failed to clone repository: {error_msg}")
+                    msg = f"Failed to clone repository: {error_msg}"
+                    raise RuntimeError(msg)
 
                 # Copy files to target directory
                 temp_path = Path(temp_dir)
@@ -246,7 +247,8 @@ class PluginInstaller:
                 logger.info("Successfully installed from git to: %s", target_dir)
 
         except Exception as e:
-            raise RuntimeError(f"Failed to install from git: {e}") from e
+            msg = f"Failed to install from git: {e}"
+            raise RuntimeError(msg) from e
 
         return target_dir
 
@@ -264,7 +266,8 @@ class PluginInstaller:
             RuntimeError: If installation fails.
         """
         if not metadata.source_url:
-            raise RuntimeError("URL source is required")
+            msg = "URL source is required"
+            raise RuntimeError(msg)
 
         # Download archive to temporary file
         temp_path = await self._download_archive_from_url(metadata.source_url)
@@ -294,7 +297,8 @@ class PluginInstaller:
         try:
             async with aiohttp.ClientSession() as session, session.get(url) as response:
                 if response.status != 200:
-                    raise RuntimeError(f"Failed to download from URL: HTTP {response.status}")
+                    msg = f"Failed to download from URL: HTTP {response.status}"
+                    raise RuntimeError(msg)
 
                 # Create temporary file for download
                 with tempfile.NamedTemporaryFile(suffix=".archive", delete=False) as temp_file:
@@ -304,7 +308,8 @@ class PluginInstaller:
                     temp_file.write(content)
                     return temp_path
         except Exception as e:
-            raise RuntimeError(f"Failed to download from URL: {e}") from e
+            msg = f"Failed to download from URL: {e}"
+            raise RuntimeError(msg) from e
 
     async def _extract_archive(
         self,
@@ -323,17 +328,18 @@ class PluginInstaller:
             RuntimeError: If extraction fails or format is unsupported.
         """
         # Determine archive type and extract
-        if source_url.endswith('.zip'):
-            with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+        if source_url.endswith(".zip"):
+            with zipfile.ZipFile(archive_path, "r") as zip_ref:
                 zip_ref.extractall(target_dir)
-        elif source_url.endswith('.tar.gz') or source_url.endswith('.tgz'):
-            with tarfile.open(archive_path, 'r:gz') as tar_ref:
+        elif source_url.endswith((".tar.gz", ".tgz")):
+            with tarfile.open(archive_path, "r:gz") as tar_ref:
                 tar_ref.extractall(target_dir)
-        elif source_url.endswith('.tar'):
-            with tarfile.open(archive_path, 'r') as tar_ref:
+        elif source_url.endswith(".tar"):
+            with tarfile.open(archive_path, "r") as tar_ref:
                 tar_ref.extractall(target_dir)
         else:
-            raise RuntimeError(f"Unsupported archive format: {source_url}")
+            msg = f"Unsupported archive format: {source_url}"
+            raise RuntimeError(msg)
 
     async def _install_from_local(self, metadata: PluginMetadata, target_dir: Path) -> Path:
         """Install plugin from local directory.
@@ -349,12 +355,14 @@ class PluginInstaller:
             RuntimeError: If installation fails.
         """
         if not metadata.source_url:
-            raise RuntimeError("Local source path is required")
+            msg = "Local source path is required"
+            raise RuntimeError(msg)
 
         source_path = Path(metadata.source_url)
 
         if not source_path.exists():
-            raise RuntimeError(f"Local path does not exist: {source_path}")
+            msg = f"Local path does not exist: {source_path}"
+            raise RuntimeError(msg)
 
         try:
             if source_path.is_file():
@@ -372,7 +380,8 @@ class PluginInstaller:
             logger.info("Successfully installed from local path to: %s", target_dir)
 
         except Exception as e:
-            raise RuntimeError(f"Failed to install from local path: {e}") from e
+            msg = f"Failed to install from local path: {e}"
+            raise RuntimeError(msg) from e
 
         return target_dir
 
@@ -392,7 +401,7 @@ class PluginInstaller:
 
         try:
             # Install dependencies using pip
-            cmd = [sys.executable, "-m", "pip", "install"] + dependencies
+            cmd = [sys.executable, "-m", "pip", "install", *dependencies]
 
             result = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -400,7 +409,7 @@ class PluginInstaller:
                 stderr=asyncio.subprocess.PIPE,
             )
 
-            stdout, stderr = await result.communicate()
+            _stdout, stderr = await result.communicate()
 
             if result.returncode != 0:
                 error_msg = stderr.decode() if stderr else "Unknown error"

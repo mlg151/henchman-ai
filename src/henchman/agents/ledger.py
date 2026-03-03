@@ -216,7 +216,7 @@ class TaskLedger:
 
         lines.append(
             f"Progress: {completed} done, {pending} in-progress, {failed} failed "
-            f"/ {len(self.delegations)} total"
+            f"/ {len(self.delegations)} total",
         )
 
         if collapsed_count:

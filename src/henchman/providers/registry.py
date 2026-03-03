@@ -40,7 +40,8 @@ class ProviderRegistry:
             KeyError: If the provider is not registered.
         """
         if name not in self._providers:
-            raise KeyError(f"Provider '{name}' not registered")
+            msg = f"Provider '{name}' not registered"
+            raise KeyError(msg)
         return self._providers[name]
 
     def list_providers(self) -> list[str]:

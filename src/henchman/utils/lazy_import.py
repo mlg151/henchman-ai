@@ -26,6 +26,7 @@ def getattr_for_textual_app(module_name: str) -> Any:
             from henchman.cli.textual_app import HenchmanTextualApp
 
             return HenchmanTextualApp
-        raise AttributeError(f"module {module_name!r} has no attribute {name!r}")
+        msg = f"module {module_name!r} has no attribute {name!r}"
+        raise AttributeError(msg)
 
     return __getattr__

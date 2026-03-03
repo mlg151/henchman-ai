@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import re
-from collections.abc import AsyncIterator, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 from henchman.core.events import AgentEvent, EventType
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable
+
     from henchman.agents.ledger import TaskLedger
     from henchman.agents.orchestrator import (
         AgentLoopParams,
@@ -166,7 +167,7 @@ class DelegationRunner:
         )
 
     async def _get_target_agent_with_error_handling(
-        self, target_role: str
+        self, target_role: str,
     ) -> Agent | AgentEvent:
         """Get target agent with proper error handling.
 
@@ -182,7 +183,7 @@ class DelegationRunner:
             return AgentEvent(type=EventType.ERROR, data=str(e), source_agent="orchestrator")
 
     async def _yield_agent_not_found_completion(
-        self, target_role: str
+        self, target_role: str,
     ) -> AsyncIterator[AgentEvent]:
         """Yield completion event for agent not found error.
 
@@ -222,7 +223,7 @@ class DelegationRunner:
 
         # Assemble the full task from the structured brief fields
         params.full_task = self._assemble_delegation_input(
-            params.task, prepared_brief, mission=self.ledger.goal if self.ledger else None
+            params.task, prepared_brief, mission=self.ledger.goal if self.ledger else None,
         )
 
         # Record where the agent's messages start so we can extract a clean
@@ -271,7 +272,7 @@ class DelegationRunner:
         assert params.target_agent is not None
         # Process delegation results
         summary, parsed, status = self._process_delegation_results(
-            params.target_role, params.target_agent, params.msg_start
+            params.target_role, params.target_agent, params.msg_start,
         )
 
         # Update shared context (still tracked for Tech Lead's use, just not
@@ -282,7 +283,7 @@ class DelegationRunner:
                 "summary": summary[:MAX_CONTENT_LENGTH],
                 "files_modified": parsed.get("files_modified", ""),
                 "timestamp": datetime.now().isoformat(),
-            }
+            },
         )
 
         yield AgentEvent(
@@ -427,7 +428,7 @@ class DelegationRunner:
         if brief.get("done_when"):
             sections.append(
                 f"## Done When\n{brief['done_when']}\n"
-                f"_(Stop working once these conditions are met.)_"
+                f"_(Stop working once these conditions are met.)_",
             )
 
         if brief.get("requirements"):
@@ -447,7 +448,7 @@ class DelegationRunner:
             sections.append(
                 f"## Depends On\n{dep_list}\n"
                 f"_(These tasks were completed earlier; "
-                f"build on their outputs.)_"
+                f"build on their outputs.)_",
             )
 
         if brief.get("background"):

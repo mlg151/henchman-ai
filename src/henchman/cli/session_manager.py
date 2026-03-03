@@ -7,13 +7,14 @@ session creation/loading, and session state tracking.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.session import Session, SessionManager, SessionMessage, SessionMetadata
 from henchman.providers.base import Message, ToolCall
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from henchman.agents.orchestrator import Orchestrator
 
 
@@ -167,7 +168,8 @@ class ReplSessionManager:
         """
         session_to_save = session or self.session
         if session_to_save is None:
-            raise ValueError("No session to save")
+            msg = "No session to save"
+            raise ValueError(msg)
 
         return self.session_manager.save(session_to_save)
 
@@ -236,7 +238,7 @@ class ReplSessionManager:
                     content=content,
                     tool_calls=tool_calls,
                     agent_id=agent_id,
-                )
+                ),
             )
 
     def record_tool_result(self, tool_call_id: str, content: str) -> None:
@@ -248,5 +250,5 @@ class ReplSessionManager:
         """
         if self.session is not None:
             self.session.messages.append(
-                SessionMessage(role="tool", content=content, tool_call_id=tool_call_id)
+                SessionMessage(role="tool", content=content, tool_call_id=tool_call_id),
             )

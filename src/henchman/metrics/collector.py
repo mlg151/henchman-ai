@@ -3,21 +3,19 @@
 Collects metrics from agent events, tool execution, and system performance.
 """
 
-import asyncio
 import hashlib
 import time
 from collections import defaultdict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, Optional
+from typing import Any
 
 from henchman.core.events import AgentEvent, EventType
 from henchman.metrics.models import (
     CostMetric,
-    MetricType,
     PerformanceMetric,
-    ToolMetric,
     TokenMetric,
+    ToolMetric,
     UsageMetric,
 )
 from henchman.metrics.storage import MetricsStorage
@@ -41,9 +39,9 @@ class MetricsCollector:
         enabled: bool = True,
         anonymize: bool = True,
         sampling_rate: float = 1.0,
-        storage: Optional[MetricsStorage] = None,
-        session_id: Optional[str] = None,
-        user_id: Optional[str] = None,
+        storage: MetricsStorage | None = None,
+        session_id: str | None = None,
+        user_id: str | None = None,
     ) -> None:
         """Initialize the metrics collector.
 
@@ -63,8 +61,8 @@ class MetricsCollector:
         self.user_id_hash = self._hash_user_id(user_id) if anonymize and user_id else None
 
         # Runtime state
-        self._current_command: Optional[str] = None
-        self._command_start_time: Optional[float] = None
+        self._current_command: str | None = None
+        self._command_start_time: float | None = None
         self._tool_timers: dict[str, float] = {}
         self._token_counts: dict[str, int] = defaultdict(int)
         self._cost_accumulator: dict[str, float] = defaultdict(float)
@@ -90,7 +88,7 @@ class MetricsCollector:
         import random
         return random.random() < self.sampling_rate
 
-    def start_command(self, command: str, subcommand: Optional[str] = None) -> None:
+    def start_command(self, command: str, subcommand: str | None = None) -> None:
         """Start tracking a command execution.
 
         Args:
@@ -106,7 +104,7 @@ class MetricsCollector:
         self._agent_switches = 0
         self._context_compactions = 0
 
-    def end_command(self, success: bool = True) -> Optional[UsageMetric]:
+    def end_command(self, success: bool = True) -> UsageMetric | None:
         """End tracking of current command and return usage metric.
 
         Args:
@@ -148,10 +146,10 @@ class MetricsCollector:
         provider: str,
         prompt_tokens: int,
         completion_tokens: int,
-        cached_tokens: Optional[int] = None,
-        token_limit: Optional[int] = None,
-        agent_id: Optional[str] = None,
-    ) -> Optional[TokenMetric]:
+        cached_tokens: int | None = None,
+        token_limit: int | None = None,
+        agent_id: str | None = None,
+    ) -> TokenMetric | None:
         """Record token usage for a model call.
 
         Args:
@@ -202,10 +200,10 @@ class MetricsCollector:
         prompt_cost: float,
         completion_cost: float,
         currency: str = "USD",
-        cost_per_token: Optional[float] = None,
-        estimated_cost: Optional[float] = None,
-        agent_id: Optional[str] = None,
-    ) -> Optional[CostMetric]:
+        cost_per_token: float | None = None,
+        estimated_cost: float | None = None,
+        agent_id: str | None = None,
+    ) -> CostMetric | None:
         """Record cost for a model call.
 
         Args:
@@ -254,8 +252,8 @@ class MetricsCollector:
         self,
         tool_name: str,
         tool_category: str = "",
-        input_size: Optional[int] = None,
-        agent_id: Optional[str] = None,
+        input_size: int | None = None,
+        agent_id: str | None = None,
     ) -> AsyncIterator[None]:
         """Context manager for tracking tool execution.
 
@@ -318,11 +316,11 @@ class MetricsCollector:
         self,
         event_type: str,
         latency_ms: float,
-        memory_usage_mb: Optional[float] = None,
-        cpu_usage_percent: Optional[float] = None,
+        memory_usage_mb: float | None = None,
+        cpu_usage_percent: float | None = None,
         concurrent_operations: int = 1,
-        queue_depth: Optional[int] = None,
-    ) -> Optional[PerformanceMetric]:
+        queue_depth: int | None = None,
+    ) -> PerformanceMetric | None:
         """Record a system performance event.
 
         Args:

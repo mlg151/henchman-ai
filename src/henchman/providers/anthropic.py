@@ -50,12 +50,12 @@ class _EventProcessingResult:
 
     __slots__ = [
         "content",
+        "current_tool_id",
+        "finish_reason",
+        "should_yield",
         "thinking",
         "tool_calls",
-        "finish_reason",
-        "current_tool_id",
         "total_output_tokens_delta",
-        "should_yield",
     ]
 
     def __init__(self, params: EventProcessingResultParams) -> None:
@@ -139,7 +139,7 @@ class _AnthropicStreamProcessor:
 
             async for event in stream:
                 chunk = await self._process_event(
-                    event, pending_tool_calls, current_tool_id, total_output_tokens
+                    event, pending_tool_calls, current_tool_id, total_output_tokens,
                 )
 
                 if chunk.current_tool_id is not None:
@@ -169,16 +169,15 @@ class _AnthropicStreamProcessor:
         """Process a single event from the Anthropic stream."""
         if event.type == "content_block_start":
             return self._handle_content_block_start(event, pending_tool_calls)
-        elif event.type == "content_block_delta":
+        if event.type == "content_block_delta":
             return self._handle_content_block_delta(
-                event, current_tool_id, pending_tool_calls, total_output_tokens
+                event, current_tool_id, pending_tool_calls, total_output_tokens,
             )
-        elif event.type == "content_block_stop":
+        if event.type == "content_block_stop":
             return self._handle_content_block_stop()
-        elif event.type == "message_delta":
+        if event.type == "message_delta":
             return self._handle_message_delta(event, pending_tool_calls)
-        else:
-            return _EventProcessingResult(EventProcessingResultParams())
+        return _EventProcessingResult(EventProcessingResultParams())
 
     def _handle_content_block_start(
         self,
@@ -271,7 +270,7 @@ class _AnthropicStreamProcessor:
                     id=tc_data["id"],
                     name=tc_data["name"],
                     arguments=arguments,
-                )
+                ),
             )
 
         return tool_calls
@@ -397,10 +396,9 @@ class AnthropicProvider(ModelProvider):
         """
         if message.role == "tool" and message.tool_call_id:
             return self._format_tool_result_message(message)
-        elif message.role == "assistant" and message.tool_calls:
+        if message.role == "assistant" and message.tool_calls:
             return self._format_assistant_message_with_tool_calls(message)
-        else:
-            return self._format_regular_message(message)
+        return self._format_regular_message(message)
 
     def _format_tool_result_message(self, message: Message) -> dict[str, Any]:
         """Format a tool result message for Anthropic API.
@@ -418,7 +416,7 @@ class AnthropicProvider(ModelProvider):
                     "type": "tool_result",
                     "tool_use_id": message.tool_call_id,
                     "content": message.content or "",
-                }
+                },
             ],
         }
 
@@ -443,7 +441,7 @@ class AnthropicProvider(ModelProvider):
                     "id": tc.id,
                     "name": tc.name,
                     "input": tc.arguments,
-                }
+                },
             )
 
         return {
@@ -495,7 +493,7 @@ class AnthropicProvider(ModelProvider):
 
         system_prompt, formatted_messages = self._format_messages(messages)
         messages = self._validate_and_repair_message_sequence(
-            messages, system_prompt, formatted_messages
+            messages, system_prompt, formatted_messages,
         )
 
         params = self._prepare_request_params(system_prompt, formatted_messages, tools, kwargs)
@@ -523,7 +521,7 @@ class AnthropicProvider(ModelProvider):
 
         if not is_valid_message_sequence(messages):
             messages = repair_message_sequence(messages)
-            system_prompt, formatted_messages = self._format_messages(messages)
+            _system_prompt, _formatted_messages = self._format_messages(messages)
 
         return messages
 

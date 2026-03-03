@@ -20,7 +20,7 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
-from henchman.providers.utils import validate_messages, parse_finish_reason
+from henchman.providers.utils import parse_finish_reason, validate_messages
 
 __all__ = ["OpenAICompatibleProvider"]
 
@@ -114,9 +114,9 @@ class OpenAICompatibleProvider(ModelProvider):
                     id=tc.id,
                     name=tc.function.name,
                     arguments=arguments,
-                )
+                ),
             )
-        return result if result else None
+        return result or None
 
     async def chat_completion_stream(
         self,
@@ -184,7 +184,7 @@ class OpenAICompatibleProvider(ModelProvider):
         self,
         messages: list[Message],
         tools: list[ToolDeclaration] | None,
-        kwargs: dict[str, Any]
+        kwargs: dict[str, Any],
     ) -> dict[str, Any]:
         """Build the request parameters for the API call.
 
@@ -225,9 +225,12 @@ class OpenAICompatibleProvider(ModelProvider):
             return await self._client.chat.completions.create(**params)
         except APIStatusError as e:
             if e.status_code == 413:
-                raise ContextTooLargeError(
+                msg = (
                     "Request too large. Try using start_line/end_line when reading "
                     "files to limit context size, or start a new conversation."
+                )
+                raise ContextTooLargeError(
+                    msg,
                 ) from e
             raise
 
@@ -279,7 +282,7 @@ class OpenAICompatibleProvider(ModelProvider):
     def _update_pending_tool_calls(
         self,
         pending_tool_calls: dict[int, dict[str, Any]],
-        tool_call_deltas: list[Any]
+        tool_call_deltas: list[Any],
     ) -> None:
         """Update pending tool calls with new delta information.
 
@@ -306,7 +309,7 @@ class OpenAICompatibleProvider(ModelProvider):
 
     def _build_tool_calls_from_pending(
         self,
-        pending_tool_calls: dict[int, dict[str, Any]]
+        pending_tool_calls: dict[int, dict[str, Any]],
     ) -> list[ToolCall]:
         """Build ToolCall objects from pending tool call data.
 
@@ -327,7 +330,7 @@ class OpenAICompatibleProvider(ModelProvider):
                     id=tc_data["id"],
                     name=tc_data["name"],
                     arguments=arguments,
-                )
+                ),
             )
         return tool_calls
 
@@ -340,11 +343,11 @@ class OpenAICompatibleProvider(ModelProvider):
         Returns:
             Usage dictionary or None if not available.
         """
-        if hasattr(chunk, 'usage') and chunk.usage:
+        if hasattr(chunk, "usage") and chunk.usage:
             return {
-                'prompt_tokens': chunk.usage.prompt_tokens,
-                'completion_tokens': chunk.usage.completion_tokens,
-                'total_tokens': chunk.usage.total_tokens,
+                "prompt_tokens": chunk.usage.prompt_tokens,
+                "completion_tokens": chunk.usage.completion_tokens,
+                "total_tokens": chunk.usage.total_tokens,
             }
         return None
 

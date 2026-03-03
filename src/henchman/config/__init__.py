@@ -21,9 +21,9 @@ from henchman.config.schema import (
 from henchman.config.settings import ConfigError, deep_merge, load_settings
 
 __all__ = [
+    "DEFAULT_FILENAMES",
     "ConfigError",
     "ContextLoader",
-    "DEFAULT_FILENAMES",
     "ContextSettings",
     "EnvironmentContext",
     "McpServerConfig",

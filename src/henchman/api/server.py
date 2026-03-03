@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +15,9 @@ from henchman.api.state import state
 from henchman.config import load_settings
 from henchman.core import Agent
 from henchman.providers import get_default_registry
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 
 class HealthResponse(BaseModel):
@@ -74,10 +76,10 @@ def _get_provider_settings(provider_name: str, settings: Any) -> dict[str, Any]:
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan context manager for FastAPI app.
-    
+
     Args:
         _app: The FastAPI application instance.
-    
+
     Yields:
         None: This is a context manager that yields control during the app's lifetime.
     """
@@ -154,11 +156,11 @@ async def root() -> dict[str, str]:
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """Handle HTTP exceptions.
-    
+
     Args:
         request: The incoming HTTP request.
         exc: The HTTP exception that was raised.
-    
+
     Returns:
         JSONResponse: A JSON response with error details.
     """
@@ -175,11 +177,11 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, _exc: Exception) -> JSONResponse:
     """Handle generic exceptions.
-    
+
     Args:
         request: The incoming HTTP request.
         _exc: The exception that was raised (unused in this handler).
-    
+
     Returns:
         JSONResponse: A JSON response with internal server error details.
     """

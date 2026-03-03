@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Select
@@ -19,6 +18,8 @@ from textual.widgets import Button, Label, Select
 from henchman.cli.textual_messages import SwitchProviderMessage
 
 if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
     from henchman.cli.textual_app import HenchmanTextualApp
     from henchman.tools.base import ConfirmationRequest
 
@@ -116,7 +117,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
             ),
             *params_label,
             Label(
-                f"[dim]Risk level: [{colour}]" f"{self._request.risk_level}[/][/dim]"
+                f"[dim]Risk level: [{colour}]{self._request.risk_level}[/][/dim]",
             ),
             Vertical(
                 Button(
@@ -149,7 +150,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         except (TypeError, ValueError):
             # Handle non-JSON-serializable parameters
             text = str(self._request.params)
-        return [Label(f"[dim]Parameters:[/]\n" f"[yellow]{escape(text)}[/]")]
+        return [Label(f"[dim]Parameters:[/]\n[yellow]{escape(text)}[/]")]
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Dismiss with the user's choice.
@@ -209,12 +210,12 @@ class HelpScreen(ModalScreen[None]):
             Label("  Ctrl+F         Enter search mode"),
             Label("  F3             Next match"),
             Label("  Shift+F3       Previous match"),
-            Label("  Escape         " "Exit search / close modal"),
+            Label("  Escape         Exit search / close modal"),
             Label(""),
             Label("[bold]App[/bold]"),
             Label("  Ctrl+Q / Ctrl+C    Quit"),
-            Label("  Ctrl+Shift+T       " "Clear thinking messages in chat"),
-            Label("  Ctrl+Shift+Y       " "Clear tool messages in chat"),
+            Label("  Ctrl+Shift+T       Clear thinking messages in chat"),
+            Label("  Ctrl+Shift+Y       Clear tool messages in chat"),
             Label("  /               Slash command palette"),
             Label(""),
             Button(
@@ -336,7 +337,7 @@ class ProviderScreen(ModalScreen[None]):
         Returns:
             Provider name string.
         """
-        if settings and hasattr(settings, 'providers') and settings.providers:
+        if settings and hasattr(settings, "providers") and settings.providers:
             return str(settings.providers.default)
         return "unknown"
 
@@ -418,7 +419,7 @@ class SessionScreen(ModalScreen[str | None]):
             Label("[bold]Session Management[/bold]"),
             Label(f"[dim]{len(self._sessions)} saved session(s)[/dim]"),
             Select(
-                options if options else [("No sessions", "none")],
+                options or [("No sessions", "none")],
                 id="session-select",
                 allow_blank=True,
                 value=select_value,

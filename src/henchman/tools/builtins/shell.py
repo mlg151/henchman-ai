@@ -13,12 +13,8 @@ import sys
 import termios
 import tty
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
-
-if TYPE_CHECKING:
-    pass
 
 # ---------------------------------------------------------------------------
 # Constants – replace magic numbers with named values
@@ -375,7 +371,7 @@ class ShellTool(Tool):
         command: str = "",
         timeout: int | None = None,
         cwd: str | None = None,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Execute shell command.
 
@@ -581,7 +577,7 @@ class ShellTool(Tool):
                     )
 
                 return ToolResult(
-                    content=output if output else "(no output)",
+                    content=output or "(no output)",
                     success=process.returncode == 0,
                     error=f"Exit code: {process.returncode}" if process.returncode != 0 else None,
                 )

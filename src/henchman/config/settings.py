@@ -101,9 +101,10 @@ def _load_file(path: Path) -> dict[str, Any]:
         data: dict[str, Any] = (
             yaml.safe_load(content) if path.suffix in (".yaml", ".yml") else json.loads(content)
         )
-        return data if data else {}
+        return data or {}
     except (yaml.YAMLError, json.JSONDecodeError) as e:
-        raise ConfigError(f"Failed to parse {path}: {e}") from e
+        msg = f"Failed to parse {path}: {e}"
+        raise ConfigError(msg) from e
 
 
 def _apply_env_overrides(settings: dict[str, Any]) -> dict[str, Any]:
@@ -164,7 +165,8 @@ def load_settings() -> Settings:
     try:
         return Settings(**merged)
     except ValidationError as e:
-        raise ConfigError(f"Invalid settings: {e}") from e
+        msg = f"Invalid settings: {e}"
+        raise ConfigError(msg) from e
 
 
 def save_settings(settings: Settings, path: Path | None = None) -> None:

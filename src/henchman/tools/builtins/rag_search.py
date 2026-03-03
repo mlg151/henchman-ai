@@ -123,7 +123,7 @@ class RagSearchTool(Tool):
                 formatted_parts.append(
                     f"\n[{i}] {result.file_path} "
                     f"(lines {result.start_line}-{result.end_line}, "
-                    f"score: {result.score:.3f})\n"
+                    f"score: {result.score:.3f})\n",
                 )
                 formatted_parts.append("```\n")
                 formatted_parts.append(result.content)

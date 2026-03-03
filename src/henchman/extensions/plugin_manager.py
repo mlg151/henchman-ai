@@ -133,7 +133,8 @@ class PluginManager(ExtensionManager):
             RuntimeError: If plugin manager not initialized.
         """
         if not self._initialized or not self.registry_client:
-            raise RuntimeError("Plugin manager not initialized")
+            msg = "Plugin manager not initialized"
+            raise RuntimeError(msg)
 
         search_params = PluginSearchParams(
             query=query,
@@ -161,7 +162,8 @@ class PluginManager(ExtensionManager):
             RuntimeError: If plugin manager not initialized.
         """
         if not self._initialized or not self.registry_client:
-            raise RuntimeError("Plugin manager not initialized")
+            msg = "Plugin manager not initialized"
+            raise RuntimeError(msg)
 
         return await self.registry_client.get_plugin_info(plugin_name, version)
 
@@ -186,19 +188,23 @@ class PluginManager(ExtensionManager):
             RuntimeError: If plugin installation fails.
         """
         if not self._initialized or not self.registry_client or not self.installer:
-            raise RuntimeError("Plugin manager not initialized")
+            msg = "Plugin manager not initialized"
+            raise RuntimeError(msg)
 
         if plugin_name in self.installed_plugins:
-            raise ValueError(f"Plugin '{plugin_name}' is already installed")
+            msg = f"Plugin '{plugin_name}' is already installed"
+            raise ValueError(msg)
 
         # Get plugin metadata for the specified version (or latest if None)
         metadata = await self.get_plugin_info(plugin_name, version)
         if not metadata:
-            raise ValueError(f"Plugin '{plugin_name}' not found in registry")
+            msg = f"Plugin '{plugin_name}' not found in registry"
+            raise ValueError(msg)
 
         # Check compatibility
         if not await PluginCompatibilityChecker.check_compatibility(metadata):
-            raise RuntimeError(f"Plugin '{plugin_name}' is not compatible with this system")
+            msg = f"Plugin '{plugin_name}' is not compatible with this system"
+            raise RuntimeError(msg)
 
         # Check permissions
         if confirm_permissions and metadata.security.permissions:
@@ -217,7 +223,8 @@ class PluginManager(ExtensionManager):
         try:
             installation_path = await self.installer.install_plugin_package(metadata)
         except Exception as e:
-            raise RuntimeError(f"Failed to install plugin '{plugin_name}': {e}") from e
+            msg = f"Failed to install plugin '{plugin_name}': {e}"
+            raise RuntimeError(msg) from e
 
         # Create installation record
         installation = PluginInstallation(
@@ -248,7 +255,8 @@ class PluginManager(ExtensionManager):
             ValueError: If plugin is not installed.
         """
         if plugin_name not in self.installed_plugins:
-            raise ValueError(f"Plugin '{plugin_name}' is not installed")
+            msg = f"Plugin '{plugin_name}' is not installed"
+            raise ValueError(msg)
 
         installation = self.installed_plugins[plugin_name]
 
@@ -285,7 +293,8 @@ class PluginManager(ExtensionManager):
             ValueError: If plugin is not installed.
         """
         if plugin_name not in self.installed_plugins:
-            raise ValueError(f"Plugin '{plugin_name}' is not installed")
+            msg = f"Plugin '{plugin_name}' is not installed"
+            raise ValueError(msg)
 
         current_installation = self.installed_plugins[plugin_name]
         latest_metadata = await self.get_plugin_info(plugin_name)
@@ -306,7 +315,7 @@ class PluginManager(ExtensionManager):
             return await self.install_plugin(plugin_name, confirm_permissions=False)
         except Exception as e:
             # Try to reinstall old version on failure
-            logger.error("Failed to update plugin '%s': %s", plugin_name, e)
+            logger.exception("Failed to update plugin '%s': %s", plugin_name, e)
             # TODO: Implement rollback to previous version
             raise
 
@@ -345,7 +354,8 @@ class PluginManager(ExtensionManager):
             ValueError: If plugin is not installed.
         """
         if plugin_name not in self.installed_plugins:
-            raise ValueError(f"Plugin '{plugin_name}' is not installed")
+            msg = f"Plugin '{plugin_name}' is not installed"
+            raise ValueError(msg)
 
         installation = self.installed_plugins[plugin_name]
 

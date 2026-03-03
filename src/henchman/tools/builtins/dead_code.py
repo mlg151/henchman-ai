@@ -20,7 +20,7 @@ DEFAULT_WHITELIST: frozenset[str] = frozenset(
         "__package__",
         "setup",
         "conftest",
-    }
+    },
 )
 
 # Constants for AST node types
@@ -249,7 +249,7 @@ class DefinitionAnalyzer:
         for element in value.elts:
             if isinstance(element, ast.Constant) and isinstance(element.value, str):
                 names.add(element.value)
-        return names if names else None
+        return names or None
 
 
 class DeadCodeTool(Tool):
@@ -375,7 +375,7 @@ class DeadCodeTool(Tool):
             return tree
 
         analysis_result = self._perform_analysis(
-            context=AnalysisContext(tree=tree, filename=path.name, params=params)
+            context=AnalysisContext(tree=tree, filename=path.name, params=params),
         )
         return ToolResult(content=analysis_result, success=True)
 

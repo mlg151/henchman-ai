@@ -89,4 +89,5 @@ def serve_command(
         console.print("\n[yellow]Server stopped by user[/]")
     except Exception as e:
         console.print(f"\n[red]Error starting server: {e}[/]")
-        raise click.ClickException(f"Failed to start server: {e}")
+        msg = f"Failed to start server: {e}"
+        raise click.ClickException(msg)

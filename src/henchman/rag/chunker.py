@@ -147,7 +147,7 @@ class TextChunker:
                         start_line=current_start,
                         end_line=line_num - 1,
                         chunk_index=chunk_index,
-                    )
+                    ),
                 )
                 chunk_index += 1
 
@@ -175,7 +175,7 @@ class TextChunker:
                     start_line=current_start,
                     end_line=len(lines),
                     chunk_index=chunk_index,
-                )
+                ),
             )
 
         return chunks

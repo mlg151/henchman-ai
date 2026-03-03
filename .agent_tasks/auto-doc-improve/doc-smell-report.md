@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 96.7/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T14:00:02.614655+00:00_
+_Generated: 2026-03-03T14:15:02.991932+00:00_
 
 ## Executive Summary
 
@@ -207,8 +207,8 @@ Public APIs: 46 | Documented: 46 | Coverage: 100.0%
 | 490 | 🟢 LOW | Incomplete Docstring | 'ChatMessage.finalize_as_markdown' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ChatMessage.finalize_as_markdown'. |
 | 589 | 🟢 LOW | Incomplete Docstring | 'ThinkingMessage.append' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ThinkingMessage.append'. |
 | 601 | 🟢 LOW | Incomplete Docstring | 'ThinkingMessage.set_content' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ThinkingMessage.set_content'. |
-| 885 | 🟢 LOW | Incomplete Docstring | 'ChatPane.on_mount' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ChatPane.on_mount'. |
-| 924 | 🟢 LOW | Incomplete Docstring | 'ChatPane.add_user_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ChatPane.add_user_message'. |
+| 884 | 🟢 LOW | Incomplete Docstring | 'ChatPane.on_mount' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ChatPane.on_mount'. |
+| 923 | 🟢 LOW | Incomplete Docstring | 'ChatPane.add_user_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ChatPane.add_user_message'. |
 
 _... and 9 more smells._
 
@@ -463,11 +463,11 @@ Public APIs: 12 | Documented: 12 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 84 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.should_sample' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.should_sample'. |
-| 93 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.start_command' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.start_command'. |
-| 307 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.record_agent_switch' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.record_agent_switch'. |
-| 312 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.record_context_compaction' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.record_context_compaction'. |
-| 373 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.process_agent_event' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.process_agent_event'. |
+| 82 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.should_sample' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.should_sample'. |
+| 91 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.start_command' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.start_command'. |
+| 305 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.record_agent_switch' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.record_agent_switch'. |
+| 310 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.record_context_compaction' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.record_context_compaction'. |
+| 371 | 🟢 LOW | Incomplete Docstring | 'MetricsCollector.process_agent_event' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MetricsCollector.process_agent_event'. |
 
 ### src/henchman/agents/ledger.py — ✅ A (92.0/100) (last modified 2026-02-20)
 
@@ -508,10 +508,10 @@ Public APIs: 8 | Documented: 8 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 37 | 🟢 LOW | Incomplete Docstring | 'UIPlugin.register' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'UIPlugin.register'. |
-| 45 | 🟢 LOW | Incomplete Docstring | 'UIPlugin.render' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'UIPlugin.render'. |
-| 66 | 🟢 LOW | Incomplete Docstring | 'PluginManager.load_plugins_from_directory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.load_plugins_from_directory'. |
-| 117 | 🟢 LOW | Incomplete Docstring | 'PluginManager.register_plugin' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.register_plugin'. |
+| 36 | 🟢 LOW | Incomplete Docstring | 'UIPlugin.register' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'UIPlugin.register'. |
+| 43 | 🟢 LOW | Incomplete Docstring | 'UIPlugin.render' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'UIPlugin.render'. |
+| 63 | 🟢 LOW | Incomplete Docstring | 'PluginManager.load_plugins_from_directory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.load_plugins_from_directory'. |
+| 114 | 🟢 LOW | Incomplete Docstring | 'PluginManager.register_plugin' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.register_plugin'. |
 
 ### src/henchman/cli/tool_manager.py — ✅ A (92.0/100) (last modified 2026-02-24)
 

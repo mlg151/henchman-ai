@@ -13,10 +13,10 @@ from contextlib import AsyncExitStack, suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from henchman.mcp.config import McpServerConfig
-
 if TYPE_CHECKING:
     from mcp.client.session import ClientSession
+
+    from henchman.mcp.config import McpServerConfig
 
 from mcp.client.stdio import stdio_client
 
@@ -78,12 +78,7 @@ class FilteredStream(io.StringIO):
 
             # Also check for common Python logging format variations
             if (
-                line_stripped.startswith("INFO ")
-                or line_stripped.startswith("DEBUG ")
-                or "[INFO]" in line_stripped
-                or "[DEBUG]" in line_stripped
-                or line_stripped.startswith("INFO:")
-                or line_stripped.startswith("DEBUG:")
+                line_stripped.startswith(("INFO ", "DEBUG ", "INFO:", "DEBUG:")) or "[INFO]" in line_stripped or "[DEBUG]" in line_stripped
             ):
                 continue
 
@@ -166,7 +161,7 @@ class McpClient:
         server_params = StdioServerParameters(
             command=self.config.command,
             args=self.config.args,
-            env=self.config.env if self.config.env else None,
+            env=self.config.env or None,
         )
 
         self._exit_stack = AsyncExitStack()
@@ -178,7 +173,7 @@ class McpClient:
 
             # Enter stdio_client context — keeps task group alive
             read, write = await self._exit_stack.enter_async_context(
-                stdio_client(server_params, errlog=errlog)
+                stdio_client(server_params, errlog=errlog),
             )
 
             # Enter ClientSession context
@@ -250,7 +245,8 @@ class McpClient:
             RuntimeError: If not connected.
         """
         if self._session is None:
-            raise RuntimeError(f"Client '{self.name}' is not connected")
+            msg = f"Client '{self.name}' is not connected"
+            raise RuntimeError(msg)
 
         result = await self._session.call_tool(name, arguments)
 

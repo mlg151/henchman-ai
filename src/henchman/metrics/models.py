@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 
@@ -24,9 +24,9 @@ class BaseMetric:
     id: str = field(default_factory=lambda: str(uuid4()))
     timestamp: datetime = field(default_factory=datetime.now)
     metric_type: MetricType = MetricType.PERFORMANCE
-    session_id: Optional[str] = None
-    agent_id: Optional[str] = None
-    user_id: Optional[str] = None  # Anonymized hash
+    session_id: str | None = None
+    agent_id: str | None = None
+    user_id: str | None = None  # Anonymized hash
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -40,9 +40,9 @@ class TokenMetric(BaseMetric):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
-    cached_tokens: Optional[int] = None
-    token_limit: Optional[int] = None
-    token_ratio: Optional[float] = None  # total_tokens / token_limit
+    cached_tokens: int | None = None
+    token_limit: int | None = None
+    token_ratio: float | None = None  # total_tokens / token_limit
 
 
 @dataclass
@@ -56,8 +56,8 @@ class CostMetric(BaseMetric):
     completion_cost: float = 0.0
     total_cost: float = 0.0
     currency: str = "USD"
-    cost_per_token: Optional[float] = None
-    estimated_cost: Optional[float] = None  # For streaming where exact tokens unknown
+    cost_per_token: float | None = None
+    estimated_cost: float | None = None  # For streaming where exact tokens unknown
 
 
 @dataclass
@@ -69,9 +69,9 @@ class ToolMetric(BaseMetric):
     tool_category: str = ""
     execution_time_ms: float = 0.0
     success: bool = True
-    error_type: Optional[str] = None
-    input_size: Optional[int] = None  # Approximate input size in characters
-    output_size: Optional[int] = None  # Approximate output size in characters
+    error_type: str | None = None
+    input_size: int | None = None  # Approximate input size in characters
+    output_size: int | None = None  # Approximate output size in characters
     cache_hit: bool = False
 
 
@@ -81,13 +81,13 @@ class UsageMetric(BaseMetric):
 
     metric_type: MetricType = MetricType.USAGE_PATTERN
     command: str = ""
-    subcommand: Optional[str] = None
+    subcommand: str | None = None
     workflow_type: str = ""
     duration_ms: float = 0.0
     tool_calls_count: int = 0
     agent_switches: int = 0
     context_compactions: int = 0
-    user_feedback: Optional[str] = None  # Optional explicit feedback
+    user_feedback: str | None = None  # Optional explicit feedback
 
 
 @dataclass
@@ -97,7 +97,7 @@ class PerformanceMetric(BaseMetric):
     metric_type: MetricType = MetricType.PERFORMANCE
     event_type: str = ""
     latency_ms: float = 0.0
-    memory_usage_mb: Optional[float] = None
-    cpu_usage_percent: Optional[float] = None
+    memory_usage_mb: float | None = None
+    cpu_usage_percent: float | None = None
     concurrent_operations: int = 1
-    queue_depth: Optional[int] = None
+    queue_depth: int | None = None

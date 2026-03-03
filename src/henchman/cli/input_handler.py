@@ -6,17 +6,19 @@ This module handles user input processing including prompt sessions,
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 
 from henchman.cli.commands.builtins import get_builtin_commands
 from henchman.cli.input import create_session, expand_at_references, is_slash_command
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from prompt_toolkit import PromptSession
+
     from henchman.cli.repl import ReplConfig
     from henchman.tools.registry import ToolRegistry
 
@@ -56,7 +58,7 @@ class InputHandler:
         self.prompt_session: PromptSession[str] | None = None
 
     def initialize_prompt_session(
-        self, bottom_toolbar: Callable[[], list[tuple[str, str]]] | None = None
+        self, bottom_toolbar: Callable[[], list[tuple[str, str]]] | None = None,
     ) -> None:
         """Initialize the prompt session.
 
@@ -92,9 +94,12 @@ class InputHandler:
             EOFError: If user presses Ctrl+D.
         """
         if not self.prompt_session:
-            raise RuntimeError(
+            msg = (
                 "Prompt session not initialized. "
                 "Call initialize_prompt_session() before get_input()."
+            )
+            raise RuntimeError(
+                msg,
             )
 
         # Ensure a fresh line for the prompt

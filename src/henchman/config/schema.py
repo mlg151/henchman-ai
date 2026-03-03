@@ -18,14 +18,14 @@ class AgentConfig(BaseModel):
     role: str = Field(..., description="Unique role identifier")
     description: str = Field(..., description="One-line description of the agent's purpose")
     system_prompt: str | None = Field(
-        None, description="Role-specific instructions (None for default)"
+        None, description="Role-specific instructions (None for default)",
     )
     tools: list[str] = Field(default_factory=list, description="Allowlist of tool names")
     provider: str | None = Field(None, description="Override model provider")
     model: str | None = Field(None, description="Override model name")
     auto_approve: list[str] = Field(default_factory=list, description="Tools to auto-approve")
     can_delegate_to: list[str] = Field(
-        default_factory=list, description="Roles this agent can delegate to"
+        default_factory=list, description="Roles this agent can delegate to",
     )
     enabled: bool = Field(True, description="Whether this agent is active")
 
@@ -44,7 +44,8 @@ class AgentConfig(BaseModel):
             ValueError: If the list is empty.
         """
         if not v:
-            raise ValueError("Agent must have at least one tool")
+            msg = "Agent must have at least one tool"
+            raise ValueError(msg)
         return v
 
 
@@ -61,12 +62,12 @@ class ProviderSettings(BaseModel):
 
     default: str = "deepseek"
     deepseek: dict[str, object] = Field(
-        default_factory=lambda: dict[str, object]({"model": "deepseek-chat"})
+        default_factory=lambda: dict[str, object]({"model": "deepseek-chat"}),
     )
     openai: dict[str, object] = Field(default_factory=dict)
     anthropic: dict[str, object] = Field(default_factory=dict)
     ollama: dict[str, object] = Field(
-        default_factory=lambda: dict[str, object]({"base_url": "http://localhost:11434"})
+        default_factory=lambda: dict[str, object]({"base_url": "http://localhost:11434"}),
     )
     openrouter: dict[str, object] = Field(default_factory=dict)
     openai_compat: dict[str, object] = Field(default_factory=dict)
@@ -106,7 +107,7 @@ class UISettings(BaseModel):
         default_factory=lambda: {
             "c-c": "abort",
             "c-d": "exit",
-        }
+        },
     )
     style_overrides: dict[str, str] = Field(default_factory=dict)
 
@@ -255,7 +256,7 @@ class RagSettings(BaseModel):
             ".sql",
             ".graphql",
             ".proto",
-        ]
+        ],
     )
 
 
@@ -273,11 +274,11 @@ class ApiConfig(BaseModel):
     api_keys: list[str] = Field(default_factory=list, description="List of valid API keys")
     rate_limits: dict[str, str] = Field(
         default_factory=lambda: {"default": "100/hour"},
-        description="Rate limit configuration (e.g., '100/hour', '1000/day')"
+        description="Rate limit configuration (e.g., '100/hour', '1000/day')",
     )
     cors: dict[str, Any] = Field(
         default_factory=lambda: {"enabled": True, "origins": ["*"]},
-        description="CORS configuration"
+        description="CORS configuration",
     )
 
 

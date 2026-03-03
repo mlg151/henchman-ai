@@ -22,7 +22,7 @@ class ToolMetricsController(OrchestratorComponent):
         success: bool,
     ) -> None:
         """Update metrics for a tool call.
-        
+
         Args:
             tool_name: Name of the tool that was called
             arguments: Dictionary of arguments passed to the tool
@@ -37,7 +37,7 @@ class ToolMetricsController(OrchestratorComponent):
         result_content: str | None,
     ) -> None:
         """Track tool errors for delegation summaries.
-        
+
         Args:
             tool_errors: List to append the formatted error message to
             tool_name: Name of the tool that failed
@@ -53,7 +53,7 @@ class ToolMetricsController(OrchestratorComponent):
         target: str,
     ) -> None:
         """Update metrics for a delegation.
-        
+
         Args:
             target: Type of agent the task was delegated to (e.g., 'planner', 'engineer')
         """

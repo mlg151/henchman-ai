@@ -10,13 +10,13 @@ import hashlib
 import json
 import subprocess
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
     from rich.console import Console
 
@@ -52,8 +52,8 @@ class IndexManifest:
                     "files": self.files,
                     "model_name": self.model_name,
                     "chunk_size": self.chunk_size,
-                }
-            )
+                },
+            ),
         )
 
     @classmethod
@@ -233,8 +233,8 @@ class GitFileIndexer:
 
         # Check if we need full reindex due to config change
         if (
-            manifest.model_name
-            and manifest.model_name != self.embedder.model_name
+            (manifest.model_name
+            and manifest.model_name != self.embedder.model_name)
             or manifest.chunk_size != self.chunker.target_tokens
         ):
             force = True

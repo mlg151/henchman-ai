@@ -168,7 +168,7 @@ class Dashboard:
 
         if format.lower() == "json":
             return json.dumps(stats, indent=2, default=str)
-        elif format.lower() == "csv":
+        if format.lower() == "csv":
             # Simple CSV export of key metrics
             import csv
             import io
@@ -180,23 +180,23 @@ class Dashboard:
             writer.writerow(["Metric", "Value", "Unit"])
 
             # Write token usage
-            if "token_usage" in stats and stats["token_usage"]:
+            if stats.get("token_usage"):
                 writer.writerow(["Total Tokens", stats["token_usage"].get("total_tokens", 0), "tokens"])
                 writer.writerow(["Daily Average Tokens", stats["token_usage"].get("daily_average", 0), "tokens"])
 
             # Write costs
-            if "costs" in stats and stats["costs"]:
+            if stats.get("costs"):
                 writer.writerow(["Total Cost", stats["costs"].get("total_cost", 0), "USD"])
                 writer.writerow(["Daily Average Cost", stats["costs"].get("daily_average", 0), "USD"])
 
             # Write tool performance
-            if "tool_performance" in stats and stats["tool_performance"]:
+            if stats.get("tool_performance"):
                 writer.writerow(["Total Tool Calls", stats["tool_performance"].get("total_calls", 0), "calls"])
                 writer.writerow(["Success Rate", stats["tool_performance"].get("success_rate", 0), "%"])
 
             return output.getvalue()
-        else:
-            raise ValueError(f"Unsupported format: {format}. Supported formats: json, csv")
+        msg = f"Unsupported format: {format}. Supported formats: json, csv"
+        raise ValueError(msg)
 
     def close(self) -> None:
         """Close dashboard and release resources."""

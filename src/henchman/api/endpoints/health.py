@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
@@ -57,7 +59,7 @@ async def health() -> HealthResponse:
 
 @router.get("/metrics", response_model=MetricsResponse)
 async def get_metrics(
-    _api_key: str | None = Depends(verify_api_key),
+    _api_key: Annotated[str | None, Depends(verify_api_key)],
 ) -> MetricsResponse:
     """Get performance metrics.
 
@@ -86,7 +88,7 @@ async def get_metrics(
                 "failed": state.metrics.get("tool_calls_failed", 0),
             },
         )
-    
+
     # Fallback to placeholder data
     return MetricsResponse(
         requests={
@@ -109,7 +111,7 @@ async def get_metrics(
 
 @router.get("/usage", response_model=UsageResponse)
 async def get_usage(
-    _api_key: str | None = Depends(verify_api_key),
+    _api_key: Annotated[str | None, Depends(verify_api_key)],
 ) -> UsageResponse:
     """Get token usage and cost information.
 
@@ -125,22 +127,22 @@ async def get_usage(
         # Simple cost estimation: rough average of common model prices
         # This is an approximation - actual cost depends on the model used
         total_cost = total_tokens * 0.001 / 1000  # ~$0.001 per 1K tokens
-        
+
         # Create a simple daily usage structure
         # Note: This shows cumulative usage, not broken down by actual date
         daily_usage = {
             "current_session": {
                 "tokens": total_tokens,
                 "cost": total_cost,
-            }
+            },
         }
-        
+
         return UsageResponse(
             total_tokens=total_tokens,
             total_cost=total_cost,
             daily_usage=daily_usage,
         )
-    
+
     # Fallback to placeholder data
     return UsageResponse(
         total_tokens=0,

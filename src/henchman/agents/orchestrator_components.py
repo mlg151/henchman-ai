@@ -41,10 +41,10 @@ class AgentValidator(OrchestratorComponent):
         agent: Any,
     ) -> AgentEvent | None:
         """Validate Tech Lead thinking patterns and update metrics.
-        
+
         Args:
             agent: The agent to validate thinking patterns for.
-            
+
         Returns:
             AgentEvent | None: An event if thinking pattern is missing, None otherwise.
         """
@@ -66,10 +66,10 @@ class AgentValidator(OrchestratorComponent):
         agent: Any,
     ) -> AgentEvent | None:
         """Check if agent has stalled and report failure.
-        
+
         Args:
             agent: The agent to check for stall failure.
-            
+
         Returns:
             AgentEvent | None: An event if agent has stalled, None otherwise.
         """

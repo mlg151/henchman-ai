@@ -15,13 +15,13 @@ from henchman.cli.session_manager import ReplSessionManager
 from henchman.cli.tool_manager import ToolManager
 from henchman.core.eventbus import EventBus
 from henchman.mcp.manager import McpManager
-from henchman.tools.registry import ToolRegistry
 
 if TYPE_CHECKING:
     from henchman.cli.tool_executor import ToolExecutor
     from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.providers.base import ModelProvider
+    from henchman.tools.registry import ToolRegistry
 
 
 @dataclass

@@ -110,7 +110,7 @@ class GlobTool(Tool):
 
             if truncated:
                 results.append(
-                    f"... Output truncated (limit reached: {self.MAX_MATCHES} matches) ..."
+                    f"... Output truncated (limit reached: {self.MAX_MATCHES} matches) ...",
                 )
 
             return ToolResult(

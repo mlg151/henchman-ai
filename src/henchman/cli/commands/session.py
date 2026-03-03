@@ -125,7 +125,7 @@ class CommandOperationContext:
 
     def print_success(self: CommandOperationContext, message: str) -> None:
         """Print a success message.
-        
+
         Args:
             message: The success message to display.
         """
@@ -133,7 +133,7 @@ class CommandOperationContext:
 
     def print_error(self: CommandOperationContext, message: str) -> None:
         """Print an error message.
-        
+
         Args:
             message: The error message to display.
         """
@@ -141,7 +141,7 @@ class CommandOperationContext:
 
     def print_info(self: CommandOperationContext, message: str) -> None:
         """Print an info message.
-        
+
         Args:
             message: The info message to display.
         """
@@ -149,7 +149,7 @@ class CommandOperationContext:
 
     def print_usage(self: CommandOperationContext, usage: str) -> None:
         """Print usage information.
-        
+
         Args:
             usage: The usage information to display.
         """
@@ -251,7 +251,11 @@ class SessionCommandExecutor(ABC):
 
     @abstractmethod
     async def execute(self: SessionCommandExecutor, manager: SessionManager) -> None:
-        """Execute the command with the given manager."""
+        """Execute the command with the given manager.
+
+        Args:
+            manager: The session manager to use for the command execution.
+        """
         ...
 
     def _ensure_args(self: SessionCommandExecutor, min_args: int, usage: str) -> bool:
@@ -271,7 +275,11 @@ class BranchExecutor(SessionCommandExecutor):
     """Executor for branch operations."""
 
     async def execute(self: BranchExecutor, manager: SessionManager) -> None:
-        """Execute branch operation."""
+        """Execute branch operation.
+
+        Args:
+            manager: The session manager to use for the branch operation.
+        """
         if not self._ensure_args(DEFAULT_MIN_ARGS_FOR_BRANCH, "/session branch <id> <point> [tag]"):
             return
 
@@ -352,7 +360,11 @@ class MergeExecutor(SessionCommandExecutor):
         return strategy, tag
 
     async def execute(self: MergeExecutor, manager: SessionManager) -> None:
-        """Execute merge operation."""
+        """Execute merge operation.
+
+        Args:
+            manager: The session manager to use for the merge operation.
+        """
         if not self._ensure_args(
             DEFAULT_MIN_ARGS_FOR_MERGE,
             "/session merge <id1> <id2> [strategy] [tag]",

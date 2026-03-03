@@ -9,10 +9,6 @@ from __future__ import annotations
 import hashlib
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass  # No type-only imports currently needed
 
 
 def get_git_remote_url(git_root: Path) -> str | None:

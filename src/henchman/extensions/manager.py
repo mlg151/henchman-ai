@@ -6,12 +6,13 @@ import importlib.util
 import logging
 import sys
 from importlib.metadata import entry_points
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from henchman.extensions.base import Extension
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from henchman.cli.commands import Command
     from henchman.tools.base import Tool
 

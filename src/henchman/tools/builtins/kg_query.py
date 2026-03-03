@@ -137,15 +137,15 @@ class KgQueryTool(Tool):
         Args:
             params: Tool parameters passed as keyword arguments.
                 Expected parameters:
-                    action (str): Query action: 'search', 'get', 'neighbors', 
+                    action (str): Query action: 'search', 'get', 'neighbors',
                         'relations', 'important', or 'stats'.
-                    query (str): Search term for 'search' action, or entity id for 
+                    query (str): Search term for 'search' action, or entity id for
                         'get'/'neighbors'/'relations'.
-                    entity_type (str, optional): Filter by entity type: 'class', 
-                        'config', 'convention', 'decision', 'file', 'function', 
+                    entity_type (str, optional): Filter by entity type: 'class',
+                        'config', 'convention', 'decision', 'file', 'function',
                         'module', 'package', 'pattern', or 'service'.
                     depth (int, optional): Hop depth for 'neighbors'. Defaults to 1.
-                    top_k (int, optional): Number of results for 'important'. 
+                    top_k (int, optional): Number of results for 'important'.
                         Defaults to 10.
 
         Returns:
@@ -173,21 +173,20 @@ class KgQueryTool(Tool):
         # Dispatch to appropriate handler method
         if action == "search":
             return self._handle_search(store, query, entity_type)
-        elif action == "get":
+        if action == "get":
             return self._handle_get(store, query)
-        elif action == "neighbors":
+        if action == "neighbors":
             return self._handle_neighbors(store, query, depth)
-        elif action == "relations":
+        if action == "relations":
             return self._handle_relations(store, query)
-        elif action == "important":
+        if action == "important":
             return self._handle_important(store, top_k)
-        elif action == "stats":
+        if action == "stats":
             return self._handle_stats(store)
-        else:
-            return ToolResult(content=f"Unknown action: '{action}'.")
+        return ToolResult(content=f"Unknown action: '{action}'.")
 
     def _handle_search(
-        self, store: KnowledgeStore, query: str, entity_type: object | None
+        self, store: KnowledgeStore, query: str, entity_type: object | None,
     ) -> ToolResult:
         """Handle search action."""
         if not query:
@@ -263,5 +262,5 @@ class KgQueryTool(Tool):
                 f"- **Relations:** {store.relation_count()}\n"
                 f"- **Connected components:** {len(components)}\n"
                 f"- **Last indexed:** {store.meta.last_indexed or 'never'}"
-            )
+            ),
         )

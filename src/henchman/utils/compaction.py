@@ -7,14 +7,16 @@ older messages, with optional summarization of dropped content.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from henchman.providers.base import Message
 from henchman.utils.tokens import TokenCounter
 
 if TYPE_CHECKING:
     # For type checking only
-    from henchman.providers.base import Message, ModelProvider
+    from collections.abc import Callable
+
+    from henchman.providers.base import ModelProvider
 
 
 @dataclass
@@ -72,7 +74,7 @@ DEFAULT_MAX_PROTECTED_RATIO: float = 0.3
 @dataclass
 class SummarizationConfig:
     """Configuration for message summarization during compaction."""
-    provider: "ModelProvider | None" = None
+    provider: ModelProvider | None = None
     summarize: bool = True
     protect_from_index: int = -1
     max_protected_ratio: float = 0.3
@@ -107,7 +109,7 @@ class MessageSequenceGrouper:
         i = 0
         while i < len(messages):
             i = MessageSequenceGrouper._process_next_message(
-                messages, i, current_sequence, sequences, consumed_indices
+                messages, i, current_sequence, sequences, consumed_indices,
             )
 
         # Add the last sequence
@@ -145,7 +147,7 @@ class MessageSequenceGrouper:
         # Handle tool call sequences
         if msg.role == "assistant" and msg.tool_calls:
             MessageSequenceGrouper._handle_tool_call_sequence(
-                messages, current_index, current_sequence, consumed_indices
+                messages, current_index, current_sequence, consumed_indices,
             )
 
         next_index = current_index + 1
@@ -191,7 +193,7 @@ class MessageSequenceGrouper:
 
     @staticmethod
     def _should_start_new_sequence(
-        current_message: Message, current_index: int, total_messages: int
+        current_message: Message, current_index: int, total_messages: int,
     ) -> bool:
         """Determine if a new sequence should start.
 
@@ -218,7 +220,7 @@ class ProtectedZoneManager:
         self.max_protected_tokens = max_protected_tokens
 
     def separate_protected_messages(
-        self, messages: list[Message], protect_from_index: int
+        self, messages: list[Message], protect_from_index: int,
     ) -> tuple[list[Message], list[Message]]:
         """Separate protected and unprotected messages based on protection index.
 
@@ -411,7 +413,7 @@ class MessageSequenceValidator:
 
     @staticmethod
     def _is_valid_tool_message(
-        messages: list[Message], index: int, tool_message: Message
+        messages: list[Message], index: int, tool_message: Message,
     ) -> bool:
         """Validate a single tool message.
 
@@ -594,7 +596,7 @@ class ContextCompactor:
 
         # Separate protected and unprotected messages
         protected_msgs, unprotected_msgs = self.protected_zone_manager.separate_protected_messages(
-            messages, protect_from_index
+            messages, protect_from_index,
         )
 
         # Handle protected zone truncation if needed
@@ -606,19 +608,19 @@ class ContextCompactor:
 
         # Calculate budget and handle edge cases
         budget_result = self.budget_calculator.handle_edge_cases(
-            system_msgs, system_tokens, protected_msgs, protected_tokens, sequences
+            system_msgs, system_tokens, protected_msgs, protected_tokens, sequences,
         )
         if budget_result is not None:
             return budget_result
 
         # Select which sequences to keep based on budget
         kept_sequences, last_sequence, last_sequence_is_user = self._select_sequences_to_keep(
-            sequences, protected_msgs, system_tokens, protected_tokens
+            sequences, protected_msgs, system_tokens, protected_tokens,
         )
 
         # Reconstruct final message list
         return self._reconstruct_result(
-            system_msgs, kept_sequences, last_sequence, last_sequence_is_user, protected_msgs
+            system_msgs, kept_sequences, last_sequence, last_sequence_is_user, protected_msgs,
         )
 
 
@@ -626,7 +628,7 @@ class ContextCompactor:
 
 
     def _extract_system_messages(
-        self, unprotected_msgs: list[Message]
+        self, unprotected_msgs: list[Message],
     ) -> tuple[list[Message], int]:
         """Extract system messages from unprotected messages.
 
@@ -903,7 +905,7 @@ Summary:"""
             return None
 
         summary = await _generate_summary_with_provider(
-            self.provider, msgs_to_summarize, self._format_messages_for_summary
+            self.provider, msgs_to_summarize, self._format_messages_for_summary,
         )
         self._cached_summary = summary
         return summary
@@ -1026,7 +1028,7 @@ async def _attempt_summarization(
             non_system = [m for m in result.messages if m.role != "system"]
             summary_msg = summarizer.create_summary_message(summary)
 
-            result.messages = system_msgs + [summary_msg] + non_system
+            result.messages = [*system_msgs, summary_msg, *non_system]
             result.summary = summary
     except Exception:
         # Summarization failed, continue with simple dropping

@@ -8,10 +8,14 @@ from __future__ import annotations
 
 import fcntl
 import time
-from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 T = TypeVar("T")
 
@@ -108,7 +112,7 @@ class RagLock:
                 self.lock_file = None
                 self._acquired = False
 
-    def __enter__(self) -> RagLock:
+    def __enter__(self) -> Self:
         """Context manager entry."""
         if not self.acquire():
             raise LockTimeoutError(self.lock_path, 5.0)
@@ -141,7 +145,7 @@ def acquire_rag_lock(lock_path: Path | str, timeout: float = 5.0) -> tuple[bool,
 
 
 def retry_on_locked(
-    max_retries: int = 3, delay: float = 0.1
+    max_retries: int = 3, delay: float = 0.1,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator to retry operations on database lock errors.
 

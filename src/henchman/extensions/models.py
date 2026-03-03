@@ -255,7 +255,7 @@ class PluginMetadata(BaseModel):
                 "version": "1.0.0",
                 "description": "GitHub integration for Henchman-AI",
                 "author": "GitHub User",
-            }
+            },
         },
     )
 

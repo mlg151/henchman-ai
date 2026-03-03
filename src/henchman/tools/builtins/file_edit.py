@@ -123,13 +123,13 @@ class EditFileTool(Tool):
                 )
 
             if has_line_range:
-                assert start_line is not None and end_line is not None
+                assert start_line is not None
+                assert end_line is not None
                 return self._edit_line_range(
-                    file_path, content, start_line, end_line, new_str, dry_run
+                    file_path, content, start_line, end_line, new_str, dry_run,
                 )
-            else:
-                assert old_str is not None
-                return self._edit_string(file_path, content, old_str, new_str, dry_run)
+            assert old_str is not None
+            return self._edit_string(file_path, content, old_str, new_str, dry_run)
 
         except PermissionError:
             return ToolResult(
@@ -235,7 +235,7 @@ class EditFileTool(Tool):
         if replacement and not replacement.endswith("\n") and clamped_end < total:
             replacement += "\n"
 
-        new_lines = lines[: start_line - 1] + [replacement] + lines[clamped_end:]
+        new_lines = [*lines[:start_line - 1], replacement, *lines[clamped_end:]]
         new_content = "".join(new_lines)
 
         if dry_run:

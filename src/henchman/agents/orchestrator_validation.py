@@ -22,11 +22,11 @@ _SCORE_INC = 5
 
 def should_check_thinking(orchestrator: Any, agent: Any) -> bool:
     """Determine if thinking pattern should be checked for this agent.
-    
+
     Args:
         orchestrator: The orchestrator instance.
         agent: The agent to check.
-        
+
     Returns:
         bool: True if thinking pattern should be checked for this agent.
     """
@@ -39,7 +39,7 @@ def should_check_thinking(orchestrator: Any, agent: Any) -> bool:
 
 def handle_valid_thinking(metrics: Any, content: str) -> None:
     """Handle valid thinking pattern and update metrics.
-    
+
     Args:
         metrics: The metrics object to update.
         content: The thinking content to analyze.
@@ -57,10 +57,10 @@ def handle_valid_thinking(metrics: Any, content: str) -> None:
 
 def handle_missing_thinking(agent: Any) -> AgentEvent:
     """Handle missing thinking pattern by adding reminder.
-    
+
     Args:
         agent: The agent missing the thinking pattern.
-        
+
     Returns:
         AgentEvent: An event indicating thinking pattern is required.
     """
@@ -83,11 +83,11 @@ def handle_missing_thinking(agent: Any) -> AgentEvent:
 
 def check_stall_failure(orchestrator: Any, agent: Any) -> AgentEvent | None:
     """Check if agent has stalled and report failure.
-    
+
     Args:
         orchestrator: The orchestrator instance.
         agent: The agent to check for stall failure.
-        
+
     Returns:
         AgentEvent | None: An error event if stall failure detected, None otherwise.
     """

@@ -6,11 +6,12 @@ This module provides JSON output formatting for headless mode and scripting.
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 
-from henchman.core.events import AgentEvent
+if TYPE_CHECKING:
+    from henchman.core.events import AgentEvent
 
 
 class JsonOutputRenderer:

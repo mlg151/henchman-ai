@@ -72,7 +72,7 @@ class SessionMetricsAnalyzer:
         }
 
     def _get_session_metrics_by_type(
-        self, cursor: sqlite3.Cursor, session_id: str, metric_type: str, select_clause: str
+        self, cursor: sqlite3.Cursor, session_id: str, metric_type: str, select_clause: str,
     ) -> tuple[Any, ...] | None:
         """Get session metrics by type with parameterized query.
 
@@ -94,7 +94,7 @@ class SessionMetricsAnalyzer:
         return cursor.fetchone()  # type: ignore[no-any-return]
 
     def _get_session_aggregated_metrics(
-        self, cursor: sqlite3.Cursor, session_id: str, metric_type: str
+        self, cursor: sqlite3.Cursor, session_id: str, metric_type: str,
     ) -> tuple[Any, ...] | None:
         """Get aggregated metrics for a session by metric type.
 
@@ -131,11 +131,11 @@ class SessionMetricsAnalyzer:
             return None
 
         return self._get_session_metrics_by_type(
-            cursor, session_id, metric_type, select_clauses[metric_type]
+            cursor, session_id, metric_type, select_clauses[metric_type],
         )
 
     def _get_session_metric_by_type(
-        self, cursor: sqlite3.Cursor, session_id: str, metric_type: str
+        self, cursor: sqlite3.Cursor, session_id: str, metric_type: str,
     ) -> tuple[Any, ...] | None:
         """Get session metrics by type.
 
@@ -150,7 +150,7 @@ class SessionMetricsAnalyzer:
         return self._get_session_aggregated_metrics(cursor, session_id, metric_type)
 
     def _get_session_usage_patterns(
-        self, cursor: sqlite3.Cursor, session_id: str
+        self, cursor: sqlite3.Cursor, session_id: str,
     ) -> list[sqlite3.Row]:
         """Get usage patterns for a session."""
         cursor.execute(
@@ -300,8 +300,9 @@ class MetricsAggregator:
         }
 
         if group_by not in time_formats:
+            msg = f"Invalid group_by: {group_by}. Must be one of: {list(time_formats.keys())}"
             raise ValueError(
-                f"Invalid group_by: {group_by}. Must be one of: {list(time_formats.keys())}"
+                msg,
             )
 
         return time_formats[group_by]
@@ -591,7 +592,7 @@ class MetricsStorage:
                 break
 
     def _apply_field_mapping(
-        self, metric: BaseMetric, base_dict: dict[str, Any], mapping: dict[str, str]
+        self, metric: BaseMetric, base_dict: dict[str, Any], mapping: dict[str, str],
     ) -> None:
         """Apply field mapping from metric to base dictionary.
 

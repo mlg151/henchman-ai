@@ -4,6 +4,7 @@ import ast
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.utils import (
     create_path_parameter_schema,
@@ -27,7 +28,7 @@ def _extract_top_level_module(import_str: str) -> str:
         # "from X.Y import Z" -> extract X
         parts = import_str.split()
         return parts[1].split(".")[0] if len(parts) > 1 else ""
-    elif import_str.startswith("import "):
+    if import_str.startswith("import "):
         parts = import_str.split()
         return parts[1].split(".")[0] if len(parts) > 1 else ""
     return ""
@@ -44,7 +45,7 @@ def _classify_import(import_str: str, local_modules: set[str]) -> str:
         One of 'stdlib', 'local', or 'third-party'.
     """
     # Extract the top-level module name
-    if import_str.startswith("from .") or import_str.startswith("from .."):
+    if import_str.startswith(("from .", "from ..")):
         return "local"
 
     module = _extract_top_level_module(import_str)
@@ -367,7 +368,7 @@ class _CycleFinder:
             cycle_start: Node where the cycle starts/ends.
         """
         idx = self.path.index(cycle_start)
-        cycle = self.path[idx:] + [cycle_start]
+        cycle = [*self.path[idx:], cycle_start]
         key = frozenset(cycle[:-1])
 
         if key not in self.seen_cycles:
@@ -462,7 +463,7 @@ class ImportGraphTool(Tool):
                     "description": "Classify imports as stdlib, local, or third-party",
                     "default": False,
                 },
-            }
+            },
         )
 
     @property
@@ -762,10 +763,10 @@ class ImportGraphTool(Tool):
         """
         for node in ast.walk(tree):
             if (
-                isinstance(node, ast.Import)
-                and self._import_node_contains_module(node, module_name)
-                or isinstance(node, ast.ImportFrom)
-                and self._import_from_node_contains_module(node, module_name)
+                (isinstance(node, ast.Import)
+                and self._import_node_contains_module(node, module_name))
+                or (isinstance(node, ast.ImportFrom)
+                and self._import_from_node_contains_module(node, module_name))
             ):
                 return True
         return False

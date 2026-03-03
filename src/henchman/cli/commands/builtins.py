@@ -58,9 +58,8 @@ class HelpCommand(Command):
         self._print_header(ctx)
 
         # If a specific command is requested, show its usage
-        if ctx.args:
-            if self._show_specific_command_help(ctx):
-                return
+        if ctx.args and self._show_specific_command_help(ctx):
+            return
 
         # Otherwise list all commands
         self._list_all_commands(ctx)

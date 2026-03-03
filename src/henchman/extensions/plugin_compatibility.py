@@ -5,11 +5,8 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
-from henchman.extensions.models import PluginMetadata
-
 if TYPE_CHECKING:
-    from packaging.specifiers import SpecifierSet
-    from packaging.version import Version
+    from henchman.extensions.models import PluginMetadata
 
 
 class PluginCompatibilityChecker:
@@ -28,20 +25,20 @@ class PluginCompatibilityChecker:
         try:
             # Check Henchman version
             if not PluginCompatibilityChecker._check_henchman_compatibility(
-                metadata.compatibility.henchman
+                metadata.compatibility.henchman,
             ):
                 return False
 
             # Check Python version
             if not PluginCompatibilityChecker._check_python_compatibility(
-                metadata.compatibility.python
+                metadata.compatibility.python,
             ):
                 return False
 
             # Check OS compatibility
             if metadata.compatibility.os:
                 if not PluginCompatibilityChecker._check_os_compatibility(
-                    metadata.compatibility.os
+                    metadata.compatibility.os,
                 ):
                     return False
 
@@ -61,8 +58,9 @@ class PluginCompatibilityChecker:
         Returns:
             True if compatible, False otherwise.
         """
-        from packaging.version import Version
         from packaging.specifiers import SpecifierSet
+        from packaging.version import Version
+
         from henchman.version import VERSION
 
         current_henchman = Version(VERSION)
@@ -78,11 +76,11 @@ class PluginCompatibilityChecker:
         Returns:
             True if compatible, False otherwise.
         """
-        from packaging.version import Version
         from packaging.specifiers import SpecifierSet
+        from packaging.version import Version
 
         current_python = Version(
-            f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+            f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         )
         return SpecifierSet(python_spec).contains(current_python)
 

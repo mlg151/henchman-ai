@@ -267,7 +267,7 @@ class TracebackParseTool(Tool):
         for idx, frame in enumerate(frames):
             code_str = f" | {frame['code']}" if "code" in frame else ""
             parts.append(
-                f"  [{idx}] {frame['file']}:{frame['line']} in {frame['function']}{code_str}"
+                f"  [{idx}] {frame['file']}:{frame['line']} in {frame['function']}{code_str}",
             )
 
         return "\n".join(parts)

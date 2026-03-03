@@ -8,9 +8,9 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from rich.status import Status
-
 if TYPE_CHECKING:
+    from rich.status import Status
+
     from henchman.cli.session_manager import ReplSessionManager
     from henchman.cli.tool_manager import ToolManager
     from henchman.cli.ui_renderer import UIRenderer
@@ -144,7 +144,7 @@ class OutputHandler:
         return getattr(context, "max_tokens", 0)
 
     def _add_token_percentage_status(
-        self, status: list[tuple[str, str]], tokens: int, max_tokens: int
+        self, status: list[tuple[str, str]], tokens: int, max_tokens: int,
     ) -> None:
         """Add token percentage status with color coding.
 
@@ -232,7 +232,7 @@ class OutputHandler:
             Status message string.
         """
         return self.renderer.get_rich_status_message(
-            self.session_manager.current, agent, self.rag_system
+            self.session_manager.current, agent, self.rag_system,
         )
 
     def print_welcome(self) -> None:
