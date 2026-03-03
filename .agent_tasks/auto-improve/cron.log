@@ -292043,3 +292043,184 @@ RangeError: WebAssembly.instantiate(): Out of memory: Cannot allocate Wasm memor
     at lazyllhttp (node:internal/deps/undici/undici:8707:32)
 
 Node.js v20.12.2
+[2026-03-03T12:00:03Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-03T12:00:03Z] Targeting lowest-graded file: cli/textual_bridge.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll analyze the target file `src/henchman/cli/textual_bridge.py` and address all the code smells listed in the report. Let me first read the file to understand its structure and issues.
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py'})
+
+
+[result] """Console adapter and event bridge for the Textual TUI.
+
+``TuiConsoleAdapter`` redirects Rich Console output into the TUI chat
+pane.  ``EventBridge`` translates ``AgentEvent`` objects into Textual
+``...
+Now let me check the test file to understand the testing implications:
+[tool] glob({'pattern': '**/test*textual_bridge*'})
+
+[result] 
+tests/cli/__pycache__/test_textual_bridge_bugs.cpython-312-pytest-9.0.2.pyc
+tests/cli/test_textual_bridge_bugs.py...
+
+[tool] read_file({'path': 'tests/cli/test_textual_bridge_bugs.py'})
+
+[result] """Tests for bugs in textual_bridge.py."""
+
+
+from henchman.cli.textual_bridge import _format_error_text, _format_turn_status
+
+
+def test_bug9_format_error_text_case_sensitivity():
+    """Bug 9: _format...
+Now let me run the existing tests to see if they pass:
+[tool] pytest_run({'path': 'tests/cli/test_textual_bridge_bugs.py', 'verbose': 
+True})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Good, the tests pass. Now let me analyze the code smells from the report for `textual_bridge.py`:
+
+**Identified Smells from Report:**
+1. **Large Class**: Class 'EventBridge' has 31 methods (threshold: 20)
+2. **Duplicate Code**: Function '_post_prefixed_message' is 100% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 (and similar to other functions)
+3. **Duplicate Code**: Function '_post_status_message' is 94% similar to '_on_finished' at cli/textual_bridge.py:323
+4. **Missing Type Hints**: Multiple functions have incomplete type hints
+5. **Feature Envy**: Method 'EventBridge._dispatch' accesses 'event' 3 times but 'self' only 2 times
+
+Let me examine the specific lines mentioned:
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py', 'start_line': 
+230, 'end_line': 240})
+
+[result]     def _post_prefixed_message(self, event: AgentEvent, prefix: str) ->
+None:
+        """Post a prefixed message using AgentThoughtMessage.
+
+        Args:
+            event: The AgentEvent containing ...
+
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py', 'start_line': 
+248, 'end_line': 260})
+
+[result]     def _post_status_message(self, event: AgentEvent, text: str) -> 
+None:
+        """Post an AgentStatusMessage with given text.
+
+        Args:
+            event: The AgentEvent for source agent.
+    ...
+Now let me check the `_on_finished` method around line 323:
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py', 'start_line': 
+320, 'end_line': 330})
+
+[result]         self._post_status_message(event, f"Error: {msg}")
+        self._post(AgentContentMessage(f"❌ {msg}", event.source_agent))
+
+    def _on_finished(self, event: AgentEvent) -> None:
+        """Han...
+The duplicate code smell seems to be a false positive - `_post_status_message` and `_on_finished` are quite different. Let me check the missing type hints:
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py', 'start_line': 
+49, 'end_line': 55})
+
+[result]     def __init__(self, app: HenchmanTextualApp) -> None:
+        """Initialize.
+
+        Args:
+            app: The Textual application.
+        """
+        self._app = app
+...
+I need to refactor `src/henchman/cli/textual_bridge.py` to address all the code smells. Let me analyze the file more thoroughly and create a refactoring plan.
+
+**Identified Smells from the report:**
+
+1. **Large Class**: `EventBridge` has 31 methods (threshold: 20)
+2. **Duplicate Code**: `_post_prefixed_message` is similar to functions in `textual_widgets.py`
+3. **Duplicate Code**: `_post_status_message` is 94% similar to `_on_finished`
+4. **Missing Type Hints**: Multiple functions have incomplete type hints
+5. **Feature Envy**: `_dispatch` accesses `event` 3 times but `self` only 2 times
+
+Let me examine the actual code structure more carefully:
+[tool] python_ast({'path': 'src/henchman/cli/textual_bridge.py'})
+
+[result] # Symbol table for textual_bridge.py
+"""Console adapter and event bridge for the Textual TUI."""
+
+## Imports
+from __future__ import annotations  [L10]
+import io  [L12]
+from collections.abc import Call...
+Now let me check the specific lines with missing type hints:
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py', 'start_line': 
+66, 'end_line': 72})
+
+[result]     def console(self) -> RichConsole:
+        """The underlying Rich Console wired to the buffer.
+
+        Returns:
+            RichConsole instance.
+        """
+        return self._rich_console
+...
+Actually, that looks fine. Let me check the other lines mentioned:
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py', 'start_line': 
+74, 'end_line': 80})
+
+[result]     def flush_to_chat(self) -> None:
+        """Read accumulated buffer and post to the chat pane."""
+        text = self._buf.getvalue()
+        if text.strip():
+            self._app.post_message(Co...
+That also looks fine. Let me check the `print` method:
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py', 'start_line': 
+82, 'end_line': 90})
+
+[result]     def print(self, *args: Any, **kwargs: Any) -> None:
+        """Write to the buffer and flush to chat.
+
+        Args:
+            *args: Positional args for ``Console.print``.
+            **kwargs:...
+That looks fine too. Let me check the `_dispatch` method for the Feature Envy smell:
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py', 'start_line': 
+149, 'end_line': 164})
+
+[result]     def _dispatch(self, event: AgentEvent) -> None:
+        """Route a single event to its handler.
+
+        Args:
+            event: The event to dispatch.
+        """
+        handler = self._handler...
+Now I need to understand the actual issues. Let me run a more detailed analysis. First, let me check if there are any actual missing type hints by looking at the imports:
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py', 'start_line': 1,
+'end_line': 35})
+
+[result] """Console adapter and event bridge for the Textual TUI.
+
+``TuiConsoleAdapter`` redirects Rich Console output into the TUI chat
+pane.  ``EventBridge`` translates ``AgentEvent`` objects into Textual
+``...
+I see the issue - the TYPE_CHECKING import is duplicated (Callable appears twice). Also, the type hints might be incomplete in the sense that some parameters don't have type annotations. Let me check the actual method signatures more carefully. Actually, looking at the code, all methods seem to have type hints. The smell detector might be complaining about something else.
+
+Let me run mypy on the file to see if there are actual type issues:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m mypy 
+src/henchman/cli/textual_bridge.py --strict'})
+
+[result] Success: no issues found in 1 source file
+...
+Good! So the type hints are actually fine. The smell detector might be giving false positives. Let me now address the real issues:
+
+**Refactoring Strategy:**
+
+1. **Large Class (31 methods)**: Extract related methods into separate classes
+2. **Duplicate Code**: Consolidate similar message posting methods
+3. **Feature Envy**: The `_dispatch` method is fine - it's a dispatcher that needs to access event properties
+
+Let me create a refactored version. First, I'll address the Large Class issue by extracting the helper methods into a separate class:

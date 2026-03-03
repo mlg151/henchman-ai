@@ -1,75 +1,95 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-03-03T11:45:15Z
+2026-03-03T12:15:30Z
 
 ## Files Changed
-1. `pyproject.toml:65` - Added clarifying comment to `pytest-cov>=4.0` line
+1. `src/henchman/cli/app.py:600` - Added Args: section to 'cli' function docstring
 
 ## Smell Category Addressed
-- **Consistency Error** (MEDIUM): False positive where `pytest-cov>=4.0` was interpreted as "4% coverage threshold" instead of package version requirement
+- **Incomplete Docstring** (MEDIUM): 'cli' function had 1 parameter but no Args: section in docstring
 
 ## Rationale for Change
-The documentation smell report incorrectly flagged `pytest-cov>=4.0` as a consistency error, interpreting it as a "4% coverage threshold" when other files require 100%. This is a false positive because:
-1. `pytest-cov>=4.0` refers to version 4.0+ of the pytest-cov Python package
-2. The actual coverage threshold is correctly set to 100% via `--cov-fail-under=100` in the pytest configuration
-3. Multiple documentation files (CONTRIBUTING.md, RELEASE_CHECKLIST.md) correctly state 100% coverage requirement
-
-Without clarification, this false positive could confuse developers or automated tools scanning the documentation for consistency issues.
+The documentation smell report identified an incomplete docstring for the `cli` function in `src/henchman/cli/app.py`. The function has a parameter `ctx: click.Context` but the docstring was missing the required `Args:` section. This violates the project's documentation standards which require Google-style docstrings with complete parameter documentation for all public APIs.
 
 ## Changes Made
 
-### 1. `pyproject.toml:65` - Added clarifying comment:
-- **Before**: `"pytest-cov>=4.0",`
-- **After**: `"pytest-cov>=4.0",  # Version 4.0+ of pytest-cov package (coverage threshold is 100% via --cov-fail-under=100)`
+### 1. `src/henchman/cli/app.py:600` - Added Args: section to 'cli' function:
+- **Before**:
+  ```python
+  def cli(ctx: click.Context) -> None:
+      """Henchman-AI: A model-agnostic AI agent CLI.
+
+      Start an interactive session, run with --prompt for headless mode,
+      or start an API server with the serve command.
+      """
+  ```
+
+- **After**:
+  ```python
+  def cli(ctx: click.Context) -> None:
+      """Henchman-AI: A model-agnostic AI agent CLI.
+
+      Start an interactive session, run with --prompt for headless mode,
+      or start an API server with the serve command.
+
+      Args:
+          ctx (click.Context): The Click context object.
+
+      Returns:
+          None: This function doesn't return anything.
+      """
+  ```
 
 ## Technical Details
-- **Issue**: Smell detector misinterpreted package version requirement as coverage threshold
-- **Root cause**: Pattern matching in smell detector confused `>=4.0` (version) with "4%" (percentage)
-- **Impact**: False positive in documentation quality reports could mislead about actual coverage requirements
-- **Fix**: Added clarifying comment to prevent misinterpretation
-- **Note**: The actual coverage threshold remains 100% as configured in pytest settings
+- **Issue**: Missing `Args:` section in docstring for parameter `ctx`
+- **Root cause**: Incomplete Google-style docstring format
+- **Impact**: Reduced documentation quality and potential confusion for developers
+- **Fix**: Added proper `Args:` and `Returns:` sections following Google-style conventions
+- **Note**: The function returns `None` explicitly, which is documented in the `Returns:` section
 
 ## What to Verify
-1. The comment clarifies that `pytest-cov>=4.0` is a package version, not a coverage threshold
-2. The actual coverage threshold of 100% is correctly referenced in the comment
-3. No other documentation inconsistencies were introduced
-4. The comment follows project coding standards
-5. Future smell detector runs should not flag this as a consistency error
+1. The `Args:` section correctly documents the `ctx` parameter
+2. The `Returns:` section correctly documents that the function returns `None`
+3. The docstring follows Google-style formatting conventions
+4. No other documentation inconsistencies were introduced
+5. The change doesn't affect source code behavior
 
 ## Testing Instructions
 To verify the fix:
 ```bash
-# Check the updated line
-grep -n "pytest-cov" pyproject.toml
+# Check the updated docstring
+grep -A 10 "def cli" src/henchman/cli/app.py
 
-# Verify the actual coverage threshold configuration
-grep -n "cov-fail-under" pyproject.toml
+# Verify the function signature hasn't changed
+grep -n "def cli" src/henchman/cli/app.py
 
-# Check documentation files for coverage requirements
-grep -n "100%" CONTRIBUTING.md RELEASE_CHECKLIST.md README.md
+# Check that the function still works correctly
+python -c "from henchman.cli.app import cli; print('Function imported successfully')"
 ```
 
 ## Next Priority
 The next highest-priority issues from the smell report are:
-1. **Incomplete Docstring** in `src/henchman/cli/app.py:600` ('cli' has 1 parameter but no Args section)
-2. **Incomplete Docstring** in `src/henchman/cli/app.py:645` ('chat_command' has 8 parameters but no Args section)
-3. **Missing Docstring** in `src/henchman/cli/commands/plan.py:1` (Module is missing a docstring)
-4. **Incomplete Docstring** in `src/henchman/cli/commands/session.py:126` ('CommandOperationContext.print_success' has 1 parameter but no Args section)
+1. **Incomplete Docstring** in `src/henchman/cli/app.py:645` ('chat_command' has 8 parameters but no Args section)
+2. **Missing Docstring** in `src/henchman/cli/commands/plan.py:1` (Module is missing a docstring)
+3. **Incomplete Docstring** in `src/henchman/cli/commands/session.py:126` ('CommandOperationContext.print_success' has 1 parameter but no Args section)
+4. **Incomplete Docstring** in `src/henchman/cli/commands/session.py:130` ('CommandOperationContext.print_error' has 1 parameter but no Args section)
 
 ## Notes
-This improvement addresses a false positive in the documentation smell detector. The key clarification is:
+This improvement addresses a genuine documentation quality issue identified in the smell report. The fix ensures:
 
-1. **Package version vs coverage threshold**: `pytest-cov>=4.0` specifies the minimum version (4.0) of the pytest-cov package
-2. **Actual coverage requirement**: The project requires 100% test coverage, enforced via `--cov-fail-under=100` in pytest configuration
-3. **Documentation consistency**: All documentation files correctly state 100% coverage requirement
+1. **Complete documentation**: All function parameters are properly documented
+2. **Consistent formatting**: Follows Google-style docstring conventions
+3. **Improved developer experience**: Clear documentation helps developers understand the function's purpose and usage
+4. **Compliance with standards**: Meets the project's requirement for 100% documentation coverage
 
-The added comment serves two purposes:
-1. **Clarification**: Explicitly states that this is a package version requirement
-2. **Reference**: Points to the actual coverage threshold configuration
-3. **Prevention**: Helps avoid similar false positives in future smell detection runs
-
-This is a minimal, focused change that improves documentation accuracy without altering source code behavior, which aligns with the Technical Documentation Improvement Agent's constraints.
+The change is minimal and focused, addressing only the documentation issue without altering source code behavior, which aligns with the Technical Documentation Improvement Agent's constraints.
 
 ## Additional Context
-The smell detector's false positive highlights a limitation in pattern matching for documentation analysis. While `>=4.0` looks similar to "4%" to a simple pattern matcher, the context makes it clear this is a version requirement. The comment provides the necessary context for both human readers and automated tools.
+The `cli` function is the main entry point for the Henchman-AI CLI application. Proper documentation is essential because:
+1. It's a public API that developers interact with
+2. It sets the Click context for the entire application
+3. It handles the case when no subcommand is provided (showing help)
+4. Good documentation improves maintainability and onboarding for new contributors
+
+The added `Args:` and `Returns:` sections provide the necessary information for developers to understand how to use and extend the CLI functionality.

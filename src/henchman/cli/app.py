@@ -602,6 +602,12 @@ def cli(ctx: click.Context) -> None:
 
     Start an interactive session, run with --prompt for headless mode,
     or start an API server with the serve command.
+
+    Args:
+        ctx (click.Context): The Click context object.
+
+    Returns:
+        None: This function doesn't return anything.
     """
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
