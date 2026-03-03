@@ -1,42 +1,42 @@
-# Code Smell Report — ❌ F (Score: 53.5/100)
+# Code Smell Report — ❌ F (Score: 53.4/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T04:30:20.069979+00:00_
+_Generated: 2026-03-03T05:00:42.327991+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 53.5/100 |
+| **Overall Score** | 53.4/100 |
 | **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 34,025 |
-| **Total Smells** | 2163 |
-| **Avg Maintainability Index** | 71.5 |
+| **Total Lines (non-blank)** | 34,235 |
+| **Total Smells** | 2162 |
+| **Avg Maintainability Index** | 71.6 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 1624 |
-| medium | 473 |
+| low | 1641 |
+| medium | 455 |
 | high | 66 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1133 |
-| Feature Envy | 302 |
-| Duplicate Code | 251 |
+| Missing Type Hint | 1149 |
+| Feature Envy | 303 |
+| Duplicate Code | 240 |
 | Magic Number | 131 |
-| Long Method | 110 |
-| Deep Nesting | 103 |
-| Primitive Obsession | 72 |
-| Complex Function | 32 |
-| Large Class | 29 |
+| Long Method | 108 |
+| Deep Nesting | 97 |
+| Primitive Obsession | 74 |
+| Large Class | 30 |
+| Complex Function | 30 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
+| 1 | tools/builtins/dead_code.py | ❌ F | 13.8 | 47 | 466 | 46 | 0.0 |
 | 2 | cli/commands/context.py | ❌ F | 15.3 | 62 | 417 | 51 | 0.0 |
 | 3 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
 | 4 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
@@ -115,34 +115,34 @@ These are the highest-impact smells to address first:
 | 6 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
 | 7 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
 | 8 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
-| 9 | tools/builtins/kg_query.py | ❌ F | 16.0 | 28 | 209 | 49 | 12.0 |
-| 10 | tools/builtins/git_ops.py | ❌ F | 16.5 | 31 | 273 | 55 | 0.0 |
+| 9 | tools/builtins/git_ops.py | ❌ F | 16.5 | 31 | 273 | 55 | 0.0 |
+| 10 | extensions/plugin_manager.py | ❌ F | 16.9 | 27 | 282 | 56 | 12.0 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 169 additional files omitted._
 
-### tools/builtins/dead_code.py — ❌ F (15.0/100)
+### tools/builtins/dead_code.py — ❌ F (13.8/100)
 
-LOC: 301 | Classes: 1 | Functions: 0 | MI: 50 | Avg CC: 15.5
+LOC: 466 | Classes: 1 | Functions: 0 | MI: 46 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 355 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_get_all_names' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/delegate.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/file_edit.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/file_write.py:26 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/glob_tool.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/grep.py:31 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:50 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:333 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 95% similar to 'parameters' at tools/builtins/traceback_parse.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:23 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 122 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._analyze_file' accesses 'parts' 5 times but 'self' only 2 times | Move Method — consider moving '_analyze_file' to the class that owns 'parts'. |
-| 223 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._find_unused_imports' accesses 'ast' 9 times but 'self' only 1 times | Move Method — consider moving '_find_unused_imports' to the class that owns 'ast'. |
+| 89 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: 'execute' (line 89), '_perform_analysis' (line 182) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 30 | 🟡 MEDIUM | Large Class | Class 'DeadCodeTool' spans 532 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 222 | 🟡 MEDIUM | Duplicate Code | Function '_format_import_findings' is 100% similar to '_format_definition_findings' at tools/builtins/dead_code.py:236 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 385 | 🟡 MEDIUM | Duplicate Code | Function '_identify_unused_imports' is 93% similar to '_identify_unused_definitions' at tools/builtins/dead_code.py:486 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 407 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._is_import_context' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving '_is_import_context' to the class that owns 'ast'. |
+| 451 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._collect_top_level_definitions' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving '_collect_top_level_definitions' to the class that owns 'ast'. |
+| 451 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._collect_top_level_definitions' accesses 'node' 6 times but 'self' only 0 times | Move Method — consider moving '_collect_top_level_definitions' to the class that owns 'node'. |
+| 523 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._find_all_assignment' accesses 'ast' 6 times but 'self' only 0 times | Move Method — consider moving '_find_all_assignment' to the class that owns 'ast'. |
+| 30 | 🟢 LOW | Large Class | Class 'DeadCodeTool' has 27 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 39 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 44 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 52 | 🟢 LOW | Missing Type Hint | Function 'parameters' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 56 | 🟢 LOW | Missing Type Hint | Function '_build_parameter_schema' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 85 | 🟢 LOW | Missing Type Hint | Function 'kind' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 89 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 32 more smells._
 
@@ -314,30 +314,6 @@ LOC: 341 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 14.0
 
 _... and 18 more smells._
 
-### tools/builtins/kg_query.py — ❌ F (16.0/100)
-
-LOC: 209 | Classes: 1 | Functions: 1 | MI: 49 | Avg CC: 12.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 18 | 🟠 HIGH | Duplicate Code | Function '_find_git_root' is an exact duplicate of '_find_git_root' at tools/builtins/kg_update.py:48 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 44 | 🟠 HIGH | Duplicate Code | Function '__init__' is an exact duplicate of '__init__' at tools/builtins/kg_update.py:79 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 173 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 93% similar to 'parameters' at tools/builtins/kg_update.py:105 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/lint_check.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/test_gen.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 134 | 🟡 MEDIUM | Complex Function | Function 'execute' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 171 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 215 | 🟡 MEDIUM | Feature Envy | Method 'KgQueryTool._handle_relations' accesses 'rel' 7 times but 'self' only 0 times | Move Method — consider moving '_handle_relations' to the class that owns 'rel'. |
-| 44 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 55 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 60 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 69 | 🟢 LOW | Long Method | Function 'parameters' has 38 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 69 | 🟢 LOW | Missing Type Hint | Function 'parameters' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 111 | 🟢 LOW | Missing Type Hint | Function 'kind' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 13 more smells._
-
 ### tools/builtins/git_ops.py — ❌ F (16.5/100)
 
 LOC: 273 | Classes: 1 | Functions: 0 | MI: 55 | Avg CC: 0.0
@@ -409,6 +385,30 @@ LOC: 265 | Classes: 1 | Functions: 0 | MI: 56 | Avg CC: 14.0
 | 22 | 🟢 LOW | Large Class | Class 'Dashboard' spans 324 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
 
 _... and 25 more smells._
+
+### tools/builtins/kg_query.py — ❌ F (17.0/100)
+
+LOC: 220 | Classes: 1 | Functions: 1 | MI: 52 | Avg CC: 12.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 18 | 🟠 HIGH | Duplicate Code | Function '_find_git_root' is an exact duplicate of '_find_git_root' at tools/builtins/kg_update.py:48 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 44 | 🟠 HIGH | Duplicate Code | Function '__init__' is an exact duplicate of '__init__' at tools/builtins/kg_update.py:79 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 184 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 93% similar to 'parameters' at tools/builtins/kg_update.py:105 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/lint_check.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 69 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/test_gen.py:32 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 134 | 🟡 MEDIUM | Complex Function | Function 'execute' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 182 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'execute' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 226 | 🟡 MEDIUM | Feature Envy | Method 'KgQueryTool._handle_relations' accesses 'rel' 7 times but 'self' only 0 times | Move Method — consider moving '_handle_relations' to the class that owns 'rel'. |
+| 44 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 55 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 60 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 69 | 🟢 LOW | Long Method | Function 'parameters' has 38 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 69 | 🟢 LOW | Missing Type Hint | Function 'parameters' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 111 | 🟢 LOW | Missing Type Hint | Function 'kind' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 13 more smells._
 
 ### cli/ui_renderer.py — ❌ F (17.3/100)
 
@@ -484,7 +484,7 @@ _... and 11 more smells._
 
 ### tools/builtins/import_graph.py — ❌ F (18.8/100)
 
-LOC: 643 | Classes: 5 | Functions: 5 | MI: 39 | Avg CC: 0.0
+LOC: 650 | Classes: 5 | Functions: 5 | MI: 39 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
