@@ -269201,3 +269201,134 @@ TOTAL                                                  15009   2489   4122    47
 =========== 2586 passed, 5 skipped, 32 warnings in 139.15s (0:02:19) ===========
 [2026-03-03T03:00:02Z] All tests passed.
 Committing changes...
+[main 21016e8] chore(auto-improve): automated codebase improvement
+ 4 files changed, 1254 insertions(+)
+[2026-03-03T03:00:02Z] Auto-improve complete.
+[2026-03-03T03:30:03Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-03T03:30:03Z] Targeting lowest-graded file: cli/commands/context.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll analyze the target file `src/henchman/cli/commands/context.py` and address all the code smells listed in the report. Let me first read the file to understand its structure and the specific issues.
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py'})
+
+
+[result] """Intelligent context management commands."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
+
+from henchman.cli.commands import Command, ...
+Now let me examine the specific code smells mentioned in the report for this file:
+
+1. **Line 374**: `_handle_importance_parameter` is an exact duplicate of `_handle_similarity_parameter` at line 378
+2. **Line 485**: `_print_no_compactor_message` is an exact duplicate of `_print_set_theme_error` at cli/commands/theme.py:121
+3. **Line 132**: `_show_help_message` accesses `ctx` 7 times but `self` only 1 time (Feature Envy)
+4. **Line 152**: `_print_status_info` is 94% similar to other functions (Duplicate Code)
+5. **Line 171**: `_print_status_values` accesses `console` 6 times and `context_settings` 8 times but `self` only 0 times (Feature Envy)
+6. **Line 195**: `_print_status_commands` accesses `console` 6 times but `self` only 0 times (Feature Envy)
+7. **Line 240**: `_manage_strategy` accesses `ctx` 8 times but `self` only 5 times (Feature Envy)
+8. **Line 273**: `_show_strategy_status` accesses `console` 9 times and `context_settings` 6 times but `self` only 0 times (Feature Envy)
+
+Let me also check the theme.py file to see the duplicate function:
+[tool] read_file({'path': 'src/henchman/cli/commands/theme.py', 'start_line': 
+115, 'end_line': 130})
+
+[result]         self._update_renderer_theme(ctx, theme_manager)
+
+        ctx.console.print(f"[green]Theme set to:[/] {theme_name}")
+
+        self._persist_theme_settings(ctx, theme_name)
+
+    def _print_set_t...
+Now let me run the tests to ensure I understand the current state before refactoring:
+[tool] pytest_run({'path': 'tests/cli/commands/test_context.py', 'verbose': 
+True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good, the tests pass. Now let me analyze the code smells systematically and create a refactoring plan:
+
+**Identified Smells from the report for `src/henchman/cli/commands/context.py`:**
+
+1. **HIGH Severity - Duplicate Code** (Line 374): `_handle_importance_parameter` is an exact duplicate of `_handle_similarity_parameter` (Line 378)
+2. **HIGH Severity - Duplicate Code** (Line 485): `_print_no_compactor_message` is an exact duplicate of `_print_set_theme_error` in theme.py
+3. **MEDIUM Severity - Feature Envy** (Line 132): `_show_help_message` accesses `ctx` 7 times but `self` only 1 time
+4. **MEDIUM Severity - Duplicate Code** (Line 152): `_print_status_info` is 94% similar to other functions
+5. **MEDIUM Severity - Feature Envy** (Line 171): `_print_status_values` accesses `console` 6 times and `context_settings` 8 times but `self` only 0 times
+6. **MEDIUM Severity - Feature Envy** (Line 195): `_print_status_commands` accesses `console` 6 times but `self` only 0 times
+7. **MEDIUM Severity - Feature Envy** (Line 240): `_manage_strategy` accesses `ctx` 8 times but `self` only 5 times
+8. **MEDIUM Severity - Feature Envy** (Line 273): `_show_strategy_status` accesses `console` 9 times and `context_settings` 6 times but `self` only 0 times
+
+**Refactoring Strategy:**
+
+1. **Eliminate Duplicate Code**: Extract shared logic for `_handle_importance_parameter` and `_handle_similarity_parameter` into a single method
+2. **Extract Shared Error Message Function**: Create a shared utility function for error messages to eliminate duplication between files
+3. **Reduce Feature Envy**: Extract methods that heavily use external objects into helper functions or pass them as parameters
+4. **Improve Method Cohesion**: Methods should primarily work with `self` attributes rather than external objects
+5. **Extract Console Output Logic**: Create helper methods for common console output patterns
+
+Let me start refactoring:
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': '  
+async def _handle_importance_parameter(self, ctx: CommandContext, value: str) ->
+None:\n        """Handle importance parameter setting."""\n        await 
+self._handle_zero_to_one_parameter(ctx, value, "importance_threshold")\n\n    
+async def _handle_similarity_parameter(self, ctx: CommandContext, value: str) ->
+None:\n        """Handle similarity parameter setting."""\n        await 
+self._handle_zero_to_one_parameter(ctx, value, "cluster_similarity_threshold")',
+'new_str': '    async def _handle_importance_parameter(self, ctx: 
+CommandContext, value: str) -> None:\n        """Handle importance parameter 
+setting."""\n        await self._handle_zero_to_one_parameter(ctx, value, 
+"importance_threshold")\n\n    async def _handle_similarity_parameter(self, ctx:
+CommandContext, value: str) -> None:\n        """Handle similarity parameter 
+setting."""\n        await self._handle_zero_to_one_parameter(ctx, value, 
+"cluster_similarity_threshold")'})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...
+Wait, I need to look at the actual duplicate code. Let me check lines around 374 and 378:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+370, 'end_line': 385})
+
+[result]             param_name="compaction_threshold", min_val=0.1, 
+max_val=1.0, label="Threshold"
+        )
+        await self._handle_range_parameter(ctx, value, config)
+
+    async def _handle_importance_pa...
+I see - the report says these are exact duplicates, but they're actually calling the same helper method with different parameter names. However, they are still duplicates in structure. Let me check if there's a better way to handle this. Actually, looking at the code, these two methods are identical except for the parameter name they pass. This is still a form of duplication. Let me refactor to eliminate this:
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': '  
+async def _handle_importance_parameter(self, ctx: CommandContext, value: str) ->
+None:\n        """Handle importance parameter setting."""\n        await 
+self._handle_zero_to_one_parameter(ctx, value, "importance_threshold")\n\n    
+async def _handle_similarity_parameter(self, ctx: CommandContext, value: str) ->
+None:\n        """Handle similarity parameter setting."""\n        await 
+self._handle_zero_to_one_parameter(ctx, value, 
+"cluster_similarity_threshold")\n\n    async def 
+_handle_zero_to_one_parameter(\n        self, ctx: CommandContext, value: str, 
+param_name: str\n    ) -> None:\n        """Handle parameter with range 0.0 to 
+1.0.\n\n        Args:\n            ctx: Command context.\n            value: 
+Parameter value as string.\n            param_name: Name of the parameter.\n    
+"""\n        config = RangeParameterConfig(param_name=param_name, min_val=0.0, 
+max_val=1.0)\n        await self._handle_range_parameter(ctx, value, config)', 
+'new_str': '    async def _handle_importance_parameter(self, ctx: 
+CommandContext, value: str) -> None:\n        """Handle importance parameter 
+setting."""\n        await self._handle_zero_to_one_parameter(ctx, value, 
+"importance_threshold")\n\n    async def _handle_similarity_parameter(self, ctx:
+CommandContext, value: str) -> None:\n        """Handle similarity parameter 
+setting."""\n        await self._handle_zero_to_one_parameter(ctx, value, 
+"cluster_similarity_threshold")\n\n    async def 
+_handle_zero_to_one_parameter(\n        self, ctx: CommandContext, value: str, 
+param_name: str\n    ) -> None:\n        """Handle parameter with range 0.0 to 
+1.0.\n\n        Args:\n            ctx: Command context.\n            value: 
+Parameter value as string.\n            param_name: Name of the parameter.\n    
+"""\n        config = RangeParameterConfig(param_name=param_name, min_val=0.0, 
+max_val=1.0)\n        await self._handle_range_parameter(ctx, value, config)'})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...

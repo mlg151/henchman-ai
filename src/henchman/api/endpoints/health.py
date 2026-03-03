@@ -62,7 +62,7 @@ async def get_metrics(
     """Get performance metrics.
 
     Args:
-        api_key: API key for authentication.
+        _api_key: API key for authentication (provided via dependency injection).
 
     Returns:
         Performance metrics.
@@ -114,7 +114,7 @@ async def get_usage(
     """Get token usage and cost information.
 
     Args:
-        api_key: API key for authentication.
+        _api_key: API key for authentication (provided via dependency injection).
 
     Returns:
         Usage and cost information.

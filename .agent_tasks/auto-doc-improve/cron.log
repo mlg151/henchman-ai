@@ -3732,3 +3732,187 @@ Committing changes...
 [main c4734a9] docs(auto-improve): automated documentation improvement
  9 files changed, 1712 insertions(+), 1077 deletions(-)
 [2026-03-03T03:15:02Z] Done.
+[2026-03-03T03:30:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by examining the current state of the documentation improvement log to see what was last changed:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T03:18:00Z
+
+## Files Changed
+1. `docs/mcp.md` - Updated to reflect current MCP features, especially Serena 
+integration
+
+## Smell Category Add...
+Now I need to check the prioritised fix queue from the smell report. Looking at the report, the highest priority issues are the stale docstrings with HIGH severity. Let me start with the first one: `src/henchman/api/endpoints/health.py:59` - `get_metrics` missing `_api_key` parameter.
+
+First, let me examine the current file to understand the issue:
+[tool] read_file({'path': 'src/henchman/api/endpoints/health.py', 'start_line': 
+50, 'end_line': 80})
+
+[result]     return HealthResponse(
+        status="ok",
+        version="0.3.11",
+        provider=provider_name,
+        agent_ready=agent_ready,
+    )
+
+
+@router.get("/metrics", response_model=MetricsRespons...
+I can see the issue. The docstring shows `api_key` as the parameter name, but the actual parameter is `_api_key` (with an underscore). Let me check the full function signature and see if there are other issues:
+[tool] read_file({'path': 'src/henchman/api/endpoints/health.py', 'start_line': 
+55, 'end_line': 120})
+
+[result]     )
+
+
+@router.get("/metrics", response_model=MetricsResponse)
+async def get_metrics(
+    _api_key: str | None = Depends(verify_api_key),
+) -> MetricsResponse:
+    """Get performance metrics.
+
+    Ar...
+Now I can see both functions have the same issue. The parameter is named `_api_key` in the function signature but documented as `api_key` in the docstring. Let me also check the second function to see its full implementation:
+[tool] read_file({'path': 'src/henchman/api/endpoints/health.py', 'start_line': 
+110, 'end_line': 150})
+
+[result] @router.get("/usage", response_model=UsageResponse)
+async def get_usage(
+    _api_key: str | None = Depends(verify_api_key),
+) -> UsageResponse:
+    """Get token usage and cost information.
+
+    Args:...
+Perfect. Now I understand the issue. Both functions have the parameter `_api_key` (with underscore) but the docstrings document it as `api_key` (without underscore). This is a common pattern in FastAPI where parameters with underscores are often used for dependency injection, but the documentation should match the actual parameter name.
+
+Let me fix both docstrings. I'll update the `Args:` section to use `_api_key` instead of `api_key`:
+[tool] edit_file({'path': 'src/henchman/api/endpoints/health.py', 'old_str': 
+'async def get_metrics(\n    _api_key: str | None = Depends(verify_api_key),\n) 
+-> MetricsResponse:\n    """Get performance metrics.\n\n    Args:\n        
+api_key: API key for authentication.\n\n    Returns:\n        Performance 
+metrics.\n    """', 'new_str': 'async def get_metrics(\n    _api_key: str | None
+= Depends(verify_api_key),\n) -> MetricsResponse:\n    """Get performance 
+metrics.\n\n    Args:\n        _api_key: API key for authentication (provided 
+via dependency injection).\n\n    Returns:\n        Performance metrics.\n    
+"""'})
+
+[result] Successfully edited src/henchman/api/endpoints/health.py...
+Now let me fix the second function:
+[tool] edit_file({'path': 'src/henchman/api/endpoints/health.py', 'old_str': 
+'async def get_usage(\n    _api_key: str | None = Depends(verify_api_key),\n) ->
+UsageResponse:\n    """Get token usage and cost information.\n\n    Args:\n     
+api_key: API key for authentication.\n\n    Returns:\n        Usage and cost 
+information.\n    """', 'new_str': 'async def get_usage(\n    _api_key: str | 
+None = Depends(verify_api_key),\n) -> UsageResponse:\n    """Get token usage and
+cost information.\n\n    Args:\n        _api_key: API key for authentication 
+(provided via dependency injection).\n\n    Returns:\n        Usage and cost 
+information.\n    """'})
+
+[result] Successfully edited src/henchman/api/endpoints/health.py...
+Now let me verify the changes by reading the updated sections:
+[tool] read_file({'path': 'src/henchman/api/endpoints/health.py', 'start_line': 
+55, 'end_line': 75})
+
+[result]     )
+
+
+@router.get("/metrics", response_model=MetricsResponse)
+async def get_metrics(
+    _api_key: str | None = Depends(verify_api_key),
+) -> MetricsResponse:
+    """Get performance metrics.
+
+    Ar...
+
+[tool] read_file({'path': 'src/henchman/api/endpoints/health.py', 'start_line': 
+110, 'end_line': 130})
+
+[result] @router.get("/usage", response_model=UsageResponse)
+async def get_usage(
+    _api_key: str | None = Depends(verify_api_key),
+) -> UsageResponse:
+    """Get token usage and cost information.
+
+    Args:...
+Perfect! The changes look good. Now let me update the documentation improvement record to reflect what I've done:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': "# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T03:30:30Z\n\n## Files Changed\n1. 
+`src/henchman/api/endpoints/health.py` - Fixed stale docstrings for 
+`get_metrics` and `get_usage` functions\n\n## Smell Category Addressed\n- 
+**Stale Docstring** (HIGH): Function parameters documented incorrectly 
+(parameter name mismatch)\n\n## Rationale for Change\nThe documentation smell 
+report identified two HIGH severity stale docstring issues:\n1. 
+`src/henchman/api/endpoints/health.py:59` - `get_metrics` had undocumented 
+parameter: `_api_key`\n2. `src/henchman/api/endpoints/health.py:111` - 
+`get_usage` had undocumented parameter: `_api_key`\n\nBoth functions use FastAPI
+dependency injection with parameter `_api_key` (with underscore), but the 
+docstrings documented it as `api_key` (without underscore). This mismatch causes
+confusion for developers reading the API documentation and could lead to 
+incorrect usage.\n\n## Changes Made\n1. **Updated `get_metrics` docstring**: 
+Changed `api_key` to `_api_key` in Args section and added clarification about 
+dependency injection\n2. **Updated `get_usage` docstring**: Changed `api_key` to
+`_api_key` in Args section and added clarification about dependency 
+injection\n3. **Maintained consistency**: Both functions now have accurate 
+parameter documentation matching their actual signatures\n\n## What to 
+Verify\n1. Parameter names in docstrings match actual function signatures 
+(`_api_key` not `api_key`)\n2. Both functions still compile and work 
+correctly\n3. The clarification about dependency injection is helpful but not 
+misleading\n4. No other parameters in these functions need documentation 
+updates\n\n## Next Priority\nThe next highest-priority issues are:\n1. **Stale 
+Docstrings** in other source files (HIGH severity - missing parameter 
+documentation)\n   - `src/henchman/mcp/tool.py:84` - `McpTool.execute` missing 
+`params` parameter\n   - `src/henchman/metrics/exporter.py:29` - 
+`MetricsExporter.export_to_json` missing `filters` parameter\n   - 
+`src/henchman/metrics/exporter.py:78` - `MetricsExporter.export_to_csv` missing 
+`filters` parameter\n2. **Broken Link** in 
+`docs/intelligent-context-management.md` (anchor '#performance-tuning' not 
+found)\n3. **Config Issue** in `mkdocs.yml` (mermaid diagrams not 
+configured)\n4. **Consistency Error** in `pyproject.toml` (coverage threshold 
+mismatch: 4% vs 80%)\n\nThe stale docstrings should continue to be addressed as 
+they are HIGH severity and affect API documentation accuracy."})
+
+[result] Successfully wrote 2455 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+## Summary
+
+I've successfully completed one documentation improvement focused on fixing stale docstrings in the API endpoints. Here's what I changed:
+
+**Files Changed:**
+- `src/henchman/api/endpoints/health.py` - Fixed parameter documentation for two FastAPI endpoint functions
+
+**Smell Category Addressed:**
+- **Stale Docstring** (HIGH severity) - Parameter name mismatch between function signature and documentation
+
+**Changes Made:**
+1. **`get_metrics` function**: Updated docstring to document `_api_key` parameter (with underscore) instead of `api_key`, and added clarification about dependency injection
+2. **`get_usage` function**: Updated docstring to document `_api_key` parameter (with underscore) instead of `api_key`, and added clarification about dependency injection
+
+**Rationale:**
+The functions use FastAPI's dependency injection pattern where parameters with underscores (like `_api_key`) are common. The documentation was incorrectly showing `api_key` without the underscore, which could confuse developers trying to understand or use the API. This fix ensures the documentation accurately reflects the actual function signatures.
+
+**Verification Needed:**
+- Parameter names in docstrings now match actual function signatures
+- Both functions should still compile and work correctly
+- The dependency injection clarification is helpful but not misleading
+
+This improvement addresses two of the HIGH severity stale docstring issues identified in the smell report, improving the accuracy and usability of the API documentation.
+[tech_lead] completed work
+[2026-03-03T03:30:02Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Doc file 'intelligent-context-management.md' contains a link 'configuration.md#performance-tuning', but the doc 'configuration.md' does not contain an anchor '#performance-tuning'.
+INFO    -  Documentation built in 0.76 seconds
+[2026-03-03T03:30:02Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T03:30:02Z] Verification passed.
+Committing changes...

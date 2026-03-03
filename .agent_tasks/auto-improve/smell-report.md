@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 52.3/100)
+# Code Smell Report — ❌ F (Score: 53.5/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T03:00:19.906206+00:00_
+_Generated: 2026-03-03T03:30:20.439868+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 52.3/100 |
+| **Overall Score** | 53.5/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 33,941 |
-| **Total Smells** | 2183 |
+| **Total Lines (non-blank)** | 33,940 |
+| **Total Smells** | 2163 |
 | **Avg Maintainability Index** | 71.4 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -21,7 +21,7 @@ _Generated: 2026-03-03T03:00:19.906206+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 1620 |
-| medium | 495 |
+| medium | 475 |
 | high | 68 |
 
 ### Smells by Category
@@ -30,7 +30,7 @@ _Generated: 2026-03-03T03:00:19.906206+00:00_
 |:---------|------:|
 | Missing Type Hint | 1133 |
 | Feature Envy | 301 |
-| Duplicate Code | 272 |
+| Duplicate Code | 252 |
 | Magic Number | 131 |
 | Long Method | 110 |
 | Deep Nesting | 103 |
@@ -107,44 +107,20 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/console.py | ❌ F | 12.5 | 29 | 671 | 42 | 0.0 |
-| 2 | cli/commands/context.py | ❌ F | 15.0 | 63 | 401 | 50 | 0.0 |
-| 3 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
-| 4 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
-| 5 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
-| 6 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
-| 7 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
-| 8 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
-| 9 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
-| 10 | tools/builtins/kg_query.py | ❌ F | 16.0 | 28 | 209 | 49 | 12.0 |
+| 1 | cli/commands/context.py | ❌ F | 15.0 | 63 | 401 | 50 | 0.0 |
+| 2 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
+| 3 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
+| 4 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
+| 5 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
+| 6 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
+| 7 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
+| 8 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
+| 9 | tools/builtins/kg_query.py | ❌ F | 16.0 | 28 | 209 | 49 | 12.0 |
+| 10 | tools/builtins/git_ops.py | ❌ F | 16.5 | 31 | 273 | 55 | 0.0 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 168 additional files omitted._
-
-### cli/console.py — ❌ F (12.5/100)
-
-LOC: 671 | Classes: 9 | Functions: 4 | MI: 42 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 433 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'info' at cli/console.py:441 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 433 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/console.py:449 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 433 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/console.py:457 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 433 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 433 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 94% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 433 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 94% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 433 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 94% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 441 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'warning' at cli/console.py:449 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 441 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'error' at cli/console.py:457 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 441 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 441 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 94% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 441 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 94% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 441 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 94% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 449 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 100% similar to 'error' at cli/console.py:457 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 449 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
-
-_... and 14 more smells._
 
 ### cli/commands/context.py — ❌ F (15.0/100)
 
@@ -601,6 +577,30 @@ LOC: 459 | Classes: 5 | Functions: 0 | MI: 42 | Avg CC: 0.0
 | 245 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 26 more smells._
+
+### utils/compaction.py — ❌ F (21.4/100)
+
+LOC: 766 | Classes: 9 | Functions: 7 | MI: 29 | Avg CC: 11.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 926 | 🟡 MEDIUM | Primitive Obsession | Function 'compact_with_summarization' has 4 primitive-typed parameters: max_tokens: Name(id='int', ctx=Load()), summarize: Name(id='bool', ctx=Load()), protect_from_index: Name(id='int', ctx=Load()), max_protected_ratio: Name(id='float', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 998 | 🟡 MEDIUM | Complex Function | Function '_attempt_summarization' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 40 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 49 | 🟢 LOW | Missing Type Hint | Function 'token_count' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 54 | 🟢 LOW | Missing Type Hint | Function 'is_tool_sequence' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 58 | 🟢 LOW | Missing Type Hint | Function '__repr__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 78 | 🟢 LOW | Magic Number | Magic number 0.3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 212 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 220 | 🟢 LOW | Missing Type Hint | Function 'separate_protected_messages' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 241 | 🟢 LOW | Missing Type Hint | Function 'truncate_if_needed' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 258 | 🟢 LOW | Missing Type Hint | Function '_truncate_protected_zone' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 258 | 🟢 LOW | Feature Envy | Method 'ProtectedZoneManager._truncate_protected_zone' accesses 'result' 3 times but 'self' only 0 times | Move Method — consider moving '_truncate_protected_zone' to the class that owns 'result'. |
+| 332 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 340 | 🟢 LOW | Missing Type Hint | Function 'calculate_budget' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 356 | 🟢 LOW | Missing Type Hint | Function 'handle_edge_cases' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 23 more smells._
 
 ## ✨ Clean Files (59 files with no smells)
 
