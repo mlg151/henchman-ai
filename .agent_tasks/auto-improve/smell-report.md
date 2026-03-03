@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T10:30:19.897134+00:00_
+_Generated: 2026-03-03T11:00:22.050823+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-03T10:30:19.897134+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 53.6/100 |
 | **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 34,473 |
-| **Total Smells** | 2137 |
+| **Total Lines (non-blank)** | 34,480 |
+| **Total Smells** | 2135 |
 | **Avg Maintainability Index** | 71.8 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-03T10:30:19.897134+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1631 |
+| low | 1629 |
 | medium | 441 |
 | high | 65 |
 
@@ -29,9 +29,9 @@ _Generated: 2026-03-03T10:30:19.897134+00:00_
 | Category | Count |
 |:---------|------:|
 | Missing Type Hint | 1141 |
-| Feature Envy | 299 |
+| Feature Envy | 298 |
 | Duplicate Code | 232 |
-| Magic Number | 129 |
+| Magic Number | 128 |
 | Long Method | 108 |
 | Deep Nesting | 98 |
 | Primitive Obsession | 73 |
@@ -107,13 +107,13 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/context.py | ❌ F | 14.3 | 49 | 466 | 48 | 0.0 |
-| 2 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
-| 3 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
-| 4 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
-| 5 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
-| 6 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
-| 7 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
+| 1 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
+| 2 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
+| 3 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
+| 4 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
+| 5 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
+| 6 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
+| 7 | cli/commands/context.py | ❌ F | 16.4 | 47 | 468 | 48 | 0.0 |
 | 8 | tools/builtins/git_ops.py | ❌ F | 16.5 | 31 | 273 | 55 | 0.0 |
 | 9 | extensions/plugin_manager.py | ❌ F | 16.9 | 27 | 282 | 56 | 12.0 |
 | 10 | metrics/dashboard.py | ❌ F | 16.9 | 40 | 265 | 56 | 14.0 |
@@ -121,30 +121,6 @@ These are the highest-impact smells to address first:
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 169 additional files omitted._
-
-### cli/commands/context.py — ❌ F (14.3/100)
-
-LOC: 466 | Classes: 6 | Functions: 0 | MI: 48 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 108 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at cli/json_output.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 64 | 🟢 LOW | Missing Type Hint | Function 'get_display_label' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 72 | 🟢 LOW | Missing Type Hint | Function 'validate_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 90 | 🟢 LOW | Missing Type Hint | Function 'parse_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 108 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 116 | 🟢 LOW | Missing Type Hint | Function 'print_status_info' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 127 | 🟢 LOW | Missing Type Hint | Function 'print_strategy_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 138 | 🟢 LOW | Missing Type Hint | Function 'print_strategy_status' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 138 | 🟢 LOW | Feature Envy | Method 'ContextConsoleHelper.print_strategy_status' accesses 'console' 3 times but 'self' only 2 times | Move Method — consider moving 'print_strategy_status' to the class that owns 'console'. |
-| 153 | 🟢 LOW | Missing Type Hint | Function '_print_context_settings' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 176 | 🟢 LOW | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 185 | 🟢 LOW | Missing Type Hint | Function '_print_available_commands' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 202 | 🟢 LOW | Missing Type Hint | Function '_print_strategy_parameters' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 226 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 247 | 🟢 LOW | Missing Type Hint | Function 'manage_strategy' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 34 more smells._
 
 ### cli/textual_bridge.py — ❌ F (15.7/100)
 
@@ -289,6 +265,30 @@ LOC: 341 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 14.0
 | 82 | 🟢 LOW | Magic Number | Magic number 16 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
 _... and 18 more smells._
+
+### cli/commands/context.py — ❌ F (16.4/100)
+
+LOC: 468 | Classes: 6 | Functions: 0 | MI: 48 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 109 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at cli/json_output.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 65 | 🟢 LOW | Missing Type Hint | Function 'get_display_label' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 73 | 🟢 LOW | Missing Type Hint | Function 'validate_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 91 | 🟢 LOW | Missing Type Hint | Function 'parse_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 109 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 117 | 🟢 LOW | Missing Type Hint | Function 'print_status_info' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 128 | 🟢 LOW | Missing Type Hint | Function 'print_strategy_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 139 | 🟢 LOW | Missing Type Hint | Function 'print_strategy_status' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 154 | 🟢 LOW | Missing Type Hint | Function '_print_context_settings' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 187 | 🟢 LOW | Missing Type Hint | Function '_print_available_commands' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 204 | 🟢 LOW | Missing Type Hint | Function '_print_strategy_parameters' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 228 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 249 | 🟢 LOW | Missing Type Hint | Function 'manage_strategy' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 262 | 🟢 LOW | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 272 | 🟢 LOW | Missing Type Hint | Function '_show_strategy_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 32 more smells._
 
 ### tools/builtins/git_ops.py — ❌ F (16.5/100)
 

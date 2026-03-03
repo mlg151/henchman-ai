@@ -60,7 +60,17 @@ class ToolController(OrchestratorComponent):
         depth: int,
         tool_errors: list[str],
     ) -> AsyncIterator[AgentEvent]:
-        """Process all pending tool calls from an agent."""
+        """Process all pending tool calls from an agent.
+        
+        Args:
+            agent: The agent making the tool calls.
+            pending_tool_calls: List of tool calls to process.
+            depth: Current recursion depth for delegation tracking.
+            tool_errors: List to accumulate tool error messages.
+            
+        Yields:
+            AgentEvent: Events generated during tool execution.
+        """
         for tool_call in pending_tool_calls:
             if tool_call.name == DELEGATE_TASK_TOOL:
                 async for event in self._delegation_controller.execute_delegation_tool(
