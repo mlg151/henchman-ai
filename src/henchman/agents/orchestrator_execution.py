@@ -61,7 +61,16 @@ class ExecutionController:
         self: ExecutionController,
         params: AgentLoopParams,
     ) -> AsyncIterator[AgentEvent]:
-        """Run the agent loop, executing tools and intercepting delegations."""
+        """Run the agent loop, executing tools and intercepting delegations.
+        
+        Args:
+            params: Parameters for running the agent loop, including the agent
+                instance, input text, and loop configuration.
+                
+        Yields:
+            AgentEvent: Stream of events from the agent execution, including
+                content, tool calls, and delegation events.
+        """
         if params.agent is None:
             msg = "Agent must be provided in AgentLoopParams"
             raise ValueError(msg)
