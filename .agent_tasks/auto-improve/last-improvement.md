@@ -1,106 +1,91 @@
-# Refactoring Summary: src/henchman/cli/textual_bridge.py
+# Refactoring Summary: `src/henchman/cli/textual_bridge.py`
 
-**Date/Time:** 2026-03-03  
-**Files Changed:** `src/henchman/cli/textual_bridge.py`
+**Date/Time**: 2026-03-03 (Current refactoring session)
+**Files Changed**: `src/henchman/cli/textual_bridge.py`
+**Rationale**: Address code smells identified in the smell report (F grade: 15.1/100)
 
-## Identified Smells
+## Identified Smells Addressed
 
-1. **Duplicate Code**: `post_prefixed_message` and `post_tool_message` had identical structure
-2. **Duplicate Code**: Handler factory methods (`_create_data_message_handler`, `_create_tool_message_handler`, `_create_status_message_handler`, `_create_prefixed_message_handler`) had similar patterns
-3. **Linting Issues**: Blank lines with whitespace and inefficient if-else blocks
+### 1. HIGH Priority - Duplicate Code
+- **Issue**: `_create_data_message_handler` (line 381) was an exact duplicate of `_create_tool_message_handler` (line 392)
+- **Solution**: Removed `_create_tool_message_handler` and updated all references to use `_create_data_message_handler`
+- **Impact**: Eliminated 11 lines of duplicate code
 
-## Refactoring Strategy
+### 2. MEDIUM Priority - Duplicate Code in MessagePoster
+- **Issue**: Three similar methods with overlapping functionality:
+  - `post_message_if_data_exists` (100% similar to `post_data_message`)
+  - `post_message_if_data_exists` (94% similar to `post_prefixed_message`)
+  - `post_data_message` (94% similar to `post_prefixed_message`)
+- **Solution**: Consolidated into a single unified `post_message` method with flexible parameters
+- **Impact**: Reduced 3 methods to 1, eliminating 20+ lines of redundant code
 
-### 1. Extracted Shared Function in MessagePoster
-- Created a generic `_post_message` method that handles all message posting patterns
-- Consolidated `post_prefixed_message`, `post_tool_message`, `post_data_message`, and `post_message_if_data_exists` to use the shared method
-- Used parameters to handle different message types and transformations
+### 3. Code Quality Improvements
+- **Type Hints**: Verified all methods have proper type annotations (no missing type hints found)
+- **Formatting**: Ran ruff formatter to ensure consistent code style
+- **Testing**: All existing tests pass (5/5 tests in `test_textual_bridge_bugs.py`)
 
-### 2. Consolidated Handler Factories in EventBridge
-- Created a single `_create_handler` method with parameters for message class, status text, or prefix
-- Maintained backward compatibility by keeping the original method names as wrappers
-- Eliminated code duplication between the four similar factory methods
+## Refactoring Strategy Applied
 
-### 3. Fixed Linting Issues
-- Removed blank lines with whitespace
-- Replaced if-else block with ternary operator for better readability
-- All linting checks now pass (ruff and mypy)
+### 1. Extract Method & Consolidate (DRY Principle)
+- Created unified `post_message` method in `MessagePoster` class
+- Parameters: `event`, `message_class`, `prefix="", transform_data=None`
+- Replaces: `post_message_if_data_exists`, `post_data_message`, `post_prefixed_message`
 
-## Refactored Code Highlights
+### 2. Remove Exact Duplicates
+- Removed `_create_tool_message_handler` (identical to `_create_data_message_handler`)
+- Updated handler registry to use `_create_data_message_handler` for tool events
 
-### MessagePoster._post_message (new method):
-```python
-def _post_message(
-    self,
-    event: AgentEvent,
-    message_class: MessageClass,
-    prefix: str = "",
-    transform_data: DataTransformer = None,
-) -> None:
-    """Generic method to post a message with event data."""
-    if not event.data:
-        return
-        
-    # Transform data if needed
-    data = transform_data(event.data) if transform_data else event.data
-    
-    # Convert to string and add prefix if needed
-    data_str = f"{prefix}{data}" if prefix else str(data)
-    
-    # Cast to Any to avoid mypy error about Message constructor
-    msg_class = cast(type[Any], message_class)
-    self.post(msg_class(data_str, event.source_agent))
-```
-
-### EventBridge._create_handler (new method):
-```python
-def _create_handler(
-    self,
-    *,
-    message_class: type[Any] | None = None,
-    status_text: str | None = None,
-    prefix: str | None = None,
-) -> Callable[[AgentEvent], None]:
-    """Create a handler for different types of events."""
-    if message_class is not None:
-        def handler(event: AgentEvent) -> None:
-            self._message_poster.post_data_message(event, message_class)
-        return handler
-    elif status_text is not None:
-        def handler(event: AgentEvent) -> None:
-            self._message_poster.post_status_message(event, status_text)
-        return handler
-    elif prefix is not None:
-        def handler(event: AgentEvent) -> None:
-            self._message_poster.post_prefixed_message(event, prefix)
-        return handler
-    else:
-        raise ValueError("Must specify one of: message_class, status_text, or prefix")
-```
+### 3. Maintain Backward Compatibility
+- Kept public API intact (`post_tool_message`, `post_status_message` remain)
+- Internal refactoring only - no breaking changes to external interfaces
 
 ## Testing Implications
 
-- **All existing tests pass**: The refactoring maintains backward compatibility
-- **No API changes**: Public method signatures remain unchanged
-- **Improved testability**: The consolidated `_create_handler` method is easier to test
-- **Better type safety**: Proper type hints maintained throughout
+### Existing Tests
+- All 5 existing tests in `test_textual_bridge_bugs.py` pass
+- Tests cover error formatting, turn status formatting, and exception handling
+- No test modifications required
 
-## Performance Impact
+### New Test Considerations
+- **Edge Cases**: Unified `post_message` method should handle all parameter combinations
+- **Null Safety**: `transform_data` parameter properly handles `None` values
+- **Prefix Handling**: Empty prefix vs. non-empty prefix behavior
 
-- **Reduced code duplication**: Eliminated 4 similar handler factory methods
-- **Improved maintainability**: Single source of truth for message posting logic
-- **Better readability**: Clearer separation of concerns between MessagePoster and EventBridge
+## Code Metrics Improvement
 
-## Verification
+### Before Refactoring:
+- **Lines of Code**: 411
+- **Smell Count**: 46 (15.1/100 score)
+- **Duplicate Code**: Multiple exact and near-duplicate methods
 
-- ✅ All 5 existing tests in `test_textual_bridge_bugs.py` pass
-- ✅ Ruff linting passes with no errors
-- ✅ Mypy type checking passes with no issues
-- ✅ Code coverage remains consistent (48% for this file)
+### After Refactoring:
+- **Lines Reduced**: ~30 lines eliminated
+- **Duplicate Code**: Major reduction in method duplication
+- **Maintainability**: Improved cohesion, reduced cognitive load
 
 ## XP Principles Applied
 
-1. **Once and Only Once (DRY)**: Eliminated duplicate code in handler factories
-2. **YAGNI**: Removed redundant logic without adding speculative features
-3. **Simplicity**: Simplified complex conditional logic with ternary operator
-4. **Intention-Revealing Code**: Improved method names and parameter clarity
+1. **Once and Only Once (DRY)**: Eliminated duplicate handler creation logic
+2. **YAGNI**: Removed speculative abstraction (`_create_tool_message_handler`)
+3. **Simplicity**: Unified message posting into single flexible method
+4. **Intention-Revealing**: Method names clearly indicate purpose
+
+## Files Changed
+- `src/henchman/cli/textual_bridge.py`: Primary refactoring target
+- **No other files affected**: Changes are localized to the target module
+
+## Verification
+- ✅ All tests pass
+- ✅ Linting passes (ruff + mypy)
+- ✅ Code formatting applied
+- ✅ No breaking changes to public API
+- ✅ Maintains backward compatibility
+
+## Remaining Smells (Not Addressed in This Session)
+
+The smell report listed additional issues that were not addressed because they either:
+1. Were incorrect (e.g., `_create_status_message_handler` is NOT identical to `_create_prefixed_message_handler`)
+2. Involve external file comparisons (e.g., similarity to `textual_widgets.py` methods)
+3. Are low-priority missing type hints that were already present
+
+**Next Steps**: Consider further refactoring to inline thin wrapper methods or address external file duplication in a separate session.
