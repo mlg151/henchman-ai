@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 _GRAPH_FILE = "graph.json"
 _META_FILE = "meta.json"
+_DEFAULT_RELATION_TYPE = "related_to"
 
 
 def _entity_to_node_attrs(entity: Entity) -> dict[str, Any]:
@@ -85,6 +86,94 @@ def _slugify(text: str) -> str:
     )
 
 
+def _build_entity_haystack(entity: Entity) -> str:
+    """Build a searchable lowercase text corpus from an entity's text fields.
+
+    Args:
+        entity: The entity whose text fields to combine.
+
+    Returns:
+        Single lowercase string for substring search.
+    """
+    return " ".join(
+        [
+            entity.name,
+            entity.description,
+            " ".join(o.content for o in entity.observations),
+        ]
+    ).lower()
+
+
+def _relation_to_edge_attrs(relation: Relation) -> dict[str, str]:
+    """Extract NetworkX edge attributes from a Relation.
+
+    Args:
+        relation: The relation to convert.
+
+    Returns:
+        Dict of edge keyword arguments for ``graph.add_edge``.
+    """
+    return {
+        "relation_type": relation.relation_type,
+        "description": relation.description,
+    }
+
+
+def _edge_data_to_relation(
+    source: str,
+    target: str,
+    data: dict[str, Any],
+) -> Relation:
+    """Construct a Relation from a NetworkX edge's source, target, and attrs.
+
+    Args:
+        source: Source entity id.
+        target: Target entity id.
+        data: NetworkX edge attribute dictionary.
+
+    Returns:
+        Reconstructed Relation.
+    """
+    return Relation(
+        source=source,
+        target=target,
+        relation_type=data.get("relation_type", _DEFAULT_RELATION_TYPE),
+        description=data.get("description", ""),
+    )
+
+
+def _format_entity_as_markdown(entity: Entity, relations: list[Relation]) -> str:
+    """Format an entity and its relations as Markdown for LLM consumption.
+
+    Args:
+        entity: The entity to render.
+        relations: Pre-fetched relations for this entity.
+
+    Returns:
+        Markdown-formatted string.
+    """
+    parts: list[str] = [f"## {entity.name} ({entity.entity_type})"]
+    if entity.file_path:
+        parts.append(f"**File:** `{entity.file_path}`")
+    if entity.description:
+        parts.append(entity.description)
+    if entity.tags:
+        parts.append(f"**Tags:** {', '.join(entity.tags)}")
+    if entity.observations:
+        parts.append("**Observations:**")
+        parts.extend(
+            f"- {obs.content} _(source: {obs.source})_"
+            for obs in entity.observations
+        )
+    if relations:
+        parts.append("**Relations:**")
+        for rel in relations:
+            arrow = "→" if rel.source == entity.id else "←"
+            other = rel.target if rel.source == entity.id else rel.source
+            parts.append(f"- {arrow} {rel.relation_type}: `{other}`")
+    return "\n".join(parts)
+
+
 # ---------------------------------------------------------------------------
 # KnowledgeStore
 # ---------------------------------------------------------------------------
@@ -102,7 +191,7 @@ class KnowledgeStore:
     """
 
     def __init__(
-        self,
+        self: KnowledgeStore,
         git_root: Path,
         base_dir: Path | None = None,
     ) -> None:
@@ -127,23 +216,23 @@ class KnowledgeStore:
     # -- properties ----------------------------------------------------------
 
     @property
-    def store_dir(self) -> Path:
+    def store_dir(self: KnowledgeStore) -> Path:
         """Directory where this graph is persisted."""
         return self._store_dir
 
     @property
-    def graph(self) -> DiGraph[str]:
+    def graph(self: KnowledgeStore) -> DiGraph[str]:
         """The underlying NetworkX directed graph."""
         return self._graph
 
     @property
-    def meta(self) -> GraphMeta:
+    def meta(self: KnowledgeStore) -> GraphMeta:
         """Graph metadata."""
         return self._meta
 
     # -- persistence ---------------------------------------------------------
 
-    def load(self) -> None:
+    def load(self: KnowledgeStore) -> None:
         """Load graph and metadata from disk.
 
         If the store directory does not yet exist the graph starts empty.
@@ -163,7 +252,7 @@ class KnowledgeStore:
 
         self._dirty = False
 
-    def save(self) -> None:
+    def save(self: KnowledgeStore) -> None:
         """Persist the graph and metadata to disk."""
         self._store_dir.mkdir(parents=True, exist_ok=True)
 
@@ -178,7 +267,7 @@ class KnowledgeStore:
 
     # -- entity CRUD ---------------------------------------------------------
 
-    def add_entity(self, entity: Entity) -> None:
+    def add_entity(self: KnowledgeStore, entity: Entity) -> None:
         """Add or update an entity (node) in the graph.
 
         Args:
@@ -187,7 +276,7 @@ class KnowledgeStore:
         self._graph.add_node(entity.id, **_entity_to_node_attrs(entity))
         self._dirty = True
 
-    def get_entity(self, entity_id: str) -> Entity | None:
+    def get_entity(self: KnowledgeStore, entity_id: str) -> Entity | None:
         """Retrieve a single entity by id.
 
         Args:
@@ -200,7 +289,7 @@ class KnowledgeStore:
             return None
         return _node_attrs_to_entity(entity_id, dict(self._graph.nodes[entity_id]))
 
-    def remove_entity(self, entity_id: str) -> bool:
+    def remove_entity(self: KnowledgeStore, entity_id: str) -> bool:
         """Remove an entity and all its edges.
 
         Args:
@@ -216,7 +305,7 @@ class KnowledgeStore:
         return True
 
     def list_entities(
-        self,
+        self: KnowledgeStore,
         entity_type: str | None = None,
         tag: str | None = None,
     ) -> list[Entity]:

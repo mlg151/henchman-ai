@@ -1,17 +1,17 @@
-# Documentation Smell Report — ✅ A (Score: 96.8/100)
+# Documentation Smell Report — ✅ A (Score: 96.9/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T16:15:02.963177+00:00_
+_Generated: 2026-03-03T16:30:02.466417+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ✅ A |
-| **Overall Score** | 96.8/100 |
+| **Overall Score** | 96.9/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 165 |
-| **Total Smells** | 342 |
+| **Total Smells** | 341 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
@@ -19,13 +19,13 @@ _Generated: 2026-03-03T16:15:02.963177+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 302 |
-| medium | 40 |
+| medium | 39 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 336 |
+| Incomplete Docstring | 335 |
 | Stale Content | 2 |
 | Missing Docstring | 2 |
 | Config Issue | 1 |
@@ -39,81 +39,81 @@ These are the highest-impact documentation smells to address first:
    States coverage threshold of 4% but other files require 100%. Found thresholds: 100%, 4%  
    → _Align all coverage requirements to 100% (the strictest value)._
 
-2. **src/henchman/cli/commands/session.py:427** — 🟡 MEDIUM — Incomplete Docstring  
-   'TemplateCreateExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: manager_
-
-3. **src/henchman/cli/commands/session.py:456** — 🟡 MEDIUM — Incomplete Docstring  
+2. **src/henchman/cli/commands/session.py:460** — 🟡 MEDIUM — Incomplete Docstring  
    'TemplateListExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: manager_
 
-4. **src/henchman/cli/commands/session.py:480** — 🟡 MEDIUM — Incomplete Docstring  
+3. **src/henchman/cli/commands/session.py:484** — 🟡 MEDIUM — Incomplete Docstring  
    'TemplateDeleteExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: manager_
 
-5. **src/henchman/cli/commands/session.py:504** — 🟡 MEDIUM — Incomplete Docstring  
+4. **src/henchman/cli/commands/session.py:508** — 🟡 MEDIUM — Incomplete Docstring  
    'ExportExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: manager_
 
-6. **src/henchman/cli/commands/session.py:533** — 🟡 MEDIUM — Incomplete Docstring  
+5. **src/henchman/cli/commands/session.py:537** — 🟡 MEDIUM — Incomplete Docstring  
    'ImportExecutor.execute' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: manager_
 
-7. **src/henchman/cli/serve.py:39** — 🟡 MEDIUM — Incomplete Docstring  
+6. **src/henchman/cli/serve.py:39** — 🟡 MEDIUM — Incomplete Docstring  
    'serve_command' has 4 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: host, port, reload, workers_
 
-8. **src/henchman/cli/stream_event_handlers.py:52** — 🟡 MEDIUM — Incomplete Docstring  
+7. **src/henchman/cli/stream_event_handlers.py:52** — 🟡 MEDIUM — Incomplete Docstring  
    'determine_event_ownership' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: event, agent_
 
-9. **src/henchman/cli/stream_event_handlers.py:63** — 🟡 MEDIUM — Incomplete Docstring  
+8. **src/henchman/cli/stream_event_handlers.py:63** — 🟡 MEDIUM — Incomplete Docstring  
    'update_processing_state' has 4 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: output_handler, state, event, agent_
 
-10. **src/henchman/cli/stream_event_handlers.py:241** — 🟡 MEDIUM — Incomplete Docstring  
+9. **src/henchman/cli/stream_event_handlers.py:241** — 🟡 MEDIUM — Incomplete Docstring  
    'dispatch_event' has 5 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: output_handler, event, state, agent, content_collector_
 
-11. **src/henchman/cli/stream_event_handlers.py:276** — 🟡 MEDIUM — Incomplete Docstring  
+10. **src/henchman/cli/stream_event_handlers.py:276** — 🟡 MEDIUM — Incomplete Docstring  
    'handle_post_stream_processing' has 5 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: output_handler, state, agent, content_collector, execute_tool_calls_fn_
 
-12. **src/henchman/cli/stream_event_handlers.py:319** — 🟡 MEDIUM — Incomplete Docstring  
+11. **src/henchman/cli/stream_event_handlers.py:319** — 🟡 MEDIUM — Incomplete Docstring  
    'build_confirmation_message' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: request_
 
-13. **src/henchman/cli/textual_driver.py:1** — 🟡 MEDIUM — Missing Docstring  
+12. **src/henchman/cli/textual_driver.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-14. **src/henchman/cli/textual_widgets.py:246** — 🟡 MEDIUM — Incomplete Docstring  
+13. **src/henchman/cli/textual_widgets.py:246** — 🟡 MEDIUM — Incomplete Docstring  
    'CollapsibleMessage.content' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: value_
 
-15. **src/henchman/cli/ui_renderer.py:279** — 🟡 MEDIUM — Incomplete Docstring  
+14. **src/henchman/cli/ui_renderer.py:279** — 🟡 MEDIUM — Incomplete Docstring  
    'UIRenderer.success' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: message_
 
-16. **src/henchman/cli/ui_renderer.py:283** — 🟡 MEDIUM — Incomplete Docstring  
+15. **src/henchman/cli/ui_renderer.py:283** — 🟡 MEDIUM — Incomplete Docstring  
    'UIRenderer.info' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: message_
 
-17. **src/henchman/cli/ui_renderer.py:287** — 🟡 MEDIUM — Incomplete Docstring  
+16. **src/henchman/cli/ui_renderer.py:287** — 🟡 MEDIUM — Incomplete Docstring  
    'UIRenderer.warning' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: message_
 
-18. **src/henchman/cli/ui_renderer.py:291** — 🟡 MEDIUM — Incomplete Docstring  
+17. **src/henchman/cli/ui_renderer.py:291** — 🟡 MEDIUM — Incomplete Docstring  
    'UIRenderer.error' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: message_
 
-19. **src/henchman/cli/ui_renderer.py:295** — 🟡 MEDIUM — Incomplete Docstring  
+18. **src/henchman/cli/ui_renderer.py:295** — 🟡 MEDIUM — Incomplete Docstring  
    'UIRenderer.muted' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: text_
 
-20. **src/henchman/cli/ui_renderer.py:299** — 🟡 MEDIUM — Incomplete Docstring  
+19. **src/henchman/cli/ui_renderer.py:299** — 🟡 MEDIUM — Incomplete Docstring  
    'UIRenderer.heading' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: text_
+
+20. **src/henchman/cli/ui_renderer.py:303** — 🟡 MEDIUM — Incomplete Docstring  
+   'UIRenderer.markdown' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: content_
 
 
 ## 📊 Files Ranked by Quality
@@ -121,7 +121,7 @@ These are the highest-impact documentation smells to address first:
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
 | 1 | src/henchman/cli/ui_renderer.py | ❌ F | 0.0 | 38 | 2026-03-03 |
-| 2 | src/henchman/cli/commands/session.py | ❌ F | 41.0 | 22 | 2026-03-03 |
+| 2 | src/henchman/cli/commands/session.py | ❌ F | 46.0 | 21 | 2026-03-03 |
 | 3 | src/henchman/cli/textual_widgets.py | ❌ F | 49.0 | 24 | 2026-03-03 |
 | 4 | src/henchman/core/session_manager.py | ❌ F | 49.0 | 15 | 2026-02-28 |
 | 5 | src/henchman/cli/console.py | ❌ F | 56.0 | 22 | 2026-03-03 |
@@ -164,17 +164,16 @@ Public APIs: 35 | Documented: 35 | Coverage: 100.0%
 
 _... and 23 more smells._
 
-### src/henchman/cli/commands/session.py — ❌ F (41.0/100) (last modified 2026-03-03)
+### src/henchman/cli/commands/session.py — ❌ F (46.0/100) (last modified 2026-03-03)
 
 Public APIs: 45 | Documented: 45 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 427 | 🟡 MEDIUM | Incomplete Docstring | 'TemplateCreateExecutor.execute' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: manager |
-| 456 | 🟡 MEDIUM | Incomplete Docstring | 'TemplateListExecutor.execute' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: manager |
-| 480 | 🟡 MEDIUM | Incomplete Docstring | 'TemplateDeleteExecutor.execute' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: manager |
-| 504 | 🟡 MEDIUM | Incomplete Docstring | 'ExportExecutor.execute' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: manager |
-| 533 | 🟡 MEDIUM | Incomplete Docstring | 'ImportExecutor.execute' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: manager |
+| 460 | 🟡 MEDIUM | Incomplete Docstring | 'TemplateListExecutor.execute' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: manager |
+| 484 | 🟡 MEDIUM | Incomplete Docstring | 'TemplateDeleteExecutor.execute' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: manager |
+| 508 | 🟡 MEDIUM | Incomplete Docstring | 'ExportExecutor.execute' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: manager |
+| 537 | 🟡 MEDIUM | Incomplete Docstring | 'ImportExecutor.execute' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: manager |
 | 126 | 🟢 LOW | Incomplete Docstring | 'CommandOperationContext.print_success' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'CommandOperationContext.print_success'. |
 | 134 | 🟢 LOW | Incomplete Docstring | 'CommandOperationContext.print_error' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'CommandOperationContext.print_error'. |
 | 142 | 🟢 LOW | Incomplete Docstring | 'CommandOperationContext.print_info' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'CommandOperationContext.print_info'. |
@@ -183,10 +182,11 @@ Public APIs: 45 | Documented: 45 | Coverage: 100.0%
 | 277 | 🟢 LOW | Incomplete Docstring | 'BranchExecutor.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'BranchExecutor.execute'. |
 | 362 | 🟢 LOW | Incomplete Docstring | 'MergeExecutor.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MergeExecutor.execute'. |
 | 427 | 🟢 LOW | Incomplete Docstring | 'TemplateCreateExecutor.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'TemplateCreateExecutor.execute'. |
-| 456 | 🟢 LOW | Incomplete Docstring | 'TemplateListExecutor.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'TemplateListExecutor.execute'. |
-| 480 | 🟢 LOW | Incomplete Docstring | 'TemplateDeleteExecutor.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'TemplateDeleteExecutor.execute'. |
+| 460 | 🟢 LOW | Incomplete Docstring | 'TemplateListExecutor.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'TemplateListExecutor.execute'. |
+| 484 | 🟢 LOW | Incomplete Docstring | 'TemplateDeleteExecutor.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'TemplateDeleteExecutor.execute'. |
+| 508 | 🟢 LOW | Incomplete Docstring | 'ExportExecutor.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ExportExecutor.execute'. |
 
-_... and 7 more smells._
+_... and 6 more smells._
 
 ### src/henchman/cli/textual_widgets.py — ❌ F (49.0/100) (last modified 2026-03-03)
 

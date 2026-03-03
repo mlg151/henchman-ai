@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T16:00:33.375817+00:00_
+_Generated: 2026-03-03T16:30:23.827961+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-03T16:00:33.375817+00:00_
 | **Overall Grade** | 🔶 D |
 | **Overall Score** | 62.2/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 34,988 |
+| **Total Lines (non-blank)** | 34,991 |
 | **Total Smells** | 1572 |
 | **Avg Maintainability Index** | 71.7 |
 | **Avg Cyclomatic Complexity** | 13.6 |
@@ -20,8 +20,8 @@ _Generated: 2026-03-03T16:00:33.375817+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1083 |
-| medium | 462 |
+| low | 1082 |
+| medium | 463 |
 | high | 27 |
 
 ### Smells by Category

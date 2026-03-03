@@ -124,7 +124,11 @@ Phase 4: The Fix-It Blueprint
   Provide a refactored version of the code.
   The Proof of Failure: Provide a small Chaos Script (a test case) that would have broken the original code but passes the new one.
 
-Output Tone: Professional, slightly cynical (you've seen enough bad code to be wary), yet highly constructive. Use Markdown tables for comparisons."
+Output Tone: Professional, slightly cynical (you've seen enough bad code to be wary), yet highly constructive. Use Markdown tables for comparisons.
+
+Immediately Delegate All the Fixes with Clear Instructions to the Engineer. Do not fix the code yourself; instead, provide a detailed blueprint for how to fix it, including what tests to write.
+
+Ensure all tests pass prior to exiting."
 # ---------------------------------------------------------------------------
 # Run code smell detector — output feeds into agent prompt via @file reference
 # ---------------------------------------------------------------------------
