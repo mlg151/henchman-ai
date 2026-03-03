@@ -12,27 +12,37 @@ Configure MCP servers in your settings file:
 
 ```yaml
 mcp_servers:
-  # Filesystem access
+  # File system access
   filesystem:
     command: npx
     args: ["@anthropic-ai/mcp-filesystem-server", "/home/user"]
     trusted: false
-    
+  
   # GitHub integration
   github:
     command: uvx
     args: ["mcp-github"]
     env:
-      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GITHUB_TOKEN: "${GITHUB_TOKEN}"
     trusted: true
-    
-  # Custom Python server
-  custom:
-    command: python
-    args: ["-m", "my_mcp_server"]
+  
+  # Serena - Semantic code retrieval and editing (RECOMMENDED)
+  serena:
+    command: uvx
+    args: ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"]
     env:
-      MY_API_KEY: ${MY_API_KEY}
-    trusted: false
+      # Optional: Set workspace directory (defaults to current directory)
+      SERENA_WORKSPACE: "${PROJECT_ROOT}"
+      # Optional: Enable JetBrains plugin backend if available
+      SERENA_USE_JETBRAINS: "false"
+    trusted: true
+    # Note: Serena requires uv to be installed: https://docs.astral.sh/uv/
+  
+  # Optional: Add more MCP servers as needed
+  # postgres:
+  #   command: npx
+  #   args: ["@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost/db"]
+  #   trusted: false
 ```
 
 ## Configuration Options
@@ -88,6 +98,16 @@ Shows configured servers and their connection status.
 
 Shows detailed status including available tools.
 
+### Logging Control
+
+```
+/mcp logging on     # Enable MCP logging messages
+/mcp logging off    # Disable MCP logging messages  
+/mcp logging status # Show current logging status
+```
+
+Controls visibility of MCP server log messages.
+
 ## Available MCP Servers
 
 ### Official Anthropic Servers
@@ -105,6 +125,46 @@ Shows detailed status including available tools.
 | `mcp-slack` | Slack workspace access |
 | `mcp-postgres` | PostgreSQL database |
 
+### Serena - Semantic Code Analysis (RECOMMENDED)
+
+**Serena** is a powerful coding agent toolkit that provides semantic code retrieval and editing capabilities via MCP. It enhances coding agents with IDE-like tools for efficient code navigation and manipulation.
+
+#### Key Features of Serena:
+- **Semantic Code Retrieval**: Find symbols, functions, classes by name with context
+- **Precise Code Editing**: Insert, replace, or delete code at symbol level
+- **Cross-Reference Analysis**: Find referencing symbols and dependencies
+- **Multi-Language Support**: 30+ programming languages via LSP backends
+- **JetBrains Integration**: Optional plugin for enhanced analysis capabilities
+
+#### Setting Up Serena:
+1. **Install uv** (required for Serena):
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+2. **Configure in settings.yaml** (as shown above)
+
+3. **Start Henchman-AI** - Serena will auto-connect if configured
+
+4. **Verify connection**:
+   ```bash
+   henchman
+   /mcp status  # Check if Serena is connected
+   /tools       # List available tools including Serena's
+   ```
+
+#### When to Use Serena:
+- **Large codebases**: Efficient navigation without reading entire files
+- **Refactoring tasks**: Precise symbol-level edits
+- **Code understanding**: Cross-reference analysis and dependencies
+- **Complex implementations**: Semantic search for relevant code patterns
+
+#### Performance Benefits:
+- **Reduces token usage**: Semantic retrieval vs. reading entire files
+- **Improves accuracy**: Symbol-level precision over string matching
+- **Enhances productivity**: IDE-like capabilities in the CLI
+- **Scales with codebase**: Efficient even in large, complex projects
+
 ## Programmatic Usage
 
 ### Single Server
@@ -112,20 +172,37 @@ Shows detailed status including available tools.
 ```python
 from henchman.mcp import McpServerConfig, McpClient
 
-config = McpServerConfig(
+# Configure MCP servers (filesystem, github, serena, etc.)
+filesystem_config = McpServerConfig(
     command="npx",
-    args=["@anthropic-ai/mcp-filesystem-server", "/tmp"],
-    trusted=False
+    args=["@anthropic-ai/mcp-filesystem-server", "/home/user"],
+    trusted=False,  # Untrusted servers require tool confirmation
 )
 
-client = McpClient(name="filesystem", config=config)
-await client.connect()
+github_config = McpServerConfig(
+    command="uvx",
+    args=["mcp-github"],
+    env={"GITHUB_TOKEN": "your-token-here"},
+    trusted=True,
+)
 
-# Discover available tools
+# RECOMMENDED: Serena for semantic code analysis
+serena_config = McpServerConfig(
+    command="uvx",
+    args=["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"],
+    trusted=True,  # Serena tools are safe for auto-approval
+)
+
+# Connect to a single server
+client = McpClient(name="serena", config=serena_config)
+await client.connect()
 tools = await client.discover_tools()
 
-# Call a tool
-result = await client.call_tool("read_file", {"path": "/tmp/test.txt"})
+# Use Serena's semantic tools
+result = await client.call_tool("find_symbol", {
+    "name": "authenticate_user",
+    "kind": "function"
+})
 
 await client.disconnect()
 ```
@@ -135,28 +212,53 @@ await client.disconnect()
 ```python
 from henchman.mcp import McpManager, McpServerConfig
 
+# Or manage multiple servers
 configs = {
-    "filesystem": McpServerConfig(
-        command="npx",
-        args=["@anthropic-ai/mcp-filesystem-server", "/home/user"],
-    ),
-    "github": McpServerConfig(
-        command="uvx",
-        args=["mcp-github"],
-        env={"GITHUB_TOKEN": "..."},
-    ),
+    "filesystem": filesystem_config,
+    "github": github_config,
+    "serena": serena_config,  # Highly recommended for coding tasks
 }
-
 manager = McpManager(configs)
 await manager.connect_all()
-
-# Get all tools from all servers
-all_tools = manager.get_all_tools()
-
-# Call a tool on any connected server
-result = await manager.call_tool("filesystem", "read_file", {"path": "..."})
-
+all_tools = manager.get_all_tools()  # List[McpTool]
 await manager.disconnect_all()
+```
+
+### Serena Tool Examples
+
+```python
+# Example Serena tool usage
+result = await client.call_tool("find_symbol", {
+    "name": "authenticate_user",
+    "kind": "function"
+})
+
+result = await client.call_tool("find_referencing_symbols", {
+    "symbol_id": "function:authenticate_user:42"
+})
+
+result = await client.call_tool("insert_after_symbol", {
+    "symbol_id": "function:authenticate_user:42",
+    "content": "    # Added logging\n    logger.info(f\"User authenticated: {username}\")"
+})
+```
+
+### Example Workflow with Serena:
+
+```python
+# Without Serena: Read entire files, grep for patterns
+files = await glob("**/*.py")
+for file in files:
+    content = await read_file(file)  # Inefficient for large codebases
+    if "authenticate" in content:
+        # Manual analysis needed
+
+# With Serena: Semantic search
+symbols = await serena_client.call_tool("find_symbol", {
+    "name": "authenticate",
+    "kind": ["function", "method"]
+})
+# Returns precise locations and contexts
 ```
 
 ## Creating MCP Servers

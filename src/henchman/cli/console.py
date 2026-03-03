@@ -762,3 +762,103 @@ class OutputRenderer:
             True if confirmed.
         """
         return await anyio.to_thread.run_sync(lambda: Confirm.ask(message, console=self.console))
+
+
+class AsyncOutputRenderer:
+    """Async wrapper for OutputRenderer."""
+
+    def __init__(self: Self, renderer: OutputRenderer) -> None:
+        """Initialize the async renderer.
+
+        Args:
+            renderer: Sync OutputRenderer instance.
+        """
+        self.renderer = renderer
+        self._async_methods: dict[str, Callable[..., Any]] = {}
+
+    def __getattr__(self: Self, name: str) -> Callable[..., Any]:
+        """Dynamically create async wrappers for OutputRenderer methods.
+
+        Args:
+            name: Method name to look up.
+
+        Returns:
+            Async wrapper function for the method.
+
+        Raises:
+            AttributeError: If the method doesn't exist on OutputRenderer.
+        """
+        self._validate_method_name(name)
+
+        # Return cached wrapper if available
+        if name in self._async_methods:
+            return self._async_methods[name]
+
+        # Create and cache wrapper
+        wrapper = self._create_async_wrapper(name)
+        self._async_methods[name] = wrapper
+        return wrapper
+
+    def _validate_method_name(self: Self, name: str) -> None:
+        """Validate that method name is valid for async wrapping.
+
+        Args:
+            name: Method name to validate.
+
+        Raises:
+            AttributeError: If method is invalid.
+        """
+        if not hasattr(self.renderer, name):
+            error_msg = f"'{type(self).__name__}' object has no attribute '{name}'"
+            raise AttributeError(error_msg)
+
+        if name.startswith("_"):
+            error_msg = f"'{type(self).__name__}' object has no attribute '{name}'"
+            raise AttributeError(error_msg)
+
+    def _create_async_wrapper(self: Self, name: str) -> Callable[..., Any]:
+        """Create an async wrapper for a sync method.
+
+        Args:
+            name: Method name to wrap.
+
+        Returns:
+            Async wrapper function.
+        """
+        sync_method = getattr(self.renderer, name)
+
+        # Special handling for diff method
+        if name == "diff":
+            return self._create_async_diff_wrapper()
+
+        # Generic async wrapper for other methods
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+            def sync_wrapper() -> Any:  # noqa: ANN401
+                return sync_method(*args, **kwargs)
+
+            return await anyio.to_thread.run_sync(sync_wrapper)
+
+        return async_wrapper
+
+    def _create_async_diff_wrapper(self: Self) -> Callable[..., Any]:
+        """Create async wrapper for diff method.
+
+        Returns:
+            Async diff wrapper function.
+        """
+
+        async def async_diff(*args: str | DiffParams, **kwargs: str) -> None:
+            """Async version of diff method.
+
+            Accepts either:
+            - Three string arguments: old, new, filename (optional)
+            - A single DiffParams object
+
+            Args:
+                *args: Either (old, new, filename) strings or a DiffParams object.
+                **kwargs: Keyword arguments for backward compatibility.
+            """
+            params = self.renderer._parse_diff_args(*args, **kwargs)
+            await anyio.to_thread.run_sync(self.renderer._render_diff, params)
+
+        return async_diff
