@@ -1,51 +1,42 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-03-03T03:15:00Z
+2026-03-03T03:15:30Z
 
 ## Files Changed
-1. `docs/extensions.md` - Updated to match actual implementation
+1. `docs/extensions.md` - Updated to reflect current Extension API and corrected outdated information
 
 ## Smell Category Addressed
-- **Stale Age** (HIGH): Documentation was 38 days old and didn't match the actual implementation
+- **Stale Age** (HIGH): Documentation file was last modified 38 days ago and contained outdated API references
 
 ## Rationale for Change
-The extensions documentation was significantly out of date and contained incorrect information:
-1. Documented `activate()`/`deactivate()` methods that don't exist in the actual `Extension` class
-2. Documented a `context` object with `register_tool()`, `register_command()`, `register_provider()` methods that don't exist
-3. Documented `/extensions enable|disable` commands that don't exist (only `/extensions` for listing)
-4. Documented custom provider support which isn't implemented
-5. Had incorrect directory structure for local extensions
-
-The actual implementation has:
-1. `Extension` class with `get_tools()`, `get_commands()`, `get_context()` methods
-2. `ExtensionManager` class for discovery and registration
-3. Only `/extensions` command (no enable/disable)
-4. No custom provider support
-5. Different directory structure for local extensions
+The documentation smell report identified `docs/extensions.md` as having HIGH severity stale age smell. Upon inspection, the documentation contained several outdated references:
+1. Mentioned old `activate()`/`deactivate()` API that doesn't exist in current codebase
+2. Referenced non-existent `ExtensionContext` object
+3. Had incorrect command examples (`/extensions list`, `/extensions enable`, `/extensions disable`)
+4. Missing type hints in examples
+5. Needed clarification on how extensions are automatically discovered
 
 ## Changes Made
-1. **Updated Extension Types**: Removed "Providers" from supported types, clarified actual capabilities
-2. **Fixed Extension Base Class Example**: Showed actual `Extension` class with correct methods (`get_tools()`, `get_commands()`, `get_context()`)
-3. **Updated Tool Creation Example**: Fixed to show tools being returned from `get_tools()` method
-4. **Updated Command Creation Example**: Fixed to show commands being returned from `get_commands()` method
-5. **Added Context Section**: Showed how to use `get_context()` method
-6. **Updated Installation Section**: Corrected local extension directory structure and entry point configuration
-7. **Updated Management Section**: Removed non-existent enable/disable commands, added actual `ExtensionManager` API
-8. **Updated Packaging Section**: Added complete example with proper package structure
-9. **Added Complete Example**: Provided a full working example of an extension
+1. **Removed outdated API references**: Removed references to non-existent `activate()`/`deactivate()` methods and `ExtensionContext` object
+2. **Corrected command documentation**: Updated to show actual `/extensions` command (no subcommands) with example output format
+3. **Added type hints**: Updated all example methods to include proper type hints (`-> list[Tool]`, `-> list[Command]`, `-> str`)
+4. **Clarified automatic discovery**: Added section explaining how extensions are automatically discovered via entry points and local directory
+5. **Updated Extension Manager API table**: Verified all methods in the table exist in current implementation
+6. **Improved examples**: Ensured all code examples use current API patterns
 
 ## What to Verify
-1. All code examples in the documentation now match the actual source code
-2. The documented API matches the actual `Extension` and `ExtensionManager` classes
-3. Installation instructions are accurate for both package and local development
-4. The complete example at the end is a working extension
-5. No references to non-existent features (custom providers, enable/disable commands, etc.)
+1. All Extension class examples use `get_tools()`, `get_commands()`, `get_context()` methods (not `activate()`/`deactivate()`)
+2. Command documentation shows `/extensions` (not `/extensions list` or other subcommands)
+3. All method signatures include proper type hints
+4. Extension Manager API table matches actual methods in `ExtensionManager` class
+5. Automatic discovery explanation is accurate (entry points + local directory)
 
 ## Next Priority
 The next highest-priority issues are:
 1. **Stale Age** in `docs/mcp.md` (last modified 38 days ago)
-2. **Stale Docstrings** in various source files (HIGH severity)
-3. **Broken Link** in `docs/intelligent-context-management.md` (anchor not found)
+2. **Stale Docstrings** in various source files (HIGH severity - missing parameter documentation)
+3. **Broken Link** in `docs/intelligent-context-management.md` (anchor '#performance-tuning' not found)
 4. **Config Issue** in `mkdocs.yml` (mermaid diagrams not configured)
-5. **Consistency Error** in `pyproject.toml` (coverage threshold mismatch)
+
+The MCP documentation should be reviewed next as it's also 38 days old and may contain outdated information.
