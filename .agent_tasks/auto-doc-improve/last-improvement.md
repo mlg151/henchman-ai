@@ -1,79 +1,52 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-03-03T06:50:15Z
+2026-03-03T07:00:00Z
 
 ## Files Changed
-1. `src/henchman/agents/orchestrator.py` - Added missing Args and Yields sections to two methods
+1. `.github/copilot-instructions.md` - Fixed consistency error in coverage threshold documentation
 
 ## Smell Category Addressed
-- **Incomplete Docstring** (MEDIUM): Two methods had parameters but no Args sections in their docstrings
-- **Incomplete Docstring** (LOW): Two methods returned/yielded values but had no Returns/Yields sections
+- **Consistency Error** (MEDIUM): Coverage threshold inconsistency between 99% and 100% requirements
 
 ## Rationale for Change
-The documentation smell report identified two methods in `src/henchman/agents/orchestrator.py` with incomplete docstrings:
+The documentation smell report identified a consistency error in `pyproject.toml:65`, but upon investigation, this was a false positive (misinterpreting `pytest-cov>=4.0` as a "4% coverage threshold"). However, during the investigation, I discovered a genuine consistency error in `.github/copilot-instructions.md`:
 
-1. Line 76: `Orchestrator.run` has 1 parameter but no Args section (MEDIUM severity)
-2. Line 94: `Orchestrator.run_direct` has 2 parameters but no Args section (MEDIUM severity)
-3. Line 76: `Orchestrator.run` returns/yields a value but has no Returns/Yields section (LOW severity)
-4. Line 94: `Orchestrator.run_direct` returns/yields a value but has no Returns/Yields section (LOW severity)
+1. Line 17 stated: "**Phase 12**: Polish & Release ✅ (99% test coverage, all core features implemented)"
+2. Multiple other lines (43, 47, 48, 956, 966, 971, 972) state "100% test coverage" requirement
+3. The actual project configuration (`pyproject.toml:138`) has `--cov-fail-under=100`
+4. Other documentation files (README.md, RELEASE_CHECKLIST.md, CHANGELOG.md) all reference 100% coverage
 
-These are critical public API methods that users interact with directly. According to Google-style docstring conventions and the project's quality requirements, all method parameters must be documented in an `Args:` section, and methods that return or yield values should have `Returns:` or `Yields:` sections.
+This inconsistency could confuse developers about the actual test coverage requirements. According to the project's quality standards and actual configuration, the requirement is 100% test coverage.
 
 ## Changes Made
-1. **`run` method** (line 76):
-   - Added `Args:` section documenting the `user_input` parameter
-   - Description: "The user's input or task description."
-   - Added `Yields:` section documenting the return value
-   - Description: "Stream of agent events including content, tool calls, and completion status."
-
-2. **`run_direct` method** (line 94):
-   - Added `Args:` section documenting both parameters:
-     - `role`: "The role of the agent to run (e.g., 'coder', 'architect')."
-     - `user_input`: "The user's input or task description."
-   - Added `Yields:` section documenting the return value
-   - Description: "Stream of agent events including content, tool calls, and completion status."
+1. **Updated line 17 in `.github/copilot-instructions.md`**:
+   - Changed from: `- **Phase 12**: Polish & Release ✅ (99% test coverage, all core features implemented)`
+   - Changed to: `- **Phase 12**: Polish & Release ✅ (100% test coverage, all core features implemented)`
 
 ## Technical Details
-The fixes follow Google-style docstring conventions:
-- Each `Args:` section lists parameters with their descriptions
-- Each `Yields:` section describes what the async generator yields
-- Parameter descriptions are clear and concise
-- The docstring structure is consistent with other methods in the codebase (e.g., the `__init__` method)
-- No functional changes were made - only documentation improvements
-- Both methods are async generators that yield `AgentEvent` objects, so `Yields:` is more appropriate than `Returns:`
+- The fix ensures all documentation consistently states the 100% test coverage requirement
+- No functional changes were made - only documentation consistency improvement
+- The change aligns with the actual project configuration (`--cov-fail-under=100` in `pyproject.toml`)
+- The fix follows the principle of "Consistency: GitHub URLs, install commands, coverage thresholds, and terminology must be uniform across all files"
 
 ## What to Verify
-1. The two methods now have complete docstrings with proper `Args:` and `Yields:` sections
-2. The parameter descriptions are accurate and helpful for users
-3. The incomplete docstring smells should be resolved in the next smell report
-4. The documentation is now consistent with Google-style conventions
-5. The file still parses correctly (verified with `ast.parse`)
+1. All references to test coverage in the project now consistently state 100% (not 99%)
+2. The documentation accurately reflects the actual project requirements
+3. The consistency error should be resolved in the next smell report
+4. No other documentation inconsistencies were introduced
 
 ## Testing Instructions
 To verify the fix:
 ```bash
-# Check that the methods have proper docstrings
-python -c "
-import ast
-import inspect
+# Check that all references to test coverage are consistent
+grep -n "test coverage" .github/copilot-instructions.md docs/*.md README.md RELEASE_CHECKLIST.md CHANGELOG.md
 
-# Parse the file
-with open('src/henchman/agents/orchestrator.py', 'r') as f:
-    tree = ast.parse(f.read())
+# Verify the actual project configuration
+grep -n "cov-fail-under" pyproject.toml
 
-# Find the Orchestrator class
-for node in ast.walk(tree):
-    if isinstance(node, ast.ClassDef) and node.name == 'Orchestrator':
-        # Find the run and run_direct methods
-        for item in node.body:
-            if isinstance(item, ast.AsyncFunctionDef) and item.name in ['run', 'run_direct']:
-                docstring = ast.get_docstring(item)
-                print(f'{item.name} docstring:')
-                print(f'  Has Args: {\"Args:\" in docstring if docstring else \"No docstring\"}')
-                print(f'  Has Yields: {\"Yields:\" in docstring if docstring else \"No docstring\"}')
-                print()
-"
+# Check there are no more 99% references
+grep -r "99%" . --include="*.md" --include="*.toml" --include="*.yml" --include="*.yaml"
 ```
 
 ## Next Priority
@@ -84,6 +57,6 @@ The next highest-priority issues from the smell report are:
 4. **Incomplete Docstring** in `src/henchman/agents/orchestrator_components.py:57` ('AgentValidator.check_stall_failure' has 1 parameter but no Args section)
 
 ## Notes
-This improvement addresses genuine documentation quality issues in the core `Orchestrator` class. The `run` and `run_direct` methods are the primary public API for interacting with the multi-agent system, so having complete documentation is essential for users and maintainers. The fixes are minimal and focused, adding only the necessary documentation without changing any functionality.
+This improvement addresses a genuine documentation consistency issue. While the smell detector flagged a false positive about `pytest-cov>=4.0`, it led to discovering the real inconsistency between 99% and 100% coverage requirements. The fix is minimal and focused, correcting only the inconsistent value without changing any functionality or other documentation.
 
-The #1 issue in the smell report (consistency error about "4% coverage threshold" in `pyproject.toml:65`) remains a false positive - it's misinterpreting `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold".
+The project maintains strict quality standards with 100% test coverage requirement, and the documentation should accurately reflect this.

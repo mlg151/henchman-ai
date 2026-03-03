@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 53.3/100)
+# Code Smell Report — ❌ F (Score: 53.4/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T06:30:20.201052+00:00_
+_Generated: 2026-03-03T07:00:23.266498+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 53.3/100 |
+| **Overall Score** | 53.4/100 |
 | **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 34,343 |
-| **Total Smells** | 2175 |
+| **Total Lines (non-blank)** | 34,304 |
+| **Total Smells** | 2135 |
 | **Avg Maintainability Index** | 71.5 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,20 +20,20 @@ _Generated: 2026-03-03T06:30:20.201052+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1631 |
-| medium | 479 |
+| low | 1624 |
+| medium | 446 |
 | high | 65 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1140 |
+| Missing Type Hint | 1132 |
 | Feature Envy | 305 |
-| Duplicate Code | 265 |
+| Duplicate Code | 232 |
 | Magic Number | 131 |
 | Long Method | 108 |
-| Deep Nesting | 97 |
+| Deep Nesting | 98 |
 | Primitive Obsession | 72 |
 | Complex Function | 30 |
 | Large Class | 27 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/context.py | ❌ F | 14.4 | 87 | 507 | 48 | 0.0 |
+| 1 | cli/commands/context.py | ❌ F | 14.7 | 47 | 445 | 49 | 0.0 |
 | 2 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
 | 3 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
 | 4 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
@@ -122,29 +122,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 169 additional files omitted._
 
-### cli/commands/context.py — ❌ F (14.4/100)
+### cli/commands/context.py — ❌ F (14.7/100)
 
-LOC: 507 | Classes: 6 | Functions: 0 | MI: 48 | Avg CC: 0.0
+LOC: 445 | Classes: 5 | Functions: 0 | MI: 49 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 91 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_header' is 94% similar to 'print_enabled_status' at cli/commands/context.py:99 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 91 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_header' is 94% similar to 'print_status_value' at cli/commands/context.py:108 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 91 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_header' is 94% similar to 'print_command_help' at cli/commands/context.py:117 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 91 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_header' is 94% similar to 'print_error_message' at cli/commands/context.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 99 | 🟡 MEDIUM | Duplicate Code | Function 'print_enabled_status' is 100% similar to 'print_status_value' at cli/commands/context.py:108 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 99 | 🟡 MEDIUM | Duplicate Code | Function 'print_enabled_status' is 100% similar to 'print_command_help' at cli/commands/context.py:117 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 99 | 🟡 MEDIUM | Duplicate Code | Function 'print_enabled_status' is 100% similar to 'print_error_message' at cli/commands/context.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 99 | 🟡 MEDIUM | Duplicate Code | Function 'print_enabled_status' is 94% similar to 'print_usage' at cli/commands/session.py:138 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 99 | 🟡 MEDIUM | Duplicate Code | Function 'print_enabled_status' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 99 | 🟡 MEDIUM | Duplicate Code | Function 'print_enabled_status' is 94% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 99 | 🟡 MEDIUM | Duplicate Code | Function 'print_enabled_status' is 94% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 99 | 🟡 MEDIUM | Duplicate Code | Function 'print_enabled_status' is 94% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 108 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_value' is 100% similar to 'print_command_help' at cli/commands/context.py:117 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 108 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_value' is 100% similar to 'print_error_message' at cli/commands/context.py:126 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 108 | 🟡 MEDIUM | Duplicate Code | Function 'print_status_value' is 94% similar to 'print_usage' at cli/commands/session.py:138 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 108 | 🟡 MEDIUM | Feature Envy | Method 'ContextConsoleHelper._print_status_values' accesses 'ConsoleHelper' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'ConsoleHelper'. |
+| 108 | 🟡 MEDIUM | Feature Envy | Method 'ContextConsoleHelper._print_status_values' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'context_settings'. |
+| 150 | 🟡 MEDIUM | Feature Envy | Method 'ContextConsoleHelper.print_strategy_usage' accesses 'console' 6 times but 'self' only 0 times | Move Method — consider moving 'print_strategy_usage' to the class that owns 'console'. |
+| 171 | 🟡 MEDIUM | Feature Envy | Method 'ContextConsoleHelper.print_strategy_status' accesses 'ConsoleHelper' 6 times but 'self' only 0 times | Move Method — consider moving 'print_strategy_status' to the class that owns 'ConsoleHelper'. |
+| 171 | 🟡 MEDIUM | Feature Envy | Method 'ContextConsoleHelper.print_strategy_status' accesses 'context_settings' 5 times but 'self' only 0 times | Move Method — consider moving 'print_strategy_status' to the class that owns 'context_settings'. |
+| 260 | 🟡 MEDIUM | Duplicate Code | Function '_show_strategy_status' is 100% similar to '_show_status' at cli/commands/context.py:414 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 42 | 🟢 LOW | Missing Type Hint | Function 'get_display_label' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 50 | 🟢 LOW | Missing Type Hint | Function 'validate_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 68 | 🟢 LOW | Missing Type Hint | Function 'parse_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 87 | 🟢 LOW | Feature Envy | Method 'ContextConsoleHelper.print_status_info' accesses 'ContextConsoleHelper' 3 times but 'self' only 0 times | Move Method — consider moving 'print_status_info' to the class that owns 'ContextConsoleHelper'. |
+| 123 | 🟢 LOW | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 171 | 🟢 LOW | Feature Envy | Method 'ContextConsoleHelper.print_strategy_status' accesses 'console' 3 times but 'self' only 0 times | Move Method — consider moving 'print_strategy_status' to the class that owns 'console'. |
+| 222 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 225 | 🟢 LOW | Magic Number | Magic number 1000 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 227 | 🟢 LOW | Magic Number | Magic number 0.1 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-_... and 72 more smells._
+_... and 32 more smells._
 
 ### cli/textual_bridge.py — ❌ F (15.7/100)
 

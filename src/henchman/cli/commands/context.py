@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.console_helpers import ConsoleHelper
@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
 # Constants
 _MAX_TOKENS_THRESHOLD: int = 100
+_MAX_TOKENS_MIN_VALUE: int = 1000
+_COMPACTION_THRESHOLD_MIN_VALUE: float = 0.1
 
 
 @dataclass
@@ -222,9 +224,14 @@ class StrategyManager:
     def __init__(self) -> None:
         """Initialize strategy manager."""
         self._parameter_configs = {
-            "max_tokens": RangeParameterConfig(param_name="max_tokens", min_val=1000, is_int=True),
+            "max_tokens": RangeParameterConfig(
+                param_name="max_tokens", min_val=_MAX_TOKENS_MIN_VALUE, is_int=True
+            ),
             "threshold": RangeParameterConfig(
-                param_name="compaction_threshold", min_val=0.1, max_val=1.0, label="Threshold"
+                param_name="compaction_threshold", 
+                min_val=_COMPACTION_THRESHOLD_MIN_VALUE, 
+                max_val=1.0, 
+                label="Threshold"
             ),
             "importance": RangeParameterConfig(
                 param_name="importance_threshold", min_val=0.0, max_val=1.0
@@ -263,9 +270,7 @@ class StrategyManager:
         Args:
             ctx: Command context.
         """
-        settings = load_settings()
-        context_settings = settings.context
-        ContextConsoleHelper.print_strategy_status(ctx.console, context_settings)
+        self._show_context_info(ctx, ContextConsoleHelper.print_strategy_status)
 
     async def _set_strategy_parameter(
         self, ctx: CommandContext, param: str, value: str | None
@@ -411,15 +416,28 @@ class ContextCommand(Command):
         ]
         ConsoleHelper.print_usage_help(console, self.usage, commands, header="Subcommands:")
 
+    def _show_context_info(
+        self, 
+        ctx: CommandContext, 
+        display_func: Callable[[Console, ContextSettings], None]
+    ) -> None:
+        """Helper method to show context information using a display function.
+
+        Args:
+            ctx: Command context.
+            display_func: Function to display the context information.
+        """
+        settings = load_settings()
+        context_settings = settings.context
+        display_func(ctx.console, context_settings)
+
     async def _show_status(self, ctx: CommandContext) -> None:
         """Show current intelligent context status.
 
         Args:
             ctx: Command context.
         """
-        settings = load_settings()
-        context_settings = settings.context
-        ContextConsoleHelper.print_status_info(ctx.console, context_settings)
+        self._show_context_info(ctx, ContextConsoleHelper.print_status_info)
 
     async def _enable_intelligent_context(self, ctx: CommandContext) -> None:
         """Enable intelligent context management.

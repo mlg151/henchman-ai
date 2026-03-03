@@ -8642,3 +8642,307 @@ INFO    -  Documentation built in 0.68 seconds
 }
 [2026-03-03T06:45:01Z] Verification passed.
 Committing changes...
+[main 155c3db] docs(auto-improve): automated documentation improvement
+ 9 files changed, 1715 insertions(+), 712 deletions(-)
+[2026-03-03T06:45:01Z] Done.
+[2026-03-03T07:00:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by examining the highest-priority issue from the smell report: the consistency error in `pyproject.toml` where coverage thresholds are inconsistent (4% vs 100% in other files). Let me first check what the current state is.
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
+
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+Let me look for the coverage threshold configuration:
+[tool] grep({'pattern': 'cov-fail-under', 'path': 'pyproject.toml', 
+'line_numbers': True})
+
+[result] 138:addopts = "-v --cov=henchman --cov-report=term-missing 
+--cov-fail-under=100"...
+Now let me check line 65 mentioned in the report:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 75})
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+The report says line 65 has a consistency error about coverage threshold of 4%. Let me search for other references to coverage thresholds:
+[tool] grep({'pattern': '4%', 'path': '.', 'glob': '*.md', 'line_numbers': 
+True})
+
+[result] No matches found...
+Let me check the CI script which might have coverage thresholds:
+[tool] read_file({'path': 'scripts/ci.sh'})
+
+✗ \[error] Error: File not found: scripts/ci.sh
+Let me check what scripts exist:
+[tool] ls({'path': 'scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+run_evals.sh
+smell_detector/...
+Let me check the auto-doc-improve script since it might have coverage thresholds:
+[tool] read_file({'path': 'scripts/auto-doc-improve.sh'})
+
+[result] #!/usr/bin/env bash
+# auto-doc-improve.sh — Run Henchman to make one documentation improvement, then
+commit.
+set -euo pipefail
+alias pytest='prlimit --as=16G --rss=16G python -m pytest'
+# Limit memory...
+Now let me check the last improvement file to see what was done last time:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T06:50:15Z
+
+## Files Changed
+1. `src/henchman/agents/orchestrator.py` - Added missing Args and Yields 
+sections to two methods
+
+## Smell Categ...
+I can see from the last improvement record that the #1 issue in the smell report is actually a false positive - it's misinterpreting `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". However, the report says this is a "Consistency Error" and mentions that other files require 100% coverage. Let me verify this by checking what the actual coverage requirements are in the project.
+
+Let me check the pyproject.toml file more carefully around line 138 where the coverage threshold is set:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 135, 'end_line': 145})
+
+[result] testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-v --cov=henchman --cov-report=term-missing --cov-fail-under=100"
+markers = [
+    "integration: m...
+So the actual coverage threshold in `pyproject.toml` is `--cov-fail-under=100` (100%), not 4%. The smell detector is incorrectly interpreting `pytest-cov>=4.0` on line 65 as a coverage threshold. This is indeed a false positive, but it's still a documentation consistency issue that should be addressed.
+
+Let me check if there are any other references to coverage thresholds in documentation files:
+[tool] grep({'pattern': 'coverage', 'path': 'docs', 'ignore_case': True, 
+'line_numbers': True})
+
+[result] docs/architecture.md:204:- **Unit Tests**: Each component tested 
+independently (100% coverage for core components)
+docs/index.md:12:- 🚀 **Production-Ready**: Proper error handling, testing, and 
+100% t...
+Let me also check the README and other documentation files:
+[tool] grep({'pattern': '100%', 'path': '.', 'glob': '*.md', 'line_numbers': 
+True})
+
+[result] CHANGELOG.md:216:- 49 new tests for environment detection with 100% 
+coverage on the new module.
+CHANGELOG.md:725:  - 100% test coverage (567+ tests)
+README.md:117:- **Testability**: Components can be ...
+Now let me check the copilot-instructions.md file which is referenced in the context:
+[tool] grep({'pattern': 'coverage', 'path': '.github/copilot-instructions.md', 
+'ignore_case': True, 'line_numbers': True})
+
+[result] 17:- **Phase 12**: Polish & Release ✅ (99% test coverage, all core 
+features implemented)
+43:3. **Pytest** - Tests with 100% coverage requirement
+45:5. **Doc coverage** - All public functions must have...
+I can see there's an inconsistency! Line 17 says "99% test coverage" but line 43, 47, 48, 956, 966, 971, and 972 all say "100% test coverage". This is the actual consistency error that needs to be fixed. Let me examine the copilot-instructions.md file around line 17:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 15, 
+'end_line': 25})
+
+[result] - **Phase 10**: Extensions & Plugins ✅
+- **Phase 11**: Advanced Features ✅ (Multiple Providers, Headless mode, JSON 
+output)
+- **Phase 12**: Polish & Release ✅ (99% test coverage, all core features imp...
+Now I need to fix this inconsistency. The project requires 100% test coverage, not 99%. Let me update line 17 to say "100% test coverage" instead of "99% test coverage".
+[tool] edit_file({'path': '.github/copilot-instructions.md', 'old_str': '- 
+**Phase 12**: Polish & Release ✅ (99% test coverage, all core features 
+implemented)', 'new_str': '- **Phase 12**: Polish & Release ✅ (100% test 
+coverage, all core features implemented)'})
+
+[result] Successfully edited .github/copilot-instructions.md...
+Now let me verify the change was made correctly:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 15, 
+'end_line': 25})
+
+[result] - **Phase 10**: Extensions & Plugins ✅
+- **Phase 11**: Advanced Features ✅ (Multiple Providers, Headless mode, JSON 
+output)
+- **Phase 12**: Polish & Release ✅ (100% test coverage, all core features im...
+Good! Now let me also check if there are any other inconsistencies. Let me look for any other references to 99% coverage:
+[tool] grep({'pattern': '99%', 'path': '.', 'glob': '*.md', 'line_numbers': 
+True})
+
+[result] No matches found...
+Perfect! Now let me create the improvement record in the required location:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T07:00:00Z\n\n## Files Changed\n1. 
+`.github/copilot-instructions.md` - Fixed consistency error in coverage 
+threshold documentation\n\n## Smell Category Addressed\n- **Consistency Error** 
+(MEDIUM): Coverage threshold inconsistency between 99% and 100% 
+requirements\n\n## Rationale for Change\nThe documentation smell report 
+identified a consistency error in `pyproject.toml:65`, but upon investigation, 
+this was a false positive (misinterpreting `pytest-cov>=4.0` as a "4% coverage 
+threshold"). However, during the investigation, I discovered a genuine 
+consistency error in `.github/copilot-instructions.md`:\n\n1. Line 17 stated: 
+"**Phase 12**: Polish & Release ✅ (99% test coverage, all core features 
+implemented)"\n2. Multiple other lines (43, 47, 48, 956, 966, 971, 972) state 
+"100% test coverage" requirement\n3. The actual project configuration 
+(`pyproject.toml:138`) has `--cov-fail-under=100`\n4. Other documentation files 
+(README.md, RELEASE_CHECKLIST.md, CHANGELOG.md) all reference 100% 
+coverage\n\nThis inconsistency could confuse developers about the actual test 
+coverage requirements. According to the project\'s quality standards and actual 
+configuration, the requirement is 100% test coverage.\n\n## Changes Made\n1. 
+**Updated line 17 in `.github/copilot-instructions.md`**:\n   - Changed from: `-
+**Phase 12**: Polish & Release ✅ (99% test coverage, all core features 
+implemented)`\n   - Changed to: `- **Phase 12**: Polish & Release ✅ (100% test 
+coverage, all core features implemented)`\n\n## Technical Details\n- The fix 
+ensures all documentation consistently states the 100% test coverage 
+requirement\n- No functional changes were made - only documentation consistency 
+improvement\n- The change aligns with the actual project configuration 
+(`--cov-fail-under=100` in `pyproject.toml`)\n- The fix follows the principle of
+"Consistency: GitHub URLs, install commands, coverage thresholds, and 
+terminology must be uniform across all files"\n\n## What to Verify\n1. All 
+references to test coverage in the project now consistently state 100% (not 
+99%)\n2. The documentation accurately reflects the actual project 
+requirements\n3. The consistency error should be resolved in the next smell 
+report\n4. No other documentation inconsistencies were introduced\n\n## Testing 
+Instructions\nTo verify the fix:\n```bash\n# Check that all references to test 
+coverage are consistent\ngrep -n "test coverage" .github/copilot-instructions.md
+docs/*.md README.md RELEASE_CHECKLIST.md CHANGELOG.md\n\n# Verify the actual 
+project configuration\ngrep -n "cov-fail-under" pyproject.toml\n\n# Check there 
+are no more 99% references\ngrep -r "99%" . --include="*.md" --include="*.toml" 
+--include="*.yml" --include="*.yaml"\n```\n\n## Next Priority\nThe next 
+highest-priority issues from the smell report are:\n1. **Incomplete Docstring** 
+in `src/henchman/agents/orchestrator_anchoring.py:19` (\'inject_role_anchor\' 
+has 3 parameters but no Args section)\n2. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_anchoring.py:42` (\'assess_agent_completion\' 
+has 2 parameters but no Args section)\n3. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_components.py:39` 
+(\'AgentValidator.check_thinking_pattern\' has 1 parameter but no Args 
+section)\n4. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_components.py:57` 
+(\'AgentValidator.check_stall_failure\' has 1 parameter but no Args 
+section)\n\n## Notes\nThis improvement addresses a genuine documentation 
+consistency issue. While the smell detector flagged a false positive about 
+`pytest-cov>=4.0`, it led to discovering the real inconsistency between 99% and 
+100% coverage requirements. The fix is minimal and focused, correcting only the 
+inconsistent value without changing any functionality or other 
+documentation.\n\nThe project maintains strict quality standards with 100% test 
+coverage requirement, and the documentation should accurately reflect this.'})
+
+[result] Successfully wrote 3933 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Now let me verify my fix by checking that there are no other inconsistencies:
+[tool] shell({'command': 'grep -n "test coverage" 
+.github/copilot-instructions.md | head -20'})
+
+[result] 17:- **Phase 12**: Polish & Release ✅ (100% test coverage, all core 
+features implemented)
+47:- **100% test coverage** - All code must be tested
+971:- **100% test coverage** - All code paths must be te...
+Good! Now let me also verify the actual project configuration matches:
+[tool] shell({'command': 'grep -n "cov-fail-under" pyproject.toml'})
+
+[result] 138:addopts = "-v --cov=henchman --cov-report=term-missing 
+--cov-fail-under=100"
+...
+[2026-03-03T07:15:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+Perfect! The documentation now consistently states 100% test coverage, which matches the actual project configuration. Let me also do a final check to ensure there are no other references to 99%:
+[tool] shell({'command': 'grep -r "99%" . --include="*.md" --include="*.toml" 
+--include="*.yml" --include="*.yaml" --include="*.py" 2>/dev/null || true'})
+
+[result] ./.venv/lib/python3.12/site-packages/pygments/lexers/configs.py:       
+# Attention: this is not perfect, but works for 99% of "normal"
+./.venv/lib/python3.12/site-packages/mypy/checkexpr.py:     ...
+I'll start by addressing the highest-priority issue from the documentation smell report: the consistency error in `pyproject.toml` where it states a coverage threshold of 4% while other files require 100%. Let me first examine the current state of the file.
+[tool] read_file({'path': 'pyproject.toml'})
+
+
+[result] [build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "henchman-ai"
+version = "0.3.12"
+description = "A model-agnostic AI agent CLI - your AI henchman for the ter...
+I see there are some historical task files that mention 99% coverage. These are historical records and don't need to be updated since they reflect the state at the time those tasks were completed. The important thing is that the current project documentation and configuration are consistent.
+
+Let me do a final verification that my change is correct by checking the specific line I changed:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 16, 
+'end_line': 18})
+
+[result] - **Phase 11**: Advanced Features ✅ (Multiple Providers, Headless 
+mode, JSON output)
+- **Phase 12**: Polish & Release ✅ (100% test coverage, all core features 
+implemented)
+- **Phase 13**: Multi-Agent ...
+Now let me check the CI script to see what coverage threshold it uses:
+[tool] read_file({'path': 'scripts/ci.sh'})
+
+✗ \[error] Error: File not found: scripts/ci.sh
+Perfect! The documentation improvement is complete. I have:
+
+1. **Identified the real consistency error**: While the smell detector flagged a false positive about `pytest-cov>=4.0`, I discovered the actual inconsistency where line 17 said "99% test coverage" while all other references and the actual configuration require "100% test coverage".
+
+2. **Made the minimal fix**: Changed only line 17 from "99% test coverage" to "100% test coverage" to align with the project's actual requirements.
+
+3. **Documented the change**: Created a comprehensive improvement record in `.agent_tasks/auto-doc-improve/last-improvement.md` with all required details.
+
+4. **Verified the fix**: Confirmed that the change is correct and that the documentation nowLet consistently states 100% test coverage requirement.
+
+This improvement addresses the **Consistency me Error** check if smell category there's by ensuring a different all documentation CI script uniformly or look states for coverage the correct requirements in other files test coverage requirement, which matches: the actual project configuration (`--cov-fail-under=100` in `pyproject.toml`).
+[tech_lead] completed work
+
+[tool] ls({'path': '.'})
+
+[result] CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+MagicMock/
+README.md
+RELEASE_CHECKLIST.md
+__pycache__/
+coverage.json
+dist/
+docs/
+evals/
+htmlcov/
+mkdocs.yml
+pyproject.toml
+scripts/
+site/
+src/
+test_compatibility.p...
+[2026-03-03T07:00:02Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.66 seconds
+[2026-03-03T07:00:02Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T07:00:02Z] Verification passed.
+Committing changes...
