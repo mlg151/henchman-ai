@@ -139,7 +139,7 @@ chore: update dependencies
 - Test one thing per test function
 - Use descriptive test names
 - Mock external dependencies
-- Aim for high coverage (> 80%)
+- Aim for 100% test coverage (required by CI)
 
 ### Integration Tests
 - Test end-to-end functionality

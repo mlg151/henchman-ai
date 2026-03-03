@@ -120,9 +120,28 @@ class ContextConsoleHelper:
             console: Console for output.
             context_settings: Context settings to display.
         """
-        self._console_helper.print_enabled_status(
-            console, "Status", context_settings.intelligent_context
+        self._print_context_settings_values(
+            console, context_settings, show_intelligent_context=True
         )
+
+    def _print_context_settings_values(
+        self,
+        console: Console,
+        context_settings: ContextSettings,
+        show_intelligent_context: bool = False,
+    ) -> None:
+        """Print context settings values with consistent formatting.
+
+        Args:
+            console: Console for output.
+            context_settings: Context settings to display.
+            show_intelligent_context: Whether to show intelligent context status.
+        """
+        if show_intelligent_context:
+            self._console_helper.print_enabled_status(
+                console, "Status", context_settings.intelligent_context
+            )
+
         self._console_helper.print_enabled_status(
             console, "Adaptive compression", context_settings.adaptive_compression
         )
@@ -192,18 +211,8 @@ class ContextConsoleHelper:
             context_settings: Context settings to display.
         """
         console.print("\n[bold blue]Compression Strategy Settings[/]\n")
-        self._console_helper.print_status_value(console, "Max tokens", context_settings.max_tokens)
-        self._console_helper.print_status_value(
-            console, "Compaction threshold", context_settings.compaction_threshold
-        )
-        self._console_helper.print_status_value(
-            console, "Importance threshold", context_settings.importance_threshold
-        )
-        self._console_helper.print_status_value(
-            console, "Cluster similarity", context_settings.cluster_similarity_threshold
-        )
-        self._console_helper.print_enabled_status(
-            console, "Adaptive compression", context_settings.adaptive_compression
+        self._print_context_settings_values(
+            console, context_settings, show_intelligent_context=False
         )
         console.print("")
         self._console_helper.print_command_help(
