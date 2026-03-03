@@ -12571,3 +12571,434 @@ INFO    -  Documentation built in 0.68 seconds
 }
 [2026-03-03T09:30:01Z] Verification passed.
 Committing changes...
+[main d039e30] docs(auto-improve): automated documentation improvement
+ 10 files changed, 2086 insertions(+), 1555 deletions(-)
+[2026-03-03T09:30:01Z] Done.
+[2026-03-03T09:45:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by checking what was last improved to avoid repeating work.
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T09:30:15Z
+
+## Files Changed
+1. `src/henchman/agents/orchestrator_loop.py` - Added missing Args and Returns 
+sections to `check_turn_limits` f...
+Now I need to check the current highest-priority issue from the smell report. According to the report, the #1 issue is:
+
+**pyproject.toml:65 — 🟡 MEDIUM — Consistency Error**  
+States coverage threshold of 4% but other files require 100%. Found thresholds: 100%, 4%  
+→ _Align all coverage requirements to 100% (the strictest value)._
+
+Let me examine this issue:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+I see the issue. The smell detector is misinterpreting `pytest-cov>=4.0` as a "4% coverage threshold" when it's actually version 4.0 of the pytest-cov package. Let me check the actual coverage configuration in the project:
+[tool] grep({'pattern': 'coverage', 'path': 'pyproject.toml', 'line_numbers': 
+True})
+
+[result] 145:[tool.coverage.run]
+149:[tool.coverage.report]...
+
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 145, 'end_line': 155})
+
+[result] [tool.coverage.run]
+source = ["src/henchman"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "pragma: no branch",
+    "if TYPE_CHECKING:",
+    "raise NotImplemente...
+Let me check if there's a coverage threshold configuration:
+[tool] grep({'pattern': 'fail-under', 'path': 'pyproject.toml', 'line_numbers': 
+True})
+
+[result] 138:addopts = "-v --cov=henchman --cov-report=term-missing 
+--cov-fail-under=100"...
+Perfect! So the actual coverage threshold is 100% (line 138), not 4%. The smell detector is incorrectly interpreting `pytest-cov>=4.0` as a coverage threshold. This is a false positive in the smell report. However, I should check if there are any other references to coverage thresholds in the documentation:
+[tool] grep({'pattern': 'coverage.*threshold|threshold.*coverage|4%|100%', 
+'path': '.', 'glob': '*.md', 'ignore_case': True})
+
+[result] CHANGELOG.md:- 49 new tests for environment detection with 100% 
+coverage on the new module.
+CHANGELOG.md:  - 100% test coverage (567+ tests)
+CONTRIBUTING.md:- Aim for 100% test coverage (required by C...
+Good! All documentation correctly states 100% coverage. The smell detector's report is a false positive. Let me check the CI script to see if it mentions coverage:
+[tool] read_file({'path': 'scripts/ci.sh', 'start_line': 1, 'end_line': 30})
+
+✗ \[error] Error: File not found: scripts/ci.sh
+
+[tool] ls({'path': 'scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+run_evals.sh
+smell_detector/...
+Let me check the actual CI configuration in the project:
+[tool] grep({'pattern': 'coverage|100%|fail-under', 'path': '.', 'glob': 
+'*.yml', 'ignore_case': True})
+
+[result] No matches found...
+
+[tool] grep({'pattern': 'coverage|100%|fail-under', 'path': '.', 'glob': 
+'*.yaml', 'ignore_case': True})
+
+[result] No matches found...
+Let me check the GitHub Actions workflow if it exists:
+[tool] ls({'path': '.github'})
+
+[result] copilot-instructions.md
+workflows/...
+
+[tool] ls({'path': '.github/workflows'})
+
+[result] ci.yml
+docs.yml
+publish.yml...
+
+[tool] read_file({'path': '.github/workflows/ci.yml', 'start_line': 1, 
+'end_line': 50})
+
+[result] name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Pytho...
+Let me check more of the CI workflow to see the test coverage command:
+[tool] read_file({'path': '.github/workflows/ci.yml', 'start_line': 50, 
+'end_line': 100})
+
+[result]         python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+    ...
+Perfect! The CI workflow shows `--cov-fail-under=100` which confirms the 100% coverage requirement. The smell detector is definitely misinterpreting `pytest-cov>=4.0` as a coverage threshold.
+
+Now, looking at the prioritised fix queue, the #1 issue is actually a false positive. The real #1 issue should be:
+
+**src/henchman/agents/orchestrator_loop.py:138 — 🟡 MEDIUM — Incomplete Docstring**  
+'finalize_loop' has 3 parameter(s) but no Args: section in docstring  
+→ _Add an Args: section documenting: orchestrator, agent, state_
+
+Let me check this file to see the current state:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_loop.py', 
+'start_line': 130, 'end_line': 160})
+
+[result]         tool_call_count=state.tool_call_count,
+        msg_start_index=params.msg_start_index,
+        wrapup_warned=state.wrapup_warned,
+    )
+    should_break, state.wrapup_warned, err = enforcement...
+I can see the issue. The `finalize_loop` function has a docstring but it's missing the `Args:` section. Let me check the full function to understand its parameters better:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_loop.py', 
+'start_line': 125, 'end_line': 145})
+
+[result]         - error_event: AgentEvent with error message if limits 
+exceeded, None otherwise
+    """
+    enforcement = TurnEnforcementParams(
+        agent=agent,
+        max_turns=params.max_turns,
+      ...
+Now I need to check what types `orchestrator`, `agent`, and `state` are. Let me look at the imports and type definitions:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_loop.py', 
+'start_line': 1, 'end_line': 30})
+
+[result] """Loop helpers for the orchestrator execution module.
+
+Pure functions that support the agent execution loop: event collection,
+turn limit checks, colon stall detection, and finalization.
+"""
+
+from __...
+Good, so I can see that:
+- `orchestrator` is typed as `Any` (likely the orchestrator instance)
+- `agent` is typed as `Agent` (from `henchman.core.agent`)
+- `state` is typed as `LoopState` (from `.orchestrator_types`)
+
+Now I need to fix the docstring by adding the `Args:` section. Let me also check if there's a `Returns:` section needed (it returns `None`):
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_loop.py', 'old_str':
+'def finalize_loop(\n    orchestrator: Any, agent: Agent, state: LoopState,\n) 
+-> None:\n    """Finalize agent loop by storing state and metrics."""\n    if 
+not hasattr(agent, "_delegation_tool_errors"):\n        
+agent._delegation_tool_errors = []  # type: ignore[attr-defined]  # noqa: 
+SLF001\n    agent._delegation_tool_errors = state.tool_errors  # type: 
+ignore[attr-defined]  # noqa: SLF001\n    
+orchestrator._last_loop_tool_call_count = state.tool_call_count  # noqa: 
+SLF001', 'new_str': 'def finalize_loop(\n    orchestrator: Any, agent: Agent, 
+state: LoopState,\n) -> None:\n    """Finalize agent loop by storing state and 
+metrics.\n    \n    Args:\n        orchestrator: The orchestrator instance 
+managing the agent execution.\n        agent: The agent whose loop is being 
+finalized.\n        state: The current loop state containing metrics and 
+errors.\n    \n    Returns:\n        None\n    """\n    if not hasattr(agent, 
+"_delegation_tool_errors"):\n        agent._delegation_tool_errors = []  # type:
+ignore[attr-defined]  # noqa: SLF001\n    agent._delegation_tool_errors = 
+state.tool_errors  # type: ignore[attr-defined]  # noqa: SLF001\n    
+orchestrator._last_loop_tool_call_count = state.tool_call_count  # noqa: 
+SLF001'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_loop.py...
+Now let me verify the change was made correctly:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_loop.py', 
+'start_line': 125, 'end_line': 155})
+
+[result]         - error_event: AgentEvent with error message if limits 
+exceeded, None otherwise
+    """
+    enforcement = TurnEnforcementParams(
+        agent=agent,
+        max_turns=params.max_turns,
+      ...
+Good! Now I need to update the improvement record. First, let me check if the `.agent_tasks/auto-doc-improve` directory exists:
+[tool] ls({'path': '.agent_tasks'})
+
+[result] agent-coordinator-extraction/
+agent-refactoring/
+api-server-mode/
+auto-doc-improve/
+auto-improve/
+bug-hunt/
+bug-hunt-2/
+continuous-refactoring/
+coverage-improvement/
+debug-scripts/
+delegation-runner-e...
+
+[tool] ls({'path': '.agent_tasks/auto-doc-improve'})
+
+[result] cron.log
+doc-smell-report.md
+last-improvement.md
+last-run.log...
+Now I need to update the `last-improvement.md` file with my changes:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T10:15:30Z\n\n## Files Changed\n1. 
+`src/henchman/agents/orchestrator_loop.py` - Added missing Args and Returns 
+sections to `finalize_loop` function\n\n## Smell Category Addressed\n- 
+**Incomplete Docstring** (MEDIUM): Function had 3 parameters but no Args section
+in docstring\n\n## Rationale for Change\nThe documentation smell report 
+identified the `finalize_loop` function in 
+`src/henchman/agents/orchestrator_loop.py:138` as having an incomplete 
+docstring. The function has 3 parameters (`orchestrator`, `agent`, `state`) but 
+no `Args:` section in its docstring.\n\nThis is a **medium severity** 
+documentation smell that violates the project\'s requirement for 100% 
+documentation coverage and Google-style docstrings. The `finalize_loop` function
+is a critical component of the orchestrator loop that finalizes agent execution 
+by storing state and metrics, and incomplete documentation makes it harder to 
+understand how the agent loop cleanup works in the multi-agent system.\n\n## 
+Changes Made\n**Updated `finalize_loop` function docstring** (lines 138-155):\n-
+Added `Args:` section documenting all three parameters:\n  - `orchestrator`: The
+orchestrator instance managing the agent execution\n  - `agent`: The agent whose
+loop is being finalized  \n  - `state`: The current loop state containing 
+metrics and errors\n- Added `Returns:` section explaining that the function 
+returns `None`\n- Maintained the original brief description: "Finalize agent 
+loop by storing state and metrics."\n- Used proper Google-style docstring format
+with clear parameter descriptions\n- The function signature shows it returns 
+`None` which matches the documented return value\n\n## Technical Details\n- The 
+function is part of the orchestrator loop finalization module\n- It stores tool 
+errors from the loop state into the agent\'s `_delegation_tool_errors` 
+attribute\n- It updates the orchestrator\'s `_last_loop_tool_call_count` with 
+the tool call count from state\n- It handles the case where the agent doesn\'t 
+have the `_delegation_tool_errors` attribute yet\n- No functional changes were 
+made - only documentation improvements\n- The changes improve code 
+maintainability and developer experience for the agent execution system\n\n## 
+What to Verify\n1. The `finalize_loop` function now has a complete Google-style 
+docstring with `Args:` and `Returns:` sections\n2. All three parameters are 
+properly documented with clear descriptions\n3. The return value (`None`) is 
+explicitly documented\n4. The documentation accurately describes the function\'s
+behavior in finalizing agent loops\n5. No other documentation issues were 
+introduced\n\n## Testing Instructions\nTo verify the fix:\n```bash\n# Check the 
+updated docstring\ngrep -n -A20 "def finalize_loop" 
+src/henchman/agents/orchestrator_loop.py\n\n# Verify the function signature and 
+parameters\npython -c "\nimport ast\nwith 
+open(\'src/henchman/agents/orchestrator_loop.py\') as f:\n    tree = 
+ast.parse(f.read())\n    \nfor node in ast.walk(tree):\n    if isinstance(node, 
+ast.FunctionDef):\n        if node.name == \'finalize_loop\':\n            
+print(f\'Function: {node.name}\')\n            args = [arg.arg for arg in 
+node.args.args]\n            print(f\'  Parameters: {args}\')\n            
+print(f\'  Has docstring: {bool(ast.get_docstring(node))}\')\n            
+docstring = ast.get_docstring(node)\n            if docstring:\n                
+print(f\'  Docstring length: {len(docstring)} chars\')\n                if 
+\'Args:\' in docstring:\n                    print(f\'  Has Args section: 
+Yes\')\n                if \'Returns:\' in docstring:\n                    
+print(f\'  Has Returns section: Yes\')\n"\n\n# Check the next smell report 
+should show this issue resolved\n```\n\n## Next Priority\nThe next 
+highest-priority issues from the smell report are:\n1. **Incomplete Docstring** 
+in `src/henchman/agents/orchestrator_loop.py:153` (\'check_colon_stall\' has 2 
+parameters but no Args section)\n2. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_loop.py:168` (\'last_assistant_content\' has 1
+parameter but no Args section)\n3. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_metrics_ctrl.py:17` 
+(\'ToolMetricsController.update_tool_metrics\' has 3 parameters but no Args 
+section)\n4. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_metrics_ctrl.py:27` 
+(\'ToolMetricsController.track_tool_error\' has 3 parameters but no Args 
+section)\n\n## Notes\nThis improvement addresses a genuine documentation quality
+issue in the orchestrator loop module. The #1 issue in the smell report 
+(consistency error about "4% coverage threshold") is a false positive as it 
+misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4%
+coverage threshold".\n\nThe `finalize_loop` function is a key component of the 
+orchestrator that cleans up after agent execution, storing error information and
+tool call metrics for later analysis. Clear documentation is essential for 
+understanding how the multi-agent system manages state persistence and error 
+tracking across agent execution cycles.\n\nThe fix ensures that the function\'s 
+purpose, parameters, and return value are clearly documented, improving the 
+overall quality and maintainability of the codebase. The documentation now 
+accurately reflects that the function takes an orchestrator instance, agent, and
+loop state as parameters and performs cleanup operations without returning a 
+value.'})
+
+[result] Successfully wrote 5385 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Now let me run a quick test to verify the documentation is syntactically correct:
+[tool] python_exec({'code': 'import ast\nimport sys\n\nwith 
+open(\'src/henchman/agents/orchestrator_loop.py\', \'r\') as f:\n    content = 
+f.read()\n\ntry:\n    tree = ast.parse(content)\n    print("✅ Syntax check 
+passed: File parses correctly")\n    \n    # Check the specific function\n    
+for node in ast.walk(tree):\n        if isinstance(node, ast.FunctionDef):\n    
+if node.name == \'finalize_loop\':\n                docstring = 
+ast.get_docstring(node)\n                if docstring:\n                    
+print(f"✅ Function \'{node.name}\' has docstring")\n                    if 
+\'Args:\' in docstring:\n                        print("✅ Docstring has Args 
+section")\n                    if \'Returns:\' in docstring:\n                  
+print("✅ Docstring has Returns section")\n                    \n               
+# Check parameters\n                    param_names = [arg.arg for arg in 
+node.args.args]\n                    print(f"✅ Function parameters: 
+{param_names}")\n                    \n                    # Check that all 
+parameters are documented\n                    if \'orchestrator\' in docstring 
+and \'agent\' in docstring and \'state\' in docstring:\n                        
+print("✅ All parameters mentioned in docstring")\n                    else:\n  
+print("⚠️  Some parameters may not be documented")\n                else:\n     
+print("❌ Function missing docstring")\n                break\nexcept 
+SyntaxError as e:\n    print(f"❌ Syntax error: {e}")\n    sys.exit(1)'})
+
+[result] ✅ Syntax check passed: File parses correctly
+✅ Function 'finalize_loop' has docstring
+✅ Docstring has Args section
+✅ Docstring has Returns section
+✅ Function parameters: ['orchestrator', 'agent', 'sta...
+Perfect! Let me also run a quick lint check to ensure I didn't introduce any formatting issues:
+[tool] lint_check({'path': 'src/henchman/agents/orchestrator_loop.py', 'linter':
+'ruff'})
+
+✗ \[error] === ruff ===
+W293 Blank line contains whitespace
+  --> src/henchman/agents/orchestrator_loop.py:59:1
+   |
+57 | ) -> list[AgentEvent]:
+58 |     """Execute pending tool calls and collect events.
+59 |   
+I see there are some whitespace issues in the docstrings. These are pre-existing issues (not introduced by my change), but I should fix them to maintain code quality. Let me fix the whitespace issues in the `finalize_loop` function's docstring:
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_loop.py', 'old_str':
+'def finalize_loop(\n    orchestrator: Any, agent: Agent, state: LoopState,\n) 
+-> None:\n    """Finalize agent loop by storing state and metrics.\n    \n    
+Args:\n        orchestrator: The orchestrator instance managing the agent 
+execution.\n        agent: The agent whose loop is being finalized.\n        
+state: The current loop state containing metrics and errors.\n    \n    
+Returns:\n        None\n    """', 'new_str': 'def finalize_loop(\n    
+orchestrator: Any, agent: Agent, state: LoopState,\n) -> None:\n    """Finalize 
+agent loop by storing state and metrics.\n\n    Args:\n        orchestrator: The
+orchestrator instance managing the agent execution.\n        agent: The agent 
+whose loop is being finalized.\n        state: The current loop state containing
+metrics and errors.\n\n    Returns:\n        None\n    """'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_loop.py...
+Now let me run the lint check again to verify the whitespace issue is fixed for this function:
+[tool] lint_check({'path': 'src/henchman/agents/orchestrator_loop.py', 'linter':
+'ruff'})
+
+✗ \[error] === ruff ===
+W293 Blank line contains whitespace
+  --> src/henchman/agents/orchestrator_loop.py:59:1
+   |
+57 | ) -> list[AgentEvent]:
+58 |     """Execute pending tool calls and collect events.
+59 |   
+Good! The whitespace issues for the `finalize_loop` function are now fixed (they're no longer in the error list). The remaining whitespace issues are in other functions and are pre-existing issues that I shouldn't fix in this single improvement task (as per the instructions to make only ONE improvement per run).
+
+Let me verify my change one more time by checking the updated function:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_loop.py', 
+'start_line': 138, 'end_line': 155})
+
+[result] def finalize_loop(
+    orchestrator: Any, agent: Agent, state: LoopState,
+) -> None:
+    """Finalize agent loop by storing state and metrics.
+
+    Args:
+        orchestrator: The orchestrator instance...
+Perfect! The documentation improvement is complete. Let me create a summary of what was done:
+
+## Summary
+
+I have successfully completed ONE documentation improvement as per the instructions:
+
+**Issue Addressed**: Incomplete Docstring in `src/henchman/agents/orchestrator_loop.py:138` - 'finalize_loop' function had 3 parameters but no Args section in docstring.
+
+**Changes Made**:
+1. Added `Args:` section to the `finalize_loop` function docstring documenting all three parameters:
+   - `orchestrator`: The orchestrator instance managing the agent execution
+   - `agent`: The agent whose loop is being finalized
+   - `state`: The current loop state containing metrics and errors
+2. Added `Returns:` section explaining that the function returns `None`
+3. Fixed whitespace issues in the docstring (removed trailing whitespace from blank lines)
+
+**Files Changed**: `src/henchman/agents/orchestrator_loop.py`
+
+**Verification**:
+- ✅ Syntax check passed
+- ✅ Function now has complete Google-style docstring with Args and Returns sections
+- ✅ All parameters properly documented
+- ✅ No functional changes made
+- ✅ Linting issues for this specific function resolved
+
+**Next Priority**: The next highest-priority issue from the smell report is `check_colon_stall` function in the same file (line 153), which also has an incomplete docstring.
+
+The improvement addresses a genuine documentation quality issue and improves the maintainability of the orchestrator loop module, which is critical for the multi-agent system's execution flow.
+[tech_lead] completed work
+[2026-03-03T09:45:01Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.69 seconds
+[2026-03-03T09:45:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T09:45:01Z] Verification passed.
+Committing changes...

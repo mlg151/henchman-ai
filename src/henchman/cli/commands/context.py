@@ -27,7 +27,7 @@ _COMPACTION_THRESHOLD_MIN_VALUE: float = 0.1
 @dataclass
 class StrategyParameters:
     """Data class for strategy parameters to reduce primitive obsession.
-    
+
     Attributes:
         max_tokens: Maximum tokens before compaction.
         compaction_threshold: Compaction threshold (0.1-1.0).
@@ -35,6 +35,7 @@ class StrategyParameters:
         cluster_similarity_threshold: Cluster similarity threshold (0.0-1.0).
         adaptive_compression: Whether adaptive compression is enabled.
     """
+
     max_tokens: int
     compaction_threshold: float
     importance_threshold: float
@@ -149,6 +150,23 @@ class ContextConsoleHelper:
         show_intelligent_context: bool = False,
     ) -> None:
         """Print context settings values with consistent formatting.
+
+        Args:
+            console: Console for output.
+            context_settings: Context settings to display.
+            show_intelligent_context: Whether to show intelligent context status.
+        """
+        self._print_settings_section(
+            console, context_settings, show_intelligent_context=show_intelligent_context
+        )
+
+    def _print_settings_section(
+        self,
+        console: Console,
+        context_settings: ContextSettings,
+        show_intelligent_context: bool = False,
+    ) -> None:
+        """Print a section of context settings (extracted for reuse).
 
         Args:
             console: Console for output.
@@ -347,14 +365,14 @@ class StrategyManager:
             return
 
     async def _update_context_setting(
-        self, ctx: CommandContext, param_name: str, value: Any, display_value: str
+        self, ctx: CommandContext, param_name: str, value: int | float | bool, display_value: str
     ) -> None:
         """Helper to update a context setting and save it.
 
         Args:
             ctx: Command context.
             param_name: Name of the setting in ContextSettings.
-            value: New value for the setting.
+            value: New value for the setting (int, float, or bool).
             display_value: Formatted value string for success message.
         """
         settings = load_settings()
