@@ -10,6 +10,7 @@ Note: Extracted from ``textual_app.py`` to keep modules under 500 lines.
 from __future__ import annotations
 
 import io
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from rich.console import Console as RichConsole
@@ -196,6 +197,20 @@ class EventBridge:
 
     # -- helper methods for event handling --
 
+    def _post_message_if_data_exists(
+        self, event: AgentEvent, message_class: type[Any], transform_data: Callable[[Any], Any] | None = None
+    ) -> None:
+        """Post a message with event data if present.
+
+        Args:
+            event: The AgentEvent containing data.
+            message_class: The Textual message class to instantiate.
+            transform_data: Optional function to transform event data before posting.
+        """
+        if event.data:
+            data = transform_data(event.data) if transform_data else event.data
+            self._post(message_class(data, event.source_agent))
+
     def _post_data_message(
         self, event: AgentEvent, message_class: type[Any], prefix: str = ""
     ) -> None:
@@ -228,8 +243,7 @@ class EventBridge:
             event: The AgentEvent containing tool data.
             message_class: The Textual message class for tools.
         """
-        if event.data:
-            self._post(message_class(event.data, event.source_agent))
+        self._post_message_if_data_exists(event, message_class)
 
     def _post_status_message(self, event: AgentEvent, text: str) -> None:
         """Post an AgentStatusMessage with given text.

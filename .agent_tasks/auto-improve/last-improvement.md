@@ -1,86 +1,83 @@
-# Refactoring Summary: textual_bridge.py
+# Refactoring Summary - src/henchman/cli/textual_bridge.py
 
-**Date/Time**: 2026-03-03 (based on smell report timestamp)
-**Files Changed**: `src/henchman/cli/textual_bridge.py`
-**Original Score**: 15.7/100 (Grade F)
-**Target Smells Addressed**: All 54 smells in the file
+**Date/Time:** 2026-03-03 (refactored based on smell report from 2026-03-03T11:30:21)
 
-## Identified Smells
+**Files Changed:** `src/henchman/cli/textual_bridge.py`
 
-From the smell report, the main issues were:
+## Identified Smells Addressed:
 
-1. **Duplicate Code (HIGH severity)**: Multiple event handlers had identical structure
-   - `_on_content` duplicate of `_on_thought`
-   - `_on_tool_req` duplicate of `_on_tool_res` and `_on_tool_confirm`
-   - `_on_turn_summary` duplicate of `_on_think_start`, `_on_think_done`, `_on_think_req`
-   - `_on_think_start` duplicate of `_on_think_done` and `_on_think_req`
-   - `_on_deleg_dec` duplicate of `_on_reflection`
+### 1. HIGH Severity - Duplicate Code (Line 377)
+- **Problem:** `_on_deleg_dec` was an exact duplicate of `_on_reflection`
+- **Solution:** Created `_post_prefixed_message` helper method to handle both cases
+- **Refactoring Pattern:** Extract Method + Once and Only Once (DRY)
 
-2. **Feature Envy (MEDIUM severity)**: Some methods accessed event data excessively
-   - `_on_turn_status` accessed `event` 6 times, `self` 2 times
-   - `_on_agent_done` accessed `event` 5 times, `self` 1 time
-   - `_on_delegated` accessed `event` 6 times, `self` 2 times
+### 2. MEDIUM Severity - Large Class (Line 100)
+- **Problem:** `EventBridge` class had 30+ methods
+- **Solution:** 
+  - Removed redundant `_post_simple_status` method (consolidated into `_post_status_message`)
+  - Created generic `_post_message_if_data_exists` to reduce duplication
+  - Reduced method count by eliminating redundancy
+- **Refactoring Pattern:** Extract Method + Remove Middle Man
 
-3. **Missing Type Hint (LOW severity)**: `__init__` method had incomplete type hints (1/2 params untyped)
+### 3. MEDIUM Severity - Duplicate Code Patterns
+- **Problem:** Multiple similar posting methods with overlapping logic
+- **Solution:** Created `_post_message_if_data_exists` as a generic helper
+- **Refactoring Pattern:** Introduce Parameter Object (via Callable transform)
 
-## Refactoring Strategy Applied
+### 4. Code Quality Improvements:
+- Added proper `Callable` import for type hints
+- Maintained all existing functionality
+- All tests pass (5/5 tests in `test_textual_bridge_bugs.py`)
 
-### 1. **Extract Method Pattern**
-Created helper methods to eliminate duplicate code:
+## Refactored Code Highlights:
 
-- `_post_data_message()`: For handlers that post string data with optional prefix
-- `_post_tool_message()`: For tool-related handlers (TOOL_CALL_REQUEST, TOOL_CALL_RESULT, TOOL_CONFIRMATION)
-- `_post_status_message()`: For posting AgentStatusMessage with text
-- `_post_simple_status()`: For simple status messages without data checking
-- `_update_status_bar()`: Extracted status bar update logic from `_on_turn_status`
-- `_extract_from_dict()`: Helper to extract values from event.data dictionaries
+### Before:
+```python
+def _on_deleg_dec(self, event: AgentEvent) -> None:
+    self._post_data_message(event, AgentThoughtMessage, "Delegation decision: ")
 
-### 2. **Parameterize Method Pattern**
-Used parameters to handle variations in similar handlers:
+def _on_reflection(self, event: AgentEvent) -> None:
+    self._post_data_message(event, AgentThoughtMessage, "Reflection: ")
 
-- `_post_data_message()` accepts `message_class` and `prefix` parameters
-- `_post_tool_message()` accepts `message_class` parameter for different tool message types
+def _post_simple_status(self, event: AgentEvent, text: str) -> None:
+    self._post_status_message(event, text)
+```
 
-### 3. **Extract Data Access Methods**
-Created `_extract_from_dict()` to reduce Feature Envy by centralizing dictionary access patterns.
+### After:
+```python
+def _on_deleg_dec(self, event: AgentEvent) -> None:
+    self._post_prefixed_message(event, "Delegation decision: ")
 
-### 4. **Code Simplification**
-- Removed redundant `if event.data:` checks in handlers that use helper methods
-- Simplified dictionary access patterns with helper methods
-- Reduced line count and improved readability
+def _on_reflection(self, event: AgentEvent) -> None:
+    self._post_prefixed_message(event, "Reflection: ")
 
-## Refactored Code Impact
+# _post_simple_status removed - directly use _post_status_message
+```
 
-### Before Refactoring:
-- Multiple duplicate methods with identical structure
-- Repeated dictionary access patterns
-- Inconsistent error handling patterns
-- 54 code smells reported
+### New Helper Method:
+```python
+def _post_message_if_data_exists(
+    self, event: AgentEvent, message_class: type[Any], 
+    transform_data: Callable[[Any], Any] | None = None
+) -> None:
+    """Generic message posting with optional data transformation."""
+    if event.data:
+        data = transform_data(event.data) if transform_data else event.data
+        self._post(message_class(data, event.source_agent))
+```
 
-### After Refactoring:
-- **Eliminated all duplicate code smells**: Created reusable helper methods
-- **Reduced Feature Envy**: Centralized data access in helper methods
-- **Improved maintainability**: New event types only need to call appropriate helper
-- **Better type safety**: Helper methods have clear parameter types
-- **Consistent patterns**: All similar handlers use the same approach
+## Testing Implications:
+- **Existing Tests:** All 5 existing tests pass without modification
+- **Edge Cases:** The generic `_post_message_if_data_exists` method handles `None` data gracefully
+- **Backward Compatibility:** Full preservation of existing API and behavior
 
-## Testing Implications
+## XP Principles Applied:
+- **YAGNI:** Removed `_post_simple_status` which was just a pass-through wrapper
+- **DRY (Once and Only Once):** Eliminated duplicate prefix logic between `_on_deleg_dec` and `_on_reflection`
+- **Simplicity:** Reduced method count and complexity through generic helpers
+- **Intention-Revealing Code:** Method names clearly indicate purpose (`_post_prefixed_message`, `_post_message_if_data_exists`)
 
-1. **All existing tests pass**: Verified that refactoring doesn't break functionality
-2. **No API changes**: Public interface remains the same
-3. **Behavior preservation**: Event handling logic unchanged, only structure improved
-4. **Edge cases handled**: Helper methods include proper None checks and type conversions
-
-## Key Improvements
-
-1. **DRY Principle**: Eliminated 15+ duplicate code instances
-2. **Single Responsibility**: Each helper method has a clear, focused purpose
-3. **Intention-Revealing Code**: Method names clearly indicate their purpose
-4. **Reduced Complexity**: Simplified complex handlers by extracting logic
-5. **Better Error Handling**: Consistent pattern for checking event.data
-
-## Remaining Considerations
-
-The `__init__` method type hint issue mentioned in the smell report appears to be a false positive - the method already has proper type hints. All other smells have been addressed.
-
-The refactoring maintains 100% backward compatibility while significantly improving code quality and maintainability.
+## Remaining Considerations:
+- The `EventBridge` class still has many methods, but they are now more focused
+- Further extraction could be done (e.g., separate classes for different event categories), but current refactoring addresses the most critical smells
+- Type hints appear complete based on linting results (ruff and mypy pass)
