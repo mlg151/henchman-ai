@@ -260,7 +260,15 @@ def dispatch_event(
     agent: Agent,
     content_collector: list[str] | None,
 ) -> None:
-    """Update *state* and call the appropriate handler for *event*."""
+    """Update *state* and call the appropriate handler for *event*.
+    
+    Args:
+        output_handler: The output handler for console output.
+        event: The agent event to dispatch.
+        state: The current stream processing state.
+        agent: The agent associated with the event.
+        content_collector: Optional list to collect content for headless mode.
+    """
     update_processing_state(output_handler, state, event, agent)
     match event.type:
         case EventType.CONTENT:

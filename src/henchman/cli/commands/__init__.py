@@ -73,7 +73,7 @@ class Command(ABC):
 
     @property
     @abstractmethod
-    def name(self) -> str:
+    def name(self: Command) -> str:
         """Command name (without slash).
 
         Returns:
@@ -82,7 +82,7 @@ class Command(ABC):
 
     @property
     @abstractmethod
-    def description(self) -> str:
+    def description(self: Command) -> str:
         """Short description of the command.
 
         Returns:
@@ -91,7 +91,7 @@ class Command(ABC):
 
     @property
     @abstractmethod
-    def usage(self) -> str:
+    def usage(self: Command) -> str:
         """Usage string showing command syntax.
 
         Returns:
@@ -99,7 +99,7 @@ class Command(ABC):
         """
 
     @abstractmethod
-    async def execute(self, ctx: CommandContext) -> None:
+    async def execute(self: Command, ctx: CommandContext) -> None:
         """Execute the command.
 
         Args:
@@ -118,7 +118,7 @@ class BaseCommand(Command):
     _help_command_name: str = ""
     _help_lines: ClassVar[list[str]] = []
 
-    async def _show_help(self, ctx: CommandContext) -> None:
+    async def _show_help(self: BaseCommand, ctx: CommandContext) -> None:
         """Show help for this command.
 
         Args:
@@ -135,11 +135,11 @@ class BaseCommand(Command):
 class CommandRegistry:
     """Registry for slash commands."""
 
-    def __init__(self) -> None:
+    def __init__(self: CommandRegistry) -> None:
         """Initialize an empty command registry."""
         self._commands: dict[str, Command] = {}
 
-    def register(self, command: Command) -> None:
+    def register(self: CommandRegistry, command: Command) -> None:
         """Register a command.
 
         Args:
@@ -147,7 +147,7 @@ class CommandRegistry:
         """
         self._commands[command.name] = command
 
-    def get(self, name: str) -> Command | None:
+    def get(self: CommandRegistry, name: str) -> Command | None:
         """Get a command by name.
 
         Args:
@@ -158,7 +158,7 @@ class CommandRegistry:
         """
         return self._commands.get(name)
 
-    def get_commands(self) -> list[Command]:
+    def get_commands(self: CommandRegistry) -> list[Command]:
         """Get all registered commands.
 
         Returns:
@@ -166,15 +166,15 @@ class CommandRegistry:
         """
         return list(self._commands.values())
 
-    def list_commands(self) -> list[str]:
+    def list_commands(self: CommandRegistry) -> list[str]:
         """List all registered command names.
 
         Returns:
-            List of command names.
+            List of command names, derived from registered command objects.
         """
-        return list(self._commands.keys())
+        return [cmd.name for cmd in self.get_commands()]
 
-    async def execute(self, name: str, ctx: CommandContext) -> None:
+    async def execute(self: CommandRegistry, name: str, ctx: CommandContext) -> None:
         """Execute a command by name.
 
         Args:

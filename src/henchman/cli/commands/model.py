@@ -39,7 +39,13 @@ def _get_env_vars(provider_name: str) -> str:
     env_var = get_env_var_for_provider(provider_name)
 
     if env_var == "HENCHMAN_API_KEY":
-        _known_henchman = {"openai_compat", "together", "groq", "fireworks", "openrouter"}
+        _known_henchman = {
+            "openai_compat",
+            "together",
+            "groq",
+            "fireworks",
+            "openrouter",
+        }
         _own_env_var = {"deepseek", "openai", "anthropic"}
         if provider_name not in _known_henchman and provider_name not in _own_env_var:
             return "Check provider documentation"
@@ -68,7 +74,9 @@ def _get_api_key_for_provider(provider_name: str) -> str | None:
     return None
 
 
-def _print_current_configuration(console: Any, provider: Any, available: list[str]) -> None:
+def _print_current_configuration(
+    console: Any, provider: Any, available: list[str],
+) -> None:
     """Print current provider and model configuration."""
     console.print("\n[bold blue]Current Configuration[/]\n")
     console.print(f"  Provider: [cyan]{provider.name}[/]")
@@ -80,7 +88,9 @@ def _print_current_configuration(console: Any, provider: Any, available: list[st
     console.print("")
 
 
-def _print_provider_entry(console: Any, provider_name: str, provider_class: Any) -> None:
+def _print_provider_entry(
+    console: Any, provider_name: str, provider_class: Any,
+) -> None:
     """Print a single provider entry in the listing."""
     console.print(f"  [cyan]{provider_name}[/]")
     if hasattr(provider_class, "__doc__") and provider_class.__doc__:
@@ -119,7 +129,10 @@ async def _list_providers(ctx: CommandContext) -> None:
 
 
 def _test_provider_connection(
-    console: Any, provider: Any, provider_name: str, model_name: str | None,
+    console: Any,
+    provider: Any,
+    provider_name: str,
+    model_name: str | None,
 ) -> None:
     """Test provider connection and print results."""
     console.print(f"[dim]Testing {provider_name} connection...[/]")
@@ -129,7 +142,9 @@ def _test_provider_connection(
             if model_name:
                 console.print(f"[green]✓ Using model: {model_name}[/]")
             else:
-                console.print(f"[green]✓ Using default model: {provider.default_model}[/]")
+                console.print(
+                    f"[green]✓ Using default model: {provider.default_model}[/]",
+                )
         else:
             console.print(f"[green]✓ Connected to {provider_name}[/]")
     except Exception as e:  # noqa: BLE001
@@ -154,7 +169,9 @@ def _update_agent_provider(ctx: CommandContext, new_provider: Any) -> bool:
 
 
 def _show_configuration_warnings(
-    ctx: CommandContext, provider_name: str, api_key: str | None,
+    ctx: CommandContext,
+    provider_name: str,
+    api_key: str | None,
 ) -> None:
     """Show configuration warnings if API key is missing."""
     if api_key:
@@ -174,13 +191,17 @@ def _validate_provider_exists(ctx: CommandContext, provider_name: str) -> bool:
     registry = get_default_registry()
     if provider_name not in registry.list_providers():
         ctx.console.print(f"[red]Provider '{provider_name}' not found.[/]")
-        ctx.console.print(f"Available providers: {', '.join(registry.list_providers())}")
+        ctx.console.print(
+            f"Available providers: {', '.join(registry.list_providers())}",
+        )
         return False
     return True
 
 
 def _create_provider_instance(
-    provider_name: str, model_name: str | None, api_key: str | None,
+    provider_name: str,
+    model_name: str | None,
+    api_key: str | None,
 ) -> Any:
     """Create and return a new provider instance."""
     registry = get_default_registry()
@@ -244,7 +265,9 @@ class ModelCommand(Command):
             model_name: Optional model name to use.
         """
         if not ctx.repl:
-            ctx.console.print("[yellow]Cannot switch providers without REPL context.[/]")
+            ctx.console.print(
+                "[yellow]Cannot switch providers without REPL context.[/]",
+            )
             return
 
         try:
@@ -253,7 +276,9 @@ class ModelCommand(Command):
 
             api_key = _get_api_key_for_provider(provider_name)
             new_provider = _create_provider_instance(provider_name, model_name, api_key)
-            _test_provider_connection(ctx.console, new_provider, provider_name, model_name)
+            _test_provider_connection(
+                ctx.console, new_provider, provider_name, model_name,
+            )
 
             if not _update_agent_provider(ctx, new_provider):
                 return

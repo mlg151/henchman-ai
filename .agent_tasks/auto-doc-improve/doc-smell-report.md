@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 97.1/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T17:15:02.606268+00:00_
+_Generated: 2026-03-03T17:30:02.868608+00:00_
 
 ## Executive Summary
 
@@ -11,21 +11,21 @@ _Generated: 2026-03-03T17:15:02.606268+00:00_
 | **Overall Score** | 97.1/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 167 |
-| **Total Smells** | 305 |
+| **Total Smells** | 302 |
 | **Docstring Coverage** | 99.3% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 275 |
-| medium | 30 |
+| low | 274 |
+| medium | 28 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 291 |
+| Incomplete Docstring | 288 |
 | Missing Docstring | 10 |
 | Stale Content | 2 |
 | Config Issue | 1 |
@@ -39,81 +39,81 @@ These are the highest-impact documentation smells to address first:
    States coverage threshold of 4% but other files require 100%. Found thresholds: 100%, 4%  
    → _Align all coverage requirements to 100% (the strictest value)._
 
-2. **src/henchman/cli/stream_event_handlers.py:52** — 🟡 MEDIUM — Incomplete Docstring  
-   'determine_event_ownership' has 2 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: event, agent_
-
-3. **src/henchman/cli/stream_event_handlers.py:63** — 🟡 MEDIUM — Incomplete Docstring  
-   'update_processing_state' has 4 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: output_handler, state, event, agent_
-
-4. **src/henchman/cli/stream_event_handlers.py:241** — 🟡 MEDIUM — Incomplete Docstring  
+2. **src/henchman/cli/stream_event_handlers.py:256** — 🟡 MEDIUM — Incomplete Docstring  
    'dispatch_event' has 5 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: output_handler, event, state, agent, content_collector_
 
-5. **src/henchman/cli/stream_event_handlers.py:276** — 🟡 MEDIUM — Incomplete Docstring  
+3. **src/henchman/cli/stream_event_handlers.py:291** — 🟡 MEDIUM — Incomplete Docstring  
    'handle_post_stream_processing' has 5 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: output_handler, state, agent, content_collector, execute_tool_calls_fn_
 
-6. **src/henchman/cli/stream_event_handlers.py:319** — 🟡 MEDIUM — Incomplete Docstring  
+4. **src/henchman/cli/stream_event_handlers.py:334** — 🟡 MEDIUM — Incomplete Docstring  
    'build_confirmation_message' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: request_
 
-7. **src/henchman/cli/textual_driver.py:1** — 🟡 MEDIUM — Missing Docstring  
+5. **src/henchman/cli/textual_driver.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-8. **src/henchman/cli/textual_messages.py:47** — 🟡 MEDIUM — Missing Docstring  
+6. **src/henchman/cli/textual_messages.py:47** — 🟡 MEDIUM — Missing Docstring  
    Public function 'AgentContentMessage.content' is missing a docstring  
    → _Add a Google-style docstring to 'AgentContentMessage.content'._
 
-9. **src/henchman/cli/textual_messages.py:55** — 🟡 MEDIUM — Missing Docstring  
+7. **src/henchman/cli/textual_messages.py:55** — 🟡 MEDIUM — Missing Docstring  
    Public function 'AgentThoughtMessage.thought' is missing a docstring  
    → _Add a Google-style docstring to 'AgentThoughtMessage.thought'._
 
-10. **src/henchman/cli/textual_messages.py:63** — 🟡 MEDIUM — Missing Docstring  
+8. **src/henchman/cli/textual_messages.py:63** — 🟡 MEDIUM — Missing Docstring  
    Public function 'ToolCallRequestMessage.tool_call' is missing a docstring  
    → _Add a Google-style docstring to 'ToolCallRequestMessage.tool_call'._
 
-11. **src/henchman/cli/textual_messages.py:71** — 🟡 MEDIUM — Missing Docstring  
+9. **src/henchman/cli/textual_messages.py:71** — 🟡 MEDIUM — Missing Docstring  
    Public function 'ToolCallResultMessage.result' is missing a docstring  
    → _Add a Google-style docstring to 'ToolCallResultMessage.result'._
 
-12. **src/henchman/cli/textual_messages.py:79** — 🟡 MEDIUM — Missing Docstring  
+10. **src/henchman/cli/textual_messages.py:79** — 🟡 MEDIUM — Missing Docstring  
    Public function 'ToolConfirmationMessage.request' is missing a docstring  
    → _Add a Google-style docstring to 'ToolConfirmationMessage.request'._
 
-13. **src/henchman/cli/textual_messages.py:87** — 🟡 MEDIUM — Missing Docstring  
+11. **src/henchman/cli/textual_messages.py:87** — 🟡 MEDIUM — Missing Docstring  
    Public function 'AgentStatusMessage.status' is missing a docstring  
    → _Add a Google-style docstring to 'AgentStatusMessage.status'._
 
-14. **src/henchman/cli/textual_messages.py:128** — 🟡 MEDIUM — Missing Docstring  
+12. **src/henchman/cli/textual_messages.py:128** — 🟡 MEDIUM — Missing Docstring  
    Public function 'CommandOutputMessage.text' is missing a docstring  
    → _Add a Google-style docstring to 'CommandOutputMessage.text'._
 
-15. **src/henchman/cli/textual_messages.py:147** — 🟡 MEDIUM — Missing Docstring  
+13. **src/henchman/cli/textual_messages.py:147** — 🟡 MEDIUM — Missing Docstring  
    Public function 'SwitchProviderMessage.provider_name' is missing a docstring  
    → _Add a Google-style docstring to 'SwitchProviderMessage.provider_name'._
 
-16. **src/henchman/cli/textual_widgets.py:246** — 🟡 MEDIUM — Incomplete Docstring  
+14. **src/henchman/cli/textual_widgets.py:246** — 🟡 MEDIUM — Incomplete Docstring  
    'CollapsibleMessage.content' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: value_
 
-17. **src/henchman/core/agent.py:253** — 🟡 MEDIUM — Incomplete Docstring  
+15. **src/henchman/core/agent.py:253** — 🟡 MEDIUM — Incomplete Docstring  
    'Agent.submit_tool_result' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: tool_call_id, result_
 
-18. **src/henchman/core/eventbus.py:1** — 🟡 MEDIUM — Missing Docstring  
+16. **src/henchman/core/eventbus.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-19. **src/henchman/core/session_manager.py:51** — 🟡 MEDIUM — Incomplete Docstring  
+17. **src/henchman/core/session_manager.py:51** — 🟡 MEDIUM — Incomplete Docstring  
    'SessionManager.branch_session' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: session_id, branch_point, tag_
 
-20. **src/henchman/core/session_manager.py:67** — 🟡 MEDIUM — Incomplete Docstring  
+18. **src/henchman/core/session_manager.py:67** — 🟡 MEDIUM — Incomplete Docstring  
    'SessionManager.merge_sessions' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: session_ids, strategy, tag_
+
+19. **src/henchman/core/session_manager.py:92** — 🟡 MEDIUM — Incomplete Docstring  
+   'SessionManager.export_session' has 3 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: session_id, format, include_metadata_
+
+20. **src/henchman/core/session_manager.py:113** — 🟡 MEDIUM — Incomplete Docstring  
+   'SessionManager.import_session' has 3 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: data, format, tag_
 
 
 ## 📊 Files Ranked by Quality
@@ -124,9 +124,9 @@ These are the highest-impact documentation smells to address first:
 | 2 | src/henchman/core/session_manager.py | ❌ F | 49.0 | 15 | 2026-02-28 |
 | 3 | src/henchman/cli/console.py | ❌ F | 56.0 | 22 | 2026-03-03 |
 | 4 | src/henchman/cli/textual_messages.py | 🔶 D | 60.0 | 8 | 2026-03-03 |
-| 5 | src/henchman/cli/stream_event_handlers.py | 🔶 D | 65.0 | 10 | 2026-03-01 |
-| 6 | src/henchman/cli/commands/session.py | 🔶 D | 66.0 | 17 | 2026-03-03 |
-| 7 | src/henchman/agents/metrics.py | ⚠️ C | 76.0 | 12 | 2026-03-03 |
+| 5 | src/henchman/cli/commands/session.py | 🔶 D | 66.0 | 17 | 2026-03-03 |
+| 6 | src/henchman/agents/metrics.py | ⚠️ C | 76.0 | 12 | 2026-03-03 |
+| 7 | src/henchman/cli/stream_event_handlers.py | ⚠️ C | 77.0 | 7 | 2026-03-03 |
 | 8 | src/henchman/metrics/storage.py | 👍 B | 82.0 | 6 | 2026-03-03 |
 | 9 | src/henchman/utils/validation.py | 👍 B | 83.0 | 4 | 2026-03-03 |
 | 10 | src/henchman/cli/ui_renderer.py | 👍 B | 84.0 | 8 | 2026-03-03 |
@@ -225,23 +225,6 @@ Public APIs: 17 | Documented: 9 | Coverage: 53.0%
 | 128 | 🟡 MEDIUM | Missing Docstring | Public function 'CommandOutputMessage.text' is missing a docstring | Add a Google-style docstring to 'CommandOutputMessage.text'. |
 | 147 | 🟡 MEDIUM | Missing Docstring | Public function 'SwitchProviderMessage.provider_name' is missing a docstring | Add a Google-style docstring to 'SwitchProviderMessage.provider_name'. |
 
-### src/henchman/cli/stream_event_handlers.py — 🔶 D (65.0/100) (last modified 2026-03-01)
-
-Public APIs: 6 | Documented: 6 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 52 | 🟡 MEDIUM | Incomplete Docstring | 'determine_event_ownership' has 2 parameter(s) but no Args: section in docstring | Add an Args: section documenting: event, agent |
-| 63 | 🟡 MEDIUM | Incomplete Docstring | 'update_processing_state' has 4 parameter(s) but no Args: section in docstring | Add an Args: section documenting: output_handler, state, event, agent |
-| 241 | 🟡 MEDIUM | Incomplete Docstring | 'dispatch_event' has 5 parameter(s) but no Args: section in docstring | Add an Args: section documenting: output_handler, event, state, agent, content_collector |
-| 276 | 🟡 MEDIUM | Incomplete Docstring | 'handle_post_stream_processing' has 5 parameter(s) but no Args: section in docstring | Add an Args: section documenting: output_handler, state, agent, content_collector, execute_tool_calls_fn |
-| 319 | 🟡 MEDIUM | Incomplete Docstring | 'build_confirmation_message' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: request |
-| 52 | 🟢 LOW | Incomplete Docstring | 'determine_event_ownership' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'determine_event_ownership'. |
-| 63 | 🟢 LOW | Incomplete Docstring | 'update_processing_state' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'update_processing_state'. |
-| 241 | 🟢 LOW | Incomplete Docstring | 'dispatch_event' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'dispatch_event'. |
-| 276 | 🟢 LOW | Incomplete Docstring | 'handle_post_stream_processing' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'handle_post_stream_processing'. |
-| 319 | 🟢 LOW | Incomplete Docstring | 'build_confirmation_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'build_confirmation_message'. |
-
 ### src/henchman/cli/commands/session.py — 🔶 D (66.0/100) (last modified 2026-03-03)
 
 Public APIs: 45 | Documented: 45 | Coverage: 100.0%
@@ -284,6 +267,20 @@ Public APIs: 19 | Documented: 19 | Coverage: 100.0%
 | 285 | 🟢 LOW | Incomplete Docstring | 'OrchestratorMetrics.reset_for_run' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OrchestratorMetrics.reset_for_run'. |
 | 296 | 🟢 LOW | Incomplete Docstring | 'OrchestratorMetrics.calculate_final_metrics' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OrchestratorMetrics.calculate_final_metrics'. |
 | 312 | 🟢 LOW | Incomplete Docstring | 'OrchestratorMetrics.update_tool_metrics' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OrchestratorMetrics.update_tool_metrics'. |
+
+### src/henchman/cli/stream_event_handlers.py — ⚠️ C (77.0/100) (last modified 2026-03-03)
+
+Public APIs: 6 | Documented: 6 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 256 | 🟡 MEDIUM | Incomplete Docstring | 'dispatch_event' has 5 parameter(s) but no Args: section in docstring | Add an Args: section documenting: output_handler, event, state, agent, content_collector |
+| 291 | 🟡 MEDIUM | Incomplete Docstring | 'handle_post_stream_processing' has 5 parameter(s) but no Args: section in docstring | Add an Args: section documenting: output_handler, state, agent, content_collector, execute_tool_calls_fn |
+| 334 | 🟡 MEDIUM | Incomplete Docstring | 'build_confirmation_message' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: request |
+| 71 | 🟢 LOW | Incomplete Docstring | 'update_processing_state' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'update_processing_state'. |
+| 256 | 🟢 LOW | Incomplete Docstring | 'dispatch_event' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'dispatch_event'. |
+| 291 | 🟢 LOW | Incomplete Docstring | 'handle_post_stream_processing' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'handle_post_stream_processing'. |
+| 334 | 🟢 LOW | Incomplete Docstring | 'build_confirmation_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'build_confirmation_message'. |
 
 ### src/henchman/metrics/storage.py — 👍 B (82.0/100) (last modified 2026-03-03)
 
@@ -331,12 +328,12 @@ Public APIs: 18 | Documented: 18 | Coverage: 100.0%
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
 | 74 | 🟢 LOW | Incomplete Docstring | 'RangeParameterConfig.validate_value' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'RangeParameterConfig.validate_value'. |
-| 120 | 🟢 LOW | Incomplete Docstring | 'ContextConsoleHelper.print_status_info' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ContextConsoleHelper.print_status_info'. |
-| 133 | 🟢 LOW | Incomplete Docstring | 'ContextConsoleHelper.print_strategy_usage' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ContextConsoleHelper.print_strategy_usage'. |
-| 144 | 🟢 LOW | Incomplete Docstring | 'ContextConsoleHelper.print_strategy_status' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ContextConsoleHelper.print_strategy_status'. |
-| 257 | 🟢 LOW | Incomplete Docstring | 'StrategyManager.manage_strategy' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'StrategyManager.manage_strategy'. |
-| 397 | 🟢 LOW | Incomplete Docstring | 'ContextCommand.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ContextCommand.execute'. |
-| 497 | 🟢 LOW | Incomplete Docstring | 'StatisticsManager.show_stats' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'StatisticsManager.show_stats'. |
+| 124 | 🟢 LOW | Incomplete Docstring | 'ContextConsoleHelper.print_status_info' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ContextConsoleHelper.print_status_info'. |
+| 143 | 🟢 LOW | Incomplete Docstring | 'ContextConsoleHelper.print_strategy_usage' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ContextConsoleHelper.print_strategy_usage'. |
+| 156 | 🟢 LOW | Incomplete Docstring | 'ContextConsoleHelper.print_strategy_status' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ContextConsoleHelper.print_strategy_status'. |
+| 296 | 🟢 LOW | Incomplete Docstring | 'StrategyManager.manage_strategy' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'StrategyManager.manage_strategy'. |
+| 460 | 🟢 LOW | Incomplete Docstring | 'ContextCommand.execute' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ContextCommand.execute'. |
+| 570 | 🟢 LOW | Incomplete Docstring | 'StatisticsManager.show_stats' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'StatisticsManager.show_stats'. |
 
 ### src/henchman/cli/console_helpers.py — 👍 B (86.0/100) (last modified 2026-03-03)
 

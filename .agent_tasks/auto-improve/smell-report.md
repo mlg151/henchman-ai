@@ -1,41 +1,41 @@
-# Code Smell Report — ⚠️ C (Score: 70.6/100)
+# Code Smell Report — ⚠️ C (Score: 70.3/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T17:00:29.337668+00:00_
+_Generated: 2026-03-03T17:30:26.030810+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ⚠️ C |
-| **Overall Score** | 70.6/100 |
-| **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 35,309 |
-| **Total Smells** | 1043 |
-| **Avg Maintainability Index** | 71.5 |
-| **Avg Cyclomatic Complexity** | 13.4 |
+| **Overall Score** | 70.3/100 |
+| **Files Scanned** | 190 |
+| **Total Lines (non-blank)** | 35,862 |
+| **Total Smells** | 1059 |
+| **Avg Maintainability Index** | 71.4 |
+| **Avg Cyclomatic Complexity** | 13.5 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 762 |
-| medium | 251 |
-| high | 30 |
+| low | 773 |
+| medium | 255 |
+| high | 31 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 366 |
-| Feature Envy | 214 |
-| Duplicate Code | 167 |
-| Long Method | 99 |
-| Magic Number | 65 |
+| Missing Type Hint | 379 |
+| Feature Envy | 213 |
+| Duplicate Code | 163 |
+| Long Method | 102 |
+| Magic Number | 68 |
 | Deep Nesting | 50 |
 | Primitive Obsession | 43 |
-| Complex Function | 23 |
+| Complex Function | 25 |
 | Large Class | 16 |
 
 ## 🎯 Prioritised Refactoring Queue
@@ -82,19 +82,19 @@ These are the highest-impact smells to address first:
    Function 'execute' has 94 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-11. **tools/builtins/delegate.py:149** — 🟠 HIGH — Duplicate Code  
-   Function 'parameters' is an exact duplicate of 'parameters' at tools/builtins/file_edit.py:147  
+11. **tools/builtins/delegate.py:157** — 🟠 HIGH — Duplicate Code  
+   Function 'parameters' is an exact duplicate of 'parameters' at tools/builtins/file_edit.py:151  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-12. **tools/builtins/delegate.py:149** — 🟠 HIGH — Duplicate Code  
-   Function 'parameters' is an exact duplicate of 'parameters' at tools/builtins/git_ops.py:250  
+12. **tools/builtins/delegate.py:157** — 🟠 HIGH — Duplicate Code  
+   Function 'parameters' is an exact duplicate of 'parameters' at tools/builtins/git_ops.py:254  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-13. **tools/builtins/delegate.py:149** — 🟠 HIGH — Duplicate Code  
+13. **tools/builtins/delegate.py:157** — 🟠 HIGH — Duplicate Code  
    Function 'parameters' is an exact duplicate of 'parameters' at tools/builtins/python_ast.py:53  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-14. **tools/builtins/delegate.py:149** — 🟠 HIGH — Duplicate Code  
+14. **tools/builtins/delegate.py:157** — 🟠 HIGH — Duplicate Code  
    Function 'parameters' is an exact duplicate of 'parameters' at tools/builtins/shell.py:634  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
@@ -107,24 +107,48 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/commands/__init__.py | ❌ F | 27.9 | 24 | 157 | 63 | 0.0 |
-| 2 | extensions/plugin_installer.py | ❌ F | 41.3 | 32 | 320 | 54 | 0.0 |
-| 3 | knowledge/store.py | ❌ F | 41.7 | 23 | 470 | 46 | 0.0 |
-| 4 | extensions/manager.py | ❌ F | 42.7 | 24 | 159 | 63 | 0.0 |
-| 5 | cli/textual_widgets.py | ❌ F | 43.1 | 7 | 956 | 27 | 0.0 |
-| 6 | tools/builtins/grep.py | ❌ F | 44.2 | 16 | 494 | 47 | 0.0 |
-| 7 | cli/console.py | ❌ F | 46.2 | 14 | 670 | 42 | 0.0 |
-| 8 | cli/commands/theme.py | ❌ F | 47.6 | 23 | 196 | 61 | 0.0 |
-| 9 | providers/openai_compat.py | ❌ F | 47.7 | 27 | 303 | 59 | 0.0 |
-| 10 | cli/commands/builtins.py | ❌ F | 48.2 | 27 | 226 | 67 | 0.0 |
+| 1 | tools/security/shell_secure.py | ❌ F | 15.4 | 32 | 359 | 51 | 15.5 |
+| 2 | cli/commands/__init__.py | ❌ F | 28.0 | 24 | 159 | 63 | 0.0 |
+| 3 | extensions/plugin_installer.py | ❌ F | 41.3 | 32 | 320 | 54 | 0.0 |
+| 4 | knowledge/store.py | ❌ F | 41.7 | 23 | 470 | 46 | 0.0 |
+| 5 | extensions/manager.py | ❌ F | 42.7 | 24 | 159 | 63 | 0.0 |
+| 6 | cli/textual_widgets.py | ❌ F | 43.1 | 7 | 956 | 27 | 0.0 |
+| 7 | tools/builtins/grep.py | ❌ F | 44.2 | 16 | 494 | 47 | 0.0 |
+| 8 | cli/console.py | ❌ F | 46.2 | 14 | 670 | 42 | 0.0 |
+| 9 | tools/builtins/test_gen.py | ❌ F | 46.4 | 16 | 362 | 52 | 11.0 |
+| 10 | cli/commands/theme.py | ❌ F | 47.6 | 23 | 196 | 61 | 0.0 |
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 169 additional files omitted._
+_Showing 20 worst files. 170 additional files omitted._
 
-### cli/commands/__init__.py — ❌ F (27.9/100)
+### tools/security/shell_secure.py — ❌ F (15.4/100)
 
-LOC: 157 | Classes: 4 | Functions: 2 | MI: 63 | Avg CC: 0.0
+LOC: 359 | Classes: 3 | Functions: 0 | MI: 51 | Avg CC: 15.5
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 413 | 🟠 HIGH | Feature Envy | Method 'SecureShellTool._apply_security_level' accesses 'adjusted' 25 times but 'self' only 0 times | Move Method — consider moving '_apply_security_level' to the class that owns 'adjusted'. |
+| 42 | 🟡 MEDIUM | Magic Number | Magic number 4096 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 43 | 🟡 MEDIUM | Magic Number | Magic number 50 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 114 | 🟡 MEDIUM | Complex Function | Function 'validate_command' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 197 | 🟡 MEDIUM | Complex Function | Function '_validate_parsed_command' has cyclomatic complexity 20 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 438 | 🟡 MEDIUM | Magic Number | Magic number 1024 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 439 | 🟡 MEDIUM | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 454 | 🟡 MEDIUM | Magic Number | Magic number 2048 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 455 | 🟡 MEDIUM | Magic Number | Magic number 30 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 464 | 🟡 MEDIUM | Magic Number | Magic number 8192 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 465 | 🟡 MEDIUM | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 54 | 🟢 LOW | Long Method | Function '__post_init__' has 42 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 54 | 🟢 LOW | Missing Type Hint | Function '__post_init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 106 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 114 | 🟢 LOW | Long Method | Function 'validate_command' has 35 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+
+_... and 17 more smells._
+
+### cli/commands/__init__.py — ❌ F (28.0/100)
+
+LOC: 159 | Classes: 4 | Functions: 2 | MI: 63 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
@@ -277,6 +301,30 @@ LOC: 670 | Classes: 9 | Functions: 4 | MI: 42 | Avg CC: 0.0
 | 641 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'tree' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 | 696 | 🟢 LOW | Feature Envy | Method 'OutputRenderer._render_diff' accesses 'params' 4 times but 'self' only 2 times | Move Method — consider moving '_render_diff' to the class that owns 'params'. |
 
+### tools/builtins/test_gen.py — ❌ F (46.4/100)
+
+LOC: 362 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 11.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/web_fetch.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/web_search.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/security/shell_secure.py:315 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 62 | 🟡 MEDIUM | Long Method | Function 'execute' has 58 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 139 | 🟡 MEDIUM | Feature Envy | Method 'TestGenTool._extract_class_methods' accesses 'ast' 5 times but 'self' only 2 times | Move Method — consider moving '_extract_class_methods' to the class that owns 'ast'. |
+| 168 | 🟡 MEDIUM | Feature Envy | Method 'TestGenTool._extract_symbols' accesses 'ast' 5 times but 'self' only 3 times | Move Method — consider moving '_extract_symbols' to the class that owns 'ast'. |
+| 272 | 🟡 MEDIUM | Long Method | Function '_generate_class_tests' has 65 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 272 | 🟡 MEDIUM | Complex Function | Function '_generate_class_tests' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 12 | 🟢 LOW | Large Class | Class 'TestGenTool' spans 413 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 62 | 🟢 LOW | Primitive Obsession | Function 'execute' has 3 primitive-typed parameters: path: Name(id='str', ctx=Load()), output_path: Name(id='str', ctx=Load()), style: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 139 | 🟢 LOW | Feature Envy | Method 'TestGenTool._extract_class_methods' accesses 'item' 3 times but 'self' only 2 times | Move Method — consider moving '_extract_class_methods' to the class that owns 'item'. |
+| 168 | 🟢 LOW | Long Method | Function '_extract_symbols' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 168 | 🟢 LOW | Feature Envy | Method 'TestGenTool._extract_symbols' accesses 'node' 4 times but 'self' only 3 times | Move Method — consider moving '_extract_symbols' to the class that owns 'node'. |
+| 197 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_extract_symbols' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 225 | 🟢 LOW | Feature Envy | Method 'TestGenTool._get_return_annotation' accesses 'ast' 3 times but 'self' only 0 times | Move Method — consider moving '_get_return_annotation' to the class that owns 'ast'. |
+
+_... and 1 more smells._
+
 ### cli/commands/theme.py — ❌ F (47.6/100)
 
 LOC: 196 | Classes: 1 | Functions: 0 | MI: 61 | Avg CC: 0.0
@@ -372,28 +420,6 @@ LOC: 374 | Classes: 2 | Functions: 0 | MI: 56 | Avg CC: 13.0
 | 236 | 🟢 LOW | Feature Envy | Method 'DelegationRunner._execute_delegation_loop' accesses 'params' 4 times but 'self' only 2 times | Move Method — consider moving '_execute_delegation_loop' to the class that owns 'params'. |
 
 _... and 7 more smells._
-
-### tools/builtins/test_gen.py — ❌ F (49.9/100)
-
-LOC: 362 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 11.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/web_fetch.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/web_search.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 62 | 🟡 MEDIUM | Long Method | Function 'execute' has 58 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 139 | 🟡 MEDIUM | Feature Envy | Method 'TestGenTool._extract_class_methods' accesses 'ast' 5 times but 'self' only 2 times | Move Method — consider moving '_extract_class_methods' to the class that owns 'ast'. |
-| 168 | 🟡 MEDIUM | Feature Envy | Method 'TestGenTool._extract_symbols' accesses 'ast' 5 times but 'self' only 3 times | Move Method — consider moving '_extract_symbols' to the class that owns 'ast'. |
-| 272 | 🟡 MEDIUM | Long Method | Function '_generate_class_tests' has 65 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 272 | 🟡 MEDIUM | Complex Function | Function '_generate_class_tests' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 12 | 🟢 LOW | Large Class | Class 'TestGenTool' spans 413 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 62 | 🟢 LOW | Primitive Obsession | Function 'execute' has 3 primitive-typed parameters: path: Name(id='str', ctx=Load()), output_path: Name(id='str', ctx=Load()), style: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 139 | 🟢 LOW | Feature Envy | Method 'TestGenTool._extract_class_methods' accesses 'item' 3 times but 'self' only 2 times | Move Method — consider moving '_extract_class_methods' to the class that owns 'item'. |
-| 168 | 🟢 LOW | Long Method | Function '_extract_symbols' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 168 | 🟢 LOW | Feature Envy | Method 'TestGenTool._extract_symbols' accesses 'node' 4 times but 'self' only 3 times | Move Method — consider moving '_extract_symbols' to the class that owns 'node'. |
-| 197 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_extract_symbols' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 225 | 🟢 LOW | Feature Envy | Method 'TestGenTool._get_return_annotation' accesses 'ast' 3 times but 'self' only 0 times | Move Method — consider moving '_get_return_annotation' to the class that owns 'ast'. |
-| 352 | 🟢 LOW | Long Method | Function '_generate_function_tests' has 33 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 
 ### cli/commands/chat.py — ❌ F (50.1/100)
 
@@ -533,24 +559,6 @@ LOC: 836 | Classes: 17 | Functions: 13 | MI: 34 | Avg CC: 0.0
 | 261 | 🟡 MEDIUM | Duplicate Code | Function '_ensure_args' is 94% similar to 'add_thinking_message' at cli/textual_widgets.py:1027 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 261 | 🟡 MEDIUM | Duplicate Code | Function '_ensure_args' is 100% similar to 'save' at core/session_manager_base.py:102 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 983 | 🟡 MEDIUM | Duplicate Code | Function '_validate_min_args' is 100% similar to '_enforce_message_safety' at utils/compaction.py:542 | Extract Shared Function — identify the common logic and parameterise the differences. |
-
-### agents/metrics_reporter.py — ❌ F (56.0/100)
-
-LOC: 244 | Classes: 1 | Functions: 4 | MI: 61 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 20 | 🟡 MEDIUM | Duplicate Code | Function '_build_metrics_section' is 100% similar to '_format_findings' at tools/builtins/dead_code.py:495 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 48 | 🟡 MEDIUM | Primitive Obsession | Function '_format_rate_target' has 5 primitive-typed parameters: label: Name(id='str', ctx=Load()), value: Name(id='float', ctx=Load()), target: Name(id='float', ctx=Load()), above: Name(id='bool', ctx=Load()), note: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 252 | 🟡 MEDIUM | Duplicate Code | Function '_format_code_coverage' is 100% similar to '_format_documentation_coverage' at agents/metrics_reporter.py:256 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 263 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool_call_statistics' is 93% similar to 'list_themes' at cli/console.py:348 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 263 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool_call_statistics' is 93% similar to 'list_auto_approve_policies' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 279 | 🟡 MEDIUM | Duplicate Code | Function '_format_delegation_target' is 100% similar to '_format_error_rate_target' at agents/metrics_reporter.py:292 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 279 | 🟡 MEDIUM | Duplicate Code | Function '_format_delegation_target' is 100% similar to '_format_context_window_target' at agents/metrics_reporter.py:305 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 292 | 🟡 MEDIUM | Duplicate Code | Function '_format_error_rate_target' is 100% similar to '_format_context_window_target' at agents/metrics_reporter.py:305 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 111 | 🟢 LOW | Long Method | Function 'get_metrics_report' has 47 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 191 | 🟢 LOW | Feature Envy | Method 'MetricsReporter._format_task_completion_time' accesses 'time' 4 times but 'self' only 2 times | Move Method — consider moving '_format_task_completion_time' to the class that owns 'time'. |
-| 202 | 🟢 LOW | Magic Number | Magic number 60 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
 ## ✨ Clean Files (57 files with no smells)
 
