@@ -149,41 +149,25 @@ class MessagePoster:
         msg_class = cast(type[Any], message_class)
         self.post(msg_class(data_str, event.source_agent))
 
-    def post_message_if_data_exists(
+    def post_message(
         self,
         event: AgentEvent,
         message_class: MessageClass,
+        prefix: str = "",
         transform_data: DataTransformer = None,
     ) -> None:
         """Post a message with event data if present.
 
-        Args:
-            event: The AgentEvent containing data.
-            message_class: The Textual message class to instantiate.
-            transform_data: Optional function to transform event data before posting.
-        """
-        self._post_message(event, message_class, transform_data=transform_data)
-
-    def post_data_message(
-        self, event: AgentEvent, message_class: MessageClass, prefix: str = ""
-    ) -> None:
-        """Post a message with event data if present.
+        Unified method that replaces post_message_if_data_exists, post_data_message,
+        and post_prefixed_message.
 
         Args:
             event: The AgentEvent containing data.
             message_class: The Textual message class to instantiate.
             prefix: Optional prefix to add before event data.
+            transform_data: Optional function to transform event data before posting.
         """
-        self._post_message(event, message_class, prefix=prefix)
-
-    def post_prefixed_message(self, event: AgentEvent, prefix: str) -> None:
-        """Post a prefixed message using AgentThoughtMessage.
-
-        Args:
-            event: The AgentEvent containing data.
-            prefix: The prefix to add before event data.
-        """
-        self._post_message(event, AgentThoughtMessage, prefix=prefix)
+        self._post_message(event, message_class, prefix=prefix, transform_data=transform_data)
 
     def post_tool_message(self, event: AgentEvent, message_class: MessageClass) -> None:
         """Post a tool-related message with event data if present.

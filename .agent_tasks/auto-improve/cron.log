@@ -295267,3 +295267,214 @@ RangeError: WebAssembly.instantiate(): Out of memory: Cannot allocate Wasm memor
     at lazyllhttp (node:internal/deps/undici/undici:8707:32)
 
 Node.js v20.12.2
+[2026-03-03T13:30:03Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-03T13:30:03Z] Targeting lowest-graded file: cli/textual_bridge.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll analyze the target file `src/henchman/cli/textual_bridge.py` and address all the code smells listed in the report. Let me first read the file to understand its structure and the specific issues.
+[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py'})
+
+
+[result] """Console adapter and event bridge for the Textual TUI.
+
+``TuiConsoleAdapter`` redirects Rich Console output into the TUI chat
+pane.  ``EventBridge`` translates ``AgentEvent`` objects into Textual
+``...
+Now let me examine the specific code smells mentioned in the report for this file:
+
+1. **Line 381**: HIGH - Duplicate Code - Function '_create_data_message_handler' is an exact duplicate of '_create_tool_message_handler' at line 392
+2. **Line 152**: MEDIUM - Duplicate Code - Function 'post_message_if_data_exists' is 100% similar to 'post_data_message' at line 167
+3. **Line 152**: MEDIUM - Duplicate Code - Function 'post_message_if_data_exists' is 94% similar to 'post_prefixed_message' at line 179
+4. **Line 167**: MEDIUM - Duplicate Code - Function 'post_data_message' is 94% similar to 'post_prefixed_message' at line 179
+5. **Line 188**: MEDIUM - Duplicate Code - Function 'post_tool_message' is 100% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915
+6. **Line 197**: MEDIUM - Duplicate Code - Function 'post_status_message' is 94% similar to '_on_finished' at line 435
+7. **Line 403**: MEDIUM - Duplicate Code - Function '_create_status_message_handler' is 100% similar to '_create_prefixed_message_handler' at line 414
+8. **Lines 53, 70, 78, 86, 108**: LOW - Missing Type Hints for various methods
+
+Let me also check the duplicate code in textual_widgets.py to understand the pattern:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+910, 'end_line': 950})
+
+[result]         with contextlib.suppress(Exception):
+            self._scroll_to_bottom()
+
+    # -- public API for adding messages --
+
+    def _add_message_with_prefix(self: Self, prefix: str, text: str) -> N...
+Now let me run the tests to see the current state before refactoring:
+[tool] pytest_run({'path': 'src/henchman/cli/textual_bridge.py', 'coverage': 
+True, 'coverage_source': 'src'})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Now let me run tests specifically for the textual_bridge module:
+[tool] pytest_run({'path': 'tests/cli/test_textual_bridge.py'})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Let me check if there are any tests for this module:
+[tool] ls({'path': 'tests'})
+
+[result] MagicMock/
+__init__.py
+__pycache__/
+agents/
+benchmarks/
+cli/
+config/
+conftest.py
+core/
+e2e/
+empty_message_validation/
+extensions/
+henchman/
+integration/
+knowledge/
+mcp/
+providers/
+rag/
+smoke/
+test_con...
+
+[tool] ls({'path': 'tests/cli'})
+
+[result] __init__.py
+__pycache__/
+commands/
+test_agent_command.py
+test_app.py
+test_app_extended.py
+test_builtins.py
+test_chat_command.py
+test_cli_smoke.py
+test_command_processor.py
+test_commands.py
+test_comman...
+Let me check the test file for textual_bridge:
+[tool] read_file({'path': 'tests/cli/test_textual_bridge_bugs.py', 'start_line':
+1, 'end_line': 50})
+
+[result] """Tests for bugs in textual_bridge.py."""
+
+
+from henchman.cli.textual_bridge import _format_error_text, _format_turn_status
+
+
+def test_bug9_format_error_text_case_sensitivity():
+    """Bug 9: _format...
+Now let me run the existing tests to ensure they pass before refactoring:
+[tool] pytest_run({'path': 'tests/cli/test_textual_bridge_bugs.py'})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Now I'll analyze the code smells and start refactoring. Let me first create a summary of the identified smells and my refactoring strategy:
+
+**Identified Smells** (from the report for `textual_bridge.py`):
+
+1. **HIGH**: Duplicate Code - `_create_data_message_handler` (line 381) is an exact duplicate of `_create_tool_message_handler` (line 392)
+2. **MEDIUM**: Duplicate Code - `post_message_if_data_exists` (152) is 100% similar to `post_data_message` (167)
+3. **MEDIUM**: Duplicate Code - `post_message_if_data_exists` (152) is 94% similar to `post_prefixed_message` (179)
+4. **MEDIUM**: Duplicate Code - `post_data_message` (167) is 94% similar to `post_prefixed_message` (179)
+5. **MEDIUM**: Duplicate Code - `post_tool_message` (188) is 100% similar to `_add_message_with_prefix` in textual_widgets.py
+6. **MEDIUM**: Duplicate Code - `post_status_message` (197) is 94% similar to `_on_finished` (435)
+7. **MEDIUM**: Duplicate Code - `_create_status_message_handler` (403) is 100% similar to `_create_prefixed_message_handler` (414)
+8. **LOW**: Missing Type Hints for various methods (lines 53, 70, 78, 86, 108, etc.)
+
+**Refactoring Strategy**:
+
+1. **Extract Common Handler Creation Logic**: Create a single `_create_handler_factory` method that can handle all three types (data, tool, status, prefixed) with parameters.
+2. **Consolidate MessagePoster Methods**: Merge `post_message_if_data_exists`, `post_data_message`, and `post_prefixed_message` into a single flexible method.
+3. **Add Missing Type Hints**: Add proper type annotations for all methods.
+4. **DRY Principle**: Eliminate duplicate code by extracting shared logic.
+
+Let me start by refactoring the code:
+[tool] edit_file({'path': 'src/henchman/cli/textual_bridge.py', 'old_str': '    
+def _post_message(\n        self,\n        event: AgentEvent,\n        
+message_class: MessageClass,\n        prefix: str = "",\n        transform_data:
+DataTransformer = None,\n    ) -> None:\n        """Generic method to post a 
+message with event data.\n\n        Args:\n            event: The AgentEvent 
+containing data.\n            message_class: The Textual message class to 
+instantiate.\n            prefix: Optional prefix to add before event data.\n   
+transform_data: Optional function to transform event data before posting.\n     
+"""\n        if not event.data:\n            return\n\n        # Transform data 
+if needed\n        data = transform_data(event.data) if transform_data else 
+event.data\n\n        # Convert to string and add prefix if needed\n        
+data_str = f"{prefix}{data}" if prefix else str(data)\n\n        # Cast to Any 
+to avoid mypy error about Message constructor\n        msg_class = 
+cast(type[Any], message_class)\n        self.post(msg_class(data_str, 
+event.source_agent))\n\n    def post_message_if_data_exists(\n        self,\n   
+event: AgentEvent,\n        message_class: MessageClass,\n        
+transform_data: DataTransformer = None,\n    ) -> None:\n        """Post a 
+message with event data if present.\n\n        Args:\n            event: The 
+AgentEvent containing data.\n            message_class: The Textual message 
+class to instantiate.\n            transform_data: Optional function to 
+transform event data before posting.\n        """\n        
+self._post_message(event, message_class, transform_data=transform_data)\n\n    
+def post_data_message(\n        self, event: AgentEvent, message_class: 
+MessageClass, prefix: str = ""\n    ) -> None:\n        """Post a message with 
+event data if present.\n\n        Args:\n            event: The AgentEvent 
+containing data.\n            message_class: The Textual message class to 
+instantiate.\n            prefix: Optional prefix to add before event data.\n   
+"""\n        self._post_message(event, message_class, prefix=prefix)\n\n    def 
+post_prefixed_message(self, event: AgentEvent, prefix: str) -> None:\n        
+"""Post a prefixed message using AgentThoughtMessage.\n\n        Args:\n        
+event: The AgentEvent containing data.\n            prefix: The prefix to add 
+before event data.\n        """\n        self._post_message(event, 
+AgentThoughtMessage, prefix=prefix)\n\n    def post_tool_message(self, event: 
+AgentEvent, message_class: MessageClass) -> None:\n        """Post a 
+tool-related message with event data if present.\n\n        Args:\n            
+event: The AgentEvent containing tool data.\n            message_class: The 
+Textual message class for tools.\n        """\n        self._post_message(event,
+message_class)\n\n    def post_status_message(self, event: AgentEvent, text: 
+str) -> None:\n        """Post an AgentStatusMessage with given text.\n\n       
+Args:\n            event: The AgentEvent for source agent.\n            text: 
+The status text to display.\n        """\n        
+self.post(AgentStatusMessage(text, event.source_agent))', 'new_str': '    def 
+_post_message(\n        self,\n        event: AgentEvent,\n        
+message_class: MessageClass,\n        prefix: str = "",\n        transform_data:
+DataTransformer = None,\n    ) -> None:\n        """Generic method to post a 
+message with event data.\n\n        Args:\n            event: The AgentEvent 
+containing data.\n            message_class: The Textual message class to 
+instantiate.\n            prefix: Optional prefix to add before event data.\n   
+transform_data: Optional function to transform event data before posting.\n     
+"""\n        if not event.data:\n            return\n\n        # Transform data 
+if needed\n        data = transform_data(event.data) if transform_data else 
+event.data\n\n        # Convert to string and add prefix if needed\n        
+data_str = f"{prefix}{data}" if prefix else str(data)\n\n        # Cast to Any 
+to avoid mypy error about Message constructor\n        msg_class = 
+cast(type[Any], message_class)\n        self.post(msg_class(data_str, 
+event.source_agent))\n\n    def post_message(\n        self,\n        event: 
+AgentEvent,\n        message_class: MessageClass,\n        prefix: str = "",\n  
+transform_data: DataTransformer = None,\n    ) -> None:\n        """Post a 
+message with event data if present.\n\n        Unified method that replaces 
+post_message_if_data_exists, post_data_message,\n        and 
+post_prefixed_message.\n\n        Args:\n            event: The AgentEvent 
+containing data.\n            message_class: The Textual message class to 
+instantiate.\n            prefix: Optional prefix to add before event data.\n   
+transform_data: Optional function to transform event data before posting.\n     
+"""\n        self._post_message(event, message_class, prefix=prefix, 
+transform_data=transform_data)\n\n    def post_tool_message(self, event: 
+AgentEvent, message_class: MessageClass) -> None:\n        """Post a 
+tool-related message with event data if present.\n\n        Args:\n            
+event: The AgentEvent containing tool data.\n            message_class: The 
+Textual message class for tools.\n        """\n        self._post_message(event,
+message_class)\n\n    def post_status_message(self, event: AgentEvent, text: 
+str) -> None:\n        """Post an AgentStatusMessage with given text.\n\n       
+Args:\n            event: The AgentEvent for source agent.\n            text: 
+The status text to display.\n        """\n        
+self.post(AgentStatusMessage(text, event.source_agent))'})
+
+[result] Successfully edited src/henchman/cli/textual_bridge.py...
+Now I need to update all the calls to the old methods. Let me check where they're used:
