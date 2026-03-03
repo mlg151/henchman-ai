@@ -1,19 +1,19 @@
-# Code Smell Report — ❌ F (Score: 53.4/100)
+# Code Smell Report — ❌ F (Score: 53.5/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T08:00:21.918466+00:00_
+_Generated: 2026-03-03T08:30:21.324735+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 53.4/100 |
+| **Overall Score** | 53.5/100 |
 | **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 34,363 |
+| **Total Lines (non-blank)** | 34,388 |
 | **Total Smells** | 2143 |
-| **Avg Maintainability Index** | 71.6 |
+| **Avg Maintainability Index** | 71.7 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
 ### Smells by Severity
