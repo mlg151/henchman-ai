@@ -6,7 +6,7 @@ Use this checklist before publishing a new version to PyPI.
 
 ### Code Quality
 - [ ] Run full test suite: `pytest`
-- [ ] Ensure test coverage > 80%: `pytest --cov=henchman --cov-report=term-missing`
+- [ ] Ensure test coverage = 100%: `pytest --cov=henchman --cov-report=term-missing --cov-fail-under=100`
 - [ ] Run linting: `ruff check src/ tests/`
 - [ ] Run formatting: `ruff format src/ tests/ --check`
 - [ ] Run type checking: `mypy src/`

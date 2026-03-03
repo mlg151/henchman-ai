@@ -14,6 +14,120 @@ if TYPE_CHECKING:
     pass
 
 
+class ContextConsoleHelper:
+    """Helper class for context command console output operations.
+    
+    Consolidates console output logic to eliminate duplication and feature envy.
+    """
+    
+    @staticmethod
+    def print_status_info(console: Any, context_settings: Any) -> None:
+        """Print intelligent context status information.
+        
+        Args:
+            console: Console for output.
+            context_settings: Context settings to display.
+        """
+        ContextConsoleHelper._print_status_header(console)
+        ContextConsoleHelper._print_status_values(console, context_settings)
+        ContextConsoleHelper._print_status_commands(console)
+    
+    @staticmethod
+    def _print_status_header(console: Any) -> None:
+        """Print status header.
+        
+        Args:
+            console: Console for output.
+        """
+        ConsoleHelper.print_status_header(console, "Intelligent Context Management")
+    
+    @staticmethod
+    def _print_status_values(console: Any, context_settings: Any) -> None:
+        """Print status values.
+        
+        Args:
+            console: Console for output.
+            context_settings: Context settings to display.
+        """
+        ConsoleHelper.print_enabled_status(console, "Status", context_settings.intelligent_context)
+        ConsoleHelper.print_enabled_status(
+            console, "Adaptive compression", context_settings.adaptive_compression
+        )
+        ConsoleHelper.print_status_value(console, "Max tokens", context_settings.max_tokens)
+        ConsoleHelper.print_status_value(
+            console, "Compaction threshold", f"{context_settings.compaction_threshold * 100:.0f}%"
+        )
+        ConsoleHelper.print_status_value(
+            console, "Importance threshold", context_settings.importance_threshold
+        )
+        ConsoleHelper.print_status_value(
+            console, "Cluster similarity", context_settings.cluster_similarity_threshold
+        )
+    
+    @staticmethod
+    def _print_status_commands(console: Any) -> None:
+        """Print available commands.
+        
+        Args:
+            console: Console for output.
+        """
+        console.print("")
+        ConsoleHelper.print_command_help(console, "/context enable", "enable intelligent context")
+        ConsoleHelper.print_command_help(console, "/context disable", "disable intelligent context")
+        ConsoleHelper.print_command_help(
+            console, "/context strategy", "manage compression strategies"
+        )
+        ConsoleHelper.print_command_help(console, "/context stats", "view usage statistics")
+        console.print("")
+    
+    @staticmethod
+    def print_strategy_usage(console: Any) -> None:
+        """Print strategy command usage help.
+        
+        Args:
+            console: Console for output.
+        """
+        ConsoleHelper.print_error_message(
+            console,
+            "Missing parameter or value",
+            "/context strategy set <parameter> <value>"
+        )
+        console.print("\nParameters:")
+        console.print("  max_tokens <int>          - Maximum tokens before compaction")
+        console.print("  threshold <float>         - Compaction threshold (0.1-1.0)")
+        console.print("  importance <float>        - Importance threshold (0.0-1.0)")
+        console.print("  similarity <float>        - Cluster similarity threshold (0.0-1.0)")
+        console.print("  adaptive <on|off>         - Enable/disable adaptive compression")
+    
+    @staticmethod
+    def print_strategy_status(console: Any, context_settings: Any) -> None:
+        """Show current compression strategy settings.
+        
+        Args:
+            console: Console for output.
+            context_settings: Context settings to display.
+        """
+        console.print("\n[bold blue]Compression Strategy Settings[/]\n")
+        ConsoleHelper.print_status_value(console, "Max tokens", context_settings.max_tokens)
+        ConsoleHelper.print_status_value(
+            console, "Compaction threshold", context_settings.compaction_threshold
+        )
+        ConsoleHelper.print_status_value(
+            console, "Importance threshold", context_settings.importance_threshold
+        )
+        ConsoleHelper.print_status_value(
+            console, "Cluster similarity", context_settings.cluster_similarity_threshold
+        )
+        ConsoleHelper.print_enabled_status(
+            console, "Adaptive compression", context_settings.adaptive_compression
+        )
+        console.print("")
+        ConsoleHelper.print_command_help(
+            console, "/context strategy set <parameter> <value>", "change settings"
+        )
+        console.print("")
+
+
 @dataclass
 class RangeParameterConfig:
     """Configuration for range-validated parameters.
@@ -33,37 +147,6 @@ class RangeParameterConfig:
     label: str | None = None
 
     def get_display_label(self) -> str:
-        """Get display label for the parameter.
-
-        Returns:
-            Display label.
-        """
-        return self.label or self.param_name.replace("_", " ").capitalize()
-
-    def validate_value(self, value: float | int) -> None:
-        """Validate value against range constraints.
-
-        Args:
-            value: Value to validate.
-
-        Raises:
-            ValueError: If value is outside valid range.
-        """
-        display_label = self.get_display_label()
-        if self.max_val is not None:
-            if not self.min_val <= value <= self.max_val:
-                raise ValueError(
-                    f"{display_label} must be between {self.min_val} and {self.max_val}"
-                )
-        elif value < self.min_val:
-            raise ValueError(f"{display_label} must be at least {self.min_val}")
-
-    def parse_value(self, value_str: str) -> float | int:
-        """Parse string value to appropriate type.
-
-        Args:
-            value_str: String value to parse.
-
         Returns:
             Parsed value as float or int.
         """
@@ -154,47 +237,6 @@ class ContextCommand(Command):
         Args:
             ctx: Command context.
         """
-        settings = load_settings()
-        context_settings = settings.context
-        self._print_status_info(ctx.console, context_settings)
-
-    def _print_status_info(self, console: Any, context_settings: Any) -> None:
-        """Print intelligent context status information.
-
-        Args:
-            console: Console for output.
-            context_settings: Context settings to display.
-        """
-        self._print_status_header(console)
-        self._print_status_values(console, context_settings)
-        self._print_status_commands(console)
-
-    def _print_status_header(self, console: Any) -> None:
-        """Print status header.
-
-        Args:
-            console: Console for output.
-        """
-        ConsoleHelper.print_status_header(console, "Intelligent Context Management")
-
-    def _print_status_values(self, console: Any, context_settings: Any) -> None:
-        """Print status values.
-
-        Args:
-            console: Console for output.
-            context_settings: Context settings to display.
-        """
-        ConsoleHelper.print_enabled_status(console, "Status", context_settings.intelligent_context)
-        ConsoleHelper.print_enabled_status(
-            console, "Adaptive compression", context_settings.adaptive_compression
-        )
-        ConsoleHelper.print_status_value(console, "Max tokens", context_settings.max_tokens)
-        ConsoleHelper.print_status_value(
-            console, "Compaction threshold", f"{context_settings.compaction_threshold * 100:.0f}%"
-        )
-        ConsoleHelper.print_status_value(
-            console, "Importance threshold", context_settings.importance_threshold
-        )
         ConsoleHelper.print_status_value(
             console, "Cluster similarity", context_settings.cluster_similarity_threshold
         )

@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T05:00:42.327991+00:00_
+_Generated: 2026-03-03T05:30:21.221537+00:00_
 
 ## Executive Summary
 
@@ -11,8 +11,8 @@ _Generated: 2026-03-03T05:00:42.327991+00:00_
 | **Overall Grade** | ❌ F |
 | **Overall Score** | 53.4/100 |
 | **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 34,235 |
-| **Total Smells** | 2162 |
+| **Total Lines (non-blank)** | 34,244 |
+| **Total Smells** | 2150 |
 | **Avg Maintainability Index** | 71.6 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,23 +20,23 @@ _Generated: 2026-03-03T05:00:42.327991+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1641 |
-| medium | 455 |
-| high | 66 |
+| low | 1631 |
+| medium | 454 |
+| high | 65 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1149 |
-| Feature Envy | 303 |
+| Missing Type Hint | 1138 |
+| Feature Envy | 305 |
 | Duplicate Code | 240 |
 | Magic Number | 131 |
 | Long Method | 108 |
 | Deep Nesting | 97 |
-| Primitive Obsession | 74 |
-| Large Class | 30 |
+| Primitive Obsession | 72 |
 | Complex Function | 30 |
+| Large Class | 29 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -107,44 +107,20 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | tools/builtins/dead_code.py | ❌ F | 13.8 | 47 | 466 | 46 | 0.0 |
-| 2 | cli/commands/context.py | ❌ F | 15.3 | 62 | 417 | 51 | 0.0 |
-| 3 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
-| 4 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
-| 5 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
-| 6 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
-| 7 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
-| 8 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
-| 9 | tools/builtins/git_ops.py | ❌ F | 16.5 | 31 | 273 | 55 | 0.0 |
-| 10 | extensions/plugin_manager.py | ❌ F | 16.9 | 27 | 282 | 56 | 12.0 |
+| 1 | cli/commands/context.py | ❌ F | 15.3 | 62 | 417 | 51 | 0.0 |
+| 2 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
+| 3 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
+| 4 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
+| 5 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
+| 6 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
+| 7 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
+| 8 | tools/builtins/git_ops.py | ❌ F | 16.5 | 31 | 273 | 55 | 0.0 |
+| 9 | extensions/plugin_manager.py | ❌ F | 16.9 | 27 | 282 | 56 | 12.0 |
+| 10 | metrics/dashboard.py | ❌ F | 16.9 | 40 | 265 | 56 | 14.0 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 169 additional files omitted._
-
-### tools/builtins/dead_code.py — ❌ F (13.8/100)
-
-LOC: 466 | Classes: 1 | Functions: 0 | MI: 46 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 89 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: 'execute' (line 89), '_perform_analysis' (line 182) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
-| 30 | 🟡 MEDIUM | Large Class | Class 'DeadCodeTool' spans 532 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 222 | 🟡 MEDIUM | Duplicate Code | Function '_format_import_findings' is 100% similar to '_format_definition_findings' at tools/builtins/dead_code.py:236 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 385 | 🟡 MEDIUM | Duplicate Code | Function '_identify_unused_imports' is 93% similar to '_identify_unused_definitions' at tools/builtins/dead_code.py:486 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 407 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._is_import_context' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving '_is_import_context' to the class that owns 'ast'. |
-| 451 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._collect_top_level_definitions' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving '_collect_top_level_definitions' to the class that owns 'ast'. |
-| 451 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._collect_top_level_definitions' accesses 'node' 6 times but 'self' only 0 times | Move Method — consider moving '_collect_top_level_definitions' to the class that owns 'node'. |
-| 523 | 🟡 MEDIUM | Feature Envy | Method 'DeadCodeTool._find_all_assignment' accesses 'ast' 6 times but 'self' only 0 times | Move Method — consider moving '_find_all_assignment' to the class that owns 'ast'. |
-| 30 | 🟢 LOW | Large Class | Class 'DeadCodeTool' has 27 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 39 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 44 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 52 | 🟢 LOW | Missing Type Hint | Function 'parameters' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 56 | 🟢 LOW | Missing Type Hint | Function '_build_parameter_schema' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 85 | 🟢 LOW | Missing Type Hint | Function 'kind' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 89 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 32 more smells._
 
 ### cli/commands/context.py — ❌ F (15.3/100)
 
@@ -601,6 +577,30 @@ LOC: 766 | Classes: 9 | Functions: 7 | MI: 29 | Avg CC: 11.0
 | 356 | 🟢 LOW | Missing Type Hint | Function 'handle_edge_cases' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 23 more smells._
+
+### tools/builtins/dead_code.py — ❌ F (21.7/100)
+
+LOC: 475 | Classes: 6 | Functions: 0 | MI: 44 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 53 | 🟡 MEDIUM | Feature Envy | Method 'ASTAnalyzer.is_import_context' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving 'is_import_context' to the class that owns 'ast'. |
+| 73 | 🟡 MEDIUM | Feature Envy | Method 'ASTAnalyzer.collect_top_level_definitions' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving 'collect_top_level_definitions' to the class that owns 'ast'. |
+| 73 | 🟡 MEDIUM | Feature Envy | Method 'ASTAnalyzer.collect_top_level_definitions' accesses 'node' 6 times but 'self' only 0 times | Move Method — consider moving 'collect_top_level_definitions' to the class that owns 'node'. |
+| 92 | 🟡 MEDIUM | Feature Envy | Method 'ASTAnalyzer.find_all_assignment' accesses 'ast' 6 times but 'self' only 0 times | Move Method — consider moving 'find_all_assignment' to the class that owns 'ast'. |
+| 438 | 🟡 MEDIUM | Duplicate Code | Function '_format_import_findings' is 100% similar to '_format_definition_findings' at tools/builtins/dead_code.py:452 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 540 | 🟡 MEDIUM | Duplicate Code | Function '_identify_unused_items' is 93% similar to '_identify_unused_definitions' at tools/builtins/dead_code.py:562 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 92 | 🟢 LOW | Feature Envy | Method 'ASTAnalyzer.find_all_assignment' accesses 'node' 3 times but 'self' only 0 times | Move Method — consider moving 'find_all_assignment' to the class that owns 'node'. |
+| 119 | 🟢 LOW | Feature Envy | Method 'ImportAnalyzer.collect_imported_names' accesses 'ast' 4 times but 'self' only 0 times | Move Method — consider moving 'collect_imported_names' to the class that owns 'ast'. |
+| 149 | 🟢 LOW | Feature Envy | Method 'ImportAnalyzer._collect_import_from_names' accesses 'alias' 3 times but 'self' only 0 times | Move Method — consider moving '_collect_import_from_names' to the class that owns 'alias'. |
+| 163 | 🟢 LOW | Feature Envy | Method 'ImportAnalyzer.collect_used_names' accesses 'ast' 4 times but 'self' only 0 times | Move Method — consider moving 'collect_used_names' to the class that owns 'ast'. |
+| 178 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'collect_used_names' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 183 | 🟢 LOW | Feature Envy | Method 'ImportAnalyzer._extract_attribute_root_name' accesses 'ast' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_attribute_root_name' to the class that owns 'ast'. |
+| 202 | 🟢 LOW | Feature Envy | Method 'DefinitionAnalyzer.collect_all_references' accesses 'ast' 4 times but 'self' only 0 times | Move Method — consider moving 'collect_all_references' to the class that owns 'ast'. |
+| 236 | 🟢 LOW | Feature Envy | Method 'DefinitionAnalyzer._extract_names_from_all' accesses 'ast' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_names_from_all' to the class that owns 'ast'. |
+| 255 | 🟢 LOW | Large Class | Class 'DeadCodeTool' spans 328 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+
+_... and 20 more smells._
 
 ## ✨ Clean Files (59 files with no smells)
 

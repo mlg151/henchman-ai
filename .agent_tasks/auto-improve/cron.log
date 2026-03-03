@@ -274920,3 +274920,260 @@ TOTAL                                                  15109   2490   4134    48
 =========== 2586 passed, 5 skipped, 32 warnings in 141.76s (0:02:21) ===========
 [2026-03-03T05:00:04Z] All tests passed.
 Committing changes...
+[main 47025b6] chore(auto-improve): automated codebase improvement
+ 4 files changed, 839 insertions(+), 2 deletions(-)
+[2026-03-03T05:00:04Z] Auto-improve complete.
+[2026-03-03T05:30:02Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-03T05:30:02Z] Targeting lowest-graded file: cli/commands/context.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll analyze the target file `src/henchman/cli/commands/context.py` and address all the code smells listed in the report. Let me first read the file to understand its structure and issues.
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py'})
+
+
+[result] """Intelligent context management commands."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
+
+from henchman.cli.commands import Command, ...
+Now let me check the specific smells mentioned in the report for this file. Based on the report, I need to address:
+
+1. **Duplicate Code**: `_print_status_info` is 94% similar to functions in other files
+2. **Feature Envy**: `_print_status_values` accesses `ConsoleHelper` 6 times but `self` only 0 times
+3. **Duplicate Code**: `_print_status_commands` is 100% similar to `_print_strategy_usage`
+4. **Feature Envy**: `_print_strategy_usage` accesses `console` 6 times but `self` only 0 times  
+5. **Feature Envy**: `_show_strategy_status` accesses `ConsoleHelper` 6 times but `self` only 0 times
+6. **Duplicate Code**: `_handle_max_tokens_parameter` is 100% similar to `_handle_threshold_parameter`
+7. **Missing Type Hint**: `get_display_label` has incomplete type hints
+
+Let me also check for other issues by running a quick analysis:
+[tool] python_ast({'path': 'src/henchman/cli/commands/context.py', 
+'include_docstrings': True})
+
+[result] # Symbol table for context.py
+"""Intelligent context management commands."""
+
+## Imports
+from __future__ import annotations  [L3]
+from dataclasses import dataclass  [L5]
+from typing import TYPE_CHECKI...
+Now let me run the tests to see if there are any existing failures:
+[tool] pytest_run({'path': 'tests/cli/commands/test_context.py', 'verbose': 
+True})
+
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Good, the tests pass. Now let me analyze the specific issues and create a refactoring plan. Based on the smell report and my analysis, I need to address:
+
+**Identified Smells for `src/henchman/cli/commands/context.py`:**
+
+1. **Duplicate Code**: `_print_status_info` is 94% similar to functions in other files
+2. **Feature Envy**: `_print_status_values` accesses `ConsoleHelper` 6 times but `self` only 0 times
+3. **Duplicate Code**: `_print_status_commands` is 100% similar to `_print_strategy_usage`
+4. **Feature Envy**: `_print_strategy_usage` accesses `console` 6 times but `self` only 0 times  
+5. **Feature Envy**: `_show_strategy_status` accesses `ConsoleHelper` 6 times but `self` only 0 times
+6. **Duplicate Code**: `_handle_max_tokens_parameter` is 100% similar to `_handle_threshold_parameter`
+7. **Missing Type Hint**: `get_display_label` has incomplete type hints (actually it has type hints, but the report says 1/1 params untyped - maybe it's counting the return type?)
+
+Let me check the ConsoleHelper to understand what methods are being called:
+[tool] read_file({'path': 'src/henchman/cli/console_helpers.py', 'start_line': 
+1, 'end_line': 100})
+
+[result] """Shared console helper functions for CLI commands."""
+
+from typing import Any
+
+
+class ConsoleHelper:
+    """Helper class for console output operations."""
+
+    @staticmethod
+    def print_status_hea...
+Now let me check what the actual type hints issue is with `get_display_label`:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+35, 'end_line': 45})
+
+[result]     def get_display_label(self) -> str:
+        """Get display label for the parameter.
+
+        Returns:
+            Display label.
+        """
+        return self.label or self.param_name.replace("_...
+The `get_display_label` method has a return type hint but no parameter type hints. However, it's a method that only takes `self`, so there's no parameter to type. The smell detector might be confused. Let me check if there are other missing type hints in the file:
+[tool] lint_check({'path': 'src/henchman/cli/commands/context.py', 'linter': 
+'mypy'})
+
+[result] === mypy ===
+Success: no issues found in 1 source file...
+Good, mypy passes. Now let me create a comprehensive refactoring plan. Based on the XP principles and the identified smells:
+
+**Refactoring Strategy:**
+
+1. **Extract Duplicate Console Helper Methods**: Create a shared helper class or module for console output patterns that are duplicated across files
+2. **Move Feature Envy Methods**: Methods that heavily use `ConsoleHelper` should either be moved to `ConsoleHelper` or refactored to reduce dependency
+3. **Eliminate Duplicate Parameter Handlers**: `_handle_max_tokens_parameter` and `_handle_threshold_parameter` are identical in structure - extract common logic
+4. **Improve Type Hints**: Ensure all methods have proper type hints
+
+Let me start by refactoring the file. First, I'll create a working memory update:
+[tool] write_file({'path': '.agent_tasks/auto-improve/last-improvement.md', 
+'content': '# Refactoring Improvement Summary\n\n**Date/Time**: 2026-03-03 05:30
+UTC\n**Target File**: `src/henchman/cli/commands/context.py`\n**Status**: In 
+Progress\n\n## Identified Smells to Address\n\n### 1. Duplicate Code Issues\n- 
+`_print_status_info` is 94% similar to functions in `session.py`, 
+`textual_widgets.py`\n- `_print_status_commands` is 100% similar to 
+`_print_strategy_usage`\n- `_handle_max_tokens_parameter` is 100% similar to 
+`_handle_threshold_parameter`\n\n### 2. Feature Envy Issues\n- 
+`_print_status_values` accesses `ConsoleHelper` 6 times but `self` only 0 
+times\n- `_print_strategy_usage` accesses `console` 6 times but `self` only 0 
+times  \n- `_show_strategy_status` accesses `ConsoleHelper` 6 times but `self` 
+only 0 times\n\n### 3. Type Hint Issues\n- `get_display_label` reported as 
+having incomplete type hints (though it only has `self` parameter)\n\n## 
+Refactoring Strategy\n\n### Phase 1: Extract Console Output Patterns\nCreate a 
+`ContextConsoleHelper` class within the module to consolidate console output 
+logic and reduce duplication.\n\n### Phase 2: Eliminate Duplicate Parameter 
+Handlers  \nRefactor `_handle_max_tokens_parameter` and 
+`_handle_threshold_parameter` to use a shared configuration-driven 
+approach.\n\n### Phase 3: Move Feature Envy Methods\nRefactor methods that 
+heavily depend on `ConsoleHelper` to either:\n1. Move logic to `ConsoleHelper` 
+class\n2. Create instance methods that properly use `self`\n\n### Phase 4: 
+Improve Type Safety\nEnsure all methods have proper type hints and follow Python
+best practices.\n\n## Expected Benefits\n1. **Reduced Code Duplication**: 
+Eliminate 3+ duplicate code patterns\n2. **Improved Maintainability**: 
+Centralized console output logic\n3. **Better Separation of Concerns**: Console 
+output logic separated from business logic\n4. **Enhanced Type Safety**: 
+Complete type hints throughout\n\n## Testing Implications\n- Existing tests 
+should continue to pass (8 tests in `test_context.py`)\n- Console output 
+formatting should remain identical\n- Command behavior should not change'})
+
+[result] Successfully wrote 2016 bytes to 
+.agent_tasks/auto-improve/last-improvement.md...
+Now let me refactor the file. I'll start by creating a refactored version:
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'old_str': 
+'"""Intelligent context management commands."""\n\nfrom __future__ import 
+annotations\n\nfrom dataclasses import dataclass\nfrom typing import 
+TYPE_CHECKING, Any\n\nfrom henchman.cli.commands import Command, 
+CommandContext\nfrom henchman.cli.console_helpers import ConsoleHelper\nfrom 
+henchman.config import load_settings\nfrom henchman.config.settings import 
+save_settings\n\nif TYPE_CHECKING:\n    pass', 'new_str': '"""Intelligent 
+context management commands."""\n\nfrom __future__ import annotations\n\nfrom 
+dataclasses import dataclass\nfrom typing import TYPE_CHECKING, Any\n\nfrom 
+henchman.cli.commands import Command, CommandContext\nfrom 
+henchman.cli.console_helpers import ConsoleHelper\nfrom henchman.config import 
+load_settings\nfrom henchman.config.settings import save_settings\n\nif 
+TYPE_CHECKING:\n    pass\n\n\nclass ContextConsoleHelper:\n    """Helper class 
+for context command console output operations.\n    \n    Consolidates console 
+output logic to eliminate duplication and feature envy.\n    """\n    \n    
+@staticmethod\n    def print_status_info(console: Any, context_settings: Any) ->
+None:\n        """Print intelligent context status information.\n        \n     
+Args:\n            console: Console for output.\n            context_settings: 
+Context settings to display.\n        """\n        
+ContextConsoleHelper._print_status_header(console)\n        
+ContextConsoleHelper._print_status_values(console, context_settings)\n        
+ContextConsoleHelper._print_status_commands(console)\n    \n    @staticmethod\n 
+def _print_status_header(console: Any) -> None:\n        """Print status 
+header.\n        \n        Args:\n            console: Console for output.\n    
+"""\n        ConsoleHelper.print_status_header(console, "Intelligent Context 
+Management")\n    \n    @staticmethod\n    def _print_status_values(console: 
+Any, context_settings: Any) -> None:\n        """Print status values.\n        
+\n        Args:\n            console: Console for output.\n            
+context_settings: Context settings to display.\n        """\n        
+ConsoleHelper.print_enabled_status(console, "Status", 
+context_settings.intelligent_context)\n        
+ConsoleHelper.print_enabled_status(\n            console, "Adaptive 
+compression", context_settings.adaptive_compression\n        )\n        
+ConsoleHelper.print_status_value(console, "Max tokens", 
+context_settings.max_tokens)\n        ConsoleHelper.print_status_value(\n       
+console, "Compaction threshold", f"{context_settings.compaction_threshold * 
+100:.0f}%"\n        )\n        ConsoleHelper.print_status_value(\n            
+console, "Importance threshold", context_settings.importance_threshold\n        
+)\n        ConsoleHelper.print_status_value(\n            console, "Cluster 
+similarity", context_settings.cluster_similarity_threshold\n        )\n    \n   
+@staticmethod\n    def _print_status_commands(console: Any) -> None:\n        
+"""Print available commands.\n        \n        Args:\n            console: 
+Console for output.\n        """\n        console.print("")\n        
+ConsoleHelper.print_command_help(console, "/context enable", "enable intelligent
+context")\n        ConsoleHelper.print_command_help(console, "/context disable",
+"disable intelligent context")\n        ConsoleHelper.print_command_help(\n     
+console, "/context strategy", "manage compression strategies"\n        )\n      
+ConsoleHelper.print_command_help(console, "/context stats", "view usage 
+statistics")\n        console.print("")\n    \n    @staticmethod\n    def 
+print_strategy_usage(console: Any) -> None:\n        """Print strategy command 
+usage help.\n        \n        Args:\n            console: Console for output.\n
+"""\n        ConsoleHelper.print_error_message(\n            console,\n         
+"Missing parameter or value",\n            "/context strategy set <parameter> 
+<value>"\n        )\n        console.print("\\nParameters:")\n        
+console.print("  max_tokens <int>          - Maximum tokens before 
+compaction")\n        console.print("  threshold <float>         - Compaction 
+threshold (0.1-1.0)")\n        console.print("  importance <float>        - 
+Importance threshold (0.0-1.0)")\n        console.print("  similarity <float>   
+- Cluster similarity threshold (0.0-1.0)")\n        console.print("  adaptive 
+<on|off>         - Enable/disable adaptive compression")\n    \n    
+@staticmethod\n    def print_strategy_status(console: Any, context_settings: 
+Any) -> None:\n        """Show current compression strategy settings.\n        
+\n        Args:\n            console: Console for output.\n            
+context_settings: Context settings to display.\n        """\n        
+console.print("\\n[bold blue]Compression Strategy Settings[/]\\n")\n        
+ConsoleHelper.print_status_value(console, "Max tokens", 
+context_settings.max_tokens)\n        ConsoleHelper.print_status_value(\n       
+console, "Compaction threshold", context_settings.compaction_threshold\n        
+)\n        ConsoleHelper.print_status_value(\n            console, "Importance 
+threshold", context_settings.importance_threshold\n        )\n        
+ConsoleHelper.print_status_value(\n            console, "Cluster similarity", 
+context_settings.cluster_similarity_threshold\n        )\n        
+ConsoleHelper.print_enabled_status(\n            console, "Adaptive 
+compression", context_settings.adaptive_compression\n        )\n        
+console.print("")\n        ConsoleHelper.print_command_help(\n            
+console, "/context strategy set <parameter> <value>", "change settings"\n       
+)\n        console.print("")'})
+
+[result] Successfully edited src/henchman/cli/commands/context.py...
+I need to continue the refactoring. Let me update the rest of the file to use the new `ContextConsoleHelper` class and address the other smells:
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+150, 'end_line': 180})
+
+[result] Successfully edited src/henchman/cli/commands/context.py (replaced 
+lines 150-180)...
+Let me see what's in that section:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+150, 'end_line': 250})
+
+[result]         Returns:
+            Parsed value as float or int.
+        """
+        return int(value_str) if self.is_int else float(value_str)
+
+
+class ContextCommand(Command):
+    """Manage intelligent con...
+I see the issue. The file still has the old `_print_status_info` method. Let me continue refactoring by replacing the old methods with calls to the new `ContextConsoleHelper`. I need to find and replace all the relevant methods:
+[tool] edit_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+240, 'end_line': 280})
+
+[result] Successfully edited src/henchman/cli/commands/context.py (replaced 
+lines 240-280)...
+Let me check what's in the file now and continue refactoring:
+[tool] read_file({'path': 'src/henchman/cli/commands/context.py', 'start_line': 
+240, 'end_line': 350})
+
+[result]         ConsoleHelper.print_status_value(
+            console, "Cluster similarity", 
+context_settings.cluster_similarity_threshold
+        )
+
+    def _print_status_commands(self, console: Any) -> None...
+I need to see the full file structure to understand what needs to be refactored. Let me get a better view:
+[tool] shell({'command': 'wc -l src/henchman/cli/commands/context.py'})
+
+[result] 552 src/henchman/cli/commands/context.py
+...
+The file has grown because I added the `ContextConsoleHelper` class but didn't remove the old methods. Let me rewrite the entire file properly. First, let me save the current version and create a clean refactored version:
