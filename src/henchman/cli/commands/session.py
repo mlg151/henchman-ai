@@ -132,15 +132,27 @@ class CommandOperationContext:
         self.console.print(f"[green]✓[/] {message}")
 
     def print_error(self: CommandOperationContext, message: str) -> None:
-        """Print an error message."""
+        """Print an error message.
+        
+        Args:
+            message: The error message to display.
+        """
         self._print_formatted_message(f"Error: {message}", "red")
 
     def print_info(self: CommandOperationContext, message: str) -> None:
-        """Print an info message."""
+        """Print an info message.
+        
+        Args:
+            message: The info message to display.
+        """
         self._print_formatted_message(message, "dim")
 
     def print_usage(self: CommandOperationContext, usage: str) -> None:
-        """Print usage information."""
+        """Print usage information.
+        
+        Args:
+            usage: The usage information to display.
+        """
         self._print_prefixed_message(usage, USAGE_MESSAGE_STYLE)
 
     def _print_formatted_message(

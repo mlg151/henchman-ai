@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 96.7/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T13:30:02.789335+00:00_
+_Generated: 2026-03-03T13:45:02.905452+00:00_
 
 ## Executive Summary
 
@@ -11,21 +11,21 @@ _Generated: 2026-03-03T13:30:02.789335+00:00_
 | **Overall Score** | 96.7/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 166 |
-| **Total Smells** | 355 |
+| **Total Smells** | 353 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 308 |
+| low | 306 |
 | medium | 47 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 349 |
+| Incomplete Docstring | 347 |
 | Stale Content | 2 |
 | Missing Docstring | 2 |
 | Config Issue | 1 |
@@ -128,11 +128,11 @@ These are the highest-impact documentation smells to address first:
 | 6 | src/henchman/cli/stream_event_handlers.py | 🔶 D | 65.0 | 10 | 2026-03-01 |
 | 7 | src/henchman/cli/output_handler.py | ⚠️ C | 74.0 | 13 | 2026-02-27 |
 | 8 | src/henchman/agents/metrics.py | ⚠️ C | 76.0 | 12 | 2026-03-03 |
-| 9 | src/henchman/cli/textual_bridge.py | 👍 B | 82.0 | 9 | 2026-03-03 |
-| 10 | src/henchman/metrics/storage.py | 👍 B | 82.0 | 6 | 2026-03-03 |
-| 11 | src/henchman/utils/validation.py | 👍 B | 83.0 | 4 | 2026-02-20 |
-| 12 | src/henchman/cli/commands/context.py | 👍 B | 86.0 | 7 | 2026-03-03 |
-| 13 | src/henchman/cli/console_helpers.py | 👍 B | 86.0 | 7 | 2026-03-03 |
+| 9 | src/henchman/metrics/storage.py | 👍 B | 82.0 | 6 | 2026-03-03 |
+| 10 | src/henchman/utils/validation.py | 👍 B | 83.0 | 4 | 2026-02-20 |
+| 11 | src/henchman/cli/commands/context.py | 👍 B | 86.0 | 7 | 2026-03-03 |
+| 12 | src/henchman/cli/console_helpers.py | 👍 B | 86.0 | 7 | 2026-03-03 |
+| 13 | src/henchman/cli/textual_bridge.py | 👍 B | 86.0 | 7 | 2026-03-03 |
 | 14 | src/henchman/cli/textual_screens.py | 👍 B | 86.0 | 7 | 2026-02-24 |
 | 15 | src/henchman/knowledge/store.py | 👍 B | 86.0 | 7 | 2026-02-17 |
 
@@ -314,22 +314,6 @@ Public APIs: 19 | Documented: 19 | Coverage: 100.0%
 | 243 | 🟢 LOW | Incomplete Docstring | 'OrchestratorMetrics.calculate_final_metrics' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OrchestratorMetrics.calculate_final_metrics'. |
 | 265 | 🟢 LOW | Incomplete Docstring | 'OrchestratorMetrics.update_tool_metrics' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'OrchestratorMetrics.update_tool_metrics'. |
 
-### src/henchman/cli/textual_bridge.py — 👍 B (82.0/100) (last modified 2026-03-03)
-
-Public APIs: 14 | Documented: 14 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 78 | 🟢 LOW | Incomplete Docstring | 'TuiConsoleAdapter.flush_to_chat' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'TuiConsoleAdapter.flush_to_chat'. |
-| 86 | 🟢 LOW | Incomplete Docstring | 'TuiConsoleAdapter.print' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'TuiConsoleAdapter.print'. |
-| 116 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post'. |
-| 152 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_message_if_data_exists' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_message_if_data_exists'. |
-| 167 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_data_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_data_message'. |
-| 179 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_prefixed_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_prefixed_message'. |
-| 188 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_tool_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_tool_message'. |
-| 197 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_status_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_status_message'. |
-| 252 | 🟢 LOW | Incomplete Docstring | 'EventBridge.forward_events' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'EventBridge.forward_events'. |
-
 ### src/henchman/metrics/storage.py — 👍 B (82.0/100) (last modified 2026-03-03)
 
 Public APIs: 16 | Documented: 16 | Coverage: 100.0%
@@ -381,6 +365,20 @@ Public APIs: 8 | Documented: 8 | Coverage: 100.0%
 | 56 | 🟢 LOW | Incomplete Docstring | 'ConsoleHelper.print_error_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ConsoleHelper.print_error_message'. |
 | 69 | 🟢 LOW | Incomplete Docstring | 'ConsoleHelper.print_usage_help' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ConsoleHelper.print_usage_help'. |
 | 86 | 🟢 LOW | Incomplete Docstring | 'ConsoleHelper.print_parameter_list' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ConsoleHelper.print_parameter_list'. |
+
+### src/henchman/cli/textual_bridge.py — 👍 B (86.0/100) (last modified 2026-03-03)
+
+Public APIs: 12 | Documented: 12 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 78 | 🟢 LOW | Incomplete Docstring | 'TuiConsoleAdapter.flush_to_chat' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'TuiConsoleAdapter.flush_to_chat'. |
+| 86 | 🟢 LOW | Incomplete Docstring | 'TuiConsoleAdapter.print' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'TuiConsoleAdapter.print'. |
+| 116 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post'. |
+| 152 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_message'. |
+| 172 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_tool_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_tool_message'. |
+| 181 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_status_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_status_message'. |
+| 236 | 🟢 LOW | Incomplete Docstring | 'EventBridge.forward_events' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'EventBridge.forward_events'. |
 
 ### src/henchman/cli/textual_screens.py — 👍 B (86.0/100) (last modified 2026-02-24)
 
