@@ -377,7 +377,7 @@ class DeadCodeTool(Tool):
         Returns:
             Root name if found, None otherwise.
         """
-        current = node
+        current: ast.expr = node
         while isinstance(current, ast.Attribute):
             current = current.value
         return current.id if isinstance(current, ast.Name) else None
@@ -442,10 +442,10 @@ class DeadCodeTool(Tool):
         definitions = self._collect_top_level_definitions(tree)
         used_names = self._collect_all_references(tree)
         all_names = self._get_all_names(tree)
-        
+
         if all_names is not None:
             used_names.update(all_names)
-            
+
         return self._identify_unused_definitions(definitions, used_names, whitelist)
 
     def _collect_top_level_definitions(self, tree: ast.Module) -> dict[str, tuple[str, int]]:
@@ -515,30 +515,32 @@ class DeadCodeTool(Tool):
             Set of names in __all__, or None if not defined.
         """
         for node in ast.iter_child_nodes(tree):
-            if self._is_all_assignment(node):
-                return self._extract_names_from_all(node.value)
+            all_assignment = self._find_all_assignment(node)
+            if all_assignment is not None:
+                return self._extract_names_from_all(all_assignment)
         return None
 
-    def _is_all_assignment(self, node: ast.AST) -> bool:
-        """Check if node is an assignment to __all__.
+    def _find_all_assignment(self, node: ast.AST) -> ast.expr | None:
+        """Find __all__ assignment value if node is an assignment to __all__.
 
         Args:
             node: AST node to check.
 
         Returns:
-            True if node assigns to __all__ with a list/tuple value.
+            The value expression if node assigns to __all__ with list/tuple,
+            None otherwise.
         """
         if not isinstance(node, ast.Assign):
-            return False
-        
+            return None
+
         for target in node.targets:
             if (
                 isinstance(target, ast.Name)
                 and target.id == _ALL_NAME
                 and isinstance(node.value, ast.List | ast.Tuple)
             ):
-                return True
-        return False
+                return node.value
+        return None
 
     def _extract_names_from_all(self, value: ast.expr) -> set[str] | None:
         """Extract string names from __all__ list/tuple.
@@ -551,7 +553,7 @@ class DeadCodeTool(Tool):
         """
         if not isinstance(value, ast.List | ast.Tuple):
             return None
-        
+
         names: set[str] = set()
         for element in value.elts:
             if isinstance(element, ast.Constant) and isinstance(element.value, str):
