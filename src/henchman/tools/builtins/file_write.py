@@ -5,6 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.security import (
+    PathTraversalError,
+    sanitize_error_message,
+    validate_path,
+)
 
 
 class WriteFileTool(Tool):
@@ -64,8 +69,9 @@ class WriteFileTool(Tool):
             ToolResult with success status or error.
         """
         try:
-            file_path = Path(path)
-
+            # Validate and sanitize path
+            file_path = validate_path(path)
+            
             # Create parent directories if needed
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -76,15 +82,23 @@ class WriteFileTool(Tool):
                 content=f"Successfully wrote {len(content)} bytes to {path}",
                 success=True,
             )
-        except PermissionError:
+        except (PathTraversalError, ValueError) as e:
             return ToolResult(
-                content=f"Error: Permission denied: {path}",
+                content=f"Security validation failed: {e}",
                 success=False,
-                error=f"Permission denied: {path}",
+                error="Path validation failed",
+            )
+        except PermissionError:
+            sanitized_error = sanitize_error_message("Permission denied")
+            return ToolResult(
+                content=f"Error: {sanitized_error}",
+                success=False,
+                error=sanitized_error,
             )
         except Exception as e:  # pragma: no cover  # noqa: BLE001
+            sanitized_error = sanitize_error_message(e)
             return ToolResult(
-                content=f"Error writing file: {e}",
+                content=f"Error writing file: {sanitized_error}",
                 success=False,
-                error=str(e),
+                error=sanitized_error,
             )

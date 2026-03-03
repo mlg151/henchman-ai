@@ -7,6 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.security import (
+    PathTraversalError,
+    atomic_read,
+    atomic_write,
+    sanitize_error_message,
+    validate_path,
+)
 
 _STR_PREVIEW_LEN = 50
 """Number of characters to show when previewing a not-found string."""
@@ -187,8 +194,11 @@ def _apply_edit(params: EditParams) -> ToolResult:
         return validation_error
 
     try:
-        file_path = Path(params.path)
-        content = file_path.read_text()
+        # Validate and sanitize path
+        file_path = validate_path(params.path)
+        
+        # Use atomic read to reduce TOCTOU window
+        content = atomic_read(file_path)
 
         if params.has_line_range:
             assert params.start_line is not None
@@ -198,17 +208,25 @@ def _apply_edit(params: EditParams) -> ToolResult:
         assert params.old_str is not None
         return _edit_string(file_path, content, params)
 
-    except PermissionError:
+    except (PathTraversalError, ValueError) as e:
         return ToolResult(
-            content=f"Error: Permission denied: {params.path}",
+            content=f"Security validation failed: {e}",
             success=False,
-            error=f"Permission denied: {params.path}",
+            error="Path validation failed",
+        )
+    except PermissionError:
+        sanitized_error = sanitize_error_message("Permission denied")
+        return ToolResult(
+            content=f"Error: {sanitized_error}",
+            success=False,
+            error=sanitized_error,
         )
     except Exception as e:  # pragma: no cover  # noqa: BLE001
+        sanitized_error = sanitize_error_message(e)
         return ToolResult(
-            content=f"Error editing file: {e}",
+            content=f"Error editing file: {sanitized_error}",
             success=False,
-            error=str(e),
+            error=sanitized_error,
         )
 
 
@@ -249,7 +267,8 @@ def _edit_string(
     if params.dry_run:
         return _make_diff(file_path, content, new_content)
 
-    file_path.write_text(new_content)
+    # Use atomic write to prevent TOCTOU race conditions
+    atomic_write(file_path, new_content)
     return ToolResult(content=f"Successfully edited {file_path}", success=True)
 
 
@@ -299,7 +318,8 @@ def _edit_line_range(
     if params.dry_run:
         return _make_diff(file_path, content, new_content)
 
-    file_path.write_text(new_content)
+    # Use atomic write to prevent TOCTOU race conditions
+    atomic_write(file_path, new_content)
     return ToolResult(
         content=(
             f"Successfully edited {file_path} "

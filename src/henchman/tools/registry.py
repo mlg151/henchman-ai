@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
+from henchman.tools.security import sanitize_error_message
 from henchman.utils.retry import RetryConfig, retry_async
 
 if TYPE_CHECKING:
@@ -230,10 +231,11 @@ class ToolRegistry:
             else:
                 result = await tool.execute(**params)
         except Exception as exc:  # noqa: BLE001
+            sanitized_error = sanitize_error_message(exc)
             return ToolResult(
-                content=f"Error executing tool '{name}': {exc}",
+                content=f"Error executing tool '{name}': {sanitized_error}",
                 success=False,
-                error=str(exc),
+                error=sanitized_error,
             )
 
         # Truncate large outputs to prevent context overflow

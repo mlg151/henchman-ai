@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.security import (
+    SSRFError,
+    sanitize_error_message,
+    validate_url,
+)
 
 _HTTP_ERROR_THRESHOLD = 400
 
@@ -70,6 +75,16 @@ class WebFetchTool(Tool):
         Returns:
             ToolResult with URL content or error.
         """
+        # Validate URL to prevent SSRF attacks
+        try:
+            validated_url = validate_url(url)
+        except (SSRFError, ValueError) as e:
+            return ToolResult(
+                content=f"Security validation failed: {e}",
+                success=False,
+                error="URL validation failed",
+            )
+
         try:
             import aiohttp  # noqa: PLC0415
         except ImportError:
@@ -82,7 +97,7 @@ class WebFetchTool(Tool):
         try:
             async with (
                 aiohttp.ClientSession() as session,
-                session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as response,
+                session.get(validated_url, timeout=aiohttp.ClientTimeout(total=timeout)) as response,
             ):
                 if response.status >= _HTTP_ERROR_THRESHOLD:
                     return ToolResult(
@@ -103,14 +118,16 @@ class WebFetchTool(Tool):
                 )
 
         except TimeoutError:
+            sanitized_error = sanitize_error_message(f"Request timed out after {timeout} seconds")
             return ToolResult(
-                content=f"Request timed out after {timeout} seconds",
+                content=sanitized_error,
                 success=False,
-                error=f"Timeout after {timeout} seconds",
+                error=sanitized_error,
             )
         except Exception as e:  # pragma: no cover  # noqa: BLE001
+            sanitized_error = sanitize_error_message(e)
             return ToolResult(
-                content=f"Error fetching URL: {e}",
+                content=f"Error fetching URL: {sanitized_error}",
                 success=False,
-                error=str(e),
+                error=sanitized_error,
             )

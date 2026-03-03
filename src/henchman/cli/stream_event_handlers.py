@@ -303,7 +303,18 @@ async def handle_post_stream_processing(
     content_collector: list[str] | None,
     execute_tool_calls_fn: Callable[..., object],
 ) -> None:
-    """Record session messages and execute unhandled tool calls after stream ends."""
+    """Record session messages and execute unhandled tool calls after stream ends.
+    
+    Args:
+        output_handler: The output handler for console output and session management.
+        state: The current stream processing state containing accumulated content and pending tool calls.
+        agent: The agent associated with the stream processing.
+        content_collector: Optional list to collect content for headless mode output.
+        execute_tool_calls_fn: Callback function to execute pending tool calls.
+    
+    Returns:
+        None
+    """
     sm = output_handler.session_manager
     if not state.session_tool_calls_flushed:
         if state.pending_tool_calls:

@@ -191,7 +191,9 @@ class CommandRegistry:
         await cmd.execute(ctx)
 
 
-def show_command_help(ctx: CommandContext, command_name: str, help_lines: list[str]) -> None:
+def show_command_help(
+    ctx: CommandContext, command_name: str, help_lines: list[str],
+) -> None:
     """Display formatted help for a command.
 
     This helper function standardizes the display of command help

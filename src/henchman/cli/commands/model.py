@@ -2,13 +2,29 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from henchman.cli.commands import Command, CommandContext
 from henchman.config import load_settings
 from henchman.providers import get_default_registry
 
-# ── Module-level helpers (no Feature Envy — they don't belong to any single class) ──
+# ── Module-level helpers (no Feature Envy — not class methods) ──────────────────
+
+
+@dataclass
+class ProviderConfig:
+    """Groups provider selection parameters to avoid Primitive Obsession.
+
+    Attributes:
+        name: Provider name.
+        model: Optional model override.
+        api_key: Optional API key.
+    """
+
+    name: str
+    model: str | None
+    api_key: str | None
 
 
 def _get_example_config(provider_name: str) -> str:
@@ -198,17 +214,49 @@ def _validate_provider_exists(ctx: CommandContext, provider_name: str) -> bool:
     return True
 
 
-def _create_provider_instance(
-    provider_name: str,
-    model_name: str | None,
-    api_key: str | None,
-) -> Any:
-    """Create and return a new provider instance."""
+def _create_provider_instance(config: ProviderConfig) -> Any:
+    """Create and return a new provider instance from a ProviderConfig."""
     registry = get_default_registry()
-    provider_kwargs: dict[str, Any] = {"api_key": api_key or ""}
-    if model_name:
-        provider_kwargs["model"] = model_name
-    return registry.create(provider_name, **provider_kwargs)
+    provider_kwargs: dict[str, Any] = {"api_key": config.api_key or ""}
+    if config.model:
+        provider_kwargs["model"] = config.model
+    return registry.create(config.name, **provider_kwargs)
+
+
+async def _set_provider(
+    ctx: CommandContext,
+    provider_name: str,
+    model_name: str | None = None,
+) -> None:
+    """Switch to a different provider.
+
+    Args:
+        ctx: Command context.
+        provider_name: Name of the provider to switch to.
+        model_name: Optional model name to use.
+    """
+    if not ctx.repl:
+        ctx.console.print("[yellow]Cannot switch providers without REPL context.[/]")
+        return
+
+    try:
+        if not _validate_provider_exists(ctx, provider_name):
+            return
+
+        api_key = _get_api_key_for_provider(provider_name)
+        new_provider = _create_provider_instance(
+            ProviderConfig(provider_name, model_name, api_key),
+        )
+        _test_provider_connection(ctx.console, new_provider, provider_name, model_name)
+
+        if not _update_agent_provider(ctx, new_provider):
+            return
+
+        _show_configuration_warnings(ctx, provider_name, api_key)
+
+    except Exception as e:  # noqa: BLE001
+        ctx.console.print(f"[red]Failed to switch provider: {e}[/]")
+        ctx.console.print("[dim]Check that the provider is properly configured.[/]")
 
 
 # ── Command class (thin orchestrator only) ──────────────────────────────────────
@@ -247,44 +295,6 @@ class ModelCommand(Command):
             await _list_providers(ctx)
         elif args[0] == "set" and len(args) >= self._MIN_SET_ARGS:
             model = args[2] if len(args) > self._MIN_SET_ARGS else None
-            await self._set_provider(ctx, args[1], model)
+            await _set_provider(ctx, args[1], model)
         else:
             ctx.console.print(f"[yellow]Usage: {self.usage}[/]")
-
-    async def _set_provider(
-        self: ModelCommand,
-        ctx: CommandContext,
-        provider_name: str,
-        model_name: str | None = None,
-    ) -> None:
-        """Switch to a different provider.
-
-        Args:
-            ctx: Command context.
-            provider_name: Name of the provider to switch to.
-            model_name: Optional model name to use.
-        """
-        if not ctx.repl:
-            ctx.console.print(
-                "[yellow]Cannot switch providers without REPL context.[/]",
-            )
-            return
-
-        try:
-            if not _validate_provider_exists(ctx, provider_name):
-                return
-
-            api_key = _get_api_key_for_provider(provider_name)
-            new_provider = _create_provider_instance(provider_name, model_name, api_key)
-            _test_provider_connection(
-                ctx.console, new_provider, provider_name, model_name,
-            )
-
-            if not _update_agent_provider(ctx, new_provider):
-                return
-
-            _show_configuration_warnings(ctx, provider_name, api_key)
-
-        except Exception as e:  # noqa: BLE001
-            ctx.console.print(f"[red]Failed to switch provider: {e}[/]")
-            ctx.console.print("[dim]Check that the provider is properly configured.[/]")

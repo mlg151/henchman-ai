@@ -459,7 +459,7 @@ class TemplateListExecutor(SessionCommandExecutor):
 
     async def execute(self: TemplateListExecutor, manager: SessionManager) -> None:
         """Execute template list operation.
-        
+
         Args:
             manager: The SessionManager instance to use for listing templates.
         """
@@ -487,7 +487,7 @@ class TemplateDeleteExecutor(SessionCommandExecutor):
 
     async def execute(self: TemplateDeleteExecutor, manager: SessionManager) -> None:
         """Execute template delete operation.
-        
+
         Args:
             manager: The SessionManager instance to use for deleting templates.
         """
@@ -515,7 +515,7 @@ class ExportExecutor(SessionCommandExecutor):
 
     async def execute(self: ExportExecutor, manager: SessionManager) -> None:
         """Execute export operation.
-        
+
         Args:
             manager: The SessionManager instance to use for exporting sessions.
         """
@@ -548,7 +548,7 @@ class ImportExecutor(SessionCommandExecutor):
 
     async def execute(self: ImportExecutor, manager: SessionManager) -> None:
         """Execute import operation.
-        
+
         Args:
             manager: The SessionManager instance to use for importing sessions.
         """

@@ -15,6 +15,11 @@ import tty
 from dataclasses import dataclass
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.security import (
+    CommandInjectionError,
+    sanitize_command,
+    sanitize_error_message,
+)
 
 # ---------------------------------------------------------------------------
 # Constants – replace magic numbers with named values  # noqa: RUF003
@@ -660,14 +665,24 @@ class ShellTool(Tool):
         Returns:
             ToolResult with command output or error.
         """
+        # Validate and sanitize command
+        try:
+            sanitized_command = sanitize_command(command)
+        except (CommandInjectionError, ValueError) as e:
+            return ToolResult(
+                content=f"Security validation failed: {e}",
+                success=False,
+                error="Command validation failed",
+            )
+
         effective_timeout = _resolve_timeout(timeout, self._default_timeout)
 
         try:
             env = _build_env()
             interactive = kwargs.get("interactive", False)
-            is_sudo = _is_sudo_command(command)
+            is_sudo = _is_sudo_command(sanitized_command)
             params = ShellParams(
-                command=command,
+                command=sanitized_command,
                 env=env,
                 cwd=cwd,
                 timeout=effective_timeout,
@@ -681,8 +696,9 @@ class ShellTool(Tool):
             return _make_result(outcome, effective_timeout)
 
         except Exception as e:  # pragma: no cover  # noqa: BLE001
+            sanitized_error = sanitize_error_message(e)
             return ToolResult(
-                content=f"Error executing command: {e}",
+                content=f"Error executing command: {sanitized_error}",
                 success=False,
-                error=str(e),
+                error=sanitized_error,
             )

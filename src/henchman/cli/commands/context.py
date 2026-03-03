@@ -46,6 +46,21 @@ class StrategyParameters:
 
 
 @dataclass
+class ContextSettingUpdate:
+    """Groups context setting update parameters to avoid Primitive Obsession.
+
+    Attributes:
+        param_name: Name of the setting in ContextSettings.
+        value: New value (float or bool).
+        display_value: Formatted string for success message.
+    """
+
+    param_name: str
+    value: float | bool
+    display_value: str
+
+
+@dataclass
 class RangeParameterConfig:
     """Configuration for range-validated parameters.
 
@@ -112,7 +127,8 @@ class ContextConsoleHelper:
     """
 
     def __init__(
-        self: ContextConsoleHelper, console_helper: ConsoleHelper | None = None,
+        self: ContextConsoleHelper,
+        console_helper: ConsoleHelper | None = None,
     ) -> None:
         """Initialize the context console helper.
 
@@ -133,10 +149,13 @@ class ContextConsoleHelper:
             context_settings: Context settings to display.
         """
         self._console_helper.print_status_header(
-            console, "Intelligent Context Management",
+            console,
+            "Intelligent Context Management",
         )
         self._print_context_settings(
-            console, context_settings, show_intelligent_context=True,
+            console,
+            context_settings,
+            show_intelligent_context=True,
         )
         self._print_available_commands(console)
 
@@ -165,10 +184,13 @@ class ContextConsoleHelper:
             context_settings: Context settings to display.
         """
         self._console_helper.print_status_header(
-            console, "Compression Strategy Settings",
+            console,
+            "Compression Strategy Settings",
         )
         self._print_context_settings(
-            console, context_settings, show_intelligent_context=False,
+            console,
+            context_settings,
+            show_intelligent_context=False,
         )
         console.print("")
         self._console_helper.print_command_help(
@@ -185,27 +207,30 @@ class ContextConsoleHelper:
         *,
         show_intelligent_context: bool = False,
     ) -> None:
-        """Print context settings with consistent formatting.
-
-        Args:
-            console: Console for output.
-            context_settings: Context settings to display.
-            show_intelligent_context: Whether to show intelligent context status.
-        """
+        """Print context settings with consistent formatting."""
         if show_intelligent_context:
             self._console_helper.print_enabled_status(
                 console,
                 "Status",
                 is_enabled=context_settings.intelligent_context,
             )
-
         self._console_helper.print_enabled_status(
             console,
             "Adaptive compression",
             is_enabled=context_settings.adaptive_compression,
         )
+        self._print_strategy_metric_values(console, context_settings)
+
+    def _print_strategy_metric_values(
+        self: ContextConsoleHelper,
+        console: Console,
+        context_settings: ContextSettings,
+    ) -> None:
+        """Print numeric strategy metric values."""
         self._console_helper.print_status_value(
-            console, "Max tokens", context_settings.max_tokens,
+            console,
+            "Max tokens",
+            context_settings.max_tokens,
         )
         self._console_helper.print_status_value(
             console,
@@ -241,7 +266,8 @@ class ContextConsoleHelper:
         console.print("")
 
     def _print_strategy_parameters(
-        self: ContextConsoleHelper, console: Console,
+        self: ContextConsoleHelper,
+        console: Console,
     ) -> None:
         """Print parameter list for strategy command.
 
@@ -294,7 +320,9 @@ class StrategyManager:
         self._console_helper = ContextConsoleHelper()
 
     async def manage_strategy(
-        self: StrategyManager, ctx: CommandContext, args: list[str],
+        self: StrategyManager,
+        ctx: CommandContext,
+        args: list[str],
     ) -> None:
         """Manage compression strategy settings.
 
@@ -316,7 +344,7 @@ class StrategyManager:
 
             param = args[self._STRATEGY_PARAM_IDX]
             value = args[self._STRATEGY_VALUE_IDX]
-            await self._set_strategy_parameter(ctx, param, value)
+            await _set_strategy_parameter(ctx, param, value, self._parameter_configs)
         else:
             ctx.console.print(
                 "[yellow]Usage: /context strategy [set <parameter> <value>][/]",
@@ -361,11 +389,15 @@ class StrategyManager:
             return
 
         if param in self._parameter_configs:
-            await self._handle_range_parameter(
-                ctx, value, self._parameter_configs[param],
+            config = self._parameter_configs[param]
+            val = config.parse_value(value)
+            config.validate_value(val)
+            await _update_context_setting(
+                ctx,
+                ContextSettingUpdate(config.param_name, val, str(val)),
             )
         elif param == "adaptive":
-            await self._handle_adaptive_parameter(ctx, value)
+            await _handle_adaptive_parameter(ctx, value)
         else:
             ctx.console.print(f"[red]Unknown parameter: {param}[/]")
             ctx.console.print("\nValid parameters:")
@@ -374,60 +406,61 @@ class StrategyManager:
             )
             return
 
-    async def _update_context_setting(
-        self: StrategyManager,
-        ctx: CommandContext,
-        param_name: str,
-        *,
-        value: float | bool,
-        display_value: str,
-    ) -> None:
-        """Helper to update a context setting and save it.
 
-        Args:
-            ctx: Command context.
-            param_name: Name of the setting in ContextSettings.
-            value: New value for the setting (int, float, or bool).
-            display_value: Formatted value string for success message.
-        """
-        settings = load_settings()
-        setattr(settings.context, param_name, value)
-        save_settings(settings)
-        ctx.console.print(
-            f"[green]✓ {param_name.replace('_', ' ').capitalize()} set to {display_value}[/]",
+# ── Module-level context helpers (not class methods → no Feature Envy) ──────────
+
+
+async def _update_context_setting(ctx: CommandContext, update: ContextSettingUpdate) -> None:
+    """Update a context setting and save it."""
+    settings = load_settings()
+    setattr(settings.context, update.param_name, update.value)
+    save_settings(settings)
+    ctx.console.print(
+        f"[green]✓ {update.param_name.replace('_', ' ').capitalize()} "
+        f"set to {update.display_value}[/]",
+    )
+
+
+async def _handle_adaptive_parameter(ctx: CommandContext, value: str) -> None:
+    """Handle adaptive parameter setting."""
+    lower_value = value.lower()
+    if lower_value in ["on", "true", "yes", "1"]:
+        await _update_context_setting(
+            ctx,
+            ContextSettingUpdate("adaptive_compression", value=True, display_value="enabled"),
         )
+    elif lower_value in ["off", "false", "no", "0"]:
+        await _update_context_setting(
+            ctx,
+            ContextSettingUpdate("adaptive_compression", value=False, display_value="disabled"),
+        )
+    else:
+        msg = "Value must be 'on' or 'off'"
+        raise ValueError(msg)
 
-    async def _handle_range_parameter(
-        self: StrategyManager,
-        ctx: CommandContext,
-        value: str,
-        config: RangeParameterConfig,
-    ) -> None:
-        """Generic handler for range-validated parameters (DRY)."""
-        val = config.parse_value(value)
-        config.validate_value(val)
-        await self._update_context_setting(
-            ctx, config.param_name, value=val, display_value=str(val),
-        )  # noqa: E501
 
-    async def _handle_adaptive_parameter(
-        self: StrategyManager,
-        ctx: CommandContext,
-        value: str,
-    ) -> None:
-        """Handle adaptive parameter setting."""
-        lower_value = value.lower()
-        if lower_value in ["on", "true", "yes", "1"]:
-            await self._update_context_setting(
-                ctx, "adaptive_compression", value=True, display_value="enabled",
-            )  # noqa: E501
-        elif lower_value in ["off", "false", "no", "0"]:
-            await self._update_context_setting(
-                ctx, "adaptive_compression", value=False, display_value="disabled",
-            )  # noqa: E501
-        else:
-            msg = "Value must be 'on' or 'off'"
-            raise ValueError(msg)
+async def _enable_intelligent_context(ctx: CommandContext) -> None:
+    """Enable intelligent context management."""
+    settings = load_settings()
+    if settings.context.intelligent_context:
+        ctx.console.print("[yellow]Intelligent context is already enabled.[/]")
+        return
+    settings.context.intelligent_context = True
+    save_settings(settings)
+    ctx.console.print("[green]✓ Intelligent context management enabled.[/]")
+    ctx.console.print("[dim]Note: This setting will take effect in new sessions.[/]")
+
+
+async def _disable_intelligent_context(ctx: CommandContext) -> None:
+    """Disable intelligent context management."""
+    settings = load_settings()
+    if not settings.context.intelligent_context:
+        ctx.console.print("[yellow]Intelligent context is already disabled.[/]")
+        return
+    settings.context.intelligent_context = False
+    save_settings(settings)
+    ctx.console.print("[green]✓ Intelligent context management disabled.[/]")
+    ctx.console.print("[dim]Note: This setting will take effect in new sessions.[/]")
 
 
 class ContextCommand(Command):
@@ -467,18 +500,17 @@ class ContextCommand(Command):
             await self._show_status(ctx)
             return
 
-        subcommand = ctx.args[self._SUBCOMMAND_IDX].lower()
-
-        if subcommand == "enable":
-            await self._enable_intelligent_context(ctx)
-        elif subcommand == "disable":
-            await self._disable_intelligent_context(ctx)
-        elif subcommand == "strategy":
-            await self._strategy_manager.manage_strategy(ctx, ctx.args[1:])
-        elif subcommand == "stats":
-            await self._statistics_manager.show_stats(ctx)
-        else:
-            await self._show_help_message(ctx)
+        match ctx.args[self._SUBCOMMAND_IDX].lower():
+            case "enable":
+                await _enable_intelligent_context(ctx)
+            case "disable":
+                await _disable_intelligent_context(ctx)
+            case "strategy":
+                await self._strategy_manager.manage_strategy(ctx, ctx.args[1:])
+            case "stats":
+                await self._statistics_manager.show_stats(ctx)
+            case _:
+                await self._show_help_message(ctx)
 
     async def _show_help_message(self: ContextCommand, ctx: CommandContext) -> None:
         """Show detailed help message."""
@@ -497,7 +529,10 @@ class ContextCommand(Command):
             ("stats", "Show context usage statistics"),
         ]
         ConsoleHelper.print_usage_help(
-            console, self.usage, commands, header="Subcommands:",
+            console,
+            self.usage,
+            commands,
+            header="Subcommands:",
         )
 
     def _show_context_info(
@@ -523,45 +558,82 @@ class ContextCommand(Command):
         """
         self._show_context_info(ctx, self._console_helper.print_status_info)
 
-    async def _enable_intelligent_context(
-        self: ContextCommand, ctx: CommandContext,
-    ) -> None:
-        """Enable intelligent context management.
 
-        Args:
-            ctx: Command context.
-        """
-        settings = load_settings()
-        if settings.context.intelligent_context:
-            ctx.console.print("[yellow]Intelligent context is already enabled.[/]")
-            return
+# ── Module-level statistics helpers (no Feature Envy) ───────────────────────────
 
-        settings.context.intelligent_context = True
-        save_settings(settings)
-        ctx.console.print("[green]✓ Intelligent context management enabled.[/]")
-        ctx.console.print(
-            "[dim]Note: This setting will take effect in new sessions.[/]",
+
+def _print_no_compactor_message(console: Console) -> None:
+    """Print message when no compactor is active."""
+    console.print("[yellow]Intelligent context manager not active.[/]")
+    console.print("[dim]Enable intelligent context with /context enable[/]")
+
+
+def _print_statistics_values(console: Console, stats: dict[str, Any]) -> None:
+    """Print statistics values from the compactor."""
+    console.print(f"  Total messages: [cyan]{stats.get('total_messages', 'N/A')}[/]")
+    console.print(
+        f"  Clusters created: [cyan]{stats.get('clusters_created', 'N/A')}[/]",
+    )
+    console.print(
+        f"  Compression ratio: [cyan]{stats.get('compression_ratio', 'N/A')}[/]",
+    )
+    console.print(f"  Tokens saved: [cyan]{stats.get('tokens_saved', 'N/A')}[/]")
+
+
+def _print_current_context_size(console: Console, agent: Agent) -> None:
+    """Print current context size from agent session."""
+    if hasattr(agent, "session") and agent.session:
+        messages = agent.session.messages if hasattr(agent.session, "messages") else []
+        console.print(f"  Current messages in session: [cyan]{len(messages)}[/]")
+
+
+def _print_stats_with_compactor(
+    console: Console,
+    agent: Agent,
+    stats: dict[str, Any],
+) -> None:
+    """Print statistics when compactor is available."""
+    console.print("\n[bold blue]Context Usage Statistics[/]\n")
+    if stats:
+        _print_statistics_values(console, stats)
+    else:
+        console.print("  [dim]No statistics available.[/]")
+    _print_current_context_size(console, agent)
+    console.print("")
+
+
+def _print_stats_info(console: Console, agent: Agent) -> None:
+    """Print context usage statistics."""
+    try:
+        from henchman.utils.intelligent_context import (  # noqa: PLC0415
+            IntelligentContextManager,
         )
 
-    async def _disable_intelligent_context(
-        self: ContextCommand, ctx: CommandContext,
-    ) -> None:
-        """Disable intelligent context management.
+        if hasattr(agent, "compactor") and isinstance(
+            agent.compactor,
+            IntelligentContextManager,
+        ):
+            compactor = agent.compactor
+            stats = (
+                compactor.get_statistics()
+                if hasattr(compactor, "get_statistics")
+                else {}
+            )
+            _print_stats_with_compactor(console, agent, stats)
+        else:
+            _print_no_compactor_message(console)
+    except ImportError:
+        console.print("[yellow]Intelligent context module not available.[/]")
+    except Exception as e:  # noqa: BLE001
+        console.print(f"[yellow]Could not retrieve statistics: {e}[/]")
 
-        Args:
-            ctx: Command context.
-        """
-        settings = load_settings()
-        if not settings.context.intelligent_context:
-            ctx.console.print("[yellow]Intelligent context is already disabled.[/]")
-            return
 
-        settings.context.intelligent_context = False
-        save_settings(settings)
-        ctx.console.print("[green]✓ Intelligent context management disabled.[/]")
-        ctx.console.print(
-            "[dim]Note: This setting will take effect in new sessions.[/]",
-        )
+async def _show_stats(ctx: CommandContext) -> None:
+    """Show context usage statistics."""
+    if not ctx.agent:
+        ctx.console.print("[yellow]No active agent. Cannot show context statistics.[/]")
+        return
+    _print_stats_info(ctx.console, ctx.agent)
 
 
 class StatisticsManager:
@@ -573,117 +645,4 @@ class StatisticsManager:
         Args:
             ctx: Command context.
         """
-        if not ctx.agent:
-            ctx.console.print(
-                "[yellow]No active agent. Cannot show context statistics.[/]",
-            )
-            return
-
-        self._print_stats_info(ctx.console, ctx.agent)
-
-    def _print_stats_info(
-        self: StatisticsManager, console: Console, agent: Agent,
-    ) -> None:
-        """Print context usage statistics.
-
-        Args:
-            console: Console for output.
-            agent: Agent to get statistics from.
-        """
-        # Try to get statistics from the agent's context manager
-        try:
-            from henchman.utils.intelligent_context import (  # noqa: PLC0415
-                IntelligentContextManager,
-            )
-
-            if hasattr(agent, "compactor") and isinstance(
-                agent.compactor,
-                IntelligentContextManager,
-            ):
-                compactor = agent.compactor
-                stats = (
-                    compactor.get_statistics()
-                    if hasattr(compactor, "get_statistics")
-                    else {}
-                )
-                self._print_stats_with_compactor(console, agent, stats)
-            else:
-                self._print_no_compactor_message(console)
-
-        except ImportError:
-            console.print("[yellow]Intelligent context module not available.[/]")
-        except Exception as e:  # noqa: BLE001
-            console.print(f"[yellow]Could not retrieve statistics: {e}[/]")
-
-    def _print_stats_with_compactor(
-        self: StatisticsManager,
-        console: Console,
-        agent: Agent,
-        stats: dict[str, Any],
-    ) -> None:
-        """Print statistics when compactor is available.
-
-        Args:
-            console: Console for output.
-            agent: Agent to get statistics from.
-            stats: Statistics dictionary.
-        """
-        console.print("\n[bold blue]Context Usage Statistics[/]\n")
-
-        if stats:
-            self._print_statistics_values(console, stats)
-        else:
-            console.print("  [dim]No statistics available.[/]")
-
-        # Show current context size if available
-        self._print_current_context_size(console, agent)
-
-        console.print("")
-
-    def _print_statistics_values(
-        self: StatisticsManager,
-        console: Console,
-        stats: dict[str, Any],
-    ) -> None:
-        """Print statistics values.
-
-        Args:
-            console: Console for output.
-            stats: Statistics dictionary.
-        """
-        console.print(
-            f"  Total messages: [cyan]{stats.get('total_messages', 'N/A')}[/]",
-        )
-        console.print(
-            f"  Clusters created: [cyan]{stats.get('clusters_created', 'N/A')}[/]",
-        )
-        console.print(
-            f"  Compression ratio: [cyan]{stats.get('compression_ratio', 'N/A')}[/]",
-        )
-        console.print(f"  Tokens saved: [cyan]{stats.get('tokens_saved', 'N/A')}[/]")
-
-    def _print_current_context_size(
-        self: StatisticsManager,
-        console: Console,
-        agent: Agent,
-    ) -> None:
-        """Print current context size.
-
-        Args:
-            console: Console for output.
-            agent: Agent to get session from.
-        """
-        if hasattr(agent, "session") and agent.session:
-            messages = (
-                agent.session.messages if hasattr(agent.session, "messages") else []
-            )
-            console.print(f"  Current messages in session: [cyan]{len(messages)}[/]")
-
-    def _print_no_compactor_message(self: StatisticsManager, console: Console) -> None:
-        """Print message when no compactor is active.
-
-        Args:
-            console: Console for output.
-        """
-        console.print("[yellow]Intelligent context manager not active.[/]")
-        console.print("[dim]Enable intelligent context with /context enable[/]")
+        await _show_stats(ctx)
