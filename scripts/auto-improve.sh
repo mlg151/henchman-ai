@@ -2,7 +2,11 @@
 # auto-improve.sh — Run Henchman to make one codebase improvement, then commit.
 set -euo pipefail
 
-# Activate the base conda environment
+alias pytest='prlimit --as=16G --rss=16G python -m pytest'
+
+
+# Limit memory usage to 16GB
+ulimit -v 16777216  # 16GB in KB
 # Temporarily disable nounset — conda activation scripts use unbound vars
 set +u
 source "/home/matthew/anaconda3/etc/profile.d/conda.sh"
@@ -156,7 +160,7 @@ ATTEMPT=0
 
 while true; do
   echo "[$TIMESTAMP] Running pytest to verify tests pass..." | tee -a "$LOGFILE"
-  if python -m pytest tests/ -x -q --tb=short 2>&1 | tee -a "$LOGFILE"; then
+  if /usr/bin/prlimit --as=17179869184 --rss=17179869184 python -m pytest tests/ -x -q --tb=short 2>&1 | tee -a "$LOGFILE"; then
     echo "[$TIMESTAMP] All tests passed." | tee -a "$LOGFILE"
     break
   fi

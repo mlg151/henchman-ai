@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # auto-doc-improve.sh — Run Henchman to make one documentation improvement, then commit.
 set -euo pipefail
-
-# Activate the base conda environment
+alias pytest='prlimit --as=16G --rss=16G python -m pytest'
+# Limit memory usage to 16GB
+ulimit -v 16777216  # 16GB in KB
 # Temporarily disable nounset — conda activation scripts use unbound vars
 set +u
 source "/home/matthew/anaconda3/etc/profile.d/conda.sh"

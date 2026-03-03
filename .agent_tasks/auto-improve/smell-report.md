@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 52.8/100)
+# Code Smell Report — ❌ F (Score: 52.7/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-02T16:00:16.660057+00:00_
+_Generated: 2026-03-03T02:00:22.710666+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 52.8/100 |
+| **Overall Score** | 52.7/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 33,715 |
-| **Total Smells** | 2197 |
+| **Total Lines (non-blank)** | 33,937 |
+| **Total Smells** | 2205 |
 | **Avg Maintainability Index** | 71.4 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,22 +20,22 @@ _Generated: 2026-03-02T16:00:16.660057+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1646 |
-| medium | 483 |
+| low | 1662 |
+| medium | 475 |
 | high | 68 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1155 |
-| Feature Envy | 304 |
+| Missing Type Hint | 1175 |
+| Feature Envy | 301 |
 | Duplicate Code | 252 |
-| Magic Number | 132 |
-| Long Method | 114 |
-| Deep Nesting | 107 |
-| Primitive Obsession | 71 |
-| Complex Function | 33 |
+| Magic Number | 131 |
+| Long Method | 110 |
+| Deep Nesting | 103 |
+| Primitive Obsession | 72 |
+| Complex Function | 32 |
 | Large Class | 29 |
 
 ## 🎯 Prioritised Refactoring Queue
@@ -46,11 +46,11 @@ These are the highest-impact smells to address first:
    Function 'chat_command' has 8 primitive-typed parameters: prompt: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), agent: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), team: Name(id='bool', ctx=Load()), output_format: Name(id='str', ctx=Load()), plan: Name(id='bool', ctx=Load()), yes: Name(id='bool', ctx=Load()), tui: Name(id='bool', ctx=Load()), debug: Name(id='bool', ctx=Load())  
    → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
 
-2. **cli/commands/context.py:375** — 🟠 HIGH — Duplicate Code  
-   Function '_handle_importance_parameter' is an exact duplicate of '_handle_similarity_parameter' at cli/commands/context.py:379  
+2. **cli/commands/context.py:374** — 🟠 HIGH — Duplicate Code  
+   Function '_handle_importance_parameter' is an exact duplicate of '_handle_similarity_parameter' at cli/commands/context.py:378  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-3. **cli/commands/context.py:486** — 🟠 HIGH — Duplicate Code  
+3. **cli/commands/context.py:485** — 🟠 HIGH — Duplicate Code  
    Function '_print_no_compactor_message' is an exact duplicate of '_print_set_theme_error' at cli/commands/theme.py:121  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
@@ -107,90 +107,66 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/console.py | ❌ F | 12.7 | 55 | 658 | 42 | 0.0 |
-| 2 | metrics/storage.py | ❌ F | 14.6 | 31 | 432 | 49 | 12.0 |
-| 3 | cli/commands/context.py | ❌ F | 15.0 | 63 | 402 | 50 | 0.0 |
-| 4 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
-| 5 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
-| 6 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
-| 7 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
-| 8 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
-| 9 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
-| 10 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
+| 1 | cli/console.py | ❌ F | 12.5 | 55 | 667 | 42 | 0.0 |
+| 2 | cli/commands/context.py | ❌ F | 15.0 | 63 | 401 | 50 | 0.0 |
+| 3 | tools/builtins/dead_code.py | ❌ F | 15.0 | 47 | 301 | 50 | 15.5 |
+| 4 | cli/textual_bridge.py | ❌ F | 15.7 | 54 | 317 | 52 | 0.0 |
+| 5 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
+| 6 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
+| 7 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
+| 8 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
+| 9 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
+| 10 | tools/builtins/kg_query.py | ❌ F | 16.0 | 28 | 209 | 49 | 12.0 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 168 additional files omitted._
 
-### cli/console.py — ❌ F (12.7/100)
+### cli/console.py — ❌ F (12.5/100)
 
-LOC: 658 | Classes: 9 | Functions: 4 | MI: 42 | Avg CC: 0.0
+LOC: 667 | Classes: 9 | Functions: 4 | MI: 42 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 419 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'info' at cli/console.py:429 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 419 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/console.py:439 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 419 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/console.py:449 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 429 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'warning' at cli/console.py:439 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 429 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'error' at cli/console.py:449 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 439 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 100% similar to 'error' at cli/console.py:449 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 85 | 🟢 LOW | Missing Type Hint | Function 'style' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 90 | 🟢 LOW | Missing Type Hint | Function 'icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 95 | 🟢 LOW | Missing Type Hint | Function 'accessible_icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 131 | 🟢 LOW | Missing Type Hint | Function 'get_resolved_theme' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 167 | 🟢 LOW | Missing Type Hint | Function 'with_overrides' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 305 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 311 | 🟢 LOW | Missing Type Hint | Function 'current' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 315 | 🟢 LOW | Missing Type Hint | Function 'get_theme' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 327 | 🟢 LOW | Missing Type Hint | Function 'set_theme' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 427 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'info' at cli/console.py:435 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 427 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/console.py:443 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 427 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/console.py:451 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 435 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'warning' at cli/console.py:443 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 435 | 🟡 MEDIUM | Duplicate Code | Function 'info' is 100% similar to 'error' at cli/console.py:451 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 443 | 🟡 MEDIUM | Duplicate Code | Function 'warning' is 100% similar to 'error' at cli/console.py:451 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 91 | 🟢 LOW | Missing Type Hint | Function 'style' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 96 | 🟢 LOW | Missing Type Hint | Function 'icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 101 | 🟢 LOW | Missing Type Hint | Function 'accessible_icon' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 137 | 🟢 LOW | Missing Type Hint | Function 'get_resolved_theme' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 172 | 🟢 LOW | Missing Type Hint | Function 'with_overrides' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 312 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 318 | 🟢 LOW | Missing Type Hint | Function 'current' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 322 | 🟢 LOW | Missing Type Hint | Function 'get_theme' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 334 | 🟢 LOW | Missing Type Hint | Function 'set_theme' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 40 more smells._
 
-### metrics/storage.py — ❌ F (14.6/100)
-
-LOC: 432 | Classes: 1 | Functions: 0 | MI: 49 | Avg CC: 12.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 175 | 🟠 HIGH | Feature Envy | Method 'MetricsStorage._metric_to_dict' accesses 'metric' 46 times but 'self' only 0 times | Move Method — consider moving '_metric_to_dict' to the class that owns 'metric'. |
-| 79 | 🟡 MEDIUM | Long Method | Function '_init_database' has 62 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 79 | 🟡 MEDIUM | Feature Envy | Method 'MetricsStorage._init_database' accesses 'cursor' 8 times but 'self' only 1 times | Move Method — consider moving '_init_database' to the class that owns 'cursor'. |
-| 175 | 🟡 MEDIUM | Long Method | Function '_metric_to_dict' has 66 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 175 | 🟡 MEDIUM | Feature Envy | Method 'MetricsStorage._metric_to_dict' accesses 'base_dict' 5 times but 'self' only 0 times | Move Method — consider moving '_metric_to_dict' to the class that owns 'base_dict'. |
-| 239 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_metric_to_dict' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 283 | 🟡 MEDIUM | Feature Envy | Method 'MetricsStorage.get_metrics' accesses 'params' 6 times but 'self' only 1 times | Move Method — consider moving 'get_metrics' to the class that owns 'params'. |
-| 341 | 🟡 MEDIUM | Long Method | Function 'get_aggregated_stats' has 75 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 341 | 🟡 MEDIUM | Complex Function | Function 'get_aggregated_stats' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 435 | 🟡 MEDIUM | Long Method | Function 'get_session_metrics' has 59 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 435 | 🟡 MEDIUM | Feature Envy | Method 'MetricsStorage.get_session_metrics' accesses 'cursor' 8 times but 'self' only 1 times | Move Method — consider moving 'get_session_metrics' to the class that owns 'cursor'. |
-| 24 | 🟢 LOW | Large Class | Class 'MetricsStorage' spans 496 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 33 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 66 | 🟢 LOW | Missing Type Hint | Function '_get_connection' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 66 | 🟢 LOW | Feature Envy | Method 'MetricsStorage._get_connection' accesses 'sqlite3' 3 times but 'self' only 1 times | Move Method — consider moving '_get_connection' to the class that owns 'sqlite3'. |
-
-_... and 16 more smells._
-
 ### cli/commands/context.py — ❌ F (15.0/100)
 
-LOC: 402 | Classes: 2 | Functions: 0 | MI: 50 | Avg CC: 0.0
+LOC: 401 | Classes: 2 | Functions: 0 | MI: 50 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 375 | 🟠 HIGH | Duplicate Code | Function '_handle_importance_parameter' is an exact duplicate of '_handle_similarity_parameter' at cli/commands/context.py:379 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 486 | 🟠 HIGH | Duplicate Code | Function '_print_no_compactor_message' is an exact duplicate of '_print_set_theme_error' at cli/commands/theme.py:121 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 133 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_help_message' accesses 'ctx' 7 times but 'self' only 1 times | Move Method — consider moving '_show_help_message' to the class that owns 'ctx'. |
-| 153 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'print_usage' at cli/commands/session.py:138 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 153 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 153 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 153 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 153 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 172 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_values' accesses 'console' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'console'. |
-| 172 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_values' accesses 'context_settings' 8 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'context_settings'. |
-| 196 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_commands' accesses 'console' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_commands' to the class that owns 'console'. |
-| 196 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_commands' is 100% similar to '_print_logging_help' at cli/commands/mcp.py:132 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 241 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._manage_strategy' accesses 'ctx' 8 times but 'self' only 5 times | Move Method — consider moving '_manage_strategy' to the class that owns 'ctx'. |
-| 274 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'console' 9 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'console'. |
-| 274 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'context_settings'. |
+| 374 | 🟠 HIGH | Duplicate Code | Function '_handle_importance_parameter' is an exact duplicate of '_handle_similarity_parameter' at cli/commands/context.py:378 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 485 | 🟠 HIGH | Duplicate Code | Function '_print_no_compactor_message' is an exact duplicate of '_print_set_theme_error' at cli/commands/theme.py:121 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 132 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_help_message' accesses 'ctx' 7 times but 'self' only 1 times | Move Method — consider moving '_show_help_message' to the class that owns 'ctx'. |
+| 152 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'print_usage' at cli/commands/session.py:138 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 152 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 152 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 152 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 152 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_info' is 94% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 171 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_values' accesses 'console' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'console'. |
+| 171 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_values' accesses 'context_settings' 8 times but 'self' only 0 times | Move Method — consider moving '_print_status_values' to the class that owns 'context_settings'. |
+| 195 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._print_status_commands' accesses 'console' 6 times but 'self' only 0 times | Move Method — consider moving '_print_status_commands' to the class that owns 'console'. |
+| 195 | 🟡 MEDIUM | Duplicate Code | Function '_print_status_commands' is 100% similar to '_print_logging_help' at cli/commands/mcp.py:132 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 240 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._manage_strategy' accesses 'ctx' 8 times but 'self' only 5 times | Move Method — consider moving '_manage_strategy' to the class that owns 'ctx'. |
+| 273 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'console' 9 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'console'. |
+| 273 | 🟡 MEDIUM | Feature Envy | Method 'ContextCommand._show_strategy_status' accesses 'context_settings' 6 times but 'self' only 0 times | Move Method — consider moving '_show_strategy_status' to the class that owns 'context_settings'. |
 
 _... and 48 more smells._
 
@@ -577,6 +553,30 @@ LOC: 203 | Classes: 2 | Functions: 0 | MI: 64 | Avg CC: 0.0
 | 254 | 🟡 MEDIUM | Magic Number | Magic number 0.1 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
 _... and 13 more smells._
+
+### metrics/storage.py — ❌ F (19.8/100)
+
+LOC: 646 | Classes: 5 | Functions: 0 | MI: 47 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 701 | 🟠 HIGH | Feature Envy | Method 'MetricsStorage._build_metrics_query' accesses 'query_params' 12 times but 'self' only 0 times | Move Method — consider moving '_build_metrics_query' to the class that owns 'query_params'. |
+| 514 | 🟡 MEDIUM | Feature Envy | Method 'MetricsStorage._create_base_metric_dict' accesses 'metric' 8 times but 'self' only 0 times | Move Method — consider moving '_create_base_metric_dict' to the class that owns 'metric'. |
+| 701 | 🟡 MEDIUM | Feature Envy | Method 'MetricsStorage._build_metrics_query' accesses 'params' 6 times but 'self' only 0 times | Move Method — consider moving '_build_metrics_query' to the class that owns 'params'. |
+| 41 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 49 | 🟢 LOW | Missing Type Hint | Function 'get_session_metrics' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 74 | 🟢 LOW | Missing Type Hint | Function '_get_session_metrics_by_type' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 74 | 🟢 LOW | Primitive Obsession | Function '_get_session_metrics_by_type' has 3 primitive-typed parameters: session_id: Name(id='str', ctx=Load()), metric_type: Name(id='str', ctx=Load()), select_clause: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 96 | 🟢 LOW | Missing Type Hint | Function '_get_session_aggregated_metrics' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 137 | 🟢 LOW | Missing Type Hint | Function '_get_session_metric_by_type' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 152 | 🟢 LOW | Missing Type Hint | Function '_get_session_usage_patterns' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 223 | 🟢 LOW | Missing Type Hint | Function 'create_metrics_table' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 232 | 🟢 LOW | Missing Type Hint | Function 'create_indexes' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 251 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 259 | 🟢 LOW | Missing Type Hint | Function 'get_aggregated_stats' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 283 | 🟢 LOW | Missing Type Hint | Function '_get_time_format_for_grouping' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 24 more smells._
 
 ### tools/builtins/patch_apply.py — ❌ F (21.1/100)
 

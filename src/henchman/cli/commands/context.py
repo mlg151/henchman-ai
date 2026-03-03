@@ -54,9 +54,8 @@ class RangeParameterConfig:
                 raise ValueError(
                     f"{display_label} must be between {self.min_val} and {self.max_val}"
                 )
-        else:
-            if value < self.min_val:
-                raise ValueError(f"{display_label} must be at least {self.min_val}")
+        elif value < self.min_val:
+            raise ValueError(f"{display_label} must be at least {self.min_val}")
 
     def parse_value(self, value_str: str) -> float | int:
         """Parse string value to appropriate type.
@@ -335,7 +334,7 @@ class ContextCommand(Command):
             ctx.console.print(f"[red]Invalid value: {e}[/]")
 
     async def _update_context_setting(
-        self, ctx: CommandContext, param_name: str, value: any, display_value: str
+        self, ctx: CommandContext, param_name: str, value: Any, display_value: str
     ) -> None:
         """Helper to update a context setting and save it.
 
@@ -440,7 +439,7 @@ class ContextCommand(Command):
         except Exception as e:
             console.print(f"[yellow]Could not retrieve statistics: {e}[/]")
 
-    def _print_stats_with_compactor(self, console: Any, agent: Any, stats: dict) -> None:
+    def _print_stats_with_compactor(self, console: Any, agent: Any, stats: dict[str, Any]) -> None:
         """Print statistics when compactor is available.
 
         Args:
@@ -460,7 +459,7 @@ class ContextCommand(Command):
 
         console.print("")
 
-    def _print_statistics_values(self, console: Any, stats: dict) -> None:
+    def _print_statistics_values(self, console: Any, stats: dict[str, Any]) -> None:
         """Print statistics values.
 
         Args:

@@ -307,7 +307,7 @@ Found a bug or have a feature request? Please [open an issue](https://github.com
 
 ## 📄 License
 
-Henchman-AI is released under the MIT License. See the [LICENSE](LICENSE) file for details.
+Henchman-AI is released under the MIT License. See the [LICENSE](https://github.com/mlg151/henchman-ai/blob/main/LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
