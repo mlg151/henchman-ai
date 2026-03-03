@@ -87,6 +87,8 @@ The `extension.py` file should contain your `Extension` subclass:
 ```python
 # ~/.henchman/extensions/my_extension/extension.py
 from henchman.extensions import Extension
+from henchman.tools import Tool
+from henchman.cli.commands import Command
 
 class MyExtension(Extension):
     @property
@@ -101,15 +103,15 @@ class MyExtension(Extension):
     def description(self) -> str:
         return "My custom extension"
     
-    def get_tools(self):
+    def get_tools(self) -> list[Tool]:
         # Return your tools
         return []
     
-    def get_commands(self):
+    def get_commands(self) -> list[Command]:
         # Return your commands  
         return []
     
-    def get_context(self):
+    def get_context(self) -> str:
         # Return additional context
         return ""
 ```
@@ -210,12 +212,29 @@ Use the `/extensions` command to list all loaded extensions:
 /extensions
 ```
 
+Example output:
+```
+Loaded Extensions (2):
+  • greeting_extension v1.0.0 - Adds greeting tools and commands
+  • another_extension v2.0.0 - Another useful extension
+```
+
 This shows:
-- Extension name
+- Extension name (in cyan)
 - Version
 - Description
 
-**Note**: The extensions system automatically discovers and loads extensions. There are currently no enable/disable commands - all discovered extensions are loaded automatically.
+**Note**: The extensions system automatically discovers and loads extensions. There are currently no enable/disable commands - all discovered extensions are loaded automatically when Henchman-AI starts.
+
+### Automatic Discovery
+
+Henchman-AI automatically discovers extensions in two ways:
+
+1. **Entry Points**: When installed via pip, extensions are discovered through Python entry points in the `henchman.extensions` group.
+
+2. **Local Directory**: Extensions placed in `~/.henchman/extensions/` are discovered automatically.
+
+The discovery happens automatically when Henchman-AI starts. You don't need to manually register extensions unless you're developing or testing them programmatically.
 
 ## Extension Manager API
 
@@ -360,12 +379,12 @@ class MyExtension(Extension):
     def description(self) -> str:
         return "Adds greeting tools and commands"
     
-    def get_tools(self):
+    def get_tools(self) -> list[Tool]:
         return [GreetTool()]
     
-    def get_commands(self):
+    def get_commands(self) -> list[Command]:
         return [GreetCommand()]
     
-    def get_context(self):
+    def get_context(self) -> str:
         return "This extension provides greeting functionality."
 ```
