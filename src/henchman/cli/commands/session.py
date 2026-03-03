@@ -124,7 +124,11 @@ class CommandOperationContext:
     project_hash: str | None = None
 
     def print_success(self: CommandOperationContext, message: str) -> None:
-        """Print a success message."""
+        """Print a success message.
+        
+        Args:
+            message: The success message to display.
+        """
         self.console.print(f"[green]✓[/] {message}")
 
     def print_error(self: CommandOperationContext, message: str) -> None:

@@ -17771,3 +17771,219 @@ INFO    -  Documentation built in 0.70 seconds
 }
 [2026-03-03T13:00:02Z] Verification passed.
 Committing changes...
+[main da262ce] docs(auto-improve): automated documentation improvement
+ 10 files changed, 1981 insertions(+), 1117 deletions(-)
+[2026-03-03T13:00:02Z] Done.
+[2026-03-03T13:15:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by examining the highest-priority issue from the smell report: the consistency error in pyproject.toml where coverage thresholds are inconsistent (4% vs 100%). Let me first check what the current pyproject.toml file contains.
+[tool] read_file({'path': 'pyproject.toml'})
+
+
+[result] [build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "henchman-ai"
+version = "0.3.12"
+description = "A model-agnostic AI agent CLI - your AI henchman for the ter...
+Now I can see the issue. The smell report says there's a coverage threshold of 4% mentioned somewhere, but the pyproject.toml shows `--cov-fail-under=100` in the pytest configuration. Let me check if there are any other files that mention a 4% coverage threshold.
+[tool] grep({'pattern': '4%', 'path': '.', 'ignore_case': False, 'line_numbers':
+True})
+
+[result] .agent_tasks/auto-doc-improve/cron.log:3674:mismatch: 4% vs 80%)\n\nThe
+stale docstrings should be addressed next as they 
+.agent_tasks/auto-doc-improve/cron.log:3881:mismatch: 4% vs 80%)\n\nThe stale...
+Now let me check the last improvement record to see what was done last time:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T13:05:30Z
+
+## Files Changed
+1. `pyproject.toml` - Improved comment clarity for pytest-cov version 
+requirement
+
+## Smell Category Addressed
+-...
+Now I can see that the last improvement already addressed the false positive issue about the "4% coverage threshold" by adding a clarifying comment. However, looking at the current smell report, it still lists this as the #1 issue. Let me check if there are any actual inconsistencies in coverage thresholds across documentation files.
+
+Let me check the CONTRIBUTING.md file to see what it says about coverage:
+[tool] read_file({'path': 'CONTRIBUTING.md'})
+
+[result] # Contributing to Henchman-AI
+
+Thank you for your interest in contributing to Henchman-AI! This document 
+provides guidelines and instructions for contributing.
+
+## 🎯 How to Contribute
+
+### 1. Reportin...
+Good, CONTRIBUTING.md correctly states "Aim for 100% test coverage (required by CI)". Let me check the README.md file:
+[tool] read_file({'path': 'README.md', 'start_line': 1, 'end_line': 100})
+
+[result] # Henchman-AI
+
+> Your AI Henchman for the Terminal - A Model-Agnostic AI Agent CLI
+
+[![PyPI 
+version](https://img.shields.io/pypi/v/henchman-ai.svg)](https://pypi.org/projec
+t/henchman-ai/)
+[![Python ve...
+Let me search for coverage references in README.md:
+[tool] grep({'pattern': 'coverage', 'path': 'README.md', 'ignore_case': True, 
+'line_numbers': True})
+
+[result] 117:- **Testability**: Components can be tested independently (100% 
+test coverage for core components)
+238:# Run with coverage...
+Good, README.md mentions "100% test coverage for core components". Now let me check the RELEASE_CHECKLIST.md:
+[tool] read_file({'path': 'RELEASE_CHECKLIST.md', 'start_line': 1, 'end_line': 
+50})
+
+[result] # PyPI Release Checklist
+
+Use this checklist before publishing a new version to PyPI.
+
+## Pre-Release (1-2 days before)
+
+### Code Quality
+- [ ] Run full test suite: `pytest`
+- [ ] Ensure test coverage...
+Perfect! RELEASE_CHECKLIST.md correctly states "Ensure test coverage = 100%". Now let me check the docs/architecture.md file:
+[tool] grep({'pattern': 'coverage', 'path': 'docs/architecture.md', 
+'ignore_case': True, 'line_numbers': True})
+
+[result] 204:- **Unit Tests**: Each component tested independently (100% 
+coverage for core components)...
+Now I understand the situation. The #1 issue in the smell report is a false positive - it's misinterpreting `pytest-cov>=4.0` as a "4% coverage threshold". However, looking at the prioritised fix queue, I should address the #2 issue which is a genuine documentation issue: an incomplete docstring in `src/henchman/cli/commands/session.py:126`.
+
+Let me examine this file to understand what needs to be fixed:
+[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
+120, 'end_line': 145})
+
+[result] 
+    console: Console
+    args: list[str]
+    session_manager: SessionManager | None = None
+    project_hash: str | None = None
+
+    def print_success(self: CommandOperationContext, message: str) -> N...
+I can see the issue. The docstrings for these methods are incomplete - they have a description but no `Args:` section. According to the smell report, `print_success` has 1 parameter but no Args section. Let me check the full method signature more carefully. Looking at the code, `print_success(self: CommandOperationContext, message: str) -> None` has a parameter `message: str`, so it should have an Args section documenting this parameter.
+
+Let me fix the first method `print_success` by adding the missing Args section:
+[tool] edit_file({'path': 'src/henchman/cli/commands/session.py', 'old_str': '  
+def print_success(self: CommandOperationContext, message: str) -> None:\n       
+"""Print a success message."""\n        self.console.print(f"[green]✓[/] 
+{message}")', 'new_str': '    def print_success(self: CommandOperationContext, 
+message: str) -> None:\n        """Print a success message.\n        \n        
+Args:\n            message: The success message to display.\n        """\n      
+self.console.print(f"[green]✓[/] {message}")'})
+
+[result] Successfully edited src/henchman/cli/commands/session.py...
+Now let me create a record of this improvement:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T13:15:30Z\n\n## Files Changed\n1. 
+`src/henchman/cli/commands/session.py` - Added missing Args section to 
+`print_success` method\n\n## Smell Category Addressed\n- **Incomplete 
+Docstring** (MEDIUM): \'CommandOperationContext.print_success\' has 1 
+parameter(s) but no Args: section in docstring\n\n## Rationale for Change\nThe 
+documentation smell report identified an incomplete docstring at 
+`src/henchman/cli/commands/session.py:126`. The method 
+`CommandOperationContext.print_success` has a parameter `message: str` but the 
+docstring was missing the required `Args:` section. This violates the project\'s
+documentation standards which require Google-style docstrings with complete 
+parameter documentation for all public methods.\n\n## Changes Made\n\n### 1. 
+`src/henchman/cli/commands/session.py` - Fixed incomplete docstring:\n- 
+**Before**: \n```python\ndef print_success(self: CommandOperationContext, 
+message: str) -> None:\n    """Print a success message."""\n    
+self.console.print(f"[green]✓[/] {message}")\n```\n\n- 
+**After**:\n```python\ndef print_success(self: CommandOperationContext, message:
+str) -> None:\n    """Print a success message.\n    \n    Args:\n        
+message: The success message to display.\n    """\n    
+self.console.print(f"[green]✓[/] {message}")\n```\n\nThe change adds the missing
+`Args:` section with proper documentation for the `message` parameter.\n\n## 
+Technical Details\n- **Issue**: Missing Args section in docstring for public 
+method\n- **Impact**: Reduces documentation completeness and violates project 
+standards\n- **Fix**: Added Args section with parameter documentation\n- 
+**Source verification**: Method signature shows `message: str` parameter\n- 
+**Note**: This is a documentation improvement only - no functional changes\n\n##
+What to Verify\n1. The docstring now includes a complete `Args:` section\n2. The
+parameter `message` is properly documented\n3. The Google-style docstring format
+is maintained\n4. No other documentation inconsistencies were introduced\n\n## 
+Testing Instructions\nTo verify the fix:\n```bash\n# Check the updated 
+docstring\ngrep -n "print_success" src/henchman/cli/commands/session.py -A 
+8\n\n# Verify the method signature\ngrep -n "def print_success" 
+src/henchman/cli/commands/session.py -A 1\n```\n\n## Next Priority\nThe next 
+highest-priority issues from the smell report are:\n1. **Incomplete Docstring** 
+in `src/henchman/cli/commands/session.py:130` 
+(\'CommandOperationContext.print_error\' has 1 parameter but no Args 
+section)\n2. **Incomplete Docstring** in 
+`src/henchman/cli/commands/session.py:134` 
+(\'CommandOperationContext.print_info\' has 1 parameter but no Args section)\n3.
+**Incomplete Docstring** in `src/henchman/cli/commands/session.py:138` 
+(\'CommandOperationContext.print_usage\' has 1 parameter but no Args 
+section)\n4. **Incomplete Docstring** in 
+`src/henchman/cli/commands/session.py:237` (\'SessionCommandExecutor.execute\' 
+has 1 parameter but no Args section)\n\n## Notes\nThis improvement addresses a 
+documentation quality issue:\n\n1. **Improves completeness**: Adds missing 
+parameter documentation\n2. **Maintains standards**: Follows Google-style 
+docstring format\n3. **Enhances usability**: Developers can understand method 
+parameters from documentation\n4. **Supports tooling**: Complete docstrings work
+better with IDEs and documentation generators\n\nThe change is minimal and 
+focused, addressing only the missing documentation without altering source code 
+behavior, which aligns with the Technical Documentation Improvement Agent\'s 
+constraints.\n\n## Additional Context\nThe project has strict documentation 
+requirements documented in `.github/copilot-instructions.md`:\n- **100% 
+documentation coverage** - All public functions/classes need docstrings\n- 
+**Google-style docstrings** - Consistent documentation format with 
+Args/Returns/Raises sections\n\nThis fix helps maintain documentation quality by
+completing an incomplete docstring that was identified as a medium severity 
+issue in the smell report.\n\n## Verification of Documentation Quality\nThe 
+documentation now meets all requirements:\n1. ✅ **Completeness**: Docstring now
+includes required Args section\n2. ✅ **Accuracy**: Parameter documentation 
+matches method signature\n3. ✅ **Consistency**: Follows Google-style docstring 
+format\n4. ✅ **Clarity**: Clear description of what the parameter 
+represents\n\nThe fix ensures that developers can understand how to use the 
+`print_success` method correctly from its documentation.'})
+
+[result] Successfully wrote 4456 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I have successfully addressed the #2 issue from the smell report. I fixed the incomplete docstring for `CommandOperationContext.print_success` by adding the missing `Args:` section with proper parameter documentation.
+
+## Summary
+
+I addressed the **second highest-priority issue** from the documentation smell report:
+
+**Issue Fixed**: Incomplete Docstring in `src/henchman/cli/commands/session.py:126` - 'CommandOperationContext.print_success' has 1 parameter(s) but no Args: section in docstring
+
+**Change Made**: Added the missing `Args:` section to document the `message` parameter in the `print_success` method.
+
+**Why this issue was chosen**: 
+1. The #1 issue in the smell report (consistency error about "4% coverage threshold") is a **false positive** - it misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". This was already addressed in the previous improvement with a clarifying comment.
+2. The #2 issue is a **genuine documentation quality issue** - an incomplete docstring that violates the project's documentation standards requiring Google-style docstrings with complete parameter documentation.
+
+**Verification**: 
+- The method signature shows `def print_success(self: CommandOperationContext, message: str) -> None:`
+- The docstring now includes `Args: message: The success message to display.`
+- The fix maintains Google-style docstring format
+- No functional changes were made - only documentation improvement
+
+This improvement enhances documentation completeness and follows the project's strict documentation standards while addressing a medium severity issue identified in the smell report.
+[tech_lead] completed work
+[2026-03-03T13:15:01Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.71 seconds
+[2026-03-03T13:15:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T13:15:01Z] Verification passed.
+Committing changes...
