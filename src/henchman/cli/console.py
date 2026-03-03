@@ -421,7 +421,7 @@ class OutputRenderer:
         self.layout_settings = config.layout_settings
         self.theme = config.get_resolved_theme()
 
-    def print(self, text: str, style: str | None = None) -> None:
+    def print(self: Self, text: str, style: str | None = None) -> None:
         """Print text with optional styling.
 
         Args:
@@ -485,7 +485,7 @@ class OutputRenderer:
         color = getattr(self.theme, params.status_type.style)
         self.console.print(f"[{color}]{prefix}[/] {escape(params.message)}")
 
-    def muted(self, text: str) -> None:
+    def muted(self: Self, text: str) -> None:
         """Print muted/dim text.
 
         Args:
@@ -493,7 +493,7 @@ class OutputRenderer:
         """
         self.console.print(text, style=self.theme.muted)
 
-    def heading(self, text: str) -> None:
+    def heading(self: Self, text: str) -> None:
         """Print a heading.
 
         Args:
@@ -501,7 +501,7 @@ class OutputRenderer:
         """
         self.console.print(f"\n[bold {self.theme.primary}]{escape(text)}[/]\n")
 
-    def markdown(self, content: str) -> None:
+    def markdown(self: Self, content: str) -> None:
         """Render markdown content.
 
         Args:
@@ -518,7 +518,7 @@ class OutputRenderer:
         md = Markdown(content)
         self.console.print(md)
 
-    def code(self, code: str, language: str = "python") -> None:
+    def code(self: Self, code: str, language: str = "python") -> None:
         """Print syntax-highlighted code.
 
         Args:
@@ -530,7 +530,7 @@ class OutputRenderer:
         syntax = Syntax(code, language, theme="monokai")
         self.console.print(syntax)
 
-    def rule(self, title: str | None = None) -> None:
+    def rule(self: Self, title: str | None = None) -> None:
         """Print a horizontal rule.
 
         Args:
@@ -541,11 +541,11 @@ class OutputRenderer:
         else:
             self.console.rule()
 
-    def clear(self) -> None:
+    def clear(self: Self) -> None:
         """Clear the console screen."""
         self.console.clear()
 
-    def tool_call(self, name: str, arguments: dict[str, object]) -> None:
+    def tool_call(self: Self, name: str, arguments: dict[str, object]) -> None:
         """Display a tool call.
 
         Args:
@@ -558,7 +558,7 @@ class OutputRenderer:
         content = f"### 🛠️ Tool Call: `{safe_name}`\n\n```json\n{args_str}\n```"
         self.markdown(content)
 
-    def tool_result(self, content: str, *, success: bool = True, error: str | None = None) -> None:
+    def tool_result(self: Self, content: str, *, success: bool = True, error: str | None = None) -> None:
         """Display a tool result.
 
         Args:
@@ -587,7 +587,7 @@ class OutputRenderer:
 
         self.markdown(md_content)
 
-    def table(self, data: list[dict[str, object]], title: str | None = None) -> None:
+    def table(self: Self, data: list[dict[str, object]], title: str | None = None) -> None:
         """Render data as a table.
 
         Args:
@@ -624,7 +624,7 @@ class OutputRenderer:
 
         self.console.print(table)
 
-    def tree(self, root_name: str, items: list[tuple[str, str]]) -> None:
+    def tree(self: Self, root_name: str, items: list[tuple[str, str]]) -> None:
         """Render hierarchical data as a tree.
 
         Args:
@@ -654,7 +654,7 @@ class OutputRenderer:
 
         self.console.print(tree)
 
-    def diff(self, *args: str | DiffParams, **kwargs: str) -> None:
+    def diff(self: Self, *args: str | DiffParams, **kwargs: str) -> None:
         """Render diff between old and new content.
 
         Accepts either:
@@ -668,7 +668,7 @@ class OutputRenderer:
         params = self._parse_diff_args(*args, **kwargs)
         self._render_diff(params)
 
-    def _parse_diff_args(self, *args: str | DiffParams, **kwargs: str) -> DiffParams:
+    def _parse_diff_args(self: Self, *args: str | DiffParams, **kwargs: str) -> DiffParams:
         """Parse diff arguments into DiffParams.
 
         Handles both primitive parameters and DiffParams object.
@@ -696,7 +696,7 @@ class OutputRenderer:
         )
         raise TypeError(error_msg)
 
-    def _render_diff(self, params: DiffParams) -> None:
+    def _render_diff(self: Self, params: DiffParams) -> None:
         """Render diff using DiffParams object.
 
         Args:
@@ -716,7 +716,7 @@ class OutputRenderer:
         else:
             self.success("No differences found")
 
-    def tool_summary(self, name: str, duration: float | None = None) -> None:
+    def tool_summary(self: Self, name: str, duration: float | None = None) -> None:
         """Display a summary of tool execution.
 
         Args:
@@ -728,7 +728,7 @@ class OutputRenderer:
             msg += f" ({duration:.2f}s)"
         self.console.print(msg)
 
-    def print_agent_content(self, content: str) -> None:
+    def print_agent_content(self: Self, content: str) -> None:
         """Display content from the agent.
 
         Args:
@@ -736,7 +736,7 @@ class OutputRenderer:
         """
         self.console.print(content, end="")
 
-    def agent_content(self, content: str) -> None:
+    def agent_content(self: Self, content: str) -> None:
         """Display content from the agent (alias for print_agent_content).
 
         Args:
@@ -744,7 +744,7 @@ class OutputRenderer:
         """
         self.print_agent_content(content)
 
-    def thinking(self, content: str) -> None:
+    def thinking(self: Self, content: str) -> None:
         """Display thinking process.
 
         Args:
@@ -770,7 +770,7 @@ class OutputRenderer:
 class AsyncOutputRenderer:
     """Async wrapper for OutputRenderer."""
 
-    def __init__(self, renderer: OutputRenderer) -> None:
+    def __init__(self: Self, renderer: OutputRenderer) -> None:
         """Initialize the async renderer.
 
         Args:
@@ -779,7 +779,7 @@ class AsyncOutputRenderer:
         self.renderer = renderer
         self._async_methods: dict[str, Callable[..., Any]] = {}
 
-    def __getattr__(self, name: str) -> Callable[..., Any]:
+    def __getattr__(self: Self, name: str) -> Callable[..., Any]:
         """Dynamically create async wrappers for OutputRenderer methods.
 
         Args:
@@ -802,7 +802,7 @@ class AsyncOutputRenderer:
         self._async_methods[name] = wrapper
         return wrapper
 
-    def _validate_method_name(self, name: str) -> None:
+    def _validate_method_name(self: Self, name: str) -> None:
         """Validate that method name is valid for async wrapping.
 
         Args:
@@ -819,7 +819,7 @@ class AsyncOutputRenderer:
             error_msg = f"'{type(self).__name__}' object has no attribute '{name}'"
             raise AttributeError(error_msg)
 
-    def _create_async_wrapper(self, name: str) -> Callable[..., Any]:
+    def _create_async_wrapper(self: Self, name: str) -> Callable[..., Any]:
         """Create an async wrapper for a sync method.
 
         Args:
@@ -843,7 +843,7 @@ class AsyncOutputRenderer:
 
         return async_wrapper
 
-    def _create_async_diff_wrapper(self) -> Callable[..., Any]:
+    def _create_async_diff_wrapper(self: Self) -> Callable[..., Any]:
         """Create async wrapper for diff method.
 
         Returns:

@@ -1,17 +1,17 @@
-# Documentation Smell Report — ✅ A (Score: 94.3/100)
+# Documentation Smell Report — ✅ A (Score: 95.1/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T02:30:02.404433+00:00_
+_Generated: 2026-03-03T02:45:03.078369+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ✅ A |
-| **Overall Score** | 94.3/100 |
+| **Overall Score** | 95.1/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 166 |
-| **Total Smells** | 450 |
+| **Total Smells** | 421 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
@@ -20,16 +20,16 @@ _Generated: 2026-03-03T02:30:02.404433+00:00_
 |:---------|------:|
 | low | 317 |
 | medium | 89 |
-| high | 44 |
+| high | 15 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
 | Incomplete Docstring | 395 |
-| Stale Content | 31 |
 | Stale Docstring | 13 |
 | Missing Docstring | 5 |
+| Stale Content | 2 |
 | Stale Age | 2 |
 | Config Issue | 2 |
 | Broken Link | 1 |
@@ -47,126 +47,102 @@ These are the highest-impact documentation smells to address first:
    Doc file last modified 38 days ago  
    → _Review and update this documentation to ensure it still reflects current behaviour._
 
-3. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'ask_user' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'ask_user' tool, including its parameters and usage._
+3. **src/henchman/api/endpoints/health.py:59** — 🟠 HIGH — Stale Docstring  
+   'get_metrics' has undocumented parameters: _api_key  
+   → _Add these parameters to the Args: section: _api_key_
 
-4. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'code_format' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'code_format' tool, including its parameters and usage._
+4. **src/henchman/api/endpoints/health.py:111** — 🟠 HIGH — Stale Docstring  
+   'get_usage' has undocumented parameters: _api_key  
+   → _Add these parameters to the Args: section: _api_key_
 
-5. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'coverage_map' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'coverage_map' tool, including its parameters and usage._
+5. **src/henchman/mcp/tool.py:84** — 🟠 HIGH — Stale Docstring  
+   'McpTool.execute' has undocumented parameters: params  
+   → _Add these parameters to the Args: section: params_
 
-6. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'dead_code' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'dead_code' tool, including its parameters and usage._
+6. **src/henchman/metrics/exporter.py:29** — 🟠 HIGH — Stale Docstring  
+   'MetricsExporter.export_to_json' has undocumented parameters: filters  
+   → _Add these parameters to the Args: section: filters_
 
-7. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'delegate_task' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'delegate_task' tool, including its parameters and usage._
+7. **src/henchman/metrics/exporter.py:78** — 🟠 HIGH — Stale Docstring  
+   'MetricsExporter.export_to_csv' has undocumented parameters: filters  
+   → _Add these parameters to the Args: section: filters_
 
-8. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'diff_view' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'diff_view' tool, including its parameters and usage._
+8. **src/henchman/metrics/exporter.py:91** — 🟠 HIGH — Stale Docstring  
+   'MetricsExporter.export_to_prometheus' has undocumented parameters: filters  
+   → _Add these parameters to the Args: section: filters_
 
-9. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'edit_file' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'edit_file' tool, including its parameters and usage._
+9. **src/henchman/metrics/exporter.py:104** — 🟠 HIGH — Stale Docstring  
+   'MetricsExporter.export_summary' has undocumented parameters: filters  
+   → _Add these parameters to the Args: section: filters_
 
-10. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'env_inspect' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'env_inspect' tool, including its parameters and usage._
+10. **src/henchman/tools/base.py:144** — 🟠 HIGH — Stale Docstring  
+   'Tool.execute' has undocumented parameters: params  
+   → _Add these parameters to the Args: section: params_
 
-11. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'git_ops' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'git_ops' tool, including its parameters and usage._
+11. **src/henchman/tools/builtins/ask_user.py:73** — 🟠 HIGH — Stale Docstring  
+   'AskUserTool.execute' has undocumented parameters: params  
+   → _Add these parameters to the Args: section: params_
 
-12. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'glob' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'glob' tool, including its parameters and usage._
+12. **src/henchman/tools/builtins/coverage_map.py:557** — 🟠 HIGH — Stale Docstring  
+   'CoverageMapTool.execute' has undocumented parameters: params  
+   → _Add these parameters to the Args: section: params_
 
-13. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'grep' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'grep' tool, including its parameters and usage._
+13. **src/henchman/tools/builtins/import_graph.py:473** — 🟠 HIGH — Stale Docstring  
+   'ImportGraphTool.execute' has undocumented parameters: params  
+   → _Add these parameters to the Args: section: params_
 
-14. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'import_graph' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'import_graph' tool, including its parameters and usage._
+14. **src/henchman/tools/builtins/kg_query.py:134** — 🟠 HIGH — Stale Docstring  
+   'KgQueryTool.execute' has undocumented parameters: params  
+   → _Add these parameters to the Args: section: params_
 
-15. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'kg_query' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'kg_query' tool, including its parameters and usage._
+15. **src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Stale Docstring  
+   'KgUpdateTool.execute' has undocumented parameters: params  
+   → _Add these parameters to the Args: section: params_
 
-16. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'kg_update' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'kg_update' tool, including its parameters and usage._
+16. **docs/intelligent-context-management.md:474** — 🟡 MEDIUM — Broken Link  
+   Link to 'configuration.md#performance-tuning' — file exists but anchor '#performance-tuning' not found  
+   → _Verify the heading exists in 'docs/configuration.md' or fix the fragment._
 
-17. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'lint_check' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'lint_check' tool, including its parameters and usage._
+17. **mkdocs.yml:1** — 🟡 MEDIUM — Config Issue  
+   Markdown files contain ```mermaid blocks but pymdownx.superfences is not configured with mermaid custom fences — diagrams won't render  
+   → _Add custom_fences mermaid configuration to pymdownx.superfences in mkdocs.yml, or install mkdocs-mermaid2-plugin._
 
-18. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'ls' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'ls' tool, including its parameters and usage._
+18. **pyproject.toml:65** — 🟡 MEDIUM — Consistency Error  
+   States coverage threshold of 4% but other files require 80%. Found thresholds: 80%, 4%  
+   → _Align all coverage requirements to 80% (the strictest value)._
 
-19. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'patch_apply' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'patch_apply' tool, including its parameters and usage._
+19. **src/henchman/agents/config.py:1** — 🟡 MEDIUM — Missing Docstring  
+   Module is missing a docstring  
+   → _Add a module-level docstring describing the module's purpose._
 
-20. **docs/tools.md:1** — 🟠 HIGH — Stale Content  
-   Tool 'pip_inspect' exists in source but is not documented in tools.md  
-   → _Add a section documenting the 'pip_inspect' tool, including its parameters and usage._
+20. **src/henchman/agents/identity.py:1** — 🟡 MEDIUM — Missing Docstring  
+   Module is missing a docstring  
+   → _Add a module-level docstring describing the module's purpose._
 
 
 ## 📊 Files Ranked by Quality
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | docs/tools.md | ❌ F | 0.0 | 29 | 2026-03-03 |
-| 2 | src/henchman/cli/commands/session.py | ❌ F | 0.0 | 31 | 2026-03-02 |
-| 3 | src/henchman/cli/ui_renderer.py | ❌ F | 0.0 | 38 | 2026-03-02 |
-| 4 | src/henchman/cli/textual_widgets.py | ❌ F | 49.0 | 24 | 2026-03-01 |
-| 5 | src/henchman/core/session_manager.py | ❌ F | 49.0 | 15 | 2026-02-28 |
-| 6 | src/henchman/metrics/exporter.py | ❌ F | 54.0 | 7 | 2026-02-26 |
-| 7 | src/henchman/cli/console.py | ❌ F | 56.0 | 22 | 2026-03-03 |
-| 8 | src/henchman/agents/orchestrator_loop.py | ❌ F | 58.0 | 12 | 2026-02-28 |
-| 9 | src/henchman/agents/metrics.py | 🔶 D | 61.0 | 15 | 2026-02-27 |
-| 10 | src/henchman/cli/stream_event_handlers.py | 🔶 D | 65.0 | 10 | 2026-03-01 |
-| 11 | src/henchman/agents/orchestrator_events.py | ⚠️ C | 72.0 | 8 | 2026-02-28 |
-| 12 | src/henchman/agents/orchestrator_validation.py | ⚠️ C | 72.0 | 8 | 2026-02-28 |
-| 13 | src/henchman/cli/output_handler.py | ⚠️ C | 74.0 | 13 | 2026-02-27 |
-| 14 | src/henchman/api/server.py | ⚠️ C | 75.0 | 8 | 2026-02-26 |
-| 15 | src/henchman/agents/orchestrator_metrics_ctrl.py | ⚠️ C | 79.0 | 6 | 2026-02-28 |
+| 1 | src/henchman/cli/commands/session.py | ❌ F | 0.0 | 31 | 2026-03-02 |
+| 2 | src/henchman/cli/ui_renderer.py | ❌ F | 0.0 | 38 | 2026-03-02 |
+| 3 | src/henchman/cli/textual_widgets.py | ❌ F | 49.0 | 24 | 2026-03-01 |
+| 4 | src/henchman/core/session_manager.py | ❌ F | 49.0 | 15 | 2026-02-28 |
+| 5 | src/henchman/metrics/exporter.py | ❌ F | 54.0 | 7 | 2026-02-26 |
+| 6 | src/henchman/cli/console.py | ❌ F | 56.0 | 22 | 2026-03-03 |
+| 7 | src/henchman/agents/orchestrator_loop.py | ❌ F | 58.0 | 12 | 2026-02-28 |
+| 8 | src/henchman/agents/metrics.py | 🔶 D | 61.0 | 15 | 2026-02-27 |
+| 9 | src/henchman/cli/stream_event_handlers.py | 🔶 D | 65.0 | 10 | 2026-03-01 |
+| 10 | src/henchman/agents/orchestrator_events.py | ⚠️ C | 72.0 | 8 | 2026-02-28 |
+| 11 | src/henchman/agents/orchestrator_validation.py | ⚠️ C | 72.0 | 8 | 2026-02-28 |
+| 12 | src/henchman/cli/output_handler.py | ⚠️ C | 74.0 | 13 | 2026-02-27 |
+| 13 | src/henchman/api/server.py | ⚠️ C | 75.0 | 8 | 2026-02-26 |
+| 14 | src/henchman/agents/orchestrator_metrics_ctrl.py | ⚠️ C | 79.0 | 6 | 2026-02-28 |
+| 15 | src/henchman/agents/orchestrator.py | 👍 B | 80.0 | 7 | 2026-02-28 |
 
 ## 📁 Per-File Details
 
 _Showing 25 worst files. 160 additional files omitted._
-
-### docs/tools.md — ❌ F (0.0/100) (last modified 2026-03-03)
-
-Words: 1859 | Headings: 52 | Links: 0 | Code blocks: 36
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 1 | 🟠 HIGH | Stale Content | Tool 'ask_user' exists in source but is not documented in tools.md | Add a section documenting the 'ask_user' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'code_format' exists in source but is not documented in tools.md | Add a section documenting the 'code_format' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'coverage_map' exists in source but is not documented in tools.md | Add a section documenting the 'coverage_map' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'dead_code' exists in source but is not documented in tools.md | Add a section documenting the 'dead_code' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'delegate_task' exists in source but is not documented in tools.md | Add a section documenting the 'delegate_task' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'diff_view' exists in source but is not documented in tools.md | Add a section documenting the 'diff_view' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'edit_file' exists in source but is not documented in tools.md | Add a section documenting the 'edit_file' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'env_inspect' exists in source but is not documented in tools.md | Add a section documenting the 'env_inspect' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'git_ops' exists in source but is not documented in tools.md | Add a section documenting the 'git_ops' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'glob' exists in source but is not documented in tools.md | Add a section documenting the 'glob' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'grep' exists in source but is not documented in tools.md | Add a section documenting the 'grep' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'import_graph' exists in source but is not documented in tools.md | Add a section documenting the 'import_graph' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'kg_query' exists in source but is not documented in tools.md | Add a section documenting the 'kg_query' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'kg_update' exists in source but is not documented in tools.md | Add a section documenting the 'kg_update' tool, including its parameters and usage. |
-| 1 | 🟠 HIGH | Stale Content | Tool 'lint_check' exists in source but is not documented in tools.md | Add a section documenting the 'lint_check' tool, including its parameters and usage. |
-
-_... and 14 more smells._
 
 ### src/henchman/cli/commands/session.py — ❌ F (0.0/100) (last modified 2026-03-02)
 
@@ -553,7 +529,21 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 | 450 | 🟢 LOW | Incomplete Docstring | 'SessionScreen.on_button_pressed' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'SessionScreen.on_button_pressed'. |
 | 468 | 🟢 LOW | Incomplete Docstring | 'SessionScreen.action_cancel' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'SessionScreen.action_cancel'. |
 
-## ✨ Clean Files (85 files with no smells)
+### src/henchman/knowledge/store.py — 👍 B (86.0/100) (last modified 2026-02-17)
+
+Public APIs: 23 | Documented: 23 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 144 | 🟢 LOW | Incomplete Docstring | 'KnowledgeStore.load' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'KnowledgeStore.load'. |
+| 164 | 🟢 LOW | Incomplete Docstring | 'KnowledgeStore.save' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'KnowledgeStore.save'. |
+| 179 | 🟢 LOW | Incomplete Docstring | 'KnowledgeStore.add_entity' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'KnowledgeStore.add_entity'. |
+| 294 | 🟢 LOW | Incomplete Docstring | 'KnowledgeStore.add_relation' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'KnowledgeStore.add_relation'. |
+| 442 | 🟢 LOW | Incomplete Docstring | 'KnowledgeStore.entity_count' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'KnowledgeStore.entity_count'. |
+| 446 | 🟢 LOW | Incomplete Docstring | 'KnowledgeStore.relation_count' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'KnowledgeStore.relation_count'. |
+| 450 | 🟢 LOW | Incomplete Docstring | 'KnowledgeStore.clear' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'KnowledgeStore.clear'. |
+
+## ✨ Clean Files (86 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -566,6 +556,7 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 - docs/getting-started.md — ✅ A
 - docs/index.md — ✅ A
 - docs/providers.md — ✅ A
+- docs/tools.md — ✅ A
 - evals/README.md — ✅ A
 - tests/ui_integration/INTERACTIVE_SESSION_TESTS.md — ✅ A
 - src/henchman/agents/delegation.py — ✅ A
