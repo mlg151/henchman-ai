@@ -85,7 +85,8 @@ class McpTool(Tool):
         """Execute the tool via MCP.
 
         Args:
-            **params: Tool parameters.
+            **params: Tool parameters as keyword arguments. These are passed
+                directly to the MCP server tool.
 
         Returns:
             Tool execution result.
