@@ -38,6 +38,62 @@ class MetricsQueryParams:
     end_date: datetime | None = None
     limit: int | None = None
 
+    def build_query(self: MetricsQueryParams) -> tuple[str, list[Any]]:
+        """Build SQL query and parameters for retrieving metrics.
+
+        Returns:
+            Tuple of (query_string, parameters_list).
+        """
+        query = "SELECT * FROM metrics WHERE 1=1"
+        params: list[Any] = []
+
+        if self.metric_type:
+            query += " AND metric_type = ?"
+            params.append(self.metric_type.value)
+        if self.session_id:
+            query += " AND session_id = ?"
+            params.append(self.session_id)
+        if self.agent_id:
+            query += " AND agent_id = ?"
+            params.append(self.agent_id)
+        if self.start_date:
+            query += " AND timestamp >= ?"
+            params.append(self.start_date.isoformat())
+        if self.end_date:
+            query += " AND timestamp <= ?"
+            params.append(self.end_date.isoformat())
+
+        query += " ORDER BY timestamp DESC"
+
+        if self.limit:
+            query += " LIMIT ?"
+            params.append(self.limit)
+
+        return query, params
+
+
+def _create_base_metric_dict(metric: BaseMetric) -> dict[str, Any]:
+    """Create the base dictionary with common metric fields.
+
+    Extracted to module level to satisfy the Feature Envy rule: the function
+    accesses ``metric`` repeatedly but never uses ``self``.
+
+    Args:
+        metric: Metric to convert.
+
+    Returns:
+        Dictionary with base metric fields.
+    """
+    return {
+        "id": metric.id,
+        "timestamp": metric.timestamp.isoformat(),
+        "metric_type": metric.metric_type.value,
+        "session_id": metric.session_id,
+        "agent_id": metric.agent_id,
+        "user_id": metric.user_id,
+        "metadata": json.dumps(metric.metadata) if metric.metadata else None,
+    }
+
 
 class SessionMetricsAnalyzer:
     """Analyzes metrics for specific sessions."""
@@ -51,7 +107,8 @@ class SessionMetricsAnalyzer:
         self.storage = storage
 
     def get_session_metrics(
-        self: SessionMetricsAnalyzer, session_id: str,
+        self: SessionMetricsAnalyzer,
+        session_id: str,
     ) -> dict[str, Any]:
         """Get all metrics for a specific session.
 
@@ -65,11 +122,15 @@ class SessionMetricsAnalyzer:
             cursor = conn.cursor()
 
             token_stats = self._get_session_metric_by_type(
-                cursor, session_id, "token_usage",
+                cursor,
+                session_id,
+                "token_usage",
             )
             cost_stats = self._get_session_metric_by_type(cursor, session_id, "cost")
             tool_stats = self._get_session_metric_by_type(
-                cursor, session_id, "tool_performance",
+                cursor,
+                session_id,
+                "tool_performance",
             )
             usage_patterns = self._get_session_usage_patterns(cursor, session_id)
 
@@ -246,7 +307,8 @@ class DatabaseSchemaManager:
     ]
 
     def create_metrics_table(
-        self: DatabaseSchemaManager, cursor: sqlite3.Cursor,
+        self: DatabaseSchemaManager,
+        cursor: sqlite3.Cursor,
     ) -> None:
         """Create the main metrics table with all columns."""
         columns_sql = ",\n                ".join(self._METRICS_TABLE_COLUMNS)
@@ -546,35 +608,9 @@ class MetricsStorage:
         Returns:
             Dictionary representation of metric.
         """
-        base_dict = self._create_base_metric_dict(metric)
+        base_dict = _create_base_metric_dict(metric)
         self._add_metric_specific_fields(metric, base_dict)
         return base_dict
-
-    @staticmethod
-    def _create_base_metric_dict(metric: BaseMetric) -> dict[str, Any]:
-        """Create the base dictionary with common metric fields.
-
-        Args:
-            metric: Metric to convert.
-
-        Returns:
-            Dictionary with base metric fields.
-        """
-        metric_id = metric.id
-        metric_timestamp = metric.timestamp
-        metric_type = metric.metric_type
-        metric_session_id = metric.session_id
-        metric_agent_id = metric.agent_id
-        metric_metadata = metric.metadata
-        return {
-            "id": metric_id,
-            "timestamp": metric_timestamp.isoformat(),
-            "metric_type": metric_type.value,
-            "session_id": metric_session_id,
-            "agent_id": metric_agent_id,
-            "user_id": metric.user_id,
-            "metadata": json.dumps(metric_metadata) if metric_metadata else None,
-        }
 
     # Class constant for field mappings
     _FIELD_MAPPINGS: ClassVar[dict] = {
@@ -778,7 +814,10 @@ class MetricsStorage:
             List of aggregated statistics.
         """
         return self.aggregator.get_aggregated_stats(
-            metric_type, group_by, start_date, end_date,
+            metric_type,
+            group_by,
+            start_date,
+            end_date,
         )
 
     def get_session_metrics(self: MetricsStorage, session_id: str) -> dict[str, Any]:

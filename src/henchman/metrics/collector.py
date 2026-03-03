@@ -258,7 +258,9 @@ class MetricsCollector:
         self._context_compactions = 0
 
     def end_command(
-        self: MetricsCollector, *, success: bool = True,
+        self: MetricsCollector,
+        *,
+        success: bool = True,
     ) -> UsageMetric | None:
         """End tracking of current command and return usage metric.
 
@@ -470,7 +472,8 @@ class MetricsCollector:
         del self._tool_timers[tool_call_id]
 
     def _handle_content_thought_event(
-        self: MetricsCollector, event: AgentEvent,
+        self: MetricsCollector,
+        event: AgentEvent,
     ) -> None:
         """Record a content or thought event as a performance observation.
 

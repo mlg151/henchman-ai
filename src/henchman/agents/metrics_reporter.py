@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass as _dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -15,6 +16,17 @@ MAX_TOOL_USAGE_TO_DISPLAY = 5
 # ---------------------------------------------------------------------------
 # Module-level helpers (fix Feature Envy and Duplicate Code smells)
 # ---------------------------------------------------------------------------
+
+
+@_dataclass
+class _RateTarget:
+    """Configuration for a rate metric with a target threshold."""
+
+    label: str
+    value: float
+    target: float
+    above: bool
+    note: str
 
 
 def _build_metrics_section(title: str, items: list[str]) -> list[str]:
@@ -45,28 +57,18 @@ def _format_coverage(label: str, value: float) -> str:
     return f"- **{label}**: Not measured"
 
 
-def _format_rate_target(
-    label: str,
-    value: float,
-    target: float,
-    *,
-    above: bool,
-    note: str,
-) -> str:
+def _format_rate_target(cfg: _RateTarget) -> str:
     """Format a rate metric with a target threshold and status indicator.
 
     Args:
-        label: Human-readable label.
-        value: Current metric value (%).
-        target: Target threshold (%).
-        above: True if the goal is to be *above* the target, False to be *below*.
-        note: Descriptive note appended in parentheses (e.g. 'Target reduction of 50%').
+        cfg: Rate target configuration.
 
     Returns:
         Formatted markdown bullet line with ✅/⚠️ status icon.
     """
-    status = "✅" if (value >= target if above else value <= target) else "⚠️"
-    return f"- **{label}**: {value:.1f}% {status} ({note})"
+    passing = cfg.value >= cfg.target if cfg.above else cfg.value <= cfg.target
+    status = "✅" if passing else "⚠️"
+    return f"- **{cfg.label}**: {cfg.value:.1f}% {status} ({cfg.note})"
 
 
 def _format_tool_call_statistics(tools: ToolMetrics) -> list[str]:
@@ -149,13 +151,16 @@ class MetricsReporter:
 
     def _build_target_section(self: MetricsReporter) -> list[str]:
         """Build the target performance metrics section."""
-        target_items = [
-            self._format_file_re_reads(),
+        re_reads_line = self._format_file_re_reads()
+        rate_lines = [
             self._format_delegation_target(),
             self._format_error_rate_target(),
             self._format_context_window_target(),
         ]
-        return _build_metrics_section("### Target Performance Metrics", target_items)
+        return _build_metrics_section(
+            "### Target Performance Metrics",
+            [re_reads_line, *rate_lines],
+        )
 
     # -- Section generators (kept for composability) --------------------------
 
@@ -279,8 +284,13 @@ class MetricsReporter:
         target = PerformanceMetrics.DELEGATION_RATE_TARGET
         rate = self.metrics.performance.delegation_rate
         return _format_rate_target(
-            "Delegation rate", rate, target, above=True,
-            note=f"Target > {target}%, from current 25%",
+            _RateTarget(
+                label="Delegation rate",
+                value=rate,
+                target=target,
+                above=True,
+                note=f"Target > {target}%, from current 25%",
+            ),
         )
 
     def _format_error_rate_target(self: MetricsReporter) -> str:
@@ -289,11 +299,13 @@ class MetricsReporter:
 
         target = PerformanceMetrics.ERROR_RATE_TARGET
         return _format_rate_target(
-            "Error rate",
-            self.metrics.performance.error_rate,
-            target,
-            above=False,
-            note=f"Target reduction of {target}%",
+            _RateTarget(
+                label="Error rate",
+                value=self.metrics.performance.error_rate,
+                target=target,
+                above=False,
+                note=f"Target reduction of {target}%",
+            ),
         )
 
     def _format_context_window_target(self: MetricsReporter) -> str:

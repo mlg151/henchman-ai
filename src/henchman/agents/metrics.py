@@ -197,7 +197,8 @@ class ToolMetrics:
             self.failed_tool_calls += 1
 
         counter_attr = _CATEGORY_ATTR_MAP.get(
-            _categorize_tool(tool_name), "other_tool_calls",
+            _categorize_tool(tool_name),
+            "other_tool_calls",
         )
         setattr(self, counter_attr, getattr(self, counter_attr) + 1)
 
@@ -223,6 +224,37 @@ class ToolMetrics:
             ToolCategory.GIT_OPS: self.git_ops_calls,
             ToolCategory.OTHER: self.other_tool_calls,
         }
+
+
+# Mapping from public key name → (component_attr, field_name) for OrchestratorMetrics.
+# Used by __getitem__, __setitem__, and __contains__ to avoid large inline dicts.
+_COMPONENT_KEY_MAP: dict[str, tuple[str, str]] = {
+    # PerformanceMetrics fields
+    "task_start_time": ("performance", "task_start_time"),
+    "task_end_time": ("performance", "task_end_time"),
+    "task_duration_minutes": ("performance", "task_duration_minutes"),
+    "files_accessed": ("performance", "files_accessed"),
+    "tool_usage_by_type": ("performance", "tool_usage_by_type"),
+    "delegation_rate": ("performance", "delegation_rate"),
+    "file_re_reads": ("performance", "file_re_reads"),
+    "error_rate": ("performance", "error_rate"),
+    "context_window_usage": ("performance", "context_window_usage"),
+    # QualityMetrics fields
+    "test_results": ("quality", "test_results"),
+    "code_coverage": ("quality", "code_coverage"),
+    "linting_status": ("quality", "linting_status"),
+    "documentation_coverage": ("quality", "documentation_coverage"),
+    # ToolMetrics fields
+    "total_tool_calls": ("tools", "total_tool_calls"),
+    "successful_tool_calls": ("tools", "successful_tool_calls"),
+    "failed_tool_calls": ("tools", "failed_tool_calls"),
+    "read_file_calls": ("tools", "read_file_calls"),
+    "write_file_calls": ("tools", "write_file_calls"),
+    "edit_file_calls": ("tools", "edit_file_calls"),
+    "shell_calls": ("tools", "shell_calls"),
+    "git_ops_calls": ("tools", "git_ops_calls"),
+    "other_tool_calls": ("tools", "other_tool_calls"),
+}
 
 
 class OrchestratorMetrics:
@@ -312,35 +344,9 @@ class OrchestratorMetrics:
         """
         if hasattr(self, key):
             return getattr(self, key)
-
-        component_mapping = {
-            "task_start_time": self.performance.task_start_time,
-            "task_end_time": self.performance.task_end_time,
-            "task_duration_minutes": self.performance.task_duration_minutes,
-            "files_accessed": self.performance.files_accessed,
-            "tool_usage_by_type": self.performance.tool_usage_by_type,
-            "delegation_rate": self.performance.delegation_rate,
-            "file_re_reads": self.performance.file_re_reads,
-            "error_rate": self.performance.error_rate,
-            "context_window_usage": self.performance.context_window_usage,
-            "test_results": self.quality.test_results,
-            "code_coverage": self.quality.code_coverage,
-            "linting_status": self.quality.linting_status,
-            "documentation_coverage": self.quality.documentation_coverage,
-            "total_tool_calls": self.tools.total_tool_calls,
-            "successful_tool_calls": self.tools.successful_tool_calls,
-            "failed_tool_calls": self.tools.failed_tool_calls,
-            "read_file_calls": self.tools.read_file_calls,
-            "write_file_calls": self.tools.write_file_calls,
-            "edit_file_calls": self.tools.edit_file_calls,
-            "shell_calls": self.tools.shell_calls,
-            "git_ops_calls": self.tools.git_ops_calls,
-            "other_tool_calls": self.tools.other_tool_calls,
-        }
-
-        if key in component_mapping:
-            return component_mapping[key]
-
+        if key in _COMPONENT_KEY_MAP:
+            component_name, attr = _COMPONENT_KEY_MAP[key]
+            return getattr(getattr(self, component_name), attr)
         msg = f"'{key}' is not a valid metric"
         raise KeyError(msg)
 
@@ -353,35 +359,7 @@ class OrchestratorMetrics:
         Returns:
             True if the metric exists, False otherwise.
         """
-        if hasattr(self, key):
-            return True
-
-        component_keys = {
-            "task_start_time",
-            "task_end_time",
-            "task_duration_minutes",
-            "files_accessed",
-            "tool_usage_by_type",
-            "delegation_rate",
-            "file_re_reads",
-            "error_rate",
-            "context_window_usage",
-            "test_results",
-            "code_coverage",
-            "linting_status",
-            "documentation_coverage",
-            "total_tool_calls",
-            "successful_tool_calls",
-            "failed_tool_calls",
-            "read_file_calls",
-            "write_file_calls",
-            "edit_file_calls",
-            "shell_calls",
-            "git_ops_calls",
-            "other_tool_calls",
-        }
-
-        return key in component_keys
+        return hasattr(self, key) or key in _COMPONENT_KEY_MAP
 
     def get(self: OrchestratorMetrics, key: str, default: Any = None) -> Any:
         """Support dictionary-like get method for backward compatibility.
@@ -411,48 +389,9 @@ class OrchestratorMetrics:
         if hasattr(self, key):
             setattr(self, key, value)
             return
-
-        component_setters = {
-            "task_start_time": lambda v: setattr(
-                self.performance, "task_start_time", v,
-            ),
-            "task_end_time": lambda v: setattr(self.performance, "task_end_time", v),
-            "task_duration_minutes": lambda v: setattr(
-                self.performance, "task_duration_minutes", v,
-            ),
-            "files_accessed": lambda v: setattr(self.performance, "files_accessed", v),
-            "tool_usage_by_type": lambda v: setattr(
-                self.performance, "tool_usage_by_type", v,
-            ),
-            "delegation_rate": lambda v: setattr(
-                self.performance, "delegation_rate", v,
-            ),
-            "file_re_reads": lambda v: setattr(self.performance, "file_re_reads", v),
-            "error_rate": lambda v: setattr(self.performance, "error_rate", v),
-            "context_window_usage": lambda v: setattr(
-                self.performance, "context_window_usage", v,
-            ),
-            "test_results": lambda v: setattr(self.quality, "test_results", v),
-            "code_coverage": lambda v: setattr(self.quality, "code_coverage", v),
-            "linting_status": lambda v: setattr(self.quality, "linting_status", v),
-            "documentation_coverage": lambda v: setattr(
-                self.quality, "documentation_coverage", v,
-            ),
-            "total_tool_calls": lambda v: setattr(self.tools, "total_tool_calls", v),
-            "successful_tool_calls": lambda v: setattr(
-                self.tools, "successful_tool_calls", v,
-            ),
-            "failed_tool_calls": lambda v: setattr(self.tools, "failed_tool_calls", v),
-            "read_file_calls": lambda v: setattr(self.tools, "read_file_calls", v),
-            "write_file_calls": lambda v: setattr(self.tools, "write_file_calls", v),
-            "edit_file_calls": lambda v: setattr(self.tools, "edit_file_calls", v),
-            "shell_calls": lambda v: setattr(self.tools, "shell_calls", v),
-            "git_ops_calls": lambda v: setattr(self.tools, "git_ops_calls", v),
-            "other_tool_calls": lambda v: setattr(self.tools, "other_tool_calls", v),
-        }
-
-        if key in component_setters:
-            component_setters[key](value)  # type: ignore[no-untyped-call]
+        if key in _COMPONENT_KEY_MAP:
+            component_name, attr = _COMPONENT_KEY_MAP[key]
+            setattr(getattr(self, component_name), attr, value)
         else:
             msg = f"'{key}' is not a valid metric"
             raise KeyError(msg)

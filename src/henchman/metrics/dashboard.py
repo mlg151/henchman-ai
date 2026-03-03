@@ -109,10 +109,10 @@ def _aggregate_tool_stats(stats: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "total_calls": total_calls,
         "success_rate": (
-            successful_calls / total_calls * SUCCESS_RATE_MULTIPLIER
-        )
-        if total_calls > 0
-        else 0,
+            (successful_calls / total_calls * SUCCESS_RATE_MULTIPLIER)
+            if total_calls > 0
+            else 0
+        ),
         "periods": stats,
     }
 
@@ -186,13 +186,11 @@ def _cost_panel_rows(cost_stats: dict[str, Any]) -> list[tuple[str, str]]:
 
 def _tool_panel_rows(tool_stats: dict[str, Any]) -> list[tuple[str, str]]:
     """Build row data for the tool performance panel."""
-    calls = tool_stats.get("total_calls", 0)
-    rate = tool_stats.get("success_rate", 0.0)
-    period_count = len(tool_stats.get("periods", []))
+    periods = tool_stats.get("periods", [])
     return [
-        ("Total Calls", f"{calls:,}"),
-        ("Success Rate", f"{rate:.1f}%"),
-        ("Periods", str(period_count)),
+        ("Total Calls", f"{tool_stats.get('total_calls', 0):,}"),
+        ("Success Rate", f"{tool_stats.get('success_rate', 0.0):.1f}%"),
+        ("Periods", str(len(periods))),
     ]
 
 
@@ -203,6 +201,60 @@ def _usage_panel_rows(usage_stats: dict[str, Any]) -> list[tuple[str, str]]:
         ("Total Tool Calls", f"{usage_stats.get('total_tool_calls', 0):,}"),
         ("Periods", str(len(usage_stats.get("periods", [])))),
     ]
+
+
+def _export_stats_to_csv(stats: dict[str, Any]) -> str:
+    """Serialise summary stats as a CSV string.
+
+    Extracted to module level to fix Feature Envy: the function accesses ``stats``
+    and ``writer`` repeatedly without needing any class state.
+
+    Args:
+        stats: Summary statistics dict as returned by ``Dashboard.get_summary_stats``.
+
+    Returns:
+        CSV-formatted string.
+    """
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Metric", "Value", "Unit"])
+
+    if stats.get("token_usage"):
+        writer.writerow(
+            ["Total Tokens", stats["token_usage"].get("total_tokens", 0), "tokens"],
+        )
+        writer.writerow(
+            [
+                "Daily Average Tokens",
+                stats["token_usage"].get("daily_average", 0),
+                "tokens",
+            ],
+        )
+    if stats.get("costs"):
+        writer.writerow(["Total Cost", stats["costs"].get("total_cost", 0), "USD"])
+        writer.writerow(
+            ["Daily Average Cost", stats["costs"].get("daily_average", 0), "USD"],
+        )
+    if stats.get("tool_performance"):
+        writer.writerow(
+            [
+                "Total Tool Calls",
+                stats["tool_performance"].get("total_calls", 0),
+                "calls",
+            ],
+        )
+        writer.writerow(
+            ["Success Rate", stats["tool_performance"].get("success_rate", 0), "%"],
+        )
+    return output.getvalue()
+
+
+# Layout size constants
+LAYOUT_HEADER_SIZE = 3
+"""Number of rows for the dashboard header panel."""
+
+LAYOUT_STAT_PANEL_SIZE = 8
+"""Number of rows for each statistics panel."""
 
 
 # ---------------------------------------------------------------------------
@@ -321,32 +373,9 @@ class Dashboard:
         if format.lower() == "json":
             return json.dumps(stats, indent=2, default=str)
         if format.lower() == "csv":
-            return self._export_to_csv(stats)
+            return _export_stats_to_csv(stats)
         msg = f"Unsupported format: {format}. Supported formats: json, csv"
         raise ValueError(msg)
-
-    def _export_to_csv(self: Dashboard, stats: dict[str, Any]) -> str:
-        """Serialise stats as a CSV string."""
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(["Metric", "Value", "Unit"])
-
-        if stats.get("token_usage"):
-            writer.writerow(["Total Tokens", stats["token_usage"].get("total_tokens", 0), "tokens"])
-            writer.writerow(
-                ["Daily Average Tokens", stats["token_usage"].get("daily_average", 0), "tokens"],
-            )
-        if stats.get("costs"):
-            writer.writerow(["Total Cost", stats["costs"].get("total_cost", 0), "USD"])
-            writer.writerow(["Daily Average Cost", stats["costs"].get("daily_average", 0), "USD"])
-        if stats.get("tool_performance"):
-            writer.writerow(
-                ["Total Tool Calls", stats["tool_performance"].get("total_calls", 0), "calls"],
-            )
-            writer.writerow(
-                ["Success Rate", stats["tool_performance"].get("success_rate", 0), "%"],
-            )
-        return output.getvalue()
 
     def close(self: Dashboard) -> None:
         """Close dashboard and release resources."""
@@ -358,7 +387,7 @@ class Dashboard:
         """Create the dashboard layout."""
         layout = Layout()
         layout.split(
-            Layout(name="header", size=3),
+            Layout(name="header", size=LAYOUT_HEADER_SIZE),
             Layout(name="main"),
         )
         layout["main"].split_row(
@@ -366,12 +395,12 @@ class Dashboard:
             Layout(name="right", ratio=1),
         )
         layout["left"].split(
-            Layout(name="token_stats", size=8),
-            Layout(name="cost_stats", size=8),
+            Layout(name="token_stats", size=LAYOUT_STAT_PANEL_SIZE),
+            Layout(name="cost_stats", size=LAYOUT_STAT_PANEL_SIZE),
         )
         layout["right"].split(
-            Layout(name="tool_stats", size=8),
-            Layout(name="usage_stats", size=8),
+            Layout(name="tool_stats", size=LAYOUT_STAT_PANEL_SIZE),
+            Layout(name="usage_stats", size=LAYOUT_STAT_PANEL_SIZE),
         )
 
         stats = self.get_summary_stats()
@@ -380,20 +409,30 @@ class Dashboard:
         layout["header"].update(self._create_header())
         layout["token_stats"].update(
             factory.create_panel(
-                "Token Usage", _token_panel_rows(stats.get("token_usage", {})), "green",
+                "Token Usage",
+                _token_panel_rows(stats.get("token_usage", {})),
+                "green",
             ),
         )
         layout["cost_stats"].update(
-            factory.create_panel("Costs", _cost_panel_rows(stats.get("costs", {})), "yellow"),
+            factory.create_panel(
+                "Costs",
+                _cost_panel_rows(stats.get("costs", {})),
+                "yellow",
+            ),
         )
         layout["tool_stats"].update(
             factory.create_panel(
-                "Tool Performance", _tool_panel_rows(stats.get("tool_performance", {})), "magenta",
+                "Tool Performance",
+                _tool_panel_rows(stats.get("tool_performance", {})),
+                "magenta",
             ),
         )
         layout["usage_stats"].update(
             factory.create_panel(
-                "Usage Patterns", _usage_panel_rows(stats.get("usage_patterns", {})), "cyan",
+                "Usage Patterns",
+                _usage_panel_rows(stats.get("usage_patterns", {})),
+                "cyan",
             ),
         )
         return layout

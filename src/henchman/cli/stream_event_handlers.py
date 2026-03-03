@@ -50,7 +50,15 @@ class StreamState:
 
 
 def determine_event_ownership(event: AgentEvent, agent: Agent) -> bool:
-    """Return True when *event* was emitted by *agent*."""
+    """Return True when *event* was emitted by *agent*.
+    
+    Args:
+        event: The agent event to check ownership of.
+        agent: The agent to check if it emitted the event.
+    
+    Returns:
+        True if the event was emitted by the agent, False otherwise.
+    """
     if event.source_agent is None:
         return True
     identity = getattr(agent, "identity", None)
@@ -66,7 +74,14 @@ def update_processing_state(
     event: AgentEvent,
     agent: Agent,
 ) -> None:
-    """Mutate *state* for the incoming *event* before dispatching."""
+    """Mutate *state* for the incoming *event* before dispatching.
+    
+    Args:
+        output_handler: The output handler for console output.
+        state: The current stream processing state.
+        event: The incoming agent event.
+        agent: The agent associated with the event.
+    """
     if state.is_thinking and event.type != EventType.THOUGHT:
         output_handler.print_newline()
         state.is_thinking = False
