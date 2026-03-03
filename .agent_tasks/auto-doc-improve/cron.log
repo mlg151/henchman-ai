@@ -5644,3 +5644,242 @@ Committing changes...
 [main 3010f29] docs(auto-improve): automated documentation improvement
  14 files changed, 2626 insertions(+), 1598 deletions(-)
 [2026-03-03T04:30:01Z] Done.
+[2026-03-03T04:45:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by examining the highest-priority issue from the smell report: the broken link in `docs/intelligent-context-management.md:474` that points to `configuration.md#performance-tuning` but the anchor `#performance-tuning` doesn't exist.
+
+Let me first check the current state of the documentation to understand what needs to be fixed.
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T04:35:00Z
+
+## Files Changed
+1. `src/henchman/tools/base.py` - Fixed stale docstring for `Tool.execute` 
+method (changed `**params:` to `param...
+Good, I can see the last improvement was about stale docstrings. Now I need to address the highest-priority issue: the broken link in `docs/intelligent-context-management.md`. Let me examine the file to see the broken link and check what's in the configuration.md file.
+[tool] read_file({'path': 'docs/intelligent-context-management.md', 
+'start_line': 470, 'end_line': 480})
+
+[result] 
+- [Configuration Guide](configuration.md) - General configuration settings
+- [CLI Reference](api.md) - Complete CLI command reference
+- [Agent API](api.md#agent) - Programmatic agent usage
+- [Perform...
+Now let me check the configuration.md file to see if there's a `#performance-tuning` anchor:
+[tool] read_file({'path': 'docs/configuration.md'})
+
+[result] # Configuration
+
+Henchman-AI uses hierarchical configuration with settings files and environment 
+variables.
+
+## Configuration Hierarchy
+
+Settings are loaded in this order (later overrides earlier):
+
+1...
+I can see that the configuration.md file doesn't have a `#performance-tuning` anchor. Looking at the content, I can see there's a "Context Management Settings" section but no specific "Performance Tuning" section. Let me check if there's a performance tuning section elsewhere in the documentation or if I need to create one. First, let me search for "performance" in the configuration file:
+[tool] grep({'pattern': 'performance', 'path': 'docs/configuration.md', 
+'ignore_case': True})
+
+[result] No matches found...
+Let me also check the intelligent-context-management.md file to see what context the broken link is in:
+[tool] read_file({'path': 'docs/intelligent-context-management.md', 
+'start_line': 460, 'end_line': 490})
+
+[result] ## Support
+
+For issues with Intelligent Context Management:
+
+1. **Check the logs**: Enable debug logging as shown above
+2. **Review settings**: Verify your configuration with `/context`
+3. **Test with...
+Now I need to decide what to do. I have a few options:
+
+1. Create a "Performance Tuning" section in configuration.md
+2. Change the link to point to an existing section (like "Context Management Settings")
+3. Remove the broken link entirely
+
+Looking at the context, this is in the "Related Documentation" section of the intelligent-context-management.md file. The link is meant to point to "General performance optimization" documentation. Since there's no such section in configuration.md, I should either create it or update the link.
+
+Let me check if there's any performance-related content in the configuration.md file that I could create an anchor for:
+[tool] grep({'pattern': 'tuning|optimization|performance', 'path': 
+'docs/configuration.md', 'ignore_case': True})
+
+[result] No matches found...
+Let me check what other sections exist in configuration.md to see if there's a logical place to add performance tuning information:
+[tool] grep({'pattern': '^#+', 'path': 'docs/configuration.md'})
+
+[result] # Configuration
+## Configuration Hierarchy
+## Settings File
+# Provider configuration
+# Tool settings
+# UI settings
+## Environment Variables
+## Provider Settings
+### DeepSeek
+### OpenAI
+### Anthropic
+#...
+Looking at the structure, I think the best approach is to add a "Performance Tuning" section to the configuration.md file. This would be a logical place for performance optimization guidance. Let me check if there are any other references to performance tuning in the documentation:
+[tool] grep({'pattern': 'performance.*tuning|tuning.*performance', 'path': 
+'docs/', 'ignore_case': True})
+
+[result] docs/intelligent-context-management.md:### Performance Tuning
+docs/intelligent-context-management.md:- [Performance 
+Tuning](configuration.md#performance-tuning) - General performance 
+optimization...
+I see there's also a "### Performance Tuning" section in intelligent-context-management.md. Let me check that section to understand what performance tuning content already exists:
+[tool] read_file({'path': 'docs/intelligent-context-management.md', 
+'start_line': 1, 'end_line': 50})
+
+[result] # Intelligent Context Management
+
+Intelligent Context Management is an advanced feature in Henchman-AI that 
+reduces token usage while preserving important context through sophisticated 
+techniques like...
+Let me search for the "Performance Tuning" section in the intelligent-context-management.md file:
+[tool] grep({'pattern': '### Performance Tuning', 'path': 
+'docs/intelligent-context-management.md', 'context_before': 5, 'context_after': 
+30})
+
+[result] 
+1. **Monitoring Systems**: Export metrics to Prometheus/Grafana
+2. **Cost Tracking**: Correlate token reduction with API cost savings
+3. **Quality Assurance**: Validate compression doesn't affect tas...
+Now I understand the situation better. The "Performance Tuning" section in intelligent-context-management.md is specifically about performance tuning for the Intelligent Context Management feature. However, the broken link in the "Related Documentation" section points to a general "Performance Tuning" section in configuration.md that doesn't exist.
+
+Looking at the context, I think the best fix is to update the link to point to the existing "Performance Tuning" section within the same document (intelligent-context-management.md) rather than trying to create a new section in configuration.md. The link text says "General performance optimization" but it's in the context of intelligent context management documentation.
+
+Let me check what the actual anchor should be. Looking at the grep output, I can see the section is `### Performance Tuning`, which would create an anchor `#performance-tuning`. Let me verify this by checking the exact line:
+[tool] read_file({'path': 'docs/intelligent-context-management.md', 
+'start_line': 440, 'end_line': 460})
+
+[result]     compression_ratio: float | None = None  # Achieved compression 
+ratio
+```
+
+## Frequently Asked Questions
+
+### Q: Does intelligent context work with all LLM providers?
+**A**: Yes, it's provider-agno...
+Let me find the exact line number of the "Performance Tuning" section:
+[tool] grep({'pattern': '### Performance Tuning', 'path': 
+'docs/intelligent-context-management.md', 'line_numbers': True})
+
+[result] 392:### Performance Tuning...
+Now let me see what's around line 474 where the broken link is:
+[tool] read_file({'path': 'docs/intelligent-context-management.md', 
+'start_line': 470, 'end_line': 480})
+
+[result] 
+- [Configuration Guide](configuration.md) - General configuration settings
+- [CLI Reference](api.md) - Complete CLI command reference
+- [Agent API](api.md#agent) - Programmatic agent usage
+- [Perform...
+Perfect! Now I can see the issue clearly. The link at line 474 points to `configuration.md#performance-tuning`, but there's no such anchor in configuration.md. However, there IS a "Performance Tuning" section in the same document (intelligent-context-management.md) at line 392.
+
+The fix should be to change the link from `configuration.md#performance-tuning` to `#performance-tuning` (a relative link within the same document). This makes sense because:
+1. The "Performance Tuning" section exists in intelligent-context-management.md
+2. The link is in the "Related Documentation" section of intelligent-context-management.md
+3. It's logical to link to a section within the same document for related content
+
+Let me make this fix:
+[tool] edit_file({'path': 'docs/intelligent-context-management.md', 'old_str': 
+'- [Performance Tuning](configuration.md#performance-tuning) - General 
+performance optimization', 'new_str': '- [Performance 
+Tuning](#performance-tuning) - Performance optimization for intelligent context 
+management'})
+
+[result] Successfully edited docs/intelligent-context-management.md...
+Now let me verify the change was made correctly:
+[tool] read_file({'path': 'docs/intelligent-context-management.md', 
+'start_line': 470, 'end_line': 480})
+
+[result] 
+- [Configuration Guide](configuration.md) - General configuration settings
+- [CLI Reference](api.md) - Complete CLI command reference
+- [Agent API](api.md#agent) - Programmatic agent usage
+- [Perform...
+Good! I also updated the description to be more accurate - it's specifically about "Performance optimization for intelligent context management" rather than "General performance optimization".
+
+Now let me create the improvement record:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T04:45:30Z\n\n## Files Changed\n1. 
+`docs/intelligent-context-management.md` - Fixed broken link at line 474\n\n## 
+Smell Category Addressed\n- **Broken Link** (MEDIUM): Link to 
+\'configuration.md#performance-tuning\' - file exists but anchor 
+\'#performance-tuning\' not found\n\n## Rationale for Change\nThe documentation 
+smell report identified a broken link in 
+`docs/intelligent-context-management.md:474` that pointed to 
+`configuration.md#performance-tuning`. The anchor `#performance-tuning` does not
+exist in the configuration.md file. \n\nUpon investigation, I found that:\n1. 
+There IS a "Performance Tuning" section within the same document 
+(`intelligent-context-management.md`) at line 392\n2. The link is in the 
+"Related Documentation" section of `intelligent-context-management.md`\n3. It 
+makes logical sense to link to the "Performance Tuning" section within the same 
+document rather than to a non-existent section in another document\n\n## Changes
+Made\n1. **Updated the broken link**: Changed from `[Performance 
+Tuning](configuration.md#performance-tuning)` to `[Performance 
+Tuning](#performance-tuning)`\n2. **Updated the link description**: Changed from
+"General performance optimization" to "Performance optimization for intelligent 
+context management" to more accurately reflect the content of the linked 
+section\n\n## What to Verify\n1. The link now correctly points to the 
+"Performance Tuning" section within `intelligent-context-management.md`\n2. The 
+anchor `#performance-tuning` exists in the document (it\'s created by the `### 
+Performance Tuning` heading)\n3. The link description accurately describes what 
+the linked section contains\n4. The change doesn\'t break any other 
+documentation or navigation\n\n## Next Priority\nThe next highest-priority 
+issues are:\n1. **Config Issue** in `mkdocs.yml:1` (mermaid diagrams not 
+configured in pymdownx.superfences)\n2. **Consistency Error** in 
+`pyproject.toml:65` (coverage threshold mismatch: 4% vs 80%)\n3. **Missing 
+Docstring** in `src/henchman/agents/config.py:1` (module missing docstring)\n4. 
+**Missing Docstring** in `src/henchman/agents/identity.py:1` (module missing 
+docstring)\n5. **Incomplete Docstring** in `src/henchman/agents/metrics.py:91` 
+(\'PerformanceMetrics.track_file_access\' has 1 parameter but no Args 
+section)'})
+
+[result] Successfully wrote 2319 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I have successfully addressed the highest-priority documentation smell. Here's a summary of what I accomplished:
+
+## Documentation Improvement Completed
+
+**Issue Fixed**: Broken link in `docs/intelligent-context-management.md:474`
+
+**Problem**: The link `[Performance Tuning](configuration.md#performance-tuning)` pointed to a non-existent anchor `#performance-tuning` in the configuration.md file.
+
+**Solution**: 
+1. Changed the link to point to the existing "Performance Tuning" section within the same document: `[Performance Tuning](#performance-tuning)`
+2. Updated the link description from "General performance optimization" to "Performance optimization for intelligent context management" to accurately reflect the content
+
+**Why this fix is correct**:
+- The "Performance Tuning" section exists at line 392 of `intelligent-context-management.md` (created by the `### Performance Tuning` heading)
+- The link is in the "Related Documentation" section of the same document, so linking internally makes logical sense
+- The anchor `#performance-tuning` will now correctly resolve to the section within the same document
+
+**Verification**:
+- The link now points to `#performance-tuning` which is a valid anchor in the document
+- The description accurately describes what users will find in that section
+- No other documentation was affected by this change
+
+This fix resolves a MEDIUM severity documentation smell and improves the navigability of the documentation. The next priority should be addressing the config issue in `mkdocs.yml:1` regarding mermaid diagram configuration.
+[tech_lead] completed work
+[2026-03-03T04:45:01Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.76 seconds
+[2026-03-03T04:45:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T04:45:01Z] Verification passed.
+Committing changes...
