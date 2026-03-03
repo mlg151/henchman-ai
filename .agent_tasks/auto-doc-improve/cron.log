@@ -1746,3 +1746,289 @@ INFO    -  Documentation built in 0.71 seconds
 }
 [2026-03-03T02:30:01Z] Verification passed.
 Committing changes...
+[main 575286d] docs(auto-improve): automated documentation improvement
+ 8 files changed, 889 insertions(+), 2491 deletions(-)
+[2026-03-03T02:30:01Z] Done.
+[2026-03-03T02:45:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by addressing the highest-priority issue from the smell report: **docs/extensions.md:1 — 🟠 HIGH — Stale Age**. The documentation file was last modified 38 days ago and needs review to ensure it still reflects current behavior.
+
+Let me first read the current documentation to understand what needs updating.
+[tool] read_file({'path': 'docs/extensions.md'})
+
+
+[result] # Extensions
+
+Henchman-AI supports extensions for adding custom functionality.
+
+## Extension Types
+
+| Type | Description |
+|------|-------------|
+| **Providers** | Custom LLM providers |
+| **Tools** |...
+Now let me check the actual source code to see if the documentation matches the current implementation. Let me look at the extensions module structure:
+[tool] read_file({'path': 'src/henchman/extensions/base.py', 'start_line': 1, 
+'end_line': 50})
+
+[result] """Extension base class and types for Henchman-AI."""
+
+from abc import ABC, abstractmethod
+
+from henchman.cli.commands import Command
+from henchman.tools.base import Tool
+
+
+class Extension(ABC):
+    "...
+Let me see more of the Extension class to understand the current interface:
+[tool] read_file({'path': 'src/henchman/extensions/base.py', 'start_line': 50, 
+'end_line': 150})
+
+[result] 
+    @property
+    @abstractmethod
+    def description(self) -> str:
+        """Human-readable description of the extension.
+
+        Returns:
+            Description string.
+        """
+        ...  ...
+Now let me check the ExtensionManager to see how extensions are loaded and managed:
+[tool] read_file({'path': 'src/henchman/extensions/manager.py', 'start_line': 1,
+'end_line': 50})
+
+[result] """Extension manager for discovering and loading extensions."""
+
+from __future__ import annotations
+
+import importlib.util
+import logging
+import sys
+from importlib.metadata import entry_points
+from pa...
+Let me check the commands to see if there's an `/extensions` command:
+[tool] grep({'pattern': 'extensions', 'path': 'src/henchman/cli/commands', 
+'glob': '*.py', 'line_numbers': True})
+
+[result] src/henchman/cli/commands/extensions.py:1:"""Extensions command for 
+listing registered extensions."""
+src/henchman/cli/commands/extensions.py:4:from henchman.extensions.manager 
+import ExtensionManager...
+Let me read the extensions command file:
+[tool] read_file({'path': 'src/henchman/cli/commands/extensions.py'})
+
+[result] """Extensions command for listing registered extensions."""
+
+from henchman.cli.commands import Command, CommandContext
+from henchman.extensions.manager import ExtensionManager
+
+
+class ExtensionsComman...
+Now let me check the ExtensionManager to see the `list_extensions` and `get` methods:
+[tool] read_file({'path': 'src/henchman/extensions/manager.py', 'start_line': 
+100, 'end_line': 200})
+
+[result]         Returns:
+            List of Command instances from all extensions.
+        """
+        commands: list[Command] = []
+        for ext in self._extensions.values():
+            commands.extend(e...
+Let me see the rest of the file to understand the complete API:
+[tool] read_file({'path': 'src/henchman/extensions/manager.py', 'start_line': 
+200, 'end_line': 250})
+
+[result]         try:
+            self.register(ext_class())
+            logger.info("Loaded extension from directory: %s", ext_name)
+        except Exception as e:
+            logger.warning("Failed to instan...
+Now let me check what the `list_extensions` and `get` methods look like:
+[tool] read_file({'path': 'src/henchman/extensions/manager.py', 'start_line': 
+70, 'end_line': 100})
+
+[result]         Args:
+            name: Extension name.
+
+        Returns:
+            Extension instance or None if not found.
+        """
+        return self._extensions.get(name)
+
+    def list_extensions(se...
+Now I need to check if there are any other methods or if the documentation is missing anything. Let me also check if there's a context object as mentioned in the documentation:
+[tool] grep({'pattern': 'context.*register|register.*context', 'path': 
+'src/henchman/extensions', 'glob': '*.py', 'line_numbers': True})
+
+[result] No matches found...
+Let me check if there's an ExtensionContext class or similar:
+[tool] grep({'pattern': 'ExtensionContext|Context', 'path': 
+'src/henchman/extensions', 'glob': '*.py', 'line_numbers': True})
+
+[result] src/henchman/extensions/base.py:87:            Context string to add to
+system prompt....
+Let me check the models file:
+[tool] read_file({'path': 'src/henchman/extensions/models.py'})
+
+[result] """Plugin metadata models for Henchman-AI plugin marketplace."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from enum import Enum
+from typing import Any, Literal
+
+from pydantic...
+Now let me check if there's a plugin compatibility file to understand the full system:
+[tool] read_file({'path': 'src/henchman/extensions/plugin_compatibility.py', 
+'start_line': 1, 'end_line': 50})
+
+[result] """Plugin compatibility checking."""
+
+from __future__ import annotations
+
+import sys
+from typing import TYPE_CHECKING
+
+from henchman.extensions.models import PluginMetadata
+
+if TYPE_CHECKING:
+    from...
+Now I need to check what the actual CLI commands are for extensions. Let me look at the builtin commands:
+[tool] read_file({'path': 'src/henchman/cli/commands/builtins.py', 'start_line':
+1, 'end_line': 50})
+
+[result] """Built-in slash commands.
+
+This module provides the default slash commands like /help, /quit, /clear, 
+/tools.
+"""
+
+from __future__ import annotations
+
+from henchman.cli.commands import Command, Comm...
+Let me check if extensions command is included in the builtins:
+[tool] grep({'pattern': 'extensions|Extensions', 'path': 
+'src/henchman/cli/commands/builtins.py', 'line_numbers': True})
+
+[result] No matches found...
+Let me check the full builtins.py file:
+[tool] read_file({'path': 'src/henchman/cli/commands/builtins.py', 'start_line':
+200, 'end_line': 300})
+
+[result]         ctx.console.clear()
+
+
+class ToolsCommand(Command):
+    """List available tools."""
+
+    @property
+    def name(self) -> str:
+        """Command name.
+
+        Returns:
+            Command name...
+Now I need to check where extensions command is registered. Let me search for where extensions command might be added:
+[tool] grep({'pattern': 'ExtensionsCommand', 'path': 'src/henchman', 'glob': 
+'*.py', 'line_numbers': True})
+
+[result] No matches found...
+Let me check the app.py to see how commands are registered:
+[tool] read_file({'path': 'src/henchman/cli/app.py', 'start_line': 400, 
+'end_line': 500})
+
+[result] 
+
+async def _run_headless_text(
+    repl: Any,
+    prompt: str,
+    agent_role: str | None = None,
+) -> None:
+    """Process a single prompt and exit with text output.
+
+    Args:
+        repl: The REP...
+Let me search for where command registry is created:
+[tool] grep({'pattern': 'CommandRegistry|command_registry', 'path': 
+'src/henchman/cli', 'glob': '*.py', 'line_numbers': True})
+
+[result] src/henchman/cli/command_processor.py:11:from henchman.cli.commands 
+import CommandContext, CommandRegistry, parse_command
+src/henchman/cli/command_processor.py:58:        self.command_registry = 
+Comma...
+Let me check the command_processor.py to see how commands are registered:
+[tool] read_file({'path': 'src/henchman/cli/command_processor.py', 'start_line':
+55, 'end_line': 75})
+
+[result]         self.mcp_manager = mcp_manager
+
+        # Initialize command registry
+        self.command_registry = CommandRegistry()
+        for cmd in get_builtin_commands():
+            self.command_regi...
+Now I need to check if extensions command is added elsewhere. Let me look for where ExtensionManager is created and if extensions command is registered:
+[tool] grep({'pattern': 'ExtensionManager', 'path': 'src/henchman', 'glob': 
+'*.py', 'line_numbers': True})
+
+[result] No matches found...
+Let me check the Repl class to see how extensions are initialized:
+[tool] grep({'pattern': 'extension|Extension', 'path': 'src/henchman/cli', 
+'glob': '*.py', 'line_numbers': True})
+
+[result] src/henchman/cli/console.py:35:    from typing_extensions import Self
+src/henchman/cli/core_init.py:36:        plugin_manager: Plugin manager for 
+extensions....
+Let me check the core_init.py:
+[tool] read_file({'path': 'src/henchman/cli/core_init.py'})
+
+[result] """Core component initialization for Henchman-AI.
+
+This module provides shared initialization logic for both REPL and Textual TUI.
+"""
+
+from __future__ import annotations
+
+from dataclasses import data...
+Now I see there's a PluginManager instead of ExtensionManager. Let me check the plugins module:
+[tool] ls({'path': 'src/henchman/cli'})
+
+[result] __init__.py
+__init__.py,cover
+__pycache__/
+app.py
+app.py,cover
+command_processor.py
+command_processor.py,cover
+commands/
+console.py
+console.py,cover
+core_init.py
+core_init.py,cover
+henchman.tcss
+input...
+Let me check the plugins.py file:
+[tool] read_file({'path': 'src/henchman/cli/plugins.py', 'start_line': 1, 
+'end_line': 50})
+
+[result] """UI Plugin System for extending the CLI.
+
+This module provides the base class for UI plugins and the manager for loading 
+them.
+Plugins can register new slash commands and render custom UI elements.
+...
+Now I need to understand the current state. It seems there are two different systems:
+1. `henchman.extensions` - The extension system documented in the docs
+2. `henchman.cli.plugins` - A UI plugin system
+
+Let me check if the extensions system is actually used anywhere. Let me search for where ExtensionManager might be instantiated:
+[tool] grep({'pattern': 'from.*extensions.*import|import.*extensions', 'path': 
+'src/henchman', 'glob': '*.py', 'line_numbers': True})
+
+[result] No matches found...
+Let me check if there are any tests for the extensions system:
