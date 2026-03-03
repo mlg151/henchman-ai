@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.13] - 2026-02-25
+
 ### Changed
 - **`cli/commands/session.py` refactored to A quality** — 919-line F-grade file (30.0/100, 77 smells) refactored to A (100.0/100, 0 smells).
   - Converted `SessionDisplayFormatter` class (10 `@staticmethod` methods) to module-level functions — eliminates feature envy detection entirely.
@@ -46,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Extracted 12 mixin classes into new `src/henchman/cli/textual_mixins.py` (also grade A, 98.6/100).
   - Resolved Large Class HIGH smell (1760 → ~300 lines), Long Method HIGH, and Duplicate Code HIGH.
   - Added type hints, fixed BLE001/PLC0415 lint violations, unified toggle actions via `_toggle_tab()`.
-  - `textual_app.py` retains full public API via `__all__` re-exports for backward compatibility.
+  - `textual_app.py` retains full public API via `__all__ re-exports for backward compatibility.
 - **`orchestrator.py`** — Added `from __future__ import annotations` to fix forward-reference `NameError` for `CompletionStatus` used before its definition.
 - **`command_processor.py`** — Restored special-case handling for `/quit` (returns `False` directly) ensuring correct REPL exit semantics.
 
@@ -732,7 +734,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Rebranded from henchman-cli to henchman-ai
 
-[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.3.13...HEAD
+[0.3.13]: https://github.com/mlg151/henchman-ai/compare/v0.3.11...v0.3.13
+[0.3.11]: https://github.com/mlg151/henchman-ai/compare/v0.3.10...v0.3.11
+[0.3.10]: https://github.com/mlg151/henchman-ai/compare/v0.3.9...v0.3.10
+[0.3.9]: https://github.com/mlg151/henchman-ai/compare/v0.3.8...v0.3.9
+[0.3.8]: https://github.com/mlg151/henchman-ai/compare/v0.3.7...v0.3.8
+[0.3.7]: https://github.com/mlg151/henchman-ai/compare/v0.3.3...v0.3.7
 [0.3.3]: https://github.com/mlg151/henchman-ai/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/mlg151/henchman-ai/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/mlg151/henchman-ai/compare/v0.2.22...v0.3.1
