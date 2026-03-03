@@ -1,12 +1,45 @@
-[2026-03-03T10:15:01Z] Starting auto-doc-improve run...
+[2026-03-03T10:30:01Z] Starting auto-doc-improve run...
 Running documentation smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
-I'll start by examining the highest-priority issue from the smell report: the consistency error in pyproject.toml regarding coverage thresholds. Let me first check what the current pyproject.toml says about coverage.
-[tool] read_file({'path': 'pyproject.toml'})
+I'll start by examining the highest-priority issue from the documentation smell report: the consistency error in pyproject.toml regarding coverage thresholds.
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
 
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+Let me look for the coverage threshold mentioned in the report:
+[tool] grep({'pattern': 'coverage', 'path': 'pyproject.toml', 'line_numbers': 
+True})
+
+[result] 145:[tool.coverage.run]
+149:[tool.coverage.report]...
+
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 145, 'end_line': 155})
+
+[result] [tool.coverage.run]
+source = ["src/henchman"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "pragma: no branch",
+    "if TYPE_CHECKING:",
+    "raise NotImplemente...
+Let me check if there's a coverage threshold elsewhere:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 1, 'end_line': 30})
 
 [result] [build-system]
 requires = ["hatchling"]
@@ -16,31 +49,10 @@ build-backend = "hatchling.build"
 name = "henchman-ai"
 version = "0.3.12"
 description = "A model-agnostic AI agent CLI - your AI henchman for the ter...
-Now let me check the CI script to see what coverage threshold it uses:
+Let me check the CI script to see what coverage threshold it uses:
 [tool] read_file({'path': 'scripts/ci.sh'})
 
 ✗ \[error] Error: File not found: scripts/ci.sh
-Let me check what scripts are available:
-[tool] ls({'path': '.'})
-
-[result] CHANGELOG.md
-CONTRIBUTING.md
-LICENSE
-MagicMock/
-README.md
-RELEASE_CHECKLIST.md
-__pycache__/
-coverage.json
-dist/
-docs/
-evals/
-htmlcov/
-mkdocs.yml
-pyproject.toml
-scripts/
-site/
-src/
-test_compatibility.p...
 
 [tool] ls({'path': 'scripts'})
 
@@ -50,7 +62,7 @@ build_docs.py
 doc_smell_detector/
 run_evals.sh
 smell_detector/...
-Let me check the copilot instructions to see what it says about coverage thresholds:
+Let me check the copilot instructions to understand the coverage requirement:
 [tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 1, 
 'end_line': 50})
 
@@ -59,403 +71,259 @@ Let me check the copilot instructions to see what it says about coverage thresho
 Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by 
 gemini-cli. It supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, 
 Ollama) via a u...
-Now let me check the pytest configuration in pyproject.toml more carefully. I see line 65 has `--cov-fail-under=100` which is correct. Let me check if there are any other references to coverage thresholds:
-[tool] grep({'pattern': 'coverage', 'path': 'pyproject.toml', 'line_numbers': 
-True})
+Now let me check the IMPLEMENTATION_PLAN.md to see if it mentions coverage thresholds:
+[tool] grep({'pattern': 'coverage', 'path': 'IMPLEMENTATION_PLAN.md', 
+'line_numbers': True})
 
-[result] 145:[tool.coverage.run]
-149:[tool.coverage.report]...
-Let me check the full pytest configuration section:
-[tool] read_file({'path': 'pyproject.toml', 'start_line': 130, 'end_line': 150})
-
-[result] module = "tests.*"
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"...
-Now let me check if there are any other files that mention coverage thresholds. Let me check the smell report to see what it says about the 4% threshold:
-[tool] read_file({'path': '.agent_tasks/auto-doc-improve/doc-smell-report.md', 
-'start_line': 1, 'end_line': 30})
-
-[result] # Documentation Smell Report — ✅ A (Score: 96.3/100)
-
-_Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T10:15:02.332639+00:00_
-
-## Executive Summary
-
-| Metric | Value |
-|:-------|------:|
-| **...
-Let me search for where the 4% coverage threshold might be mentioned:
-[tool] grep({'pattern': '4%', 'path': '.', 'glob': '*.md', 'line_numbers': 
+✗ \[error] Error: Path not found: IMPLEMENTATION_PLAN.md
+Let me check what coverage thresholds are mentioned in the documentation smell report more carefully. The report says "States coverage threshold of 4% but other files require 100%." Let me search for where this 4% might be:
+[tool] grep({'pattern': '4%', 'path': '.', 'glob': '*.toml', 'line_numbers': 
 True})
 
 [result] No matches found...
-Let me search more broadly for coverage percentage references:
-[tool] grep({'pattern': 'coverage.*%', 'path': '.', 'glob': '*.md', 
-'line_numbers': True})
 
-[result] CHANGELOG.md:145:- **Test coverage** — Increased coverage from 88.19% 
-to 89%+ by adding targeted tests for previously uncovered code paths:
-RELEASE_CHECKLIST.md:9:- [ ] Ensure test coverage = 100%: `p...
-Let me check the RELEASE_CHECKLIST.md file:
-[tool] read_file({'path': 'RELEASE_CHECKLIST.md'})
+[tool] grep({'pattern': '4', 'path': 'pyproject.toml', 'line_numbers': True})
 
-[result] # PyPI Release Checklist
+[result] 17:    "Development Status :: 4 - Beta",
+38:    "openai>=1.40",
+39:    "anthropic>=0.40",
+43:    "anyio>=4.0",
+48:    "beautifulsoup4>=4.12",
+51:    "chromadb>=0.4",
+54:    "appdirs>=1.4",
+55:    "fas...
+Let me check line 65 specifically:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
 
-Use this checklist before publishing a new version to PyPI.
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+Ah, I see! The report is saying line 65 has "pytest-cov>=4.0" which is a version number (4.0), not a coverage threshold. But the report is interpreting it as a coverage threshold. Let me check if there's actually a coverage threshold configuration somewhere. Let me look for "fail-under" or "cov-fail-under":
+[tool] grep({'pattern': 'fail', 'path': 'pyproject.toml', 'line_numbers': True})
 
-## Pre-Release (1-2 days before)
+[result] 138:addopts = "-v --cov=henchman --cov-report=term-missing 
+--cov-fail-under=100"...
+Found it! Let me look at the context:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 135, 'end_line': 145})
 
-### Code Quality
-- [ ] Run full test suite: `pytest`
-- [ ] Ensure test coverage...
-Now let me check the CHANGELOG.md file around line 145:
-[tool] read_file({'path': 'CHANGELOG.md', 'start_line': 140, 'end_line': 160})
+[result] testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-v --cov=henchman --cov-report=term-missing --cov-fail-under=100"
+markers = [
+    "integration: m...
+Great! So the actual coverage threshold is set to 100% in line 138: `--cov-fail-under=100`. The report is incorrectly flagging line 65's "pytest-cov>=4.0" as a coverage threshold. This is a false positive in the smell detector. However, I should check if there are any other references to coverage thresholds that might be inconsistent.
 
-[result] - **Mypy type error** — Fixed `Select` widget construction in 
-`ProviderScreen.compose()` by replacing `**dict` expansion with an explicit 
-`value=` keyword argument, resolving mypy arg-type error.
-- **...
-Now let me search for any other references to coverage thresholds in documentation files:
-[tool] grep({'pattern': 'fail-under', 'path': '.', 'glob': '*.md', 
-'line_numbers': True})
-
-[result] RELEASE_CHECKLIST.md:9:- [ ] Ensure test coverage = 100%: `pytest 
---cov=henchman --cov-report=term-missing --cov-fail-under=100`...
-Let me check the CONTRIBUTING.md file:
-[tool] read_file({'path': 'CONTRIBUTING.md'})
-
-[result] # Contributing to Henchman-AI
-
-Thank you for your interest in contributing to Henchman-AI! This document 
-provides guidelines and instructions for contributing.
-
-## 🎯 How to Contribute
-
-### 1. Reportin...
-Now let me check if there are any other configuration files that might mention coverage thresholds. Let me look for any `.coveragerc` or similar files:
-[tool] ls({'path': '.', 'show_hidden': True})
-
-[result] .agent_tasks/
-.claude/
-.coverage
-.git/
-.github/
-.gitignore
-.henchman/
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-.serena/
-.venv/
-CHANGELOG.md
-CONTRIBUTING.md
-LICENSE
-MagicMock/
-README.md
-RELEASE_CHECKLI...
-Let me check the .github directory for any workflow files:
-[tool] ls({'path': '.github'})
-
-[result] copilot-instructions.md
-workflows/...
-
-[tool] ls({'path': '.github/workflows'})
-
-[result] ci.yml
-docs.yml
-publish.yml...
-Let me check the CI workflow file:
-[tool] read_file({'path': '.github/workflows/ci.yml'})
-
-[result] name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Pytho...
-Now I can see the issue! The CI workflow has `--cov-fail-under=100` which is correct, but the smell report mentions a 4% threshold somewhere. Let me check if there are any other references in the codebase. Let me search for "4%" more broadly:
-[tool] grep({'pattern': '4%', 'path': '.', 'line_numbers': True})
-
-[result] .agent_tasks/auto-doc-improve/cron.log:3674:mismatch: 4% vs 80%)\n\nThe
-stale docstrings should be addressed next as they 
-.agent_tasks/auto-doc-improve/cron.log:3881:mismatch: 4% vs 80%)\n\nThe stale...
-Now I understand the situation. Looking at the grep results and the cron logs, I can see that the "4%" mentioned in the smell report is a **false positive**. The smell detector is incorrectly interpreting `pytest-cov>=4.0` (which is version 4.0 of the pytest-cov package) as a "4% coverage threshold". 
-
-However, looking at the current smell report, it says "Found thresholds: 100%, 4%". The "100%" is from `--cov-fail-under=100` in the pytest configuration, and the "4%" is from misinterpreting `pytest-cov>=4.0`.
-
-Let me check the last improvement record to see what was done last time:
+Let me check the last improvement file to see what was done before:
 [tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
 
 [result] # Documentation Improvement Record
 
 ## Date/Time
-2026-03-03T10:30:45Z
+2026-03-03T10:45:00Z
 
 ## Files Changed
-1. `src/henchman/agents/orchestrator_loop.py` - Added missing Args and Returns 
-sections to `check_colon_stall` a...
-Now I understand the situation. The last improvement record confirms that the #1 issue in the smell report (consistency error about "4% coverage threshold") is a **false positive**. However, since this is still listed as the #1 issue in the current smell report and it's causing confusion, I should address it.
+1. `src/henchman/agents/orchestrator_metrics_ctrl.py` - Added missing Args 
+sections to three functions: `update_...
+Perfect! The last improvement note confirms that the #1 issue is a false positive. The note says: "The #1 issue in the smell report (consistency error about '4% coverage threshold') remains a false positive as it misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a '4% coverage threshold'."
 
-Looking at the prioritised fix queue, the #1 issue is actually a false positive. The #2 issue is "Incomplete Docstring" in `src/henchman/agents/orchestrator_metrics_ctrl.py:17`. This is a **medium severity** issue that I should address.
+So I should move to the next highest-priority issue. Looking at the report, the next issue is:
 
-Let me check this file:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator_metrics_ctrl.py', 
-'start_line': 1, 'end_line': 50})
+**2. `src/henchman/agents/orchestrator_tools.py:38` — 🟡 MEDIUM — Incomplete Docstring**
+'ToolController.update_tool_metrics' has 3 parameter(s) but no Args: section in docstring
 
-[result] """Tool metrics controller for the orchestrator module.
-
-Tracks tool call success/failure, errors, and delegation counts.
-"""
-
-from __future__ import annotations
-
-from typing import Any
-
-from .orchest...
-Perfect! I can see the issue. The functions `update_tool_metrics`, `track_tool_error`, and `update_delegation_metrics` all have parameters but their docstrings don't have `Args:` sections. This is a **medium severity** documentation smell that violates the project's requirement for 100% documentation coverage and Google-style docstrings.
-
-Let me fix these docstrings:
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator_metrics_ctrl.py', 
-'old_str': '    def update_tool_metrics(\n        self: ToolMetricsController,\n
-tool_name: str,\n        arguments: dict[str, Any],\n        *,\n        
-success: bool,\n    ) -> None:\n        """Update metrics for a tool call."""\n 
-self.metrics.update_tool_metrics(tool_name, arguments, success)', 'new_str': '  
-def update_tool_metrics(\n        self: ToolMetricsController,\n        
-tool_name: str,\n        arguments: dict[str, Any],\n        *,\n        
-success: bool,\n    ) -> None:\n        """Update metrics for a tool call.\n    
-\n        Args:\n            tool_name: Name of the tool that was called\n      
-arguments: Dictionary of arguments passed to the tool\n            success: 
-Whether the tool call was successful\n        """\n        
-self.metrics.update_tool_metrics(tool_name, arguments, success)'})
-
-[result] Successfully edited src/henchman/agents/orchestrator_metrics_ctrl.py...
-
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator_metrics_ctrl.py', 
-'old_str': '    def track_tool_error(\n        self: ToolMetricsController,\n   
-tool_errors: list[str],\n        tool_name: str,\n        result_content: str | 
-None,\n    ) -> None:\n        """Track tool errors for delegation 
-summaries."""\n        error_message = result_content or "unknown error"\n      
-tool_errors.append(\n            f"{tool_name}: 
-{error_message[:TOOL_ERROR_MAX_LENGTH]}",\n        )', 'new_str': '    def 
-track_tool_error(\n        self: ToolMetricsController,\n        tool_errors: 
-list[str],\n        tool_name: str,\n        result_content: str | None,\n    ) 
--> None:\n        """Track tool errors for delegation summaries.\n        \n    
-Args:\n            tool_errors: List to append the formatted error message to\n 
-tool_name: Name of the tool that failed\n            result_content: Error 
-content from the tool result, or None if no content\n        """\n        
-error_message = result_content or "unknown error"\n        tool_errors.append(\n
-f"{tool_name}: {error_message[:TOOL_ERROR_MAX_LENGTH]}",\n        )'})
-
-[result] Successfully edited src/henchman/agents/orchestrator_metrics_ctrl.py...
-
-[tool] edit_file({'path': 'src/henchman/agents/orchestrator_metrics_ctrl.py', 
-'old_str': '    def update_delegation_metrics(\n        self: 
-ToolMetricsController,\n        target: str,\n    ) -> None:\n        """Update 
-metrics for a delegation."""\n        self.metrics.delegation_count += 1\n      
-if target in self.metrics.delegation_by_type:\n            
-self.metrics.delegation_by_type[target] += 1', 'new_str': '    def 
-update_delegation_metrics(\n        self: ToolMetricsController,\n        
-target: str,\n    ) -> None:\n        """Update metrics for a delegation.\n     
-\n        Args:\n            target: Type of agent the task was delegated to 
-(e.g., \'planner\', \'engineer\')\n        """\n        
-self.metrics.delegation_count += 1\n        if target in 
-self.metrics.delegation_by_type:\n            
-self.metrics.delegation_by_type[target] += 1'})
-
-[result] Successfully edited src/henchman/agents/orchestrator_metrics_ctrl.py...
-Now let me verify the changes I made:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator_metrics_ctrl.py', 
-'start_line': 15, 'end_line': 55})
-
-[result]     """Manages tool metrics and error tracking."""
-
-    def update_tool_metrics(
-        self: ToolMetricsController,
-        tool_name: str,
-        arguments: dict[str, Any],
-        *,
-        succ...
-Let me check the rest of the file to make sure I got all the changes:
-[tool] read_file({'path': 'src/henchman/agents/orchestrator_metrics_ctrl.py', 
-'start_line': 50, 'end_line': 60})
+Let me examine this file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_tools.py', 
+'start_line': 30, 'end_line': 50})
 
 [result] 
-    def update_delegation_metrics(
-        self: ToolMetricsController,
-        target: str,
-    ) -> None:
-        """Update metrics for a delegation.
-        
         Args:
-            target: Type...
-Good! Now let me create the improvement record:
+            orchestrator: The parent orchestrator instance.
+        """
+        super().__init__(orchestrator)
+        self._delegation_controller = DelegationController(orchestrator)
+ ...
+I can see the issue. The function `update_tool_metrics` has parameters `tool_name`, `args`, and `success` but the docstring only says "Delegate to metrics controller for backward compat." without an `Args:` section. Let me check the full function:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_tools.py', 
+'start_line': 35, 'end_line': 45})
+
+[result]         self._delegation_controller = 
+DelegationController(orchestrator)
+        self._metrics_controller = ToolMetricsController(orchestrator)
+
+    def update_tool_metrics(
+        self: ToolControll...
+Now I'll fix this documentation issue. I need to add an `Args:` section to the `update_tool_metrics` function docstring. Let me first check the exact line numbers and the full context:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_tools.py', 
+'start_line': 1, 'end_line': 50})
+
+[result] """Tool execution controller for the orchestrator module.
+
+Handles dispatching tool calls to either the delegation controller
+or the regular tool execution path.
+"""
+
+from __future__ import annotation...
+Now I'll fix the docstring by adding an `Args:` section. I need to document all three parameters: `tool_name`, `args`, and `success`.
+[tool] edit_file({'path': 'src/henchman/agents/orchestrator_tools.py', 
+'old_str': '    def update_tool_metrics(\n        self: ToolController,\n       
+tool_name: str,\n        args: dict[str, Any],\n        *,\n        success: 
+bool = True,\n    ) -> None:\n        """Delegate to metrics controller for 
+backward compat."""\n        self._metrics_controller.update_tool_metrics(\n    
+tool_name, args, success=success,\n        )', 'new_str': '    def 
+update_tool_metrics(\n        self: ToolController,\n        tool_name: str,\n  
+args: dict[str, Any],\n        *,\n        success: bool = True,\n    ) -> 
+None:\n        """Delegate to metrics controller for backward compat.\n        
+\n        Args:\n            tool_name: Name of the tool that was called.\n     
+args: Dictionary of arguments passed to the tool.\n            success: Whether 
+the tool call was successful. Defaults to True.\n        """\n        
+self._metrics_controller.update_tool_metrics(\n            tool_name, args, 
+success=success,\n        )'})
+
+[result] Successfully edited src/henchman/agents/orchestrator_tools.py...
+Now let me verify the change by reading the updated section:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_tools.py', 
+'start_line': 35, 'end_line': 55})
+
+[result]         self._delegation_controller = 
+DelegationController(orchestrator)
+        self._metrics_controller = ToolMetricsController(orchestrator)
+
+    def update_tool_metrics(
+        self: ToolControll...
+Good! Now I need to create the improvement record. First, let me check if the `.agent_tasks/auto-doc-improve` directory exists:
+[tool] ls({'path': '.agent_tasks'})
+
+[result] agent-coordinator-extraction/
+agent-refactoring/
+api-server-mode/
+auto-doc-improve/
+auto-improve/
+bug-hunt/
+bug-hunt-2/
+continuous-refactoring/
+coverage-improvement/
+debug-scripts/
+delegation-runner-e...
+Good, the directory exists. Now I'll create the improvement record:
 [tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
 'content': '# Documentation Improvement Record\n\n## 
-Date/Time\n2026-03-03T10:45:00Z\n\n## Files Changed\n1. 
-`src/henchman/agents/orchestrator_metrics_ctrl.py` - Added missing Args sections
-to three functions: `update_tool_metrics`, `track_tool_error`, and 
-`update_delegation_metrics`\n\n## Smell Category Addressed\n- **Incomplete 
-Docstring** (MEDIUM): Functions had parameters but no Args sections in 
-docstrings\n\n## Rationale for Change\nThe documentation smell report identified
-three functions in `src/henchman/agents/orchestrator_metrics_ctrl.py` with 
-incomplete docstrings:\n\n1. **`update_tool_metrics`** (line 17): Has 3 
-parameters (`tool_name`, `arguments`, `success`) but no `Args:` section\n2. 
-**`track_tool_error`** (line 27): Has 3 parameters (`tool_errors`, `tool_name`, 
-`result_content`) but no `Args:` section  \n3. **`update_delegation_metrics`** 
-(line 39): Has 1 parameter (`target`) but no `Args:` section\n\nAll three are 
-**medium severity** documentation smells that violate the project\'s requirement
-for 100% documentation coverage and Google-style docstrings. These functions are
-critical components of the orchestrator\'s metrics tracking system, which 
-monitors tool usage, error rates, and delegation patterns. Clear documentation 
-is essential for understanding how the multi-agent system tracks performance and
-identifies issues.\n\n## Changes Made\n\n### 1. **Updated `update_tool_metrics` 
-function docstring** (lines 17-28):\n- Added `Args:` section documenting all 
-three parameters:\n  - `tool_name`: Name of the tool that was called\n  - 
-`arguments`: Dictionary of arguments passed to the tool\n  - `success`: Whether 
-the tool call was successful\n- Maintained the original brief description: 
-"Update metrics for a tool call."\n\n### 2. **Updated `track_tool_error` 
-function docstring** (lines 30-44):\n- Added `Args:` section documenting all 
-three parameters:\n  - `tool_errors`: List to append the formatted error message
-to\n  - `tool_name`: Name of the tool that failed\n  - `result_content`: Error 
-content from the tool result, or None if no content\n- Maintained the original 
-brief description: "Track tool errors for delegation summaries."\n\n### 3. 
-**Updated `update_delegation_metrics` function docstring** (lines 46-57):\n- 
-Added `Args:` section documenting the parameter:\n  - `target`: Type of agent 
-the task was delegated to (e.g., \'planner\', \'engineer\')\n- Maintained the 
-original brief description: "Update metrics for a delegation."\n\n## Technical 
-Details\n- **`update_tool_metrics`**: Records success/failure metrics for 
-individual tool calls, used for performance analysis and error rate 
-calculation\n- **`track_tool_error`**: Formats and stores tool error messages 
-for inclusion in delegation summaries, helping specialists understand what went 
-wrong\n- **`update_delegation_metrics`**: Tracks delegation counts by agent 
-type, used for analyzing delegation patterns and optimizing specialist usage\n- 
-All three functions are part of the `ToolMetricsController` class which manages 
-metrics collection for the orchestrator\n- No functional changes were made - 
-only documentation improvements\n- The changes improve code maintainability and 
-developer experience for the metrics tracking system\n\n## What to Verify\n1. 
-All three functions now have complete Google-style docstrings with `Args:` 
-sections\n2. All parameters are properly documented with clear descriptions\n3. 
-The documentation accurately describes each function\'s role in the metrics 
-tracking system\n4. No other documentation issues were introduced\n\n## Testing 
-Instructions\nTo verify the fix:\n```bash\n# Check the updated docstrings\ngrep 
--n -A15 "def update_tool_metrics" 
-src/henchman/agents/orchestrator_metrics_ctrl.py\ngrep -n -A15 "def 
-track_tool_error" src/henchman/agents/orchestrator_metrics_ctrl.py\ngrep -n -A15
-"def update_delegation_metrics" 
-src/henchman/agents/orchestrator_metrics_ctrl.py\n\n# Verify Python syntax is 
-still valid\npython -m py_compile 
-src/henchman/agents/orchestrator_metrics_ctrl.py\n\n# Run the doc smell detector
-to confirm these issues are resolved\npython -m scripts.doc_smell_detector . 
---skip-docstrings -f json | grep -A5 "orchestrator_metrics_ctrl"\n```\n\n## Next
-Priority\nThe next highest-priority issues from the smell report are:\n1. 
-**Incomplete Docstring** in `src/henchman/agents/orchestrator_tools.py:38` 
-(\'ToolController.update_tool_metrics\' has 3 parameters but no Args 
-section)\n2. **Incomplete Docstring** in 
+Date/Time\n2026-03-03T11:15:00Z\n\n## Files Changed\n1. 
+`src/henchman/agents/orchestrator_tools.py` - Added missing Args section to 
+`update_tool_metrics` function\n\n## Smell Category Addressed\n- **Incomplete 
+Docstring** (MEDIUM): Function had 3 parameters but no Args section in 
+docstring\n\n## Rationale for Change\nThe documentation smell report identified 
+`update_tool_metrics` function in `src/henchman/agents/orchestrator_tools.py` 
+(line 38) with an incomplete docstring. The function has 3 parameters 
+(`tool_name`, `args`, `success`) but the docstring only contained a brief 
+description without an `Args:` section.\n\nThis is a **medium severity** 
+documentation smell that violates the project\'s requirement for 100% 
+documentation coverage and Google-style docstrings. The `update_tool_metrics` 
+function is part of the `ToolController` class which manages tool execution and 
+metrics tracking in the orchestrator. Clear documentation is essential for 
+understanding how tool metrics are tracked and delegated to the metrics 
+controller.\n\n## Changes Made\n\n### Updated `update_tool_metrics` function 
+docstring (lines 38-53):\n- Added `Args:` section documenting all three 
+parameters:\n  - `tool_name`: Name of the tool that was called\n  - `args`: 
+Dictionary of arguments passed to the tool\n  - `success`: Whether the tool call
+was successful (defaults to True)\n- Maintained the original brief description: 
+"Delegate to metrics controller for backward compat."\n- Added proper 
+indentation and formatting for Google-style docstring\n\n## Technical Details\n-
+**Function purpose**: Delegates tool metrics tracking to the 
+`ToolMetricsController` for backward compatibility\n- **Parameters**: \n  - 
+`tool_name` (str): Identifies which tool was called (e.g., \'read_file\', 
+\'write_file\')\n  - `args` (dict[str, Any]): Arguments passed to the tool 
+execution\n  - `success` (bool, optional): Indicates whether the tool call 
+succeeded (default: True)\n- **Return value**: `None` - function updates metrics
+in the controller\n- **Context**: Part of the `ToolController` class which 
+handles tool execution dispatching in the orchestrator\n- **No functional 
+changes** were made - only documentation improvements\n- The change improves 
+code maintainability and developer experience for the tool execution 
+system\n\n## What to Verify\n1. The function now has a complete Google-style 
+docstring with `Args:` section\n2. All three parameters are properly documented 
+with clear descriptions\n3. The documentation accurately describes the 
+function\'s role in delegating metrics tracking\n4. No other documentation 
+issues were introduced\n5. The function signature and behavior remain 
+unchanged\n\n## Testing Instructions\nTo verify the fix:\n```bash\n# Check the 
+updated docstring\ngrep -n -A20 "def update_tool_metrics" 
+src/henchman/agents/orchestrator_tools.py\n\n# Verify Python syntax is still 
+valid\npython -m py_compile src/henchman/agents/orchestrator_tools.py\n\n# Run 
+the doc smell detector to confirm this issue is resolved\npython -m 
+scripts.doc_smell_detector . --skip-docstrings -f json | grep -A5 
+"orchestrator_tools"\n```\n\n## Next Priority\nThe next highest-priority issues 
+from the smell report are:\n1. **Incomplete Docstring** in 
 `src/henchman/agents/orchestrator_tools.py:50` 
 (\'ToolController.process_pending_tool_calls\' has 4 parameters but no Args 
-section)\n3. **Incomplete Docstring** in 
+section)\n2. **Incomplete Docstring** in 
 `src/henchman/agents/orchestrator_validation.py:23` (\'should_check_thinking\' 
-has 2 parameters but no Args section)\n4. **Incomplete Docstring** in 
+has 2 parameters but no Args section)\n3. **Incomplete Docstring** in 
 `src/henchman/agents/orchestrator_validation.py:32` (\'handle_valid_thinking\' 
-has 2 parameters but no Args section)\n\n## Notes\nThis improvement addresses 
-genuine documentation quality issues in the orchestrator metrics controller 
-module. The #1 issue in the smell report (consistency error about "4% coverage 
-threshold") remains a false positive as it misinterprets `pytest-cov>=4.0` 
-(version 4.0 of the pytest-cov package) as a "4% coverage threshold".\n\nThe 
-metrics tracking system is crucial for understanding agent performance, 
-identifying problematic tools, and optimizing delegation strategies. Clear 
-documentation of these functions is essential for developers working on the 
-orchestrator to understand how metrics are collected and used for performance 
-analysis.\n\nThe fix ensures that all three functions\' purposes and parameters 
-are clearly documented, improving the overall quality and maintainability of the
-codebase. The documentation now accurately reflects how these functions work 
-together to track tool usage, errors, and delegation patterns in the multi-agent
-system.'})
+has 2 parameters but no Args section)\n4. **Incomplete Docstring** in 
+`src/henchman/agents/orchestrator_validation.py:45` (\'handle_missing_thinking\'
+has 1 parameter but no Args section)\n\n## Notes\nThis improvement addresses a 
+genuine documentation quality issue in the orchestrator tools module. The 
+function `update_tool_metrics` is a critical bridge between the tool execution 
+system and the metrics tracking system. Clear documentation of its parameters is
+essential for developers to understand:\n\n1. How tool names are passed for 
+metrics categorization\n2. What argument format is expected (dictionary of 
+string keys to any values)\n3. How success/failure status is tracked for 
+performance analysis\n\nThe fix ensures that the function\'s purpose and 
+parameters are clearly documented, improving the overall quality and 
+maintainability of the codebase. The documentation now accurately reflects how 
+this function delegates metrics tracking to the specialized 
+`ToolMetricsController` while maintaining backward compatibility.\n\nNote that 
+the #1 issue in the original smell report (consistency error about "4% coverage 
+threshold") was a false positive as it misinterpreted `pytest-cov>=4.0` (version
+4.0 of the pytest-cov package) as a "4% coverage threshold". The actual coverage
+threshold in the project is correctly set to 100% via `--cov-fail-under=100` in 
+pyproject.toml.'})
 
-[result] Successfully wrote 5783 bytes to 
+[result] Successfully wrote 4974 bytes to 
 .agent_tasks/auto-doc-improve/last-improvement.md...
-Now let me run a quick syntax check to ensure my changes are valid:
-[tool] python_exec({'code': 'import ast\nwith 
-open(\'src/henchman/agents/orchestrator_metrics_ctrl.py\', \'r\') as f:\n    
-content = f.read()\n    ast.parse(content)\nprint("Syntax check passed!")'})
+Perfect! I've successfully completed one documentation improvement. Let me verify that my change is correct by checking the updated file:
+[tool] read_file({'path': 'src/henchman/agents/orchestrator_tools.py', 
+'start_line': 38, 'end_line': 58})
 
-[result] Syntax check passed!
-...
-Perfect! Let me also verify the changes by checking the specific lines:
-[tool] shell({'command': 'grep -n -A10 "def update_tool_metrics" 
-src/henchman/agents/orchestrator_metrics_ctrl.py'})
-
-[result] 17:    def update_tool_metrics(
-18-        self: ToolMetricsController,
-19-        tool_name: str,
-20-        arguments: dict[str, Any],
-21-        *,
-22-        success: bool,
-23-    ) -> None:
-24-  ...
-
-[tool] shell({'command': 'grep -n -A10 "def track_tool_error" 
-src/henchman/agents/orchestrator_metrics_ctrl.py'})
-
-[result] 33:    def track_tool_error(
-34-        self: ToolMetricsController,
-35-        tool_errors: list[str],
-36-        tool_name: str,
-37-        result_content: str | None,
-38-    ) -> None:
-39-        "...
-
-[tool] shell({'command': 'grep -n -A10 "def update_delegation_metrics" 
-src/henchman/agents/orchestrator_metrics_ctrl.py'})
-
-[result] 51:    def update_delegation_metrics(
-52-        self: ToolMetricsController,
-53-        target: str,
-54-    ) -> None:
-55-        """Update metrics for a delegation.
-56-        
-57-        Args:
-58- ...
-Excellent! All three functions now have proper `Args:` sections in their docstrings. 
+[result]     def update_tool_metrics(
+        self: ToolController,
+        tool_name: str,
+        args: dict[str, Any],
+        *,
+        success: bool = True,
+    ) -> None:
+        """Delegate to metrics ...
+Excellent! The documentation improvement has been successfully implemented. 
 
 ## Summary
 
-I have successfully addressed the **#2 priority issue** from the documentation smell report. The issue was **Incomplete Docstring** in `src/henchman/agents/orchestrator_metrics_ctrl.py` where three functions had parameters but no `Args:` sections in their docstrings.
+I've addressed the **#2 priority issue** from the documentation smell report:
 
-### Changes made:
-1. **`update_tool_metrics`** (line 17): Added `Args:` section documenting `tool_name`, `arguments`, and `success` parameters
-2. **`track_tool_error`** (line 27): Added `Args:` section documenting `tool_errors`, `tool_name`, and `result_content` parameters  
-3. **`update_delegation_metrics`** (line 39): Added `Args:` section documenting `target` parameter
+**Fixed**: `src/henchman/agents/orchestrator_tools.py:38` — Incomplete Docstring for `ToolController.update_tool_metrics`
 
-### Key points:
-- All changes are **documentation-only** - no source code behavior was altered
-- The fixes address **medium severity** documentation smells
-- The functions are critical components of the orchestrator's metrics tracking system
-- The documentation now follows Google-style docstring format with proper `Args:` sections
-- The improvement record has been updated in `.agent_tasks/auto-doc-improve/last-improvement.md`
+**Change**: Added a proper `Args:` section to the docstring documenting all three parameters:
+- `tool_name`: Name of the tool that was called
+- `args`: Dictionary of arguments passed to the tool  
+- `success`: Whether the tool call was successful (defaults to True)
 
-The #1 issue in the smell report (consistency error about "4% coverage threshold") remains a **false positive** as it misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". The actual coverage threshold in the project is correctly set to 100% via `--cov-fail-under=100` in the pytest configuration.
+**Rationale**: This function is part of the `ToolController` class which manages tool execution and metrics tracking in the orchestrator. Clear documentation is essential for understanding how tool metrics are tracked and delegated to the metrics controller.
+
+The improvement record has been saved to `.agent_tasks/auto-doc-improve/last-improvement.md` with all the details about what was changed, why, and what to verify.
+
+**Note**: The #1 issue in the original smell report was a false positive (misinterpreting `pytest-cov>=4.0` as a coverage threshold rather than a package version), so I correctly moved to the next genuine issue.
 [tech_lead] completed work
-[2026-03-03T10:15:01Z] Running mkdocs build to verify documentation...
+[2026-03-03T10:30:01Z] Running mkdocs build to verify documentation...
 INFO    -  Cleaning site directory
 INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
-INFO    -  Documentation built in 0.72 seconds
-[2026-03-03T10:15:01Z] Re-running doc smell detector to verify improvement...
+INFO    -  Documentation built in 0.80 seconds
+[2026-03-03T10:30:01Z] Re-running doc smell detector to verify improvement...
 }
-[2026-03-03T10:15:01Z] Verification passed.
+[2026-03-03T10:30:01Z] Verification passed.
 Committing changes...

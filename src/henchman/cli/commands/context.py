@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 _MAX_TOKENS_THRESHOLD: int = 100
 _MAX_TOKENS_MIN_VALUE: int = 1000
 _COMPACTION_THRESHOLD_MIN_VALUE: float = 0.1
+_PERCENTAGE_MULTIPLIER: int = 100  # For converting decimal to percentage
 
 
 @dataclass
@@ -173,7 +174,8 @@ class ContextConsoleHelper:
         )
         self._console_helper.print_status_value(console, "Max tokens", context_settings.max_tokens)
         self._console_helper.print_status_value(
-            console, "Compaction threshold", f"{context_settings.compaction_threshold * 100:.0f}%"
+            console, "Compaction threshold", 
+            f"{context_settings.compaction_threshold * _PERCENTAGE_MULTIPLIER:.0f}%"
         )
         self._console_helper.print_status_value(
             console, "Importance threshold", context_settings.importance_threshold
