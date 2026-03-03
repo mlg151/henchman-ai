@@ -194,74 +194,60 @@ class EventBridge:
             EventType.REFLECTION: self._on_reflection,
         }
 
-    # -- individual event handlers --
+    # -- helper methods for event handling --
 
-    def _on_content(self, event: AgentEvent) -> None:
-        """Handle CONTENT events."""
+    def _post_data_message(
+        self, event: AgentEvent, message_class: type[Any], prefix: str = ""
+    ) -> None:
+        """Post a message with event data if present.
+
+        Args:
+            event: The AgentEvent containing data.
+            message_class: The Textual message class to instantiate.
+            prefix: Optional prefix to add before event data.
+        """
         if event.data:
-            self._post(AgentContentMessage(str(event.data), event.source_agent))
+            data_str = str(event.data)
+            if prefix:
+                data_str = f"{prefix}{data_str}"
+            self._post(message_class(data_str, event.source_agent))
 
-    def _on_thought(self, event: AgentEvent) -> None:
-        """Handle THOUGHT events."""
+    def _post_tool_message(self, event: AgentEvent, message_class: type[Any]) -> None:
+        """Post a tool-related message with event data if present.
+
+        Args:
+            event: The AgentEvent containing tool data.
+            message_class: The Textual message class for tools.
+        """
         if event.data:
-            self._post(AgentThoughtMessage(str(event.data), event.source_agent))
+            self._post(message_class(event.data, event.source_agent))
 
-    def _on_tool_req(self, event: AgentEvent) -> None:
-        """Handle TOOL_CALL_REQUEST events."""
-        if event.data:
-            self._post(ToolCallRequestMessage(event.data, event.source_agent))
+    def _post_status_message(self, event: AgentEvent, text: str) -> None:
+        """Post an AgentStatusMessage with given text.
 
-    def _on_tool_res(self, event: AgentEvent) -> None:
-        """Handle TOOL_CALL_RESULT events."""
-        if event.data:
-            self._post(ToolCallResultMessage(event.data, event.source_agent))
+        Args:
+            event: The AgentEvent for source agent.
+            text: The status text to display.
+        """
+        self._post(AgentStatusMessage(text, event.source_agent))
 
-    def _on_tool_confirm(self, event: AgentEvent) -> None:
-        """Handle TOOL_CONFIRMATION events."""
-        if event.data:
-            self._post(ToolConfirmationMessage(event.data, event.source_agent))
+    def _post_simple_status(self, event: AgentEvent, text: str) -> None:
+        """Post a simple status message without checking event data.
 
-    def _on_error(self, event: AgentEvent) -> None:
-        """Handle ERROR events."""
-        if not event.data:
-            return
-        msg = _format_error_text(str(event.data))
-        self._post(AgentStatusMessage(f"Error: {msg}", event.source_agent))
-        self._post(AgentContentMessage(f"❌ {msg}", event.source_agent))
+        Args:
+            event: The AgentEvent for source agent.
+            text: The status text to display.
+        """
+        self._post_status_message(event, text)
 
-    def _on_finished(self, event: AgentEvent) -> None:
-        """Handle FINISHED events."""
-        self._post(AgentFinishedMessage(event.source_agent))
+    def _update_status_bar(self, event_data: dict[str, Any]) -> None:
+        """Update status bar with token and cost information.
 
-    def _on_ctx_compact(self, event: AgentEvent) -> None:
-        """Handle CONTEXT_COMPACTED events."""
-        self._post(
-            AgentStatusMessage(
-                "Context compacted to fit model limits",
-                event.source_agent,
-            )
-        )
-        self._post(CommandOutputMessage("[dim]ℹ Context window was compacted.[/dim]"))
-
-    def _on_turn_summary(self, event: AgentEvent) -> None:
-        """Handle TURN_SUMMARIZED events."""
-        self._post(
-            AgentStatusMessage(
-                "Previous turn summarized",
-                event.source_agent,
-            )
-        )
-
-    def _on_turn_status(self, event: AgentEvent) -> None:
-        """Handle TURN_STATUS events."""
-        if not (event.data and isinstance(event.data, dict)):
-            return
-        status = _format_turn_status(event.data)
-        self._post(AgentStatusMessage(status, event.source_agent))
-
-        # Update status bar token/cost counters
-        tokens = event.data.get("tokens")
-        cost = event.data.get("cost")
+        Args:
+            event_data: Dictionary containing tokens and cost data.
+        """
+        tokens = event_data.get("tokens")
+        cost = event_data.get("cost")
         if tokens or cost:
             try:
                 bar = self.app.query_one("#status-bar", StatusBar)
@@ -272,37 +258,104 @@ class EventBridge:
             except Exception:
                 pass
 
+    def _extract_from_dict(self, event: AgentEvent, key: str, default: str = "") -> str:
+        """Extract a string value from event.data dictionary.
+
+        Args:
+            event: The AgentEvent containing a dictionary.
+            key: The dictionary key to extract.
+            default: Default value if key not found.
+
+        Returns:
+            The extracted value or default.
+        """
+        if event.data and isinstance(event.data, dict):
+            value = event.data.get(key)
+            return str(value) if value is not None else default
+        return default
+
+    # -- individual event handlers --
+
+    def _on_content(self, event: AgentEvent) -> None:
+        """Handle CONTENT events."""
+        self._post_data_message(event, AgentContentMessage)
+
+    def _on_thought(self, event: AgentEvent) -> None:
+        """Handle THOUGHT events."""
+        self._post_data_message(event, AgentThoughtMessage)
+
+    def _on_tool_req(self, event: AgentEvent) -> None:
+        """Handle TOOL_CALL_REQUEST events."""
+        self._post_tool_message(event, ToolCallRequestMessage)
+
+    def _on_tool_res(self, event: AgentEvent) -> None:
+        """Handle TOOL_CALL_RESULT events."""
+        self._post_tool_message(event, ToolCallResultMessage)
+
+    def _on_tool_confirm(self, event: AgentEvent) -> None:
+        """Handle TOOL_CONFIRMATION events."""
+        self._post_tool_message(event, ToolConfirmationMessage)
+
+    def _on_error(self, event: AgentEvent) -> None:
+        """Handle ERROR events."""
+        if not event.data:
+            return
+        msg = _format_error_text(str(event.data))
+        self._post_status_message(event, f"Error: {msg}")
+        self._post(AgentContentMessage(f"❌ {msg}", event.source_agent))
+
+    def _on_finished(self, event: AgentEvent) -> None:
+        """Handle FINISHED events."""
+        self._post(AgentFinishedMessage(event.source_agent))
+
+    def _on_ctx_compact(self, event: AgentEvent) -> None:
+        """Handle CONTEXT_COMPACTED events."""
+        self._post_simple_status(event, "Context compacted to fit model limits")
+        self._post(CommandOutputMessage("[dim]ℹ Context window was compacted.[/dim]"))
+
+    def _on_turn_summary(self, event: AgentEvent) -> None:
+        """Handle TURN_SUMMARIZED events."""
+        self._post_simple_status(event, "Previous turn summarized")
+
+    def _on_turn_status(self, event: AgentEvent) -> None:
+        """Handle TURN_STATUS events."""
+        if not (event.data and isinstance(event.data, dict)):
+            return
+        status = _format_turn_status(event.data)
+        self._post_status_message(event, status)
+        self._update_status_bar(event.data)
+
     def _on_agent_start(self, event: AgentEvent) -> None:
         """Handle AGENT_STARTED events."""
         if not (event.data and isinstance(event.data, dict)):
             return
-        name = event.data.get("agent", "unknown")
-        self._post(AgentStatusMessage(f"⚙ {name} working…", event.source_agent))
+        name = self._extract_from_dict(event, "agent", "unknown")
+        self._post_status_message(event, f"⚙ {name} working…")
 
     def _on_agent_done(self, event: AgentEvent) -> None:
         """Handle AGENT_COMPLETED events."""
         if not (event.data and isinstance(event.data, dict)):
             return
-        name = event.data.get("agent", "unknown")
-        summary = event.data.get("summary", "")
+        name = self._extract_from_dict(event, "agent", "unknown")
+        summary = self._extract_from_dict(event, "summary", "")
         msg = f"✓ {name} completed"
         if summary:
             msg += f": {summary}"
-        self._post(AgentStatusMessage(msg, event.source_agent))
+        self._post_status_message(event, msg)
 
     def _on_delegated(self, event: AgentEvent) -> None:
         """Handle AGENT_DELEGATED events."""
         if not (event.data and isinstance(event.data, dict)):
             return
-        from_a = event.data.get("from", "?")
-        to_a = event.data.get("to", "?")
-        reason = event.data.get("reason", "")
+        from_a = self._extract_from_dict(event, "from", "?")
+        to_a = self._extract_from_dict(event, "to", "?")
+        reason = self._extract_from_dict(event, "reason", "")
         text = f"[dim]↳ Delegating: {from_a} → {to_a}"
         if reason:
             text += f" ({reason})"
         text += "[/dim]"
         self._post(CommandOutputMessage(text))
-        self._post(AgentStatusMessage(f"{from_a} → {to_a}", event.source_agent))
+        self._post_status_message(event, f"{from_a} → {to_a}")
 
     def _on_agent_msg(self, event: AgentEvent) -> None:
         """Handle AGENT_MESSAGE events."""
@@ -311,40 +364,23 @@ class EventBridge:
 
     def _on_think_start(self, event: AgentEvent) -> None:
         """Handle THINKING_STARTED events."""
-        self._post(AgentStatusMessage("Thinking…", event.source_agent))
+        self._post_simple_status(event, "Thinking…")
 
     def _on_think_done(self, event: AgentEvent) -> None:
         """Handle THINKING_COMPLETED events."""
-        self._post(AgentStatusMessage("Thinking complete", event.source_agent))
+        self._post_simple_status(event, "Thinking complete")
 
     def _on_think_req(self, event: AgentEvent) -> None:
         """Handle THINKING_REQUIRED events."""
-        self._post(
-            AgentStatusMessage(
-                "⚠ Thinking pattern missing in response",
-                event.source_agent,
-            )
-        )
+        self._post_simple_status(event, "⚠ Thinking pattern missing in response")
 
     def _on_deleg_dec(self, event: AgentEvent) -> None:
         """Handle DELEGATION_DECISION events."""
-        if event.data:
-            self._post(
-                AgentThoughtMessage(
-                    f"Delegation decision: {event.data}",
-                    event.source_agent,
-                )
-            )
+        self._post_data_message(event, AgentThoughtMessage, "Delegation decision: ")
 
     def _on_reflection(self, event: AgentEvent) -> None:
         """Handle REFLECTION events."""
-        if event.data:
-            self._post(
-                AgentThoughtMessage(
-                    f"Reflection: {event.data}",
-                    event.source_agent,
-                )
-            )
+        self._post_data_message(event, AgentThoughtMessage, "Reflection: ")
 
 
 # ------------------------------------------------------------------ #
@@ -385,9 +421,7 @@ def _format_error_text(error_text: str) -> str:
     ]
 
     for group in auth_keyword_groups:
-        if all(kw in lower for kw in group) and any(
-            ind in lower for ind in negative_indicators
-        ):
+        if all(kw in lower for kw in group) and any(ind in lower for ind in negative_indicators):
             return "❌ API Error: Invalid or missing API key."
 
     return error_text
