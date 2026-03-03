@@ -146,7 +146,7 @@ class MessagePoster:
         data_str = f"{prefix}{data}" if prefix else str(data)
 
         # Cast to Any to avoid mypy error about Message constructor
-        msg_class = cast(type[Any], message_class)
+        msg_class = cast("type[Any]", message_class)
         self.post(msg_class(data_str, event.source_agent))
 
     def post_message(
@@ -285,15 +285,15 @@ class EventBridge:
         """
         return {
             EventType.CONTENT: self._create_data_message_handler(AgentContentMessage),
-            EventType.THOUGHT: self._create_data_message_handler(AgentThoughtMessage),
-            EventType.TOOL_CALL_REQUEST: self._create_data_message_handler(ToolCallRequestMessage),
+            EventType.THOUGHT: self._on_thought,
+            EventType.TOOL_CALL_REQUEST: self._on_tool_req,
             EventType.TOOL_CALL_RESULT: self._create_data_message_handler(ToolCallResultMessage),
             EventType.TOOL_CONFIRMATION: self._create_data_message_handler(ToolConfirmationMessage),
             EventType.ERROR: self._on_error,
             EventType.FINISHED: self._on_finished,
             EventType.CONTEXT_COMPACTED: self._on_ctx_compact,
             EventType.TURN_SUMMARIZED: self._create_status_message_handler(
-                "Previous turn summarized"
+                "Previous turn summarized",
             ),
             EventType.TURN_STATUS: self._on_turn_status,
             EventType.AGENT_STARTED: self._on_agent_start,
@@ -303,10 +303,10 @@ class EventBridge:
             EventType.THINKING_STARTED: self._create_status_message_handler("Thinking…"),
             EventType.THINKING_COMPLETED: self._create_status_message_handler("Thinking complete"),
             EventType.THINKING_REQUIRED: self._create_status_message_handler(
-                "⚠ Thinking pattern missing in response"
+                "⚠ Thinking pattern missing in response",
             ),
             EventType.DELEGATION_DECISION: self._create_prefixed_message_handler(
-                "Delegation decision: "
+                "Delegation decision: ",
             ),
             EventType.REFLECTION: self._create_prefixed_message_handler("Reflection: "),
         }
@@ -359,23 +359,23 @@ class EventBridge:
                 self._message_poster.post_message(event, message_class)
 
             return handler
-        elif status_text is not None:
+        if status_text is not None:
 
             def handler(event: AgentEvent) -> None:
                 self._message_poster.post_status_message(event, status_text)
 
             return handler
-        elif prefix is not None:
+        if prefix is not None:
 
             def handler(event: AgentEvent) -> None:
                 self._message_poster.post_message(event, AgentThoughtMessage, prefix=prefix)
 
             return handler
-        else:
-            raise ValueError("Must specify one of: message_class, status_text, or prefix")
+        msg = "Must specify one of: message_class, status_text, or prefix"
+        raise ValueError(msg)
 
     def _create_data_message_handler(
-        self, message_class: type[Any]
+        self, message_class: type[Any],
     ) -> Callable[[AgentEvent], None]:
         """Create a handler that posts event data using the given message class.
 
@@ -410,6 +410,15 @@ class EventBridge:
         return self._create_handler(prefix=prefix)
 
     # -- individual event handlers (non-duplicate) --
+
+    def _on_thought(self, event: AgentEvent) -> None:
+        """Handle THOUGHT events."""
+        self._message_poster.post_message(event, AgentThoughtMessage)
+
+    def _on_tool_req(self, event: AgentEvent) -> None:
+        """Handle TOOL_CALL_REQUEST events."""
+        if event.data:
+            self._post(ToolCallRequestMessage(event.data, event.source_agent))
 
     def _on_error(self, event: AgentEvent) -> None:
         """Handle ERROR events."""

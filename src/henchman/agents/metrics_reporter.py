@@ -88,7 +88,7 @@ class MetricsReporter:
         delegation_by_type = self.metrics.delegation_by_type
         if any(count > 0 for count in delegation_by_type.values()):
             delegation_summary = ", ".join(
-                [f"{k}: {v}" for k, v in delegation_by_type.items() if v > 0]
+                [f"{k}: {v}" for k, v in delegation_by_type.items() if v > 0],
             )
             lines.append(f"- **Delegation by Type**: {delegation_summary}")
 
@@ -147,9 +147,9 @@ class MetricsReporter:
                 [
                     f"{k}: {v}"
                     for k, v in sorted(
-                        tool_usage.items(), key=lambda x: x[1], reverse=True
+                        tool_usage.items(), key=lambda x: x[1], reverse=True,
                     )[:MAX_TOOL_USAGE_TO_DISPLAY]
-                ]
+                ],
             )
             return f"- **Tool Usage**: {tool_summary}"
         return "- **Tool Usage**: No tools used yet"

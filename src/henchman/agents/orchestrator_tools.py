@@ -43,7 +43,7 @@ class ToolController(OrchestratorComponent):
         success: bool = True,
     ) -> None:
         """Delegate to metrics controller for backward compat.
-        
+
         Args:
             tool_name: Name of the tool that was called.
             args: Dictionary of arguments passed to the tool.
@@ -61,13 +61,13 @@ class ToolController(OrchestratorComponent):
         tool_errors: list[str],
     ) -> AsyncIterator[AgentEvent]:
         """Process all pending tool calls from an agent.
-        
+
         Args:
             agent: The agent making the tool calls.
             pending_tool_calls: List of tool calls to process.
             depth: Current recursion depth for delegation tracking.
             tool_errors: List to accumulate tool error messages.
-            
+
         Yields:
             AgentEvent: Events generated during tool execution.
         """

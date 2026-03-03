@@ -12,7 +12,6 @@ import contextlib
 import json
 import re
 from abc import abstractmethod
-from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, Self, TypeVar, cast
 
 from rich.markdown import Markdown as RichMarkdown
@@ -24,7 +23,11 @@ from textual.widget import MountError
 from textual.widgets import RichLog, Static, TextArea
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from textual import events
+
+    from henchman.cli.textual_app import HenchmanTextualApp
 
 _T = TypeVar("_T", bound=Static)
 
@@ -361,9 +364,8 @@ class HenchmanTextArea(TextArea):
         event.stop()
         event.prevent_default()
         # Cast app to HenchmanTextualApp to access its methods
-        from henchman.cli.textual_app import HenchmanTextualApp
 
-        app = cast(HenchmanTextualApp, self.app)
+        app = cast("HenchmanTextualApp", self.app)
         app.action_submit_message()
 
     def _handle_shift_enter_key(self: Self, event: events.Key) -> None:
@@ -384,9 +386,8 @@ class HenchmanTextArea(TextArea):
         """Move up in history when cursor is at the first row."""
         if self.cursor_location[0] == 0:
             # Cast app to HenchmanTextualApp to access its methods
-            from henchman.cli.textual_app import HenchmanTextualApp
 
-            app = cast(HenchmanTextualApp, self.app)
+            app = cast("HenchmanTextualApp", self.app)
             app._navigate_history(-1)
         else:
             self.action_cursor_up()
@@ -396,9 +397,8 @@ class HenchmanTextArea(TextArea):
         last_row = self.document.line_count - 1
         if self.cursor_location[0] >= last_row:
             # Cast app to HenchmanTextualApp to access its methods
-            from henchman.cli.textual_app import HenchmanTextualApp
 
-            app = cast(HenchmanTextualApp, self.app)
+            app = cast("HenchmanTextualApp", self.app)
             app._navigate_history(1)
         else:
             self.action_cursor_down()
@@ -652,7 +652,7 @@ class ToolMessage(CollapsibleMessage):
         # Support ToolMessage(tool_call_obj) as positional arg
         if tool_call is None and thought and not isinstance(thought, str):
             # If thought is not a string, assume it's a ToolCallProtocol
-            tool_call = cast(ToolCallProtocol, thought)
+            tool_call = cast("ToolCallProtocol", thought)
             thought = ""
         super().__init__(**kwargs)
         self.add_class("tool-message")
@@ -678,11 +678,11 @@ class ToolMessage(CollapsibleMessage):
         args = self._tool_call.arguments
         if isinstance(args, str):
             try:
-                return cast(dict[str, Any], json.loads(args))
+                return cast("dict[str, Any]", json.loads(args))
             except (json.JSONDecodeError, TypeError):
                 return args
         # args should be dict[str, Any] based on ToolCallProtocol
-        return cast(dict[str, Any] | str, args)
+        return cast("dict[str, Any] | str", args)
 
     def _format_compact_args(self: Self) -> str:
         """Return a compact one-line representation of tool arguments.
@@ -743,8 +743,7 @@ class ToolMessage(CollapsibleMessage):
         if self._thought:
             thought_text = _safe_markup(self._thought) if apply_markup else self._thought
             return f"{_GENERIC_TOOL_EMOJI}  {thought_text}"
-        else:
-            return f"{_GENERIC_TOOL_EMOJI}  {_DEFAULT_TOOL_CALL_TEXT}"
+        return f"{_GENERIC_TOOL_EMOJI}  {_DEFAULT_TOOL_CALL_TEXT}"
 
     def _build_header_text_for_ui(self: Self) -> str:
         """Build header text for UI display with markup applied.
@@ -955,14 +954,13 @@ class ChatPane(VerticalScroll):
             The newly mounted ChatMessage widget.
         """
         prefix = _AGENT_PREFIX_TEMPLATE.format(name=agent_name)
-        widget = self._add_message_widget(
+        return self._add_message_widget(
             ChatMessage,
             prefix,
             "",
             tracking_dict=self._active,
             tracking_key=agent_name,
         )
-        return widget
 
     def append_agent_chunk(self: Self, agent_name: str, chunk: str) -> None:
         """Append a streaming chunk to an active agent message.

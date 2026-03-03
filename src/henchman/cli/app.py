@@ -5,9 +5,8 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import anyio
 import click
@@ -19,6 +18,8 @@ from henchman.core.events import AgentEvent, EventType
 from henchman.version import VERSION
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable
+
     from henchman.providers.base import ModelProvider
 
 
@@ -36,8 +37,8 @@ class RunConfig:
     output_format: str = "text"
     plan_mode: bool = False
     yes: bool = False
-    agent_role: Optional[str] = None
-    prompt: Optional[str] = None
+    agent_role: str | None = None
+    prompt: str | None = None
     debug: bool = False
     tui: bool = False
     team: bool = False
@@ -72,8 +73,9 @@ def _get_provider() -> ModelProvider:
     if provider_from_settings:
         return provider_from_settings
 
+    msg = "No API key configured. Set DEEPSEEK_API_KEY or configure in ~/.henchman/settings.yaml"
     raise click.ClickException(  # pragma: no cover
-        "No API key configured. Set DEEPSEEK_API_KEY or configure in ~/.henchman/settings.yaml"
+        msg,
     )
 
 
@@ -282,7 +284,7 @@ def _run_interactive(config: RunConfig) -> None:
     else:  # pragma: no cover
         console.print(
             "[yellow]Warning: JSON output formats not supported in interactive mode. "
-            "Using text format.[/yellow]"
+            "Using text format.[/yellow]",
         )
         anyio.run(repl.run)
 
@@ -304,12 +306,12 @@ def _run_textual_tui(config: RunConfig) -> None:
         ctx.system_prompt += PLAN_MODE_PROMPT
 
     textual_config = TextualConfig(
-        system_prompt=ctx.system_prompt, auto_approve_tools=config.yes, agent_role=config.agent_role
+        system_prompt=ctx.system_prompt, auto_approve_tools=config.yes, agent_role=config.agent_role,
     )
 
     if config.output_format != "text":
         console.print(
-            "[yellow]Warning:[/] Textual TUI only supports text output format. Using text format."
+            "[yellow]Warning:[/] Textual TUI only supports text output format. Using text format.",
         )
 
     run_textual_app(
@@ -461,11 +463,11 @@ async def _process_tool_calls(
 
         if collect_events is not None:
             collect_events.append(
-                AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result)
+                AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result),
             )
         else:
             render_func(
-                AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result)
+                AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result),
             )
 
 
@@ -479,7 +481,6 @@ async def _run_headless_json(
         repl: The REPL instance.
         prompt: The prompt to process.
     """
-    from collections.abc import AsyncIterator
 
     json_renderer = await _initialize_json_processing(repl)
 
@@ -497,7 +498,7 @@ async def _run_headless_json(
 
         if pending_tool_calls:
             await _process_tool_calls(
-                repl, pending_tool_calls, json_renderer.render
+                repl, pending_tool_calls, json_renderer.render,
             )
             # Continue
             await run_and_render(repl.agent.continue_with_tool_results())
@@ -515,7 +516,6 @@ async def _run_headless_stream_json(
         repl: The REPL instance.
         prompt: The prompt to process.
     """
-    from collections.abc import AsyncIterator
 
     json_renderer = await _initialize_json_processing(repl)
 
@@ -533,7 +533,7 @@ async def _run_headless_stream_json(
 
         if pending_tool_calls:
             await _process_tool_calls(
-                repl, pending_tool_calls, json_renderer.render_stream_json
+                repl, pending_tool_calls, json_renderer.render_stream_json,
             )
             await run_and_render_stream(repl.agent.continue_with_tool_results())
 
@@ -550,7 +550,6 @@ async def _run_headless_json_complete(
         repl: The REPL instance.
         prompt: The prompt to process.
     """
-    from collections.abc import AsyncIterator
 
     json_renderer = await _initialize_json_processing(repl)
     all_events: list[AgentEvent] = []
@@ -571,7 +570,7 @@ async def _run_headless_json_complete(
             await _process_tool_calls(
                 repl, pending_tool_calls,
                 lambda _: None,  # No rendering during collection
-                collect_events=all_events
+                collect_events=all_events,
             )
             await run_and_collect(repl.agent.continue_with_tool_results())
 
@@ -712,7 +711,7 @@ def chat_command(
 
     if config.tui and config.prompt:
         console.print(
-            "[yellow]Warning:[/] Textual TUI does not support headless mode. Using interactive mode."
+            "[yellow]Warning:[/] Textual TUI does not support headless mode. Using interactive mode.",
         )
         config.prompt = None
 

@@ -215,14 +215,13 @@ class PytestRunTool(Tool):
         return self._create_result(output, process.returncode)
 
     async def _communicate_with_timeout(
-        self, process: asyncio.subprocess.Process, timeout: int
+        self, process: asyncio.subprocess.Process, timeout: int,
     ) -> tuple[bytes, bytes]:
         """Communicate with process with optional timeout."""
         effective_timeout: float | None = None if timeout == 0 else timeout
         if effective_timeout is not None:
             return await asyncio.wait_for(process.communicate(), timeout=effective_timeout)
-        else:
-            return await process.communicate()
+        return await process.communicate()
 
     def _process_output(self, stdout: bytes, stderr: bytes) -> str:
         """Process and combine stdout/stderr output."""

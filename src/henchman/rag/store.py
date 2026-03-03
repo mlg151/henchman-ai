@@ -190,13 +190,13 @@ class VectorStore:
                         file_path=str(metadata.get("file_path", "")),
                         start_line=int(start_line_val)
                         if isinstance(start_line_val, (int, float, str))
-                        else 0,  # noqa: E501
+                        else 0,
                         end_line=int(end_line_val)
                         if isinstance(end_line_val, (int, float, str))
-                        else 0,  # noqa: E501
+                        else 0,
                         score=score,
                         chunk_id=chunk_id,
-                    )
+                    ),
                 )
 
         return search_results

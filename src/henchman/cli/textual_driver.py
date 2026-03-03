@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING
 
 if sys.platform == "linux":
     try:
@@ -19,7 +18,7 @@ if sys.platform == "linux":
             except UnicodeDecodeError:
                 # If we get a decode error, it means the input stream contains invalid UTF-8 bytes.
                 # We can try to recover by reading and ignoring the bad bytes, or just logging it.
-                # Since we can't easily modify the internal buffer of the driver, 
+                # Since we can't easily modify the internal buffer of the driver,
                 # catching the exception prevents a crash but might leave the driver in a bad state.
                 # However, usually these errors are transient (e.g. startup garbage).
                 pass

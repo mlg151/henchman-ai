@@ -389,7 +389,7 @@ class OutputRenderer:
         *,
         accessible_mode: bool = False,
         style_overrides: dict[str, str] | None = None,
-        layout_settings: Any | None = None,  # Avoid circular import, pass as object or dict  # noqa: ANN401
+        layout_settings: Any | None = None,  # Avoid circular import, pass as object or dict
     ) -> None:
         """Initialize the output renderer.
 
@@ -832,8 +832,8 @@ class AsyncOutputRenderer:
             return self._create_async_diff_wrapper()
 
         # Generic async wrapper for other methods
-        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
-            def sync_wrapper() -> Any:  # noqa: ANN401
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            def sync_wrapper() -> Any:
                 return sync_method(*args, **kwargs)
 
             return await anyio.to_thread.run_sync(sync_wrapper)

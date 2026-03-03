@@ -99,7 +99,7 @@ class RagCommand(BaseCommand):
         if rag_system is None:
             ctx.console.print(
                 "[yellow]RAG not available. "
-                "Make sure you're in a git repository and RAG is enabled.[/]"
+                "Make sure you're in a git repository and RAG is enabled.[/]",
             )
             return
 
@@ -120,7 +120,7 @@ class RagCommand(BaseCommand):
         if rag_system is None:
             ctx.console.print(
                 "[yellow]RAG not available. "
-                "Make sure you're in a git repository and RAG is enabled.[/]"
+                "Make sure you're in a git repository and RAG is enabled.[/]",
             )
             return
 
@@ -133,7 +133,7 @@ class RagCommand(BaseCommand):
         if stats:
             ctx.console.print(
                 f"[green]Reindex complete: {stats.files_added} files, "
-                f"{stats.total_chunks} chunks[/]"
+                f"{stats.total_chunks} chunks[/]",
             )
 
     async def _clear(self, ctx: CommandContext) -> None:
@@ -143,7 +143,7 @@ class RagCommand(BaseCommand):
         if rag_system is None:
             ctx.console.print(
                 "[yellow]RAG not available. "
-                "Make sure you're in a git repository and RAG is enabled.[/]"
+                "Make sure you're in a git repository and RAG is enabled.[/]",
             )
             return
 

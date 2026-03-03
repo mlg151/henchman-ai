@@ -25,10 +25,7 @@ from henchman.cli.tool_manager import ToolManager
 from henchman.cli.ui_renderer import UIRenderer
 from henchman.core.eventbus import EventBus
 from henchman.core.events import AgentEvent, EventType
-from henchman.core.session import Session
 from henchman.mcp.manager import McpManager
-from henchman.providers.base import ModelProvider, ToolCall
-from henchman.tools.base import ConfirmationRequest
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -36,6 +33,9 @@ if TYPE_CHECKING:
     from henchman.config.schema import Settings
     from henchman.core.agent import Agent
     from henchman.core.events import AgentEvent
+    from henchman.core.session import Session
+    from henchman.providers.base import ModelProvider, ToolCall
+    from henchman.tools.base import ConfirmationRequest
 
 
 @dataclass
@@ -197,7 +197,7 @@ class Repl:
         )
         # Initialize prompt session in InputHandler
         self.input_handler.initialize_prompt_session(
-            bottom_toolbar=lambda: self.output_handler.get_toolbar_status(self.agent)
+            bottom_toolbar=lambda: self.output_handler.get_toolbar_status(self.agent),
         )
 
     def set_session(self, session: Session) -> None:
@@ -238,7 +238,7 @@ class Repl:
                     and self.settings.ui.mcp_logging
                 ):
                     self.renderer.success(
-                        f"Connected to {len(self.mcp_manager.clients)} MCP server(s) with {len(self.mcp_manager.get_all_tools())} tools"
+                        f"Connected to {len(self.mcp_manager.clients)} MCP server(s) with {len(self.mcp_manager.get_all_tools())} tools",
                     )
             except Exception as e:
                 # Always show errors, regardless of logging setting
@@ -303,7 +303,7 @@ class Repl:
         """
         # Use InputHandler to process input
         processed_input, is_command, should_continue = await self.input_handler.process_input(
-            user_input
+            user_input,
         )
 
         if not should_continue:
@@ -331,7 +331,7 @@ class Repl:
         assistant_content: list[str] = []
         status_msg = self.output_handler.get_rich_status_message(self.agent)
         await self._run_agent_with_monitor(
-            self.orchestrator.run(user_input), self.agent, assistant_content, status_msg
+            self.orchestrator.run(user_input), self.agent, assistant_content, status_msg,
         )
 
     async def _run_agent_direct(self, role: str, user_input: str) -> None:
@@ -346,7 +346,7 @@ class Repl:
         status_msg = f"[bold cyan]@{role}[/] thinking..."
         agent = self.orchestrator.pool.get_agent(role)
         await self._run_agent_with_monitor(
-            self.orchestrator.run_direct(role, user_input), agent, assistant_content, status_msg
+            self.orchestrator.run_direct(role, user_input), agent, assistant_content, status_msg,
         )
 
     async def _run_agent_with_monitor(
@@ -381,7 +381,7 @@ class Repl:
                     agent,
                     assistant_content,
                     None,  # No status object
-                )
+                ),
             )
 
             # Wait for agent task or monitor cancellation
@@ -418,7 +418,7 @@ class Repl:
                     await monitor_task
 
     async def _handle_agent_event(
-        self, event: AgentEvent, content_collector: list[str] | None = None
+        self, event: AgentEvent, content_collector: list[str] | None = None,
     ) -> None:
         """Handle an event from the agent.
 

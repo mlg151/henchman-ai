@@ -18,12 +18,12 @@ from henchman.cli.output_handler import OutputHandler
 from henchman.cli.repl import ReplConfig
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.ui_renderer import UIRenderer
-from henchman.providers.base import ModelProvider
 
 if TYPE_CHECKING:
     from henchman.cli.command_processor import CommandProcessor
     from henchman.cli.input_handler import InputHandler
     from henchman.cli.textual_bridge import TuiConsoleAdapter
+    from henchman.providers.base import ModelProvider
 
 # Default theme applied when none is configured or the name is invalid.
 _DEFAULT_THEME_NAME = "dark"
@@ -45,7 +45,6 @@ class TextualConfig(ReplConfig):
         max_tool_calls_per_turn: Max tool calls allowed per turn.
         auto_approve_tools: Auto-approve all tool executions.
     """
-    pass
 
 
 @dataclass
@@ -144,7 +143,7 @@ class ComponentInitializer:
         # Store app reference in plugin manager if it has ui_instance attribute
         # This allows plugins to access the Textual UI if needed
         plugin_manager = self.core_context.plugin_manager
-        if hasattr(plugin_manager, 'ui_instance'):
+        if hasattr(plugin_manager, "ui_instance"):
             plugin_manager.ui_instance = self.config.app
 
     def _initialize_renderer(self) -> None:
@@ -152,7 +151,8 @@ class ComponentInitializer:
         from henchman.cli.console import OutputRenderer, ThemeManager
 
         if not self._tui_adapter:
-            raise RuntimeError("TUI adapter must be initialized first")
+            msg = "TUI adapter must be initialized first"
+            raise RuntimeError(msg)
 
         console = self._tui_adapter.console
         theme_manager = ThemeManager()
@@ -160,7 +160,7 @@ class ComponentInitializer:
         theme = theme_manager.get_theme(theme_name)
         output_renderer = OutputRenderer(console=console, theme=theme)
         self._ui_renderer = self._ui_renderer_cls(
-            console=console, renderer=output_renderer
+            console=console, renderer=output_renderer,
         )
 
     def _resolve_theme_name(self, theme_manager: Any) -> str:
@@ -184,7 +184,8 @@ class ComponentInitializer:
     def _initialize_output_handler(self) -> None:
         """Create the output handler."""
         if not self.core_context or not self._ui_renderer:
-            raise RuntimeError("Core context and renderer must be initialized")
+            msg = "Core context and renderer must be initialized"
+            raise RuntimeError(msg)
         self.output_handler = self._output_handler_cls(
             renderer=self._ui_renderer,
             tool_manager=self.core_context.tool_manager,
@@ -198,7 +199,8 @@ class ComponentInitializer:
     def _initialize_command_processor(self) -> None:
         """Create the command processor."""
         if not self.core_context or not self.output_handler:
-            raise RuntimeError("Core context and output handler required")
+            msg = "Core context and output handler required"
+            raise RuntimeError(msg)
         if not self._command_processor_cls:
             from henchman.cli.command_processor import (
                 CommandProcessor,
@@ -216,7 +218,8 @@ class ComponentInitializer:
     def _initialize_tool_executor(self) -> None:
         """Create the tool executor."""
         if not self.core_context or not self.output_handler:
-            raise RuntimeError("Core context and output handler required")
+            msg = "Core context and output handler required"
+            raise RuntimeError(msg)
         self.tool_executor = self._tool_executor_cls(
             output_handler=self.output_handler,
             tool_manager=self.core_context.tool_manager,
@@ -228,7 +231,8 @@ class ComponentInitializer:
     def _initialize_input_handler(self) -> None:
         """Create the input handler."""
         if not self._ui_renderer:
-            raise RuntimeError("Renderer must be initialized first")
+            msg = "Renderer must be initialized first"
+            raise RuntimeError(msg)
         if not self._input_handler_cls:
             from henchman.cli.input_handler import (
                 InputHandler,

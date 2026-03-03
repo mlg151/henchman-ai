@@ -8,6 +8,7 @@ from urllib.parse import urljoin
 
 import aiohttp
 from pydantic import ValidationError
+from typing_extensions import Self
 
 from henchman.extensions.constants import PluginConstants
 from henchman.extensions.models import (
@@ -37,7 +38,7 @@ class PluginRegistryClient:
         self._session = session
         self._own_session = session is None
 
-    async def __aenter__(self) -> PluginRegistryClient:
+    async def __aenter__(self) -> Self:
         """Async context manager entry."""
         await self.initialize()
         return self
@@ -79,7 +80,8 @@ class PluginRegistryClient:
             RuntimeError: If client not initialized.
         """
         if self._session is None:
-            raise RuntimeError("Registry client not initialized")
+            msg = "Registry client not initialized"
+            raise RuntimeError(msg)
 
         params: dict[str, Any] = {
             "page": search_params.page,
@@ -106,7 +108,7 @@ class PluginRegistryClient:
                 query=search_params.query,
             )
         except ValidationError as e:
-            logger.error("Invalid plugin data from registry: %s", e)
+            logger.exception("Invalid plugin data from registry: %s", e)
             # Return empty result on validation error
             return PluginSearchResult(
                 plugins=[],
@@ -135,7 +137,8 @@ class PluginRegistryClient:
             RuntimeError: If client not initialized.
         """
         if self._session is None:
-            raise RuntimeError("Registry client not initialized")
+            msg = "Registry client not initialized"
+            raise RuntimeError(msg)
 
         # Build URL for plugin metadata
         if version:
@@ -152,7 +155,7 @@ class PluginRegistryClient:
         try:
             return PluginMetadata(**data)
         except ValidationError as e:
-            logger.error("Invalid plugin data from registry: %s", e)
+            logger.exception("Invalid plugin data from registry: %s", e)
             return None
 
 

@@ -6,9 +6,8 @@ responses, and a generator function for producing agent events.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
 from henchman.providers.base import (
@@ -19,6 +18,9 @@ from henchman.providers.base import (
     ToolCall,
     ToolDeclaration,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 def _make_event(
@@ -121,7 +123,7 @@ class StreamState:
         Returns:
             List of tool calls to yield.
         """
-        return self.tool_calls if self.tool_calls else (chunk_tool_calls or [])
+        return self.tool_calls or (chunk_tool_calls or [])
 
     def has_unreported_content(self: StreamState) -> bool:
         """Check if there is content that has not yet been yielded.

@@ -331,7 +331,8 @@ class OrchestratorMetrics:
         if key in component_mapping:
             return component_mapping[key]
 
-        raise KeyError(f"'{key}' is not a valid metric")
+        msg = f"'{key}' is not a valid metric"
+        raise KeyError(msg)
 
     def __contains__(self, key: str) -> bool:
         """Support 'in' operator for backward compatibility.
@@ -418,4 +419,5 @@ class OrchestratorMetrics:
         if key in component_setters:
             component_setters[key](value)  # type: ignore[no-untyped-call]
         else:
-            raise KeyError(f"'{key}' is not a valid metric")
+            msg = f"'{key}' is not a valid metric"
+            raise KeyError(msg)

@@ -184,13 +184,13 @@ class RagSystem:
             if skip_if_locked:
                 if console:
                     console.print(
-                        "[dim]RAG index is locked by another instance, skipping indexing[/dim]"
+                        "[dim]RAG index is locked by another instance, skipping indexing[/dim]",
                     )
                 return None
-            else:
-                # This would raise LockTimeoutError from the context manager
-                # if we were using `with self._lock:`
-                raise RuntimeError(f"Could not acquire RAG lock at {self._lock.lock_path}")
+            # This would raise LockTimeoutError from the context manager
+            # if we were using `with self._lock:`
+            msg = f"Could not acquire RAG lock at {self._lock.lock_path}"
+            raise RuntimeError(msg)
 
         self.is_indexing = True
         try:
@@ -220,7 +220,7 @@ class RagSystem:
         """
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
-            None, lambda: self.index(console=console, force=force, skip_if_locked=skip_if_locked)
+            None, lambda: self.index(console=console, force=force, skip_if_locked=skip_if_locked),
         )
 
     def get_stats(self) -> IndexStats:
@@ -272,7 +272,7 @@ def initialize_rag(
         migrated = migrate_old_index(root, new_index_dir)
         if migrated and console:
             console.print(
-                "[dim]Migrated RAG index from project directory to ~/.henchman/rag_indices/[/dim]"
+                "[dim]Migrated RAG index from project directory to ~/.henchman/rag_indices/[/dim]",
             )
 
         rag_system = RagSystem(git_root=root, settings=settings)
@@ -294,12 +294,12 @@ def initialize_rag(
                 f"{stats.files_added} added, "
                 f"{stats.files_updated} updated, "
                 f"{stats.files_removed} removed "
-                f"({stats.total_chunks} chunks)[/dim]"
+                f"({stats.total_chunks} chunks)[/dim]",
             )
         elif console and stats is not None and stats.total_chunks > 0:
             console.print(
                 f"[dim]RAG index ready: {stats.files_unchanged} files, "
-                f"{stats.total_chunks} chunks[/dim]"
+                f"{stats.total_chunks} chunks[/dim]",
             )
 
         return rag_system

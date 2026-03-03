@@ -68,7 +68,7 @@ class MetricsExporter:
 
     def _get_current_timestamp(self) -> str:
         """Get current timestamp in ISO format.
-        
+
         Returns:
             ISO formatted timestamp string.
         """
@@ -86,7 +86,8 @@ class MetricsExporter:
             NotImplementedError: CSV export is not yet implemented.
         """
         # TODO: Implement CSV export
-        raise NotImplementedError("CSV export is not yet implemented")
+        msg = "CSV export is not yet implemented"
+        raise NotImplementedError(msg)
 
     def export_to_prometheus(self, endpoint: str, **filters: Any) -> None:
         """Export metrics to Prometheus endpoint.
@@ -99,7 +100,8 @@ class MetricsExporter:
             NotImplementedError: Prometheus export is not yet implemented.
         """
         # TODO: Implement Prometheus export
-        raise NotImplementedError("Prometheus export is not yet implemented")
+        msg = "Prometheus export is not yet implemented"
+        raise NotImplementedError(msg)
 
     def export_summary(self, **filters: Any) -> dict[str, Any]:
         """Export summary statistics.
@@ -114,7 +116,8 @@ class MetricsExporter:
             NotImplementedError: Summary export is not yet implemented.
         """
         # TODO: Implement summary export
-        raise NotImplementedError("Summary export is not yet implemented")
+        msg = "Summary export is not yet implemented"
+        raise NotImplementedError(msg)
 
     def get_available_formats(self) -> list[str]:
         """Get list of available export formats.

@@ -117,7 +117,8 @@ class AgentPool:
             return self._agents[role]
 
         if role not in self.configs:
-            raise ValueError(f"Agent role '{role}' is not configured.")
+            msg = f"Agent role '{role}' is not configured."
+            raise ValueError(msg)
 
         config = self.configs[role]
 
@@ -186,7 +187,8 @@ class AgentPool:
             AgentIdentity from configuration.
         """
         if role not in self.configs:
-            raise ValueError(f"Agent role '{role}' is not configured.")
+            msg = f"Agent role '{role}' is not configured."
+            raise ValueError(msg)
 
         config = self.configs[role]
         return AgentIdentity(

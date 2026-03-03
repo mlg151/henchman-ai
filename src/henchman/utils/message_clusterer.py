@@ -14,11 +14,11 @@ if TYPE_CHECKING:
 
 class MessageClusterer:
     """Clusters related messages based on semantic similarity.
-    
+
     Groups messages that discuss the same topic or are part of the
     same conversational thread.
     """
-    
+
     def __init__(
         self,
         cluster_similarity_threshold: float = 0.7,
@@ -26,7 +26,7 @@ class MessageClusterer:
         minimum_shared_words: int = 2,
     ) -> None:
         """Initialize message clusterer.
-        
+
         Args:
             cluster_similarity_threshold: Similarity threshold for clustering messages.
                 Higher values create more specific clusters.
@@ -62,12 +62,11 @@ class MessageClusterer:
         clusters = self._cluster_topic_similarity(messages, clusters)
 
         # Step 4: Merge by role patterns (user-assistant pairs)
-        clusters = self._cluster_role_patterns(messages, clusters)
+        return self._cluster_role_patterns(messages, clusters)
 
-        return clusters
 
     def _cluster_tool_call_sequences(
-        self, messages: list[Message], clusters: list[list[int]]
+        self, messages: list[Message], clusters: list[list[int]],
     ) -> list[list[int]]:
         """Group tool call sequences as atomic clusters.
 
@@ -105,7 +104,7 @@ class MessageClusterer:
         return clusters
 
     def _cluster_temporal_proximity(
-        self, messages: list[Message], clusters: list[list[int]]
+        self, messages: list[Message], clusters: list[list[int]],
     ) -> list[list[int]]:
         """Merge adjacent messages that are temporally close.
 
@@ -142,7 +141,7 @@ class MessageClusterer:
         return clusters
 
     def _should_merge_adjacent_clusters(
-        self, messages: list[Message], curr_cluster: list[int], next_cluster: list[int]
+        self, messages: list[Message], curr_cluster: list[int], next_cluster: list[int],
     ) -> bool:
         """Determine if two adjacent clusters should be merged.
 
@@ -170,16 +169,16 @@ class MessageClusterer:
 
         # Merge if same role (except tool responses which are handled separately)
         return (
-            last_msg.role == first_msg.role
-            and last_msg.role != "tool"
-            or last_msg.role == "user"
-            and first_msg.role == "assistant"
-            or last_msg.role == "assistant"
-            and first_msg.role == "user"
+            (last_msg.role == first_msg.role
+            and last_msg.role != "tool")
+            or (last_msg.role == "user"
+            and first_msg.role == "assistant")
+            or (last_msg.role == "assistant"
+            and first_msg.role == "user")
         )
 
     def _cluster_topic_similarity(
-        self, messages: list[Message], clusters: list[list[int]]
+        self, messages: list[Message], clusters: list[list[int]],
     ) -> list[list[int]]:
         """Merge clusters that discuss similar topics.
 
@@ -233,14 +232,14 @@ class MessageClusterer:
         return clusters
 
     def _extract_cluster_keywords(
-        self, messages: list[Message], cluster: list[int]
+        self, messages: list[Message], cluster: list[int],
     ) -> set[str]:
         """Extract keywords from messages in a cluster.
-        
+
         Args:
             messages: All messages.
             cluster: Indices of messages in the cluster.
-            
+
         Returns:
             Set of significant keywords from the cluster.
         """
@@ -259,7 +258,7 @@ class MessageClusterer:
         return keywords
 
     def _cluster_role_patterns(
-        self, messages: list[Message], clusters: list[list[int]]
+        self, messages: list[Message], clusters: list[list[int]],
     ) -> list[list[int]]:
         """Merge clusters based on role patterns.
 
@@ -290,15 +289,15 @@ class MessageClusterer:
         return clusters
 
     def _should_merge_clusters_by_role_pattern(
-        self, messages: list[Message], clusters: list[list[int]], index: int
+        self, messages: list[Message], clusters: list[list[int]], index: int,
     ) -> bool:
         """Determine if two adjacent clusters should be merged based on role patterns.
-        
+
         Args:
             messages: All messages.
             clusters: Current clusters.
             index: Index of the first cluster to check.
-            
+
         Returns:
             True if clusters should be merged, False otherwise.
         """
@@ -313,15 +312,15 @@ class MessageClusterer:
         return self._do_clusters_share_significant_words(messages, curr_cluster, next_cluster)
 
     def _are_clusters_role_complementary(
-        self, messages: list[Message], cluster1: list[int], cluster2: list[int]
+        self, messages: list[Message], cluster1: list[int], cluster2: list[int],
     ) -> bool:
         """Check if two clusters have complementary roles (user-assistant pair).
-        
+
         Args:
             messages: All messages.
             cluster1: First cluster indices.
             cluster2: Second cluster indices.
-            
+
         Returns:
             True if clusters have complementary roles.
         """
@@ -333,15 +332,15 @@ class MessageClusterer:
         )
 
     def _do_clusters_share_significant_words(
-        self, messages: list[Message], cluster1: list[int], cluster2: list[int]
+        self, messages: list[Message], cluster1: list[int], cluster2: list[int],
     ) -> bool:
         """Check if two clusters share enough significant words to be merged.
-        
+
         Args:
             messages: All messages.
             cluster1: First cluster indices.
             cluster2: Second cluster indices.
-            
+
         Returns:
             True if clusters share enough significant words.
         """
@@ -359,11 +358,11 @@ class MessageClusterer:
 
     def _extract_cluster_content(self, messages: list[Message], cluster: list[int]) -> str:
         """Extract and concatenate content from messages in a cluster.
-        
+
         Args:
             messages: All messages.
             cluster: Cluster indices.
-            
+
         Returns:
             Concatenated content from the cluster.
         """
@@ -376,10 +375,10 @@ class MessageClusterer:
 
     def _extract_significant_words(self, text: str) -> set[str]:
         """Extract significant words from text.
-        
+
         Args:
             text: Text to extract words from.
-            
+
         Returns:
             Set of significant words.
         """
@@ -392,7 +391,7 @@ class MessageClusterer:
         return words
 
     def _merge_clusters_containing_indices(
-        self, clusters: list[list[int]], indices: list[int]
+        self, clusters: list[list[int]], indices: list[int],
     ) -> list[list[int]]:
         """Merge clusters that contain any of the given indices.
 

@@ -9,10 +9,11 @@ from __future__ import annotations
 import importlib.util
 import sys
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from henchman.cli.repl import Repl
 
 
@@ -26,7 +27,6 @@ class UIPlugin(ABC):
     @abstractmethod
     def name(self) -> str:
         """Name of the plugin."""
-        pass
 
     @property
     def description(self) -> str:
@@ -40,7 +40,6 @@ class UIPlugin(ABC):
         Args:
             repl: The REPL instance.
         """
-        pass
 
     def render(self, data: Any) -> None:  # noqa: B027
         """Render data using this plugin (optional).
@@ -48,7 +47,6 @@ class UIPlugin(ABC):
         Args:
             data: Data to render.
         """
-        pass
 
 
 class PluginManager:

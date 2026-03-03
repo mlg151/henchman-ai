@@ -203,7 +203,7 @@ class HunkApplier:
         for delta in range(1, fuzz + 1):
             for candidate in [expected_start - delta, expected_start + delta]:
                 if 0 <= candidate <= len(lines) - len(old_lines) and self._lines_match(
-                    lines, old_lines, candidate
+                    lines, old_lines, candidate,
                 ):
                     return candidate
 
@@ -311,8 +311,7 @@ class PatchParser:
             path_line = self.lines[self.index + 1]
             path_str = path_line[4:].strip()
             # Strip a/ or b/ prefix
-            if path_str.startswith("b/"):
-                path_str = path_str[2:]
+            path_str = path_str.removeprefix("b/")
             self.current_file = path_str
         self.index += 2
 
@@ -380,7 +379,7 @@ class PatchParser:
         Args:
             line: The hunk content line.
         """
-        if line.startswith("+") or line.startswith("-") or line.startswith(" "):
+        if line.startswith(("+", "-", " ")):
             self.hunk_lines.append(line)
         elif line == "" and self.index == len(self.lines) - 1:
             pass  # trailing newline
@@ -539,9 +538,8 @@ class PatchApplyTool(Tool):
 
         if dry_run:
             return f"OK {file_path} (dry run, {len(hunks)} hunks)"
-        else:
-            target.write_text(patched, encoding="utf-8")
-            return f"OK {file_path} ({len(hunks)} hunks applied)"
+        target.write_text(patched, encoding="utf-8")
+        return f"OK {file_path} ({len(hunks)} hunks applied)"
 
     def _create_result_from_application_results(self, results: list[str]) -> ToolResult:
         """Create ToolResult from list of application results."""

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +11,8 @@ from henchman.config import load_settings
 from henchman.config.settings import save_settings
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from rich.console import Console
 
     from henchman.config.schema import ContextSettings
@@ -70,7 +71,7 @@ class RangeParameterConfig:
         """
         return self.label or self.param_name.replace("_", " ").capitalize()
 
-    def validate_value(self, value: float | int) -> None:
+    def validate_value(self, value: float) -> None:
         """Validate value against range constraints.
 
         Args:
@@ -82,11 +83,13 @@ class RangeParameterConfig:
         display_label = self.get_display_label()
         if self.max_val is not None:
             if not self.min_val <= value <= self.max_val:
+                msg = f"{display_label} must be between {self.min_val} and {self.max_val}"
                 raise ValueError(
-                    f"{display_label} must be between {self.min_val} and {self.max_val}"
+                    msg,
                 )
         elif value < self.min_val:
-            raise ValueError(f"{display_label} must be at least {self.min_val}")
+            msg = f"{display_label} must be at least {self.min_val}"
+            raise ValueError(msg)
 
     def parse_value(self, value_str: str) -> float | int:
         """Parse string value to appropriate type.
@@ -132,7 +135,7 @@ class ContextConsoleHelper:
             console: Console for output.
         """
         self._console_helper.print_error_message(
-            console, "Missing parameter or value", "/context strategy set <parameter> <value>"
+            console, "Missing parameter or value", "/context strategy set <parameter> <value>",
         )
         self._print_strategy_parameters(console)
 
@@ -147,7 +150,7 @@ class ContextConsoleHelper:
         self._print_context_settings(console, context_settings, show_intelligent_context=False)
         console.print("")
         self._console_helper.print_command_help(
-            console, "/context strategy set <parameter> <value>", "change settings"
+            console, "/context strategy set <parameter> <value>", "change settings",
         )
         console.print("")
 
@@ -166,22 +169,22 @@ class ContextConsoleHelper:
         """
         if show_intelligent_context:
             self._console_helper.print_enabled_status(
-                console, "Status", context_settings.intelligent_context
+                console, "Status", context_settings.intelligent_context,
             )
 
         self._console_helper.print_enabled_status(
-            console, "Adaptive compression", context_settings.adaptive_compression
+            console, "Adaptive compression", context_settings.adaptive_compression,
         )
         self._console_helper.print_status_value(console, "Max tokens", context_settings.max_tokens)
         self._console_helper.print_status_value(
             console, "Compaction threshold",
-            f"{context_settings.compaction_threshold * _PERCENTAGE_MULTIPLIER:.0f}%"
+            f"{context_settings.compaction_threshold * _PERCENTAGE_MULTIPLIER:.0f}%",
         )
         self._console_helper.print_status_value(
-            console, "Importance threshold", context_settings.importance_threshold
+            console, "Importance threshold", context_settings.importance_threshold,
         )
         self._console_helper.print_status_value(
-            console, "Cluster similarity", context_settings.cluster_similarity_threshold
+            console, "Cluster similarity", context_settings.cluster_similarity_threshold,
         )
 
     def _print_available_commands(self, console: Console) -> None:
@@ -229,7 +232,7 @@ class StrategyManager:
         """Initialize strategy manager."""
         self._parameter_configs = {
             "max_tokens": RangeParameterConfig(
-                param_name="max_tokens", min_val=_MAX_TOKENS_MIN_VALUE, is_int=True
+                param_name="max_tokens", min_val=_MAX_TOKENS_MIN_VALUE, is_int=True,
             ),
             "threshold": RangeParameterConfig(
                 param_name="compaction_threshold",
@@ -238,10 +241,10 @@ class StrategyManager:
                 label="Threshold",
             ),
             "importance": RangeParameterConfig(
-                param_name="importance_threshold", min_val=0.0, max_val=1.0
+                param_name="importance_threshold", min_val=0.0, max_val=1.0,
             ),
             "similarity": RangeParameterConfig(
-                param_name="cluster_similarity_threshold", min_val=0.0, max_val=1.0
+                param_name="cluster_similarity_threshold", min_val=0.0, max_val=1.0,
             ),
         }
         self._console_helper = ContextConsoleHelper()
@@ -288,7 +291,7 @@ class StrategyManager:
         return settings.context
 
     async def _set_strategy_parameter(
-        self, ctx: CommandContext, param: str, value: str | None
+        self, ctx: CommandContext, param: str, value: str | None,
     ) -> None:
         """Set a strategy parameter.
 
@@ -315,7 +318,7 @@ class StrategyManager:
             return
 
     async def _update_context_setting(
-        self, ctx: CommandContext, param_name: str, value: int | float | bool, display_value: str
+        self, ctx: CommandContext, param_name: str, value: float | bool, display_value: str,
     ) -> None:
         """Helper to update a context setting and save it.
 
@@ -329,11 +332,11 @@ class StrategyManager:
         setattr(settings.context, param_name, value)
         save_settings(settings)
         ctx.console.print(
-            f"[green]✓ {param_name.replace('_', ' ').capitalize()} set to {display_value}[/]"
+            f"[green]✓ {param_name.replace('_', ' ').capitalize()} set to {display_value}[/]",
         )
 
     async def _handle_range_parameter(
-        self, ctx: CommandContext, value: str, config: RangeParameterConfig
+        self, ctx: CommandContext, value: str, config: RangeParameterConfig,
     ) -> None:
         """Generic handler for range-validated parameters (DRY)."""
         val = config.parse_value(value)
@@ -348,7 +351,8 @@ class StrategyManager:
         elif lower_value in ["off", "false", "no", "0"]:
             await self._update_context_setting(ctx, "adaptive_compression", False, "disabled")
         else:
-            raise ValueError("Value must be 'on' or 'off'")
+            msg = "Value must be 'on' or 'off'"
+            raise ValueError(msg)
 
 
 class ContextCommand(Command):
@@ -433,7 +437,7 @@ class ContextCommand(Command):
         ConsoleHelper.print_usage_help(console, self.usage, commands, header="Subcommands:")
 
     def _show_context_info(
-        self, ctx: CommandContext, display_func: Callable[[Console, ContextSettings], None]
+        self, ctx: CommandContext, display_func: Callable[[Console, ContextSettings], None],
     ) -> None:
         """Helper method to show context information using a display function.
 
@@ -513,7 +517,7 @@ class StatisticsManager:
             from henchman.utils.intelligent_context import IntelligentContextManager
 
             if hasattr(agent, "compactor") and isinstance(
-                agent.compactor, IntelligentContextManager
+                agent.compactor, IntelligentContextManager,
             ):
                 compactor = agent.compactor
                 stats = compactor.get_statistics() if hasattr(compactor, "get_statistics") else {}
@@ -527,7 +531,7 @@ class StatisticsManager:
             console.print(f"[yellow]Could not retrieve statistics: {e}[/]")
 
     def _print_stats_with_compactor(
-        self, console: Console, agent: Agent, stats: dict[str, Any]
+        self, console: Console, agent: Agent, stats: dict[str, Any],
     ) -> None:
         """Print statistics when compactor is available.
 

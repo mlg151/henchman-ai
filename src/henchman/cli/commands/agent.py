@@ -106,7 +106,7 @@ class AgentCommand(Command):
                 await ctx.repl._run_agent_direct(role, message)
             else:
                 ctx.console.print(
-                    "[red]Direct agent targeting not supported in this REPL version.[/]"
+                    "[red]Direct agent targeting not supported in this REPL version.[/]",
                 )
         except Exception as e:
             ctx.console.print(f"[red]Error talking to agent '{role}': {e}[/]")
@@ -134,7 +134,7 @@ class AgentCommand(Command):
         ctx.console.print(table)
 
     def _show_config(
-        self, ctx: CommandContext, orchestrator: Orchestrator, role: str | None
+        self, ctx: CommandContext, orchestrator: Orchestrator, role: str | None,
     ) -> None:
         """Show configuration for agent(s)."""
         pool = orchestrator.pool

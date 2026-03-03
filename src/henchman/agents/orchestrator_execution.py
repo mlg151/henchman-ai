@@ -62,11 +62,11 @@ class ExecutionController:
         params: AgentLoopParams,
     ) -> AsyncIterator[AgentEvent]:
         """Run the agent loop, executing tools and intercepting delegations.
-        
+
         Args:
             params: Parameters for running the agent loop, including the agent
                 instance, input text, and loop configuration.
-                
+
         Yields:
             AgentEvent: Stream of events from the agent execution, including
                 content, tool calls, and delegation events.
@@ -128,10 +128,10 @@ class ExecutionController:
         agent: Agent,
     ) -> CompletionStatus:
         """Assess whether an agent performed meaningful work.
-        
+
         Args:
             agent: The agent instance to assess for completion status.
-            
+
         Returns:
             CompletionStatus: The completion status of the agent, which can be:
                 - COMPLETED: Agent performed meaningful tool calls and finished normally

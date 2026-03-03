@@ -7,24 +7,20 @@ and importance scoring.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from henchman.providers.base import Message
-
-if TYPE_CHECKING:
-    pass
 
 
 # Constants duplicated from intelligent_context.py to avoid circular imports
 class CompressionStrategyConstants:
     """Constants for compression strategies."""
-    
+
     # Compression strategy thresholds
     DEBUGGING_HIGH_THRESHOLD: float = 0.8
     DEBUGGING_MEDIUM_THRESHOLD: float = 0.5
     CODING_HIGH_THRESHOLD: float = 0.7
     CODING_MEDIUM_THRESHOLD: float = 0.4
-    
+
     # Default compression thresholds
     DEFAULT_COMPRESSION_HIGH_THRESHOLD: float = 0.6
     DEFAULT_COMPRESSION_MEDIUM_THRESHOLD: float = 0.3
@@ -33,7 +29,7 @@ class CompressionStrategyConstants:
 @dataclass
 class CompressionStrategyConfig:
     """Configuration for a compression strategy.
-    
+
     Attributes:
         name: Name of the strategy.
         high_threshold: High importance threshold.
@@ -50,14 +46,14 @@ class CompressionStrategyConfig:
 
 class CompressionStrategy:
     """Base class for compression strategies.
-    
+
     Provides common functionality for compressing message clusters based on
     importance scores.
     """
-    
+
     def __init__(self, config: CompressionStrategyConfig) -> None:
         """Initialize compression strategy.
-        
+
         Args:
             config: Configuration for the strategy.
         """
@@ -112,7 +108,7 @@ class CompressionStrategy:
                 # Also preserve tool sequences if requested
                 if self.config.preserve_tool_sequences:
                     self._preserve_tool_sequences_in_cluster(
-                        messages, cluster, compressed_messages
+                        messages, cluster, compressed_messages,
                     )
 
             else:
@@ -120,18 +116,18 @@ class CompressionStrategy:
                 # Only preserve if they contain critical elements
                 if self.config.preserve_tool_sequences:
                     self._preserve_tool_sequences_in_cluster(
-                        messages, cluster, compressed_messages
+                        messages, cluster, compressed_messages,
                     )
 
                 if self.config.preserve_code_blocks:
                     self._preserve_code_blocks_in_cluster(
-                        messages, cluster, compressed_messages
+                        messages, cluster, compressed_messages,
                     )
 
         return compressed_messages
 
     def _summarize_cluster(
-        self, messages: list[Message], cluster: list[int]
+        self, messages: list[Message], cluster: list[int],
     ) -> str | None:
         """Generate a summary of a message cluster.
 
@@ -151,10 +147,10 @@ class CompressionStrategy:
 
     def _generate_cluster_summary(self, cluster_messages: list[Message]) -> str:
         """Generate summary text from a list of messages.
-        
+
         Args:
             cluster_messages: Messages in the cluster.
-            
+
         Returns:
             Summary text.
         """
@@ -180,7 +176,7 @@ class CompressionStrategy:
         compressed_messages: list[Message],
     ) -> None:
         """Preserve tool call sequences within a cluster.
-        
+
         Args:
             messages: All messages.
             cluster: Cluster indices.
@@ -203,7 +199,7 @@ class CompressionStrategy:
         compressed_messages: list[Message],
     ) -> None:
         """Preserve code blocks within a cluster.
-        
+
         Args:
             messages: All messages.
             cluster: Cluster indices.
@@ -218,15 +214,15 @@ class CompressionStrategy:
 
 class CompressionStrategyFactory:
     """Factory for creating compression strategies based on conversation type."""
-    
+
     @staticmethod
     def create_for_conversation_type(conversation_type: str) -> CompressionStrategy:
         """Create compression strategy for a conversation type.
-        
+
         Args:
-            conversation_type: Type of conversation ("coding", "research", 
+            conversation_type: Type of conversation ("coding", "research",
                 "debugging", or "general").
-                
+
         Returns:
             Compression strategy instance.
         """
@@ -263,5 +259,5 @@ class CompressionStrategyFactory:
                 preserve_tool_sequences=True,
                 preserve_code_blocks=False,
             )
-        
+
         return CompressionStrategy(config)

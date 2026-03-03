@@ -27,7 +27,7 @@ VALID_ENTITY_TYPES = frozenset(
         "pattern",
         "config",
         "service",
-    }
+    },
 )
 
 VALID_RELATION_TYPES = frozenset(
@@ -41,7 +41,7 @@ VALID_RELATION_TYPES = frozenset(
         "decided_by",
         "configures",
         "extends",
-    }
+    },
 )
 
 
@@ -189,14 +189,14 @@ class KgUpdateTool(Tool):
         Args:
             params: Tool parameters passed as keyword arguments.
                 Expected parameters:
-                    action (str): Update action: 'add_entity', 'add_observation', 
+                    action (str): Update action: 'add_entity', 'add_observation',
                         'add_relation', or 'remove_entity'.
                     entity_id (str): Entity id (slug) for all actions.
-                    entity_type (str, optional): Type for add_entity: 'class', 
-                        'config', 'convention', 'decision', 'file', 'function', 
+                    entity_type (str, optional): Type for add_entity: 'class',
+                        'config', 'convention', 'decision', 'file', 'function',
                         'module', 'package', 'pattern', or 'service'.
                     name (str, optional): Human-readable name for add_entity.
-                    description (str, optional): Description for add_entity or 
+                    description (str, optional): Description for add_entity or
                         add_observation content.
                     file_path (str, optional): Source file path for add_entity.
                     tags (list[str], optional): Tags for add_entity.
@@ -223,17 +223,17 @@ class KgUpdateTool(Tool):
         # Dispatch to appropriate handler method
         if action == "add_entity":
             return self._handle_add_entity(store, entity_id, params)
-        elif action == "add_observation":
+        if action == "add_observation":
             return self._handle_add_observation(store, entity_id, params)
-        elif action == "add_relation":
+        if action == "add_relation":
             return self._handle_add_relation(store, entity_id, params)
-        elif action == "remove_entity":
+        if action == "remove_entity":
             return self._handle_remove_entity(store, entity_id)
 
         return ToolResult(content=f"Unknown action: '{action}'.")
 
     def _handle_add_entity(
-        self, store: KnowledgeStore, entity_id: str, params: dict[str, object]
+        self, store: KnowledgeStore, entity_id: str, params: dict[str, object],
     ) -> ToolResult:
         """Handle add_entity action."""
         entity_type = str(params.get("entity_type", "convention")).strip()
@@ -242,7 +242,7 @@ class KgUpdateTool(Tool):
                 content=(
                     f"Invalid entity_type '{entity_type}'. "
                     f"Must be one of: {', '.join(sorted(VALID_ENTITY_TYPES))}."
-                )
+                ),
             )
 
         name = str(params.get("name", entity_id)).strip()
@@ -266,11 +266,11 @@ class KgUpdateTool(Tool):
         return ToolResult(content=f"Added entity '{entity_id}' ({entity_type}).")
 
     def _handle_add_observation(
-        self, store: KnowledgeStore, entity_id: str, params: dict[str, object]
+        self, store: KnowledgeStore, entity_id: str, params: dict[str, object],
     ) -> ToolResult:
         """Handle add_observation action."""
         observation_text = str(
-            params.get("observation") or params.get("description") or ""
+            params.get("observation") or params.get("description") or "",
         ).strip()
         source = str(params.get("source") or "agent").strip()
 
@@ -279,7 +279,7 @@ class KgUpdateTool(Tool):
 
         if store.get_entity(entity_id) is None:
             return ToolResult(
-                content=f"Entity '{entity_id}' not found. Add it first with add_entity."
+                content=f"Entity '{entity_id}' not found. Add it first with add_entity.",
             )
 
         obs = Observation(content=observation_text, source=source, author="agent")
@@ -288,7 +288,7 @@ class KgUpdateTool(Tool):
         return ToolResult(content=f"Added observation to '{entity_id}': {observation_text}")
 
     def _handle_add_relation(
-        self, store: KnowledgeStore, entity_id: str, params: dict[str, object]
+        self, store: KnowledgeStore, entity_id: str, params: dict[str, object],
     ) -> ToolResult:
         """Handle add_relation action."""
         target_id = _validate_id(params.get("target_id"))
@@ -301,7 +301,7 @@ class KgUpdateTool(Tool):
                 content=(
                     f"Invalid relation_type '{relation_type}'. "
                     f"Must be one of: {', '.join(sorted(VALID_RELATION_TYPES))}."
-                )
+                ),
             )
 
         # Both endpoints must exist
@@ -316,7 +316,7 @@ class KgUpdateTool(Tool):
                     f"Cannot add relation — entity not found: "
                     f"{', '.join(repr(m) for m in missing)}. "
                     f"Add them first with add_entity."
-                )
+                ),
             )
 
         description = str(params.get("description") or "")
@@ -329,11 +329,11 @@ class KgUpdateTool(Tool):
         store.add_relation(rel)
         store.save()
         return ToolResult(
-            content=(f"Added relation: '{entity_id}' —[{relation_type}]→ '{target_id}'.")
+            content=(f"Added relation: '{entity_id}' —[{relation_type}]→ '{target_id}'."),
         )
 
     def _handle_remove_entity(
-        self, store: KnowledgeStore, entity_id: str
+        self, store: KnowledgeStore, entity_id: str,
     ) -> ToolResult:
         """Handle remove_entity action."""
         if store.remove_entity(entity_id):

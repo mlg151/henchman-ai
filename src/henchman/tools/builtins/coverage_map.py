@@ -88,11 +88,11 @@ class CoverageFormatter:
             parts: List to append formatted lines to.
             config: Coverage parsing configuration.
         """
-        filename = cast(str, entry["file"])
-        line_rate_str = cast(str, entry["line_rate"])
+        filename = cast("str", entry["file"])
+        line_rate_str = cast("str", entry["line_rate"])
         rate = float(line_rate_str) * 100
-        uncovered = cast(list[int], entry["uncovered_lines"])
-        total = cast(int, entry["total_lines"])
+        uncovered = cast("list[int]", entry["uncovered_lines"])
+        total = cast("int", entry["total_lines"])
 
         line_info = CoverageFormatter._format_coverage_line(rate, total, uncovered)
 
@@ -123,8 +123,7 @@ class CoverageFormatter:
         if uncovered:
             line_ranges = CoverageFormatter._compress_ranges(uncovered)
             return f"{rate:.0f}% ({total} lines, {len(uncovered)} uncovered: {line_ranges})"
-        else:
-            return f"{rate:.0f}% ({total} lines, fully covered)"
+        return f"{rate:.0f}% ({total} lines, fully covered)"
 
     @staticmethod
     def _format_branch_info(
@@ -138,9 +137,9 @@ class CoverageFormatter:
         Returns:
             Formatted branch info string.
         """
-        b_rate = float(cast(str, entry["branch_rate"])) * 100
-        total_b = cast(int, entry["total_branches"])
-        missed_b = cast(int, entry["missed_branches"])
+        b_rate = float(cast("str", entry["branch_rate"])) * 100
+        total_b = cast("int", entry["total_branches"])
+        missed_b = cast("int", entry["missed_branches"])
 
         if total_b > 0:
             return f" [branches: {b_rate:.0f}%, {missed_b}/{total_b} missed]"
@@ -157,9 +156,9 @@ class CoverageFormatter:
             entry: File coverage data dictionary.
             parts: List to append formatted lines to.
         """
-        functions = cast(list[dict[str, Any]], entry["functions"])
+        functions = cast("list[dict[str, Any]]", entry["functions"])
         for func in sorted(functions, key=lambda f: str(f["name"])):
-            f_rate = float(cast(str, func["line_rate"])) * 100
+            f_rate = float(cast("str", func["line_rate"])) * 100
             parts.append(f"    {func['name']}: {f_rate:.0f}%")
 
     @staticmethod
@@ -214,7 +213,6 @@ class BaseCoverageParser(ABC):
         Returns:
             ToolResult with coverage information.
         """
-        pass
 
     @staticmethod
     def _parse_branch_coverage(
@@ -303,7 +301,7 @@ class XmlCoverageParser(BaseCoverageParser):
             ToolResult with coverage information.
         """
         try:
-            tree = ET.parse(str(target))  # noqa: S314
+            tree = ET.parse(str(target))
         except ET.ParseError as exc:
             return ToolResult(
                 content=f"Error parsing XML: {exc}",
@@ -347,7 +345,7 @@ class XmlCoverageParser(BaseCoverageParser):
         branch_rate = cls.get("branch-rate", "0")
 
         uncovered_lines, total_lines, missed_branches, total_branches = self._parse_lines(
-            cls, config
+            cls, config,
         )
 
         entry: dict[str, Any] = {

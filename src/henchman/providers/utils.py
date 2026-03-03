@@ -67,7 +67,8 @@ def validate_messages(messages: list[Message]) -> None:
         ValueError: If messages are empty or have invalid content.
     """
     if not messages:
-        raise ValueError("Messages list cannot be empty")
+        msg = "Messages list cannot be empty"
+        raise ValueError(msg)
 
     for message in messages:
         # Tool/function messages can have empty content
@@ -80,26 +81,27 @@ def validate_messages(messages: list[Message]) -> None:
 
         # All other messages must have non-empty content
         if not (message.content or "").strip():
-            raise ValueError(f"Message with role '{message.role}' cannot have empty content")
+            msg = f"Message with role '{message.role}' cannot have empty content"
+            raise ValueError(msg)
 
 
 def parse_finish_reason(
-    reason: str | None, 
-    provider_mapping: dict[str, FinishReason] | None = None
+    reason: str | None,
+    provider_mapping: dict[str, FinishReason] | None = None,
 ) -> FinishReason | None:
     """Parse finish reason from provider-specific format to our enum.
-    
+
     Args:
         reason: The provider-specific finish reason string.
         provider_mapping: Optional custom mapping for provider-specific reasons.
             If None, uses a default mapping.
-            
+
     Returns:
         Mapped FinishReason or None if reason is None.
     """
     if reason is None:
         return None
-    
+
     # Default mapping for providers that don't specify one
     default_mapping: Final[dict[str, FinishReason]] = {
         "stop": FinishReason.STOP,
@@ -107,6 +109,6 @@ def parse_finish_reason(
         "length": FinishReason.LENGTH,
         "content_filter": FinishReason.CONTENT_FILTER,
     }
-    
+
     mapping = provider_mapping or default_mapping
     return mapping.get(reason, FinishReason.STOP)

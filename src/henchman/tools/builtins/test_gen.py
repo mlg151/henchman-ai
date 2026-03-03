@@ -156,7 +156,7 @@ class TestGenTool(Tool):
                         "args": self._extract_args(node),
                         "is_async": isinstance(node, ast.AsyncFunctionDef),
                         "returns": self._get_return_annotation(node),
-                    }
+                    },
                 )
             elif isinstance(node, ast.ClassDef):
                 if node.name.startswith("_"):
@@ -173,14 +173,14 @@ class TestGenTool(Tool):
                                 "args": self._extract_args(item),
                                 "is_async": isinstance(item, ast.AsyncFunctionDef),
                                 "returns": self._get_return_annotation(item),
-                            }
+                            },
                         )
                 symbols.append(
                     {
                         "kind": "class",
                         "name": node.name,
                         "methods": methods,
-                    }
+                    },
                 )
 
         return symbols
@@ -258,8 +258,8 @@ class TestGenTool(Tool):
                             \"\"\"Test {name} edge cases.\"\"\"
                             # TODO: Add edge case tests for {name}
                             pass
-                    """
-                    )
+                    """,
+                    ),
                 )
             elif kind == "class":
                 cls_name = str(sym["name"])
@@ -281,7 +281,7 @@ class TestGenTool(Tool):
                                 f"    {prefix}def test_{test_name}(self) -> None:\n"
                                 f'        """Test {cls_name}.{m_name}."""\n'
                                 f'        # TODO: Implement test for {cls_name}.{m_name}\n'
-                                f'        pass\n'
+                                f'        pass\n',
                             )
 
                 body = (
@@ -339,7 +339,7 @@ class TestGenTool(Tool):
                 args_list = [str(arg) for arg in args_value] if isinstance(args_value, list) else []
                 test_body = self._make_test_body(name, args_list)
                 tests.append(
-                    f'{prefix}def test_{name}() -> None:\n    """Test {name}."""\n    {test_body}\n'
+                    f'{prefix}def test_{name}() -> None:\n    """Test {name}."""\n    {test_body}\n',
                 )
             elif kind == "class":
                 cls_name = str(sym["name"])
@@ -347,7 +347,7 @@ class TestGenTool(Tool):
                 tests.append(
                     f"def test_{cls_name.lower()}_creation() -> None:\n"
                     f'    """Test {cls_name} creation."""\n'
-                    f'    pass  # TODO: implement test\n'
+                    f'    pass  # TODO: implement test\n',
                 )
 
         header = (

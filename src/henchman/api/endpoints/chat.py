@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from typing import Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -14,6 +13,9 @@ from henchman.api.state import state
 from henchman.core import Agent, AgentEvent, EventType
 from henchman.providers import Message, ToolCall
 
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
 
 class ChatMessage(BaseModel):
     """Chat message model."""
@@ -21,7 +23,7 @@ class ChatMessage(BaseModel):
     role: str = Field(description="Message role (user, assistant, system)")
     content: str = Field(description="Message content")
     tool_calls: list[dict[str, Any]] | None = Field(
-        default=None, description="Tool calls associated with the message"
+        default=None, description="Tool calls associated with the message",
     )
     tool_call_id: str | None = Field(default=None, description="Tool call ID for tool responses")
 
@@ -84,7 +86,7 @@ def _convert_chat_message_to_internal(msg: ChatMessage) -> Message:
 
 
 def _setup_agent_history(
-    agent: Agent, request_messages: list[ChatMessage], last_user_index: int
+    agent: Agent, request_messages: list[ChatMessage], last_user_index: int,
 ) -> None:
     """Set up agent history from request messages.
 
@@ -123,10 +125,10 @@ def _process_agent_event(
     if event.type == EventType.CONTENT:
         content_parts.append(event.data)
         return None, None
-    elif event.type == EventType.TOOL_CALL_REQUEST:
+    if event.type == EventType.TOOL_CALL_REQUEST:
         tool_calls.append(event.data)
         return None, None
-    elif event.type == EventType.FINISHED:
+    if event.type == EventType.FINISHED:
         # Extract finish reason from first valid FINISHED event
         # Event data can be a string (finish reason) or a dict with finish_reason and usage
         if isinstance(event.data, dict):
@@ -174,11 +176,11 @@ def _update_metrics(usage: dict[str, int] | None, tool_calls: list[dict[str, Any
     # Update tool call counts
     if tool_calls:
         state.metrics["tool_calls_total"] = state.metrics.get("tool_calls_total", 0) + len(
-            tool_calls
+            tool_calls,
         )
         # Assume all tool calls are successful for now
         state.metrics["tool_calls_successful"] = state.metrics.get(
-            "tool_calls_successful", 0
+            "tool_calls_successful", 0,
         ) + len(tool_calls)
 
 
@@ -207,7 +209,7 @@ def _process_stream_event(
     elif event.type == EventType.FINISHED:
         chunk_type = "finished"
         # Use actual finish reason from event data
-        reason = event.data if event.data else "stop"
+        reason = event.data or "stop"
         chunk_data = {"reason": reason}
 
         # Extract usage information if available
@@ -291,8 +293,8 @@ async def get_agent() -> Agent:
 @router.post("/completions", response_model=ChatResponse)
 async def chat_completion(
     request: ChatRequest,
-    api_key: str | None = Depends(verify_api_key),
-    agent: Agent = Depends(get_agent),
+    api_key: Annotated[str | None, Depends(verify_api_key)],
+    agent: Annotated[Agent, Depends(get_agent)],
 ) -> ChatResponse:
     """Create a chat completion.
 
@@ -340,7 +342,7 @@ async def chat_completion(
     try:
         async for event in agent.run(user_input=user_input):
             event_finish_reason, event_usage = _process_agent_event(
-                event, content_parts, tool_calls, valid_finish_reasons
+                event, content_parts, tool_calls, valid_finish_reasons,
             )
             if event_finish_reason is not None and finish_reason is None:
                 finish_reason = event_finish_reason
@@ -348,14 +350,14 @@ async def chat_completion(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating completion: {str(e)}",
+            detail=f"Error generating completion: {e!s}",
         ) from e
 
     # Build response
     response_message = ChatMessage(
         role="assistant",
         content="".join(content_parts),
-        tool_calls=tool_calls if tool_calls else None,
+        tool_calls=tool_calls or None,
     )
 
     # Update metrics
@@ -371,8 +373,8 @@ async def chat_completion(
 @router.post("/completions/stream")
 async def chat_completion_stream(
     request: ChatRequest,
-    api_key: str | None = Depends(verify_api_key),
-    agent: Agent = Depends(get_agent),
+    api_key: Annotated[str | None, Depends(verify_api_key)],
+    agent: Annotated[Agent, Depends(get_agent)],
 ) -> StreamingResponse:
     """Create a streaming chat completion.
 
@@ -419,7 +421,7 @@ async def chat_completion_stream(
         try:
             async for event in agent.run(user_input=user_input):
                 chunk_type, chunk_data, index, tool_calls_count = _process_stream_event(
-                    event, index, tool_calls_count
+                    event, index, tool_calls_count,
                 )
 
                 chunk = ChatStreamChunk(
@@ -456,11 +458,9 @@ async def chat_completion_stream(
 
 @router.get("/history")
 async def get_chat_history(
-    api_key: str | None = Depends(verify_api_key),
-    agent: Agent = Depends(get_agent),
-    limit: int = Query(
-        default=100, ge=1, le=1000, description="Maximum number of messages to return"
-    ),
+    api_key: Annotated[str | None, Depends(verify_api_key)],
+    agent: Annotated[Agent, Depends(get_agent)],
+    limit: Annotated[int, Query(ge=1, le=1000, description="Maximum number of messages to return")] = 100,
 ) -> list[ChatMessage]:
     """Get chat history.
 
@@ -490,7 +490,7 @@ async def get_chat_history(
                 content=msg.content or "",
                 tool_calls=msg.tool_calls,
                 tool_call_id=msg.tool_call_id,
-            )
+            ),
         )
 
     return response_messages
@@ -498,8 +498,8 @@ async def get_chat_history(
 
 @router.delete("/history")
 async def clear_chat_history(
-    api_key: str | None = Depends(verify_api_key),
-    agent: Agent = Depends(get_agent),
+    api_key: Annotated[str | None, Depends(verify_api_key)],
+    agent: Annotated[Agent, Depends(get_agent)],
 ) -> dict[str, str]:
     """Clear chat history.
 

@@ -90,7 +90,7 @@ class ToolManager:
             ShellTool(
                 default_timeout=(
                     self.settings.tools.shell_timeout if self.settings else 3600
-                )
+                ),
             ),
             TestGenTool(),
             TracebackParseTool(),
@@ -123,7 +123,7 @@ class ToolManager:
         return False
 
     def set_confirmation_handler(
-        self, handler: "Callable[[ConfirmationRequest], Awaitable[bool]] | None" = None
+        self, handler: "Callable[[ConfirmationRequest], Awaitable[bool]] | None" = None,
     ) -> None:
         """Set the confirmation handler on the registry.
 

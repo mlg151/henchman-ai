@@ -111,7 +111,7 @@ class ChatCommand(BaseCommand):
         for meta in sessions:
             tag_display = f"[cyan]{meta.tag}[/]" if meta.tag else f"[dim]{meta.id[:8]}[/]"
             ctx.console.print(
-                f"  {tag_display} - {meta.message_count} messages, updated {meta.last_updated[:10]}"
+                f"  {tag_display} - {meta.message_count} messages, updated {meta.last_updated[:10]}",
             )
         ctx.console.print("")
 
@@ -162,7 +162,7 @@ class ChatCommand(BaseCommand):
         return True
 
     def _load_session(
-        self, ctx: CommandContext, manager: SessionManager, tag_or_id: str
+        self, ctx: CommandContext, manager: SessionManager, tag_or_id: str,
     ) -> Session | None:
         """Load session by tag or ID.
 
@@ -187,7 +187,7 @@ class ChatCommand(BaseCommand):
         return session
 
     def _restore_session(
-        self, ctx: CommandContext, manager: SessionManager, session: Session, tag_or_id: str
+        self, ctx: CommandContext, manager: SessionManager, session: Session, tag_or_id: str,
     ) -> None:
         """Restore session to context.
 
@@ -206,7 +206,7 @@ class ChatCommand(BaseCommand):
             self._restore_agent_history(ctx, session)
 
         ctx.console.print(
-            f"[green]✓[/] Resumed session '{tag_or_id}' ({len(session.messages)} messages)"
+            f"[green]✓[/] Resumed session '{tag_or_id}' ({len(session.messages)} messages)",
         )
 
     def _restore_agent_history(self, ctx: CommandContext, session: Session) -> None:

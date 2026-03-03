@@ -39,10 +39,7 @@ class AsyncRateLimiter:
         Args:
             tokens: The number of tokens to be used.
         """
-        if tokens > self.tokens_per_minute:
-            # If a single request is larger than the limit, we can't really
-            # satisfy it, but we'll just wait for the window to be completely clear.
-            tokens = self.tokens_per_minute
+        tokens = min(tokens, self.tokens_per_minute)
 
         async with self._lock:
             while True:

@@ -8,15 +8,17 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 from networkx import DiGraph
 
 from henchman.knowledge.models import Entity, GraphMeta, Observation, Relation
 from henchman.rag.repo_id import compute_repository_id
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +261,7 @@ class KnowledgeStore:
                     entity.name,
                     entity.description,
                     " ".join(o.content for o in entity.observations),
-                ]
+                ],
             ).lower()
             if q in haystack:
                 results.append(entity)
@@ -332,7 +334,7 @@ class KnowledgeStore:
                         target=target,
                         relation_type=data.get("relation_type", "related_to"),
                         description=data.get("description", ""),
-                    )
+                    ),
                 )
 
         if direction in ("in", "both"):
@@ -343,7 +345,7 @@ class KnowledgeStore:
                         target=entity_id,
                         relation_type=data.get("relation_type", "related_to"),
                         description=data.get("description", ""),
-                    )
+                    ),
                 )
 
         return relations

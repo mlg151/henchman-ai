@@ -114,7 +114,7 @@ def _detect_git_root(cwd: Path) -> str | None:
         Absolute path to git root, or None.
     """
     output = _run_cmd("git", "-C", str(cwd), "rev-parse", "--show-toplevel")
-    return output if output else None
+    return output or None
 
 
 def _detect_git_branch(cwd: Path) -> str | None:

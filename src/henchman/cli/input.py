@@ -9,14 +9,16 @@ import asyncio
 import contextlib
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings, KeyPress
 from prompt_toolkit.keys import Keys
-from rich.console import Console
 from rich.prompt import Confirm, IntPrompt, Prompt
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 
 def is_slash_command(text: str) -> bool:
@@ -148,7 +150,7 @@ def create_session(
     @bindings.add(Keys.ControlC)
     def _(_event: Any) -> None:
         """Handle Ctrl+C: raise KeyboardInterrupt to exit cleanly."""
-        raise KeyboardInterrupt()
+        raise KeyboardInterrupt
 
     @bindings.add(Keys.Escape)
     def _(event: Any) -> None:

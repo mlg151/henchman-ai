@@ -11,12 +11,13 @@ import hashlib
 import json
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .session_data import Session, session_from_json
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from .session_models import SessionMetadata
 
 

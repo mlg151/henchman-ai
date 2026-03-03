@@ -7,9 +7,8 @@ and error messages.
 
 from __future__ import annotations
 
-from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 from rich.progress import (
@@ -20,10 +19,15 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
-from rich.status import Status
 
 from henchman.cli.console import OutputRenderer
-from henchman.core.session import Session
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from rich.status import Status
+
+    from henchman.core.session import Session
 
 
 class ProgressManager:
@@ -88,7 +92,7 @@ class ProgressManager:
             task_id: Task identifier.
         """
         if task_id in self.tasks:
-            progress, task = self.tasks[task_id]
+            progress, _task = self.tasks[task_id]
             progress.stop()
             del self.tasks[task_id]
 

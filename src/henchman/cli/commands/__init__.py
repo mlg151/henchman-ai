@@ -125,8 +125,9 @@ class BaseCommand(Command):
             ctx: Command context.
         """
         if not self._help_command_name or not self._help_lines:
+            msg = f"{self.__class__.__name__} must define _help_command_name and _help_lines"
             raise NotImplementedError(
-                f"{self.__class__.__name__} must define _help_command_name and _help_lines"
+                msg,
             )
         show_command_help(ctx, self._help_command_name, self._help_lines)
 
@@ -185,7 +186,8 @@ class CommandRegistry:
         """
         cmd = self.get(name)
         if cmd is None:
-            raise KeyError(f"Unknown command: {name}")
+            msg = f"Unknown command: {name}"
+            raise KeyError(msg)
         await cmd.execute(ctx)
 
 

@@ -8,8 +8,11 @@ from the directory hierarchy.
 from __future__ import annotations
 
 import fnmatch
-from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 DEFAULT_FILENAMES: tuple[str, ...] = (
     "HENCHMAN.md",
@@ -143,7 +146,7 @@ class ContextLoader:
 
         # Find git root to limit ancestor search
         git_root = self._find_git_root(cwd)
-        stop_at = git_root if git_root else cwd
+        stop_at = git_root or cwd
 
         # Ancestor context files (from root to cwd)
         ancestor_groups: list[list[Path]] = []

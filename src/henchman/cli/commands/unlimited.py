@@ -61,10 +61,10 @@ class UnlimitedCommand(Command):
         if new_state:
             ctx.console.print(
                 "[bold yellow]⚠ Unlimited mode: ON[/bold yellow]\n"
-                "[yellow]Loop protection disabled. Use Ctrl+C to abort runaway execution.[/yellow]"
+                "[yellow]Loop protection disabled. Use Ctrl+C to abort runaway execution.[/yellow]",
             )
         else:
             ctx.console.print(
                 "[bold green]✓ Unlimited mode: OFF[/bold green]\n"
-                "[dim]Loop protection re-enabled.[/dim]"
+                "[dim]Loop protection re-enabled.[/dim]",
             )

@@ -161,12 +161,12 @@ class PythonAstTool(Tool):
         if include_docstrings:
             docstring = self._get_docstring(node)
             if docstring:
-                lines.append(f"{prefix}  \"\"\"{docstring}\"\"\"")
+                lines.append(f'{prefix}  """{docstring}"""')
 
         return lines
 
     def _format_class(
-        self, node: ast.ClassDef, indent: int = 0, include_docstrings: bool = True
+        self, node: ast.ClassDef, indent: int = 0, include_docstrings: bool = True,
     ) -> list[str]:
         """Format a class definition with its methods.
 
@@ -190,7 +190,7 @@ class PythonAstTool(Tool):
         if include_docstrings:
             docstring = self._get_docstring(node)
             if docstring:
-                lines.append(f"{prefix}  \"\"\"{docstring}\"\"\"")
+                lines.append(f'{prefix}  """{docstring}"""')
 
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -200,11 +200,11 @@ class PythonAstTool(Tool):
                         indent + 1,
                         include_docstrings=include_docstrings,
                         is_method=True,
-                    )
+                    ),
                 )
             elif isinstance(child, ast.ClassDef):
                 lines.extend(
-                    self._format_class(child, indent + 1, include_docstrings=include_docstrings)
+                    self._format_class(child, indent + 1, include_docstrings=include_docstrings),
                 )
 
         return lines
@@ -316,7 +316,7 @@ class PythonAstTool(Tool):
         return None
 
     def _generate_symbol_table(
-        self, tree: ast.Module, file_name: str, include_docstrings: bool
+        self, tree: ast.Module, file_name: str, include_docstrings: bool,
     ) -> list[str]:
         """Generate symbol table sections from AST.
 
@@ -345,7 +345,7 @@ class PythonAstTool(Tool):
         return sections
 
     def _add_module_docstring(
-        self, sections: list[str], tree: ast.Module, include_docstrings: bool
+        self, sections: list[str], tree: ast.Module, include_docstrings: bool,
     ) -> None:
         """Add module docstring to sections if present and requested.
 
@@ -396,7 +396,7 @@ class PythonAstTool(Tool):
                     sections.append(f"{names}  [L{a.lineno}]")
 
     def _add_functions_and_classes_sections(
-        self, sections: list[str], tree: ast.Module, include_docstrings: bool
+        self, sections: list[str], tree: ast.Module, include_docstrings: bool,
     ) -> None:
         """Add functions and classes sections to sections.
 
@@ -409,10 +409,10 @@ class PythonAstTool(Tool):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 sections.append("")
                 sections.extend(
-                    self._format_function(node, include_docstrings=include_docstrings)
+                    self._format_function(node, include_docstrings=include_docstrings),
                 )
             elif isinstance(node, ast.ClassDef):
                 sections.append("")
                 sections.extend(
-                    self._format_class(node, include_docstrings=include_docstrings)
+                    self._format_class(node, include_docstrings=include_docstrings),
                 )
