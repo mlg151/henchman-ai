@@ -1,33 +1,33 @@
-# Documentation Smell Report — ✅ A (Score: 95.2/100)
+# Documentation Smell Report — ✅ A (Score: 95.3/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T03:30:03.003858+00:00_
+_Generated: 2026-03-03T03:45:02.257397+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ✅ A |
-| **Overall Score** | 95.2/100 |
+| **Overall Score** | 95.3/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 166 |
-| **Total Smells** | 419 |
+| **Total Smells** | 421 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 317 |
+| low | 321 |
 | medium | 89 |
-| high | 13 |
+| high | 11 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 395 |
-| Stale Docstring | 13 |
+| Incomplete Docstring | 399 |
+| Stale Docstring | 11 |
 | Missing Docstring | 5 |
 | Stale Content | 2 |
 | Config Issue | 2 |
@@ -38,85 +38,85 @@ _Generated: 2026-03-03T03:30:03.003858+00:00_
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/api/endpoints/health.py:59** — 🟠 HIGH — Stale Docstring  
-   'get_metrics' has undocumented parameters: _api_key  
-   → _Add these parameters to the Args: section: _api_key_
-
-2. **src/henchman/api/endpoints/health.py:111** — 🟠 HIGH — Stale Docstring  
-   'get_usage' has undocumented parameters: _api_key  
-   → _Add these parameters to the Args: section: _api_key_
-
-3. **src/henchman/mcp/tool.py:84** — 🟠 HIGH — Stale Docstring  
+1. **src/henchman/mcp/tool.py:84** — 🟠 HIGH — Stale Docstring  
    'McpTool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-4. **src/henchman/metrics/exporter.py:29** — 🟠 HIGH — Stale Docstring  
+2. **src/henchman/metrics/exporter.py:29** — 🟠 HIGH — Stale Docstring  
    'MetricsExporter.export_to_json' has undocumented parameters: filters  
    → _Add these parameters to the Args: section: filters_
 
-5. **src/henchman/metrics/exporter.py:78** — 🟠 HIGH — Stale Docstring  
+3. **src/henchman/metrics/exporter.py:78** — 🟠 HIGH — Stale Docstring  
    'MetricsExporter.export_to_csv' has undocumented parameters: filters  
    → _Add these parameters to the Args: section: filters_
 
-6. **src/henchman/metrics/exporter.py:91** — 🟠 HIGH — Stale Docstring  
+4. **src/henchman/metrics/exporter.py:91** — 🟠 HIGH — Stale Docstring  
    'MetricsExporter.export_to_prometheus' has undocumented parameters: filters  
    → _Add these parameters to the Args: section: filters_
 
-7. **src/henchman/metrics/exporter.py:104** — 🟠 HIGH — Stale Docstring  
+5. **src/henchman/metrics/exporter.py:104** — 🟠 HIGH — Stale Docstring  
    'MetricsExporter.export_summary' has undocumented parameters: filters  
    → _Add these parameters to the Args: section: filters_
 
-8. **src/henchman/tools/base.py:144** — 🟠 HIGH — Stale Docstring  
+6. **src/henchman/tools/base.py:144** — 🟠 HIGH — Stale Docstring  
    'Tool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-9. **src/henchman/tools/builtins/ask_user.py:73** — 🟠 HIGH — Stale Docstring  
+7. **src/henchman/tools/builtins/ask_user.py:73** — 🟠 HIGH — Stale Docstring  
    'AskUserTool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-10. **src/henchman/tools/builtins/coverage_map.py:557** — 🟠 HIGH — Stale Docstring  
+8. **src/henchman/tools/builtins/coverage_map.py:557** — 🟠 HIGH — Stale Docstring  
    'CoverageMapTool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-11. **src/henchman/tools/builtins/import_graph.py:473** — 🟠 HIGH — Stale Docstring  
+9. **src/henchman/tools/builtins/import_graph.py:473** — 🟠 HIGH — Stale Docstring  
    'ImportGraphTool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-12. **src/henchman/tools/builtins/kg_query.py:134** — 🟠 HIGH — Stale Docstring  
+10. **src/henchman/tools/builtins/kg_query.py:134** — 🟠 HIGH — Stale Docstring  
    'KgQueryTool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-13. **src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Stale Docstring  
+11. **src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Stale Docstring  
    'KgUpdateTool.execute' has undocumented parameters: params  
    → _Add these parameters to the Args: section: params_
 
-14. **docs/intelligent-context-management.md:474** — 🟡 MEDIUM — Broken Link  
+12. **docs/intelligent-context-management.md:474** — 🟡 MEDIUM — Broken Link  
    Link to 'configuration.md#performance-tuning' — file exists but anchor '#performance-tuning' not found  
    → _Verify the heading exists in 'docs/configuration.md' or fix the fragment._
 
-15. **mkdocs.yml:1** — 🟡 MEDIUM — Config Issue  
+13. **mkdocs.yml:1** — 🟡 MEDIUM — Config Issue  
    Markdown files contain ```mermaid blocks but pymdownx.superfences is not configured with mermaid custom fences — diagrams won't render  
    → _Add custom_fences mermaid configuration to pymdownx.superfences in mkdocs.yml, or install mkdocs-mermaid2-plugin._
 
-16. **pyproject.toml:65** — 🟡 MEDIUM — Consistency Error  
+14. **pyproject.toml:65** — 🟡 MEDIUM — Consistency Error  
    States coverage threshold of 4% but other files require 80%. Found thresholds: 80%, 4%  
    → _Align all coverage requirements to 80% (the strictest value)._
 
-17. **src/henchman/agents/config.py:1** — 🟡 MEDIUM — Missing Docstring  
+15. **src/henchman/agents/config.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-18. **src/henchman/agents/identity.py:1** — 🟡 MEDIUM — Missing Docstring  
+16. **src/henchman/agents/identity.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-19. **src/henchman/agents/metrics.py:91** — 🟡 MEDIUM — Incomplete Docstring  
+17. **src/henchman/agents/metrics.py:91** — 🟡 MEDIUM — Incomplete Docstring  
    'PerformanceMetrics.track_file_access' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: file_path_
 
-20. **src/henchman/agents/metrics.py:95** — 🟡 MEDIUM — Incomplete Docstring  
+18. **src/henchman/agents/metrics.py:95** — 🟡 MEDIUM — Incomplete Docstring  
    'PerformanceMetrics.track_tool_usage' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: tool_name_
+
+19. **src/henchman/agents/metrics.py:152** — 🟡 MEDIUM — Incomplete Docstring  
+   'ToolMetrics.track_tool_call' has 2 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: tool_name, success_
+
+20. **src/henchman/agents/orchestrator.py:76** — 🟡 MEDIUM — Incomplete Docstring  
+   'Orchestrator.run' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: user_input_
 
 
 ## 📊 Files Ranked by Quality
@@ -425,15 +425,6 @@ Public APIs: 6 | Documented: 6 | Coverage: 100.0%
 | 121 | 🟢 LOW | Incomplete Docstring | 'Orchestrator.get_pool' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'Orchestrator.get_pool'. |
 | 125 | 🟢 LOW | Incomplete Docstring | 'Orchestrator.get_event_bus' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'Orchestrator.get_event_bus'. |
 
-### src/henchman/api/endpoints/health.py — 👍 B (80.0/100) (last modified 2026-02-26)
-
-Public APIs: 6 | Documented: 6 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 59 | 🟠 HIGH | Stale Docstring | 'get_metrics' has undocumented parameters: _api_key | Add these parameters to the Args: section: _api_key |
-| 111 | 🟠 HIGH | Stale Docstring | 'get_usage' has undocumented parameters: _api_key | Add these parameters to the Args: section: _api_key |
-
 ### src/henchman/metrics/storage.py — 👍 B (82.0/100) (last modified 2026-03-03)
 
 Public APIs: 16 | Documented: 16 | Coverage: 100.0%
@@ -542,7 +533,17 @@ Public APIs: 23 | Documented: 23 | Coverage: 100.0%
 | 446 | 🟢 LOW | Incomplete Docstring | 'KnowledgeStore.relation_count' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'KnowledgeStore.relation_count'. |
 | 450 | 🟢 LOW | Incomplete Docstring | 'KnowledgeStore.clear' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'KnowledgeStore.clear'. |
 
-## ✨ Clean Files (88 files with no smells)
+### src/henchman/tools/builtins/coverage_map.py — 👍 B (86.0/100) (last modified 2026-03-02)
+
+Public APIs: 18 | Documented: 18 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 557 | 🟠 HIGH | Stale Docstring | 'CoverageMapTool.execute' has undocumented parameters: params | Add these parameters to the Args: section: params |
+| 22 | 🟢 LOW | Incomplete Docstring | 'CoverageConfig.has_filter' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'CoverageConfig.has_filter'. |
+| 36 | 🟢 LOW | Incomplete Docstring | 'CoverageRequest.to_config' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'CoverageRequest.to_config'. |
+
+## ✨ Clean Files (89 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -570,6 +571,7 @@ Public APIs: 23 | Documented: 23 | Coverage: 100.0%
 - src/henchman/agents/prompts.py — ✅ A
 - src/henchman/api/auth.py — ✅ A
 - src/henchman/api/endpoints/chat.py — ✅ A
+- src/henchman/api/endpoints/health.py — ✅ A
 - src/henchman/api/state.py — ✅ A
 - src/henchman/cli/command_processor.py — ✅ A
 - src/henchman/cli/textual_messages.py — ✅ A
