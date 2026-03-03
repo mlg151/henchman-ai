@@ -1,18 +1,18 @@
-# Code Smell Report — ❌ F (Score: 53.4/100)
+# Code Smell Report — ❌ F (Score: 53.5/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T12:30:21.524270+00:00_
+_Generated: 2026-03-03T13:00:21.737568+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ❌ F |
-| **Overall Score** | 53.4/100 |
+| **Overall Score** | 53.5/100 |
 | **Files Scanned** | 189 |
-| **Total Lines (non-blank)** | 34,598 |
-| **Total Smells** | 2171 |
+| **Total Lines (non-blank)** | 34,614 |
+| **Total Smells** | 2134 |
 | **Avg Maintainability Index** | 71.9 |
 | **Avg Cyclomatic Complexity** | 14.1 |
 
@@ -20,23 +20,23 @@ _Generated: 2026-03-03T12:30:21.524270+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1632 |
-| medium | 474 |
-| high | 65 |
+| low | 1624 |
+| medium | 456 |
+| high | 54 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 1150 |
+| Missing Type Hint | 1143 |
 | Feature Envy | 290 |
-| Duplicate Code | 268 |
+| Duplicate Code | 239 |
 | Magic Number | 128 |
 | Long Method | 107 |
 | Deep Nesting | 98 |
 | Primitive Obsession | 73 |
 | Complex Function | 30 |
-| Large Class | 27 |
+| Large Class | 26 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -46,7 +46,7 @@ These are the highest-impact smells to address first:
    Function 'chat_command' has 8 primitive-typed parameters: prompt: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), agent: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), team: Name(id='bool', ctx=Load()), output_format: Name(id='str', ctx=Load()), plan: Name(id='bool', ctx=Load()), yes: Name(id='bool', ctx=Load()), tui: Name(id='bool', ctx=Load()), debug: Name(id='bool', ctx=Load())  
    → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
 
-2. **cli/commands/plan.py:32** — 🟠 HIGH — Feature Envy  
+2. **cli/commands/plan.py:39** — 🟠 HIGH — Feature Envy  
    Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
@@ -58,48 +58,48 @@ These are the highest-impact smells to address first:
    Function '__init__' has 105 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-5. **cli/textual_bridge.py:320** — 🟠 HIGH — Duplicate Code  
-   Function '_on_content' is an exact duplicate of '_on_thought' at cli/textual_bridge.py:324  
+5. **cli/textual_widgets.py:924** — 🟠 HIGH — Duplicate Code  
+   Function 'add_user_message' is an exact duplicate of 'add_system_message' at cli/textual_widgets.py:932  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-6. **cli/textual_bridge.py:328** — 🟠 HIGH — Duplicate Code  
-   Function '_on_tool_req' is an exact duplicate of '_on_tool_res' at cli/textual_bridge.py:332  
+6. **cli/textual_widgets.py:924** — 🟠 HIGH — Duplicate Code  
+   Function 'add_user_message' is an exact duplicate of 'add_error_message' at cli/textual_widgets.py:940  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-7. **cli/textual_bridge.py:328** — 🟠 HIGH — Duplicate Code  
-   Function '_on_tool_req' is an exact duplicate of '_on_tool_confirm' at cli/textual_bridge.py:336  
+7. **cli/textual_widgets.py:932** — 🟠 HIGH — Duplicate Code  
+   Function 'add_system_message' is an exact duplicate of 'add_error_message' at cli/textual_widgets.py:940  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-8. **cli/textual_bridge.py:332** — 🟠 HIGH — Duplicate Code  
-   Function '_on_tool_res' is an exact duplicate of '_on_tool_confirm' at cli/textual_bridge.py:336  
+8. **cli/ui_renderer.py:45** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: 'start_task' (line 45), 'start_task' (line 356)  
+   → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
+
+9. **cli/ui_renderer.py:69** — 🟠 HIGH — Primitive Obsession  
+   Repeated primitive parameter group appears in: 'update_task' (line 69), 'update_task' (line 369)  
+   → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
+
+10. **extensions/plugin_manager.py:47** — 🟠 HIGH — Duplicate Code  
+   Function '__init__' is an exact duplicate of '__init__' at extensions/plugin_manager_refactored.py:48  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-9. **cli/textual_bridge.py:357** — 🟠 HIGH — Duplicate Code  
-   Function '_on_turn_summary' is an exact duplicate of '_on_think_start' at cli/textual_bridge.py:406  
+11. **extensions/plugin_manager.py:68** — 🟠 HIGH — Duplicate Code  
+   Function 'initialize' is an exact duplicate of 'initialize' at extensions/plugin_manager_refactored.py:69  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-10. **cli/textual_bridge.py:357** — 🟠 HIGH — Duplicate Code  
-   Function '_on_turn_summary' is an exact duplicate of '_on_think_done' at cli/textual_bridge.py:410  
+12. **extensions/plugin_manager.py:104** — 🟠 HIGH — Duplicate Code  
+   Function 'close' is an exact duplicate of 'close' at extensions/plugin_manager_refactored.py:105  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-11. **cli/textual_bridge.py:357** — 🟠 HIGH — Duplicate Code  
-   Function '_on_turn_summary' is an exact duplicate of '_on_think_req' at cli/textual_bridge.py:414  
+13. **extensions/plugin_manager.py:113** — 🟠 HIGH — Duplicate Code  
+   Function 'search_plugins' is an exact duplicate of 'search_plugins' at extensions/plugin_manager_refactored.py:114  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-12. **cli/textual_bridge.py:406** — 🟠 HIGH — Duplicate Code  
-   Function '_on_think_start' is an exact duplicate of '_on_think_done' at cli/textual_bridge.py:410  
+14. **extensions/plugin_manager.py:145** — 🟠 HIGH — Duplicate Code  
+   Function 'get_plugin_info' is an exact duplicate of 'get_plugin_info' at extensions/plugin_manager_refactored.py:146  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-13. **cli/textual_bridge.py:406** — 🟠 HIGH — Duplicate Code  
-   Function '_on_think_start' is an exact duplicate of '_on_think_req' at cli/textual_bridge.py:414  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
-
-14. **cli/textual_bridge.py:410** — 🟠 HIGH — Duplicate Code  
-   Function '_on_think_done' is an exact duplicate of '_on_think_req' at cli/textual_bridge.py:414  
-   → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
-
-15. **cli/textual_bridge.py:418** — 🟠 HIGH — Duplicate Code  
-   Function '_on_deleg_dec' is an exact duplicate of '_on_reflection' at cli/textual_bridge.py:422  
+15. **extensions/plugin_manager.py:168** — 🟠 HIGH — Duplicate Code  
+   Function 'install_plugin' is an exact duplicate of 'install_plugin' at extensions/plugin_manager_refactored.py:169  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 
@@ -107,68 +107,44 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_bridge.py | ❌ F | 15.3 | 84 | 365 | 51 | 0.0 |
-| 2 | cli/repl.py | ❌ F | 15.6 | 32 | 341 | 52 | 16.0 |
-| 3 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
-| 4 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
-| 5 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
-| 6 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
-| 7 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
-| 8 | cli/commands/context.py | ❌ F | 16.4 | 47 | 468 | 48 | 0.0 |
-| 9 | tools/builtins/git_ops.py | ❌ F | 16.5 | 31 | 273 | 55 | 0.0 |
-| 10 | extensions/plugin_manager.py | ❌ F | 16.9 | 27 | 282 | 56 | 12.0 |
+| 1 | cli/textual_bridge.py | ❌ F | 15.6 | 51 | 376 | 52 | 0.0 |
+| 2 | tools/builtins/grep.py | ❌ F | 15.7 | 32 | 436 | 52 | 0.0 |
+| 3 | tools/builtins/python_ast.py | ❌ F | 15.7 | 52 | 335 | 52 | 11.0 |
+| 4 | tools/builtins/test_gen.py | ❌ F | 15.8 | 31 | 327 | 53 | 16.0 |
+| 5 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
+| 6 | metrics/collector.py | ❌ F | 15.9 | 33 | 341 | 53 | 14.0 |
+| 7 | cli/commands/context.py | ❌ F | 16.4 | 47 | 468 | 48 | 0.0 |
+| 8 | tools/builtins/git_ops.py | ❌ F | 16.5 | 31 | 273 | 55 | 0.0 |
+| 9 | extensions/plugin_manager.py | ❌ F | 16.9 | 27 | 282 | 56 | 12.0 |
+| 10 | metrics/dashboard.py | ❌ F | 16.9 | 40 | 265 | 56 | 14.0 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 169 additional files omitted._
 
-### cli/textual_bridge.py — ❌ F (15.3/100)
+### cli/textual_bridge.py — ❌ F (15.6/100)
 
-LOC: 365 | Classes: 3 | Functions: 2 | MI: 51 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 320 | 🟠 HIGH | Duplicate Code | Function '_on_content' is an exact duplicate of '_on_thought' at cli/textual_bridge.py:324 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 328 | 🟠 HIGH | Duplicate Code | Function '_on_tool_req' is an exact duplicate of '_on_tool_res' at cli/textual_bridge.py:332 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 328 | 🟠 HIGH | Duplicate Code | Function '_on_tool_req' is an exact duplicate of '_on_tool_confirm' at cli/textual_bridge.py:336 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 332 | 🟠 HIGH | Duplicate Code | Function '_on_tool_res' is an exact duplicate of '_on_tool_confirm' at cli/textual_bridge.py:336 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 357 | 🟠 HIGH | Duplicate Code | Function '_on_turn_summary' is an exact duplicate of '_on_think_start' at cli/textual_bridge.py:406 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 357 | 🟠 HIGH | Duplicate Code | Function '_on_turn_summary' is an exact duplicate of '_on_think_done' at cli/textual_bridge.py:410 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 357 | 🟠 HIGH | Duplicate Code | Function '_on_turn_summary' is an exact duplicate of '_on_think_req' at cli/textual_bridge.py:414 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 406 | 🟠 HIGH | Duplicate Code | Function '_on_think_start' is an exact duplicate of '_on_think_done' at cli/textual_bridge.py:410 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 406 | 🟠 HIGH | Duplicate Code | Function '_on_think_start' is an exact duplicate of '_on_think_req' at cli/textual_bridge.py:414 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 410 | 🟠 HIGH | Duplicate Code | Function '_on_think_done' is an exact duplicate of '_on_think_req' at cli/textual_bridge.py:414 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 418 | 🟠 HIGH | Duplicate Code | Function '_on_deleg_dec' is an exact duplicate of '_on_reflection' at cli/textual_bridge.py:422 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 153 | 🟡 MEDIUM | Duplicate Code | Function 'post_prefixed_message' is 100% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 153 | 🟡 MEDIUM | Duplicate Code | Function 'post_prefixed_message' is 100% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 153 | 🟡 MEDIUM | Duplicate Code | Function 'post_prefixed_message' is 100% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 153 | 🟡 MEDIUM | Duplicate Code | Function 'post_prefixed_message' is 100% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
-
-_... and 69 more smells._
-
-### cli/repl.py — ❌ F (15.6/100)
-
-LOC: 341 | Classes: 2 | Functions: 0 | MI: 52 | Avg CC: 16.0
+LOC: 376 | Classes: 3 | Functions: 2 | MI: 52 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 78 | 🟠 HIGH | Long Method | Function '__init__' has 105 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 78 | 🟡 MEDIUM | Complex Function | Function '__init__' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 203 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 94% similar to '_on_content' at cli/textual_bridge.py:320 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 203 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 94% similar to '_on_thought' at cli/textual_bridge.py:324 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 203 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 94% similar to '_on_tool_req' at cli/textual_bridge.py:328 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 203 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 94% similar to '_on_tool_res' at cli/textual_bridge.py:332 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 203 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 94% similar to '_on_tool_confirm' at cli/textual_bridge.py:336 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 211 | 🟡 MEDIUM | Duplicate Code | Function '_handle_confirmation' is 100% similar to 'confirm_tool_execution' at cli/ui_renderer.py:345 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 352 | 🟡 MEDIUM | Long Method | Function '_run_agent_with_monitor' has 52 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 352 | 🟡 MEDIUM | Feature Envy | Method 'Repl._run_agent_with_monitor' accesses 'asyncio' 8 times but 'self' only 7 times | Move Method — consider moving '_run_agent_with_monitor' to the class that owns 'asyncio'. |
-| 420 | 🟡 MEDIUM | Feature Envy | Method 'Repl._handle_agent_event' accesses 'event' 5 times but 'self' only 1 times | Move Method — consider moving '_handle_agent_event' to the class that owns 'event'. |
-| 60 | 🟢 LOW | Magic Number | Magic number 25 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 61 | 🟢 LOW | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 66 | 🟢 LOW | Large Class | Class 'Repl' spans 378 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 78 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/7 params untyped | Add Type Annotations for all parameters and return type. |
+| 161 | 🟡 MEDIUM | Duplicate Code | Function 'post_prefixed_message' is 100% similar to 'post_tool_message' at cli/textual_bridge.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 161 | 🟡 MEDIUM | Duplicate Code | Function 'post_prefixed_message' is 100% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 161 | 🟡 MEDIUM | Duplicate Code | Function 'post_prefixed_message' is 100% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 161 | 🟡 MEDIUM | Duplicate Code | Function 'post_prefixed_message' is 100% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 161 | 🟡 MEDIUM | Duplicate Code | Function 'post_prefixed_message' is 100% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 170 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to '_add_message_with_prefix' at cli/textual_widgets.py:915 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 170 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to 'add_user_message' at cli/textual_widgets.py:924 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 170 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to 'add_system_message' at cli/textual_widgets.py:932 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 170 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to 'add_error_message' at cli/textual_widgets.py:940 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 179 | 🟡 MEDIUM | Duplicate Code | Function 'post_status_message' is 94% similar to '_on_finished' at cli/textual_bridge.py:390 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 328 | 🟡 MEDIUM | Duplicate Code | Function '_create_data_message_handler' is 100% similar to '_create_tool_message_handler' at cli/textual_bridge.py:341 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 328 | 🟡 MEDIUM | Duplicate Code | Function '_create_data_message_handler' is 93% similar to '_create_status_message_handler' at cli/textual_bridge.py:354 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 328 | 🟡 MEDIUM | Duplicate Code | Function '_create_data_message_handler' is 93% similar to '_create_prefixed_message_handler' at cli/textual_bridge.py:367 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 341 | 🟡 MEDIUM | Duplicate Code | Function '_create_tool_message_handler' is 93% similar to '_create_status_message_handler' at cli/textual_bridge.py:354 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 341 | 🟡 MEDIUM | Duplicate Code | Function '_create_tool_message_handler' is 93% similar to '_create_prefixed_message_handler' at cli/textual_bridge.py:367 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-_... and 17 more smells._
+_... and 36 more smells._
 
 ### tools/builtins/grep.py — ❌ F (15.7/100)
 
@@ -601,6 +577,30 @@ LOC: 766 | Classes: 9 | Functions: 7 | MI: 29 | Avg CC: 11.0
 | 356 | 🟢 LOW | Missing Type Hint | Function 'handle_edge_cases' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 23 more smells._
+
+### tools/builtins/dead_code.py — ❌ F (21.7/100)
+
+LOC: 475 | Classes: 6 | Functions: 0 | MI: 44 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 53 | 🟡 MEDIUM | Feature Envy | Method 'ASTAnalyzer.is_import_context' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving 'is_import_context' to the class that owns 'ast'. |
+| 73 | 🟡 MEDIUM | Feature Envy | Method 'ASTAnalyzer.collect_top_level_definitions' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving 'collect_top_level_definitions' to the class that owns 'ast'. |
+| 73 | 🟡 MEDIUM | Feature Envy | Method 'ASTAnalyzer.collect_top_level_definitions' accesses 'node' 6 times but 'self' only 0 times | Move Method — consider moving 'collect_top_level_definitions' to the class that owns 'node'. |
+| 92 | 🟡 MEDIUM | Feature Envy | Method 'ASTAnalyzer.find_all_assignment' accesses 'ast' 6 times but 'self' only 0 times | Move Method — consider moving 'find_all_assignment' to the class that owns 'ast'. |
+| 438 | 🟡 MEDIUM | Duplicate Code | Function '_format_import_findings' is 100% similar to '_format_definition_findings' at tools/builtins/dead_code.py:452 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 540 | 🟡 MEDIUM | Duplicate Code | Function '_identify_unused_items' is 93% similar to '_identify_unused_definitions' at tools/builtins/dead_code.py:562 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 92 | 🟢 LOW | Feature Envy | Method 'ASTAnalyzer.find_all_assignment' accesses 'node' 3 times but 'self' only 0 times | Move Method — consider moving 'find_all_assignment' to the class that owns 'node'. |
+| 119 | 🟢 LOW | Feature Envy | Method 'ImportAnalyzer.collect_imported_names' accesses 'ast' 4 times but 'self' only 0 times | Move Method — consider moving 'collect_imported_names' to the class that owns 'ast'. |
+| 149 | 🟢 LOW | Feature Envy | Method 'ImportAnalyzer._collect_import_from_names' accesses 'alias' 3 times but 'self' only 0 times | Move Method — consider moving '_collect_import_from_names' to the class that owns 'alias'. |
+| 163 | 🟢 LOW | Feature Envy | Method 'ImportAnalyzer.collect_used_names' accesses 'ast' 4 times but 'self' only 0 times | Move Method — consider moving 'collect_used_names' to the class that owns 'ast'. |
+| 178 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'collect_used_names' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 183 | 🟢 LOW | Feature Envy | Method 'ImportAnalyzer._extract_attribute_root_name' accesses 'ast' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_attribute_root_name' to the class that owns 'ast'. |
+| 202 | 🟢 LOW | Feature Envy | Method 'DefinitionAnalyzer.collect_all_references' accesses 'ast' 4 times but 'self' only 0 times | Move Method — consider moving 'collect_all_references' to the class that owns 'ast'. |
+| 236 | 🟢 LOW | Feature Envy | Method 'DefinitionAnalyzer._extract_names_from_all' accesses 'ast' 4 times but 'self' only 0 times | Move Method — consider moving '_extract_names_from_all' to the class that owns 'ast'. |
+| 255 | 🟢 LOW | Large Class | Class 'DeadCodeTool' spans 328 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+
+_... and 20 more smells._
 
 ## ✨ Clean Files (59 files with no smells)
 

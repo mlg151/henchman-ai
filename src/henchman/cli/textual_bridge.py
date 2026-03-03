@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import io
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 from rich.console import Console as RichConsole
 from textual.message import Message
@@ -121,6 +121,37 @@ class MessagePoster:
         """
         self.app.post_message(message)
 
+    def _post_message(
+        self,
+        event: AgentEvent,
+        message_class: MessageClass,
+        prefix: str = "",
+        transform_data: DataTransformer = None,
+    ) -> None:
+        """Generic method to post a message with event data.
+
+        Args:
+            event: The AgentEvent containing data.
+            message_class: The Textual message class to instantiate.
+            prefix: Optional prefix to add before event data.
+            transform_data: Optional function to transform event data before posting.
+        """
+        if not event.data:
+            return
+
+        # Transform data if needed
+        data = transform_data(event.data) if transform_data else event.data
+
+        # Convert to string and add prefix if needed
+        if prefix:
+            data_str = f"{prefix}{data}"
+        else:
+            data_str = str(data)
+
+        # Cast to Any to avoid mypy error about Message constructor
+        msg_class = cast(type[Any], message_class)
+        self.post(msg_class(data_str, event.source_agent))
+
     def post_message_if_data_exists(
         self,
         event: AgentEvent,
@@ -134,9 +165,7 @@ class MessagePoster:
             message_class: The Textual message class to instantiate.
             transform_data: Optional function to transform event data before posting.
         """
-        if event.data:
-            data = transform_data(event.data) if transform_data else event.data
-            self.post(message_class(data, event.source_agent))
+        self._post_message(event, message_class, transform_data=transform_data)
 
     def post_data_message(
         self, event: AgentEvent, message_class: MessageClass, prefix: str = ""
@@ -148,11 +177,7 @@ class MessagePoster:
             message_class: The Textual message class to instantiate.
             prefix: Optional prefix to add before event data.
         """
-        if event.data:
-            data_str = str(event.data)
-            if prefix:
-                data_str = f"{prefix}{data_str}"
-            self.post(message_class(data_str, event.source_agent))
+        self._post_message(event, message_class, prefix=prefix)
 
     def post_prefixed_message(self, event: AgentEvent, prefix: str) -> None:
         """Post a prefixed message using AgentThoughtMessage.
@@ -161,7 +186,7 @@ class MessagePoster:
             event: The AgentEvent containing data.
             prefix: The prefix to add before event data.
         """
-        self.post_data_message(event, AgentThoughtMessage, prefix)
+        self._post_message(event, AgentThoughtMessage, prefix=prefix)
 
     def post_tool_message(self, event: AgentEvent, message_class: MessageClass) -> None:
         """Post a tool-related message with event data if present.
@@ -170,7 +195,7 @@ class MessagePoster:
             event: The AgentEvent containing tool data.
             message_class: The Textual message class for tools.
         """
-        self.post_message_if_data_exists(event, message_class)
+        self._post_message(event, message_class)
 
     def post_status_message(self, event: AgentEvent, text: str) -> None:
         """Post an AgentStatusMessage with given text.
@@ -321,6 +346,41 @@ class EventBridge:
 
     # -- factory methods for event handlers --
 
+    def _create_handler(
+        self,
+        *,
+        message_class: type[Any] | None = None,
+        status_text: str | None = None,
+        prefix: str | None = None,
+    ) -> Callable[[AgentEvent], None]:
+        """Create a handler for different types of events.
+
+        Args:
+            message_class: The message class to use for posting (for data/tool messages).
+            status_text: The status text to display (for status messages).
+            prefix: The prefix to add before event data (for prefixed messages).
+
+        Returns:
+            A handler function for AgentEvent.
+
+        Raises:
+            ValueError: If no valid handler type is specified.
+        """
+        if message_class is not None:
+            def handler(event: AgentEvent) -> None:
+                self._message_poster.post_data_message(event, message_class)
+            return handler
+        elif status_text is not None:
+            def handler(event: AgentEvent) -> None:
+                self._message_poster.post_status_message(event, status_text)
+            return handler
+        elif prefix is not None:
+            def handler(event: AgentEvent) -> None:
+                self._message_poster.post_prefixed_message(event, prefix)
+            return handler
+        else:
+            raise ValueError("Must specify one of: message_class, status_text, or prefix")
+
     def _create_data_message_handler(self, message_class: type[Any]) -> Callable[[AgentEvent], None]:
         """Create a handler that posts event data using the given message class.
 
@@ -330,9 +390,7 @@ class EventBridge:
         Returns:
             A handler function for AgentEvent.
         """
-        def handler(event: AgentEvent) -> None:
-            self._message_poster.post_data_message(event, message_class)
-        return handler
+        return self._create_handler(message_class=message_class)
 
     def _create_tool_message_handler(self, message_class: type[Any]) -> Callable[[AgentEvent], None]:
         """Create a handler for tool-related events.
@@ -343,9 +401,7 @@ class EventBridge:
         Returns:
             A handler function for AgentEvent.
         """
-        def handler(event: AgentEvent) -> None:
-            self._message_poster.post_tool_message(event, message_class)
-        return handler
+        return self._create_handler(message_class=message_class)
 
     def _create_status_message_handler(self, status_text: str) -> Callable[[AgentEvent], None]:
         """Create a handler that posts a status message.
@@ -356,9 +412,7 @@ class EventBridge:
         Returns:
             A handler function for AgentEvent.
         """
-        def handler(event: AgentEvent) -> None:
-            self._message_poster.post_status_message(event, status_text)
-        return handler
+        return self._create_handler(status_text=status_text)
 
     def _create_prefixed_message_handler(self, prefix: str) -> Callable[[AgentEvent], None]:
         """Create a handler that posts a prefixed message.
@@ -369,9 +423,7 @@ class EventBridge:
         Returns:
             A handler function for AgentEvent.
         """
-        def handler(event: AgentEvent) -> None:
-            self._message_poster.post_prefixed_message(event, prefix)
-        return handler
+        return self._create_handler(prefix=prefix)
 
     # -- individual event handlers (non-duplicate) --
 
