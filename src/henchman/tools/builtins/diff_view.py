@@ -136,18 +136,20 @@ class DiffViewTool(Tool):
             Command as list of strings.
         """
         cmd = ["git", "--no-pager", "diff"]
+        cmd_append = cmd.append
+        cmd_extend = cmd.extend
         if staged and not compare:
-            cmd.append("--cached")
+            cmd_append("--cached")
         if stat:
-            cmd.append("--stat")
+            cmd_append("--stat")
         if name_only:
-            cmd.append("--name-only")
+            cmd_append("--name-only")
         if context_lines is not None:
-            cmd.append(f"-U{context_lines}")
+            cmd_append(f"-U{context_lines}")
         if compare:
-            cmd.append(compare)
+            cmd_append(compare)
         if path:
-            cmd.extend(["--", path])
+            cmd_extend(["--", path])
         return cmd
 
     async def _run_git(
@@ -164,11 +166,13 @@ class DiffViewTool(Tool):
         Returns:
             ToolResult with command output.
         """
+        create_subprocess_exec = asyncio.create_subprocess_exec
+        PIPE = asyncio.subprocess.PIPE
         try:
-            process = await asyncio.create_subprocess_exec(
+            process = await create_subprocess_exec(
                 *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stdout=PIPE,
+                stderr=PIPE,
                 cwd=cwd,
             )
             stdout, stderr = await asyncio.wait_for(

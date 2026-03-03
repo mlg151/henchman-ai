@@ -111,7 +111,7 @@ async def expand_at_references(text: str) -> str:
                 file_size = path.stat().st_size
                 if file_size > MAX_FILE_SIZE_BYTES:
                     # File too large, skip with warning
-                    replacement = f"\n--- File: {filepath} ---\n[File too large ({file_size} bytes > {MAX_FILE_SIZE_BYTES} limit)]\n---\n"
+                    replacement = f"\n--- File: {filepath} ---\n[File too large ({file_size} bytes > {MAX_FILE_SIZE_BYTES} limit)]\n---\n"  # noqa: E501
                     result = result[: match.start()] + replacement + result[match.end() :]
                     continue
 

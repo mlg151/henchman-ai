@@ -12,9 +12,12 @@ from typing import Any
 
 from henchman.core.events import AgentEvent, EventType
 from henchman.metrics.models import (
+    CostData,
     CostMetric,
+    PerformanceEventData,
     PerformanceMetric,
     TokenMetric,
+    TokenUsageData,
     ToolMetric,
     UsageMetric,
 )
@@ -142,24 +145,12 @@ class MetricsCollector:
 
     def record_token_usage(
         self,
-        model: str,
-        provider: str,
-        prompt_tokens: int,
-        completion_tokens: int,
-        cached_tokens: int | None = None,
-        token_limit: int | None = None,
-        agent_id: str | None = None,
+        usage: TokenUsageData,
     ) -> TokenMetric | None:
         """Record token usage for a model call.
 
         Args:
-            model: Model name.
-            provider: Provider name.
-            prompt_tokens: Number of prompt tokens.
-            completion_tokens: Number of completion tokens.
-            cached_tokens: Optional number of cached tokens.
-            token_limit: Optional model token limit.
-            agent_id: Optional agent identifier.
+            usage: Token usage data including model, provider, and token counts.
 
         Returns:
             TokenMetric if sampled, None otherwise.
@@ -167,20 +158,20 @@ class MetricsCollector:
         if not self.should_sample():
             return None
 
-        total_tokens = prompt_tokens + completion_tokens
-        token_ratio = total_tokens / token_limit if token_limit else None
+        total_tokens = usage.prompt_tokens + usage.completion_tokens
+        token_ratio = total_tokens / usage.token_limit if usage.token_limit else None
 
         metric = TokenMetric(
             session_id=self.session_id,
             user_id=self.user_id_hash,
-            agent_id=agent_id,
-            model=model,
-            provider=provider,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
+            agent_id=usage.agent_id,
+            model=usage.model,
+            provider=usage.provider,
+            prompt_tokens=usage.prompt_tokens,
+            completion_tokens=usage.completion_tokens,
             total_tokens=total_tokens,
-            cached_tokens=cached_tokens,
-            token_limit=token_limit,
+            cached_tokens=usage.cached_tokens,
+            token_limit=usage.token_limit,
             token_ratio=token_ratio,
         )
 
@@ -188,33 +179,19 @@ class MetricsCollector:
             self.storage.store_metric(metric)
 
         # Update accumulators for cost calculation
-        key = f"{provider}:{model}"
+        key = f"{usage.provider}:{usage.model}"
         self._token_counts[key] += total_tokens
 
         return metric
 
     def record_cost(
         self,
-        model: str,
-        provider: str,
-        prompt_cost: float,
-        completion_cost: float,
-        currency: str = "USD",
-        cost_per_token: float | None = None,
-        estimated_cost: float | None = None,
-        agent_id: str | None = None,
+        cost: CostData,
     ) -> CostMetric | None:
         """Record cost for a model call.
 
         Args:
-            model: Model name.
-            provider: Provider name.
-            prompt_cost: Cost for prompt tokens.
-            completion_cost: Cost for completion tokens.
-            currency: Currency code.
-            cost_per_token: Optional cost per token.
-            estimated_cost: Optional estimated cost.
-            agent_id: Optional agent identifier.
+            cost: Cost data including model, provider, and cost breakdown.
 
         Returns:
             CostMetric if sampled, None otherwise.
@@ -222,27 +199,27 @@ class MetricsCollector:
         if not self.should_sample():
             return None
 
-        total_cost = prompt_cost + completion_cost
+        total_cost = cost.prompt_cost + cost.completion_cost
 
         metric = CostMetric(
             session_id=self.session_id,
             user_id=self.user_id_hash,
-            agent_id=agent_id,
-            model=model,
-            provider=provider,
-            prompt_cost=prompt_cost,
-            completion_cost=completion_cost,
+            agent_id=cost.agent_id,
+            model=cost.model,
+            provider=cost.provider,
+            prompt_cost=cost.prompt_cost,
+            completion_cost=cost.completion_cost,
             total_cost=total_cost,
-            currency=currency,
-            cost_per_token=cost_per_token,
-            estimated_cost=estimated_cost,
+            currency=cost.currency,
+            cost_per_token=cost.cost_per_token,
+            estimated_cost=cost.estimated_cost,
         )
 
         if self.storage:
             self.storage.store_metric(metric)
 
         # Update cost accumulator
-        key = f"{provider}:{model}"
+        key = f"{cost.provider}:{cost.model}"
         self._cost_accumulator[key] += total_cost
 
         return metric
@@ -314,22 +291,12 @@ class MetricsCollector:
 
     def record_performance_event(
         self,
-        event_type: str,
-        latency_ms: float,
-        memory_usage_mb: float | None = None,
-        cpu_usage_percent: float | None = None,
-        concurrent_operations: int = 1,
-        queue_depth: int | None = None,
+        event: PerformanceEventData,
     ) -> PerformanceMetric | None:
         """Record a system performance event.
 
         Args:
-            event_type: Type of performance event.
-            latency_ms: Latency in milliseconds.
-            memory_usage_mb: Optional memory usage in MB.
-            cpu_usage_percent: Optional CPU usage percentage.
-            concurrent_operations: Number of concurrent operations.
-            queue_depth: Optional queue depth.
+            event: Performance event data including type, latency, and resource usage.
 
         Returns:
             PerformanceMetric if sampled, None otherwise.
@@ -340,12 +307,12 @@ class MetricsCollector:
         metric = PerformanceMetric(
             session_id=self.session_id,
             user_id=self.user_id_hash,
-            event_type=event_type,
-            latency_ms=latency_ms,
-            memory_usage_mb=memory_usage_mb,
-            cpu_usage_percent=cpu_usage_percent,
-            concurrent_operations=concurrent_operations,
-            queue_depth=queue_depth,
+            event_type=event.event_type,
+            latency_ms=event.latency_ms,
+            memory_usage_mb=event.memory_usage_mb,
+            cpu_usage_percent=event.cpu_usage_percent,
+            concurrent_operations=event.concurrent_operations,
+            queue_depth=event.queue_depth,
         )
 
         if self.storage:
@@ -368,6 +335,49 @@ class MetricsCollector:
             "context_compactions": self._context_compactions,
         }
 
+    def _handle_tool_call_request(self, event: AgentEvent) -> None:
+        """Start timing for each tool call in the request.
+
+        Args:
+            event: TOOL_CALL_REQUEST agent event.
+        """
+        if not (event.data and isinstance(event.data, list)):
+            return
+        for tool_call in event.data:
+            if isinstance(tool_call, ToolCall):
+                self._tool_timers[tool_call.id] = time.time()
+
+    def _handle_tool_call_result(self, event: AgentEvent) -> None:
+        """Record tool execution latency when a result arrives.
+
+        Args:
+            event: TOOL_CALL_RESULT agent event.
+        """
+        if not (event.data and "tool_call_id" in event.data):
+            return
+        tool_call_id = event.data["tool_call_id"]
+        if tool_call_id not in self._tool_timers:
+            return
+        latency_ms = (time.time() - self._tool_timers[tool_call_id]) * 1000
+        self.record_performance_event(
+                PerformanceEventData(
+                    event_type="tool_execution",
+                    latency_ms=latency_ms,
+                ),
+            )
+        del self._tool_timers[tool_call_id]
+
+    def _handle_content_thought_event(self, event: AgentEvent) -> None:
+        """Record a content or thought event as a performance observation.
+
+        Args:
+            event: CONTENT or THOUGHT agent event.
+        """
+        self.record_performance_event(
+            event_type=event.type.name.lower(),
+            latency_ms=0.0,  # Would need actual timing
+        )
+
     async def process_agent_event(self, event: AgentEvent) -> None:
         """Process an agent event for metrics collection.
 
@@ -377,28 +387,13 @@ class MetricsCollector:
         if not self.enabled:
             return
 
-        # Record performance for various event types
-        if event.type in [EventType.CONTENT, EventType.THOUGHT]:
-            self.record_performance_event(
-                event_type=event.type.name.lower(),
-                latency_ms=0.0,  # Would need actual timing
-            )
-        elif event.type == EventType.TOOL_CALL_REQUEST:
-            if event.data and isinstance(event.data, list):
-                for tool_call in event.data:
-                    if isinstance(tool_call, ToolCall):
-                        self._tool_timers[tool_call.id] = time.time()
-        elif event.type == EventType.TOOL_CALL_RESULT:
-            if event.data and "tool_call_id" in event.data:
-                tool_call_id = event.data["tool_call_id"]
-                if tool_call_id in self._tool_timers:
-                    latency_ms = (time.time() - self._tool_timers[tool_call_id]) * 1000
-                    self.record_performance_event(
-                        event_type="tool_execution",
-                        latency_ms=latency_ms,
-                    )
-                    del self._tool_timers[tool_call_id]
-        elif event.type == EventType.CONTEXT_COMPACTED:
-            self.record_context_compaction()
-        elif event.type == EventType.AGENT_DELEGATED:
-            self.record_agent_switch()
+        _handlers = {
+            EventType.TOOL_CALL_REQUEST: self._handle_tool_call_request,
+            EventType.TOOL_CALL_RESULT: self._handle_tool_call_result,
+            EventType.CONTEXT_COMPACTED: lambda _e: self.record_context_compaction(),
+            EventType.AGENT_DELEGATED: lambda _e: self.record_agent_switch(),
+        }
+        if event.type in (EventType.CONTENT, EventType.THOUGHT):
+            self._handle_content_thought_event(event)
+        elif event.type in _handlers:
+            _handlers[event.type](event)

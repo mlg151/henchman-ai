@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Protocol
 
 from henchman.core.events import AgentEvent, EventType
@@ -157,7 +157,7 @@ class DelegationRunner:
         """
         yield AgentEvent(
             type=EventType.ERROR,
-            data=f"Error: Maximum delegation depth ({self.settings.agents.max_delegation_depth}) exceeded.",
+            data=f"Error: Maximum delegation depth ({self.settings.agents.max_delegation_depth}) exceeded.",  # noqa: E501
             source_agent="orchestrator",
         )
         yield AgentEvent(
@@ -212,6 +212,9 @@ class DelegationRunner:
         """
         assert params.target_agent is not None
         target_agent = params.target_agent
+        params_target_role = params.target_role
+        params_brief = params.brief
+        params_task = params.task
 
         # Clean start: wipe prior conversation so the specialist has no
         # stale context from earlier delegations. The system prompt is
@@ -219,11 +222,11 @@ class DelegationRunner:
         target_agent.clear_history()
 
         # Prepare context for delegation
-        prepared_brief = self._prepare_delegation_context(params.target_role, params.brief)
+        prepared_brief = self._prepare_delegation_context(params_target_role, params_brief)
 
         # Assemble the full task from the structured brief fields
         params.full_task = self._assemble_delegation_input(
-            params.task, prepared_brief, mission=self.ledger.goal if self.ledger else None,
+            params_task, prepared_brief, mission=self.ledger.goal if self.ledger else None,
         )
 
         # Record where the agent's messages start so we can extract a clean
@@ -270,26 +273,27 @@ class DelegationRunner:
             AGENT_COMPLETED event with results.
         """
         assert params.target_agent is not None
+        params_target_role = params.target_role
         # Process delegation results
         summary, parsed, status = self._process_delegation_results(
-            params.target_role, params.target_agent, params.msg_start,
+            params_target_role, params.target_agent, params.msg_start,
         )
 
         # Update shared context (still tracked for Tech Lead's use, just not
         # injected into specialist prompts)
         self.shared_context.append(
             {
-                "agent": params.target_role,
+                "agent": params_target_role,
                 "summary": summary[:MAX_CONTENT_LENGTH],
                 "files_modified": parsed.get("files_modified", ""),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             },
         )
 
         yield AgentEvent(
             type=EventType.AGENT_COMPLETED,
             data={
-                "agent": params.target_role,
+                "agent": params_target_role,
                 "summary": summary,
                 "status": status.value,
                 **parsed,
@@ -319,9 +323,10 @@ class DelegationRunner:
         # entries into the brief's background field so the specialist
         # knows what prior agents accomplished.
         if self.shared_context:
-            handoff_lines = []
-            for entry in self.shared_context[-RECENT_CONTEXT_ENTRIES:]:
-                handoff_lines.append(f"- **{entry['agent']}**: {entry['summary'][:MAX_SUMMARY_LENGTH]}")
+            handoff_lines = [
+                f"- **{entry['agent']}**: {entry['summary'][:MAX_SUMMARY_LENGTH]}"
+                for entry in self.shared_context[-RECENT_CONTEXT_ENTRIES:]
+            ]
             handoff_notes = "### Prior agent work\n" + "\n".join(handoff_lines)
             existing_bg = brief.get("background") or ""
             brief["background"] = (
@@ -415,47 +420,49 @@ class DelegationRunner:
             A formatted string ready to be passed as user input to the specialist.
         """
         sections: list[str] = []
+        sections_append = sections.append
 
         # Mission header gives the specialist project-level context (#6)
         if mission:
-            sections.append(f"## Mission\n{mission}")
+            sections_append(f"## Mission\n{mission}")
 
-        sections.append(f"## Task\n{task}")
+        sections_append(f"## Task\n{task}")
 
         if not brief:
             return "\n\n".join(sections)
 
-        if brief.get("done_when"):
-            sections.append(
-                f"## Done When\n{brief['done_when']}\n"
+        brief_get = brief.get
+        if brief_get("done_when"):
+            sections_append(
+                f"## Done When\n{brief_get('done_when')}\n"
                 f"_(Stop working once these conditions are met.)_",
             )
 
-        if brief.get("requirements"):
-            sections.append(f"## Requirements\n{brief['requirements']}")
+        if brief_get("requirements"):
+            sections_append(f"## Requirements\n{brief_get('requirements')}")
 
-        files = brief.get("files")
+        files = brief_get("files")
         if files:
             file_list = "\n".join(f"- `{f}`" for f in files)
-            sections.append(f"## Relevant Files\n{file_list}")
+            sections_append(f"## Relevant Files\n{file_list}")
 
         # Dependency chain awareness (#10)
-        depends_on = brief.get("depends_on")
+        depends_on = brief_get("depends_on")
         if depends_on:
             if isinstance(depends_on, str):
                 depends_on = [depends_on]
             dep_list = "\n".join(f"- {d}" for d in depends_on)
-            sections.append(
+            sections_append(
                 f"## Depends On\n{dep_list}\n"
                 f"_(These tasks were completed earlier; "
                 f"build on their outputs.)_",
             )
 
-        if brief.get("background"):
-            sections.append(f"## Background\n{brief['background']}")
+        if brief_get("background"):
+            sections_append(f"## Background\n{brief_get('background')}")
 
-        if brief.get("context"):
-            sections.append(f"## Additional Context\n{brief['context']}")
+        if brief_get("context"):
+            sections_append(f"## Additional Context\n{brief_get('context')}")
 
         return "\n\n".join(sections)
 

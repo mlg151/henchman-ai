@@ -121,6 +121,58 @@ class McpManager:
         return await self.clients[server_name].call_tool(tool_name, arguments)
 
     @staticmethod
+    def _build_logging_env(
+        name: str,
+        server_config: object,
+        base_env: dict[str, str],
+    ) -> dict[str, str]:
+        """Build environment dict with logging suppression for a server.
+
+        Args:
+            name: Server name, used to detect Serena.
+            server_config: Server configuration with command and args attributes.
+            base_env: Starting environment variables from config.
+
+        Returns:
+            Updated environment dict with logging suppression applied.
+        """
+        env = dict(base_env)
+        command: str = getattr(server_config, "command", "")
+        args: list[str] = getattr(server_config, "args", [])
+
+        is_python = (
+            "python" in command.lower()
+            or "uvx" in command.lower()
+            or any(".py" in arg.lower() for arg in args)
+        )
+        is_node = (
+            "node" in command.lower()
+            or "npx" in command.lower()
+            or "npm" in command.lower()
+        )
+        is_serena = "serena" in name.lower() or any("serena" in arg.lower() for arg in args)
+
+        if is_serena:
+            env.update({
+                "SERENA_LOG_LEVEL": "WARNING",
+                "PYTHONWARNINGS": "ignore",
+                "LOGLEVEL": "WARNING",
+                "PYTHON_LOG_LEVEL": "WARNING",
+            })
+        elif is_python:
+            env.update({
+                "PYTHONWARNINGS": "ignore",
+                "LOGLEVEL": "WARNING",
+                "PYTHON_LOG_LEVEL": "WARNING",
+            })
+        elif is_node:
+            env["NODE_ENV"] = "production"
+
+        env["NO_COLOR"] = "1"
+        env["TERM"] = "dumb"
+        return env
+
+    @staticmethod
     def create_from_settings(
         settings: Settings | None, mcp_logging_enabled: bool = False,
     ) -> McpManager | None:
@@ -140,44 +192,10 @@ class McpManager:
 
         mcp_configs: dict[str, McpServerConfig] = {}
         for name, server_config in settings.mcp_servers.items():
-            # Start with the environment from config
             env = dict(server_config.env)
 
-            # Suppress server logs if mcp_logging is disabled
             if not mcp_logging_enabled:
-                # Apply logging suppression for known server types
-                is_python = (
-                    "python" in server_config.command.lower()
-                    or "uvx" in server_config.command.lower()
-                    or any(".py" in arg.lower() for arg in server_config.args)
-                )
-
-                is_node = (
-                    "node" in server_config.command.lower()
-                    or "npx" in server_config.command.lower()
-                    or "npm" in server_config.command.lower()
-                )
-
-                is_serena = "serena" in name.lower() or any(
-                    "serena" in arg.lower() for arg in server_config.args
-                )
-
-                # Apply environment variables based on server type
-                if is_serena:
-                    env["SERENA_LOG_LEVEL"] = "WARNING"
-                    env["PYTHONWARNINGS"] = "ignore"
-                    env["LOGLEVEL"] = "WARNING"
-                    env["PYTHON_LOG_LEVEL"] = "WARNING"
-                elif is_python:
-                    env["PYTHONWARNINGS"] = "ignore"
-                    env["LOGLEVEL"] = "WARNING"
-                    env["PYTHON_LOG_LEVEL"] = "WARNING"
-                elif is_node:
-                    env["NODE_ENV"] = "production"
-
-                # Common logging suppression
-                env["NO_COLOR"] = "1"
-                env["TERM"] = "dumb"
+                env = McpManager._build_logging_env(name, server_config, env)
 
             mcp_configs[name] = McpServerConfig(
                 command=server_config.command,

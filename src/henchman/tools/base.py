@@ -1,5 +1,6 @@
 """Tool base classes and types for Henchman-AI."""
 
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -83,24 +84,24 @@ class Tool(ABC):
 
     @property
     @abstractmethod
-    def name(self) -> str:
+    def name(self: Tool) -> str:
         """Unique identifier for the tool."""
         ...  # pragma: no cover
 
     @property
     @abstractmethod
-    def description(self) -> str:
+    def description(self: Tool) -> str:
         """Human-readable description of what the tool does."""
         ...  # pragma: no cover
 
     @property
     @abstractmethod
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: Tool) -> dict[str, object]:
         """JSON Schema describing the tool's parameters."""
         ...  # pragma: no cover
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: Tool) -> ToolKind:
         """The kind of tool, used for confirmation policies.
 
         Override this in subclasses to specify the tool's risk level.
@@ -108,7 +109,7 @@ class Tool(ABC):
         """
         return ToolKind.READ
 
-    def needs_confirmation(self, params: dict[str, object]) -> ConfirmationRequest | None:
+    def needs_confirmation(self: Tool, params: dict[str, object]) -> ConfirmationRequest | None:
         """Check if this tool needs user confirmation.
 
         Args:
@@ -128,7 +129,7 @@ class Tool(ABC):
             )
         return None
 
-    def to_declaration(self) -> ToolDeclaration:
+    def to_declaration(self: Tool) -> ToolDeclaration:
         """Convert this tool to a ToolDeclaration for the LLM.
 
         Returns:
@@ -141,7 +142,7 @@ class Tool(ABC):
         )
 
     @abstractmethod
-    async def execute(self, **params: object) -> ToolResult:
+    async def execute(self: Tool, **params: object) -> ToolResult:
         """Execute the tool with the given parameters.
 
         Args:

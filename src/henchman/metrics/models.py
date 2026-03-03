@@ -101,3 +101,51 @@ class PerformanceMetric(BaseMetric):
     cpu_usage_percent: float | None = None
     concurrent_operations: int = 1
     queue_depth: int | None = None
+
+
+@dataclass
+class TokenUsageData:
+    """Input parameters for recording token usage.
+
+    Groups related token usage primitives to avoid Primitive Obsession.
+    """
+
+    model: str
+    provider: str
+    prompt_tokens: int
+    completion_tokens: int
+    cached_tokens: int | None = None
+    token_limit: int | None = None
+    agent_id: str | None = None
+
+
+@dataclass
+class CostData:
+    """Input parameters for recording cost.
+
+    Groups related cost primitives to avoid Primitive Obsession.
+    """
+
+    model: str
+    provider: str
+    prompt_cost: float
+    completion_cost: float
+    currency: str = "USD"
+    cost_per_token: float | None = None
+    estimated_cost: float | None = None
+    agent_id: str | None = None
+
+
+@dataclass
+class PerformanceEventData:
+    """Input parameters for recording a performance event.
+
+    Groups related performance primitives to avoid Primitive Obsession.
+    """
+
+    event_type: str
+    latency_ms: float
+    memory_usage_mb: float | None = None
+    cpu_usage_percent: float | None = None
+    concurrent_operations: int = 1
+    queue_depth: int | None = None

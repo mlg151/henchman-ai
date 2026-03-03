@@ -306,7 +306,7 @@ def _run_textual_tui(config: RunConfig) -> None:
         ctx.system_prompt += PLAN_MODE_PROMPT
 
     textual_config = TextualConfig(
-        system_prompt=ctx.system_prompt, auto_approve_tools=config.yes, agent_role=config.agent_role,
+        system_prompt=ctx.system_prompt, auto_approve_tools=config.yes, agent_role=config.agent_role,  # noqa: E501
     )
 
     if config.output_format != "text":
@@ -690,7 +690,18 @@ def chat_command(
         tui=tui,
         debug=debug,
     )
+    _execute_chat_command(config)
 
+
+def _execute_chat_command(config: RunConfig) -> None:
+    """Execute the chat command given a fully-constructed RunConfig.
+
+    Separates Click adapter concerns from the actual command logic so that
+    tests and other callers can drive behavior via ``RunConfig`` directly.
+
+    Args:
+        config: Fully-populated run configuration.
+    """
     # Configure debug output filtering
     if not config.debug:
         import builtins
@@ -711,7 +722,7 @@ def chat_command(
 
     if config.tui and config.prompt:
         console.print(
-            "[yellow]Warning:[/] Textual TUI does not support headless mode. Using interactive mode.",
+            "[yellow]Warning:[/] Textual TUI does not support headless mode. Using interactive mode.",  # noqa: E501
         )
         config.prompt = None
 

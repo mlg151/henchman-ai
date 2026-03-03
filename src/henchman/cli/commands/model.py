@@ -104,7 +104,8 @@ class ModelCommand(Command):
         registry = get_default_registry()
         providers = registry.list_providers()
 
-        ctx.console.print("\n[bold blue]Available Providers[/]\n")
+        console = ctx.console
+        console.print("\n[bold blue]Available Providers[/]\n")
 
         for provider_name in sorted(providers):
             try:
@@ -113,23 +114,23 @@ class ModelCommand(Command):
                 # Get example configuration
                 example_config = self._get_example_config(provider_name)
 
-                ctx.console.print(f"  [cyan]{provider_name}[/]")
+                console.print(f"  [cyan]{provider_name}[/]")
                 if hasattr(provider_class, "__doc__") and provider_class.__doc__:
                     doc_lines = provider_class.__doc__.strip().split("\n")
                     first_line = doc_lines[0].strip()
-                    ctx.console.print(f"    [dim]{first_line}[/]")
+                    console.print(f"    [dim]{first_line}[/]")
 
                 if example_config:
-                    ctx.console.print(f"    [yellow]Config:[/] {example_config}")
+                    console.print(f"    [yellow]Config:[/] {example_config}")
 
                 # Show environment variables needed
                 env_vars = self._get_env_vars(provider_name)
                 if env_vars:
-                    ctx.console.print(f"    [yellow]Env vars:[/] {env_vars}")
+                    console.print(f"    [yellow]Env vars:[/] {env_vars}")
 
-                ctx.console.print("")
+                console.print("")
             except Exception as e:
-                ctx.console.print(f"  [red]{provider_name}[/] - Error: {e}")
+                console.print(f"  [red]{provider_name}[/] - Error: {e}")
 
     async def _set_provider(
         self, ctx: CommandContext, provider_name: str, model_name: str | None = None,
@@ -220,20 +221,21 @@ class ModelCommand(Command):
             provider_name: Name of the provider.
             model_name: Optional model name used.
         """
-        ctx.console.print(f"[dim]Testing {provider_name} connection...[/]")
+        console = ctx.console
+        console.print(f"[dim]Testing {provider_name} connection...[/]")
         try:
             # Simple test to verify provider works
             if hasattr(provider, "default_model"):
-                ctx.console.print(f"[green]✓ Connected to {provider_name}[/]")
+                console.print(f"[green]✓ Connected to {provider_name}[/]")
                 if model_name:
-                    ctx.console.print(f"[green]✓ Using model: {model_name}[/]")
+                    console.print(f"[green]✓ Using model: {model_name}[/]")
                 else:
-                    ctx.console.print(f"[green]✓ Using default model: {provider.default_model}[/]")
+                    console.print(f"[green]✓ Using default model: {provider.default_model}[/]")
             else:
-                ctx.console.print(f"[green]✓ Connected to {provider_name}[/]")
+                console.print(f"[green]✓ Connected to {provider_name}[/]")
         except Exception as e:
-            ctx.console.print(f"[yellow]⚠ Connection test failed: {e}[/]")
-            ctx.console.print("[yellow]Provider created but may not work correctly.[/]")
+            console.print(f"[yellow]⚠ Connection test failed: {e}[/]")
+            console.print("[yellow]Provider created but may not work correctly.[/]")
 
     def _update_agent_provider(self, ctx: CommandContext, new_provider: Any) -> bool:
         """Update agent with new provider.
@@ -246,7 +248,8 @@ class ModelCommand(Command):
             True if successful, False otherwise.
         """
         if ctx.agent is None:
-            ctx.console.print("[red]No agent available[/]")
+            console = ctx.console
+            console.print("[red]No agent available[/]")
             return False
 
         old_provider = ctx.agent.provider
@@ -256,7 +259,7 @@ class ModelCommand(Command):
         if ctx.repl is not None:
             ctx.repl.provider = new_provider
 
-        ctx.console.print(
+        console.print(
             f"\n[bold green]✓ Switched from {old_provider.name} to {new_provider.name}[/]",
         )
         return True
@@ -273,12 +276,13 @@ class ModelCommand(Command):
         """
         if not api_key:
             env_var = self._get_env_var_name(provider_name)
-            ctx.console.print(f"\n[yellow]⚠ No API key found for {provider_name}[/]")
-            ctx.console.print(f"  Set environment variable: [cyan]{env_var}=your-api-key[/]")
-            ctx.console.print("  Or configure in [cyan]~/.henchman/settings.yaml[/]:")
-            ctx.console.print("    providers:")
-            ctx.console.print(f"      {provider_name}:")
-            ctx.console.print("        api_key: your-api-key")
+            console = ctx.console
+            console.print(f"\n[yellow]⚠ No API key found for {provider_name}[/]")
+            console.print(f"  Set environment variable: [cyan]{env_var}=your-api-key[/]")
+            console.print("  Or configure in [cyan]~/.henchman/settings.yaml[/]:")
+            console.print("    providers:")
+            console.print(f"      {provider_name}:")
+            console.print("        api_key: your-api-key")
 
     def _get_example_config(self, provider_name: str) -> str:
         """Get example configuration for a provider.

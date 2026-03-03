@@ -1,5 +1,6 @@
 """Grep tool implementation."""
 
+from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,7 +51,7 @@ class ResultFormatter:
     MAX_OUTPUT_CHARS = 100_000
 
     def format_context_block(
-        self,
+        self: ResultFormatter,
         lines: list[str],
         match_indices: set[int],
         config: ContextConfig,
@@ -70,9 +71,13 @@ class ResultFormatter:
 
         # Build set of all lines to show (matches + context)
         visible: set[int] = set()
+        config_context_before = config.context_before
+        config_context_after = config.context_after
+        config_line_numbers = config.line_numbers
+        config_file_prefix = config.file_prefix
         for idx in match_indices:
-            start = max(0, idx - config.context_before)
-            end = min(len(lines), idx + config.context_after + 1)
+            start = max(0, idx - config_context_before)
+            end = min(len(lines), idx + config_context_after + 1)
             visible.update(range(start, end))
 
         result: list[str] = []
@@ -86,16 +91,16 @@ class ResultFormatter:
 
             line_num = idx + 1
             separator = ":" if idx in match_indices else "-"
-            if config.line_numbers:
-                result.append(f"{config.file_prefix}{line_num}{separator}{lines[idx]}")
+            if config_line_numbers:
+                result.append(f"{config_file_prefix}{line_num}{separator}{lines[idx]}")
             else:
-                result.append(f"{config.file_prefix}{lines[idx]}")
+                result.append(f"{config_file_prefix}{lines[idx]}")
             prev = idx
 
         return result
 
     def format_simple_matches(
-        self,
+        self: ResultFormatter,
         lines: list[str],
         match_indices: set[int],
         line_numbers: bool,
@@ -120,7 +125,7 @@ class ResultFormatter:
                 file_results.append(f"{file_prefix}{lines[i]}")
         return file_results
 
-    def should_truncate(self, results: list[str], total_chars: int) -> bool:
+    def should_truncate(self: ResultFormatter, results: list[str], total_chars: int) -> bool:
         """Check if output should be truncated.
 
         Args:
@@ -139,10 +144,10 @@ class ResultFormatter:
 class FileSearcher:
     """Handles file searching operations."""
 
-    def __init__(self, formatter: ResultFormatter):
+    def __init__(self: FileSearcher, formatter: ResultFormatter):
         self.formatter = formatter
 
-    def _collect_files(self, target: Path, glob_pattern: str | None) -> list[Path]:
+    def _collect_files(self: FileSearcher, target: Path, glob_pattern: str | None) -> list[Path]:
         """Collect files to search.
 
         Args:
@@ -159,7 +164,7 @@ class FileSearcher:
         return sorted(f for f in target.rglob("*") if f.is_file())
 
     def _validate_and_setup(
-        self,
+        self: FileSearcher,
         pattern: str,
         path: str,
         ignore_case: bool,
@@ -205,7 +210,7 @@ class FileSearcher:
         return regex, files
 
     def _find_matching_indices(
-        self,
+        self: FileSearcher,
         lines: list[str],
         regex: re.Pattern[str],
         invert_match: bool,
@@ -230,7 +235,7 @@ class FileSearcher:
         return match_indices
 
     def _search_single_file(
-        self,
+        self: FileSearcher,
         file_path: Path,
         regex: re.Pattern[str],
         config: SearchConfig,
@@ -252,19 +257,22 @@ class FileSearcher:
             file_lines = content.splitlines()
 
             # Find matching line indices
+            config_invert_match = config.invert_match
+            config_has_context = config.has_context
+            config_line_numbers = config.line_numbers
             match_indices = self._find_matching_indices(
-                file_lines, regex, config.invert_match,
+                file_lines, regex, config_invert_match,
             )
 
             if not match_indices:
                 return None
 
             # Format results
-            if config.has_context:
+            if config_has_context:
                 context_config = ContextConfig(
                     context_before=config.context_before,
                     context_after=config.context_after,
-                    line_numbers=config.line_numbers,
+                    line_numbers=config_line_numbers,
                     file_prefix=file_prefix,
                 )
                 file_results = self.formatter.format_context_block(
@@ -276,13 +284,14 @@ class FileSearcher:
                 )
 
             total_chars = sum(len(match) + 1 for match in file_results)
-            return file_results, total_chars
 
         except (PermissionError, UnicodeDecodeError):  # pragma: no cover
             return None
+        else:
+            return file_results, total_chars
 
     def _count_matches(
-        self,
+        self: FileSearcher,
         files: list[Path],
         regex: re.Pattern[str],
         invert_match: bool,
@@ -322,7 +331,7 @@ class FileSearcher:
         return ToolResult(content="\n".join(counts), success=True)
 
     def search_files(
-        self,
+        self: FileSearcher,
         files: list[Path],
         regex: re.Pattern[str],
         config: SearchConfig,
@@ -393,27 +402,27 @@ class GrepTool(Tool):
     similar to the grep command.
     """
 
-    def __init__(self) -> None:
+    def __init__(self: GrepTool) -> None:
         """Initialize GrepTool with dependencies."""
         self.formatter = ResultFormatter()
         self.searcher = FileSearcher(self.formatter)
 
     @property
-    def name(self) -> str:
+    def name(self: GrepTool) -> str:
         """Tool name."""
         return "grep"
 
     @property
-    def description(self) -> str:
+    def description(self: GrepTool) -> str:
         """Tool description."""
         return "Search for text patterns in files using regex."
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: GrepTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return self._build_parameters_schema()
 
-    def _build_parameters_schema(self) -> dict[str, object]:
+    def _build_parameters_schema(self: GrepTool) -> dict[str, object]:
         """Build JSON Schema for parameters."""
         return {
             "type": "object",
@@ -471,12 +480,12 @@ class GrepTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: GrepTool) -> ToolKind:
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-        self,
+        self: GrepTool,
         pattern: str = "",
         path: str = ".",
         ignore_case: bool = False,
@@ -530,7 +539,7 @@ class GrepTool(Tool):
                 error=str(e),
             )
 
-    async def _execute_with_params(self, params: GrepParameters) -> ToolResult:
+    async def _execute_with_params(self: GrepTool, params: GrepParameters) -> ToolResult:
         """Execute grep search with parameter object.
 
         Args:
@@ -540,12 +549,22 @@ class GrepTool(Tool):
             ToolResult with search results.
         """
         # Validate and setup
+        p_pattern = params.pattern
+        p_path = params.path
+        p_ignore_case = params.ignore_case
+        p_whole_word = params.whole_word
+        p_glob = params.glob
+        p_context_before = params.context_before
+        p_context_after = params.context_after
+        p_invert_match = params.invert_match
+        p_line_numbers = params.line_numbers
+
         validation_result = self.searcher._validate_and_setup(
-            pattern=params.pattern,
-            path=params.path,
-            ignore_case=params.ignore_case,
-            whole_word=params.whole_word,
-            glob=params.glob,
+            pattern=p_pattern,
+            path=p_path,
+            ignore_case=p_ignore_case,
+            whole_word=p_whole_word,
+            glob=p_glob,
         )
 
         # Check if validation returned an error
@@ -553,22 +572,22 @@ class GrepTool(Tool):
             return validation_result
 
         regex, files = validation_result
-        has_context = params.context_before > 0 or params.context_after > 0
+        has_context = p_context_before > 0 or p_context_after > 0
         multi_file = len(files) > 1
 
         # Create search config
         search_config = SearchConfig(
-            invert_match=params.invert_match,
+            invert_match=p_invert_match,
             has_context=has_context,
-            context_before=params.context_before,
-            context_after=params.context_after,
-            line_numbers=params.line_numbers,
+            context_before=p_context_before,
+            context_after=p_context_after,
+            line_numbers=p_line_numbers,
             multi_file=multi_file,
         )
 
         # Count-only mode
         if params.count_only:
-            return self.searcher._count_matches(files, regex, params.invert_match)
+            return self.searcher._count_matches(files, regex, p_invert_match)
 
         # Search files
         return self.searcher.search_files(files, regex, search_config)

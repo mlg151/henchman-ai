@@ -54,8 +54,8 @@ class PluginDatabase:
             """)
 
             # Create indexes
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_installed_at ON plugin_installations(installed_at)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_enabled ON plugin_installations(enabled)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_installed_at ON plugin_installations(installed_at)")  # noqa: E501
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_enabled ON plugin_installations(enabled)")  # noqa: E501
 
             conn.commit()
         finally:
@@ -110,7 +110,7 @@ class PluginDatabase:
             installed_version=row[PluginConstants.DB_COL_INSTALLED_VERSION],
             enabled=bool(row[PluginConstants.DB_COL_ENABLED]),
             installation_path=row[PluginConstants.DB_COL_INSTALLATION_PATH],
-            last_used=datetime.fromisoformat(row[PluginConstants.DB_COL_LAST_USED]) if row[PluginConstants.DB_COL_LAST_USED] else None,
+            last_used=datetime.fromisoformat(row[PluginConstants.DB_COL_LAST_USED]) if row[PluginConstants.DB_COL_LAST_USED] else None,  # noqa: E501
         )
 
     async def save_installation(self, installation: PluginInstallation) -> None:

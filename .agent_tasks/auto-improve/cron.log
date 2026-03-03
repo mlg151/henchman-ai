@@ -296471,4 +296471,39 @@ Perfect! All tests pass. Now let me create a summary of the refactoring:
 - ✅ Code is more maintainable with single-responsibility classes
 - ✅ Duplicate code reduced with shared schema helper
 
-The refactoring successfully addresses all code smells
+The refactoring successfully addresses all code smells[2026-03-03T15:00:03Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-03T15:00:03Z] Targeting lowest-graded file: cli/textual_bridge.py
+Running Henchman...
+Traceback (most recent call last):
+  File "/home/matthew/anaconda3/bin/henchman", line 5, in <module>
+    from henchman.cli.app import main
+  File "/home/matthew/mlg-cli/src/henchman/cli/__init__.py", line 15, in <module>
+    from henchman.cli.repl import Repl, ReplConfig
+  File "/home/matthew/mlg-cli/src/henchman/cli/repl.py", line 17, in <module>
+    from henchman.agents.orchestrator import Orchestrator
+  File "/home/matthew/mlg-cli/src/henchman/agents/__init__.py", line 11, in <module>
+    from henchman.agents.orchestrator import CompletionStatus, Orchestrator
+  File "/home/matthew/mlg-cli/src/henchman/agents/orchestrator.py", line 18, in <module>
+    from .orchestrator_init import OrchestratorConfig, init_orchestrator
+  File "/home/matthew/mlg-cli/src/henchman/agents/orchestrator_init.py", line 21, in <module>
+    from .orchestrator_tech_lead import setup_tech_lead
+  File "/home/matthew/mlg-cli/src/henchman/agents/orchestrator_tech_lead.py", line 12, in <module>
+    from henchman.tools.builtins.delegate import DelegateTaskTool
+  File "/home/matthew/mlg-cli/src/henchman/tools/builtins/__init__.py", line 16, in <module>
+    from henchman.tools.builtins.kg_query import KgQueryTool
+  File "/home/matthew/mlg-cli/src/henchman/tools/builtins/kg_query.py", line 12, in <module>
+    from henchman.knowledge.scanner import scan_repository
+  File "/home/matthew/mlg-cli/src/henchman/knowledge/__init__.py", line 8, in <module>
+    from henchman.knowledge.store import KnowledgeStore
+  File "/home/matthew/mlg-cli/src/henchman/knowledge/store.py", line 18, in <module>
+    from henchman.rag.repo_id import compute_repository_id
+  File "/home/matthew/mlg-cli/src/henchman/rag/__init__.py", line 18, in <module>
+    from henchman.rag.store import SearchResult, VectorStore
+  File "/home/matthew/mlg-cli/src/henchman/rag/store.py", line 52, in <module>
+    class VectorStore:
+  File "/home/matthew/mlg-cli/src/henchman/rag/store.py", line 124, in VectorStore
+    @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
+                                 ^^^^^^^^^^^^^^^^^^
+NameError: name '_RETRY_MAX_RETRIES' is not defined

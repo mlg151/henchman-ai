@@ -1,5 +1,6 @@
 """Delegate task tool implementation."""
 
+from __future__ import annotations
 from typing import Any
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -15,12 +16,12 @@ class DelegateTaskTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: DelegateTaskTool) -> str:
         """Tool name."""
         return "delegate_task"
 
     @property
-    def description(self) -> str:
+    def description(self: DelegateTaskTool) -> str:
         """Tool description."""
         return (
             "Delegate a task to a specialist agent. Each specialist starts with a "
@@ -30,7 +31,7 @@ class DelegateTaskTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: DelegateTaskTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -106,12 +107,12 @@ class DelegateTaskTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: DelegateTaskTool) -> ToolKind:
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-        self,
+        self: DelegateTaskTool,
         agent: str = "",
         task: str = "",
         done_when: str | None = None,

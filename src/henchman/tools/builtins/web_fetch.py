@@ -1,5 +1,6 @@
 """Web fetch tool implementation."""
 
+from __future__ import annotations
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
 
@@ -10,17 +11,17 @@ class WebFetchTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: WebFetchTool) -> str:
         """Tool name."""
         return "web_fetch"
 
     @property
-    def description(self) -> str:
+    def description(self: WebFetchTool) -> str:
         """Tool description."""
         return "Fetch content from a URL."
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: WebFetchTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -44,12 +45,12 @@ class WebFetchTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: WebFetchTool) -> ToolKind:
         """Tool kind - NETWORK requires confirmation."""
         return ToolKind.NETWORK
 
     async def execute(  # type: ignore[override]
-        self,
+        self: WebFetchTool,
         url: str = "",
         max_length: int = 10000,
         timeout: int = 30,

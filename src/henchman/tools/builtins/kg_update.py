@@ -76,7 +76,7 @@ class KgUpdateTool(Tool):
     and remove_entity.  Changes are persisted to disk after each call.
     """
 
-    def __init__(self, store: KnowledgeStore | None = None) -> None:
+    def __init__(self: KgUpdateTool, store: KnowledgeStore | None = None) -> None:
         """Initialise the knowledge graph update tool.
 
         Args:
@@ -87,12 +87,12 @@ class KgUpdateTool(Tool):
         self._initialised = store is not None
 
     @property
-    def name(self) -> str:
+    def name(self: KgUpdateTool) -> str:
         """Tool name."""
         return "kg_update"
 
     @property
-    def description(self) -> str:
+    def description(self: KgUpdateTool) -> str:
         """Tool description."""
         return (
             "Update the project knowledge graph. Supports actions: "
@@ -102,7 +102,7 @@ class KgUpdateTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: KgUpdateTool) -> dict[str, object]:
         """JSON Schema for tool parameters."""
         return {
             "type": "object",
@@ -165,11 +165,11 @@ class KgUpdateTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: KgUpdateTool) -> ToolKind:
         """Write tool — requires confirmation."""
         return ToolKind.WRITE
 
-    def _ensure_initialised(self) -> KnowledgeStore | None:
+    def _ensure_initialised(self: KgUpdateTool) -> KnowledgeStore | None:
         """Lazy init: discover git root, create store, load from disk."""
         if self._initialised:
             return self._store
@@ -183,7 +183,7 @@ class KgUpdateTool(Tool):
         self._initialised = True
         return self._store
 
-    async def execute(self, **params: object) -> ToolResult:
+    async def execute(self: KgUpdateTool, **params: object) -> ToolResult:
         """Execute a knowledge graph update.
 
         Args:
@@ -233,10 +233,11 @@ class KgUpdateTool(Tool):
         return ToolResult(content=f"Unknown action: '{action}'.")
 
     def _handle_add_entity(
-        self, store: KnowledgeStore, entity_id: str, params: dict[str, object],
+        self: KgUpdateTool, store: KnowledgeStore, entity_id: str, params: dict[str, object],
     ) -> ToolResult:
         """Handle add_entity action."""
-        entity_type = str(params.get("entity_type", "convention")).strip()
+        params_get = params.get
+        entity_type = str(params_get("entity_type", "convention")).strip()
         if entity_type not in VALID_ENTITY_TYPES:
             return ToolResult(
                 content=(
@@ -245,13 +246,13 @@ class KgUpdateTool(Tool):
                 ),
             )
 
-        name = str(params.get("name", entity_id)).strip()
+        name = str(params_get("name", entity_id)).strip()
         if not name:
             name = entity_id
 
-        description = str(params.get("description") or "")
-        file_path = params.get("file_path")
-        tags = params.get("tags", [])
+        description = str(params_get("description") or "")
+        file_path = params_get("file_path")
+        tags = params_get("tags", [])
 
         entity = Entity(
             id=entity_id,
@@ -266,7 +267,7 @@ class KgUpdateTool(Tool):
         return ToolResult(content=f"Added entity '{entity_id}' ({entity_type}).")
 
     def _handle_add_observation(
-        self, store: KnowledgeStore, entity_id: str, params: dict[str, object],
+        self: KgUpdateTool, store: KnowledgeStore, entity_id: str, params: dict[str, object],
     ) -> ToolResult:
         """Handle add_observation action."""
         observation_text = str(
@@ -288,7 +289,7 @@ class KgUpdateTool(Tool):
         return ToolResult(content=f"Added observation to '{entity_id}': {observation_text}")
 
     def _handle_add_relation(
-        self, store: KnowledgeStore, entity_id: str, params: dict[str, object],
+        self: KgUpdateTool, store: KnowledgeStore, entity_id: str, params: dict[str, object],
     ) -> ToolResult:
         """Handle add_relation action."""
         target_id = _validate_id(params.get("target_id"))
@@ -333,7 +334,7 @@ class KgUpdateTool(Tool):
         )
 
     def _handle_remove_entity(
-        self, store: KnowledgeStore, entity_id: str,
+        self: KgUpdateTool, store: KnowledgeStore, entity_id: str,
     ) -> ToolResult:
         """Handle remove_entity action."""
         if store.remove_entity(entity_id):

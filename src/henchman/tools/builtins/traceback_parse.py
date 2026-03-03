@@ -1,5 +1,6 @@
 """Traceback parser tool implementation."""
 
+from __future__ import annotations
 import re
 from typing import TypedDict
 
@@ -28,12 +29,12 @@ class TracebackParseTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: TracebackParseTool) -> str:
         """Tool name."""
         return "traceback_parse"
 
     @property
-    def description(self) -> str:
+    def description(self: TracebackParseTool) -> str:
         """Tool description."""
         return (
             "Parse a Python traceback string into structured data. "
@@ -41,7 +42,7 @@ class TracebackParseTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: TracebackParseTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -55,12 +56,12 @@ class TracebackParseTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: TracebackParseTool) -> ToolKind:
         """Tool kind - read-only analysis."""
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-        self,
+        self: TracebackParseTool,
         traceback: str = "",
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
@@ -75,7 +76,7 @@ class TracebackParseTool(Tool):
         """
         return self._parse_traceback(traceback)
 
-    def _parse_traceback(self, traceback: str) -> ToolResult:
+    def _parse_traceback(self: TracebackParseTool, traceback: str) -> ToolResult:
         """Main orchestration method for parsing tracebacks.
 
         Args:
@@ -98,7 +99,7 @@ class TracebackParseTool(Tool):
         content = self._format_output(frames, exception_type, exception_message)
         return ToolResult(content=content, success=True)
 
-    def _validate_input(self, traceback: str) -> ToolResult | None:
+    def _validate_input(self: TracebackParseTool, traceback: str) -> ToolResult | None:
         """Validate traceback input.
 
         Args:
@@ -127,7 +128,7 @@ class TracebackParseTool(Tool):
 
         return None
 
-    def _extract_frames(self, lines: list[str]) -> list[TracebackFrame]:
+    def _extract_frames(self: TracebackParseTool, lines: list[str]) -> list[TracebackFrame]:
         """Extract stack frames from traceback lines.
 
         Args:
@@ -152,7 +153,7 @@ class TracebackParseTool(Tool):
 
         return frames
 
-    def _create_frame_from_match(self, match: re.Match[str]) -> TracebackFrame:
+    def _create_frame_from_match(self: TracebackParseTool, match: re.Match[str]) -> TracebackFrame:
         """Create a frame dictionary from regex match.
 
         Args:
@@ -168,7 +169,7 @@ class TracebackParseTool(Tool):
         )
 
     def _add_code_to_frame_if_present(
-        self,
+        self: TracebackParseTool,
         frame: TracebackFrame,
         lines: list[str],
         current_index: int,
@@ -196,7 +197,7 @@ class TracebackParseTool(Tool):
 
         return frame
 
-    def _is_code_line(self, line: str) -> bool:
+    def _is_code_line(self: TracebackParseTool, line: str) -> bool:
         """Check if a line appears to be code (not exception or traceback header).
 
         Args:
@@ -215,7 +216,7 @@ class TracebackParseTool(Tool):
         # Return False if line contains ":" and matches exception pattern
         return not (":" in line and re.match(r"^[A-Z]\w*(Error|Exception|Warning)", line))
 
-    def _extract_exception(self, lines: list[str]) -> tuple[str, str]:
+    def _extract_exception(self: TracebackParseTool, lines: list[str]) -> tuple[str, str]:
         """Extract exception type and message from traceback lines.
 
         Args:
@@ -241,7 +242,7 @@ class TracebackParseTool(Tool):
         return exception_type, exception_message
 
     def _format_output(
-        self,
+        self: TracebackParseTool,
         frames: list[TracebackFrame],
         exception_type: str,
         exception_message: str,

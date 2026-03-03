@@ -1,5 +1,6 @@
 """Web search tool implementation using DuckDuckGo."""
 
+from __future__ import annotations
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
 
@@ -10,17 +11,17 @@ class DuckDuckGoSearchTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: DuckDuckGoSearchTool) -> str:
         """Tool name."""
         return "web_search"
 
     @property
-    def description(self) -> str:
+    def description(self: DuckDuckGoSearchTool) -> str:
         """Tool description."""
         return "Search the web for information."
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: DuckDuckGoSearchTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -39,12 +40,12 @@ class DuckDuckGoSearchTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: DuckDuckGoSearchTool) -> ToolKind:
         """Tool kind - NETWORK requires confirmation."""
         return ToolKind.NETWORK
 
     async def execute(  # type: ignore[override]
-        self,
+        self: DuckDuckGoSearchTool,
         query: str = "",
         max_results: int = 5,
         **kwargs: object,  # noqa: ARG002
@@ -73,7 +74,7 @@ class DuckDuckGoSearchTool(Tool):
             # DuckDuckGo HTML search URL
             url = f"https://html.duckduckgo.com/html/?q={query}"
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",  # noqa: E501
             }
 
             async with (

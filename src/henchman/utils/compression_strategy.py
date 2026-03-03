@@ -51,7 +51,7 @@ class CompressionStrategy:
     importance scores.
     """
 
-    def __init__(self, config: CompressionStrategyConfig) -> None:
+    def __init__(self: CompressionStrategy, config: CompressionStrategyConfig) -> None:
         """Initialize compression strategy.
 
         Args:
@@ -60,7 +60,7 @@ class CompressionStrategy:
         self.config = config
 
     def compress(
-        self,
+        self: CompressionStrategy,
         messages: list[Message],
         clusters: list[list[int]],
         cluster_importance: dict[int, float],
@@ -127,7 +127,7 @@ class CompressionStrategy:
         return compressed_messages
 
     def _summarize_cluster(
-        self, messages: list[Message], cluster: list[int],
+        self: CompressionStrategy, messages: list[Message], cluster: list[int],
     ) -> str | None:
         """Generate a summary of a message cluster.
 
@@ -145,7 +145,7 @@ class CompressionStrategy:
         cluster_messages = [messages[idx] for idx in cluster if idx < len(messages)]
         return self._generate_cluster_summary(cluster_messages)
 
-    def _generate_cluster_summary(self, cluster_messages: list[Message]) -> str:
+    def _generate_cluster_summary(self: CompressionStrategy, cluster_messages: list[Message]) -> str:  # noqa: E501
         """Generate summary text from a list of messages.
 
         Args:
@@ -170,7 +170,7 @@ class CompressionStrategy:
         return "; ".join(key_phrases)
 
     def _preserve_tool_sequences_in_cluster(
-        self,
+        self: CompressionStrategy,
         messages: list[Message],
         cluster: list[int],
         compressed_messages: list[Message],
@@ -193,7 +193,7 @@ class CompressionStrategy:
                         compressed_messages.append(messages[idx + 1])
 
     def _preserve_code_blocks_in_cluster(
-        self,
+        self: CompressionStrategy,
         messages: list[Message],
         cluster: list[int],
         compressed_messages: list[Message],
@@ -208,7 +208,7 @@ class CompressionStrategy:
         for idx in cluster:
             if idx < len(messages):
                 msg = messages[idx]
-                if msg.content and ("```" in msg.content or "def " in msg.content or "class " in msg.content):
+                if msg.content and ("```" in msg.content or "def " in msg.content or "class " in msg.content):  # noqa: E501
                     compressed_messages.append(msg)
 
 
@@ -226,19 +226,20 @@ class CompressionStrategyFactory:
         Returns:
             Compression strategy instance.
         """
+        CSC = CompressionStrategyConstants
         if conversation_type == "coding":
             config = CompressionStrategyConfig(
                 name="coding",
-                high_threshold=CompressionStrategyConstants.CODING_HIGH_THRESHOLD,
-                medium_threshold=CompressionStrategyConstants.CODING_MEDIUM_THRESHOLD,
+                high_threshold=CSC.CODING_HIGH_THRESHOLD,
+                medium_threshold=CSC.CODING_MEDIUM_THRESHOLD,
                 preserve_tool_sequences=True,
                 preserve_code_blocks=True,
             )
         elif conversation_type == "debugging":
             config = CompressionStrategyConfig(
                 name="debugging",
-                high_threshold=CompressionStrategyConstants.DEBUGGING_HIGH_THRESHOLD,
-                medium_threshold=CompressionStrategyConstants.DEBUGGING_MEDIUM_THRESHOLD,
+                high_threshold=CSC.DEBUGGING_HIGH_THRESHOLD,
+                medium_threshold=CSC.DEBUGGING_MEDIUM_THRESHOLD,
                 preserve_tool_sequences=True,
                 preserve_code_blocks=True,
             )
@@ -246,16 +247,16 @@ class CompressionStrategyFactory:
             # Research uses general strategy with different documentation
             config = CompressionStrategyConfig(
                 name="research",
-                high_threshold=CompressionStrategyConstants.DEFAULT_COMPRESSION_HIGH_THRESHOLD,
-                medium_threshold=CompressionStrategyConstants.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD,
+                high_threshold=CSC.DEFAULT_COMPRESSION_HIGH_THRESHOLD,
+                medium_threshold=CSC.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD,
                 preserve_tool_sequences=True,
                 preserve_code_blocks=False,
             )
         else:  # general
             config = CompressionStrategyConfig(
                 name="general",
-                high_threshold=CompressionStrategyConstants.DEFAULT_COMPRESSION_HIGH_THRESHOLD,
-                medium_threshold=CompressionStrategyConstants.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD,
+                high_threshold=CSC.DEFAULT_COMPRESSION_HIGH_THRESHOLD,
+                medium_threshold=CSC.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD,
                 preserve_tool_sequences=True,
                 preserve_code_blocks=False,
             )

@@ -5,7 +5,7 @@ Provides real-time visualization and monitoring of agent performance metrics.
 
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from rich.console import Console
@@ -77,7 +77,7 @@ class Dashboard:
         Returns:
             Dictionary of summary statistics.
         """
-        end_date = datetime.now()
+        end_date = datetime.now(tz=timezone.utc)
         start_date = end_date - timedelta(days=7)
 
         stats: dict[str, Any] = {
@@ -175,24 +175,25 @@ class Dashboard:
 
             output = io.StringIO()
             writer = csv.writer(output)
+            writerow = writer.writerow
 
             # Write header
-            writer.writerow(["Metric", "Value", "Unit"])
+            writerow(["Metric", "Value", "Unit"])
 
             # Write token usage
             if stats.get("token_usage"):
-                writer.writerow(["Total Tokens", stats["token_usage"].get("total_tokens", 0), "tokens"])
-                writer.writerow(["Daily Average Tokens", stats["token_usage"].get("daily_average", 0), "tokens"])
+                writerow(["Total Tokens", stats["token_usage"].get("total_tokens", 0), "tokens"])
+                writerow(["Daily Average Tokens", stats["token_usage"].get("daily_average", 0), "tokens"])  # noqa: E501
 
             # Write costs
             if stats.get("costs"):
-                writer.writerow(["Total Cost", stats["costs"].get("total_cost", 0), "USD"])
-                writer.writerow(["Daily Average Cost", stats["costs"].get("daily_average", 0), "USD"])
+                writerow(["Total Cost", stats["costs"].get("total_cost", 0), "USD"])
+                writerow(["Daily Average Cost", stats["costs"].get("daily_average", 0), "USD"])
 
             # Write tool performance
             if stats.get("tool_performance"):
-                writer.writerow(["Total Tool Calls", stats["tool_performance"].get("total_calls", 0), "calls"])
-                writer.writerow(["Success Rate", stats["tool_performance"].get("success_rate", 0), "%"])
+                writerow(["Total Tool Calls", stats["tool_performance"].get("total_calls", 0), "calls"])  # noqa: E501
+                writerow(["Success Rate", stats["tool_performance"].get("success_rate", 0), "%"])
 
             return output.getvalue()
         msg = f"Unsupported format: {format}. Supported formats: json, csv"
@@ -252,7 +253,7 @@ class Dashboard:
             Rich Panel with header.
         """
         title = Text("Henchman-AI Performance Dashboard", style="bold blue")
-        timestamp = Text(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style="dim")
+        timestamp = Text(f"Last updated: {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}", style="dim")  # noqa: E501
         header_text = Text.assemble(title, "\n", timestamp)
         return Panel(header_text, border_style="blue")
 
@@ -268,13 +269,14 @@ class Dashboard:
         table = Table(title="Token Usage (Last 7 Days)", show_header=False, box=None)
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="green")
+        table_add_row = table.add_row
 
         total_tokens = token_stats.get("total_tokens", 0)
         daily_avg = token_stats.get("daily_average", 0)
 
-        table.add_row("Total Tokens", f"{total_tokens:,}")
-        table.add_row("Daily Average", f"{daily_avg:,.0f}")
-        table.add_row("Periods", str(len(token_stats.get("periods", []))))
+        table_add_row("Total Tokens", f"{total_tokens:,}")
+        table_add_row("Daily Average", f"{daily_avg:,.0f}")
+        table_add_row("Periods", str(len(token_stats.get("periods", []))))
 
         return Panel(table, title="Token Usage", border_style="green")
 
@@ -290,13 +292,14 @@ class Dashboard:
         table = Table(title="Costs (Last 7 Days)", show_header=False, box=None)
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="yellow")
+        table_add_row = table.add_row
 
         total_cost = cost_stats.get("total_cost", 0.0)
         daily_avg = cost_stats.get("daily_average", 0.0)
 
-        table.add_row("Total Cost", f"${total_cost:.4f}")
-        table.add_row("Daily Average", f"${daily_avg:.4f}")
-        table.add_row("Periods", str(len(cost_stats.get("periods", []))))
+        table_add_row("Total Cost", f"${total_cost:.4f}")
+        table_add_row("Daily Average", f"${daily_avg:.4f}")
+        table_add_row("Periods", str(len(cost_stats.get("periods", []))))
 
         return Panel(table, title="Costs", border_style="yellow")
 
@@ -312,13 +315,14 @@ class Dashboard:
         table = Table(title="Tool Performance (Last 7 Days)", show_header=False, box=None)
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="magenta")
+        table_add_row = table.add_row
 
         total_calls = tool_stats.get("total_calls", 0)
         success_rate = tool_stats.get("success_rate", 0.0)
 
-        table.add_row("Total Calls", f"{total_calls:,}")
-        table.add_row("Success Rate", f"{success_rate:.1f}%")
-        table.add_row("Periods", str(len(tool_stats.get("periods", []))))
+        table_add_row("Total Calls", f"{total_calls:,}")
+        table_add_row("Success Rate", f"{success_rate:.1f}%")
+        table_add_row("Periods", str(len(tool_stats.get("periods", []))))
 
         return Panel(table, title="Tool Performance", border_style="magenta")
 
@@ -334,12 +338,13 @@ class Dashboard:
         table = Table(title="Usage Patterns (Last 7 Days)", show_header=False, box=None)
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="cyan")
+        table_add_row = table.add_row
 
         unique_commands = usage_stats.get("unique_commands", 0)
         total_tool_calls = usage_stats.get("total_tool_calls", 0)
 
-        table.add_row("Unique Commands", str(unique_commands))
-        table.add_row("Total Tool Calls", f"{total_tool_calls:,}")
-        table.add_row("Periods", str(len(usage_stats.get("periods", []))))
+        table_add_row("Unique Commands", str(unique_commands))
+        table_add_row("Total Tool Calls", f"{total_tool_calls:,}")
+        table_add_row("Periods", str(len(usage_stats.get("periods", []))))
 
         return Panel(table, title="Usage Patterns", border_style="cyan")

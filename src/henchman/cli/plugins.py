@@ -81,6 +81,27 @@ class PluginManager:
                 if self.repl and self.repl.settings and self.repl.settings.ui.mcp_logging:
                     self.repl.renderer.warning(f"Failed to load plugin {path.name}: {e}")
 
+    def _try_register_plugin_class(self, attr_name: str, attr: object) -> bool:
+        """Attempt to instantiate and register a single plugin class.
+
+        Args:
+            attr_name: Attribute name being examined.
+            attr: The attribute value (expected to be a type).
+
+        Returns:
+            True if the plugin was registered, False otherwise.
+        """
+        if not (isinstance(attr, type) and issubclass(attr, UIPlugin) and attr is not UIPlugin):
+            return False
+        try:
+            self.register_plugin(attr())
+        except Exception as e:
+            if self.repl and self.repl.settings and self.repl.settings.ui.mcp_logging:
+                self.repl.renderer.warning(f"Failed to instantiate plugin {attr_name}: {e}")
+            return False
+        else:
+            return True
+
     def _load_plugin_from_file(self, path: Path) -> None:
         """Load a plugin from a python file.
 
@@ -97,17 +118,10 @@ class PluginManager:
         spec.loader.exec_module(module)
 
         # Find UIPlugin subclasses
-        found_plugin = False
-        for attr_name in dir(module):
-            attr = getattr(module, attr_name)
-            if isinstance(attr, type) and issubclass(attr, UIPlugin) and attr is not UIPlugin:
-                try:
-                    plugin = attr()
-                    self.register_plugin(plugin)
-                    found_plugin = True
-                except Exception as e:
-                    if self.repl and self.repl.settings and self.repl.settings.ui.mcp_logging:
-                        self.repl.renderer.warning(f"Failed to instantiate plugin {attr_name}: {e}")
+        found_plugin = any(
+            self._try_register_plugin_class(attr_name, getattr(module, attr_name))
+            for attr_name in dir(module)
+        )
 
         if found_plugin and self.repl and self.repl.settings and self.repl.settings.ui.mcp_logging:
             self.repl.renderer.info(f"Loaded plugins from {path.name}")

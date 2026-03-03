@@ -20,7 +20,7 @@ class MessageClusterer:
     """
 
     def __init__(
-        self,
+        self: MessageClusterer,
         cluster_similarity_threshold: float = 0.7,
         minimum_word_length: int = 3,
         minimum_shared_words: int = 2,
@@ -37,7 +37,7 @@ class MessageClusterer:
         self.minimum_word_length = minimum_word_length
         self.minimum_shared_words = minimum_shared_words
 
-    def cluster_messages(self, messages: list[Message]) -> list[list[int]]:
+    def cluster_messages(self: MessageClusterer, messages: list[Message]) -> list[list[int]]:
         """Cluster related messages based on semantic similarity.
 
         Args:
@@ -66,7 +66,7 @@ class MessageClusterer:
 
 
     def _cluster_tool_call_sequences(
-        self, messages: list[Message], clusters: list[list[int]],
+        self: MessageClusterer, messages: list[Message], clusters: list[list[int]],
     ) -> list[list[int]]:
         """Group tool call sequences as atomic clusters.
 
@@ -104,7 +104,7 @@ class MessageClusterer:
         return clusters
 
     def _cluster_temporal_proximity(
-        self, messages: list[Message], clusters: list[list[int]],
+        self: MessageClusterer, messages: list[Message], clusters: list[list[int]],
     ) -> list[list[int]]:
         """Merge adjacent messages that are temporally close.
 
@@ -141,7 +141,7 @@ class MessageClusterer:
         return clusters
 
     def _should_merge_adjacent_clusters(
-        self, messages: list[Message], curr_cluster: list[int], next_cluster: list[int],
+        self: MessageClusterer, messages: list[Message], curr_cluster: list[int], next_cluster: list[int],  # noqa: E501
     ) -> bool:
         """Determine if two adjacent clusters should be merged.
 
@@ -178,7 +178,7 @@ class MessageClusterer:
         )
 
     def _cluster_topic_similarity(
-        self, messages: list[Message], clusters: list[list[int]],
+        self: MessageClusterer, messages: list[Message], clusters: list[list[int]],
     ) -> list[list[int]]:
         """Merge clusters that discuss similar topics.
 
@@ -232,7 +232,7 @@ class MessageClusterer:
         return clusters
 
     def _extract_cluster_keywords(
-        self, messages: list[Message], cluster: list[int],
+        self: MessageClusterer, messages: list[Message], cluster: list[int],
     ) -> set[str]:
         """Extract keywords from messages in a cluster.
 
@@ -258,7 +258,7 @@ class MessageClusterer:
         return keywords
 
     def _cluster_role_patterns(
-        self, messages: list[Message], clusters: list[list[int]],
+        self: MessageClusterer, messages: list[Message], clusters: list[list[int]],
     ) -> list[list[int]]:
         """Merge clusters based on role patterns.
 
@@ -289,7 +289,7 @@ class MessageClusterer:
         return clusters
 
     def _should_merge_clusters_by_role_pattern(
-        self, messages: list[Message], clusters: list[list[int]], index: int,
+        self: MessageClusterer, messages: list[Message], clusters: list[list[int]], index: int,
     ) -> bool:
         """Determine if two adjacent clusters should be merged based on role patterns.
 
@@ -312,7 +312,7 @@ class MessageClusterer:
         return self._do_clusters_share_significant_words(messages, curr_cluster, next_cluster)
 
     def _are_clusters_role_complementary(
-        self, messages: list[Message], cluster1: list[int], cluster2: list[int],
+        self: MessageClusterer, messages: list[Message], cluster1: list[int], cluster2: list[int],
     ) -> bool:
         """Check if two clusters have complementary roles (user-assistant pair).
 
@@ -332,7 +332,7 @@ class MessageClusterer:
         )
 
     def _do_clusters_share_significant_words(
-        self, messages: list[Message], cluster1: list[int], cluster2: list[int],
+        self: MessageClusterer, messages: list[Message], cluster1: list[int], cluster2: list[int],
     ) -> bool:
         """Check if two clusters share enough significant words to be merged.
 
@@ -356,7 +356,7 @@ class MessageClusterer:
         common_words = cluster1_words & cluster2_words
         return len(common_words) >= self.minimum_shared_words
 
-    def _extract_cluster_content(self, messages: list[Message], cluster: list[int]) -> str:
+    def _extract_cluster_content(self: MessageClusterer, messages: list[Message], cluster: list[int]) -> str:  # noqa: E501
         """Extract and concatenate content from messages in a cluster.
 
         Args:
@@ -373,7 +373,7 @@ class MessageClusterer:
                 content_parts.append(msg.content)
         return " ".join(content_parts).lower()
 
-    def _extract_significant_words(self, text: str) -> set[str]:
+    def _extract_significant_words(self: MessageClusterer, text: str) -> set[str]:
         """Extract significant words from text.
 
         Args:
@@ -391,7 +391,7 @@ class MessageClusterer:
         return words
 
     def _merge_clusters_containing_indices(
-        self, clusters: list[list[int]], indices: list[int],
+        self: MessageClusterer, clusters: list[list[int]], indices: list[int],
     ) -> list[list[int]]:
         """Merge clusters that contain any of the given indices.
 

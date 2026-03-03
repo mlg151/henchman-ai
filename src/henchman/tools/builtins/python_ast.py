@@ -1,5 +1,6 @@
 """Python AST analysis tool implementation."""
 
+from __future__ import annotations
 import ast
 from pathlib import Path
 
@@ -15,12 +16,12 @@ class PythonAstTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: PythonAstTool) -> str:
         """Tool name."""
         return "python_ast"
 
     @property
-    def description(self) -> str:
+    def description(self: PythonAstTool) -> str:
         """Tool description."""
         return (
             "Parse a Python file and return its symbol table: classes, "
@@ -30,7 +31,7 @@ class PythonAstTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: PythonAstTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -49,11 +50,11 @@ class PythonAstTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: PythonAstTool) -> ToolKind:
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
-    def _get_docstring(self, node: ast.AST) -> str | None:
+    def _get_docstring(self: PythonAstTool, node: ast.AST) -> str | None:
         """Extract the first line of a docstring from a node.
 
         Args:
@@ -63,13 +64,31 @@ class PythonAstTool(Tool):
             First line of docstring, or None.
         """
         # ast.get_docstring only works with specific node types
+        get_docstring = ast.get_docstring
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)):
-            docstring = ast.get_docstring(node)
+            docstring = get_docstring(node)
             if docstring:
                 return docstring.split("\n")[0].strip()
         return None
 
-    def _classify_method(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+    def _get_decorator_name(self: PythonAstTool, d: ast.expr) -> str:
+        """Extract the base name from a decorator node.
+
+        Args:
+            d: Decorator AST node.
+
+        Returns:
+            The decorator's base name, or empty string if not determinable.
+        """
+        if isinstance(d, ast.Name):
+            return d.id
+        if isinstance(d, ast.Attribute):
+            return d.attr
+        if isinstance(d, ast.Call):
+            return self._get_decorator_name(d.func)
+        return ""
+
+    def _classify_method(self: PythonAstTool, node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
         """Classify a method by its decorators.
 
         Args:
@@ -78,23 +97,15 @@ class PythonAstTool(Tool):
         Returns:
             Classification string (e.g., "staticmethod", "classmethod", "property").
         """
-        tags = []
-        for d in node.decorator_list:
-            name = ""
-            if isinstance(d, ast.Name):
-                name = d.id
-            elif isinstance(d, ast.Attribute):
-                name = d.attr
-            elif isinstance(d, ast.Call):
-                if isinstance(d.func, ast.Name):
-                    name = d.func.id
-                elif isinstance(d.func, ast.Attribute):
-                    name = d.func.attr
-            if name in ("staticmethod", "classmethod", "property", "abstractmethod"):
-                tags.append(name)
+        _known = ("staticmethod", "classmethod", "property", "abstractmethod")
+        tags = [
+            name
+            for d in node.decorator_list
+            if (name := self._get_decorator_name(d)) in _known
+        ]
         return ", ".join(tags)
 
-    def _format_decorator(self, node: ast.expr) -> str:
+    def _format_decorator(self: PythonAstTool, node: ast.expr) -> str:
         """Format a decorator node to string.
 
         Args:
@@ -112,7 +123,7 @@ class PythonAstTool(Tool):
         return "?"
 
     def _format_function(
-        self,
+        self: PythonAstTool,
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         indent: int = 0,
         include_docstrings: bool = True,
@@ -130,6 +141,9 @@ class PythonAstTool(Tool):
             List of formatted lines.
         """
         prefix = "  " * indent
+        ast_unparse = ast.unparse
+        node_name = node.name
+        node_lineno = node.lineno
         kind = "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
 
         # Build signature
@@ -137,17 +151,17 @@ class PythonAstTool(Tool):
         for arg in node.args.args:
             annotation = ""
             if arg.annotation:
-                annotation = f": {ast.unparse(arg.annotation)}"
+                annotation = f": {ast_unparse(arg.annotation)}"
             args.append(f"{arg.arg}{annotation}")
 
         returns = ""
         if node.returns:
-            returns = f" -> {ast.unparse(node.returns)}"
+            returns = f" -> {ast_unparse(node.returns)}"
 
         decos = [f"{prefix}@{self._format_decorator(d)}" for d in node.decorator_list]
 
-        end_line = node.end_lineno or node.lineno
-        sig = f"{prefix}{kind} {node.name}({', '.join(args)}){returns}"
+        end_line = node.end_lineno or node_lineno
+        sig = f"{prefix}{kind} {node_name}({', '.join(args)}){returns}"
 
         # Add method classification tag
         tag = ""
@@ -156,7 +170,7 @@ class PythonAstTool(Tool):
             if classification:
                 tag = f"  [{classification}]"
 
-        lines = [*decos, f"{sig}  [L{node.lineno}-{end_line}]{tag}"]
+        lines = [*decos, f"{sig}  [L{node_lineno}-{end_line}]{tag}"]
 
         if include_docstrings:
             docstring = self._get_docstring(node)
@@ -166,7 +180,7 @@ class PythonAstTool(Tool):
         return lines
 
     def _format_class(
-        self, node: ast.ClassDef, indent: int = 0, include_docstrings: bool = True,
+        self: PythonAstTool, node: ast.ClassDef, indent: int = 0, include_docstrings: bool = True,
     ) -> list[str]:
         """Format a class definition with its methods.
 
@@ -179,13 +193,16 @@ class PythonAstTool(Tool):
             List of formatted lines.
         """
         prefix = "  " * indent
-        bases = [ast.unparse(b) for b in node.bases]
+        ast_unparse = ast.unparse
+        node_name = node.name
+        node_lineno = node.lineno
+        bases = [ast_unparse(b) for b in node.bases]
         bases_str = f"({', '.join(bases)})" if bases else ""
 
         decos = [f"{prefix}@{self._format_decorator(d)}" for d in node.decorator_list]
 
-        end_line = node.end_lineno or node.lineno
-        lines = [*decos, f"{prefix}class {node.name}{bases_str}  [L{node.lineno}-{end_line}]"]
+        end_line = node.end_lineno or node_lineno
+        lines = [*decos, f"{prefix}class {node_name}{bases_str}  [L{node_lineno}-{end_line}]"]
 
         if include_docstrings:
             docstring = self._get_docstring(node)
@@ -209,7 +226,7 @@ class PythonAstTool(Tool):
 
         return lines
 
-    def _format_import(self, node: ast.Import | ast.ImportFrom) -> str:
+    def _format_import(self: PythonAstTool, node: ast.Import | ast.ImportFrom) -> str:
         """Format an import statement.
 
         Args:
@@ -218,17 +235,18 @@ class PythonAstTool(Tool):
         Returns:
             Formatted import string.
         """
+        node_lineno = node.lineno
+        node_names = node.names
+        names = ", ".join(a.name + (f" as {a.asname}" if a.asname else "") for a in node_names)
         if isinstance(node, ast.Import):
-            names = ", ".join(a.name + (f" as {a.asname}" if a.asname else "") for a in node.names)
-            return f"import {names}  [L{node.lineno}]"
+            return f"import {names}  [L{node_lineno}]"
         # ImportFrom
         module = node.module or ""
         level = "." * (node.level or 0)
-        names = ", ".join(a.name + (f" as {a.asname}" if a.asname else "") for a in node.names)
-        return f"from {level}{module} import {names}  [L{node.lineno}]"
+        return f"from {level}{module} import {names}  [L{node_lineno}]"
 
     async def execute(  # type: ignore[override]
-        self,
+        self: PythonAstTool,
         path: str = "",
         include_docstrings: bool = True,
         **kwargs: object,  # noqa: ARG002
@@ -245,7 +263,7 @@ class PythonAstTool(Tool):
         """
         return await self._parse_python_file(path, include_docstrings)
 
-    async def _parse_python_file(self, path: str, include_docstrings: bool) -> ToolResult:
+    async def _parse_python_file(self: PythonAstTool, path: str, include_docstrings: bool) -> ToolResult:  # noqa: E501
         """Orchestrate the parsing of a Python file.
 
         Args:
@@ -289,7 +307,7 @@ class PythonAstTool(Tool):
             success=True,
         )
 
-    def _validate_path(self, path: str) -> ToolResult | None:
+    def _validate_path(self: PythonAstTool, path: str) -> ToolResult | None:
         """Validate the provided file path.
 
         Args:
@@ -316,7 +334,7 @@ class PythonAstTool(Tool):
         return None
 
     def _generate_symbol_table(
-        self, tree: ast.Module, file_name: str, include_docstrings: bool,
+        self: PythonAstTool, tree: ast.Module, file_name: str, include_docstrings: bool,
     ) -> list[str]:
         """Generate symbol table sections from AST.
 
@@ -345,7 +363,7 @@ class PythonAstTool(Tool):
         return sections
 
     def _add_module_docstring(
-        self, sections: list[str], tree: ast.Module, include_docstrings: bool,
+        self: PythonAstTool, sections: list[str], tree: ast.Module, include_docstrings: bool,
     ) -> None:
         """Add module docstring to sections if present and requested.
 
@@ -359,7 +377,7 @@ class PythonAstTool(Tool):
             if module_doc:
                 sections.append(f'"""{module_doc}"""')
 
-    def _add_imports_section(self, sections: list[str], tree: ast.Module) -> None:
+    def _add_imports_section(self: PythonAstTool, sections: list[str], tree: ast.Module) -> None:
         """Add imports section to sections if imports exist.
 
         Args:
@@ -374,29 +392,33 @@ class PythonAstTool(Tool):
             for imp in imports:
                 sections.append(self._format_import(imp))
 
-    def _add_assignments_section(self, sections: list[str], tree: ast.Module) -> None:
+    def _add_assignments_section(self: PythonAstTool, sections: list[str], tree: ast.Module) -> None:  # noqa: E501
         """Add assignments section to sections if assignments exist.
 
         Args:
             sections: List to append to.
             tree: AST module node.
         """
+        ast_unparse = ast.unparse
+        AnnAssign = ast.AnnAssign
+        Assign = ast.Assign
         assigns = [
-            n for n in ast.iter_child_nodes(tree) if isinstance(n, (ast.Assign, ast.AnnAssign))
+            n for n in ast.iter_child_nodes(tree) if isinstance(n, (Assign, AnnAssign))
         ]
         if assigns:
             sections.append("\n## Constants / Variables")
             for a in assigns:
-                if isinstance(a, ast.AnnAssign) and a.target:
-                    name = ast.unparse(a.target)
-                    ann = ast.unparse(a.annotation) if a.annotation else "?"
-                    sections.append(f"{name}: {ann}  [L{a.lineno}]")
-                elif isinstance(a, ast.Assign):
-                    names = ", ".join(ast.unparse(t) for t in a.targets)
-                    sections.append(f"{names}  [L{a.lineno}]")
+                a_lineno = a.lineno
+                if isinstance(a, AnnAssign) and a.target:
+                    name = ast_unparse(a.target)
+                    ann = ast_unparse(a.annotation) if a.annotation else "?"
+                    sections.append(f"{name}: {ann}  [L{a_lineno}]")
+                elif isinstance(a, Assign):
+                    names = ", ".join(ast_unparse(t) for t in a.targets)
+                    sections.append(f"{names}  [L{a_lineno}]")
 
     def _add_functions_and_classes_sections(
-        self, sections: list[str], tree: ast.Module, include_docstrings: bool,
+        self: PythonAstTool, sections: list[str], tree: ast.Module, include_docstrings: bool,
     ) -> None:
         """Add functions and classes sections to sections.
 
@@ -405,13 +427,16 @@ class PythonAstTool(Tool):
             tree: AST module node.
             include_docstrings: Include first-line docstrings in output.
         """
+        FunctionDef = ast.FunctionDef
+        AsyncFunctionDef = ast.AsyncFunctionDef
+        ClassDef = ast.ClassDef
         for node in ast.iter_child_nodes(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if isinstance(node, (FunctionDef, AsyncFunctionDef)):
                 sections.append("")
                 sections.extend(
                     self._format_function(node, include_docstrings=include_docstrings),
                 )
-            elif isinstance(node, ast.ClassDef):
+            elif isinstance(node, ClassDef):
                 sections.append("")
                 sections.extend(
                     self._format_class(node, include_docstrings=include_docstrings),

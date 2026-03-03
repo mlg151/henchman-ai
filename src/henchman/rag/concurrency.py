@@ -23,7 +23,7 @@ T = TypeVar("T")
 class LockTimeoutError(Exception):
     """Exception raised when a lock cannot be acquired within timeout."""
 
-    def __init__(self, lock_path: str | Path, timeout: float):
+    def __init__(self: LockTimeoutError, lock_path: str | Path, timeout: float):
         """Initialize the exception.
 
         Args:
@@ -47,7 +47,7 @@ class RagLock:
         acquired: Whether the lock is currently held.
     """
 
-    def __init__(self, lock_path: Path | str):
+    def __init__(self: RagLock, lock_path: Path | str):
         """Initialize the lock.
 
         Args:
@@ -58,11 +58,11 @@ class RagLock:
         self._acquired = False
 
     @property
-    def acquired(self) -> bool:
+    def acquired(self: RagLock) -> bool:
         """Check if the lock is currently acquired."""
         return self._acquired
 
-    def acquire(self, timeout: float = 5.0) -> bool:
+    def acquire(self: RagLock, timeout: float = 5.0) -> bool:
         """Attempt to acquire the lock.
 
         Args:
@@ -88,9 +88,7 @@ class RagLock:
                 fcntl.flock(self.lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
                 self._acquired = True
-                return True
-
-            except (OSError, BlockingIOError):
+            except (OSError, BlockingIOError):  # noqa: PERF203
                 # Lock is held by another process
                 if self.lock_file:
                     self.lock_file.close()
@@ -98,11 +96,13 @@ class RagLock:
 
                 # Wait a bit before retrying
                 time.sleep(min(0.1, timeout / 10))
+            else:
+                return True
 
         # Timeout reached
         return False
 
-    def release(self) -> None:
+    def release(self: RagLock) -> None:
         """Release the lock if it is held."""
         if self._acquired and self.lock_file:
             try:
@@ -112,17 +112,17 @@ class RagLock:
                 self.lock_file = None
                 self._acquired = False
 
-    def __enter__(self) -> Self:
+    def __enter__(self: RagLock) -> Self:
         """Context manager entry."""
         if not self.acquire():
             raise LockTimeoutError(self.lock_path, 5.0)
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(self: RagLock, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit."""
         self.release()
 
-    def __del__(self) -> None:
+    def __del__(self: RagLock) -> None:
         """Destructor to ensure lock is released."""
         self.release()
 

@@ -42,11 +42,11 @@ class PluginCompatibilityChecker:
                 ):
                     return False
 
-            return True
-
         except (ValueError, ImportError):
             # If we can't parse version specifiers, assume incompatible
             return False
+        else:
+            return True
 
     @staticmethod
     def _check_henchman_compatibility(henchman_spec: str) -> bool:

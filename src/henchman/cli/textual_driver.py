@@ -11,7 +11,7 @@ if sys.platform == "linux":
     class RobustLinuxDriver(LinuxDriver):  # type: ignore
         """A Linux driver that handles Unicode decode errors gracefully."""
 
-        def process_selector_events(self, selector_events: list[tuple[int, int]], final: bool = False) -> None:
+        def process_selector_events(self, selector_events: list[tuple[int, int]], final: bool = False) -> None:  # noqa: E501
             """Process selector events with error handling."""
             try:
                 super().process_selector_events(selector_events, final)

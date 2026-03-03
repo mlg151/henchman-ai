@@ -66,9 +66,11 @@ class OpenAICompatibleProvider(ModelProvider):
 
     def _format_message(self, message: Message) -> dict[str, Any]:
         """Format a message for the OpenAI API."""
+        message_role = message.role
+        message_content = message.content
         result: dict[str, Any] = {
-            "role": message.role,
-            "content": message.content,
+            "role": message_role,
+            "content": message_content,
         }
 
         if message.reasoning_content:
@@ -135,7 +137,7 @@ class OpenAICompatibleProvider(ModelProvider):
             StreamChunk objects as the response is generated.
         """
         self._validate_messages(messages)
-        logger.debug("OpenAICompatibleProvider.chat_completion_stream: Starting with %d messages", len(messages))
+        logger.debug("OpenAICompatibleProvider.chat_completion_stream: Starting with %d messages", len(messages))  # noqa: E501
 
         try:
             messages = self._repair_message_sequence_if_needed(messages)
@@ -291,21 +293,23 @@ class OpenAICompatibleProvider(ModelProvider):
             tool_call_deltas: List of tool call delta objects from the API.
         """
         for tc_delta in tool_call_deltas:
+            tc_delta_id = tc_delta.id
             idx = tc_delta.index
             if idx not in pending_tool_calls:
                 pending_tool_calls[idx] = {
-                    "id": tc_delta.id or "",
+                    "id": tc_delta_id or "",
                     "name": "",
                     "arguments": "",
                 }
 
-            if tc_delta.id:
-                pending_tool_calls[idx]["id"] = tc_delta.id
+            if tc_delta_id:
+                pending_tool_calls[idx]["id"] = tc_delta_id
             if tc_delta.function:
-                if tc_delta.function.name:
-                    pending_tool_calls[idx]["name"] = tc_delta.function.name
-                if tc_delta.function.arguments:
-                    pending_tool_calls[idx]["arguments"] += tc_delta.function.arguments
+                tc_func = tc_delta.function
+                if tc_func.name:
+                    pending_tool_calls[idx]["name"] = tc_func.name
+                if tc_func.arguments:
+                    pending_tool_calls[idx]["arguments"] += tc_func.arguments
 
     def _build_tool_calls_from_pending(
         self,

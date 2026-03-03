@@ -171,20 +171,17 @@ class ToolMetrics:
         else:
             self.failed_tool_calls += 1
 
-        # Categorize tool calls using the shared categorization function
+        # Increment the appropriate per-category counter
         category = _categorize_tool(tool_name)
-        if category == ToolCategory.READ_FILE:
-            self.read_file_calls += 1
-        elif category == ToolCategory.WRITE_FILE:
-            self.write_file_calls += 1
-        elif category == ToolCategory.EDIT_FILE:
-            self.edit_file_calls += 1
-        elif category == ToolCategory.SHELL:
-            self.shell_calls += 1
-        elif category == ToolCategory.GIT_OPS:
-            self.git_ops_calls += 1
-        else:
-            self.other_tool_calls += 1
+        _category_counter: dict[ToolCategory, str] = {
+            ToolCategory.READ_FILE: "read_file_calls",
+            ToolCategory.WRITE_FILE: "write_file_calls",
+            ToolCategory.EDIT_FILE: "edit_file_calls",
+            ToolCategory.SHELL: "shell_calls",
+            ToolCategory.GIT_OPS: "git_ops_calls",
+        }
+        counter_attr = _category_counter.get(category, "other_tool_calls")
+        setattr(self, counter_attr, getattr(self, counter_attr) + 1)
 
     def calculate_error_rate(self) -> float:
         """Calculate error rate percentage."""
@@ -251,7 +248,7 @@ class OrchestratorMetrics:
         # Calculate delegation rate
         total_tasks = self.tools.total_tool_calls + self.delegation_count
         if total_tasks > 0:
-            self.performance.delegation_rate = self.delegation_count / total_tasks * PERCENTAGE_MULTIPLIER
+            self.performance.delegation_rate = self.delegation_count / total_tasks * PERCENTAGE_MULTIPLIER  # noqa: E501
 
         # Calculate error rate
         self.performance.error_rate = self.tools.calculate_error_rate()
@@ -394,7 +391,7 @@ class OrchestratorMetrics:
         component_setters = {
             "task_start_time": lambda v: setattr(self.performance, "task_start_time", v),
             "task_end_time": lambda v: setattr(self.performance, "task_end_time", v),
-            "task_duration_minutes": lambda v: setattr(self.performance, "task_duration_minutes", v),
+            "task_duration_minutes": lambda v: setattr(self.performance, "task_duration_minutes", v),  # noqa: E501
             "files_accessed": lambda v: setattr(self.performance, "files_accessed", v),
             "tool_usage_by_type": lambda v: setattr(self.performance, "tool_usage_by_type", v),
             "delegation_rate": lambda v: setattr(self.performance, "delegation_rate", v),

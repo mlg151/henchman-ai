@@ -555,7 +555,7 @@ class OutputRenderer:
         content = f"### 🛠️ Tool Call: `{safe_name}`\n\n```json\n{args_str}\n```"
         self.markdown(content)
 
-    def tool_result(self: Self, content: str, *, success: bool = True, error: str | None = None) -> None:
+    def tool_result(self: Self, content: str, *, success: bool = True, error: str | None = None) -> None:  # noqa: E501
         """Display a tool result.
 
         Args:

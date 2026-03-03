@@ -238,7 +238,7 @@ class Repl:
                     and self.settings.ui.mcp_logging
                 ):
                     self.renderer.success(
-                        f"Connected to {len(self.mcp_manager.clients)} MCP server(s) with {len(self.mcp_manager.get_all_tools())} tools",
+                        f"Connected to {len(self.mcp_manager.clients)} MCP server(s) with {len(self.mcp_manager.get_all_tools())} tools",  # noqa: E501
                     )
             except Exception as e:
                 # Always show errors, regardless of logging setting

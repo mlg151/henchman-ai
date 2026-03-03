@@ -237,12 +237,13 @@ class PluginInstaller:
                 # Copy files to target directory
                 temp_path = Path(temp_dir)
                 for item in temp_path.iterdir():
-                    if item.name != ".git":  # Skip .git directory
-                        dest = target_dir / item.name
-                        if item.is_dir():
-                            shutil.copytree(item, dest, dirs_exist_ok=True)
-                        else:
-                            shutil.copy2(item, dest)
+                    if item.name == ".git":
+                        continue
+                    dest = target_dir / item.name
+                    if item.is_dir():
+                        shutil.copytree(item, dest, dirs_exist_ok=True)
+                    else:
+                        shutil.copy2(item, dest)
 
                 logger.info("Successfully installed from git to: %s", target_dir)
 

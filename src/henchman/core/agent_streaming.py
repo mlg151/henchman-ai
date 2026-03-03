@@ -182,8 +182,10 @@ def _handle_finish(
         if state.has_unreported_content():
             events.append(_make_event(EventType.CONTENT, state.content, source_agent))
     elif chunk.finish_reason == FinishReason.TOOL_CALLS:
-        for tc in state.get_pending_tool_calls(chunk.tool_calls):
-            events.append(_make_event(EventType.TOOL_CALL_REQUEST, tc, source_agent))
+        events.extend(
+            _make_event(EventType.TOOL_CALL_REQUEST, tc, source_agent)
+            for tc in state.get_pending_tool_calls(chunk.tool_calls)
+        )
     return events
 
 

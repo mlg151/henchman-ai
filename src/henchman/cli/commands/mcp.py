@@ -76,15 +76,16 @@ class McpCommand(BaseCommand):
         """List configured MCP servers."""
         manager: McpManager | None = getattr(ctx, "mcp_manager", None)
         if manager is None:
-            ctx.console.print("[dim]No MCP servers configured[/]")
+            console = ctx.console
+            console.print("[dim]No MCP servers configured[/]")
             return
 
         names = manager.get_server_names()
         if not names:
-            ctx.console.print("[dim]No MCP servers configured[/]")
+            console.print("[dim]No MCP servers configured[/]")
             return
 
-        ctx.console.print("\n[bold blue]MCP Servers[/]\n")
+        console.print("\n[bold blue]MCP Servers[/]\n")
         for name in names:
             trusted = manager.is_trusted(name)
             client = manager.clients.get(name)
@@ -92,30 +93,31 @@ class McpCommand(BaseCommand):
 
             status = "[green]●[/]" if connected else "[red]○[/]"
             trust = "[cyan](trusted)[/]" if trusted else ""
-            ctx.console.print(f"  {status} {name} {trust}")
-        ctx.console.print("")
+            console.print(f"  {status} {name} {trust}")
+        console.print("")
 
     async def _status(self, ctx: CommandContext) -> None:
         """Show MCP status and tools."""
         manager: McpManager | None = getattr(ctx, "mcp_manager", None)
         if manager is None:
-            ctx.console.print("[dim]No MCP servers configured[/]")
+            console = ctx.console
+            console.print("[dim]No MCP servers configured[/]")
             return
 
         names = manager.get_server_names()
         connected = sum(1 for c in manager.clients.values() if c.is_connected)
         tools = manager.get_all_tools()
 
-        ctx.console.print(f"\n[bold]Servers:[/] {connected}/{len(names)} connected")
-        ctx.console.print(f"[bold]Tools:[/] {len(tools)} available")
+        console.print(f"\n[bold]Servers:[/] {connected}/{len(names)} connected")
+        console.print(f"[bold]Tools:[/] {len(tools)} available")
 
         if tools:
-            ctx.console.print("\n[bold blue]Available Tools[/]\n")
+            console.print("\n[bold blue]Available Tools[/]\n")
             for tool in tools[:10]:  # Show first 10
-                ctx.console.print(f"  • {tool.name}")
+                console.print(f"  • {tool.name}")
             if len(tools) > 10:
-                ctx.console.print(f"  ... and {len(tools) - 10} more")
-        ctx.console.print("")
+                console.print(f"  ... and {len(tools) - 10} more")
+        console.print("")
 
     async def _logging(self, ctx: CommandContext) -> None:
         """Control MCP logging visibility.
@@ -154,13 +156,14 @@ class McpCommand(BaseCommand):
 
         if action == "on":
             settings.ui.mcp_logging = True
-            ctx.console.print("[green]✓ MCP logging enabled[/]")
+            console = ctx.console
+            console.print("[green]✓ MCP logging enabled[/]")
         elif action == "off":
             settings.ui.mcp_logging = False
-            ctx.console.print("[yellow]✓ MCP logging disabled[/]")
+            console.print("[yellow]✓ MCP logging disabled[/]")
         elif action == "status":
             status = "enabled" if settings.ui.mcp_logging else "disabled"
-            ctx.console.print(f"[bold]MCP logging:[/] {status}")
+            console.print(f"[bold]MCP logging:[/] {status}")
         else:
-            ctx.console.print("[red]Error:[/] Invalid argument. Use 'on', 'off', or 'status'.")
-            ctx.console.print("  Example: /mcp logging on")
+            console.print("[red]Error:[/] Invalid argument. Use 'on', 'off', or 'status'.")
+            console.print("  Example: /mcp logging on")

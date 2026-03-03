@@ -101,10 +101,11 @@ def _load_file(path: Path) -> dict[str, Any]:
         data: dict[str, Any] = (
             yaml.safe_load(content) if path.suffix in (".yaml", ".yml") else json.loads(content)
         )
-        return data or {}
     except (yaml.YAMLError, json.JSONDecodeError) as e:
         msg = f"Failed to parse {path}: {e}"
         raise ConfigError(msg) from e
+    else:
+        return data or {}
 
 
 def _apply_env_overrides(settings: dict[str, Any]) -> dict[str, Any]:

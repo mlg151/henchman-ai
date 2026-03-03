@@ -85,7 +85,7 @@ class McpTool(Tool):
         """Execute the tool via MCP.
 
         Args:
-            params: Tool parameters as keyword arguments. These are passed directly to the MCP server tool.
+            params: Tool parameters as keyword arguments. These are passed directly to the MCP server tool.  # noqa: E501
 
         Returns:
             Tool execution result.

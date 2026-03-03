@@ -118,6 +118,7 @@ class AgentCommand(Command):
         table.add_column("Name", style="green")
         table.add_column("Status", style="magenta")
         table.add_column("Tools", style="yellow")
+        table_add_row = table.add_row
 
         pool = orchestrator.pool
         active_roles = [a.role for a in pool.list_active_agents()]
@@ -129,7 +130,7 @@ class AgentCommand(Command):
             config = pool.configs.get(identity.role)
             tools_count = len(config.tools) if config else 0
 
-            table.add_row(identity.role, identity.name, status, str(tools_count))
+            table_add_row(identity.role, identity.name, status, str(tools_count))
 
         ctx.console.print(table)
 
@@ -137,20 +138,25 @@ class AgentCommand(Command):
         self, ctx: CommandContext, orchestrator: Orchestrator, role: str | None,
     ) -> None:
         """Show configuration for agent(s)."""
+        console = ctx.console
         pool = orchestrator.pool
         if role:
             if role not in pool.configs:
-                ctx.console.print(f"[red]Agent '{role}' not found.[/]")
+                console.print(f"[red]Agent '{role}' not found.[/]")
                 return
             config = pool.configs[role]
-            ctx.console.print(f"\n[bold green]Configuration for {config.name} ({role})[/]")
-            ctx.console.print(f"Description: {config.description}")
-            ctx.console.print(f"Tools: {', '.join(config.tools)}")
-            ctx.console.print(f"Can delegate to: {', '.join(config.can_delegate_to) or 'None'}")
+            config_name = config.name
+            config_description = config.description
+            config_tools = config.tools
+            config_can_delegate_to = config.can_delegate_to
+            console.print(f"\n[bold green]Configuration for {config_name} ({role})[/]")
+            console.print(f"Description: {config_description}")
+            console.print(f"Tools: {', '.join(config_tools)}")
+            console.print(f"Can delegate to: {', '.join(config_can_delegate_to) or 'None'}")
             if config.provider:
-                ctx.console.print(f"Provider: {config.provider}")
+                console.print(f"Provider: {config.provider}")
             if config.model:
-                ctx.console.print(f"Model: {config.model}")
+                console.print(f"Model: {config.model}")
         else:
             for r, config in pool.configs.items():
-                ctx.console.print(f"  [cyan]{r:15}[/] - {config.description}")
+                console.print(f"  [cyan]{r:15}[/] - {config.description}")

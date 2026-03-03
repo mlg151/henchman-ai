@@ -89,11 +89,13 @@ class LintCheckTool(Tool):
         Returns:
             Tuple of (success, formatted output).
         """
+        create_subprocess_exec = asyncio.create_subprocess_exec
+        PIPE = asyncio.subprocess.PIPE
         try:
-            process = await asyncio.create_subprocess_exec(
+            process = await create_subprocess_exec(
                 *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stdout=PIPE,
+                stderr=PIPE,
             )
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(),
