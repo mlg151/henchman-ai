@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 96.7/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T13:00:03.118066+00:00_
+_Generated: 2026-03-03T13:15:02.021145+00:00_
 
 ## Executive Summary
 
@@ -323,12 +323,12 @@ Public APIs: 14 | Documented: 14 | Coverage: 100.0%
 | 78 | 🟢 LOW | Incomplete Docstring | 'TuiConsoleAdapter.flush_to_chat' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'TuiConsoleAdapter.flush_to_chat'. |
 | 86 | 🟢 LOW | Incomplete Docstring | 'TuiConsoleAdapter.print' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'TuiConsoleAdapter.print'. |
 | 116 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post'. |
-| 124 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_message_if_data_exists' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_message_if_data_exists'. |
-| 143 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_data_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_data_message'. |
-| 161 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_prefixed_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_prefixed_message'. |
-| 170 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_tool_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_tool_message'. |
-| 179 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_status_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_status_message'. |
-| 234 | 🟢 LOW | Incomplete Docstring | 'EventBridge.forward_events' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'EventBridge.forward_events'. |
+| 152 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_message_if_data_exists' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_message_if_data_exists'. |
+| 167 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_data_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_data_message'. |
+| 179 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_prefixed_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_prefixed_message'. |
+| 188 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_tool_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_tool_message'. |
+| 197 | 🟢 LOW | Incomplete Docstring | 'MessagePoster.post_status_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'MessagePoster.post_status_message'. |
+| 252 | 🟢 LOW | Incomplete Docstring | 'EventBridge.forward_events' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'EventBridge.forward_events'. |
 
 ### src/henchman/metrics/storage.py — 👍 B (82.0/100) (last modified 2026-03-03)
 

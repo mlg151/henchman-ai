@@ -143,10 +143,7 @@ class MessagePoster:
         data = transform_data(event.data) if transform_data else event.data
 
         # Convert to string and add prefix if needed
-        if prefix:
-            data_str = f"{prefix}{data}"
-        else:
-            data_str = str(data)
+        data_str = f"{prefix}{data}" if prefix else str(data)
 
         # Cast to Any to avoid mypy error about Message constructor
         msg_class = cast(type[Any], message_class)
