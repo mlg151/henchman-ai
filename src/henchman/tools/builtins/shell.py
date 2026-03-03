@@ -116,7 +116,8 @@ def _format_output(stdout: str, stderr: str) -> str:
 def _make_result(
     output: str,
     returncode: int | None,
-    timed_out: bool,  # noqa: FBT001
+    *,
+    timed_out: bool,
     timeout_value: float | None,
 ) -> ToolResult:
     """Build the final :class:`ToolResult` from process outcome.
@@ -399,13 +400,13 @@ class ShellTool(Tool):
                 )
 
             # Create subprocess (with sudo fallback when no TTY)
-            process = await self._create_process(command, env, cwd, is_sudo)
+            process = await self._create_process(command, env, cwd, is_sudo=is_sudo)
 
             # Run subprocess and collect output
             outcome = await self._run_and_collect(process, effective_timeout)
 
             output = _format_output(outcome.stdout, outcome.stderr)
-            return _make_result(output, outcome.returncode, outcome.timed_out, effective_timeout)
+            return _make_result(output, outcome.returncode, timed_out=outcome.timed_out, timeout_value=effective_timeout)  # noqa: E501
 
         except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
@@ -420,7 +421,8 @@ class ShellTool(Tool):
         command: str,
         env: dict[str, str],
         cwd: str | None,
-        is_sudo: bool,  # noqa: FBT001
+        *,
+        is_sudo: bool,
     ) -> asyncio.subprocess.Process:
         """Create a subprocess for *command*.
 

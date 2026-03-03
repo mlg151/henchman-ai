@@ -230,19 +230,25 @@ class CompressionStrategyFactory:
             Compression strategy instance.
         """
         CSC = CompressionStrategyConstants  # noqa: N806
+        csc_coding_high = CSC.CODING_HIGH_THRESHOLD
+        csc_coding_med = CSC.CODING_MEDIUM_THRESHOLD
+        csc_debug_high = CSC.DEBUGGING_HIGH_THRESHOLD
+        csc_debug_med = CSC.DEBUGGING_MEDIUM_THRESHOLD
+        csc_default_high = CSC.DEFAULT_COMPRESSION_HIGH_THRESHOLD
+        csc_default_med = CSC.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD
         if conversation_type == "coding":
             config = CompressionStrategyConfig(
                 name="coding",
-                high_threshold=CSC.CODING_HIGH_THRESHOLD,
-                medium_threshold=CSC.CODING_MEDIUM_THRESHOLD,
+                high_threshold=csc_coding_high,
+                medium_threshold=csc_coding_med,
                 preserve_tool_sequences=True,
                 preserve_code_blocks=True,
             )
         elif conversation_type == "debugging":
             config = CompressionStrategyConfig(
                 name="debugging",
-                high_threshold=CSC.DEBUGGING_HIGH_THRESHOLD,
-                medium_threshold=CSC.DEBUGGING_MEDIUM_THRESHOLD,
+                high_threshold=csc_debug_high,
+                medium_threshold=csc_debug_med,
                 preserve_tool_sequences=True,
                 preserve_code_blocks=True,
             )
@@ -250,16 +256,16 @@ class CompressionStrategyFactory:
             # Research uses general strategy with different documentation
             config = CompressionStrategyConfig(
                 name="research",
-                high_threshold=CSC.DEFAULT_COMPRESSION_HIGH_THRESHOLD,
-                medium_threshold=CSC.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD,
+                high_threshold=csc_default_high,
+                medium_threshold=csc_default_med,
                 preserve_tool_sequences=True,
                 preserve_code_blocks=False,
             )
         else:  # general
             config = CompressionStrategyConfig(
                 name="general",
-                high_threshold=CSC.DEFAULT_COMPRESSION_HIGH_THRESHOLD,
-                medium_threshold=CSC.DEFAULT_COMPRESSION_MEDIUM_THRESHOLD,
+                high_threshold=csc_default_high,
+                medium_threshold=csc_default_med,
                 preserve_tool_sequences=True,
                 preserve_code_blocks=False,
             )

@@ -1,18 +1,18 @@
-# Code Smell Report — 🔶 D (Score: 62.3/100)
+# Code Smell Report — 🔶 D (Score: 62.2/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T15:44:17.532847+00:00_
+_Generated: 2026-03-03T16:00:33.375817+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | 🔶 D |
-| **Overall Score** | 62.3/100 |
-| **Files Scanned** | 187 |
-| **Total Lines (non-blank)** | 34,806 |
-| **Total Smells** | 1547 |
+| **Overall Score** | 62.2/100 |
+| **Files Scanned** | 188 |
+| **Total Lines (non-blank)** | 34,988 |
+| **Total Smells** | 1572 |
 | **Avg Maintainability Index** | 71.7 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,22 +20,22 @@ _Generated: 2026-03-03T15:44:17.532847+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1073 |
-| medium | 447 |
+| low | 1083 |
+| medium | 462 |
 | high | 27 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 597 |
-| Duplicate Code | 318 |
-| Feature Envy | 276 |
-| Long Method | 110 |
-| Magic Number | 78 |
-| Primitive Obsession | 62 |
+| Missing Type Hint | 602 |
+| Duplicate Code | 331 |
+| Feature Envy | 279 |
+| Long Method | 111 |
+| Magic Number | 79 |
+| Primitive Obsession | 63 |
 | Deep Nesting | 57 |
-| Complex Function | 26 |
+| Complex Function | 27 |
 | Large Class | 23 |
 
 ## 🎯 Prioritised Refactoring Queue
@@ -55,7 +55,7 @@ These are the highest-impact smells to address first:
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 4. **cli/repl.py:83** — 🟠 HIGH — Long Method  
-   Function '__init__' has 105 lines (threshold: 30)  
+   Function '__init__' has 107 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
 5. **cli/textual_widgets.py:923** — 🟠 HIGH — Duplicate Code  
@@ -108,19 +108,19 @@ These are the highest-impact smells to address first:
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
 | 1 | cli/textual_bridge.py | ❌ F | 15.1 | 25 | 409 | 50 | 0.0 |
-| 2 | tools/builtins/python_ast.py | ❌ F | 15.5 | 32 | 371 | 52 | 11.0 |
+| 2 | tools/builtins/python_ast.py | ❌ F | 15.5 | 33 | 373 | 52 | 11.0 |
 | 3 | cli/output_handler.py | ❌ F | 15.7 | 92 | 307 | 52 | 0.0 |
 | 4 | cli/ui_renderer.py | ❌ F | 17.2 | 47 | 301 | 57 | 0.0 |
 | 5 | tools/builtins/git_ops.py | ❌ F | 17.3 | 21 | 279 | 55 | 0.0 |
 | 6 | metrics/dashboard.py | ❌ F | 17.6 | 40 | 270 | 59 | 14.0 |
 | 7 | cli/commands/context.py | ❌ F | 21.3 | 45 | 475 | 48 | 0.0 |
 | 8 | providers/anthropic.py | ❌ F | 22.9 | 38 | 471 | 41 | 0.0 |
-| 9 | cli/repl.py | ❌ F | 23.9 | 22 | 345 | 52 | 16.0 |
-| 10 | metrics/storage.py | ❌ F | 26.7 | 38 | 660 | 47 | 0.0 |
+| 9 | cli/repl.py | ❌ F | 23.9 | 22 | 347 | 52 | 16.0 |
+| 10 | tools/builtins/file_edit.py | ❌ F | 25.0 | 19 | 231 | 62 | 13.0 |
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 167 additional files omitted._
+_Showing 20 worst files. 168 additional files omitted._
 
 ### cli/textual_bridge.py — ❌ F (15.1/100)
 
@@ -148,11 +148,12 @@ _... and 10 more smells._
 
 ### tools/builtins/python_ast.py — ❌ F (15.5/100)
 
-LOC: 371 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 11.0
+LOC: 373 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 11.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 35 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:329 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 35 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 35 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:330 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 35 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/test_gen.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 35 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/builtins/traceback_parse.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 35 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -160,15 +161,14 @@ LOC: 371 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 11.0
 | 58 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._get_docstring' accesses 'ast' 6 times but 'self' only 0 times | Move Method — consider moving '_get_docstring' to the class that owns 'ast'. |
 | 130 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._format_function' accesses 'node' 6 times but 'self' only 3 times | Move Method — consider moving '_format_function' to the class that owns 'node'. |
 | 130 | 🟡 MEDIUM | Complex Function | Function '_format_function' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 189 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._format_class' accesses 'ast' 6 times but 'self' only 4 times | Move Method — consider moving '_format_class' to the class that owns 'ast'. |
-| 189 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._format_class' accesses 'node' 5 times but 'self' only 4 times | Move Method — consider moving '_format_class' to the class that owns 'node'. |
-| 323 | 🟡 MEDIUM | Duplicate Code | Function '_validate_path' is 98% similar to 'validate_file_path' at tools/utils.py:9 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 407 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._add_assignments_section' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving '_add_assignments_section' to the class that owns 'ast'. |
-| 407 | 🟡 MEDIUM | Complex Function | Function '_add_assignments_section' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 435 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._add_functions_and_classes_sections' accesses 'ast' 5 times but 'self' only 2 times | Move Method — consider moving '_add_functions_and_classes_sections' to the class that owns 'ast'. |
-| 11 | 🟢 LOW | Large Class | Class 'PythonAstTool' spans 448 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 190 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._format_class' accesses 'ast' 6 times but 'self' only 4 times | Move Method — consider moving '_format_class' to the class that owns 'ast'. |
+| 190 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._format_class' accesses 'node' 5 times but 'self' only 4 times | Move Method — consider moving '_format_class' to the class that owns 'node'. |
+| 325 | 🟡 MEDIUM | Duplicate Code | Function '_validate_path' is 98% similar to 'validate_file_path' at tools/utils.py:9 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 409 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._add_assignments_section' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving '_add_assignments_section' to the class that owns 'ast'. |
+| 409 | 🟡 MEDIUM | Complex Function | Function '_add_assignments_section' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 437 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._add_functions_and_classes_sections' accesses 'ast' 5 times but 'self' only 2 times | Move Method — consider moving '_add_functions_and_classes_sections' to the class that owns 'ast'. |
 
-_... and 17 more smells._
+_... and 18 more smells._
 
 ### cli/output_handler.py — ❌ F (15.7/100)
 
@@ -184,7 +184,7 @@ LOC: 307 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 0.0
 | 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'thinking' at cli/output_handler.py:287 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'print_agent_content' at cli/output_handler.py:295 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'complete_task' at cli/output_handler.py:360 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'set_session' at cli/repl.py:208 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'set_session' at cli/repl.py:210 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'delete' at cli/session_manager.py:196 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'post' at cli/textual_bridge.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to '_post' at cli/textual_bridge.py:261 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -231,7 +231,7 @@ LOC: 279 | Classes: 1 | Functions: 0 | MI: 55 | Avg CC: 0.0
 | 47 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 93% similar to 'parameters' at tools/builtins/kg_query.py:69 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 47 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/builtins/lint_check.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 47 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/pytest_run.py:52 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 47 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/shell.py:329 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 47 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/shell.py:330 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 47 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/test_gen.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 47 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/web_fetch.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 224 | 🟡 MEDIUM | Primitive Obsession | Function '_log' has 5 primitive-typed parameters: path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), ref: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), max_count: Name(id='int', ctx=Load()), stat: Name(id='bool', ctx=Load()), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
@@ -316,27 +316,51 @@ _... and 23 more smells._
 
 ### cli/repl.py — ❌ F (23.9/100)
 
-LOC: 345 | Classes: 2 | Functions: 0 | MI: 52 | Avg CC: 16.0
+LOC: 347 | Classes: 2 | Functions: 0 | MI: 52 | Avg CC: 16.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 83 | 🟠 HIGH | Long Method | Function '__init__' has 105 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 83 | 🟠 HIGH | Long Method | Function '__init__' has 107 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 83 | 🟡 MEDIUM | Complex Function | Function '__init__' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'delete' at cli/session_manager.py:196 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'post' at cli/textual_bridge.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to '_post' at cli/textual_bridge.py:261 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to '_on_thought' at cli/textual_bridge.py:419 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 94% similar to 'code' at cli/ui_renderer.py:307 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:151 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:162 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 216 | 🟡 MEDIUM | Duplicate Code | Function '_handle_confirmation' is 95% similar to 'confirm_tool_execution' at cli/ui_renderer.py:350 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 357 | 🟡 MEDIUM | Long Method | Function '_run_agent_with_monitor' has 52 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 357 | 🟡 MEDIUM | Feature Envy | Method 'Repl._run_agent_with_monitor' accesses 'asyncio' 8 times but 'self' only 7 times | Move Method — consider moving '_run_agent_with_monitor' to the class that owns 'asyncio'. |
-| 425 | 🟡 MEDIUM | Feature Envy | Method 'Repl._handle_agent_event' accesses 'event' 5 times but 'self' only 1 times | Move Method — consider moving '_handle_agent_event' to the class that owns 'event'. |
+| 210 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'delete' at cli/session_manager.py:196 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 210 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'post' at cli/textual_bridge.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 210 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to '_post' at cli/textual_bridge.py:261 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 210 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to '_on_thought' at cli/textual_bridge.py:419 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 210 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 94% similar to 'code' at cli/ui_renderer.py:307 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 210 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:151 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 210 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:162 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 218 | 🟡 MEDIUM | Duplicate Code | Function '_handle_confirmation' is 95% similar to 'confirm_tool_execution' at cli/ui_renderer.py:350 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 359 | 🟡 MEDIUM | Long Method | Function '_run_agent_with_monitor' has 52 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 359 | 🟡 MEDIUM | Feature Envy | Method 'Repl._run_agent_with_monitor' accesses 'asyncio' 8 times but 'self' only 7 times | Move Method — consider moving '_run_agent_with_monitor' to the class that owns 'asyncio'. |
+| 427 | 🟡 MEDIUM | Feature Envy | Method 'Repl._handle_agent_event' accesses 'event' 5 times but 'self' only 1 times | Move Method — consider moving '_handle_agent_event' to the class that owns 'event'. |
 | 65 | 🟢 LOW | Magic Number | Magic number 25 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 66 | 🟢 LOW | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
 _... and 7 more smells._
+
+### tools/builtins/file_edit.py — ❌ F (25.0/100)
+
+LOC: 231 | Classes: 1 | Functions: 0 | MI: 62 | Avg CC: 13.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 73 | 🟠 HIGH | Primitive Obsession | Function 'execute' has 6 primitive-typed parameters: path: Name(id='str', ctx=Load()), old_str: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), new_str: Name(id='str', ctx=Load()), start_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), dry_run: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/file_write.py:28 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/git_ops.py:47 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/glob_tool.py:31 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:52 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/builtins/python_exec.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:330 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/test_gen.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/builtins/traceback_parse.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 73 | 🟡 MEDIUM | Long Method | Function 'execute' has 51 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 73 | 🟡 MEDIUM | Complex Function | Function 'execute' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 150 | 🟡 MEDIUM | Primitive Obsession | Function '_edit_string' has 4 primitive-typed parameters: content: Name(id='str', ctx=Load()), old_str: Name(id='str', ctx=Load()), new_str: Name(id='str', ctx=Load()), dry_run: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+
+_... and 4 more smells._
 
 ### metrics/storage.py — ❌ F (26.7/100)
 
@@ -385,30 +409,6 @@ LOC: 157 | Classes: 4 | Functions: 2 | MI: 63 | Avg CC: 0.0
 | 85 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 9 more smells._
-
-### tools/builtins/file_edit.py — ❌ F (28.7/100)
-
-LOC: 228 | Classes: 1 | Functions: 0 | MI: 63 | Avg CC: 13.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 73 | 🟠 HIGH | Primitive Obsession | Function 'execute' has 6 primitive-typed parameters: path: Name(id='str', ctx=Load()), old_str: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), new_str: Name(id='str', ctx=Load()), start_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), dry_run: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/file_write.py:28 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/git_ops.py:47 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/glob_tool.py:31 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/pytest_run.py:52 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/python_ast.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/shell.py:329 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/test_gen.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/builtins/traceback_parse.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 34 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 73 | 🟡 MEDIUM | Long Method | Function 'execute' has 51 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 73 | 🟡 MEDIUM | Complex Function | Function 'execute' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 149 | 🟡 MEDIUM | Primitive Obsession | Function '_edit_string' has 4 primitive-typed parameters: content: Name(id='str', ctx=Load()), old_str: Name(id='str', ctx=Load()), new_str: Name(id='str', ctx=Load()), dry_run: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 193 | 🟡 MEDIUM | Primitive Obsession | Function '_edit_line_range' has 5 primitive-typed parameters: content: Name(id='str', ctx=Load()), start_line: Name(id='int', ctx=Load()), end_line: Name(id='int', ctx=Load()), new_str: Name(id='str', ctx=Load()), dry_run: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-
-_... and 3 more smells._
 
 ### cli/textual_messages.py — ❌ F (30.0/100)
 
@@ -460,25 +460,25 @@ _... and 16 more smells._
 
 ### tools/builtins/shell.py — ❌ F (33.4/100)
 
-LOC: 498 | Classes: 2 | Functions: 12 | MI: 48 | Avg CC: 0.0
+LOC: 500 | Classes: 2 | Functions: 12 | MI: 48 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 116 | 🟡 MEDIUM | Primitive Obsession | Function '_make_result' has 4 primitive-typed parameters: output: Name(id='str', ctx=Load()), returncode: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), timed_out: Name(id='bool', ctx=Load()), timeout_value: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 329 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/test_gen.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 329 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/builtins/traceback_parse.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 329 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 329 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 499 | 🟡 MEDIUM | Long Method | Function '_execute_interactive_sudo' has 73 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 499 | 🟡 MEDIUM | Feature Envy | Method 'ShellTool._execute_interactive_sudo' accesses 'process' 6 times but 'self' only 2 times | Move Method — consider moving '_execute_interactive_sudo' to the class that owns 'process'. |
-| 279 | 🟢 LOW | Large Class | Class 'ShellTool' spans 369 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 329 | 🟢 LOW | Long Method | Function 'parameters' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 369 | 🟢 LOW | Primitive Obsession | Function 'execute' has 3 primitive-typed parameters: command: Name(id='str', ctx=Load()), timeout: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 418 | 🟢 LOW | Primitive Obsession | Function '_create_process' has 3 primitive-typed parameters: command: Name(id='str', ctx=Load()), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), is_sudo: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 418 | 🟢 LOW | Feature Envy | Method 'ShellTool._create_process' accesses 'asyncio' 4 times but 'self' only 0 times | Move Method — consider moving '_create_process' to the class that owns 'asyncio'. |
-| 442 | 🟢 LOW | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 452 | 🟢 LOW | Feature Envy | Method 'ShellTool._run_and_collect' accesses 'asyncio' 3 times but 'self' only 0 times | Move Method — consider moving '_run_and_collect' to the class that owns 'asyncio'. |
-| 452 | 🟢 LOW | Feature Envy | Method 'ShellTool._run_and_collect' accesses 'process' 3 times but 'self' only 0 times | Move Method — consider moving '_run_and_collect' to the class that owns 'process'. |
+| 330 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/test_gen.py:34 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 330 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/builtins/traceback_parse.py:46 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 330 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_fetch.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 330 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/web_search.py:27 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 501 | 🟡 MEDIUM | Long Method | Function '_execute_interactive_sudo' has 73 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 501 | 🟡 MEDIUM | Feature Envy | Method 'ShellTool._execute_interactive_sudo' accesses 'process' 6 times but 'self' only 2 times | Move Method — consider moving '_execute_interactive_sudo' to the class that owns 'process'. |
+| 280 | 🟢 LOW | Large Class | Class 'ShellTool' spans 370 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 330 | 🟢 LOW | Long Method | Function 'parameters' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 370 | 🟢 LOW | Primitive Obsession | Function 'execute' has 3 primitive-typed parameters: command: Name(id='str', ctx=Load()), timeout: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 419 | 🟢 LOW | Primitive Obsession | Function '_create_process' has 3 primitive-typed parameters: command: Name(id='str', ctx=Load()), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), is_sudo: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 419 | 🟢 LOW | Feature Envy | Method 'ShellTool._create_process' accesses 'asyncio' 4 times but 'self' only 0 times | Move Method — consider moving '_create_process' to the class that owns 'asyncio'. |
+| 444 | 🟢 LOW | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 454 | 🟢 LOW | Feature Envy | Method 'ShellTool._run_and_collect' accesses 'asyncio' 3 times but 'self' only 0 times | Move Method — consider moving '_run_and_collect' to the class that owns 'asyncio'. |
+| 454 | 🟢 LOW | Feature Envy | Method 'ShellTool._run_and_collect' accesses 'process' 3 times but 'self' only 0 times | Move Method — consider moving '_run_and_collect' to the class that owns 'process'. |
 
 _... and 11 more smells._
 
@@ -556,14 +556,14 @@ _... and 11 more smells._
 
 ### agents/metrics.py — ❌ F (39.7/100)
 
-LOC: 319 | Classes: 5 | Functions: 1 | MI: 53 | Avg CC: 0.0
+LOC: 320 | Classes: 5 | Functions: 1 | MI: 53 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 59 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 92% similar to '__init__' at agents/metrics.py:111 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 91 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 100% similar to 'track_tool_usage' at agents/metrics.py:99 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 148 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 93% similar to '__init__' at cli/textual_mixins.py:109 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 160 | 🟡 MEDIUM | Feature Envy | Method 'ToolMetrics.track_tool_call' accesses 'ToolCategory' 5 times but 'self' only 3 times | Move Method — consider moving 'track_tool_call' to the class that owns 'ToolCategory'. |
+| 160 | 🟡 MEDIUM | Feature Envy | Method 'ToolMetrics.track_tool_call' accesses 'TC' 5 times but 'self' only 3 times | Move Method — consider moving 'track_tool_call' to the class that owns 'TC'. |
 | 59 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 71 | 🟢 LOW | Missing Type Hint | Function 'reset' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 83 | 🟢 LOW | Missing Type Hint | Function 'calculate_file_re_reads' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
@@ -602,7 +602,7 @@ LOC: 320 | Classes: 1 | Functions: 0 | MI: 54 | Avg CC: 0.0
 
 _... and 17 more smells._
 
-## ✨ Clean Files (60 files with no smells)
+## ✨ Clean Files (59 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -616,7 +616,6 @@ _... and 17 more smells._
 - agents/orchestrator_events.py — ✅ A
 - agents/orchestrator_init.py — ✅ A
 - agents/orchestrator_loop.py — ✅ A
-- agents/orchestrator_metrics_ctrl.py — ✅ A
 - agents/orchestrator_prompts.py — ✅ A
 - agents/orchestrator_run.py — ✅ A
 - agents/orchestrator_tech_lead.py — ✅ A

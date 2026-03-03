@@ -84,13 +84,14 @@ class ThemeCommand(Command):
         current_theme = theme_manager.current.name
         available_themes = theme_manager.list_themes()
 
-        ctx.console.print("\n[bold blue]Available Themes[/]\n")
+        console = ctx.console
+        console.print("\n[bold blue]Available Themes[/]\n")
         for theme_name in available_themes:
             if theme_name == current_theme:
-                ctx.console.print(f"  [green]• {theme_name} (current)[/]")
+                console.print(f"  [green]• {theme_name} (current)[/]")
             else:
-                ctx.console.print(f"  {theme_name}")
-        ctx.console.print()
+                console.print(f"  {theme_name}")
+        console.print()
 
     async def _set_theme(self, ctx: CommandContext, args: list[str]) -> None:
         """Change active theme and provide feedback.
@@ -169,6 +170,7 @@ class ThemeCommand(Command):
             ctx: Command context.
             theme_name: Name of the theme to persist.
         """
+        console = ctx.console
         if ctx.repl and hasattr(ctx.repl, "settings") and ctx.repl.settings:
             try:
                 # Update settings object
@@ -179,9 +181,9 @@ class ThemeCommand(Command):
 
                 save_settings(ctx.repl.settings)
 
-                ctx.console.print("[dim]Theme saved to settings[/]")
+                console.print("[dim]Theme saved to settings[/]")
             except Exception as e:  # noqa: BLE001
-                ctx.console.print(f"[red]Warning:[/] Failed to save settings: {e}")
+                console.print(f"[red]Warning:[/] Failed to save settings: {e}")
 
     async def _preview_theme(self, ctx: CommandContext, args: list[str]) -> None:
         """Show sample output with the theme.
@@ -190,9 +192,10 @@ class ThemeCommand(Command):
             ctx: Command context.
             args: Command arguments (theme name).
         """
+        console = ctx.console
         if not args:
-            ctx.console.print("[red]Error:[/] Theme name required")
-            ctx.console.print("[yellow]Usage:[/] /theme preview <theme-name>")
+            console.print("[red]Error:[/] Theme name required")
+            console.print("[yellow]Usage:[/] /theme preview <theme-name>")
             return
 
         theme_name = args[0]
@@ -200,8 +203,8 @@ class ThemeCommand(Command):
 
         # Check if theme exists
         if theme_name not in theme_manager.list_themes():
-            ctx.console.print(f"[red]Error:[/] Theme '{theme_name}' not found")
-            ctx.console.print("[dim]Available themes:[/] " + ", ".join(theme_manager.list_themes()))
+            console.print(f"[red]Error:[/] Theme '{theme_name}' not found")
+            console.print("[dim]Available themes:[/] " + ", ".join(theme_manager.list_themes()))
             return
 
         # Create a temporary renderer with the preview theme
@@ -209,18 +212,24 @@ class ThemeCommand(Command):
 
         preview_theme = theme_manager.get_theme(theme_name)
         preview_renderer = OutputRenderer(console=ctx.console, theme=preview_theme)
+        pr_info = preview_renderer.info
+        pr_success = preview_renderer.success
+        pr_warning = preview_renderer.warning
+        pr_error = preview_renderer.error
+        pr_muted = preview_renderer.muted
+        pr_heading = preview_renderer.heading
 
-        ctx.console.print(f"\n[bold blue]Preview of '{theme_name}' theme[/]\n")
+        console.print(f"\n[bold blue]Preview of '{theme_name}' theme[/]\n")
 
         # Show sample output
-        preview_renderer.info("This is an info message")
-        preview_renderer.success("This is a success message")
-        preview_renderer.warning("This is a warning message")
-        preview_renderer.error("This is an error message")
-        preview_renderer.muted("This is muted text")
-        preview_renderer.heading("This is a heading")
+        pr_info("This is an info message")
+        pr_success("This is a success message")
+        pr_warning("This is a warning message")
+        pr_error("This is an error message")
+        pr_muted("This is muted text")
+        pr_heading("This is a heading")
 
-        ctx.console.print()
+        console.print()
 
     async def _create_theme(self, ctx: CommandContext, args: list[str]) -> None:  # noqa: ARG002
         """Stub for future custom theme creation.

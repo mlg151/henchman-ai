@@ -131,8 +131,9 @@ class PythonAstTool(Tool):
         self: PythonAstTool,
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         indent: int = 0,
-        include_docstrings: bool = True,  # noqa: FBT001, FBT002
-        is_method: bool = False,  # noqa: FBT001, FBT002
+        *,
+        include_docstrings: bool = True,
+        is_method: bool = False,
     ) -> list[str]:
         """Format a function/method definition.
 
@@ -187,7 +188,7 @@ class PythonAstTool(Tool):
         return lines
 
     def _format_class(
-        self: PythonAstTool, node: ast.ClassDef, indent: int = 0, include_docstrings: bool = True,  # noqa: FBT001, FBT002
+        self: PythonAstTool, node: ast.ClassDef, indent: int = 0, *, include_docstrings: bool = True,  # noqa: E501
     ) -> list[str]:
         """Format a class definition with its methods.
 
@@ -261,7 +262,8 @@ class PythonAstTool(Tool):
     async def execute(  # type: ignore[override]
         self: PythonAstTool,
         path: str = "",
-        include_docstrings: bool = True,  # noqa: FBT001, FBT002
+        *,
+        include_docstrings: bool = True,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
         """Parse a Python file and return its symbol table.
@@ -274,9 +276,9 @@ class PythonAstTool(Tool):
         Returns:
             ToolResult with the symbol table.
         """
-        return await self._parse_python_file(path, include_docstrings)
+        return await self._parse_python_file(path, include_docstrings=include_docstrings)
 
-    async def _parse_python_file(self: PythonAstTool, path: str, include_docstrings: bool) -> ToolResult:  # noqa: E501, FBT001
+    async def _parse_python_file(self: PythonAstTool, path: str, *, include_docstrings: bool) -> ToolResult:  # noqa: E501
         """Orchestrate the parsing of a Python file.
 
         Args:
@@ -313,7 +315,7 @@ class PythonAstTool(Tool):
             )
 
         # Generate symbol table
-        sections = self._generate_symbol_table(tree, file_path.name, include_docstrings)
+        sections = self._generate_symbol_table(tree, file_path.name, include_docstrings=include_docstrings)  # noqa: E501
 
         return ToolResult(
             content="\n".join(sections),
@@ -347,7 +349,7 @@ class PythonAstTool(Tool):
         return None
 
     def _generate_symbol_table(
-        self: PythonAstTool, tree: ast.Module, file_name: str, include_docstrings: bool,  # noqa: FBT001
+        self: PythonAstTool, tree: ast.Module, file_name: str, *, include_docstrings: bool,
     ) -> list[str]:
         """Generate symbol table sections from AST.
 
@@ -362,7 +364,7 @@ class PythonAstTool(Tool):
         sections: list[str] = [f"# Symbol table for {file_name}"]
 
         # Module docstring
-        self._add_module_docstring(sections, tree, include_docstrings)
+        self._add_module_docstring(sections, tree, include_docstrings=include_docstrings)
 
         # Imports
         self._add_imports_section(sections, tree)
@@ -371,12 +373,12 @@ class PythonAstTool(Tool):
         self._add_assignments_section(sections, tree)
 
         # Functions and classes
-        self._add_functions_and_classes_sections(sections, tree, include_docstrings)
+        self._add_functions_and_classes_sections(sections, tree, include_docstrings=include_docstrings)  # noqa: E501
 
         return sections
 
     def _add_module_docstring(
-        self: PythonAstTool, sections: list[str], tree: ast.Module, include_docstrings: bool,  # noqa: FBT001
+        self: PythonAstTool, sections: list[str], tree: ast.Module, *, include_docstrings: bool,
     ) -> None:
         """Add module docstring to sections if present and requested.
 
@@ -433,7 +435,7 @@ class PythonAstTool(Tool):
                     sections.append(f"{names}  [L{a_lineno}]")
 
     def _add_functions_and_classes_sections(
-        self: PythonAstTool, sections: list[str], tree: ast.Module, include_docstrings: bool,  # noqa: FBT001
+        self: PythonAstTool, sections: list[str], tree: ast.Module, *, include_docstrings: bool,
     ) -> None:
         """Add functions and classes sections to sections.
 

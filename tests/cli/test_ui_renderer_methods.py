@@ -74,7 +74,7 @@ class TestUIRendererDelegation:
         ui = _make_renderer()
         ui.renderer.tool_result = MagicMock()
         ui.tool_result("output", success=True, error=None)
-        ui.renderer.tool_result.assert_called_once_with("output", True, None)
+        ui.renderer.tool_result.assert_called_once_with("output", success=True, error=None)
 
     def test_tool_summary(self) -> None:
         """Test tool_summary delegates to renderer.tool_summary."""

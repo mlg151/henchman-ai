@@ -620,7 +620,8 @@ class ContextCompactor:
 
         # Reconstruct final message list
         return self._reconstruct_result(
-            system_msgs, kept_sequences, last_sequence, last_sequence_is_user, protected_msgs,
+            system_msgs, kept_sequences, last_sequence,
+            last_sequence_is_user=last_sequence_is_user, protected_msgs=protected_msgs,
         )
 
 
@@ -709,7 +710,8 @@ class ContextCompactor:
         system_msgs: list[Message],
         kept_sequences: list[MessageSequence],
         last_sequence: MessageSequence,
-        last_sequence_is_user: bool,  # noqa: FBT001
+        *,
+        last_sequence_is_user: bool,
         protected_msgs: list[Message],
     ) -> list[Message]:
         """Reconstruct final message list from components.
@@ -929,7 +931,8 @@ async def compact_with_summarization(  # noqa: PLR0913
     messages: list[Message],
     max_tokens: int,
     provider: ModelProvider | None = None,
-    summarize: bool = True,  # noqa: FBT001, FBT002
+    *,
+    summarize: bool = True,
     protect_from_index: int = -1,
     max_protected_ratio: float = 0.3,
 ) -> CompactionResult:

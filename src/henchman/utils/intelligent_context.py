@@ -244,7 +244,8 @@ class IntelligentContextManager:
         max_protected_ratio: float | None = None,
         importance_threshold: float | None = None,
         cluster_similarity_threshold: float | None = None,
-        adaptive_compression: bool | None = None,  # noqa: FBT001
+        *,
+        adaptive_compression: bool | None = None,
     ) -> None:
         """Initialize intelligent context manager.
 

@@ -62,7 +62,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
-    "pytest-cov>=4.0",  # Version 4.0+ of pytest-cov package (NOTE: "4.0" is the MINIMUM PACKAGE VERSION, NOT a coverage percentage. The project requires 100% test coverage via --cov-fail-under=100 in pytest configuration. This is NOT a 4% coverage threshold!)
+    "pytest-cov>=4.0",  # Version 4.0+ of pytest-cov package (NOTE: "4.0" is the MINIMUM PACKAGE VERSION, NOT a coverage percentage. The project requires 100% test coverage via --cov-fail-under=100 in pytest configuration. This is NOT a 4% coverage threshold! See CI workflow, CONTRIBUTING.md, and README.md for 100% coverage requirement.)
     "ruff>=0.4",
     "mypy>=1.10",
     "types-PyYAML>=6.0",

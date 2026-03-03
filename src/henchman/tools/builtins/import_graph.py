@@ -561,8 +561,9 @@ class ImportGraphTool(Tool):
         scan_path: Path | None,
         imports: list[str],
         analyzer: ImportAnalyzer,
-        should_classify: bool,  # noqa: FBT001
-        should_detect_cycles: bool,  # noqa: FBT001
+        *,
+        should_classify: bool,
+        should_detect_cycles: bool,
     ) -> ToolResult:
         """Build the analysis result from extracted data.
 
@@ -580,7 +581,7 @@ class ImportGraphTool(Tool):
         parts: list[str] = []
 
         # Add imports analysis
-        self._add_imports_analysis(parts, target_path.name, imports, should_classify, analyzer)
+        self._add_imports_analysis(parts, target_path.name, imports, classify=should_classify, analyzer=analyzer)  # noqa: E501
 
         # Add reverse imports analysis if scan_dir provided
         if scan_path:
@@ -630,7 +631,8 @@ class ImportGraphTool(Tool):
         parts: list[str],
         filename: str,
         imports: list[str],
-        classify: bool,  # noqa: FBT001
+        *,
+        classify: bool,
         analyzer: ImportAnalyzer,
     ) -> None:
         """Add imports analysis to result parts.

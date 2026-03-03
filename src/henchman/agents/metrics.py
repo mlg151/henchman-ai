@@ -173,12 +173,13 @@ class ToolMetrics:
 
         # Increment the appropriate per-category counter
         category = _categorize_tool(tool_name)
+        TC = ToolCategory
         _category_counter: dict[ToolCategory, str] = {
-            ToolCategory.READ_FILE: "read_file_calls",
-            ToolCategory.WRITE_FILE: "write_file_calls",
-            ToolCategory.EDIT_FILE: "edit_file_calls",
-            ToolCategory.SHELL: "shell_calls",
-            ToolCategory.GIT_OPS: "git_ops_calls",
+            TC.READ_FILE: "read_file_calls",
+            TC.WRITE_FILE: "write_file_calls",
+            TC.EDIT_FILE: "edit_file_calls",
+            TC.SHELL: "shell_calls",
+            TC.GIT_OPS: "git_ops_calls",
         }
         counter_attr = _category_counter.get(category, "other_tool_calls")
         setattr(self, counter_attr, getattr(self, counter_attr) + 1)

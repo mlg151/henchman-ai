@@ -165,7 +165,7 @@ class TestCreateCoreContext:
         assert context.settings == mock_settings
 
         # Verify tool manager was configured
-        mock_tool_manager.set_auto_approve.assert_called_once_with(True)
+        mock_tool_manager.set_auto_approve.assert_called_once_with(auto_approve=True)
         mock_tool_manager.register_builtin_tools.assert_called_once()
 
         # Verify plugin manager loaded plugins
@@ -233,7 +233,7 @@ class TestCreateCoreContext:
         # Verify MCP manager was created
         assert context.mcp_manager == mock_mcp_manager
         mock_mcp_manager_cls.create_from_settings.assert_called_once_with(
-            mock_settings, False
+            mock_settings, mcp_logging_enabled=False
         )
 
         # Verify orchestrator was created with MCP manager
@@ -292,7 +292,7 @@ class TestCreateCoreContext:
         assert context.settings is None
 
         # Verify tool manager was not auto-approved
-        mock_tool_manager.set_auto_approve.assert_called_once_with(False)
+        mock_tool_manager.set_auto_approve.assert_called_once_with(auto_approve=False)
 
 
 class TestInitializeMcp:

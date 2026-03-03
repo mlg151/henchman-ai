@@ -108,12 +108,13 @@ class PytestRunTool(Tool):
         path: str = "",
         keyword: str | None = None,
         markers: str | None = None,
-        verbose: bool = False,  # noqa: FBT001, FBT002
+        *,
+        verbose: bool = False,
         timeout: int = 300,
-        coverage: bool = False,  # noqa: FBT001, FBT002
+        coverage: bool = False,
         coverage_source: str | None = None,
         parallel: int | None = None,
-        collect_only: bool = False,  # noqa: FBT001, FBT002
+        collect_only: bool = False,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
         """Run pytest on the given path.

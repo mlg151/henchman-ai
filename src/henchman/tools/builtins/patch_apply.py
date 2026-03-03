@@ -463,7 +463,8 @@ class PatchApplyTool(Tool):
         self: PatchApplyTool,
         patch: str = "",
         path: str | None = None,
-        dry_run: bool = False,  # noqa: FBT001, FBT002
+        *,
+        dry_run: bool = False,
         fuzz: int = DEFAULT_FUZZ_LINES,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
@@ -500,7 +501,7 @@ class PatchApplyTool(Tool):
         if not file_patches:
             return self._create_error_result("Error: No hunks found in patch", "No hunks")
 
-        results = self._apply_patches_to_files(file_patches, params.dry_run, params.fuzz)
+        results = self._apply_patches_to_files(file_patches, dry_run=params.dry_run, fuzz=params.fuzz)  # noqa: E501
         return self._create_result_from_application_results(results)
 
     def _create_error_result(self: PatchApplyTool, content: str, error: str) -> ToolResult:
@@ -510,13 +511,14 @@ class PatchApplyTool(Tool):
     def _apply_patches_to_files(
         self: PatchApplyTool,
         file_patches: dict[str, list[dict[str, Any]]],
-        dry_run: bool,  # noqa: FBT001
+        *,
+        dry_run: bool,
         fuzz: int,
     ) -> list[str]:
         """Apply patches to multiple files and collect results."""
         results: list[str] = []
         for file_path, hunks in file_patches.items():
-            result = self._apply_patch_to_single_file(file_path, hunks, dry_run, fuzz)
+            result = self._apply_patch_to_single_file(file_path, hunks, dry_run=dry_run, fuzz=fuzz)
             results.append(result)
         return results
 
@@ -524,7 +526,8 @@ class PatchApplyTool(Tool):
         self: PatchApplyTool,
         file_path: str,
         hunks: list[dict[str, Any]],
-        dry_run: bool,  # noqa: FBT001
+        *,
+        dry_run: bool,
         fuzz: int,
     ) -> str:
         """Apply patch to a single file and return result message."""

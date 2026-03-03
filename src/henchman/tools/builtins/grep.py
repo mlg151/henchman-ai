@@ -591,7 +591,7 @@ class GrepTool(Tool):
         # Count-only mode
         p_count_only = params.count_only
         if p_count_only:
-            return self.searcher._count_matches(files, regex, p_invert_match)  # noqa: SLF001
+            return self.searcher._count_matches(files, regex, invert_match=p_invert_match)  # noqa: SLF001
 
         # Search files
         return self.searcher.search_files(files, regex, search_config)

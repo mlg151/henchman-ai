@@ -199,11 +199,11 @@ def test_agent_stall_detection_skip_short_response(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # Short response should skip
-    assert agent._stall.should_skip("Hi", False) is True
+    assert agent._stall.should_skip("Hi", had_tool_calls=False) is True
 
     # Longer response should not skip
     long_response = "This is a longer response that should be checked for stalling."
-    assert agent._stall.should_skip(long_response, False) is False
+    assert agent._stall.should_skip(long_response, had_tool_calls=False) is False
 
 
 def test_agent_stall_detection_skip_with_tool_calls(mock_provider):
@@ -211,11 +211,11 @@ def test_agent_stall_detection_skip_with_tool_calls(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # With tool calls should skip
-    assert agent._stall.should_skip("Any response", True) is True
+    assert agent._stall.should_skip("Any response", had_tool_calls=True) is True
 
     # Should reset stall count
     agent._stall.nudge_count = 3
-    agent._stall.should_skip("Any response", True)
+    agent._stall.should_skip("Any response", had_tool_calls=True)
     assert agent._stall.nudge_count == 0
 
 
@@ -224,7 +224,7 @@ def test_agent_stall_detection_disabled(mock_provider):
     agent = Agent(provider=mock_provider)
     agent._stall.enabled = False
 
-    assert agent._stall.should_skip("Any response", False) is True
+    assert agent._stall.should_skip("Any response", had_tool_calls=False) is True
 
 
 def test_agent_detect_stalling_patterns_colon_ending(mock_provider):
@@ -267,12 +267,12 @@ async def test_agent_check_for_stalling_no_stall(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # Normal response with tool calls
-    result = await agent._stall.check("Created the file", True)
+    result = await agent._stall.check("Created the file", had_tool_calls=True)
     assert result is None
     assert agent._stall.nudge_count == 0
 
     # Normal response without tool calls but not stalling
-    result = await agent._stall.check("The file has been created successfully", False)
+    result = await agent._stall.check("The file has been created successfully", had_tool_calls=False)
     assert result is None
 
 
@@ -283,7 +283,7 @@ async def test_agent_check_for_stalling_with_nudge(mock_provider):
 
     # Stalling response
     stalling_response = "Let me start by creating the file:"
-    result = await agent._stall.check(stalling_response, False)
+    result = await agent._stall.check(stalling_response, had_tool_calls=False)
 
     assert result == STALL_NUDGE_MESSAGE
     assert agent._stall.nudge_count == 1
@@ -297,7 +297,7 @@ async def test_agent_check_for_stalling_max_nudges(mock_provider):
 
     # Stalling response at max nudges
     stalling_response = "Let me start by creating the file:"
-    result = await agent._stall.check(stalling_response, False)
+    result = await agent._stall.check(stalling_response, had_tool_calls=False)
 
     assert result is None  # Should stop nudging
     assert agent._stall.failure is True  # Should set failure flag

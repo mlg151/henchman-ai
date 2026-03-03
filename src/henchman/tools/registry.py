@@ -73,7 +73,7 @@ class ToolRegistry:
         """
         self._retry_config = config
 
-    def set_plan_mode(self: ToolRegistry, enabled: bool) -> None:  # noqa: FBT001
+    def set_plan_mode(self: ToolRegistry, *, enabled: bool) -> None:
         """Enable or disable Plan Mode (Read-Only).
 
         Args:

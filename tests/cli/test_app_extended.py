@@ -46,7 +46,7 @@ def test_run_interactive_plan_mode():
     ):
         _run_interactive(RunConfig(output_format="text", plan_mode=True))
         assert mock_session.plan_mode is True
-        mock_repl_instance.tool_manager.set_plan_mode.assert_called_once_with(True)
+        mock_repl_instance.tool_manager.set_plan_mode.assert_called_once_with(plan_mode=True)
         assert "PLAN" in mock_repl_instance.agent.system_prompt
 
 

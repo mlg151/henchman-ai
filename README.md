@@ -235,8 +235,8 @@ pip install -e ".[dev]"
 # Run all tests
 pytest
 
-# Run with coverage
-pytest --cov=henchman --cov-report=html
+# Run with coverage (100% required)
+pytest --cov=henchman --cov-report=html --cov-fail-under=100
 
 # Run specific test categories
 pytest tests/unit/ -v

@@ -28,7 +28,7 @@ class ToolMetricsController(OrchestratorComponent):
             arguments: Dictionary of arguments passed to the tool
             success: Whether the tool call was successful
         """
-        self.metrics.update_tool_metrics(tool_name, arguments, success)
+        self.metrics.update_tool_metrics(tool_name, arguments, success=success)
 
     def track_tool_error(
         self: ToolMetricsController,

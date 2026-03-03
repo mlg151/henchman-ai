@@ -79,7 +79,7 @@ class TestCreateFromSettings:
         mock_settings = MagicMock(spec=Settings)
         mock_settings.mcp_servers = None
 
-        result = McpManager.create_from_settings(mock_settings, False)
+        result = McpManager.create_from_settings(mock_settings, mcp_logging_enabled=False)
 
         assert result is None
 
@@ -89,7 +89,7 @@ class TestCreateFromSettings:
         mock_settings = MagicMock(spec=Settings)
         mock_settings.mcp_servers = {}
 
-        result = McpManager.create_from_settings(mock_settings, False)
+        result = McpManager.create_from_settings(mock_settings, mcp_logging_enabled=False)
 
         assert result is None
 
@@ -118,7 +118,7 @@ class TestCreateFromSettings:
             ),
         }
 
-        result = McpManager.create_from_settings(mock_settings, False)
+        result = McpManager.create_from_settings(mock_settings, mcp_logging_enabled=False)
 
         # Should create McpManager
         assert isinstance(result, McpManager)
@@ -175,7 +175,7 @@ class TestCreateFromSettings:
             ),
         }
 
-        result = McpManager.create_from_settings(mock_settings, True)
+        result = McpManager.create_from_settings(mock_settings, mcp_logging_enabled=True)
 
         # Should create McpManager with verbose=True
         assert isinstance(result, McpManager)
@@ -207,7 +207,7 @@ class TestCreateFromSettings:
             ),
         }
 
-        result = McpManager.create_from_settings(mock_settings, False)
+        result = McpManager.create_from_settings(mock_settings, mcp_logging_enabled=False)
 
         uvx_config = result.configs["uvx_server"]
         # Should be detected as Python server
@@ -227,7 +227,7 @@ class TestCreateFromSettings:
             ),
         }
 
-        result = McpManager.create_from_settings(mock_settings, False)
+        result = McpManager.create_from_settings(mock_settings, mcp_logging_enabled=False)
 
         npx_config = result.configs["npx_server"]
         # Should be detected as Node server
@@ -245,7 +245,7 @@ class TestCreateFromSettings:
             ),
         }
 
-        result = McpManager.create_from_settings(mock_settings, False)
+        result = McpManager.create_from_settings(mock_settings, mcp_logging_enabled=False)
 
         pyfile_config = result.configs["pyfile_server"]
         # Should be detected as Python server

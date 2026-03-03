@@ -118,7 +118,8 @@ class LintCheckTool(Tool):
         self,
         path: str = "",
         linter: str = "both",
-        fix: bool = False,  # noqa: FBT001, FBT002
+        *,
+        fix: bool = False,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
         """Run lint checks on the given path.

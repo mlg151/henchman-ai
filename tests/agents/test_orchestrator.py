@@ -249,7 +249,7 @@ async def test_agent_stall_detection_colon_ending():
     from henchman.core.agent import Agent
 
     agent = Agent(provider=MagicMock(spec=ModelProvider))
-    result = await agent._check_for_stalling("Now let me create the script:", False)
+    result = await agent._check_for_stalling("Now let me create the script:", had_tool_calls=False)
     assert result is not None
     assert "tool" in result.lower()
 
@@ -262,12 +262,12 @@ async def test_agent_stall_failure_flag_after_max_nudges():
     agent = Agent(provider=MagicMock(spec=ModelProvider))
     agent._max_stall_nudges = 2
     # First two nudges return a message
-    r1 = await agent._check_for_stalling("Let me create the validation script:", False)
+    r1 = await agent._check_for_stalling("Let me create the validation script:", had_tool_calls=False)
     assert r1 is not None
-    r2 = await agent._check_for_stalling("Now I'll write the test file:", False)
+    r2 = await agent._check_for_stalling("Now I'll write the test file:", had_tool_calls=False)
     assert r2 is not None
     # Third time: returns None and sets failure flag
-    r3 = await agent._check_for_stalling("Here we go, starting now:", False)
+    r3 = await agent._check_for_stalling("Here we go, starting now:", had_tool_calls=False)
     assert r3 is None
     assert agent._stall_failure is True
 
@@ -278,10 +278,10 @@ async def test_agent_stall_resets_on_tool_calls():
     from henchman.core.agent import Agent
 
     agent = Agent(provider=MagicMock(spec=ModelProvider))
-    await agent._check_for_stalling("Let me write the entire module:", False)
+    await agent._check_for_stalling("Let me write the entire module:", had_tool_calls=False)
     assert agent._stall_nudge_count == 1
     # Tool call resets the count
-    await agent._check_for_stalling("anything", True)
+    await agent._check_for_stalling("anything", had_tool_calls=True)
     assert agent._stall_nudge_count == 0
 
 
@@ -292,7 +292,7 @@ async def test_agent_stall_detection_disabled_flag():
 
     agent = Agent(provider=MagicMock(spec=ModelProvider))
     agent.stall_detection_enabled = False
-    result = await agent._check_for_stalling("Now let me create the script:", False)
+    result = await agent._check_for_stalling("Now let me create the script:", had_tool_calls=False)
     assert result is None
     assert agent._stall_nudge_count == 0
 
@@ -306,7 +306,7 @@ async def test_agent_no_stall_on_genuine_content():
     result = await agent._check_for_stalling(
         "I've updated the file and added tests. All 42 tests pass. "
         "The coverage is now 95%. Here's a summary of the changes I made.",
-        False,
+        had_tool_calls=False,
     )
     assert result is None
 

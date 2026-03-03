@@ -54,7 +54,8 @@ class LsTool(Tool):
     async def execute(  # type: ignore[override]  # noqa: C901
         self: LsTool,
         path: str = ".",
-        show_hidden: bool = False,  # noqa: FBT001, FBT002
+        *,
+        show_hidden: bool = False,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
         """List directory contents.

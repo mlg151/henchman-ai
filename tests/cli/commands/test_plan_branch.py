@@ -33,7 +33,7 @@ async def test_plan_toggle_with_duplicate_prompt():
     # Toggle OFF (should remove prompt)
     await cmd.execute(ctx)
     assert ctx.session.plan_mode is False
-    ctx.tool_registry.set_plan_mode.assert_called_with(False)
+    ctx.tool_registry.set_plan_mode.assert_called_with(enabled=False)
     # The prompt should be removed from system prompt
     # Note: The actual implementation uses replace() which removes all occurrences
     assert PLAN_MODE_PROMPT not in ctx.agent.system_prompt
@@ -41,7 +41,7 @@ async def test_plan_toggle_with_duplicate_prompt():
     # Toggle ON again (should add prompt back)
     await cmd.execute(ctx)
     assert ctx.session.plan_mode is True
-    ctx.tool_registry.set_plan_mode.assert_called_with(True)
+    ctx.tool_registry.set_plan_mode.assert_called_with(enabled=True)
     # Prompt should be added back
     assert PLAN_MODE_PROMPT in ctx.agent.system_prompt
 
