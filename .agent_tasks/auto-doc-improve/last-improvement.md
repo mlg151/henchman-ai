@@ -1,92 +1,91 @@
 # Documentation Improvement Record
 
 ## Date/Time
-2026-03-03T12:15:00Z
+2026-03-03T11:30:02Z
 
 ## Files Changed
-1. `src/henchman/agents/orchestrator_validation.py` - Added missing Args and Returns sections to four functions:
-   - `should_check_thinking` (lines 23-33)
-   - `handle_valid_thinking` (lines 35-45)
-   - `handle_missing_thinking` (lines 47-62)
-   - `check_stall_failure` (lines 64-84)
+1. `src/henchman/api/server.py` - Added missing Args and Returns/Yields sections to three functions:
+   - `lifespan` (lines 75-85) - Added Args and Yields sections
+   - `http_exception_handler` (lines 148-160) - Added Args and Returns sections
+   - `generic_exception_handler` (lines 161-175) - Added Args and Returns sections
 
 ## Smell Category Addressed
-- **Incomplete Docstring** (MEDIUM): Four functions had parameters but no Args: sections in their docstrings
+- **Incomplete Docstring** (MEDIUM): Three functions had parameters but no Args: sections in their docstrings
 
 ## Rationale for Change
-The documentation smell report identified four functions in the orchestrator validation module with incomplete docstrings. These functions are critical for validating agent behavior in the multi-agent system, particularly for:
-1. Checking if thinking patterns should be validated
-2. Handling valid thinking patterns
-3. Handling missing thinking patterns
-4. Detecting stall failures in agents
+The documentation smell report identified three functions in the API server module with incomplete docstrings. These functions are critical for the FastAPI server lifecycle and error handling:
+1. `lifespan` - Manages the FastAPI application lifecycle (startup/shutdown)
+2. `http_exception_handler` - Handles HTTP exceptions with proper JSON responses
+3. `generic_exception_handler` - Handles generic exceptions with 500 Internal Server Error responses
 
-Without proper documentation, developers would not understand what parameters to pass or what these functions return, making the API harder to use and maintain.
+Without proper documentation, developers would not understand what parameters to pass or what these functions return, making the API server harder to maintain and extend.
 
 ## Changes Made
 
-### 1. `should_check_thinking` function (lines 23-33):
+### 1. `lifespan` function (lines 75-85):
 - **Before**: Simple one-line docstring with no parameter documentation
-- **After**: Added Args section documenting `orchestrator` and `agent` parameters, and Returns section documenting the boolean return value
+- **After**: Added Args section documenting `_app` parameter and Yields section documenting the context manager behavior
 
-### 2. `handle_valid_thinking` function (lines 35-45):
+### 2. `http_exception_handler` function (lines 148-160):
 - **Before**: Simple one-line docstring with no parameter documentation
-- **After**: Added Args section documenting `metrics` and `content` parameters
+- **After**: Added Args section documenting `request` and `exc` parameters, and Returns section documenting the JSONResponse return value
 
-### 3. `handle_missing_thinking` function (lines 47-62):
-- **Before**: Simple one-line docstring with no parameter or return documentation
-- **After**: Added Args section documenting `agent` parameter and Returns section documenting the AgentEvent return value
-
-### 4. `check_stall_failure` function (lines 64-84):
-- **Before**: Simple one-line docstring with no parameter or return documentation
-- **After**: Added Args section documenting `orchestrator` and `agent` parameters, and Returns section documenting the optional AgentEvent return value
+### 3. `generic_exception_handler` function (lines 161-175):
+- **Before**: Simple one-line docstring with no parameter documentation
+- **After**: Added Args section documenting `request` and `_exc` parameters, and Returns section documenting the JSONResponse return value
 
 ## Technical Details
 - **Issue**: Functions had parameters but no corresponding documentation in docstrings
-- **Root cause**: Missing Args and Returns sections in Google-style docstrings
-- **Impact**: Developers using these validation functions would not know what parameters to pass or what the functions return
-- **Fix**: Added proper Google-style docstrings with Args and Returns sections
+- **Root cause**: Missing Args and Returns/Yields sections in Google-style docstrings
+- **Impact**: Developers maintaining the API server would not know what parameters these handlers expect or what they return
+- **Fix**: Added proper Google-style docstrings with Args and Returns/Yields sections
 - **Note**: All functions now follow consistent documentation standards
 
 ## What to Verify
-1. All four functions now have proper Args sections documenting their parameters
+1. All three functions now have proper Args sections documenting their parameters
 2. Functions with return values have proper Returns sections
-3. The documentation follows Google-style docstring format
-4. No other documentation inconsistencies were introduced
-5. The functions are now properly documented for API usage
+3. The `lifespan` context manager has a proper Yields section
+4. The documentation follows Google-style docstring format
+5. No other documentation inconsistencies were introduced
+6. The API server functions are now properly documented for maintenance
 
 ## Testing Instructions
 To verify the fix:
 ```bash
 # Check the updated docstrings
-grep -n "def should_check_thinking\|def handle_valid_thinking\|def handle_missing_thinking\|def check_stall_failure" src/henchman/agents/orchestrator_validation.py
+grep -n "def lifespan\|def http_exception_handler\|def generic_exception_handler" src/henchman/api/server.py
 
-# Verify the docstrings contain Args and Returns sections
-grep -n "Args:" src/henchman/agents/orchestrator_validation.py
-grep -n "Returns:" src/henchman/agents/orchestrator_validation.py
+# Verify the docstrings contain Args and Returns/Yields sections
+grep -n "Args:" src/henchman/api/server.py
+grep -n "Returns:" src/henchman/api/server.py
+grep -n "Yields:" src/henchman/api/server.py
 
 # Run the doc smell detector to confirm these issues are resolved
-python -m scripts.doc_smell_detector . --skip-docstrings -f json | grep -i "orchestrator_validation"
+python -m scripts.doc_smell_detector . --skip-docstrings -f json | grep -i "server.py"
 ```
 
 ## Next Priority
 The next highest-priority issues from the smell report are:
-1. **Incomplete Docstring** in `src/henchman/api/server.py:75` ('lifespan' has 1 parameter but no Args section)
-2. **Incomplete Docstring** in `src/henchman/api/server.py:148` ('http_exception_handler' has 2 parameters but no Args section)
-3. **Incomplete Docstring** in `src/henchman/api/server.py:161` ('generic_exception_handler' has 2 parameters but no Args section)
-4. **Incomplete Docstring** in `src/henchman/cli/app.py:600` ('cli' has 1 parameter but no Args section)
+1. **Incomplete Docstring** in `src/henchman/cli/app.py:600` ('cli' has 1 parameter but no Args section)
+2. **Incomplete Docstring** in `src/henchman/cli/app.py:645` ('chat_command' has 8 parameters but no Args section)
+3. **Missing Docstring** in `src/henchman/cli/commands/plan.py:1` (Module is missing a docstring)
+4. **Incomplete Docstring** in `src/henchman/cli/commands/session.py:126` ('CommandOperationContext.print_success' has 1 parameter but no Args section)
 
 ## Notes
-This improvement addresses genuine documentation quality issues in a critical module. The `orchestrator_validation.py` module contains essential validation logic for the multi-agent system, including:
+This improvement addresses genuine documentation quality issues in the API server module. The `server.py` module contains essential FastAPI server logic, including:
 
-1. **Thinking pattern validation**: Ensures agents follow proper reasoning patterns
-2. **Stall detection**: Prevents agents from getting stuck without making progress
-3. **Behavior monitoring**: Tracks agent performance and quality metrics
+1. **Application lifecycle management**: The `lifespan` context manager handles startup and shutdown
+2. **Error handling**: Both HTTP and generic exception handlers provide consistent error responses
+3. **API server configuration**: CORS middleware, router inclusion, and server startup
 
 Having proper documentation ensures that:
-1. Developers can understand and use these validation functions correctly
-2. The purpose of each parameter is clear
-3. Return values are properly documented
+1. Developers can understand and maintain the API server code
+2. The purpose of each parameter is clear (e.g., `_app`, `request`, `exc`)
+3. Return values are properly documented (JSONResponse for error handlers)
 4. The codebase maintains consistent documentation standards
-5. Future maintainers can understand the validation logic
+5. Future maintainers can understand the server architecture
 
-The fix follows the project's Google-style docstring conventions and provides clear, actionable documentation for important validation functions in the orchestrator system.
+The fix follows the project's Google-style docstring conventions and provides clear, actionable documentation for critical API server functions.
+
+## Note on #1 Issue in Smell Report
+The #1 issue in the smell report (consistency error about "4% coverage threshold" in `pyproject.toml:65`) appears to be a false positive - it misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". The actual coverage threshold in the project is correctly set to 100% via `--cov-fail-under=100` in the pytest configuration. This false positive was noted in previous improvement records and should be addressed in the smell detection logic rather than in documentation.

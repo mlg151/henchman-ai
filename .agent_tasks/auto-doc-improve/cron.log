@@ -15372,3 +15372,619 @@ INFO    -  Documentation built in 0.75 seconds
 }
 [2026-03-03T11:15:02Z] Verification passed.
 Committing changes...
+[main 5d51a51] docs(auto-improve): automated documentation improvement
+ 9 files changed, 2998 insertions(+), 548 deletions(-)
+[2026-03-03T11:15:02Z] Done.
+[2026-03-03T11:30:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by addressing the highest-priority issue from the smell report: the consistency error in `pyproject.toml` where it states a coverage threshold of 4% while other files require 100%. Let me first check the current state of the file.
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
+
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+Let me look for the coverage threshold configuration:
+[tool] grep({'pattern': 'coverage', 'path': 'pyproject.toml', 'line_numbers': 
+True})
+
+[result] 145:[tool.coverage.run]
+149:[tool.coverage.report]...
+Let me read the coverage section:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 145, 'end_line': 155})
+
+[result] [tool.coverage.run]
+source = ["src/henchman"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "pragma: no branch",
+    "if TYPE_CHECKING:",
+    "raise NotImplemente...
+I need to see if there's a fail_under setting. Let me check the full coverage section:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 140, 'end_line': 165})
+
+[result]     "integration: marks tests as integration tests (deselect with '-m 
+\"not integration\"')",
+    "always_passes: marks behavioral eval as expected to always pass (run in 
+CI)",
+    "usually_passes: ma...
+I don't see a fail_under setting in the coverage section. Let me check if there's a pytest-cov configuration elsewhere:
+[tool] grep({'pattern': 'fail_under', 'path': 'pyproject.toml', 'line_numbers': 
+True})
+
+[result] No matches found...
+Let me check the CI script to see what coverage threshold it uses:
+[tool] read_file({'path': 'scripts/ci.sh'})
+
+✗ \[error] Error: File not found: scripts/ci.sh
+Let me check what scripts exist:
+[tool] ls({'path': 'scripts'})
+
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+run_evals.sh
+smell_detector/...
+Let me check the auto-doc-improve script since that's what generated the report:
+[tool] read_file({'path': 'scripts/auto-doc-improve.sh'})
+
+[result] #!/usr/bin/env bash
+# auto-doc-improve.sh — Run Henchman to make one documentation improvement, then
+commit.
+set -euo pipefail
+alias pytest='prlimit --as=16G --rss=16G python -m pytest'
+# Limit memory...
+Let me check what the smell detector is referring to. The report says line 65 of pyproject.toml has a consistency error about coverage threshold. Let me look at line 65:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+Line 65 is `"pytest-cov>=4.0",`. The smell detector is interpreting "4.0" as a coverage threshold percentage, but it's actually the version number for pytest-cov package! This is a false positive from the smell detector. However, I should check if there are actual coverage threshold inconsistencies elsewhere.
+
+Let me check the copilot-instructions.md file to see what coverage threshold it mentions:
+[tool] grep({'pattern': 'coverage', 'path': '.github/copilot-instructions.md', 
+'line_numbers': True})
+
+[result] 17:- **Phase 12**: Polish & Release ✅ (100% test coverage, all core 
+features implemented)
+43:3. **Pytest** - Tests with 100% coverage requirement
+45:5. **Doc coverage** - All public functions must hav...
+The copilot instructions clearly state 100% coverage requirement. Let me check if there's a pytest configuration that might have a different threshold:
+[tool] grep({'pattern': 'cov-fail-under', 'path': '.', 'glob': '*.toml', 
+'line_numbers': True})
+
+[result] 138:addopts = "-v --cov=henchman --cov-report=term-missing 
+--cov-fail-under=100"...
+Found it! Let me look at the pytest configuration:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 135, 'end_line': 145})
+
+[result] testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-v --cov=henchman --cov-report=term-missing --cov-fail-under=100"
+markers = [
+    "integration: m...
+Perfect! The pytest configuration already has `--cov-fail-under=100` which is correct. The smell detector is incorrectly interpreting the pytest-cov version "4.0" as a coverage threshold. This is a false positive.
+
+However, let me check if there are any other files that might mention a different coverage threshold. Let me search for "4%" or other percentages:
+[tool] grep({'pattern': '4%', 'path': '.', 'line_numbers': True})
+
+[result] .agent_tasks/auto-doc-improve/cron.log:3674:mismatch: 4% vs 80%)\n\nThe
+stale docstrings should be addressed next as they 
+.agent_tasks/auto-doc-improve/cron.log:3881:mismatch: 4% vs 80%)\n\nThe stale...
+I can see from the logs that this is a recurring false positive issue. The smell detector is incorrectly interpreting `pytest-cov>=4.0` as a "4% coverage threshold" when it's actually the version requirement for the pytest-cov package. However, looking at the current smell report, it says "Found thresholds: 100%, 4%". 
+
+Let me check if there are any actual documentation files that mention coverage thresholds to ensure consistency:
+[tool] grep({'pattern': 'coverage.*threshold|threshold.*coverage', 'path': '.', 
+'glob': '*.md', 'ignore_case': True, 'line_numbers': True})
+
+[result] No matches found...
+Let me check the documentation files for any mention of coverage percentages:
+[tool] grep({'pattern': '100% coverage|coverage.*100%', 'path': '.', 'glob': 
+'*.md', 'ignore_case': True, 'line_numbers': True})
+
+[result] CHANGELOG.md:216:- 49 new tests for environment detection with 100% 
+coverage on the new module.
+RELEASE_CHECKLIST.md:9:- [ ] Ensure test coverage = 100%: `pytest --cov=henchman
+--cov-report=term-missi...
+Good! The documentation correctly states 100% coverage. Let me also check the copilot instructions to see what it says about coverage:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 45, 
+'end_line': 50})
+
+[result] 5. **Doc coverage** - All public functions must have docstrings
+## Quality Requirements
+- **100% test coverage** - All code must be tested
+- **100% documentation coverage** - All public functions/clas...
+Now let me check what the last improvement was to avoid repeating work:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Documentation Improvement Record
+
+## Date/Time
+2026-03-03T12:15:00Z
+
+## Files Changed
+1. `src/henchman/agents/orchestrator_validation.py` - Added missing Args and 
+Returns sections to four functions:...
+Good, the last improvement was about incomplete docstrings. Now I need to address the current #1 issue in the smell report, which is the consistency error about coverage thresholds. However, based on my investigation, this appears to be a false positive - the smell detector is misinterpreting `pytest-cov>=4.0` as a "4% coverage threshold" when it's actually the version requirement for the pytest-cov package.
+
+But wait, let me re-examine the smell report more carefully. It says "Found thresholds: 100%, 4%". The "100%" is from `--cov-fail-under=100` in the pytest configuration. The "4%" is from misinterpreting `pytest-cov>=4.0`. 
+
+Actually, I should check if there are any **actual** inconsistencies in the documentation. Let me check if any documentation files mention a different coverage percentage:
+[tool] grep({'pattern': '[0-9]+% coverage|coverage.*[0-9]+%', 'path': '.', 
+'glob': '*.md', 'ignore_case': True, 'line_numbers': True})
+
+[result] CHANGELOG.md:145:- **Test coverage** — Increased coverage from 88.19% 
+to 89%+ by adding targeted tests for previously uncovered code paths:
+CHANGELOG.md:149:- **CI pipeline** — Fixed CI to pass all te...
+I see! There's an inconsistency! The CHANGELOG.md mentions "89% coverage" in lines 145 and 149, but the RELEASE_CHECKLIST.md and the pytest configuration require 100% coverage. This is an actual consistency error that needs to be fixed!
+
+Let me examine the CHANGELOG.md file more closely:
+[tool] read_file({'path': 'CHANGELOG.md', 'start_line': 140, 'end_line': 155})
+
+[result] - **Mypy type error** — Fixed `Select` widget construction in 
+`ProviderScreen.compose()` by replacing `**dict` expansion with an explicit 
+`value=` keyword argument, resolving mypy arg-type error.
+- **...
+This is a historical record of what happened in a previous release - it's reporting that coverage was increased **from 88.19% to 89%+**. This is not a requirement statement, it's a historical fact. The CHANGELOG is correctly documenting what happened in that release. However, the smell detector might be interpreting this as a current requirement.
+
+But wait, let me check if there are any other inconsistencies. Let me look at the RELEASE_CHECKLIST.md to see what it says:
+[tool] read_file({'path': 'RELEASE_CHECKLIST.md', 'start_line': 5, 'end_line': 
+15})
+
+[result] ## Pre-Release (1-2 days before)
+
+### Code Quality
+- [ ] Run full test suite: `pytest`
+- [ ] Ensure test coverage = 100%: `pytest --cov=henchman 
+--cov-report=term-missing --cov-fail-under=100`
+- [ ] R...
+Good, the RELEASE_CHECKLIST.md correctly states 100% coverage requirement. Let me also check the copilot instructions again to see what it says:
+[tool] grep({'pattern': '100% test coverage', 'path': 
+'.github/copilot-instructions.md', 'line_numbers': True})
+
+[result] 17:- **Phase 12**: Polish & Release ✅ (100% test coverage, all core 
+features implemented)
+47:- **100% test coverage** - All code must be tested
+971:- **100% test coverage** - All code paths must be te...
+Perfect! The copilot instructions clearly state 100% test coverage is required. Now, the issue is that the CHANGELOG.md mentions historical coverage percentages (88.19% to 89%+), which are historical facts, not requirements. However, this could be confusing to someone reading the documentation.
+
+Actually, looking more carefully at the smell report, it says "pyproject.toml:65 — 🟡 MEDIUM — Consistency Error — States coverage threshold of 4% but other files require 100%." This is referring to line 65 of pyproject.toml, which is `"pytest-cov>=4.0",` - the version requirement for pytest-cov package. This is definitely a false positive.
+
+But wait, I should check if there's an actual issue. Let me look at the pytest configuration again:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 135, 'end_line': 145})
+
+[result] testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-v --cov=henchman --cov-report=term-missing --cov-fail-under=100"
+markers = [
+    "integration: m...
+The pytest configuration has `--cov-fail-under=100` which is correct. So the actual coverage threshold in the project configuration is 100%, not 4%.
+
+However, I realize there's a potential issue: the smell detector might be finding the "4%" from the CHANGELOG.md historical references (88.19% to 89%+) and comparing it to the 100% requirement. But actually, looking at the smell report again, it specifically mentions "pyproject.toml:65" which is `"pytest-cov>=4.0",`.
+
+Actually, I think I need to address this false positive issue. Since the smell detector is consistently reporting this as a consistency error, and it's the #1 priority in the report, I should add a comment in the pyproject.toml file to clarify that `pytest-cov>=4.0` is a version requirement, not a coverage threshold. This will help prevent future confusion.
+
+Let me add a comment to line 65 in pyproject.toml:
+[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 75})
+
+[result] 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "types-networkx>=3.0",
+  ...
+Actually, I should check if there's a better way to handle this. The issue is that the smell detector is misinterpreting `pytest-cov>=4.0` as a "4% coverage threshold". Adding a comment might help, but the real issue is with the smell detector's logic. However, since my task is to fix documentation inconsistencies, and this false positive keeps appearing as the #1 issue, I should address it.
+
+Actually, let me think about this differently. The smell report says "Found thresholds: 100%, 4%". The "100%" is correct (from `--cov-fail-under=100`). The "4%" is incorrect (from misinterpreting `pytest-cov>=4.0`). 
+
+But wait, I should check if there are any **actual** documentation inconsistencies. Let me look for any documentation that states a coverage requirement other than 100%:
+[tool] grep({'pattern': 'coverage.*[0-9]+%|[0-9]+%.*coverage', 'path': 'docs', 
+'ignore_case': True, 'line_numbers': True})
+
+[result] docs/architecture.md:204:- **Unit Tests**: Each component tested 
+independently (100% coverage for core components)
+docs/index.md:12:- 🚀 **Production-Ready**: Proper error handling, testing, and 
+100% t...
+Good! The documentation in `docs/` correctly states 100% coverage. The CHANGELOG.md mentions historical percentages (88.19% to 89%+), which are historical facts about past improvements, not current requirements.
+
+Actually, I think I've identified the real issue. The smell detector is finding:
+1. `--cov-fail-under=100` in pytest configuration (correct, 100% requirement)
+2. `pytest-cov>=4.0` in dev dependencies (misinterpreted as "4% coverage threshold")
+3. Historical coverage percentages in CHANGELOG.md (88.19%, 89%+)
+
+The issue is that the smell detector is incorrectly interpreting `pytest-cov>=4.0` as a "4% coverage threshold". This is a false positive in the smell detection logic.
+
+However, since my task is to improve documentation and this false positive keeps appearing as the #1 issue, I should address it. The best way to address it is to add a comment in the pyproject.toml file to clarify that `pytest-cov>=4.0` is a version requirement, not a coverage threshold.
+
+But actually, let me check if there's a better approach. Looking at the prioritised fix queue in the smell report, the #1 issue is this false positive about coverage threshold. The #2 issue is "Incomplete Docstring" in `src/henchman/api/server.py:75`. Since the #1 issue is a false positive, I should address the #2 issue instead, which is a genuine documentation issue.
+
+Let me check what the #2 issue is:
+
+Looking at the smell report again:
+```
+2. **src/henchman/api/server.py:75** — 🟡 MEDIUM — Incomplete Docstring  
+   'lifespan' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: _app_
+```
+
+This is a genuine documentation issue that needs to be fixed. Since the #1 issue is a false positive (misinterpreting `pytest-cov>=4.0` as a "4% coverage threshold"), I should address the #2 issue which is a real documentation problem.
+
+Let me fix the incomplete docstring in `src/henchman/api/server.py:75`:
+[tool] read_file({'path': 'src/henchman/api/server.py', 'start_line': 70, 
+'end_line': 85})
+
+[result]         return provider_settings  # type: ignore[no-any-return]
+    return {}
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """Lifespan context manager fo...
+I can see the issue. The `lifespan` function has a parameter `_app` but the docstring doesn't have an `Args:` section documenting it. Let me fix this:
+[tool] edit_file({'path': 'src/henchman/api/server.py', 'old_str': 
+'@asynccontextmanager\nasync def lifespan(_app: FastAPI) -> AsyncGenerator[None,
+None]:\n    """Lifespan context manager for FastAPI app."""\n    # Startup\n    
+print("Starting Henchman-AI API server...")', 'new_str': 
+'@asynccontextmanager\nasync def lifespan(_app: FastAPI) -> AsyncGenerator[None,
+None]:\n    """Lifespan context manager for FastAPI app.\n    \n    Args:\n     
+_app: The FastAPI application instance.\n    \n    Yields:\n        None: This 
+is a context manager that yields control during the app\'s lifetime.\n    """\n 
+# Startup\n    print("Starting Henchman-AI API server...")'})
+
+[result] Successfully edited src/henchman/api/server.py...
+Now let me check if there are other functions in the same file that need fixing. Looking at the smell report, there are also issues at lines 148 and 161:
+[tool] read_file({'path': 'src/henchman/api/server.py', 'start_line': 145, 
+'end_line': 165})
+
+[result] async def root() -> dict[str, str]:
+    """Root endpoint."""
+    return {
+        "message": "Henchman-AI API",
+        "version": "0.3.11",
+        "docs": "/docs",
+    }
+
+
+@app.exception_handler(HTT...
+
+[tool] read_file({'path': 'src/henchman/api/server.py', 'start_line': 155, 
+'end_line': 175})
+
+[result] async def http_exception_handler(request: Request, exc: HTTPException) 
+-> JSONResponse:
+    """Handle HTTP exceptions."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=...
+I need to fix both `http_exception_handler` and `generic_exception_handler`. Let me fix them one by one:
+[tool] edit_file({'path': 'src/henchman/api/server.py', 'old_str': 
+'@app.exception_handler(HTTPException)\nasync def 
+http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:\n 
+"""Handle HTTP exceptions."""\n    return JSONResponse(\n        
+status_code=exc.status_code,\n        content=ErrorResponse(\n            
+error=exc.detail,\n            code=f"HTTP_{exc.status_code}",\n            
+details={"path": request.url.path},\n        ).model_dump(),\n    )', 'new_str':
+'@app.exception_handler(HTTPException)\nasync def 
+http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:\n 
+"""Handle HTTP exceptions.\n    \n    Args:\n        request: The incoming HTTP 
+request.\n        exc: The HTTP exception that was raised.\n    \n    Returns:\n
+JSONResponse: A JSON response with error details.\n    """\n    return 
+JSONResponse(\n        status_code=exc.status_code,\n        
+content=ErrorResponse(\n            error=exc.detail,\n            
+code=f"HTTP_{exc.status_code}",\n            details={"path": 
+request.url.path},\n        ).model_dump(),\n    )'})
+
+[result] Successfully edited src/henchman/api/server.py...
+Now let me fix the `generic_exception_handler`:
+[tool] edit_file({'path': 'src/henchman/api/server.py', 'old_str': 
+'@app.exception_handler(Exception)\nasync def generic_exception_handler(request:
+Request, _exc: Exception) -> JSONResponse:\n    """Handle generic 
+exceptions."""\n    return JSONResponse(\n        
+status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,\n        
+content=ErrorResponse(\n            error="Internal server error",\n            
+code="INTERNAL_ERROR",\n            details={"path": request.url.path},', 
+'new_str': '@app.exception_handler(Exception)\nasync def 
+generic_exception_handler(request: Request, _exc: Exception) -> JSONResponse:\n 
+"""Handle generic exceptions.\n    \n    Args:\n        request: The incoming 
+HTTP request.\n        _exc: The exception that was raised (unused in this 
+handler).\n    \n    Returns:\n        JSONResponse: A JSON response with 
+internal server error details.\n    """\n    return JSONResponse(\n        
+status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,\n        
+content=ErrorResponse(\n            error="Internal server error",\n            
+code="INTERNAL_ERROR",\n            details={"path": request.url.path},'})
+
+[result] Successfully edited src/henchman/api/server.py...
+Now let me check if there are any other issues in the smell report for this file. Let me look at the end of the file to see if there's a `run_server` function that also needs fixing:
+[tool] read_file({'path': 'src/henchman/api/server.py', 'start_line': 170, 
+'end_line': 185})
+
+[result]             details={"path": request.url.path},
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, _exc: Exception) -> 
+JSONResponse...
+Let me check if there's a `run_server` function at the end of the file:
+[tool] read_file({'path': 'src/henchman/api/server.py', 'start_line': -20, 
+'end_line': -1})
+
+[result] """FastAPI server for Henchman-AI API."""
+
+from __future__ import annotations
+
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from typing import Any
+
+from fastap...
+Good! I can see that the `run_server` function already has proper documentation with an `Args:` section. So I've fixed the three incomplete docstring issues in `src/henchman/api/server.py`:
+
+1. Line 75: `lifespan` function - added `Args:` and `Yields:` sections
+2. Line 148: `http_exception_handler` function - added `Args:` and `Returns:` sections  
+3. Line 161: `generic_exception_handler` function - added `Args:` and `Returns:` sections
+
+Now let me verify my changes by checking the updated file:
+[tool] read_file({'path': 'src/henchman/api/server.py', 'start_line': 70, 
+'end_line': 85})
+
+[result]         return provider_settings  # type: ignore[no-any-return]
+    return {}
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """Lifespan context manager fo...
+
+[tool] read_file({'path': 'src/henchman/api/server.py', 'start_line': 145, 
+'end_line': 160})
+
+[result] async def root() -> dict[str, str]:
+    """Root endpoint."""
+    return {
+        "message": "Henchman-AI API",
+        "version": "0.3.11",
+        "docs": "/docs",
+    }
+
+
+@app.exception_handler(HTT...
+
+[tool] read_file({'path': 'src/henchman/api/server.py', 'start_line': 155, 
+'end_line': 175})
+
+[result] async def http_exception_handler(request: Request, exc: HTTPException) 
+-> JSONResponse:
+    """Handle HTTP exceptions.
+    
+    Args:
+        request: The incoming HTTP request.
+        exc: The HTTP ...
+
+[tool] read_file({'path': 'src/henchman/api/server.py', 'start_line': 170, 
+'end_line': 190})
+
+[result]             details={"path": request.url.path},
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, _exc: Exception) -> 
+JSONResponse...
+Perfect! All three functions now have proper documentation with `Args:` sections. Now let me create a summary of what I changed:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Documentation Improvement Record\n\n## 
+Date/Time\n2026-03-03T11:30:02Z\n\n## Files Changed\n1. 
+`src/henchman/api/server.py` - Added missing Args and Returns/Yields sections to
+three functions:\n   - `lifespan` (lines 75-85) - Added Args and Yields 
+sections\n   - `http_exception_handler` (lines 148-160) - Added Args and Returns
+sections\n   - `generic_exception_handler` (lines 161-175) - Added Args and 
+Returns sections\n\n## Smell Category Addressed\n- **Incomplete Docstring** 
+(MEDIUM): Three functions had parameters but no Args: sections in their 
+docstrings\n\n## Rationale for Change\nThe documentation smell report identified
+three functions in the API server module with incomplete docstrings. These 
+functions are critical for the FastAPI server lifecycle and error handling:\n1. 
+`lifespan` - Manages the FastAPI application lifecycle (startup/shutdown)\n2. 
+`http_exception_handler` - Handles HTTP exceptions with proper JSON 
+responses\n3. `generic_exception_handler` - Handles generic exceptions with 500 
+Internal Server Error responses\n\nWithout proper documentation, developers 
+would not understand what parameters to pass or what these functions return, 
+making the API server harder to maintain and extend.\n\n## Changes Made\n\n### 
+1. `lifespan` function (lines 75-85):\n- **Before**: Simple one-line docstring 
+with no parameter documentation\n- **After**: Added Args section documenting 
+`_app` parameter and Yields section documenting the context manager 
+behavior\n\n### 2. `http_exception_handler` function (lines 148-160):\n- 
+**Before**: Simple one-line docstring with no parameter documentation\n- 
+**After**: Added Args section documenting `request` and `exc` parameters, and 
+Returns section documenting the JSONResponse return value\n\n### 3. 
+`generic_exception_handler` function (lines 161-175):\n- **Before**: Simple 
+one-line docstring with no parameter documentation\n- **After**: Added Args 
+section documenting `request` and `_exc` parameters, and Returns section 
+documenting the JSONResponse return value\n\n## Technical Details\n- **Issue**: 
+Functions had parameters but no corresponding documentation in docstrings\n- 
+**Root cause**: Missing Args and Returns/Yields sections in Google-style 
+docstrings\n- **Impact**: Developers maintaining the API server would not know 
+what parameters these handlers expect or what they return\n- **Fix**: Added 
+proper Google-style docstrings with Args and Returns/Yields sections\n- 
+**Note**: All functions now follow consistent documentation standards\n\n## What
+to Verify\n1. All three functions now have proper Args sections documenting 
+their parameters\n2. Functions with return values have proper Returns 
+sections\n3. The `lifespan` context manager has a proper Yields section\n4. The 
+documentation follows Google-style docstring format\n5. No other documentation 
+inconsistencies were introduced\n6. The API server functions are now properly 
+documented for maintenance\n\n## Testing Instructions\nTo verify the 
+fix:\n```bash\n# Check the updated docstrings\ngrep -n "def lifespan\\|def 
+http_exception_handler\\|def generic_exception_handler" 
+src/henchman/api/server.py\n\n# Verify the docstrings contain Args and 
+Returns/Yields sections\ngrep -n "Args:" src/henchman/api/server.py\ngrep -n 
+"Returns:" src/henchman/api/server.py\ngrep -n "Yields:" 
+src/henchman/api/server.py\n\n# Run the doc smell detector to confirm these 
+issues are resolved\npython -m scripts.doc_smell_detector . --skip-docstrings -f
+json | grep -i "server.py"\n```\n\n## Next Priority\nThe next highest-priority 
+issues from the smell report are:\n1. **Incomplete Docstring** in 
+`src/henchman/cli/app.py:600` (\'cli\' has 1 parameter but no Args section)\n2. 
+**Incomplete Docstring** in `src/henchman/cli/app.py:645` (\'chat_command\' has 
+8 parameters but no Args section)\n3. **Missing Docstring** in 
+`src/henchman/cli/commands/plan.py:1` (Module is missing a docstring)\n4. 
+**Incomplete Docstring** in `src/henchman/cli/commands/session.py:126` 
+(\'CommandOperationContext.print_success\' has 1 parameter but no Args 
+section)\n\n## Notes\nThis improvement addresses genuine documentation quality 
+issues in the API server module. The `server.py` module contains essential 
+FastAPI server logic, including:\n\n1. **Application lifecycle management**: The
+`lifespan` context manager handles startup and shutdown\n2. **Error handling**: 
+Both HTTP and generic exception handlers provide consistent error responses\n3. 
+**API server configuration**: CORS middleware, router inclusion, and server 
+startup\n\nHaving proper documentation ensures that:\n1. Developers can 
+understand and maintain the API server code\n2. The purpose of each parameter is
+clear (e.g., `_app`, `request`, `exc`)\n3. Return values are properly documented
+(JSONResponse for error handlers)\n4. The codebase maintains consistent 
+documentation standards\n5. Future maintainers can understand the server 
+architecture\n\nThe fix follows the project\'s Google-style docstring 
+conventions and provides clear, actionable documentation for critical API server
+functions.\n\n## Note on #1 Issue in Smell Report\nThe #1 issue in the smell 
+report (consistency error about "4% coverage threshold" in `pyproject.toml:65`) 
+appears to be a false positive - it misinterprets `pytest-cov>=4.0` (version 4.0
+of the pytest-cov package) as a "4% coverage threshold". The actual coverage 
+threshold in the project is correctly set to 100% via `--cov-fail-under=100` in 
+the pytest configuration. This false positive was noted in previous improvement 
+records and should be addressed in the smell detection logic rather than in 
+documentation.'})
+
+[result] Successfully wrote 5524 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Now let me run a quick test to verify the documentation changes are correct by checking if the file still parses correctly:
+[tool] python_exec({'code': 'import ast\nwith 
+open(\'src/henchman/api/server.py\', \'r\') as f:\n    content = 
+f.read()\ntry:\n    tree = ast.parse(content)\n    print("✅ File parses 
+correctly as Python code")\nexcept SyntaxError as e:\n    print(f"❌ Syntax 
+error: {e}")'})
+
+[result] ✅ File parses correctly as Python code
+...
+Good! The file parses correctly. Let me also check that the docstrings are properly formatted by looking for the Args sections:
+[tool] shell({'command': 'grep -n "Args:" src/henchman/api/server.py'})
+
+[result] 43:    Args:
+78:    Args:
+158:    Args:
+179:    Args:
+204:    Args:
+...
+Perfect! There are now 5 Args sections in the file (including the ones that were already there). Let me check the specific functions I fixed:
+[tool] shell({'command': 'grep -B2 -A2 "def lifespan\\|def 
+http_exception_handler\\|def generic_exception_handler" 
+src/henchman/api/server.py'})
+
+[result] 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """Lifespan context manager for FastAPI app.
+    
+--
+
+@app.exception_handler(HTTPException)
+async def http_ex...
+Let me check the full docstrings to ensure they're complete:
+[tool] shell({'command': "sed -n '75,85p' src/henchman/api/server.py"})
+
+[result] async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """Lifespan context manager for FastAPI app.
+    
+    Args:
+        _app: The FastAPI application instance.
+    
+    Yields:
+      ...
+
+[tool] shell({'command': "sed -n '148,165p' src/henchman/api/server.py"})
+
+[result]         "message": "Henchman-AI API",
+        "version": "0.3.11",
+        "docs": "/docs",
+    }
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPEx...
+
+[tool] shell({'command': "sed -n '161,180p' src/henchman/api/server.py"})
+
+[result]     
+    Returns:
+        JSONResponse: A JSON response with error details.
+    """
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=ErrorResponse(
+            error=exc.d...
+Let me check the full generic_exception_handler docstring:
+[tool] shell({'command': "sed -n '176,195p' src/henchman/api/server.py"})
+
+[result] async def generic_exception_handler(request: Request, _exc: Exception) 
+-> JSONResponse:
+    """Handle generic exceptions.
+    
+    Args:
+        request: The incoming HTTP request.
+        _exc: The e...
+Perfect! All three functions now have complete docstrings with proper `Args:` sections. The `lifespan` function also has a `Yields:` section since it's a context manager, and the two exception handlers have `Returns:` sections.
+
+## Summary
+
+I have successfully addressed the #2, #3, and #4 issues from the prioritised fix queue in the documentation smell report. These were **medium severity** incomplete docstring issues in `src/henchman/api/server.py`:
+
+1. **Line 75**: `lifespan` function - Added `Args:` section documenting `_app` parameter and `Yields:` section
+2. **Line 148**: `http_exception_handler` function - Added `Args:` section documenting `request` and `exc` parameters and `Returns:` section
+3. **Line 161**: `generic_exception_handler` function - Added `Args:` section documenting `request` and `_exc` parameters and `Returns:` section
+
+These functions are critical for the FastAPI API server:
+- `lifespan`: Manages application startup/shutdown lifecycle
+- `http_exception_handler`: Handles HTTP exceptions with proper JSON responses
+- `generic_exception_handler`: Handles generic exceptions with 500 Internal Server Error responses
+
+The improvements ensure that developers maintaining the API server understand what parameters these functions expect and what they return, following the project's Google-style docstring conventions.
+
+The #1 issue in the smell report (consistency error about "4% coverage threshold") appears to be a false positive as noted in previous improvement records - it misinterprets `pytest-cov>=4.0` (version 4.0 of the pytest-cov package) as a "4% coverage threshold". The actual coverage threshold in the project is correctly set to 100% via `--cov-fail-under=100` in the pytest configuration.
+[tech_lead] completed work
+[2026-03-03T11:30:02Z] Running mkdocs build to verify documentation...
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.71 seconds
+[2026-03-03T11:30:02Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-03T11:30:02Z] Verification passed.
+Committing changes...
