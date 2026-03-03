@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.console_helpers import ConsoleHelper
@@ -11,8 +11,13 @@ from henchman.config import load_settings
 from henchman.config.settings import save_settings
 
 if TYPE_CHECKING:
-    pass
+    from rich.console import Console
+    from henchman.core.agent import Agent
+    from henchman.config.schema import ContextSettings, Settings
 
+
+# Constants
+_MAX_TOKENS_THRESHOLD: int = 100
 
 @dataclass
 class RangeParameterConfig:
@@ -70,6 +75,82 @@ class RangeParameterConfig:
         return int(value_str) if self.is_int else float(value_str)
 
 
+class ConsoleOutputHelper:
+    """Helper class for console output operations to reduce feature envy."""
+
+    def __init__(self, console: Console) -> None:
+        """Initialize with console.
+
+        Args:
+            console: Console for output.
+        """
+        self._console = console
+
+    def print_status_header(self, title: str) -> None:
+        """Print status header.
+
+        Args:
+            title: Header title.
+        """
+        ConsoleHelper.print_status_header(self._console, title)
+
+    def print_enabled_status(self, label: str, enabled: bool) -> None:
+        """Print enabled/disabled status.
+
+        Args:
+            label: Status label.
+            enabled: Whether the feature is enabled.
+        """
+        ConsoleHelper.print_enabled_status(self._console, label, enabled)
+
+    def print_status_value(self, label: str, value: Any) -> None:
+        """Print status value.
+
+        Args:
+            label: Value label.
+            value: Value to display.
+        """
+        ConsoleHelper.print_status_value(self._console, label, value)
+
+    def print_command_help(self, command: str, description: str) -> None:
+        """Print command help.
+
+        Args:
+            command: Command syntax.
+            description: Command description.
+        """
+        ConsoleHelper.print_command_help(self._console, command, description)
+
+    def print_error_message(self, title: str, suggestion: str) -> None:
+        """Print error message.
+
+        Args:
+            title: Error title.
+            suggestion: Suggestion for correction.
+        """
+        ConsoleHelper.print_error_message(self._console, title, suggestion)
+
+    def print_usage_help(
+        self, usage: str, commands: list[tuple[str, str]], header: str = "Subcommands:"
+    ) -> None:
+        """Print usage help.
+
+        Args:
+            usage: Command usage syntax.
+            commands: List of (command, description) tuples.
+            header: Optional header text.
+        """
+        ConsoleHelper.print_usage_help(self._console, usage, commands, header)
+
+    def print_line(self, text: str = "") -> None:
+        """Print a line to console.
+
+        Args:
+            text: Text to print.
+        """
+        self._console.print(text)
+
+
 class ContextConsoleHelper:
     """Helper class for context command console output operations.
 
@@ -77,109 +158,130 @@ class ContextConsoleHelper:
     """
 
     @staticmethod
-    def print_status_info(console: Any, context_settings: Any) -> None:
+    def print_status_info(console: Console, context_settings: ContextSettings) -> None:
         """Print intelligent context status information.
 
         Args:
             console: Console for output.
             context_settings: Context settings to display.
         """
-        ContextConsoleHelper._print_status_header(console)
-        ContextConsoleHelper._print_status_values(console, context_settings)
-        ContextConsoleHelper._print_status_commands(console)
+        output_helper = ConsoleOutputHelper(console)
+        ContextConsoleHelper._print_status_header(output_helper)
+        ContextConsoleHelper._print_status_values(output_helper, context_settings)
+        ContextConsoleHelper._print_status_commands(output_helper)
 
     @staticmethod
-    def _print_status_header(console: Any) -> None:
+    def _print_status_header(output_helper: ConsoleOutputHelper) -> None:
         """Print status header.
 
         Args:
-            console: Console for output.
+            output_helper: Console output helper.
         """
-        ConsoleHelper.print_status_header(console, "Intelligent Context Management")
+        output_helper.print_status_header("Intelligent Context Management")
 
     @staticmethod
-    def _print_status_values(console: Any, context_settings: Any) -> None:
+    def _print_status_values(
+        output_helper: ConsoleOutputHelper, context_settings: ContextSettings
+    ) -> None:
         """Print status values.
 
         Args:
-            console: Console for output.
+            output_helper: Console output helper.
             context_settings: Context settings to display.
         """
-        ConsoleHelper.print_enabled_status(console, "Status", context_settings.intelligent_context)
-        ConsoleHelper.print_enabled_status(
-            console, "Adaptive compression", context_settings.adaptive_compression
+        output_helper.print_enabled_status("Status", context_settings.intelligent_context)
+        output_helper.print_enabled_status(
+            "Adaptive compression", context_settings.adaptive_compression
         )
-        ConsoleHelper.print_status_value(console, "Max tokens", context_settings.max_tokens)
-        ConsoleHelper.print_status_value(
-            console, "Compaction threshold", f"{context_settings.compaction_threshold * 100:.0f}%"
+        output_helper.print_status_value("Max tokens", context_settings.max_tokens)
+        output_helper.print_status_value(
+            "Compaction threshold", f"{context_settings.compaction_threshold * 100:.0f}%"
         )
-        ConsoleHelper.print_status_value(
-            console, "Importance threshold", context_settings.importance_threshold
+        output_helper.print_status_value(
+            "Importance threshold", context_settings.importance_threshold
         )
-        ConsoleHelper.print_status_value(
-            console, "Cluster similarity", context_settings.cluster_similarity_threshold
+        output_helper.print_status_value(
+            "Cluster similarity", context_settings.cluster_similarity_threshold
         )
 
     @staticmethod
-    def _print_status_commands(console: Any) -> None:
+    def _print_status_commands(output_helper: ConsoleOutputHelper) -> None:
         """Print available commands.
 
         Args:
-            console: Console for output.
+            output_helper: Console output helper.
         """
-        console.print("")
-        ConsoleHelper.print_command_help(console, "/context enable", "enable intelligent context")
-        ConsoleHelper.print_command_help(console, "/context disable", "disable intelligent context")
-        ConsoleHelper.print_command_help(
-            console, "/context strategy", "manage compression strategies"
+        ContextConsoleHelper._print_command_list(
+            output_helper,
+            [
+                ("/context enable", "enable intelligent context"),
+                ("/context disable", "disable intelligent context"),
+                ("/context strategy", "manage compression strategies"),
+                ("/context stats", "view usage statistics"),
+            ],
         )
-        ConsoleHelper.print_command_help(console, "/context stats", "view usage statistics")
-        console.print("")
 
     @staticmethod
-    def print_strategy_usage(console: Any) -> None:
+    def print_strategy_usage(console: Console) -> None:
         """Print strategy command usage help.
 
         Args:
             console: Console for output.
         """
-        ConsoleHelper.print_error_message(
-            console, "Missing parameter or value", "/context strategy set <parameter> <value>"
+        output_helper = ConsoleOutputHelper(console)
+        output_helper.print_error_message(
+            "Missing parameter or value", "/context strategy set <parameter> <value>"
         )
-        console.print("\nParameters:")
-        console.print("  max_tokens <int>          - Maximum tokens before compaction")
-        console.print("  threshold <float>         - Compaction threshold (0.1-1.0)")
-        console.print("  importance <float>        - Importance threshold (0.0-1.0)")
-        console.print("  similarity <float>        - Cluster similarity threshold (0.0-1.0)")
-        console.print("  adaptive <on|off>         - Enable/disable adaptive compression")
+        output_helper.print_line("\nParameters:")
+        output_helper.print_line("  max_tokens <int>          - Maximum tokens before compaction")
+        output_helper.print_line("  threshold <float>         - Compaction threshold (0.1-1.0)")
+        output_helper.print_line("  importance <float>        - Importance threshold (0.0-1.0)")
+        output_helper.print_line("  similarity <float>        - Cluster similarity threshold (0.0-1.0)")
+        output_helper.print_line("  adaptive <on|off>         - Enable/disable adaptive compression")
 
     @staticmethod
-    def print_strategy_status(console: Any, context_settings: Any) -> None:
+    def print_strategy_status(console: Console, context_settings: ContextSettings) -> None:
         """Show current compression strategy settings.
 
         Args:
             console: Console for output.
             context_settings: Context settings to display.
         """
-        console.print("\n[bold blue]Compression Strategy Settings[/]\n")
-        ConsoleHelper.print_status_value(console, "Max tokens", context_settings.max_tokens)
-        ConsoleHelper.print_status_value(
-            console, "Compaction threshold", context_settings.compaction_threshold
+        output_helper = ConsoleOutputHelper(console)
+        output_helper.print_line("\n[bold blue]Compression Strategy Settings[/]\n")
+        output_helper.print_status_value("Max tokens", context_settings.max_tokens)
+        output_helper.print_status_value(
+            "Compaction threshold", context_settings.compaction_threshold
         )
-        ConsoleHelper.print_status_value(
-            console, "Importance threshold", context_settings.importance_threshold
+        output_helper.print_status_value(
+            "Importance threshold", context_settings.importance_threshold
         )
-        ConsoleHelper.print_status_value(
-            console, "Cluster similarity", context_settings.cluster_similarity_threshold
+        output_helper.print_status_value(
+            "Cluster similarity", context_settings.cluster_similarity_threshold
         )
-        ConsoleHelper.print_enabled_status(
-            console, "Adaptive compression", context_settings.adaptive_compression
+        output_helper.print_enabled_status(
+            "Adaptive compression", context_settings.adaptive_compression
         )
-        console.print("")
-        ConsoleHelper.print_command_help(
-            console, "/context strategy set <parameter> <value>", "change settings"
+        output_helper.print_line("")
+        output_helper.print_command_help(
+            "/context strategy set <parameter> <value>", "change settings"
         )
-        console.print("")
+        output_helper.print_line("")
+
+    @staticmethod
+    def _print_command_list(
+        output_helper: ConsoleOutputHelper, commands: list[tuple[str, str]]
+    ) -> None:
+        """Print a list of commands (shared logic to eliminate duplication).
+
+        Args:
+            output_helper: Console output helper.
+            commands: List of (command, description) tuples.
+        """
+        output_helper.print_line("")
+        for command, description in commands:
+            output_helper.print_command_help(command, description)
+        output_helper.print_line("")
 
 
 class ContextCommand(Command):
