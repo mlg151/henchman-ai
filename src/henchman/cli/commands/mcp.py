@@ -74,9 +74,9 @@ class McpCommand(BaseCommand):
 
     async def _list(self, ctx: CommandContext) -> None:
         """List configured MCP servers."""
+        console = ctx.console
         manager: McpManager | None = getattr(ctx, "mcp_manager", None)
         if manager is None:
-            console = ctx.console
             console.print("[dim]No MCP servers configured[/]")
             return
 
@@ -98,9 +98,9 @@ class McpCommand(BaseCommand):
 
     async def _status(self, ctx: CommandContext) -> None:
         """Show MCP status and tools."""
+        console = ctx.console
         manager: McpManager | None = getattr(ctx, "mcp_manager", None)
         if manager is None:
-            console = ctx.console
             console.print("[dim]No MCP servers configured[/]")
             return
 
@@ -151,12 +151,12 @@ class McpCommand(BaseCommand):
             ctx: Command context.
             action: Action to perform ('on', 'off', or 'status').
         """
+        console = ctx.console
         # Get settings from REPL context if available, otherwise load fresh
         settings = ctx.repl.settings if ctx.repl and ctx.repl.settings else load_settings()
 
         if action == "on":
             settings.ui.mcp_logging = True
-            console = ctx.console
             console.print("[green]✓ MCP logging enabled[/]")
         elif action == "off":
             settings.ui.mcp_logging = False

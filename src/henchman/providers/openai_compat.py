@@ -68,15 +68,18 @@ class OpenAICompatibleProvider(ModelProvider):
         """Format a message for the OpenAI API."""
         message_role = message.role
         message_content = message.content
+        message_tool_calls = message.tool_calls
+        message_tool_call_id = message.tool_call_id
+        message_reasoning = message.reasoning_content
         result: dict[str, Any] = {
             "role": message_role,
             "content": message_content,
         }
 
-        if message.reasoning_content:
-            result["reasoning_content"] = message.reasoning_content
+        if message_reasoning:
+            result["reasoning_content"] = message_reasoning
 
-        if message.tool_calls:
+        if message_tool_calls:
             result["tool_calls"] = [
                 {
                     "id": tc.id,
@@ -86,11 +89,11 @@ class OpenAICompatibleProvider(ModelProvider):
                         "arguments": json.dumps(tc.arguments),
                     },
                 }
-                for tc in message.tool_calls
+                for tc in message_tool_calls
             ]
 
-        if message.tool_call_id:
-            result["tool_call_id"] = message.tool_call_id
+        if message_tool_call_id:
+            result["tool_call_id"] = message_tool_call_id
 
         return result
 

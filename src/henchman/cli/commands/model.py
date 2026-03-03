@@ -129,7 +129,7 @@ class ModelCommand(Command):
                     console.print(f"    [yellow]Env vars:[/] {env_vars}")
 
                 console.print("")
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203
                 console.print(f"  [red]{provider_name}[/] - Error: {e}")
 
     async def _set_provider(
@@ -247,8 +247,8 @@ class ModelCommand(Command):
         Returns:
             True if successful, False otherwise.
         """
+        console = ctx.console
         if ctx.agent is None:
-            console = ctx.console
             console.print("[red]No agent available[/]")
             return False
 

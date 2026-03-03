@@ -42,8 +42,8 @@ class PlanCommand(Command):
         Args:
             ctx: Command context.
         """
+        console = ctx.console
         if not ctx.session:
-            console = ctx.console
             console.print("[yellow]No active session. Plan mode requires a session.[/]")
             return
 

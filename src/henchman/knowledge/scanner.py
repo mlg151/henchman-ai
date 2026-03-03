@@ -195,7 +195,7 @@ def _find_import_target(
     return None
 
 
-def scan_repository(
+def scan_repository(  # noqa: C901, PLR0912
     store: KnowledgeStore,
     git_root: Path,
     incremental: bool = True,

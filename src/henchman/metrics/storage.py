@@ -716,6 +716,7 @@ class MetricsStorage:
         """
         query = "SELECT * FROM metrics WHERE 1=1"
         params: list[Any] = []
+        params_append = params.append
         qp_metric_type = query_params.metric_type
         qp_session_id = query_params.session_id
         qp_agent_id = query_params.agent_id
@@ -725,29 +726,29 @@ class MetricsStorage:
 
         if qp_metric_type:
             query += " AND metric_type = ?"
-            params.append(qp_metric_type.value)
+            params_append(qp_metric_type.value)
 
         if qp_session_id:
             query += " AND session_id = ?"
-            params.append(qp_session_id)
+            params_append(qp_session_id)
 
         if qp_agent_id:
             query += " AND agent_id = ?"
-            params.append(qp_agent_id)
+            params_append(qp_agent_id)
 
         if qp_start_date:
             query += " AND timestamp >= ?"
-            params.append(qp_start_date.isoformat())
+            params_append(qp_start_date.isoformat())
 
         if qp_end_date:
             query += " AND timestamp <= ?"
-            params.append(qp_end_date.isoformat())
+            params_append(qp_end_date.isoformat())
 
         query += " ORDER BY timestamp DESC"
 
         if qp_limit:
             query += " LIMIT ?"
-            params.append(qp_limit)
+            params_append(qp_limit)
 
         return query, params
 

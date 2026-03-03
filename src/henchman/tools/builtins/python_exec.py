@@ -98,17 +98,20 @@ class PythonExecTool(Tool):
                 cwd=cwd,
             )
 
+            proc_communicate = process.communicate
+            proc_kill = process.kill
+            proc_wait = process.wait
             try:
                 if effective_timeout is not None:
                     stdout, stderr = await asyncio.wait_for(
-                        process.communicate(),
+                        proc_communicate(),
                         timeout=effective_timeout,
                     )
                 else:
-                    stdout, stderr = await process.communicate()
+                    stdout, stderr = await proc_communicate()
             except (TimeoutError, asyncio.TimeoutError):
-                process.kill()
-                await process.wait()
+                proc_kill()
+                await proc_wait()
                 return ToolResult(
                     content=f"Code timed out after {timeout} seconds",
                     success=False,

@@ -58,7 +58,7 @@ class TestGenTool(Tool):
         """Tool kind - WRITE because it generates files."""
         return ToolKind.WRITE
 
-    async def execute(  # type: ignore[override]
+    async def execute(  # type: ignore[override]  # noqa: PLR0911
         self: TestGenTool,
         path: str = "",
         output_path: str = "",

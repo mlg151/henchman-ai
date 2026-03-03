@@ -1,18 +1,18 @@
-# Code Smell Report — 🔶 D (Score: 61.2/100)
+# Code Smell Report — 🔶 D (Score: 62.1/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-03T15:00:21.979758+00:00_
+_Generated: 2026-03-03T15:30:30.415422+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | 🔶 D |
-| **Overall Score** | 61.2/100 |
+| **Overall Score** | 62.1/100 |
 | **Files Scanned** | 188 |
-| **Total Lines (non-blank)** | 34,695 |
-| **Total Smells** | 1622 |
+| **Total Lines (non-blank)** | 34,833 |
+| **Total Smells** | 1583 |
 | **Avg Maintainability Index** | 71.7 |
 | **Avg Cyclomatic Complexity** | 13.6 |
 
@@ -20,22 +20,22 @@ _Generated: 2026-03-03T15:00:21.979758+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 1206 |
-| medium | 386 |
+| low | 1092 |
+| medium | 461 |
 | high | 30 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 729 |
-| Feature Envy | 279 |
-| Duplicate Code | 231 |
-| Long Method | 106 |
+| Missing Type Hint | 602 |
+| Duplicate Code | 331 |
+| Feature Envy | 280 |
+| Long Method | 107 |
 | Magic Number | 94 |
-| Deep Nesting | 69 |
 | Primitive Obsession | 63 |
-| Complex Function | 28 |
+| Deep Nesting | 57 |
+| Complex Function | 26 |
 | Large Class | 23 |
 
 ## 🎯 Prioritised Refactoring Queue
@@ -47,14 +47,14 @@ These are the highest-impact smells to address first:
    → _Introduce Parameter Object — group related primitives into a dataclass or NamedTuple._
 
 2. **cli/commands/plan.py:39** — 🟠 HIGH — Feature Envy  
-   Method 'PlanCommand.execute' accesses 'ctx' 13 times but 'self' only 0 times  
+   Method 'PlanCommand.execute' accesses 'ctx' 11 times but 'self' only 0 times  
    → _Move Method — consider moving 'execute' to the class that owns 'ctx'._
 
-3. **cli/json_output.py:38** — 🟠 HIGH — Duplicate Code  
-   Function 'render' is an exact duplicate of 'render_stream_json' at cli/json_output.py:72  
+3. **cli/json_output.py:43** — 🟠 HIGH — Duplicate Code  
+   Function 'render' is an exact duplicate of 'render_stream_json' at cli/json_output.py:77  
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
-4. **cli/repl.py:78** — 🟠 HIGH — Long Method  
+4. **cli/repl.py:83** — 🟠 HIGH — Long Method  
    Function '__init__' has 105 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
@@ -78,12 +78,12 @@ These are the highest-impact smells to address first:
    Repeated primitive parameter group appears in: 'update_task' (line 73), 'update_task' (line 373)  
    → _Replace Data Value with Object — create a shared data structure for this recurring parameter group._
 
-10. **knowledge/scanner.py:199** — 🟠 HIGH — Long Method  
+10. **knowledge/scanner.py:198** — 🟠 HIGH — Long Method  
    Function 'scan_repository' has 94 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
 11. **knowledge/store.py:459** — 🟠 HIGH — Feature Envy  
-   Method 'KnowledgeStore.format_entity_for_llm' accesses 'entity' 13 times but 'self' only 1 times  
+   Method 'KnowledgeStore.format_entity_for_llm' accesses 'entity' 11 times but 'self' only 1 times  
    → _Move Method — consider moving 'format_entity_for_llm' to the class that owns 'entity'._
 
 12. **metrics/collector.py:146** — 🟠 HIGH — Feature Envy  
@@ -99,7 +99,7 @@ These are the highest-impact smells to address first:
    → _Once and Only Once — extract the shared logic into a single function and call it from both sites._
 
 15. **tools/builtins/code_format.py:49** — 🟠 HIGH — Long Method  
-   Function 'execute' has 93 lines (threshold: 30)  
+   Function 'execute' has 94 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
 
@@ -107,48 +107,48 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_bridge.py | ❌ F | 15.2 | 46 | 405 | 51 | 0.0 |
-| 2 | tools/builtins/python_ast.py | ❌ F | 15.7 | 32 | 357 | 52 | 11.0 |
-| 3 | cli/output_handler.py | ❌ F | 15.9 | 40 | 303 | 53 | 0.0 |
-| 4 | cli/commands/context.py | ❌ F | 16.4 | 47 | 471 | 48 | 0.0 |
-| 5 | tools/builtins/git_ops.py | ❌ F | 17.0 | 21 | 278 | 54 | 0.0 |
-| 6 | cli/ui_renderer.py | ❌ F | 17.3 | 49 | 300 | 58 | 0.0 |
-| 7 | metrics/dashboard.py | ❌ F | 17.4 | 40 | 270 | 58 | 14.0 |
-| 8 | cli/repl.py | ❌ F | 21.2 | 30 | 341 | 52 | 16.0 |
-| 9 | providers/anthropic.py | ❌ F | 22.7 | 38 | 469 | 41 | 0.0 |
-| 10 | metrics/storage.py | ❌ F | 23.1 | 39 | 659 | 47 | 0.0 |
+| 1 | cli/textual_bridge.py | ❌ F | 15.1 | 25 | 409 | 50 | 0.0 |
+| 2 | tools/builtins/python_ast.py | ❌ F | 15.7 | 32 | 356 | 52 | 11.0 |
+| 3 | cli/output_handler.py | ❌ F | 15.8 | 93 | 307 | 53 | 0.0 |
+| 4 | tools/builtins/git_ops.py | ❌ F | 16.9 | 21 | 279 | 54 | 0.0 |
+| 5 | cli/ui_renderer.py | ❌ F | 17.3 | 49 | 300 | 58 | 0.0 |
+| 6 | metrics/dashboard.py | ❌ F | 17.5 | 40 | 270 | 58 | 14.0 |
+| 7 | cli/commands/context.py | ❌ F | 19.9 | 46 | 471 | 48 | 0.0 |
+| 8 | providers/anthropic.py | ❌ F | 22.7 | 38 | 470 | 41 | 0.0 |
+| 9 | cli/repl.py | ❌ F | 23.9 | 22 | 345 | 52 | 16.0 |
+| 10 | tools/builtins/file_edit.py | ❌ F | 25.0 | 19 | 228 | 62 | 13.0 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 168 additional files omitted._
 
-### cli/textual_bridge.py — ❌ F (15.2/100)
+### cli/textual_bridge.py — ❌ F (15.1/100)
 
-LOC: 405 | Classes: 3 | Functions: 2 | MI: 51 | Avg CC: 0.0
+LOC: 409 | Classes: 3 | Functions: 2 | MI: 50 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 172 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to '_add_message_with_prefix' at cli/textual_widgets.py:914 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 172 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to 'add_user_message' at cli/textual_widgets.py:923 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 172 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to 'add_system_message' at cli/textual_widgets.py:931 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 172 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to 'add_error_message' at cli/textual_widgets.py:939 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 181 | 🟡 MEDIUM | Duplicate Code | Function 'post_status_message' is 94% similar to '_on_finished' at cli/textual_bridge.py:431 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 390 | 🟡 MEDIUM | Duplicate Code | Function '_create_status_message_handler' is 100% similar to '_create_prefixed_message_handler' at cli/textual_bridge.py:401 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 414 | 🟡 MEDIUM | Duplicate Code | Function '_on_thought' is 94% similar to 'code' at cli/ui_renderer.py:306 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 414 | 🟡 MEDIUM | Duplicate Code | Function '_on_thought' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:147 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 414 | 🟡 MEDIUM | Duplicate Code | Function '_on_thought' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:158 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 53 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 70 | 🟢 LOW | Missing Type Hint | Function 'console' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 78 | 🟢 LOW | Missing Type Hint | Function 'flush_to_chat' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 86 | 🟢 LOW | Missing Type Hint | Function 'print' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 108 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 116 | 🟢 LOW | Missing Type Hint | Function 'post' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 121 | 🟡 MEDIUM | Duplicate Code | Function 'post' is 100% similar to '_post' at cli/textual_bridge.py:261 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 121 | 🟡 MEDIUM | Duplicate Code | Function 'post' is 100% similar to '_on_thought' at cli/textual_bridge.py:419 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 121 | 🟡 MEDIUM | Duplicate Code | Function 'post' is 94% similar to 'code' at cli/ui_renderer.py:306 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 121 | 🟡 MEDIUM | Duplicate Code | Function 'post' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:147 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 121 | 🟡 MEDIUM | Duplicate Code | Function 'post' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:158 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 177 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to '_add_message_with_prefix' at cli/textual_widgets.py:914 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 177 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to 'add_user_message' at cli/textual_widgets.py:923 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 177 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to 'add_system_message' at cli/textual_widgets.py:931 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 177 | 🟡 MEDIUM | Duplicate Code | Function 'post_tool_message' is 100% similar to 'add_error_message' at cli/textual_widgets.py:939 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 186 | 🟡 MEDIUM | Duplicate Code | Function 'post_status_message' is 100% similar to '_on_finished' at cli/textual_bridge.py:436 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 261 | 🟡 MEDIUM | Duplicate Code | Function '_post' is 100% similar to '_on_thought' at cli/textual_bridge.py:419 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 261 | 🟡 MEDIUM | Duplicate Code | Function '_post' is 94% similar to 'code' at cli/ui_renderer.py:306 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 261 | 🟡 MEDIUM | Duplicate Code | Function '_post' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:147 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 261 | 🟡 MEDIUM | Duplicate Code | Function '_post' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:158 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 395 | 🟡 MEDIUM | Duplicate Code | Function '_create_status_message_handler' is 100% similar to '_create_prefixed_message_handler' at cli/textual_bridge.py:406 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-_... and 31 more smells._
+_... and 10 more smells._
 
 ### tools/builtins/python_ast.py — ❌ F (15.7/100)
 
-LOC: 357 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 11.0
+LOC: 356 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 11.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
@@ -164,69 +164,45 @@ LOC: 357 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 11.0
 | 182 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._format_class' accesses 'ast' 6 times but 'self' only 4 times | Move Method — consider moving '_format_class' to the class that owns 'ast'. |
 | 182 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._format_class' accesses 'node' 5 times but 'self' only 4 times | Move Method — consider moving '_format_class' to the class that owns 'node'. |
 | 310 | 🟡 MEDIUM | Duplicate Code | Function '_validate_path' is 98% similar to 'validate_file_path' at tools/utils.py:9 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 395 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._add_assignments_section' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving '_add_assignments_section' to the class that owns 'ast'. |
-| 395 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._add_assignments_section' accesses 'a' 6 times but 'self' only 0 times | Move Method — consider moving '_add_assignments_section' to the class that owns 'a'. |
-| 420 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._add_functions_and_classes_sections' accesses 'ast' 5 times but 'self' only 2 times | Move Method — consider moving '_add_functions_and_classes_sections' to the class that owns 'ast'. |
+| 394 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._add_assignments_section' accesses 'ast' 5 times but 'self' only 0 times | Move Method — consider moving '_add_assignments_section' to the class that owns 'ast'. |
+| 394 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._add_assignments_section' accesses 'a' 6 times but 'self' only 0 times | Move Method — consider moving '_add_assignments_section' to the class that owns 'a'. |
+| 419 | 🟡 MEDIUM | Feature Envy | Method 'PythonAstTool._add_functions_and_classes_sections' accesses 'ast' 5 times but 'self' only 2 times | Move Method — consider moving '_add_functions_and_classes_sections' to the class that owns 'ast'. |
 
 _... and 17 more smells._
 
-### cli/output_handler.py — ❌ F (15.9/100)
+### cli/output_handler.py — ❌ F (15.8/100)
 
-LOC: 303 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 225 | 🟡 MEDIUM | Duplicate Code | Function 'get_rich_status_message' is 94% similar to 'load' at cli/session_manager.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 225 | 🟡 MEDIUM | Duplicate Code | Function 'get_rich_status_message' is 94% similar to 'compute_project_hash' at cli/session_manager.py:201 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 298 | 🟡 MEDIUM | Duplicate Code | Function 'create_status' is 100% similar to 'create_status' at cli/ui_renderer.py:187 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 332 | 🟡 MEDIUM | Duplicate Code | Function 'start_task' is 100% similar to 'start_task' at cli/ui_renderer.py:360 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 345 | 🟡 MEDIUM | Duplicate Code | Function 'update_task' is 100% similar to 'tool_result' at cli/ui_renderer.py:322 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 345 | 🟡 MEDIUM | Duplicate Code | Function 'update_task' is 100% similar to 'tool_summary' at cli/ui_renderer.py:326 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 345 | 🟡 MEDIUM | Duplicate Code | Function 'update_task' is 100% similar to 'update_task' at cli/ui_renderer.py:373 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 22 | 🟢 LOW | Large Class | Class 'OutputHandler' spans 362 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 22 | 🟢 LOW | Large Class | Class 'OutputHandler' has 28 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 32 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/8 params untyped | Add Type Annotations for all parameters and return type. |
-| 61 | 🟢 LOW | Missing Type Hint | Function 'get_toolbar_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 81 | 🟢 LOW | Missing Type Hint | Function '_add_plan_mode_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 94 | 🟢 LOW | Missing Type Hint | Function '_add_provider_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 107 | 🟢 LOW | Missing Type Hint | Function '_add_token_status' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 131 | 🟢 LOW | Missing Type Hint | Function '_get_max_tokens' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 25 more smells._
-
-### cli/commands/context.py — ❌ F (16.4/100)
-
-LOC: 471 | Classes: 6 | Functions: 0 | MI: 48 | Avg CC: 0.0
+LOC: 307 | Classes: 1 | Functions: 0 | MI: 53 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 112 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at cli/json_output.py:30 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 66 | 🟢 LOW | Missing Type Hint | Function 'get_display_label' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 74 | 🟢 LOW | Missing Type Hint | Function 'validate_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 94 | 🟢 LOW | Missing Type Hint | Function 'parse_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 112 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 120 | 🟢 LOW | Missing Type Hint | Function 'print_status_info' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 131 | 🟢 LOW | Missing Type Hint | Function 'print_strategy_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 142 | 🟢 LOW | Missing Type Hint | Function 'print_strategy_status' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 157 | 🟢 LOW | Missing Type Hint | Function '_print_context_settings' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 190 | 🟢 LOW | Missing Type Hint | Function '_print_available_commands' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 207 | 🟢 LOW | Missing Type Hint | Function '_print_strategy_parameters' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 231 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 252 | 🟢 LOW | Missing Type Hint | Function 'manage_strategy' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 265 | 🟢 LOW | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 275 | 🟢 LOW | Missing Type Hint | Function '_show_strategy_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 230 | 🟡 MEDIUM | Duplicate Code | Function 'get_rich_status_message' is 94% similar to 'load' at cli/session_manager.py:132 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 230 | 🟡 MEDIUM | Duplicate Code | Function 'get_rich_status_message' is 94% similar to 'compute_project_hash' at cli/session_manager.py:206 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'error' at cli/output_handler.py:263 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'warning' at cli/output_handler.py:271 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'muted' at cli/output_handler.py:279 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'thinking' at cli/output_handler.py:287 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'print_agent_content' at cli/output_handler.py:295 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'complete_task' at cli/output_handler.py:360 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'set_session' at cli/repl.py:208 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'delete' at cli/session_manager.py:195 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'post' at cli/textual_bridge.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to '_post' at cli/textual_bridge.py:261 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to '_on_thought' at cli/textual_bridge.py:419 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 94% similar to 'code' at cli/ui_renderer.py:306 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 255 | 🟡 MEDIUM | Duplicate Code | Function 'success' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:147 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
-_... and 32 more smells._
+_... and 78 more smells._
 
-### tools/builtins/git_ops.py — ❌ F (17.0/100)
+### tools/builtins/git_ops.py — ❌ F (16.9/100)
 
-LOC: 278 | Classes: 1 | Functions: 0 | MI: 54 | Avg CC: 0.0
+LOC: 279 | Classes: 1 | Functions: 0 | MI: 54 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 142 | 🟠 HIGH | Primitive Obsession | Function 'execute' has 9 primitive-typed parameters: action: Name(id='str', ctx=Load()), path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), ref: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), ref2: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), max_count: Name(id='int', ctx=Load()), start_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), stat: Name(id='bool', ctx=Load()), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 218 | 🟠 HIGH | Duplicate Code | Function '_status' is an exact duplicate of '_branch_list' at tools/builtins/git_ops.py:277 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
-| 258 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_show' (line 258), '_diff_branches' (line 292) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
+| 143 | 🟠 HIGH | Primitive Obsession | Function 'execute' has 9 primitive-typed parameters: action: Name(id='str', ctx=Load()), path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), ref: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), ref2: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), max_count: Name(id='int', ctx=Load()), start_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), stat: Name(id='bool', ctx=Load()), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 219 | 🟠 HIGH | Duplicate Code | Function '_status' is an exact duplicate of '_branch_list' at tools/builtins/git_ops.py:278 | Once and Only Once — extract the shared logic into a single function and call it from both sites. |
+| 259 | 🟠 HIGH | Primitive Obsession | Repeated primitive parameter group appears in: '_show' (line 259), '_diff_branches' (line 293) | Replace Data Value with Object — create a shared data structure for this recurring parameter group. |
 | 46 | 🟡 MEDIUM | Long Method | Function 'parameters' has 53 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 46 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 93% similar to 'parameters' at tools/builtins/kg_query.py:69 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 46 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 96% similar to 'parameters' at tools/builtins/lint_check.py:35 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -234,10 +210,10 @@ LOC: 278 | Classes: 1 | Functions: 0 | MI: 54 | Avg CC: 0.0
 | 46 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/shell.py:329 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 46 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 100% similar to 'parameters' at tools/builtins/test_gen.py:33 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 46 | 🟡 MEDIUM | Duplicate Code | Function 'parameters' is 92% similar to 'parameters' at tools/builtins/web_fetch.py:24 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 222 | 🟡 MEDIUM | Primitive Obsession | Function '_log' has 5 primitive-typed parameters: path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), ref: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), max_count: Name(id='int', ctx=Load()), stat: Name(id='bool', ctx=Load()), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 241 | 🟡 MEDIUM | Primitive Obsession | Function '_blame' has 4 primitive-typed parameters: path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), start_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 258 | 🟡 MEDIUM | Primitive Obsession | Function '_show' has 4 primitive-typed parameters: ref: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), stat: Name(id='bool', ctx=Load()), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 292 | 🟡 MEDIUM | Primitive Obsession | Function '_diff_branches' has 5 primitive-typed parameters: ref: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), ref2: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), stat: Name(id='bool', ctx=Load()), path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 223 | 🟡 MEDIUM | Primitive Obsession | Function '_log' has 5 primitive-typed parameters: path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), ref: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), max_count: Name(id='int', ctx=Load()), stat: Name(id='bool', ctx=Load()), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 242 | 🟡 MEDIUM | Primitive Obsession | Function '_blame' has 4 primitive-typed parameters: path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), start_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end_line: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 259 | 🟡 MEDIUM | Primitive Obsession | Function '_show' has 4 primitive-typed parameters: ref: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), stat: Name(id='bool', ctx=Load()), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 293 | 🟡 MEDIUM | Primitive Obsession | Function '_diff_branches' has 5 primitive-typed parameters: ref: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), ref2: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), stat: Name(id='bool', ctx=Load()), path: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), cwd: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 | 79 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
 _... and 6 more smells._
@@ -266,7 +242,7 @@ LOC: 300 | Classes: 2 | Functions: 0 | MI: 58 | Avg CC: 0.0
 
 _... and 34 more smells._
 
-### metrics/dashboard.py — ❌ F (17.4/100)
+### metrics/dashboard.py — ❌ F (17.5/100)
 
 LOC: 270 | Classes: 1 | Functions: 0 | MI: 58 | Avg CC: 14.0
 
@@ -290,101 +266,77 @@ LOC: 270 | Classes: 1 | Functions: 0 | MI: 58 | Avg CC: 14.0
 
 _... and 25 more smells._
 
-### cli/repl.py — ❌ F (21.2/100)
+### cli/commands/context.py — ❌ F (19.9/100)
 
-LOC: 341 | Classes: 2 | Functions: 0 | MI: 52 | Avg CC: 16.0
+LOC: 471 | Classes: 6 | Functions: 0 | MI: 48 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 78 | 🟠 HIGH | Long Method | Function '__init__' has 105 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 78 | 🟡 MEDIUM | Complex Function | Function '__init__' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 203 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 94% similar to '_on_thought' at cli/textual_bridge.py:414 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 203 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 94% similar to 'add_auto_approve_policy' at tools/registry.py:147 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 203 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 94% similar to 'remove_auto_approve_policy' at tools/registry.py:158 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 211 | 🟡 MEDIUM | Duplicate Code | Function '_handle_confirmation' is 100% similar to 'confirm_tool_execution' at cli/ui_renderer.py:349 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 352 | 🟡 MEDIUM | Long Method | Function '_run_agent_with_monitor' has 52 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 352 | 🟡 MEDIUM | Feature Envy | Method 'Repl._run_agent_with_monitor' accesses 'asyncio' 8 times but 'self' only 7 times | Move Method — consider moving '_run_agent_with_monitor' to the class that owns 'asyncio'. |
-| 420 | 🟡 MEDIUM | Feature Envy | Method 'Repl._handle_agent_event' accesses 'event' 5 times but 'self' only 1 times | Move Method — consider moving '_handle_agent_event' to the class that owns 'event'. |
-| 60 | 🟢 LOW | Magic Number | Magic number 25 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 61 | 🟢 LOW | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 66 | 🟢 LOW | Large Class | Class 'Repl' spans 378 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 78 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/7 params untyped | Add Type Annotations for all parameters and return type. |
-| 203 | 🟢 LOW | Missing Type Hint | Function 'set_session' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 211 | 🟢 LOW | Missing Type Hint | Function '_handle_confirmation' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 66 | 🟢 LOW | Missing Type Hint | Function 'get_display_label' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 74 | 🟢 LOW | Missing Type Hint | Function 'validate_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 94 | 🟢 LOW | Missing Type Hint | Function 'parse_value' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 112 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 120 | 🟢 LOW | Missing Type Hint | Function 'print_status_info' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 131 | 🟢 LOW | Missing Type Hint | Function 'print_strategy_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 142 | 🟢 LOW | Missing Type Hint | Function 'print_strategy_status' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 157 | 🟢 LOW | Missing Type Hint | Function '_print_context_settings' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 190 | 🟢 LOW | Missing Type Hint | Function '_print_available_commands' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 207 | 🟢 LOW | Missing Type Hint | Function '_print_strategy_parameters' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 231 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 252 | 🟢 LOW | Missing Type Hint | Function 'manage_strategy' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 265 | 🟢 LOW | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 275 | 🟢 LOW | Missing Type Hint | Function '_show_strategy_status' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 284 | 🟢 LOW | Missing Type Hint | Function '_load_context_settings' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 15 more smells._
+_... and 31 more smells._
 
 ### providers/anthropic.py — ❌ F (22.7/100)
 
-LOC: 469 | Classes: 5 | Functions: 0 | MI: 41 | Avg CC: 0.0
+LOC: 470 | Classes: 5 | Functions: 0 | MI: 41 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 121 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor.process_stream' accesses 'chunk' 8 times but 'self' only 3 times | Move Method — consider moving 'process_stream' to the class that owns 'chunk'. |
-| 203 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor._handle_content_block_delta' accesses 'delta' 5 times but 'self' only 3 times | Move Method — consider moving '_handle_content_block_delta' to the class that owns 'delta'. |
-| 338 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool' is 95% similar to 'to_metadata' at rag/chunker.py:42 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 121 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor.process_stream' accesses 'chunk' 7 times but 'self' only 3 times | Move Method — consider moving 'process_stream' to the class that owns 'chunk'. |
+| 204 | 🟡 MEDIUM | Feature Envy | Method '_AnthropicStreamProcessor._handle_content_block_delta' accesses 'delta' 5 times but 'self' only 3 times | Move Method — consider moving '_handle_content_block_delta' to the class that owns 'delta'. |
+| 339 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool' is 95% similar to 'to_metadata' at rag/chunker.py:42 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 61 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 75 | 🟢 LOW | Missing Type Hint | Function '_should_yield' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 112 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 121 | 🟢 LOW | Missing Type Hint | Function 'process_stream' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 163 | 🟢 LOW | Missing Type Hint | Function '_process_event' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 183 | 🟢 LOW | Missing Type Hint | Function '_handle_content_block_start' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 183 | 🟢 LOW | Feature Envy | Method '_AnthropicStreamProcessor._handle_content_block_start' accesses 'block' 3 times but 'self' only 0 times | Move Method — consider moving '_handle_content_block_start' to the class that owns 'block'. |
-| 203 | 🟢 LOW | Missing Type Hint | Function '_handle_content_block_delta' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 236 | 🟢 LOW | Missing Type Hint | Function '_handle_content_block_stop' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 241 | 🟢 LOW | Missing Type Hint | Function '_handle_message_delta' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 259 | 🟢 LOW | Missing Type Hint | Function '_build_tool_calls_from_pending' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 293 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 164 | 🟢 LOW | Missing Type Hint | Function '_process_event' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 184 | 🟢 LOW | Missing Type Hint | Function '_handle_content_block_start' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 184 | 🟢 LOW | Feature Envy | Method '_AnthropicStreamProcessor._handle_content_block_start' accesses 'block' 3 times but 'self' only 0 times | Move Method — consider moving '_handle_content_block_start' to the class that owns 'block'. |
+| 204 | 🟢 LOW | Missing Type Hint | Function '_handle_content_block_delta' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 237 | 🟢 LOW | Missing Type Hint | Function '_handle_content_block_stop' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 242 | 🟢 LOW | Missing Type Hint | Function '_handle_message_delta' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 260 | 🟢 LOW | Missing Type Hint | Function '_build_tool_calls_from_pending' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 294 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 
 _... and 23 more smells._
 
-### metrics/storage.py — ❌ F (23.1/100)
+### cli/repl.py — ❌ F (23.9/100)
 
-LOC: 659 | Classes: 5 | Functions: 0 | MI: 47 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 515 | 🟡 MEDIUM | Feature Envy | Method 'MetricsStorage._create_base_metric_dict' accesses 'metric' 7 times but 'self' only 0 times | Move Method — consider moving '_create_base_metric_dict' to the class that owns 'metric'. |
-| 708 | 🟡 MEDIUM | Feature Envy | Method 'MetricsStorage._build_metrics_query' accesses 'query_params' 6 times but 'self' only 0 times | Move Method — consider moving '_build_metrics_query' to the class that owns 'query_params'. |
-| 708 | 🟡 MEDIUM | Feature Envy | Method 'MetricsStorage._build_metrics_query' accesses 'params' 6 times but 'self' only 0 times | Move Method — consider moving '_build_metrics_query' to the class that owns 'params'. |
-| 41 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 49 | 🟢 LOW | Missing Type Hint | Function 'get_session_metrics' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 74 | 🟢 LOW | Missing Type Hint | Function '_get_session_metrics_by_type' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 74 | 🟢 LOW | Primitive Obsession | Function '_get_session_metrics_by_type' has 3 primitive-typed parameters: session_id: Name(id='str', ctx=Load()), metric_type: Name(id='str', ctx=Load()), select_clause: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 96 | 🟢 LOW | Missing Type Hint | Function '_get_session_aggregated_metrics' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 137 | 🟢 LOW | Missing Type Hint | Function '_get_session_metric_by_type' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 152 | 🟢 LOW | Missing Type Hint | Function '_get_session_usage_patterns' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 223 | 🟢 LOW | Missing Type Hint | Function 'create_metrics_table' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 232 | 🟢 LOW | Missing Type Hint | Function 'create_indexes' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 251 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 259 | 🟢 LOW | Missing Type Hint | Function 'get_aggregated_stats' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 283 | 🟢 LOW | Missing Type Hint | Function '_get_time_format_for_grouping' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 24 more smells._
-
-### metrics/collector.py — ❌ F (23.8/100)
-
-LOC: 323 | Classes: 1 | Functions: 0 | MI: 51 | Avg CC: 0.0
+LOC: 345 | Classes: 2 | Functions: 0 | MI: 52 | Avg CC: 16.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 146 | 🟠 HIGH | Feature Envy | Method 'MetricsCollector.record_token_usage' accesses 'usage' 13 times but 'self' only 6 times | Move Method — consider moving 'record_token_usage' to the class that owns 'usage'. |
-| 187 | 🟠 HIGH | Feature Envy | Method 'MetricsCollector.record_cost' accesses 'cost' 12 times but 'self' only 6 times | Move Method — consider moving 'record_cost' to the class that owns 'cost'. |
-| 40 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: enabled: Name(id='bool', ctx=Load()), anonymize: Name(id='bool', ctx=Load()), sampling_rate: Name(id='float', ctx=Load()), session_id: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), user_id: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 228 | 🟡 MEDIUM | Primitive Obsession | Function 'track_tool_execution' has 4 primitive-typed parameters: tool_name: Name(id='str', ctx=Load()), tool_category: Name(id='str', ctx=Load()), input_size: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), agent_id: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 292 | 🟡 MEDIUM | Feature Envy | Method 'MetricsCollector.record_performance_event' accesses 'event' 6 times but 'self' only 5 times | Move Method — consider moving 'record_performance_event' to the class that owns 'event'. |
-| 391 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'process_agent_event' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 28 | 🟢 LOW | Large Class | Class 'MetricsCollector' spans 365 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 40 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/7 params untyped | Add Type Annotations for all parameters and return type. |
-| 76 | 🟢 LOW | Missing Type Hint | Function '_generate_session_id' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 81 | 🟢 LOW | Missing Type Hint | Function '_hash_user_id' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 83 | 🟢 LOW | Magic Number | Magic number 16 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 85 | 🟢 LOW | Missing Type Hint | Function 'should_sample' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 94 | 🟢 LOW | Missing Type Hint | Function 'start_command' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 110 | 🟢 LOW | Missing Type Hint | Function 'end_command' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 122 | 🟢 LOW | Magic Number | Magic number 1000 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 83 | 🟠 HIGH | Long Method | Function '__init__' has 105 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 83 | 🟡 MEDIUM | Complex Function | Function '__init__' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'delete' at cli/session_manager.py:195 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'post' at cli/textual_bridge.py:121 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to '_post' at cli/textual_bridge.py:261 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to '_on_thought' at cli/textual_bridge.py:419 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 94% similar to 'code' at cli/ui_renderer.py:306 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:147 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function 'set_session' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:158 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 216 | 🟡 MEDIUM | Duplicate Code | Function '_handle_confirmation' is 95% similar to 'confirm_tool_execution' at cli/ui_renderer.py:349 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 357 | 🟡 MEDIUM | Long Method | Function '_run_agent_with_monitor' has 52 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 357 | 🟡 MEDIUM | Feature Envy | Method 'Repl._run_agent_with_monitor' accesses 'asyncio' 8 times but 'self' only 7 times | Move Method — consider moving '_run_agent_with_monitor' to the class that owns 'asyncio'. |
+| 425 | 🟡 MEDIUM | Feature Envy | Method 'Repl._handle_agent_event' accesses 'event' 5 times but 'self' only 1 times | Move Method — consider moving '_handle_agent_event' to the class that owns 'event'. |
+| 65 | 🟢 LOW | Magic Number | Magic number 25 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 66 | 🟢 LOW | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-_... and 15 more smells._
+_... and 7 more smells._
 
 ### tools/builtins/file_edit.py — ❌ F (25.0/100)
 
@@ -409,6 +361,54 @@ LOC: 228 | Classes: 1 | Functions: 0 | MI: 62 | Avg CC: 13.0
 | 148 | 🟡 MEDIUM | Primitive Obsession | Function '_edit_string' has 4 primitive-typed parameters: content: Name(id='str', ctx=Load()), old_str: Name(id='str', ctx=Load()), new_str: Name(id='str', ctx=Load()), dry_run: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
 _... and 4 more smells._
+
+### metrics/storage.py — ❌ F (26.6/100)
+
+LOC: 660 | Classes: 5 | Functions: 0 | MI: 47 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 515 | 🟡 MEDIUM | Feature Envy | Method 'MetricsStorage._create_base_metric_dict' accesses 'metric' 7 times but 'self' only 0 times | Move Method — consider moving '_create_base_metric_dict' to the class that owns 'metric'. |
+| 708 | 🟡 MEDIUM | Feature Envy | Method 'MetricsStorage._build_metrics_query' accesses 'query_params' 6 times but 'self' only 0 times | Move Method — consider moving '_build_metrics_query' to the class that owns 'query_params'. |
+| 41 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 49 | 🟢 LOW | Missing Type Hint | Function 'get_session_metrics' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 74 | 🟢 LOW | Missing Type Hint | Function '_get_session_metrics_by_type' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 74 | 🟢 LOW | Primitive Obsession | Function '_get_session_metrics_by_type' has 3 primitive-typed parameters: session_id: Name(id='str', ctx=Load()), metric_type: Name(id='str', ctx=Load()), select_clause: Name(id='str', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 96 | 🟢 LOW | Missing Type Hint | Function '_get_session_aggregated_metrics' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 137 | 🟢 LOW | Missing Type Hint | Function '_get_session_metric_by_type' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 152 | 🟢 LOW | Missing Type Hint | Function '_get_session_usage_patterns' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 223 | 🟢 LOW | Missing Type Hint | Function 'create_metrics_table' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 232 | 🟢 LOW | Missing Type Hint | Function 'create_indexes' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 251 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 259 | 🟢 LOW | Missing Type Hint | Function 'get_aggregated_stats' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
+| 283 | 🟢 LOW | Missing Type Hint | Function '_get_time_format_for_grouping' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 340 | 🟢 LOW | Missing Type Hint | Function '_build_aggregation_query' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 23 more smells._
+
+### metrics/collector.py — ❌ F (27.6/100)
+
+LOC: 329 | Classes: 1 | Functions: 0 | MI: 52 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 146 | 🟠 HIGH | Feature Envy | Method 'MetricsCollector.record_token_usage' accesses 'usage' 13 times but 'self' only 6 times | Move Method — consider moving 'record_token_usage' to the class that owns 'usage'. |
+| 187 | 🟠 HIGH | Feature Envy | Method 'MetricsCollector.record_cost' accesses 'cost' 12 times but 'self' only 6 times | Move Method — consider moving 'record_cost' to the class that owns 'cost'. |
+| 40 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: enabled: Name(id='bool', ctx=Load()), anonymize: Name(id='bool', ctx=Load()), sampling_rate: Name(id='float', ctx=Load()), session_id: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), user_id: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 228 | 🟡 MEDIUM | Primitive Obsession | Function 'track_tool_execution' has 4 primitive-typed parameters: tool_name: Name(id='str', ctx=Load()), tool_category: Name(id='str', ctx=Load()), input_size: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), agent_id: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 292 | 🟡 MEDIUM | Feature Envy | Method 'MetricsCollector.record_performance_event' accesses 'event' 6 times but 'self' only 5 times | Move Method — consider moving 'record_performance_event' to the class that owns 'event'. |
+| 28 | 🟢 LOW | Large Class | Class 'MetricsCollector' spans 372 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 40 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/7 params untyped | Add Type Annotations for all parameters and return type. |
+| 76 | 🟢 LOW | Missing Type Hint | Function '_generate_session_id' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 81 | 🟢 LOW | Missing Type Hint | Function '_hash_user_id' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 83 | 🟢 LOW | Magic Number | Magic number 16 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 85 | 🟢 LOW | Missing Type Hint | Function 'should_sample' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 94 | 🟢 LOW | Missing Type Hint | Function 'start_command' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 110 | 🟢 LOW | Missing Type Hint | Function 'end_command' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 122 | 🟢 LOW | Magic Number | Magic number 1000 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 146 | 🟢 LOW | Missing Type Hint | Function 'record_token_usage' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 14 more smells._
 
 ### cli/commands/__init__.py — ❌ F (27.9/100)
 
@@ -458,54 +458,6 @@ LOC: 129 | Classes: 9 | Functions: 0 | MI: 100 | Avg CC: 0.0
 
 _... and 12 more smells._
 
-### knowledge/store.py — ❌ F (30.0/100)
-
-LOC: 390 | Classes: 1 | Functions: 4 | MI: 49 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 459 | 🟠 HIGH | Feature Envy | Method 'KnowledgeStore.format_entity_for_llm' accesses 'entity' 13 times but 'self' only 1 times | Move Method — consider moving 'format_entity_for_llm' to the class that owns 'entity'. |
-| 459 | 🟡 MEDIUM | Feature Envy | Method 'KnowledgeStore.format_entity_for_llm' accesses 'parts' 7 times but 'self' only 1 times | Move Method — consider moving 'format_entity_for_llm' to the class that owns 'parts'. |
-| 459 | 🟡 MEDIUM | Feature Envy | Method 'KnowledgeStore.format_entity_for_llm' accesses 'rel' 5 times but 'self' only 1 times | Move Method — consider moving 'format_entity_for_llm' to the class that owns 'rel'. |
-| 93 | 🟢 LOW | Large Class | Class 'KnowledgeStore' spans 415 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 93 | 🟢 LOW | Large Class | Class 'KnowledgeStore' has 23 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
-| 104 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 130 | 🟢 LOW | Missing Type Hint | Function 'store_dir' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 135 | 🟢 LOW | Missing Type Hint | Function 'graph' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 140 | 🟢 LOW | Missing Type Hint | Function 'meta' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 146 | 🟢 LOW | Missing Type Hint | Function 'load' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 166 | 🟢 LOW | Missing Type Hint | Function 'save' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 181 | 🟢 LOW | Missing Type Hint | Function 'add_entity' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 190 | 🟢 LOW | Missing Type Hint | Function 'get_entity' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 203 | 🟢 LOW | Missing Type Hint | Function 'remove_entity' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 218 | 🟢 LOW | Missing Type Hint | Function 'list_entities' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 17 more smells._
-
-### agents/metrics_reporter.py — ❌ F (31.7/100)
-
-LOC: 184 | Classes: 1 | Functions: 0 | MI: 50 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 29 | 🟡 MEDIUM | Feature Envy | Method 'MetricsReporter.get_metrics_report' accesses 'report_lines' 7 times but 'self' only 4 times | Move Method — consider moving 'get_metrics_report' to the class that owns 'report_lines'. |
-| 52 | 🟡 MEDIUM | Duplicate Code | Function '_generate_efficiency_metrics' is 100% similar to '_generate_quality_metrics' at agents/metrics_reporter.py:61 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 52 | 🟡 MEDIUM | Duplicate Code | Function '_generate_efficiency_metrics' is 100% similar to '_generate_target_metrics' at agents/metrics_reporter.py:70 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 61 | 🟡 MEDIUM | Duplicate Code | Function '_generate_quality_metrics' is 100% similar to '_generate_target_metrics' at agents/metrics_reporter.py:70 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 174 | 🟡 MEDIUM | Duplicate Code | Function '_format_code_coverage' is 100% similar to '_format_documentation_coverage' at agents/metrics_reporter.py:186 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 216 | 🟡 MEDIUM | Duplicate Code | Function '_format_error_rate_target' is 100% similar to '_format_context_window_target' at agents/metrics_reporter.py:225 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 26 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 29 | 🟢 LOW | Missing Type Hint | Function 'get_metrics_report' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 52 | 🟢 LOW | Missing Type Hint | Function '_generate_efficiency_metrics' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 61 | 🟢 LOW | Missing Type Hint | Function '_generate_quality_metrics' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 70 | 🟢 LOW | Missing Type Hint | Function '_generate_target_metrics' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 79 | 🟢 LOW | Missing Type Hint | Function '_generate_detailed_statistics' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 99 | 🟢 LOW | Missing Type Hint | Function '_format_tool_call_statistics' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 99 | 🟢 LOW | Feature Envy | Method 'MetricsReporter._format_tool_call_statistics' accesses 'lines' 4 times but 'self' only 1 times | Move Method — consider moving '_format_tool_call_statistics' to the class that owns 'lines'. |
-| 99 | 🟢 LOW | Feature Envy | Method 'MetricsReporter._format_tool_call_statistics' accesses 'tools' 4 times but 'self' only 1 times | Move Method — consider moving '_format_tool_call_statistics' to the class that owns 'tools'. |
-
-_... and 14 more smells._
-
 ### tools/builtins/shell.py — ❌ F (33.4/100)
 
 LOC: 498 | Classes: 2 | Functions: 12 | MI: 48 | Avg CC: 0.0
@@ -530,40 +482,88 @@ LOC: 498 | Classes: 2 | Functions: 12 | MI: 48 | Avg CC: 0.0
 
 _... and 11 more smells._
 
-### extensions/plugin_installer.py — ❌ F (34.3/100)
+### agents/metrics_reporter.py — ❌ F (35.1/100)
 
-LOC: 316 | Classes: 1 | Functions: 0 | MI: 54 | Avg CC: 0.0
+LOC: 186 | Classes: 1 | Functions: 0 | MI: 49 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 34 | 🟡 MEDIUM | Feature Envy | Method 'PluginInstaller.install_plugin_package' accesses 'metadata' 7 times but 'self' only 6 times | Move Method — consider moving 'install_plugin_package' to the class that owns 'metadata'. |
-| 242 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_clone_and_copy_git_repo' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 23 | 🟢 LOW | Large Class | Class 'PluginInstaller' spans 401 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 54 | 🟡 MEDIUM | Duplicate Code | Function '_generate_efficiency_metrics' is 100% similar to '_generate_quality_metrics' at agents/metrics_reporter.py:63 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 54 | 🟡 MEDIUM | Duplicate Code | Function '_generate_efficiency_metrics' is 100% similar to '_generate_target_metrics' at agents/metrics_reporter.py:72 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 63 | 🟡 MEDIUM | Duplicate Code | Function '_generate_quality_metrics' is 100% similar to '_generate_target_metrics' at agents/metrics_reporter.py:72 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 176 | 🟡 MEDIUM | Duplicate Code | Function '_format_code_coverage' is 100% similar to '_format_documentation_coverage' at agents/metrics_reporter.py:188 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 218 | 🟡 MEDIUM | Duplicate Code | Function '_format_error_rate_target' is 100% similar to '_format_context_window_target' at agents/metrics_reporter.py:227 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 26 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 34 | 🟢 LOW | Missing Type Hint | Function 'install_plugin_package' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 64 | 🟢 LOW | Missing Type Hint | Function '_install_from_pypi' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 93 | 🟢 LOW | Missing Type Hint | Function '_install_package_with_pip' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 93 | 🟢 LOW | Feature Envy | Method 'PluginInstaller._install_package_with_pip' accesses 'asyncio' 3 times but 'self' only 0 times | Move Method — consider moving '_install_package_with_pip' to the class that owns 'asyncio'. |
-| 128 | 🟢 LOW | Missing Type Hint | Function '_copy_installed_files' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 128 | 🟢 LOW | Feature Envy | Method 'PluginInstaller._copy_installed_files' accesses 'item' 4 times but 'self' only 0 times | Move Method — consider moving '_copy_installed_files' to the class that owns 'item'. |
-| 144 | 🟢 LOW | Missing Type Hint | Function '_install_from_github' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 144 | 🟢 LOW | Feature Envy | Method 'PluginInstaller._install_from_github' accesses 'metadata' 3 times but 'self' only 1 times | Move Method — consider moving '_install_from_github' to the class that owns 'metadata'. |
-| 177 | 🟢 LOW | Missing Type Hint | Function '_install_from_git' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 196 | 🟢 LOW | Long Method | Function '_clone_and_copy_git_repo' has 39 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 196 | 🟢 LOW | Missing Type Hint | Function '_clone_and_copy_git_repo' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 29 | 🟢 LOW | Missing Type Hint | Function 'get_metrics_report' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 54 | 🟢 LOW | Missing Type Hint | Function '_generate_efficiency_metrics' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 63 | 🟢 LOW | Missing Type Hint | Function '_generate_quality_metrics' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 72 | 🟢 LOW | Missing Type Hint | Function '_generate_target_metrics' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 81 | 🟢 LOW | Missing Type Hint | Function '_generate_detailed_statistics' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 101 | 🟢 LOW | Missing Type Hint | Function '_format_tool_call_statistics' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 101 | 🟢 LOW | Feature Envy | Method 'MetricsReporter._format_tool_call_statistics' accesses 'lines' 4 times but 'self' only 1 times | Move Method — consider moving '_format_tool_call_statistics' to the class that owns 'lines'. |
+| 101 | 🟢 LOW | Feature Envy | Method 'MetricsReporter._format_tool_call_statistics' accesses 'tools' 4 times but 'self' only 1 times | Move Method — consider moving '_format_tool_call_statistics' to the class that owns 'tools'. |
+| 122 | 🟢 LOW | Missing Type Hint | Function '_format_task_completion_time' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 19 more smells._
+_... and 13 more smells._
 
-### agents/metrics.py — ❌ F (37.6/100)
+### knowledge/store.py — ❌ F (35.5/100)
 
-LOC: 322 | Classes: 5 | Functions: 1 | MI: 51 | Avg CC: 0.0
+LOC: 397 | Classes: 1 | Functions: 4 | MI: 48 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 459 | 🟠 HIGH | Feature Envy | Method 'KnowledgeStore.format_entity_for_llm' accesses 'entity' 11 times but 'self' only 1 times | Move Method — consider moving 'format_entity_for_llm' to the class that owns 'entity'. |
+| 93 | 🟢 LOW | Large Class | Class 'KnowledgeStore' spans 422 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 93 | 🟢 LOW | Large Class | Class 'KnowledgeStore' has 23 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
+| 104 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 130 | 🟢 LOW | Missing Type Hint | Function 'store_dir' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 135 | 🟢 LOW | Missing Type Hint | Function 'graph' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 140 | 🟢 LOW | Missing Type Hint | Function 'meta' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 146 | 🟢 LOW | Missing Type Hint | Function 'load' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 166 | 🟢 LOW | Missing Type Hint | Function 'save' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 181 | 🟢 LOW | Missing Type Hint | Function 'add_entity' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 190 | 🟢 LOW | Missing Type Hint | Function 'get_entity' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 203 | 🟢 LOW | Missing Type Hint | Function 'remove_entity' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 218 | 🟢 LOW | Missing Type Hint | Function 'list_entities' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 244 | 🟢 LOW | Missing Type Hint | Function 'search_entities' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 244 | 🟢 LOW | Feature Envy | Method 'KnowledgeStore.search_entities' accesses 'entity' 3 times but 'self' only 1 times | Move Method — consider moving 'search_entities' to the class that owns 'entity'. |
+
+_... and 16 more smells._
+
+### cli/commands/model.py — ❌ F (39.6/100)
+
+LOC: 287 | Classes: 1 | Functions: 0 | MI: 55 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 75 | 🟡 MEDIUM | Feature Envy | Method 'ModelCommand._print_current_configuration' accesses 'console' 7 times but 'self' only 0 times | Move Method — consider moving '_print_current_configuration' to the class that owns 'console'. |
+| 98 | 🟡 MEDIUM | Feature Envy | Method 'ModelCommand._list_providers' accesses 'console' 7 times but 'self' only 2 times | Move Method — consider moving '_list_providers' to the class that owns 'console'. |
+| 213 | 🟡 MEDIUM | Feature Envy | Method 'ModelCommand._test_provider_connection' accesses 'console' 7 times but 'self' only 0 times | Move Method — consider moving '_test_provider_connection' to the class that owns 'console'. |
+| 240 | 🟡 MEDIUM | Feature Envy | Method 'ModelCommand._update_agent_provider' accesses 'ctx' 6 times but 'self' only 0 times | Move Method — consider moving '_update_agent_provider' to the class that owns 'ctx'. |
+| 267 | 🟡 MEDIUM | Feature Envy | Method 'ModelCommand._show_configuration_warnings' accesses 'console' 6 times but 'self' only 1 times | Move Method — consider moving '_show_configuration_warnings' to the class that owns 'console'. |
+| 12 | 🟢 LOW | Large Class | Class 'ModelCommand' spans 371 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 16 | 🟢 LOW | Missing Type Hint | Function 'name' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 25 | 🟢 LOW | Missing Type Hint | Function 'description' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 34 | 🟢 LOW | Missing Type Hint | Function 'usage' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 42 | 🟢 LOW | Missing Type Hint | Function 'execute' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 58 | 🟢 LOW | Missing Type Hint | Function '_show_current' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 58 | 🟢 LOW | Feature Envy | Method 'ModelCommand._show_current' accesses 'ctx' 4 times but 'self' only 1 times | Move Method — consider moving '_show_current' to the class that owns 'ctx'. |
+| 75 | 🟢 LOW | Missing Type Hint | Function '_print_current_configuration' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 98 | 🟢 LOW | Long Method | Function '_list_providers' has 30 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 98 | 🟢 LOW | Missing Type Hint | Function '_list_providers' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+
+_... and 11 more smells._
+
+### agents/metrics.py — ❌ F (39.7/100)
+
+LOC: 319 | Classes: 5 | Functions: 1 | MI: 53 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 59 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 92% similar to '__init__' at agents/metrics.py:111 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 91 | 🟡 MEDIUM | Duplicate Code | Function 'track_file_access' is 100% similar to 'track_tool_usage' at agents/metrics.py:99 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 148 | 🟡 MEDIUM | Duplicate Code | Function 'reset' is 93% similar to '__init__' at cli/textual_mixins.py:109 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 184 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'track_tool_call' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 160 | 🟡 MEDIUM | Feature Envy | Method 'ToolMetrics.track_tool_call' accesses 'ToolCategory' 5 times but 'self' only 3 times | Move Method — consider moving 'track_tool_call' to the class that owns 'ToolCategory'. |
 | 59 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 71 | 🟢 LOW | Missing Type Hint | Function 'reset' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 83 | 🟢 LOW | Missing Type Hint | Function 'calculate_file_re_reads' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
@@ -576,31 +576,31 @@ LOC: 322 | Classes: 5 | Functions: 1 | MI: 51 | Avg CC: 0.0
 | 148 | 🟢 LOW | Missing Type Hint | Function 'reset' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 160 | 🟢 LOW | Missing Type Hint | Function 'track_tool_call' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 13 more smells._
+_... and 12 more smells._
 
-### agents/delegation.py — ❌ F (40.5/100)
+### extensions/plugin_installer.py — ❌ F (39.9/100)
 
-LOC: 367 | Classes: 2 | Functions: 0 | MI: 56 | Avg CC: 13.0
+LOC: 319 | Classes: 1 | Functions: 0 | MI: 54 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 202 | 🟡 MEDIUM | Feature Envy | Method 'DelegationRunner._prepare_delegation_execution' accesses 'params' 7 times but 'self' only 4 times | Move Method — consider moving '_prepare_delegation_execution' to the class that owns 'params'. |
-| 259 | 🟡 MEDIUM | Feature Envy | Method 'DelegationRunner._finalize_delegation' accesses 'params' 6 times but 'self' only 2 times | Move Method — consider moving '_finalize_delegation' to the class that owns 'params'. |
-| 302 | 🟡 MEDIUM | Complex Function | Function '_prepare_delegation_context' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 399 | 🟡 MEDIUM | Feature Envy | Method 'DelegationRunner._assemble_delegation_input' accesses 'sections' 8 times but 'self' only 0 times | Move Method — consider moving '_assemble_delegation_input' to the class that owns 'sections'. |
-| 399 | 🟡 MEDIUM | Feature Envy | Method 'DelegationRunner._assemble_delegation_input' accesses 'brief' 6 times but 'self' only 0 times | Move Method — consider moving '_assemble_delegation_input' to the class that owns 'brief'. |
-| 399 | 🟡 MEDIUM | Complex Function | Function '_assemble_delegation_input' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 42 | 🟢 LOW | Missing Type Hint | Function '__call__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 54 | 🟢 LOW | Large Class | Class 'DelegationRunner' spans 439 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 69 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/7 params untyped | Add Type Annotations for all parameters and return type. |
-| 88 | 🟢 LOW | Long Method | Function 'run_delegation' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 88 | 🟢 LOW | Missing Type Hint | Function 'run_delegation' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 141 | 🟢 LOW | Missing Type Hint | Function '_is_delegation_depth_exceeded' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 152 | 🟢 LOW | Missing Type Hint | Function '_yield_depth_exceeded_error' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 169 | 🟢 LOW | Missing Type Hint | Function '_get_target_agent_with_error_handling' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 185 | 🟢 LOW | Missing Type Hint | Function '_yield_agent_not_found_completion' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 23 | 🟢 LOW | Large Class | Class 'PluginInstaller' spans 404 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 26 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 34 | 🟢 LOW | Missing Type Hint | Function 'install_plugin_package' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 66 | 🟢 LOW | Missing Type Hint | Function '_install_from_pypi' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 95 | 🟢 LOW | Missing Type Hint | Function '_install_package_with_pip' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 95 | 🟢 LOW | Feature Envy | Method 'PluginInstaller._install_package_with_pip' accesses 'asyncio' 3 times but 'self' only 0 times | Move Method — consider moving '_install_package_with_pip' to the class that owns 'asyncio'. |
+| 130 | 🟢 LOW | Missing Type Hint | Function '_copy_installed_files' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 130 | 🟢 LOW | Feature Envy | Method 'PluginInstaller._copy_installed_files' accesses 'item' 4 times but 'self' only 0 times | Move Method — consider moving '_copy_installed_files' to the class that owns 'item'. |
+| 146 | 🟢 LOW | Missing Type Hint | Function '_install_from_github' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 146 | 🟢 LOW | Feature Envy | Method 'PluginInstaller._install_from_github' accesses 'metadata' 3 times but 'self' only 1 times | Move Method — consider moving '_install_from_github' to the class that owns 'metadata'. |
+| 179 | 🟢 LOW | Missing Type Hint | Function '_install_from_git' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 198 | 🟢 LOW | Long Method | Function '_clone_and_copy_git_repo' has 40 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 198 | 🟢 LOW | Missing Type Hint | Function '_clone_and_copy_git_repo' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
+| 198 | 🟢 LOW | Feature Envy | Method 'PluginInstaller._clone_and_copy_git_repo' accesses 'asyncio' 3 times but 'self' only 0 times | Move Method — consider moving '_clone_and_copy_git_repo' to the class that owns 'asyncio'. |
+| 198 | 🟢 LOW | Feature Envy | Method 'PluginInstaller._clone_and_copy_git_repo' accesses 'item' 3 times but 'self' only 0 times | Move Method — consider moving '_clone_and_copy_git_repo' to the class that owns 'item'. |
 
-_... and 9 more smells._
+_... and 18 more smells._
 
 ## ✨ Clean Files (60 files with no smells)
 
@@ -633,7 +633,7 @@ _... and 9 more smells._
 - cli/stream_event_handlers.py — 👍 B
 - cli/tool_executor.py — 👍 B
 - config/__init__.py — ✅ A
-- config/settings.py — ✅ A
+- config/settings.py — 👍 B
 - core/__init__.py — ✅ A
 - core/agent.py — 👍 B
 - core/agent_stall.py — ✅ A

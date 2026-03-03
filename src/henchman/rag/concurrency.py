@@ -171,7 +171,7 @@ def retry_on_locked(
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
-                except Exception as e:
+                except Exception as e:  # noqa: PERF203
                     last_exception = e
 
                     # Check if this is a lock-related error

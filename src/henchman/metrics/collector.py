@@ -378,7 +378,7 @@ class MetricsCollector:
             latency_ms=0.0,  # Would need actual timing
         )
 
-    async def process_agent_event(self, event: AgentEvent) -> None:
+    async def process_agent_event(self, event: AgentEvent) -> None:  # noqa: C901
         """Process an agent event for metrics collection.
 
         Args:

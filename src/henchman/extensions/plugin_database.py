@@ -77,7 +77,7 @@ class PluginDatabase:
                 try:
                     installation = self._row_to_installation(row)
                     installations[installation.metadata.name] = installation
-                except (json.JSONDecodeError, ValidationError) as e:
+                except (json.JSONDecodeError, ValidationError) as e:  # noqa: PERF203
                     # Log warning but continue loading other plugins
                     import logging
                     logger = logging.getLogger(__name__)
@@ -100,17 +100,18 @@ class PluginDatabase:
             json.JSONDecodeError: If metadata JSON is invalid.
             ValidationError: If metadata validation fails.
         """
-        metadata_json = row[PluginConstants.DB_COL_METADATA_JSON]
+        PC = PluginConstants
+        metadata_json = row[PC.DB_COL_METADATA_JSON]
         metadata_dict = json.loads(metadata_json)
         metadata = PluginMetadata(**metadata_dict)
 
         return PluginInstallation(
             metadata=metadata,
-            installed_at=datetime.fromisoformat(row[PluginConstants.DB_COL_INSTALLED_AT]),
-            installed_version=row[PluginConstants.DB_COL_INSTALLED_VERSION],
-            enabled=bool(row[PluginConstants.DB_COL_ENABLED]),
-            installation_path=row[PluginConstants.DB_COL_INSTALLATION_PATH],
-            last_used=datetime.fromisoformat(row[PluginConstants.DB_COL_LAST_USED]) if row[PluginConstants.DB_COL_LAST_USED] else None,  # noqa: E501
+            installed_at=datetime.fromisoformat(row[PC.DB_COL_INSTALLED_AT]),
+            installed_version=row[PC.DB_COL_INSTALLED_VERSION],
+            enabled=bool(row[PC.DB_COL_ENABLED]),
+            installation_path=row[PC.DB_COL_INSTALLATION_PATH],
+            last_used=datetime.fromisoformat(row[PC.DB_COL_LAST_USED]) if row[PluginConstants.DB_COL_LAST_USED] else None,  # noqa: E501
         )
 
     async def save_installation(self, installation: PluginInstallation) -> None:
@@ -141,15 +142,17 @@ class PluginDatabase:
         Returns:
             Tuple of parameters for database insertion.
         """
-        metadata_json = installation.metadata.model_dump_json()
+        inst_meta = installation.metadata
+        metadata_json = inst_meta.model_dump_json()
+        inst_last_used = installation.last_used
         return (
-            installation.metadata.name,
+            inst_meta.name,
             metadata_json,
             installation.installed_at.isoformat(),
             installation.installed_version,
             int(installation.enabled),
             installation.installation_path,
-            installation.last_used.isoformat() if installation.last_used else None,
+            inst_last_used.isoformat() if inst_last_used else None,
         )
 
     async def delete_installation(self, plugin_name: str) -> None:

@@ -321,7 +321,7 @@ class FileSearcher:
                 if n > 0:
                     counts.append(f"{file_path}:{n}")
                     total += n
-            except (PermissionError, UnicodeDecodeError):  # pragma: no cover
+            except (PermissionError, UnicodeDecodeError):  # pragma: no cover  # noqa: PERF203
                 continue
 
         if not counts:

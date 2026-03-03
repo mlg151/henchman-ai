@@ -136,7 +136,7 @@ class ExtensionManager:
                     logger.info("Loaded extension from entry point: %s", ep.name)
                 else:
                     logger.warning("Entry point %s is not an Extension subclass", ep.name)
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203
                 logger.warning("Failed to load extension %s: %s", ep.name, e)
 
     def discover_directory(self, directory: Path) -> None:

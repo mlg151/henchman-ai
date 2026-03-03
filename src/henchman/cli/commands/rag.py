@@ -154,10 +154,10 @@ class RagCommand(BaseCommand):
         """Clear ALL RAG indices from the cache directory."""
         from henchman.rag.repo_id import get_rag_cache_dir
 
+        console = ctx.console
         cache_dir = get_rag_cache_dir()
 
         if not cache_dir.exists():
-            console = ctx.console
             console.print("[yellow]No RAG cache directory found[/]")
             return
 
@@ -182,10 +182,10 @@ class RagCommand(BaseCommand):
         """Clean up old project-based RAG indices."""
         from henchman.rag.system import find_git_root
 
+        console = ctx.console
         # Find git root if we're in a repository
         git_root = find_git_root()
         if not git_root:
-            console = ctx.console
             console.print("[yellow]Not in a git repository[/]")
             return
 

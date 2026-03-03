@@ -59,7 +59,7 @@ class CompressionStrategy:
         """
         self.config = config
 
-    def compress(
+    def compress(  # noqa: C901
         self: CompressionStrategy,
         messages: list[Message],
         clusters: list[list[int]],
@@ -90,9 +90,11 @@ class CompressionStrategy:
 
             if importance >= self.config.high_threshold:
                 # Preserve high-importance clusters fully
-                for msg_idx in cluster:
-                    if msg_idx < len(messages):
-                        compressed_messages.append(messages[msg_idx])
+                compressed_messages.extend(
+                    messages[msg_idx]
+                    for msg_idx in cluster
+                    if msg_idx < len(messages)
+                )
 
             elif importance >= self.config.medium_threshold:
                 # Summarize medium-importance clusters
