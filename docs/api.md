@@ -7,7 +7,7 @@ This page provides API reference for the main Henchman-AI modules.
 ### Agent
 
 ```python
-from henchman.core import Agent, AgentEvent, EventType
+from henchman.core import Agent, AgentEvent, EventType, AgentConfig, StallDetector, StreamContext, StreamState, EventBus, TurnState, TurnSummary, TurnSummaryRecord
 ```
 
 #### Agent
@@ -20,18 +20,41 @@ class Agent:
         self,
         provider: ModelProvider,
         tools: list[ToolDeclaration] | None = None,
-        system_prompt: str = ""
+        system_prompt: str = "",
+        config: AgentConfig | None = None
     ) -> None:
         """Initialize the agent."""
     
     async def run(self, user_input: str) -> AsyncIterator[AgentEvent]:
         """Run the agent with user input, yielding events."""
     
+    async def continue_with_tool_results(self) -> AsyncIterator[AgentEvent]:
+        """Continue execution after tool results have been submitted."""
+    
     def submit_tool_result(self, tool_call_id: str, result: str) -> None:
         """Submit a tool result for a pending tool call."""
     
     def clear_history(self) -> None:
         """Clear conversation history."""
+    
+    def get_messages_for_api(self) -> list[Message]:
+        """Get messages for the API, with compaction if needed."""
+```
+
+#### AgentConfig
+
+```python
+@dataclass
+class AgentConfig:
+    system_prompt: str = ""
+    model: str | None = None
+    base_tool_iterations: int = 5
+    intelligent_context: bool = True
+    importance_threshold: float = 0.7
+    cluster_similarity_threshold: float = 0.85
+    adaptive_compression: bool = True
+    max_protected_ratio: float = 0.3
+    summarize_dropped: bool = True
 ```
 
 #### EventType
@@ -42,6 +65,7 @@ class EventType(Enum):
     THOUGHT = "thought"        # Thinking/reasoning
     TOOL_CALL_REQUEST = "tool_call_request"
     TOOL_CALL_RESULT = "tool_call_result"
+    TOOL_CONFIRMATION = "tool_confirmation"  # User confirmation for tool execution
     ERROR = "error"
     FINISHED = "finished"
 ```
@@ -53,12 +77,27 @@ class EventType(Enum):
 class AgentEvent:
     type: EventType
     data: Any
+    source_agent: str | None = None  # Agent ID for multi-agent systems
+```
+
+#### EventBus
+
+```python
+class EventBus:
+    def subscribe(self, event_type: EventType, callback: Callable[[AgentEvent], Any]) -> None:
+        """Subscribe to events of a specific type."""
+    
+    def publish(self, event: AgentEvent) -> None:
+        """Publish an event to all subscribers."""
+    
+    def unsubscribe(self, event_type: EventType, callback: Callable[[AgentEvent], Any]) -> None:
+        """Unsubscribe from events."""
 ```
 
 ### Session
 
 ```python
-from henchman.core import Session, SessionManager, SessionMessage
+from henchman.core import Session, SessionManager, SessionMessage, SessionMetadata
 ```
 
 #### SessionManager
@@ -96,6 +135,61 @@ class SessionManager:
     
     def delete(self, session_id: str) -> bool:
         """Delete a session."""
+    
+    def branch_session(
+        self,
+        session_id: str,
+        branch_point: int,
+        tag: str | None = None
+    ) -> Session:
+        """Create a branch from an existing session."""
+    
+    def merge_sessions(
+        self,
+        session_ids: list[str],
+        strategy: str = "union",
+        tag: str | None = None
+    ) -> Session:
+        """Merge multiple sessions."""
+    
+    def export_session(
+        self,
+        session_id: str,
+        format: str = "json",
+        include_metadata: bool = True
+    ) -> str:
+        """Export a session to string."""
+    
+    def import_session(
+        self,
+        data: str,
+        format: str = "json",
+        tag: str | None = None
+    ) -> Session:
+        """Import a session from string."""
+    
+    def save_template(
+        self,
+        session_id: str,
+        name: str,
+        description: str = "",
+        parameters: dict[str, Any] | None = None
+    ) -> str:
+        """Save a session as a reusable template."""
+    
+    def create_from_template(
+        self,
+        template_id: str,
+        parameters: dict[str, Any] | None = None,
+        tag: str | None = None
+    ) -> Session:
+        """Create a new session from a template."""
+    
+    def list_templates(self) -> list[dict[str, Any]]:
+        """List all available templates."""
+    
+    def delete_template(self, template_id: str) -> bool:
+        """Delete a template."""
 ```
 
 ## Providers
@@ -108,6 +202,13 @@ from henchman.providers import (
     ToolDeclaration,
     StreamChunk,
     FinishReason,
+    DeepSeekProvider,
+    OpenAICompatibleProvider,
+    AnthropicProvider,
+    OllamaProvider,
+    OpenRouterProvider,
+    ProviderRegistry,
+    get_default_registry,
 )
 ```
 
@@ -153,26 +254,72 @@ class StreamChunk:
     finish_reason: FinishReason | None = None
 ```
 
+### FinishReason
+
+```python
+class FinishReason(Enum):
+    STOP = "stop"
+    TOOL_CALLS = "tool_calls"
+    LENGTH = "length"
+    CONTENT_FILTER = "content_filter"
+```
+
+### ProviderRegistry
+
+```python
+class ProviderRegistry:
+    def register(self, name: str, provider_class: type[ModelProvider]) -> None:
+        """Register a provider class."""
+    
+    def create(
+        self,
+        name: str,
+        **kwargs: Any
+    ) -> ModelProvider:
+        """Create a provider instance."""
+    
+    def list_providers(self) -> list[str]:
+        """List all registered provider names."""
+```
+
+### get_default_registry
+
+```python
+def get_default_registry() -> ProviderRegistry:
+    """Get the default provider registry with all built-in providers."""
+```
+
 ### Concrete Providers
 
 ```python
-from henchman.providers import (
-    DeepSeekProvider,
-    OpenAICompatibleProvider,
-    AnthropicProvider,
-    OllamaProvider,
-)
-
-# DeepSeek
+# DeepSeek (OpenAI-compatible)
 provider = DeepSeekProvider(
     api_key="...",
     model="deepseek-chat"
 )
 
-# Anthropic
+# OpenAI-compatible (DeepSeek, OpenAI, Together, Groq, etc.)
+provider = OpenAICompatibleProvider(
+    api_key="...",
+    model="gpt-4",
+    base_url="https://api.openai.com/v1"  # Optional: custom endpoint
+)
+
+# Anthropic Claude
 provider = AnthropicProvider(
     api_key="...",
     model="claude-3-opus-20240229"
+)
+
+# Ollama (local models)
+provider = OllamaProvider(
+    model="llama3.2"  # No API key required
+)
+
+# OpenRouter
+provider = OpenRouterProvider(
+    api_key="...",
+    model="openai/gpt-4"
 )
 ```
 
@@ -184,6 +331,7 @@ from henchman.tools import (
     ToolKind,
     ToolResult,
     ToolRegistry,
+    ConfirmationRequest,
 )
 ```
 
@@ -218,6 +366,16 @@ class Tool(ABC):
         """Execute the tool."""
 ```
 
+### ToolKind
+
+```python
+class ToolKind(Enum):
+    READ = "read"      # Read-only operations (auto-approved)
+    WRITE = "write"    # File/database writes (requires confirmation)
+    EXECUTE = "execute"  # Shell/process execution (requires confirmation)
+    NETWORK = "network"  # Network requests (requires confirmation)
+```
+
 ### ToolResult
 
 ```python
@@ -226,6 +384,17 @@ class ToolResult:
     content: str
     success: bool = True
     error: str | None = None
+```
+
+### ConfirmationRequest
+
+```python
+@dataclass
+class ConfirmationRequest:
+    tool_name: str
+    arguments: dict[str, Any]
+    tool_kind: ToolKind
+    description: str
 ```
 
 ### ToolRegistry
@@ -244,19 +413,57 @@ class ToolRegistry:
         arguments: dict[str, Any]
     ) -> ToolResult:
         """Execute a tool by name."""
+    
+    def set_confirmation_handler(
+        self,
+        handler: Callable[[ConfirmationRequest], Awaitable[bool]]
+    ) -> None:
+        """Set handler for tool confirmation requests."""
+    
+    def add_auto_approve_policy(self, tool_name: str) -> None:
+        """Add a tool to auto-approve list (bypasses confirmation)."""
 ```
 
 ## Configuration
 
 ```python
-from henchman.config import load_settings, Settings, ContextLoader
+from henchman.config import (
+    load_settings,
+    Settings,
+    ContextLoader,
+    ContextSettings,
+    ProviderSettings,
+    ToolSettings,
+    UISettings,
+    RagSettings,
+    McpServerConfig,
+    EnvironmentContext,
+    ConfigError,
+    DEFAULT_FILENAMES,
+    deep_merge,
+    format_environment_block,
+    gather_environment,
+)
 ```
 
 ### load_settings
 
 ```python
 def load_settings() -> Settings:
-    """Load settings from all sources."""
+    """Load settings from all sources (defaults, user, workspace, env)."""
+```
+
+### Settings
+
+```python
+@dataclass
+class Settings:
+    providers: ProviderSettings
+    tools: ToolSettings
+    ui: UISettings
+    context: ContextSettings
+    rag: RagSettings
+    mcp_servers: dict[str, McpServerConfig]
 ```
 
 ### ContextLoader
@@ -277,10 +484,46 @@ class ContextLoader:
         """Load and concatenate context files."""
 ```
 
+### McpServerConfig
+
+```python
+@dataclass
+class McpServerConfig:
+    command: str
+    args: list[str]
+    env: dict[str, str] | None = None
+    trusted: bool = False
+```
+
+### EnvironmentContext
+
+```python
+@dataclass
+class EnvironmentContext:
+    python_version: str
+    virtualenv: str | None
+    project_type: str
+    installed_packages: dict[str, str]
+    environment_variables: dict[str, str]
+    sys_path: list[str]
+```
+
 ## CLI
 
 ```python
-from henchman.cli import Repl, ReplConfig, OutputRenderer
+from henchman.cli import (
+    Repl,
+    ReplConfig,
+    OutputRenderer,
+    Theme,
+    ThemeManager,
+    InputHandler,
+    get_default_theme,
+    expand_at_references,
+    is_shell_command,
+    is_slash_command,
+    parse_shell_command,
+)
 ```
 
 ### Repl
@@ -310,4 +553,67 @@ class ReplConfig:
     prompt: str = "❯ "
     system_prompt: str = ""
     auto_save: bool = True
+    show_welcome: bool = True
+    show_goodbye: bool = True
+    confirm_tools: bool = True
+```
+
+### OutputRenderer
+
+```python
+class OutputRenderer:
+    def success(self, message: str) -> None:
+        """Print success message."""
+    
+    def info(self, message: str) -> None:
+        """Print info message."""
+    
+    def warning(self, message: str) -> None:
+        """Print warning message."""
+    
+    def error(self, message: str) -> None:
+        """Print error message."""
+    
+    def muted(self, text: str) -> None:
+        """Print muted text."""
+    
+    def heading(self, text: str) -> None:
+        """Print heading."""
+    
+    def markdown(self, content: str) -> None:
+        """Render markdown content."""
+    
+    def code(self, code: str, language: str = "python") -> None:
+        """Render code block."""
+    
+    def tool_call(self, name: str, arguments: dict[str, Any]) -> None:
+        """Render tool call."""
+    
+    def tool_result(self, content: str, success: bool = True, error: str | None = None) -> None:
+        """Render tool result."""
+```
+
+### InputHandler
+
+```python
+class InputHandler:
+    async def get_input(self, prompt: str = "❯ ") -> str:
+        """Get user input with history and completion."""
+    
+    async def expand_references(self, text: str) -> str:
+        """Expand @file references in text."""
+```
+
+### ThemeManager
+
+```python
+class ThemeManager:
+    def set_theme(self, theme: Theme) -> None:
+        """Set the current theme."""
+    
+    def register_theme(self, name: str, theme: Theme) -> None:
+        """Register a custom theme."""
+    
+    def get_theme(self, name: str) -> Theme | None:
+        """Get a theme by name."""
 ```

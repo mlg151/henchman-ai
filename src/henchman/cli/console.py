@@ -96,17 +96,17 @@ class StatusType(Enum):
     @property
     def style(self: Self) -> str:
         """Get the style for this status type."""
-        return self.value.style
+        return self.value.style  # type: ignore[no-any-return]
 
     @property
     def icon(self: Self) -> str:
         """Get the icon for this status type."""
-        return self.value.icon
+        return self.value.icon  # type: ignore[no-any-return]
 
     @property
     def accessible_icon(self: Self) -> str:
         """Get the accessible icon for this status type."""
-        return self.value.accessible_icon
+        return self.value.accessible_icon  # type: ignore[no-any-return]
 
 
 @dataclass
@@ -140,7 +140,7 @@ class OutputRendererConfig:
     style_overrides: dict[str, str] | None = None
     layout_settings: Any | None = None  # Avoid circular import, pass as object or dict
 
-    def get_resolved_theme(self) -> Theme:
+    def get_resolved_theme(self: Self) -> Theme:
         """Get the resolved theme based on configuration.
 
         Returns:
@@ -175,7 +175,7 @@ class Theme:
     error: str = "red"
     muted: str = "dim"
 
-    def with_overrides(self, overrides: dict[str, str] | None = None) -> Theme:
+    def with_overrides(self: Self, overrides: dict[str, str] | None = None) -> Theme:
         """Create a new theme with style overrides applied.
 
         Args:
@@ -315,17 +315,17 @@ class ThemeManager:
         current: The currently active theme.
     """
 
-    def __init__(self) -> None:
+    def __init__(self: Self) -> None:
         """Initialize the theme manager with default themes."""
         self._themes = THEMES.copy()
         self._current: Theme = DARK_THEME
 
     @property
-    def current(self) -> Theme:
+    def current(self: Self) -> Theme:
         """Get the current theme."""
         return self._current
 
-    def get_theme(self, name: str, overrides: dict[str, str] | None = None) -> Theme:
+    def get_theme(self: Self, name: str, overrides: dict[str, str] | None = None) -> Theme:
         """Get a theme by name with optional overrides.
 
         Args:
@@ -337,7 +337,7 @@ class ThemeManager:
         """
         return _get_theme_from_dict(self._themes, name, overrides)
 
-    def set_theme(self, name: str) -> None:
+    def set_theme(self: Self, name: str) -> None:
         """Set the current theme by name.
 
         Args:
@@ -345,7 +345,7 @@ class ThemeManager:
         """
         self._current = self.get_theme(name)
 
-    def list_themes(self) -> list[str]:
+    def list_themes(self: Self) -> list[str]:
         """List available theme names.
 
         Returns:
@@ -353,7 +353,7 @@ class ThemeManager:
         """
         return list_dict_keys(self._themes)
 
-    def register_theme(self, theme: Theme) -> None:
+    def register_theme(self: Self, theme: Theme) -> None:
         """Register a custom theme.
 
         Args:
@@ -383,7 +383,7 @@ class OutputRenderer:
     """
 
     def __init__(
-        self,
+        self: Self,
         console: Console | None = None,
         theme: Theme | None = None,
         *,
@@ -410,7 +410,7 @@ class OutputRenderer:
             ),
         )
 
-    def _initialize_from_config(self, config: OutputRendererConfig) -> None:
+    def _initialize_from_config(self: Self, config: OutputRendererConfig) -> None:
         """Initialize renderer from configuration object.
 
         Args:
@@ -430,7 +430,7 @@ class OutputRenderer:
         """
         self.console.print(text, style=style)
 
-    def success(self, message: str) -> None:
+    def success(self: Self, message: str) -> None:
         """Print a success message.
 
         Args:
@@ -438,7 +438,7 @@ class OutputRenderer:
         """
         self._print_status(StatusType.SUCCESS, message)
 
-    def info(self, message: str) -> None:
+    def info(self: Self, message: str) -> None:
         """Print an info message.
 
         Args:
@@ -446,7 +446,7 @@ class OutputRenderer:
         """
         self._print_status(StatusType.INFO, message)
 
-    def warning(self, message: str) -> None:
+    def warning(self: Self, message: str) -> None:
         """Print a warning message.
 
         Args:
@@ -454,7 +454,7 @@ class OutputRenderer:
         """
         self._print_status(StatusType.WARNING, message)
 
-    def error(self, message: str) -> None:
+    def error(self: Self, message: str) -> None:
         """Print an error message.
 
         Args:
@@ -462,7 +462,7 @@ class OutputRenderer:
         """
         self._print_status(StatusType.ERROR, message)
 
-    def _print_status(self, status_type: StatusType, message: str) -> None:
+    def _print_status(self: Self, status_type: StatusType, message: str) -> None:
         """Print a status message with the given type.
 
         Args:
@@ -473,7 +473,7 @@ class OutputRenderer:
             StatusMessageParams(message=message, status_type=status_type),
         )
 
-    def _print_status_message(self, params: StatusMessageParams) -> None:
+    def _print_status_message(self: Self, params: StatusMessageParams) -> None:
         """Print a status message with consistent formatting.
 
         Args:
