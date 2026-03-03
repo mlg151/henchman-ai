@@ -1,3 +1,9 @@
+"""Agent identity models for the multi-agent system.
+
+This module defines the AgentIdentity class which represents the identity
+of an agent in the team, including its ID, name, role, and description.
+"""
+
 from dataclasses import dataclass
 
 
