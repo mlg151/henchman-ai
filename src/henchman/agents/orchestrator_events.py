@@ -24,7 +24,14 @@ _BRIEF_FIELDS = (
 
 
 def extract_brief_fields(arguments: dict[str, Any]) -> dict[str, Any]:
-    """Extract delegation brief fields from tool arguments."""
+    """Extract delegation brief fields from tool arguments.
+    
+    Args:
+        arguments: Dictionary of tool arguments containing delegation fields.
+        
+    Returns:
+        Dictionary containing only the brief fields from the input arguments.
+    """
     return {f: arguments.get(f) for f in _BRIEF_FIELDS}
 
 
@@ -33,7 +40,16 @@ def create_delegation_event(
     target: str,
     task: str,
 ) -> AgentEvent:
-    """Create a delegation event."""
+    """Create a delegation event.
+    
+    Args:
+        agent: The agent that is delegating the task.
+        target: The target agent role to delegate to.
+        task: The task description to delegate.
+        
+    Returns:
+        AgentEvent of type AGENT_DELEGATED with delegation data.
+    """
     return AgentEvent(
         type=EventType.AGENT_DELEGATED,
         data={
@@ -50,7 +66,16 @@ def create_tool_result_event(
     tool_call: ToolCall,
     result_content: str,
 ) -> AgentEvent:
-    """Create a tool result event."""
+    """Create a tool result event.
+    
+    Args:
+        agent: The agent that executed the tool.
+        tool_call: The tool call that was executed.
+        result_content: The result content from the tool execution.
+        
+    Returns:
+        AgentEvent of type TOOL_CALL_RESULT with tool result data.
+    """
     return AgentEvent(
         type=EventType.TOOL_CALL_RESULT,
         data={
@@ -70,7 +95,14 @@ def update_ledger(
     *,
     had_error: bool,
 ) -> None:
-    """Update ledger with delegation outcome."""
+    """Update ledger with delegation outcome.
+    
+    Args:
+        ledger: The delegation ledger to update.
+        record: The delegation record to update.
+        result: The result of the delegation.
+        had_error: Whether the delegation had an error.
+    """
     if not ledger or not record:
         return
     if had_error:
