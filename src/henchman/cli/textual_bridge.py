@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import io
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from rich.console import Console as RichConsole
 from textual.message import Message
@@ -33,6 +33,10 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
     from henchman.cli.textual_app import HenchmanTextualApp
+
+# Type aliases for better readability
+MessageClass: TypeAlias = type[Message]
+DataTransformer: TypeAlias = Callable[[Any], Any] | None
 
 # ------------------------------------------------------------------ #
 # TUI Console Adapter                                                  #
@@ -120,8 +124,8 @@ class MessagePoster:
     def post_message_if_data_exists(
         self,
         event: AgentEvent,
-        message_class: type[Any],
-        transform_data: Callable[[Any], Any] | None = None,
+        message_class: MessageClass,
+        transform_data: DataTransformer = None,
     ) -> None:
         """Post a message with event data if present.
 
@@ -135,7 +139,7 @@ class MessagePoster:
             self.post(message_class(data, event.source_agent))
 
     def post_data_message(
-        self, event: AgentEvent, message_class: type[Any], prefix: str = ""
+        self, event: AgentEvent, message_class: MessageClass, prefix: str = ""
     ) -> None:
         """Post a message with event data if present.
 
@@ -159,7 +163,7 @@ class MessagePoster:
         """
         self.post_data_message(event, AgentThoughtMessage, prefix)
 
-    def post_tool_message(self, event: AgentEvent, message_class: type[Any]) -> None:
+    def post_tool_message(self, event: AgentEvent, message_class: MessageClass) -> None:
         """Post a tool-related message with event data if present.
 
         Args:
