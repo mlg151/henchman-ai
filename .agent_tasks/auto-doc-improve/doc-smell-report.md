@@ -1,17 +1,17 @@
-# Documentation Smell Report — ✅ A (Score: 95.5/100)
+# Documentation Smell Report — ✅ A (Score: 95.7/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T04:30:02.541338+00:00_
+_Generated: 2026-03-03T04:45:02.228490+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ✅ A |
-| **Overall Score** | 95.5/100 |
+| **Overall Score** | 95.7/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 167 |
-| **Total Smells** | 418 |
+| **Total Smells** | 412 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
@@ -20,14 +20,12 @@ _Generated: 2026-03-03T04:30:02.541338+00:00_
 |:---------|------:|
 | low | 323 |
 | medium | 89 |
-| high | 6 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
 | Incomplete Docstring | 401 |
-| Stale Docstring | 6 |
 | Missing Docstring | 5 |
 | Stale Content | 2 |
 | Config Issue | 2 |
@@ -38,85 +36,85 @@ _Generated: 2026-03-03T04:30:02.541338+00:00_
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/tools/base.py:144** — 🟠 HIGH — Stale Docstring  
-   'Tool.execute' has undocumented parameters: params  
-   → _Add these parameters to the Args: section: params_
-
-2. **src/henchman/tools/builtins/ask_user.py:73** — 🟠 HIGH — Stale Docstring  
-   'AskUserTool.execute' has undocumented parameters: params  
-   → _Add these parameters to the Args: section: params_
-
-3. **src/henchman/tools/builtins/coverage_map.py:557** — 🟠 HIGH — Stale Docstring  
-   'CoverageMapTool.execute' has undocumented parameters: params  
-   → _Add these parameters to the Args: section: params_
-
-4. **src/henchman/tools/builtins/import_graph.py:473** — 🟠 HIGH — Stale Docstring  
-   'ImportGraphTool.execute' has undocumented parameters: params  
-   → _Add these parameters to the Args: section: params_
-
-5. **src/henchman/tools/builtins/kg_query.py:134** — 🟠 HIGH — Stale Docstring  
-   'KgQueryTool.execute' has undocumented parameters: params  
-   → _Add these parameters to the Args: section: params_
-
-6. **src/henchman/tools/builtins/kg_update.py:186** — 🟠 HIGH — Stale Docstring  
-   'KgUpdateTool.execute' has undocumented parameters: params  
-   → _Add these parameters to the Args: section: params_
-
-7. **docs/intelligent-context-management.md:474** — 🟡 MEDIUM — Broken Link  
+1. **docs/intelligent-context-management.md:474** — 🟡 MEDIUM — Broken Link  
    Link to 'configuration.md#performance-tuning' — file exists but anchor '#performance-tuning' not found  
    → _Verify the heading exists in 'docs/configuration.md' or fix the fragment._
 
-8. **mkdocs.yml:1** — 🟡 MEDIUM — Config Issue  
+2. **mkdocs.yml:1** — 🟡 MEDIUM — Config Issue  
    Markdown files contain ```mermaid blocks but pymdownx.superfences is not configured with mermaid custom fences — diagrams won't render  
    → _Add custom_fences mermaid configuration to pymdownx.superfences in mkdocs.yml, or install mkdocs-mermaid2-plugin._
 
-9. **pyproject.toml:65** — 🟡 MEDIUM — Consistency Error  
+3. **pyproject.toml:65** — 🟡 MEDIUM — Consistency Error  
    States coverage threshold of 4% but other files require 80%. Found thresholds: 80%, 4%  
    → _Align all coverage requirements to 80% (the strictest value)._
 
-10. **src/henchman/agents/config.py:1** — 🟡 MEDIUM — Missing Docstring  
+4. **src/henchman/agents/config.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-11. **src/henchman/agents/identity.py:1** — 🟡 MEDIUM — Missing Docstring  
+5. **src/henchman/agents/identity.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-12. **src/henchman/agents/metrics.py:91** — 🟡 MEDIUM — Incomplete Docstring  
+6. **src/henchman/agents/metrics.py:91** — 🟡 MEDIUM — Incomplete Docstring  
    'PerformanceMetrics.track_file_access' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: file_path_
 
-13. **src/henchman/agents/metrics.py:95** — 🟡 MEDIUM — Incomplete Docstring  
+7. **src/henchman/agents/metrics.py:95** — 🟡 MEDIUM — Incomplete Docstring  
    'PerformanceMetrics.track_tool_usage' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: tool_name_
 
-14. **src/henchman/agents/metrics.py:152** — 🟡 MEDIUM — Incomplete Docstring  
+8. **src/henchman/agents/metrics.py:152** — 🟡 MEDIUM — Incomplete Docstring  
    'ToolMetrics.track_tool_call' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: tool_name, success_
 
-15. **src/henchman/agents/orchestrator.py:76** — 🟡 MEDIUM — Incomplete Docstring  
+9. **src/henchman/agents/orchestrator.py:76** — 🟡 MEDIUM — Incomplete Docstring  
    'Orchestrator.run' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: user_input_
 
-16. **src/henchman/agents/orchestrator.py:94** — 🟡 MEDIUM — Incomplete Docstring  
+10. **src/henchman/agents/orchestrator.py:94** — 🟡 MEDIUM — Incomplete Docstring  
    'Orchestrator.run_direct' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: role, user_input_
 
-17. **src/henchman/agents/orchestrator_anchoring.py:19** — 🟡 MEDIUM — Incomplete Docstring  
+11. **src/henchman/agents/orchestrator_anchoring.py:19** — 🟡 MEDIUM — Incomplete Docstring  
    'inject_role_anchor' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: orchestrator, agent, tool_call_count_
 
-18. **src/henchman/agents/orchestrator_anchoring.py:42** — 🟡 MEDIUM — Incomplete Docstring  
+12. **src/henchman/agents/orchestrator_anchoring.py:42** — 🟡 MEDIUM — Incomplete Docstring  
    'assess_agent_completion' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: orchestrator, agent_
 
-19. **src/henchman/agents/orchestrator_components.py:39** — 🟡 MEDIUM — Incomplete Docstring  
+13. **src/henchman/agents/orchestrator_components.py:39** — 🟡 MEDIUM — Incomplete Docstring  
    'AgentValidator.check_thinking_pattern' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent_
 
-20. **src/henchman/agents/orchestrator_components.py:57** — 🟡 MEDIUM — Incomplete Docstring  
+14. **src/henchman/agents/orchestrator_components.py:57** — 🟡 MEDIUM — Incomplete Docstring  
    'AgentValidator.check_stall_failure' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent_
+
+15. **src/henchman/agents/orchestrator_delegation_ctrl.py:55** — 🟡 MEDIUM — Incomplete Docstring  
+   'DelegationController.execute_delegation_tool' has 3 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: agent, tool_call, depth_
+
+16. **src/henchman/agents/orchestrator_events.py:26** — 🟡 MEDIUM — Incomplete Docstring  
+   'extract_brief_fields' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: arguments_
+
+17. **src/henchman/agents/orchestrator_events.py:31** — 🟡 MEDIUM — Incomplete Docstring  
+   'create_delegation_event' has 3 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: agent, target, task_
+
+18. **src/henchman/agents/orchestrator_events.py:48** — 🟡 MEDIUM — Incomplete Docstring  
+   'create_tool_result_event' has 3 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: agent, tool_call, result_content_
+
+19. **src/henchman/agents/orchestrator_events.py:66** — 🟡 MEDIUM — Incomplete Docstring  
+   'update_ledger' has 4 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: ledger, record, result, had_error_
+
+20. **src/henchman/agents/orchestrator_execution.py:60** — 🟡 MEDIUM — Incomplete Docstring  
+   'ExecutionController.run_agent_loop' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: params_
 
 
 ## 📊 Files Ranked by Quality
@@ -519,16 +517,6 @@ Public APIs: 23 | Documented: 23 | Coverage: 100.0%
 | 446 | 🟢 LOW | Incomplete Docstring | 'KnowledgeStore.relation_count' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'KnowledgeStore.relation_count'. |
 | 450 | 🟢 LOW | Incomplete Docstring | 'KnowledgeStore.clear' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'KnowledgeStore.clear'. |
 
-### src/henchman/tools/builtins/coverage_map.py — 👍 B (86.0/100) (last modified 2026-03-02)
-
-Public APIs: 18 | Documented: 18 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 557 | 🟠 HIGH | Stale Docstring | 'CoverageMapTool.execute' has undocumented parameters: params | Add these parameters to the Args: section: params |
-| 22 | 🟢 LOW | Incomplete Docstring | 'CoverageConfig.has_filter' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'CoverageConfig.has_filter'. |
-| 36 | 🟢 LOW | Incomplete Docstring | 'CoverageRequest.to_config' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'CoverageRequest.to_config'. |
-
 ### src/henchman/tools/registry.py — 👍 B (86.0/100) (last modified 2026-02-13)
 
 Public APIs: 15 | Documented: 15 | Coverage: 100.0%
@@ -543,7 +531,20 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 | 146 | 🟢 LOW | Incomplete Docstring | 'ToolRegistry.add_auto_approve_policy' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ToolRegistry.add_auto_approve_policy'. |
 | 157 | 🟢 LOW | Incomplete Docstring | 'ToolRegistry.remove_auto_approve_policy' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ToolRegistry.remove_auto_approve_policy'. |
 
-## ✨ Clean Files (90 files with no smells)
+### src/henchman/cli/console_helpers.py — 👍 B (88.0/100) (last modified 2026-03-03)
+
+Public APIs: 7 | Documented: 7 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 10 | 🟢 LOW | Incomplete Docstring | 'ConsoleHelper.print_status_header' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ConsoleHelper.print_status_header'. |
+| 20 | 🟢 LOW | Incomplete Docstring | 'ConsoleHelper.print_status_value' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ConsoleHelper.print_status_value'. |
+| 32 | 🟢 LOW | Incomplete Docstring | 'ConsoleHelper.print_enabled_status' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ConsoleHelper.print_enabled_status'. |
+| 45 | 🟢 LOW | Incomplete Docstring | 'ConsoleHelper.print_command_help' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ConsoleHelper.print_command_help'. |
+| 56 | 🟢 LOW | Incomplete Docstring | 'ConsoleHelper.print_error_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ConsoleHelper.print_error_message'. |
+| 69 | 🟢 LOW | Incomplete Docstring | 'ConsoleHelper.print_usage_help' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ConsoleHelper.print_usage_help'. |
+
+## ✨ Clean Files (95 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -604,6 +605,8 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 - src/henchman/rag/chunker.py — ✅ A
 - src/henchman/rag/embedder.py — ✅ A
 - src/henchman/rag/repo_id.py — ✅ A
+- src/henchman/tools/base.py — ✅ A
+- src/henchman/tools/builtins/ask_user.py — ✅ A
 - src/henchman/tools/builtins/code_format.py — ✅ A
 - src/henchman/tools/builtins/dead_code.py — ✅ A
 - src/henchman/tools/builtins/delegate.py — ✅ A
@@ -615,6 +618,9 @@ Public APIs: 15 | Documented: 15 | Coverage: 100.0%
 - src/henchman/tools/builtins/git_ops.py — ✅ A
 - src/henchman/tools/builtins/glob_tool.py — ✅ A
 - src/henchman/tools/builtins/grep.py — ✅ A
+- src/henchman/tools/builtins/import_graph.py — ✅ A
+- src/henchman/tools/builtins/kg_query.py — ✅ A
+- src/henchman/tools/builtins/kg_update.py — ✅ A
 - src/henchman/tools/builtins/lint_check.py — ✅ A
 - src/henchman/tools/builtins/ls.py — ✅ A
 - src/henchman/tools/builtins/patch_apply.py — ✅ A
