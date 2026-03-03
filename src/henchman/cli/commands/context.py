@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from henchman.cli.commands import Command, CommandContext
 from henchman.cli.console_helpers import ConsoleHelper
@@ -85,7 +86,7 @@ class ContextConsoleHelper:
     Consolidates console output logic to eliminate duplication and feature envy.
     """
 
-    def __init__(self, console_helper: ConsoleHelper | None = None):
+    def __init__(self, console_helper: ConsoleHelper | None = None) -> None:
         """Initialize the context console helper.
 
         Args:
@@ -112,16 +113,16 @@ class ContextConsoleHelper:
         """
         self._console_helper.print_status_header(console, "Intelligent Context Management")
 
-    def _print_status_values(
-        self, console: Console, context_settings: ContextSettings
-    ) -> None:
+    def _print_status_values(self, console: Console, context_settings: ContextSettings) -> None:
         """Print status values.
 
         Args:
             console: Console for output.
             context_settings: Context settings to display.
         """
-        self._console_helper.print_enabled_status(console, "Status", context_settings.intelligent_context)
+        self._console_helper.print_enabled_status(
+            console, "Status", context_settings.intelligent_context
+        )
         self._console_helper.print_enabled_status(
             console, "Adaptive compression", context_settings.adaptive_compression
         )
@@ -165,12 +166,8 @@ class ContextConsoleHelper:
         console.print("  max_tokens <int>          - Maximum tokens before compaction")
         console.print("  threshold <float>         - Compaction threshold (0.1-1.0)")
         console.print("  importance <float>        - Importance threshold (0.0-1.0)")
-        console.print(
-            "  similarity <float>        - Cluster similarity threshold (0.0-1.0)"
-        )
-        console.print(
-            "  adaptive <on|off>         - Enable/disable adaptive compression"
-        )
+        console.print("  similarity <float>        - Cluster similarity threshold (0.0-1.0)")
+        console.print("  adaptive <on|off>         - Enable/disable adaptive compression")
 
     def print_strategy_status(self, console: Console, context_settings: ContextSettings) -> None:
         """Show current compression strategy settings.
@@ -199,9 +196,7 @@ class ContextConsoleHelper:
         )
         console.print("")
 
-    def _print_command_list(
-        self, console: Console, commands: list[tuple[str, str]]
-    ) -> None:
+    def _print_command_list(self, console: Console, commands: list[tuple[str, str]]) -> None:
         """Print a list of commands (shared logic to eliminate duplication).
 
         Args:
@@ -229,10 +224,10 @@ class StrategyManager:
                 param_name="max_tokens", min_val=_MAX_TOKENS_MIN_VALUE, is_int=True
             ),
             "threshold": RangeParameterConfig(
-                param_name="compaction_threshold", 
-                min_val=_COMPACTION_THRESHOLD_MIN_VALUE, 
-                max_val=1.0, 
-                label="Threshold"
+                param_name="compaction_threshold",
+                min_val=_COMPACTION_THRESHOLD_MIN_VALUE,
+                max_val=1.0,
+                label="Threshold",
             ),
             "importance": RangeParameterConfig(
                 param_name="importance_threshold", min_val=0.0, max_val=1.0
@@ -422,9 +417,7 @@ class ContextCommand(Command):
         ConsoleHelper.print_usage_help(console, self.usage, commands, header="Subcommands:")
 
     def _show_context_info(
-        self, 
-        ctx: CommandContext, 
-        display_func: Callable[[Console, ContextSettings], None]
+        self, ctx: CommandContext, display_func: Callable[[Console, ContextSettings], None]
     ) -> None:
         """Helper method to show context information using a display function.
 
