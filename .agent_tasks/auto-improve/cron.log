@@ -267701,3 +267701,290 @@ TOTAL                                                  15011   2489   4122    47
 =========== 2586 passed, 5 skipped, 32 warnings in 138.99s (0:02:18) ===========
 [2026-03-03T02:30:02Z] All tests passed.
 Committing changes...
+[main 98c8d40] chore(auto-improve): automated codebase improvement
+ 7 files changed, 2980 insertions(+), 449 deletions(-)
+[2026-03-03T02:30:02Z] Auto-improve complete.
+[2026-03-03T03:00:02Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-03T03:00:02Z] Targeting lowest-graded file: cli/console.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll start by analyzing the target file `src/henchman/cli/console.py` to understand its structure and the specific code smells mentioned in the report.
+[tool] read_file({'path': 'src/henchman/cli/console.py'})
+
+
+[result] """Console output and theming for the CLI.
+
+This module provides Rich-based console output with theming support.
+"""
+
+from __future__ import annotations
+
+import difflib
+import json
+from collections.ab...
+Now let me examine the specific code smells mentioned in the report for this file. Looking at the report, I can see that `cli/console.py` has 29 smells, with the main issues being:
+
+1. **Duplicate Code**: Functions `success`, `info`, `warning`, and `error` are 100% similar to each other
+2. **Duplicate Code**: These functions are also 94% similar to functions in `cli/textual_widgets.py`
+
+Let me check the specific lines mentioned in the report:
+[tool] read_file({'path': 'src/henchman/cli/console.py', 'start_line': 430, 
+'end_line': 470})
+
+[result]         """
+        self.console.print(text, style=style)
+
+    def success(self: Self, message: str) -> None:
+        """Print a success message.
+
+        Args:
+            message: Success message te...
+Good! I can see that the code already has a `_print_status` method that the four methods call. However, the smell detector is still flagging them as duplicate because they have identical structure. Let me check if there are other issues in the file. Let me also look at the `_print_status_message` method:
+[tool] read_file({'path': 'src/henchman/cli/console.py', 'start_line': 470, 
+'end_line': 490})
+
+[result]             message: Message text.
+        """
+        self._print_status_message(
+            StatusMessageParams(message=message, status_type=status_type),
+        )
+
+    def _print_status_message(s...
+Now let me run the tests to see if they pass before I make any changes:
+[tool] pytest_run({'path': 'tests/cli/test_console.py', 'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good! All tests pass. Now let me analyze the code smells more carefully. Looking at the report, the main issues are:
+
+1. **Duplicate Code**: The functions `success`, `info`, `warning`, and `error` are flagged as 100% similar to each other. However, looking at the code, they already delegate to a common `_print_status` method, which then calls `_print_status_message`. The smell detector might be flagging them because they have identical structure even though they call the same method.
+
+2. **Duplicate Code**: These functions are also flagged as 94% similar to functions in `cli/textual_widgets.py`. This is a cross-file duplication issue.
+
+Let me check what the functions in `cli/textual_widgets.py` look like:
+[tool] read_file({'path': 'src/henchman/cli/textual_widgets.py', 'start_line': 
+910, 'end_line': 950})
+
+[result]         with contextlib.suppress(Exception):
+            self._scroll_to_bottom()
+
+    # -- public API for adding messages --
+
+    def _add_message_with_prefix(self: Self, prefix: str, text: str) -> N...
+I see! The functions in `textual_widgets.py` have a similar pattern but they're not exactly the same. They use a `_add_message_with_prefix` helper method. The issue is that both files have similar patterns of helper methods that call a common method with different parameters.
+
+Now, let me think about the refactoring strategy. According to XP principles and the smell report, I should:
+
+1. **Address the duplicate code** - The four methods (`success`, `info`, `warning`, `error`) are structurally identical. While they already delegate to a common method, we could potentially use a more DRY approach.
+
+2. **Consider the cross-file duplication** - The functions are 94% similar to functions in `cli/textual_widgets.py`. This suggests we might want to extract a common utility.
+
+However, looking at the actual code, I think the current implementation is actually quite good. The methods are simple one-liners that call a common method. The smell detector might be overly sensitive here.
+
+But wait, let me check if there are other issues in the file. Let me look at the entire file structure and see if there are other smells:
+[tool] python_ast({'path': 'src/henchman/cli/console.py'})
+
+[result] # Symbol table for console.py
+"""Console output and theming for the CLI."""
+
+## Imports
+from __future__ import annotations  [L6]
+import difflib  [L8]
+import json  [L9]
+from collections.abc import Awai...
+Now let me check if there are any other specific issues. Looking at the smell report again, I see there are 29 smells total. Let me check if there are missing type hints or other issues:
+[tool] lint_check({'path': 'src/henchman/cli/console.py', 'linter': 'mypy'})
+
+[result] === mypy ===
+Success: no issues found in 1 source file...
+Good, mypy passes. Let me check ruff:
+[tool] lint_check({'path': 'src/henchman/cli/console.py', 'linter': 'ruff'})
+
+[result] === ruff ===
+All checks passed!...
+Now I need to think about the actual refactoring. The main issue according to the smell report is duplicate code. Looking at the four methods:
+
+```python
+def success(self: Self, message: str) -> None:
+    """Print a success message.
+
+    Args:
+        message: Success message text.
+    """
+    self._print_status(StatusType.SUCCESS, message)
+
+def info(self: Self, message: str) -> None:
+    """Print an info message.
+
+    Args:
+        message: Info message text.
+    """
+    self._print_status(StatusType.INFO, message)
+
+def warning(self: Self, message: str) -> None:
+    """Print a warning message.
+
+    Args:
+        message: Warning message text.
+    """
+    self._print_status(StatusType.WARNING, message)
+
+def error(self: Self, message: str) -> None:
+    """Print an error message.
+
+    Args:
+        message: Error message text.
+    """
+    self._print_status(StatusType.ERROR, message)
+```
+
+These are already quite DRY - they all call `_print_status` with different `StatusType` values. However, the smell detector is flagging them as duplicate because they have identical structure. 
+
+One approach could be to use a factory method or decorator pattern, but that might be over-engineering. Actually, looking more carefully at the smell report, it says these functions are "100% similar" to each other and "94% similar" to functions in `textual_widgets.py`. 
+
+The real issue might be that we have two different patterns in the codebase for similar functionality. Let me check if there's a way to unify these patterns. Actually, I think the current implementation is fine for this file. The methods are simple, clear, and maintainable.
+
+However, let me think about whether we can make it even more DRY. One approach could be to use a dictionary or mapping, but that would make the code less readable. Another approach could be to generate these methods dynamically, but that would make the code harder to understand.
+
+Actually, wait. Let me re-examine the problem. The smell report says "Function 'success' is 100% similar to 'info' at cli/console.py:441". This is technically true - they have the same structure. But in Python, having multiple methods that call a common helper with different parameters is a common and acceptable pattern.
+
+However, since the assignment is to refactor based on the smell report, I should address this. One approach is to use a more functional approach. Let me think...
+
+Actually, I notice something else. Looking at the `_print_status_message` method:
+
+```python
+def _print_status_message(self: Self, params: StatusMessageParams) -> None:
+    """Print a status message with consistent formatting.
+
+    Args:
+        params: Status message parameters.
+    """
+    prefix = (
+        params.status_type.accessible_icon if self.accessible_mode else params.status_type.icon
+    )
+    color = getattr(self.theme, params.status_type.style)
+    self.console.print(f"[{color}]{prefix}[/] {escape(params.message)}")
+```
+
+This method takes a `StatusMessageParams` dataclass. The four public methods (`success`, `info`, `warning`, `error`) all create this dataclass and pass it to `_print_status_message`. But `_print_status` is an intermediate method that just creates the params object.
+
+Actually, looking more carefully:
+- `success(message)` calls `_print_status(StatusType.SUCCESS, message)`
+- `_print_status(status_type, message)` calls `_print_status_message(StatusMessageParams(message, status_type))`
+
+So we have an extra layer of indirection. We could potentially remove `_print_status` and have the public methods call `_print_status_message` directly. But that wouldn't reduce duplication much.
+
+Actually, I think I see a better approach. We could use a class attribute or property to map status type to method. But actually, that's getting too clever.
+
+Let me think about what the XP principles say:
+- **YAGNI**: We don't need to over-engineer this. The current code works.
+- **Once and Only Once (DRY)**: The code is already DRY - all four methods delegate to the same helper.
+- **Simplicity**: The current design is simple.
+- **Intention-Revealing Code**: The method names clearly reveal their intent.
+
+Actually, I think the smell detector might be wrong here, or at least overly strict. But since my task is to refactor based on the smell report, I should try to address it.
+
+One approach: We could use `functools.partial` or a factory function to create these methods dynamically. But that would make the code harder to read and debug.
+
+Actually, let me check if there are other issues in the file. The smell report mentions 29 smells total. Let me see if I can find them all. Actually, looking at the report output again, it shows 15 lines of smells for this file, but says "and 14 more smells". So there are 29 total.
+
+Let me run a more detailed analysis:
+[tool] dead_code({'path': 'src/henchman/cli/console.py'})
+
+[result] Dead code analysis: console.py
+
+Unused imports:
+  line 6: annotations
+
+Possibly unused definitions:
+  line 311: class ThemeManager
+  line 365: function get_default_theme
+  line 770: class AsyncOutputR...
+Interesting! There are some unused imports and possibly unused definitions. Let me check if `ThemeManager`, `get_default_theme`, and `AsyncOutputRenderer` are actually used:
+[tool] grep({'pattern': 'ThemeManager', 'path': 'src/henchman', 'line_numbers': 
+True})
+
+[result] src/henchman/cli/__init__.py:7:from henchman.cli.console import 
+OutputRenderer, Theme, ThemeManager, get_default_theme
+src/henchman/cli/__init__.py:23:    "ThemeManager",
+src/henchman/cli/__init__.py,...
+Good, `ThemeManager` is used. Let me check `get_default_theme`:
+[tool] grep({'pattern': 'get_default_theme', 'path': 'src/henchman', 
+'line_numbers': True})
+
+[result] src/henchman/cli/__init__.py:7:from henchman.cli.console import 
+OutputRenderer, Theme, ThemeManager, get_default_theme
+src/henchman/cli/__init__.py:25:    "get_default_theme",
+src/henchman/cli/__init_...
+It's exported but might not be used. Let me check `AsyncOutputRenderer`:
+[tool] grep({'pattern': 'AsyncOutputRenderer', 'path': 'src/henchman', 
+'line_numbers': True})
+
+[result] src/henchman/cli/console.py:770:class AsyncOutputRenderer:
+src/henchman/cli/console.py,cover:529:! class AsyncOutputRenderer:...
+It's not used anywhere! That's definitely dead code. Let me check if it's exported:
+[tool] read_file({'path': 'src/henchman/cli/__init__.py'})
+
+[result] """CLI package for HENCHMAN.
+
+This module provides the terminal UI with Rich console output,
+prompt_toolkit input, and slash command support.
+"""
+
+from henchman.cli.console import OutputRenderer, Them...
+`AsyncOutputRenderer` is not exported, so it's definitely dead code. That's one smell we can fix!
+
+Now, let me think about the refactoring strategy. Based on my analysis:
+
+**Identified Smells:**
+1. **Duplicate Code**: The four status methods (`success`, `info`, `warning`, `error`) have identical structure
+2. **Dead Code**: `AsyncOutputRenderer` class is defined but never used
+3. **Unused import**: `from __future__ import annotations` might not be needed (though it's generally good practice)
+4. **Possible unused function**: `get_default_theme` is exported but might not be used
+
+**Refactoring Strategy:**
+1. **For duplicate code**: Create a factory function to generate the status methods dynamically, or use a more compact representation
+2. **For dead code**: Remove `AsyncOutputRenderer` class
+3. **For unused import**: Keep it (it's good practice for forward references)
+4. **For possibly unused function**: Keep it (it's part of the public API)
+
+Actually, let me think about a better approach for the duplicate code. Instead of having four separate methods, we could have a single method that takes a status type parameter:
+
+```python
+def status(self: Self, status_type: StatusType, message: str) -> None:
+    """Print a status message.
+    
+    Args:
+        status_type: Type of status (SUCCESS, INFO, WARNING, ERROR)
+        message: Message text.
+    """
+    self._print_status_message(
+        StatusMessageParams(message=message, status_type=status_type),
+    )
+```
+
+Then users would call `renderer.status(StatusType.SUCCESS, "Done!")` instead of `renderer.success("Done!")`. But this is less convenient and less readable.
+
+Actually, I think the current approach is fine. The methods are simple, clear, and provide a nice API. The smell detector is being overly strict.
+
+But wait, let me re-read the instructions: "Your job is to refactor the TARGET FILE completely — address ALL code smells listed in the smell report for this file. Do not pick a different file. Do not skip smells. Work through every smell systematically."
+
+So I need to address the duplicate code smell. One approach is to use a decorator or metaclass to generate these methods. But that's complex. A simpler approach is to use a loop to create the methods dynamically in `__init__`.
+
+Actually, let me look at the actual implementation again. The methods are just one-liners. Maybe we can use `functools.partial` or a lambda. But we need to preserve docstrings.
+
+Actually, I have an idea. We could use a class decorator or metaclass to automatically create these methods. But that might be overkill.
+
+Let me think about this differently. The smell report says the functions are "100% similar". What if we make them slightly different? No, that would be silly.
+
+Actually, I just realized something. The smell detector is comparing the bytecode or AST of these functions. Since they all have the same structure (call `_print_status` with different `StatusType` values), they're identical except for the constant parameter.
+
+One approach: We could inline the `_print_status` method call. But that would just move the duplication.
+
+Actually, let me check if `_print_status` is used elsewhere:
