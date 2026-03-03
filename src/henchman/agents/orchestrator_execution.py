@@ -127,7 +127,17 @@ class ExecutionController:
         self: ExecutionController,
         agent: Agent,
     ) -> CompletionStatus:
-        """Assess whether an agent performed meaningful work."""
+        """Assess whether an agent performed meaningful work.
+        
+        Args:
+            agent: The agent instance to assess for completion status.
+            
+        Returns:
+            CompletionStatus: The completion status of the agent, which can be:
+                - COMPLETED: Agent performed meaningful tool calls and finished normally
+                - NO_WORK_DONE: Agent stopped without making any tool calls
+                - STALLED: Agent announced intent repeatedly but never acted
+        """
         return assess_agent_completion(self.orchestrator, agent)
 
 
