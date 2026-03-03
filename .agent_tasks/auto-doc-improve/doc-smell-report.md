@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 95.7/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-03T04:45:02.228490+00:00_
+_Generated: 2026-03-03T05:00:03.769398+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-03T04:45:02.228490+00:00_
 | **Overall Score** | 95.7/100 |
 | **Doc Files Scanned** | 18 |
 | **Source Files Checked** | 167 |
-| **Total Smells** | 412 |
+| **Total Smells** | 411 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
@@ -19,7 +19,7 @@ _Generated: 2026-03-03T04:45:02.228490+00:00_
 | Severity | Count |
 |:---------|------:|
 | low | 323 |
-| medium | 89 |
+| medium | 88 |
 
 ### Smells by Category
 
@@ -29,92 +29,91 @@ _Generated: 2026-03-03T04:45:02.228490+00:00_
 | Missing Docstring | 5 |
 | Stale Content | 2 |
 | Config Issue | 2 |
-| Broken Link | 1 |
 | Consistency Error | 1 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **docs/intelligent-context-management.md:474** — 🟡 MEDIUM — Broken Link  
-   Link to 'configuration.md#performance-tuning' — file exists but anchor '#performance-tuning' not found  
-   → _Verify the heading exists in 'docs/configuration.md' or fix the fragment._
-
-2. **mkdocs.yml:1** — 🟡 MEDIUM — Config Issue  
+1. **mkdocs.yml:1** — 🟡 MEDIUM — Config Issue  
    Markdown files contain ```mermaid blocks but pymdownx.superfences is not configured with mermaid custom fences — diagrams won't render  
    → _Add custom_fences mermaid configuration to pymdownx.superfences in mkdocs.yml, or install mkdocs-mermaid2-plugin._
 
-3. **pyproject.toml:65** — 🟡 MEDIUM — Consistency Error  
+2. **pyproject.toml:65** — 🟡 MEDIUM — Consistency Error  
    States coverage threshold of 4% but other files require 80%. Found thresholds: 80%, 4%  
    → _Align all coverage requirements to 80% (the strictest value)._
 
-4. **src/henchman/agents/config.py:1** — 🟡 MEDIUM — Missing Docstring  
+3. **src/henchman/agents/config.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-5. **src/henchman/agents/identity.py:1** — 🟡 MEDIUM — Missing Docstring  
+4. **src/henchman/agents/identity.py:1** — 🟡 MEDIUM — Missing Docstring  
    Module is missing a docstring  
    → _Add a module-level docstring describing the module's purpose._
 
-6. **src/henchman/agents/metrics.py:91** — 🟡 MEDIUM — Incomplete Docstring  
+5. **src/henchman/agents/metrics.py:91** — 🟡 MEDIUM — Incomplete Docstring  
    'PerformanceMetrics.track_file_access' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: file_path_
 
-7. **src/henchman/agents/metrics.py:95** — 🟡 MEDIUM — Incomplete Docstring  
+6. **src/henchman/agents/metrics.py:95** — 🟡 MEDIUM — Incomplete Docstring  
    'PerformanceMetrics.track_tool_usage' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: tool_name_
 
-8. **src/henchman/agents/metrics.py:152** — 🟡 MEDIUM — Incomplete Docstring  
+7. **src/henchman/agents/metrics.py:152** — 🟡 MEDIUM — Incomplete Docstring  
    'ToolMetrics.track_tool_call' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: tool_name, success_
 
-9. **src/henchman/agents/orchestrator.py:76** — 🟡 MEDIUM — Incomplete Docstring  
+8. **src/henchman/agents/orchestrator.py:76** — 🟡 MEDIUM — Incomplete Docstring  
    'Orchestrator.run' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: user_input_
 
-10. **src/henchman/agents/orchestrator.py:94** — 🟡 MEDIUM — Incomplete Docstring  
+9. **src/henchman/agents/orchestrator.py:94** — 🟡 MEDIUM — Incomplete Docstring  
    'Orchestrator.run_direct' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: role, user_input_
 
-11. **src/henchman/agents/orchestrator_anchoring.py:19** — 🟡 MEDIUM — Incomplete Docstring  
+10. **src/henchman/agents/orchestrator_anchoring.py:19** — 🟡 MEDIUM — Incomplete Docstring  
    'inject_role_anchor' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: orchestrator, agent, tool_call_count_
 
-12. **src/henchman/agents/orchestrator_anchoring.py:42** — 🟡 MEDIUM — Incomplete Docstring  
+11. **src/henchman/agents/orchestrator_anchoring.py:42** — 🟡 MEDIUM — Incomplete Docstring  
    'assess_agent_completion' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: orchestrator, agent_
 
-13. **src/henchman/agents/orchestrator_components.py:39** — 🟡 MEDIUM — Incomplete Docstring  
+12. **src/henchman/agents/orchestrator_components.py:39** — 🟡 MEDIUM — Incomplete Docstring  
    'AgentValidator.check_thinking_pattern' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent_
 
-14. **src/henchman/agents/orchestrator_components.py:57** — 🟡 MEDIUM — Incomplete Docstring  
+13. **src/henchman/agents/orchestrator_components.py:57** — 🟡 MEDIUM — Incomplete Docstring  
    'AgentValidator.check_stall_failure' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent_
 
-15. **src/henchman/agents/orchestrator_delegation_ctrl.py:55** — 🟡 MEDIUM — Incomplete Docstring  
+14. **src/henchman/agents/orchestrator_delegation_ctrl.py:55** — 🟡 MEDIUM — Incomplete Docstring  
    'DelegationController.execute_delegation_tool' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent, tool_call, depth_
 
-16. **src/henchman/agents/orchestrator_events.py:26** — 🟡 MEDIUM — Incomplete Docstring  
+15. **src/henchman/agents/orchestrator_events.py:26** — 🟡 MEDIUM — Incomplete Docstring  
    'extract_brief_fields' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: arguments_
 
-17. **src/henchman/agents/orchestrator_events.py:31** — 🟡 MEDIUM — Incomplete Docstring  
+16. **src/henchman/agents/orchestrator_events.py:31** — 🟡 MEDIUM — Incomplete Docstring  
    'create_delegation_event' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent, target, task_
 
-18. **src/henchman/agents/orchestrator_events.py:48** — 🟡 MEDIUM — Incomplete Docstring  
+17. **src/henchman/agents/orchestrator_events.py:48** — 🟡 MEDIUM — Incomplete Docstring  
    'create_tool_result_event' has 3 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: agent, tool_call, result_content_
 
-19. **src/henchman/agents/orchestrator_events.py:66** — 🟡 MEDIUM — Incomplete Docstring  
+18. **src/henchman/agents/orchestrator_events.py:66** — 🟡 MEDIUM — Incomplete Docstring  
    'update_ledger' has 4 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: ledger, record, result, had_error_
 
-20. **src/henchman/agents/orchestrator_execution.py:60** — 🟡 MEDIUM — Incomplete Docstring  
+19. **src/henchman/agents/orchestrator_execution.py:60** — 🟡 MEDIUM — Incomplete Docstring  
    'ExecutionController.run_agent_loop' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: params_
+
+20. **src/henchman/agents/orchestrator_execution.py:117** — 🟡 MEDIUM — Incomplete Docstring  
+   'ExecutionController.assess_completion' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: agent_
 
 
 ## 📊 Files Ranked by Quality
@@ -544,7 +543,7 @@ Public APIs: 7 | Documented: 7 | Coverage: 100.0%
 | 56 | 🟢 LOW | Incomplete Docstring | 'ConsoleHelper.print_error_message' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ConsoleHelper.print_error_message'. |
 | 69 | 🟢 LOW | Incomplete Docstring | 'ConsoleHelper.print_usage_help' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ConsoleHelper.print_usage_help'. |
 
-## ✨ Clean Files (95 files with no smells)
+## ✨ Clean Files (96 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -557,6 +556,7 @@ Public APIs: 7 | Documented: 7 | Coverage: 100.0%
 - docs/extensions.md — ✅ A
 - docs/getting-started.md — ✅ A
 - docs/index.md — ✅ A
+- docs/intelligent-context-management.md — ✅ A
 - docs/mcp.md — ✅ A
 - docs/providers.md — ✅ A
 - docs/tools.md — ✅ A

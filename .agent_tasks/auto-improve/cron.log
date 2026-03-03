@@ -273128,3 +273128,82 @@ Committing changes...
 [main 31f4a2e] chore(auto-improve): automated codebase improvement
  6 files changed, 1794 insertions(+), 83 deletions(-)
 [2026-03-03T04:30:02Z] Auto-improve complete.
+[2026-03-03T05:00:04Z] Starting auto-improve run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-03T05:00:04Z] Targeting lowest-graded file: tools/builtins/dead_code.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
+I'll analyze the target file `src/henchman/tools/builtins/dead_code.py` and refactor it according to the XP principles. Let me first read the file to understand its structure and identify all the smells mentioned in the report.
+[tool] read_file({'path': 'src/henchman/tools/builtins/dead_code.py'})
+
+
+[result] """Dead code detection tool implementation."""
+
+import ast
+from pathlib import Path
+
+from henchman.tools.base import Tool, ToolKind, ToolResult
+
+# Well-known names that are intentionally "unused"
+DEFA...
+Now let me check the test file to understand the expected behavior and ensure my refactoring doesn't break tests:
+[tool] read_file({'path': 'tests/tools/builtins/test_dead_code.py', 
+'start_line': 1, 'end_line': 100})
+
+✗ \[error] Error: File not found: tests/tools/builtins/test_dead_code.py
+Let me find the test file:
+[tool] glob({'pattern': '**/test_dead_code.py'})
+
+[result] tests/tools/test_dead_code.py...
+
+[tool] read_file({'path': 'tests/tools/test_dead_code.py', 'start_line': 1, 
+'end_line': 100})
+
+[result] """Tests for dead_code tool."""
+
+import tempfile
+from pathlib import Path
+
+from henchman.tools.base import ToolKind
+from henchman.tools.builtins.dead_code import DeadCodeTool
+
+
+class TestDeadCodeTool:...
+Now let me run the tests to see if they pass:
+[tool] pytest_run({'path': 'tests/tools/test_dead_code.py', 'verbose': True})
+
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good! All tests pass. Now let me analyze the code smells from the report and address them systematically:
+
+## Identified Smells from Report:
+
+1. **🟠 HIGH - Primitive Obsession**: Repeated primitive parameter group appears in: 'execute' (line 89), '_perform_analysis' (line 182)
+2. **🟡 MEDIUM - Large Class**: Class 'DeadCodeTool' spans 532 lines (threshold: 300)
+3. **🟡 MEDIUM - Duplicate Code**: Function '_format_import_findings' is 100% similar to '_format_definition_findings' at line 236
+4. **🟡 MEDIUM - Duplicate Code**: Function '_identify_unused_imports' is 93% similar to '_identify_unused_definitions' at line 486
+5. **🟡 MEDIUM - Feature Envy**: Method 'DeadCodeTool._is_import_context' accesses 'ast' 5 times but 'self' only 0 times
+6. **🟡 MEDIUM - Feature Envy**: Method 'DeadCodeTool._collect_top_level_definitions' accesses 'ast' 5 times but 'self' only 0 times
+7. **🟡 MEDIUM - Feature Envy**: Method 'DeadCodeTool._collect_top_level_definitions' accesses 'node' 6 times but 'self' only 0 times
+8. **🟡 MEDIUM - Feature Envy**: Method 'DeadCodeTool._find_all_assignment' accesses 'ast' 6 times but 'self' only 0 times
+9. **🟢 LOW - Large Class**: Class 'DeadCodeTool' has 27 methods (threshold: 20)
+10. **🟢 LOW - Missing Type Hint**: Multiple functions have incomplete type hints
+
+Let me also check for other smells not explicitly listed but visible in the code. Now I'll refactor the file:
+
+## Refactoring Strategy:
+
+1. **Introduce Parameter Object** for repeated primitive parameter groups (Primitive Obsession)
+2. **Extract Class** to reduce class size and method count (Large Class)
+3. **Extract Shared Function** for duplicate code patterns (Duplicate Code)
+4. **Move Methods** to appropriate utility classes (Feature Envy)
+5. **Add Type Annotations** for all methods (Missing Type Hint)
+
+Let me create the refactored version:
+Repair: assistant at index 12 missing tool responses for ['call_00_tWfXWEVCdk1kfOzg6PMbpXz8'] — stripping tool_calls
+Message sequence repaired: 15 → 15 messages
