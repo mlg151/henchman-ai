@@ -1,3 +1,10 @@
+"""Plan mode command for Henchman-AI CLI.
+
+This module provides the `/plan` command that toggles plan mode, which restricts
+the agent to read-only operations for planning and architectural discussions
+without modifying the codebase.
+"""
+
 from henchman.cli.commands import Command, CommandContext
 
 PLAN_MODE_PROMPT = """

@@ -278,25 +278,25 @@ class EventBridge:
             Dictionary mapping ``EventType`` to handler callables.
         """
         return {
-            EventType.CONTENT: self._on_content,
-            EventType.THOUGHT: self._on_thought,
-            EventType.TOOL_CALL_REQUEST: self._on_tool_req,
-            EventType.TOOL_CALL_RESULT: self._on_tool_res,
-            EventType.TOOL_CONFIRMATION: self._on_tool_confirm,
+            EventType.CONTENT: self._create_data_message_handler(AgentContentMessage),
+            EventType.THOUGHT: self._create_data_message_handler(AgentThoughtMessage),
+            EventType.TOOL_CALL_REQUEST: self._create_tool_message_handler(ToolCallRequestMessage),
+            EventType.TOOL_CALL_RESULT: self._create_tool_message_handler(ToolCallResultMessage),
+            EventType.TOOL_CONFIRMATION: self._create_tool_message_handler(ToolConfirmationMessage),
             EventType.ERROR: self._on_error,
             EventType.FINISHED: self._on_finished,
             EventType.CONTEXT_COMPACTED: self._on_ctx_compact,
-            EventType.TURN_SUMMARIZED: self._on_turn_summary,
+            EventType.TURN_SUMMARIZED: self._create_status_message_handler("Previous turn summarized"),
             EventType.TURN_STATUS: self._on_turn_status,
             EventType.AGENT_STARTED: self._on_agent_start,
             EventType.AGENT_COMPLETED: self._on_agent_done,
             EventType.AGENT_DELEGATED: self._on_delegated,
             EventType.AGENT_MESSAGE: self._on_agent_msg,
-            EventType.THINKING_STARTED: self._on_think_start,
-            EventType.THINKING_COMPLETED: self._on_think_done,
-            EventType.THINKING_REQUIRED: self._on_think_req,
-            EventType.DELEGATION_DECISION: self._on_deleg_dec,
-            EventType.REFLECTION: self._on_reflection,
+            EventType.THINKING_STARTED: self._create_status_message_handler("Thinking…"),
+            EventType.THINKING_COMPLETED: self._create_status_message_handler("Thinking complete"),
+            EventType.THINKING_REQUIRED: self._create_status_message_handler("⚠ Thinking pattern missing in response"),
+            EventType.DELEGATION_DECISION: self._create_prefixed_message_handler("Delegation decision: "),
+            EventType.REFLECTION: self._create_prefixed_message_handler("Reflection: "),
         }
 
     # -- helper methods for event handling --
@@ -319,27 +319,61 @@ class EventBridge:
             except Exception:
                 pass
 
-    # -- individual event handlers --
+    # -- factory methods for event handlers --
 
-    def _on_content(self, event: AgentEvent) -> None:
-        """Handle CONTENT events."""
-        self._message_poster.post_data_message(event, AgentContentMessage)
+    def _create_data_message_handler(self, message_class: type[Any]) -> Callable[[AgentEvent], None]:
+        """Create a handler that posts event data using the given message class.
 
-    def _on_thought(self, event: AgentEvent) -> None:
-        """Handle THOUGHT events."""
-        self._message_poster.post_data_message(event, AgentThoughtMessage)
+        Args:
+            message_class: The message class to use for posting.
 
-    def _on_tool_req(self, event: AgentEvent) -> None:
-        """Handle TOOL_CALL_REQUEST events."""
-        self._message_poster.post_tool_message(event, ToolCallRequestMessage)
+        Returns:
+            A handler function for AgentEvent.
+        """
+        def handler(event: AgentEvent) -> None:
+            self._message_poster.post_data_message(event, message_class)
+        return handler
 
-    def _on_tool_res(self, event: AgentEvent) -> None:
-        """Handle TOOL_CALL_RESULT events."""
-        self._message_poster.post_tool_message(event, ToolCallResultMessage)
+    def _create_tool_message_handler(self, message_class: type[Any]) -> Callable[[AgentEvent], None]:
+        """Create a handler for tool-related events.
 
-    def _on_tool_confirm(self, event: AgentEvent) -> None:
-        """Handle TOOL_CONFIRMATION events."""
-        self._message_poster.post_tool_message(event, ToolConfirmationMessage)
+        Args:
+            message_class: The tool message class to use.
+
+        Returns:
+            A handler function for AgentEvent.
+        """
+        def handler(event: AgentEvent) -> None:
+            self._message_poster.post_tool_message(event, message_class)
+        return handler
+
+    def _create_status_message_handler(self, status_text: str) -> Callable[[AgentEvent], None]:
+        """Create a handler that posts a status message.
+
+        Args:
+            status_text: The status text to display.
+
+        Returns:
+            A handler function for AgentEvent.
+        """
+        def handler(event: AgentEvent) -> None:
+            self._message_poster.post_status_message(event, status_text)
+        return handler
+
+    def _create_prefixed_message_handler(self, prefix: str) -> Callable[[AgentEvent], None]:
+        """Create a handler that posts a prefixed message.
+
+        Args:
+            prefix: The prefix to add before event data.
+
+        Returns:
+            A handler function for AgentEvent.
+        """
+        def handler(event: AgentEvent) -> None:
+            self._message_poster.post_prefixed_message(event, prefix)
+        return handler
+
+    # -- individual event handlers (non-duplicate) --
 
     def _on_error(self, event: AgentEvent) -> None:
         """Handle ERROR events."""
@@ -357,10 +391,6 @@ class EventBridge:
         """Handle CONTEXT_COMPACTED events."""
         self._message_poster.post_status_message(event, "Context compacted to fit model limits")
         self._post(CommandOutputMessage("[dim]ℹ Context window was compacted.[/dim]"))
-
-    def _on_turn_summary(self, event: AgentEvent) -> None:
-        """Handle TURN_SUMMARIZED events."""
-        self._message_poster.post_status_message(event, "Previous turn summarized")
 
     def _on_turn_status(self, event: AgentEvent) -> None:
         """Handle TURN_STATUS events."""
@@ -406,26 +436,6 @@ class EventBridge:
         """Handle AGENT_MESSAGE events."""
         if event.data:
             self._post(CommandOutputMessage(f"[dim]📨 {event.data}[/dim]"))
-
-    def _on_think_start(self, event: AgentEvent) -> None:
-        """Handle THINKING_STARTED events."""
-        self._message_poster.post_status_message(event, "Thinking…")
-
-    def _on_think_done(self, event: AgentEvent) -> None:
-        """Handle THINKING_COMPLETED events."""
-        self._message_poster.post_status_message(event, "Thinking complete")
-
-    def _on_think_req(self, event: AgentEvent) -> None:
-        """Handle THINKING_REQUIRED events."""
-        self._message_poster.post_status_message(event, "⚠ Thinking pattern missing in response")
-
-    def _on_deleg_dec(self, event: AgentEvent) -> None:
-        """Handle DELEGATION_DECISION events."""
-        self._message_poster.post_prefixed_message(event, "Delegation decision: ")
-
-    def _on_reflection(self, event: AgentEvent) -> None:
-        """Handle REFLECTION events."""
-        self._message_poster.post_prefixed_message(event, "Reflection: ")
 
 
 # ------------------------------------------------------------------ #
