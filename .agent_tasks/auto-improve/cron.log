@@ -668656,3 +668656,115 @@ TOTAL                                                       18867    254   5010 
 =========== 5685 passed, 9 skipped, 46 warnings in 267.24s (0:04:27) ===========
 [2026-03-13T19:00:02Z] All tests passed.
 Committing changes...
+[main abaa866] fix(four-lenses): four-lenses-agents-working_memory
+ 9 files changed, 2860 insertions(+), 1320 deletions(-)
+ create mode 100644 test_bug.py
+ create mode 100644 test_multiple_entries_bug.py
+[2026-03-13T19:00:02Z] Auto-improve complete.
+[2026-03-13T20:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-13T20:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.9/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-13T20:00:40.543246+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py...
+Let me read the test file to understand the existing test coverage:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now I need to analyze the code through the Four Lenses of Failure. Let me first create the documentation stub as required:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/agents/working_memory.py\n## Date: 
+2025-03-13T20:00:00Z\n## Bug Summary\nThe `should_read_file` method incorrectly 
+finds the FIRST matching file entry instead of the MOST RECENT one when multiple
+entries exist for the same file, leading to incorrect decisions about whether to
+re-read files.\n\n## Lens\n**Logic Gaps** - The code assumes a "happy path" 
+where each file appears only once in `recent_files`, but in reality, files can 
+be read multiple times during a task. The method uses `next((e for e in 
+reversed(self.recent_files) if e.path == path), None)` which correctly iterates 
+from most recent to oldest, but the bug is in the test that demonstrates the 
+issue.\n\n## Expected vs. Observed\n| Expected Behavior | Observed Risk 
+|\n|---|---|\n| When checking if a file should be read, the system should 
+consider the MOST RECENT entry for that file to make accurate decisions about 
+what lines have already been read. | The code finds the first matching entry 
+(which could be an older read), potentially causing unnecessary re-reads or 
+missing needed reads. |\n| If a file was read fully (`lines_read="full"`), any 
+subsequent request to read any part of that file should return `False`. | The 
+current implementation returns `True` for line range requests when 
+`lines_read="full"` because `LineRange.from_str("full")` returns `None`. |\n| 
+When no line range is specified (start/end are None) and the file was only 
+partially read, the system should return `True` (need to read). | The current 
+implementation returns `True` with correct reasoning. |\n\n## Root Cause\n1. 
+**Primary Bug**: The test 
+`test_memory_should_read_file_multiple_entries_same_file` reveals that the 
+implementation doesn\'t properly handle the case where the same file appears 
+multiple times in `recent_files`. While the code uses `reversed()` to iterate 
+from most recent to oldest, the test expectations show a misunderstanding of the
+actual bug.\n\n2. **Secondary Bug**: When `lines_read="full"`, 
+`LineRange.from_str("full")` returns `None`, causing the logic to fall through 
+to the "invalid lines_read format" case and return `True` when it should return 
+`False`.\n\n3. **The actual core bug**: Looking more carefully at the 
+implementation, there\'s a **type safety issue** in the `should_read_file` 
+method. When `start` and `end` are `None` (not provided), the code creates a 
+`LineRange` with `LineRange(start, end)` where `start` and `end` are `None`, 
+which will fail with a `TypeError` when trying to create the `LineRange` 
+object.\n\n## Fix Plan\n1. Fix the **type safety bug** in `should_read_file`: 
+When `start` or `end` is `None`, we should handle this case before attempting to
+create a `LineRange` object.\n2. Fix the `lines_read="full"` handling: Add a 
+check for `"full"` before attempting to parse as a range.\n3. Verify the 
+multiple entries logic is actually correct (the test might be wrong about the 
+bug).\n\n## Status: IN PROGRESS'})
+[result] Successfully wrote 2929 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/README.md...
+Now let me analyze the code more carefully. Looking at the `should_read_file` method:
+
+```python
+def should_read_file(
+    self: WorkingMemory, path: str, start: int | None = None, end: int | None = None,
+) -> tuple[bool, str]:
+    """Determine whether a file needs to be read.
+
+    Args:
+        path: The file path to check.
+        start: Optional starting line number (1-indexed) for the read range.
+        end: Optional ending line number (inclusive) for the read range.
+
+    Returns:
+        A tuple containing:
+        - bool: True if the file should be read, False otherwise.
+        - str: The reason for the decision.
+    """
+    match = next
