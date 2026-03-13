@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 99.8/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-13T12:00:03.405842+00:00_
+_Generated: 2026-03-13T14:00:03.723010+00:00_
 
 ## Executive Summary
 
@@ -10,153 +10,172 @@ _Generated: 2026-03-13T12:00:03.405842+00:00_
 | **Overall Grade** | ✅ A |
 | **Overall Score** | 99.8/100 |
 | **Doc Files Scanned** | 55 |
-| **Source Files Checked** | 182 |
-| **Total Smells** | 19 |
+| **Source Files Checked** | 187 |
+| **Total Smells** | 27 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 11 |
-| medium | 8 |
+| low | 15 |
+| medium | 12 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 19 |
+| Incomplete Docstring | 27 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/agents/working_memory.py:199** — 🟡 MEDIUM — Incomplete Docstring  
-   'WorkingMemory.add_problem' has 1 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: entry_
-
-2. **src/henchman/agents/working_memory.py:279** — 🟡 MEDIUM — Incomplete Docstring  
+1. **src/henchman/agents/working_memory.py:287** — 🟡 MEDIUM — Incomplete Docstring  
    'WorkingMemory.prune_recent_files' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: max_entries_
 
-3. **src/henchman/agents/working_memory.py:284** — 🟡 MEDIUM — Incomplete Docstring  
+2. **src/henchman/agents/working_memory.py:292** — 🟡 MEDIUM — Incomplete Docstring  
    'WorkingMemory.save' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: path_
 
-4. **src/henchman/agents/working_memory.py:290** — 🟡 MEDIUM — Incomplete Docstring  
+3. **src/henchman/agents/working_memory.py:298** — 🟡 MEDIUM — Incomplete Docstring  
    'WorkingMemory.load' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: path_
 
-5. **src/henchman/agents/working_memory.py:303** — 🟡 MEDIUM — Incomplete Docstring  
+4. **src/henchman/agents/working_memory.py:311** — 🟡 MEDIUM — Incomplete Docstring  
    'WorkingMemorySystem.create_memory' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: task, objectives_
 
-6. **src/henchman/agents/working_memory.py:310** — 🟡 MEDIUM — Incomplete Docstring  
+5. **src/henchman/agents/working_memory.py:318** — 🟡 MEDIUM — Incomplete Docstring  
    'WorkingMemorySystem.switch_memory' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: t_id_
 
-7. **src/henchman/agents/working_memory.py:320** — 🟡 MEDIUM — Incomplete Docstring  
+6. **src/henchman/agents/working_memory.py:328** — 🟡 MEDIUM — Incomplete Docstring  
    'WorkingMemorySystem.archive_current_memory' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: archive_dir_
 
-8. **src/henchman/utils/compaction.py:972** — 🟡 MEDIUM — Incomplete Docstring  
+7. **src/henchman/utils/compaction.py:972** — 🟡 MEDIUM — Incomplete Docstring  
    'compact_with_summarization' has 6 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: messages, max_tokens, provider, summarize, protect_from_index, kwargs_
 
-9. **src/henchman/agents/working_memory.py:199** — 🟢 LOW — Incomplete Docstring  
-   'WorkingMemory.add_problem' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'WorkingMemory.add_problem'._
+8. **src/henchman/utils/intelligent_context_extractor.py:47** — 🟡 MEDIUM — Incomplete Docstring  
+   'extract_code_blocks' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: content_
 
-10. **src/henchman/agents/working_memory.py:205** — 🟢 LOW — Incomplete Docstring  
+9. **src/henchman/utils/intelligent_context_extractor.py:135** — 🟡 MEDIUM — Incomplete Docstring  
+   'extract_error_sections' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: content_
+
+10. **src/henchman/utils/intelligent_context_extractor.py:140** — 🟡 MEDIUM — Incomplete Docstring  
+   'extract_tool_sections' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: content_
+
+11. **src/henchman/utils/intelligent_context_extractor.py:191** — 🟡 MEDIUM — Incomplete Docstring  
+   'extract_keyword_sections' has 2 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: content, keywords_
+
+12. **src/henchman/utils/intelligent_context_extractor.py:241** — 🟡 MEDIUM — Incomplete Docstring  
+   'extract_critical_sections' has 1 parameter(s) but no Args: section in docstring  
+   → _Add an Args: section documenting: content_
+
+13. **src/henchman/agents/working_memory.py:213** — 🟢 LOW — Incomplete Docstring  
    'WorkingMemory.update_problem' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'WorkingMemory.update_problem'._
 
-11. **src/henchman/agents/working_memory.py:255** — 🟢 LOW — Incomplete Docstring  
+14. **src/henchman/agents/working_memory.py:263** — 🟢 LOW — Incomplete Docstring  
    'WorkingMemory.update_after_read' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'WorkingMemory.update_after_read'._
 
-12. **src/henchman/agents/working_memory.py:279** — 🟢 LOW — Incomplete Docstring  
+15. **src/henchman/agents/working_memory.py:287** — 🟢 LOW — Incomplete Docstring  
    'WorkingMemory.prune_recent_files' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'WorkingMemory.prune_recent_files'._
 
-13. **src/henchman/agents/working_memory.py:284** — 🟢 LOW — Incomplete Docstring  
+16. **src/henchman/agents/working_memory.py:292** — 🟢 LOW — Incomplete Docstring  
    'WorkingMemory.save' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'WorkingMemory.save'._
 
-14. **src/henchman/agents/working_memory.py:290** — 🟢 LOW — Incomplete Docstring  
+17. **src/henchman/agents/working_memory.py:298** — 🟢 LOW — Incomplete Docstring  
    'WorkingMemory.load' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'WorkingMemory.load'._
 
-15. **src/henchman/agents/working_memory.py:303** — 🟢 LOW — Incomplete Docstring  
+18. **src/henchman/agents/working_memory.py:311** — 🟢 LOW — Incomplete Docstring  
    'WorkingMemorySystem.create_memory' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'WorkingMemorySystem.create_memory'._
 
-16. **src/henchman/agents/working_memory.py:310** — 🟢 LOW — Incomplete Docstring  
+19. **src/henchman/agents/working_memory.py:318** — 🟢 LOW — Incomplete Docstring  
    'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'._
 
-17. **src/henchman/agents/working_memory.py:316** — 🟢 LOW — Incomplete Docstring  
+20. **src/henchman/agents/working_memory.py:324** — 🟢 LOW — Incomplete Docstring  
    'WorkingMemorySystem.get_current_memory' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'WorkingMemorySystem.get_current_memory'._
-
-18. **src/henchman/agents/working_memory.py:320** — 🟢 LOW — Incomplete Docstring  
-   'WorkingMemorySystem.archive_current_memory' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'WorkingMemorySystem.archive_current_memory'._
-
-19. **src/henchman/utils/compaction.py:972** — 🟢 LOW — Incomplete Docstring  
-   'compact_with_summarization' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'compact_with_summarization'._
 
 
 ## 📊 Files Ranked by Quality
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | src/henchman/agents/working_memory.py | ❌ F | 45.0 | 17 | — |
-| 2 | src/henchman/utils/compaction.py | ✅ A | 93.0 | 2 | — |
-| 3 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-10 |
-| 4 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-11 |
-| 5 | README.md | ✅ A | 100.0 | 0 | 2026-03-10 |
-| 6 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
-| 7 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-10 |
-| 8 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-11 |
-| 9 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
-| 10 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-11 |
-| 11 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-11 |
-| 12 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-11 |
-| 13 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-10 |
-| 14 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-10 |
-| 15 | docs/extensions.md | ✅ A | 100.0 | 0 | 2026-03-03 |
+| 1 | src/henchman/agents/working_memory.py | ❌ F | 52.0 | 15 | 2026-03-13 |
+| 2 | src/henchman/utils/intelligent_context_extractor.py | 🔶 D | 65.0 | 10 | 2026-03-13 |
+| 3 | src/henchman/utils/compaction.py | ✅ A | 93.0 | 2 | 2026-03-13 |
+| 4 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 5 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 6 | README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 7 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
+| 8 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 9 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 10 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 11 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 12 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 13 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 14 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 15 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 
 ## 📁 Per-File Details
 
-_Showing 25 worst files. 212 additional files omitted._
+_Showing 25 worst files. 217 additional files omitted._
 
-### src/henchman/agents/working_memory.py — ❌ F (45.0/100)
+### src/henchman/agents/working_memory.py — ❌ F (52.0/100) (last modified 2026-03-13)
 
 Public APIs: 26 | Documented: 26 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 199 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemory.add_problem' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: entry |
-| 279 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemory.prune_recent_files' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: max_entries |
-| 284 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemory.save' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: path |
-| 290 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemory.load' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: path |
-| 303 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemorySystem.create_memory' has 2 parameter(s) but no Args: section in docstring | Add an Args: section documenting: task, objectives |
-| 310 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemorySystem.switch_memory' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: t_id |
-| 320 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemorySystem.archive_current_memory' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: archive_dir |
-| 199 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.add_problem' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.add_problem'. |
-| 205 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.update_problem' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.update_problem'. |
-| 255 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.update_after_read' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.update_after_read'. |
-| 279 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.prune_recent_files' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.prune_recent_files'. |
-| 284 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.save' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.save'. |
-| 290 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.load' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.load'. |
-| 303 | 🟢 LOW | Incomplete Docstring | 'WorkingMemorySystem.create_memory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemorySystem.create_memory'. |
-| 310 | 🟢 LOW | Incomplete Docstring | 'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'. |
+| 287 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemory.prune_recent_files' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: max_entries |
+| 292 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemory.save' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: path |
+| 298 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemory.load' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: path |
+| 311 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemorySystem.create_memory' has 2 parameter(s) but no Args: section in docstring | Add an Args: section documenting: task, objectives |
+| 318 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemorySystem.switch_memory' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: t_id |
+| 328 | 🟡 MEDIUM | Incomplete Docstring | 'WorkingMemorySystem.archive_current_memory' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: archive_dir |
+| 213 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.update_problem' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.update_problem'. |
+| 263 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.update_after_read' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.update_after_read'. |
+| 287 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.prune_recent_files' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.prune_recent_files'. |
+| 292 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.save' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.save'. |
+| 298 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.load' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.load'. |
+| 311 | 🟢 LOW | Incomplete Docstring | 'WorkingMemorySystem.create_memory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemorySystem.create_memory'. |
+| 318 | 🟢 LOW | Incomplete Docstring | 'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'. |
+| 324 | 🟢 LOW | Incomplete Docstring | 'WorkingMemorySystem.get_current_memory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemorySystem.get_current_memory'. |
+| 328 | 🟢 LOW | Incomplete Docstring | 'WorkingMemorySystem.archive_current_memory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemorySystem.archive_current_memory'. |
 
-_... and 2 more smells._
+### src/henchman/utils/intelligent_context_extractor.py — 🔶 D (65.0/100) (last modified 2026-03-13)
 
-### src/henchman/utils/compaction.py — ✅ A (93.0/100)
+Public APIs: 6 | Documented: 6 | Coverage: 100.0%
+
+| Line | Severity | Type | Message | Suggested Fix |
+|-----:|:---------|:-----|:--------|:--------------|
+| 47 | 🟡 MEDIUM | Incomplete Docstring | 'extract_code_blocks' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
+| 135 | 🟡 MEDIUM | Incomplete Docstring | 'extract_error_sections' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
+| 140 | 🟡 MEDIUM | Incomplete Docstring | 'extract_tool_sections' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
+| 191 | 🟡 MEDIUM | Incomplete Docstring | 'extract_keyword_sections' has 2 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content, keywords |
+| 241 | 🟡 MEDIUM | Incomplete Docstring | 'extract_critical_sections' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
+| 47 | 🟢 LOW | Incomplete Docstring | 'extract_code_blocks' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_code_blocks'. |
+| 135 | 🟢 LOW | Incomplete Docstring | 'extract_error_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_error_sections'. |
+| 140 | 🟢 LOW | Incomplete Docstring | 'extract_tool_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_tool_sections'. |
+| 191 | 🟢 LOW | Incomplete Docstring | 'extract_keyword_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_keyword_sections'. |
+| 241 | 🟢 LOW | Incomplete Docstring | 'extract_critical_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_critical_sections'. |
+
+### src/henchman/utils/compaction.py — ✅ A (93.0/100) (last modified 2026-03-13)
 
 Public APIs: 26 | Documented: 26 | Coverage: 100.0%
 
@@ -165,7 +184,7 @@ Public APIs: 26 | Documented: 26 | Coverage: 100.0%
 | 972 | 🟡 MEDIUM | Incomplete Docstring | 'compact_with_summarization' has 6 parameter(s) but no Args: section in docstring | Add an Args: section documenting: messages, max_tokens, provider, summarize, protect_from_index, kwargs |
 | 972 | 🟢 LOW | Incomplete Docstring | 'compact_with_summarization' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'compact_with_summarization'. |
 
-## ✨ Clean Files (235 files with no smells)
+## ✨ Clean Files (239 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -393,6 +412,10 @@ Public APIs: 26 | Documented: 26 | Coverage: 100.0%
 - src/henchman/utils/importance_scorer.py — ✅ A
 - src/henchman/utils/intelligent_context.py — ✅ A
 - src/henchman/utils/intelligent_context_config.py — ✅ A
+- src/henchman/utils/intelligent_context_detector.py — ✅ A
+- src/henchman/utils/intelligent_context_parser.py — ✅ A
+- src/henchman/utils/intelligent_context_summarizer.py — ✅ A
+- src/henchman/utils/intelligent_context_types.py — ✅ A
 - src/henchman/utils/lazy_import.py — ✅ A
 - src/henchman/utils/message_analyzer.py — ✅ A
 - src/henchman/utils/message_clusterer.py — ✅ A

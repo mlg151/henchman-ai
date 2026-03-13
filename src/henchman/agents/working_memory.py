@@ -285,18 +285,39 @@ class WorkingMemory(SerializableDataclass):
         )
 
     def prune_recent_files(self: WorkingMemory, max_entries: int = MAX_RECENT_FILES_DEFAULT) -> None:
-        """Trim recent files list."""
+        """Trim recent files list.
+        
+        Args:
+            max_entries: Maximum number of recent files to keep (default: 10).
+            
+        Returns:
+            None
+        """
         if len(self.recent_files) > max_entries:
             self.recent_files = self.recent_files[-max_entries:]
 
     def save(self: WorkingMemory, path: Path) -> None:
-        """Persist the working memory to a YAML file."""
+        """Persist the working memory to a YAML file.
+        
+        Args:
+            path: Path to save the working memory to.
+            
+        Returns:
+            None
+        """
         with path.open("w", encoding="utf-8") as f:
             yaml.dump(self.to_dict(), f, default_flow_style=False)
 
     @classmethod
     def load(cls: type[WorkingMemory], path: Path) -> WorkingMemory:
-        """Load working memory from a YAML file."""
+        """Load working memory from a YAML file.
+        
+        Args:
+            path: Path to load the working memory from.
+            
+        Returns:
+            WorkingMemory: The loaded working memory instance.
+        """
         with path.open(encoding="utf-8") as f:
             return cls.from_dict(yaml.safe_load(f) or {})
 

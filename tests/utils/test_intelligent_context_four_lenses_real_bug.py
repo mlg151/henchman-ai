@@ -1,8 +1,9 @@
+from henchman.utils.intelligent_context_parser import _ApostropheDetector
 """Test for the real bug in _is_apostrophe_in_word method."""
 
 import pytest
 
-from henchman.utils.intelligent_context import ContentExtractor, _ParserState
+from henchman.utils.intelligent_context_extractor import ContentExtractor, _ParserState
 
 
 def test_invalid_string_prefix_ar():
@@ -18,7 +19,7 @@ def test_invalid_string_prefix_ar():
     # Test case: ar'hello'
     text = "ar'hello'"
     i = 2  # position of '
-    result = parser._is_apostrophe_in_word(text, i)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, text, i)
 
     # With the fix, it should skip string prefix check because 'ar' looks like identifier
     # Then check if it's a contraction: 'hello' doesn't match contraction suffixes
@@ -45,7 +46,7 @@ def test_invalid_string_prefix_ur_python3():
 
     text = "ur'hello'"
     i = 2  # position of '
-    result = parser._is_apostrophe_in_word(text, i)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, text, i)
 
     # With fix, skips string prefix check (ur looks like identifier)
     # 'hello' not a contraction, returns False (string delimiter)
@@ -58,7 +59,7 @@ def test_valid_string_prefix_r():
 
     text = "r'hello'"
     i = 1  # position of '
-    result = parser._is_apostrophe_in_word(text, i)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, text, i)
 
     # r'hello' is valid raw string
     # Should return False (string delimiter, not apostrophe)
@@ -71,7 +72,7 @@ def test_apostrophe_in_word_isnt():
 
     text = "isn't"
     i = 3  # position of '
-    result = parser._is_apostrophe_in_word(text, i)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, text, i)
 
     # Should return True (apostrophe in word)
     assert result, f"isn't should be apostrophe (True), got {result}"
@@ -109,7 +110,7 @@ def test_abr_string_prefix_bug():
 
     text = "abr'hello'"
     i = 3  # position of '
-    result = parser._is_apostrophe_in_word(text, i)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, text, i)
 
     # abr'hello' is invalid Python
     # Currently might return False (treats as string delimiter because "br" is valid)

@@ -658072,3 +658072,115 @@ TOTAL                                                 19051    582   5122    126
 =========== 5682 passed, 6 skipped, 46 warnings in 211.47s (0:03:31) ===========
 [2026-03-13T13:00:03Z] All tests passed.
 Committing changes...
+[main 65fec4e] fix(four-lenses): four-lenses-utils-intelligent_context
+ 10 files changed, 6825 insertions(+), 78 deletions(-)
+ create mode 100644 fix_parser.py
+ create mode 100644 smells_output.json
+ create mode 100644 src/henchman/utils/intelligent_context_parser.py
+ create mode 100644 src/henchman/utils/intelligent_context_types.py
+ create mode 100644 tests/utils/test_intelligent_context_mayve_bug.py
+[2026-03-13T13:00:03Z] Auto-improve complete.
+[2026-03-13T14:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-13T14:00:03Z] Targeting lowest-graded file: src/henchman/utils/intelligent_context.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by reading the smell report and the target file to understand the context and identify bugs.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 77.7/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-13T14:00:52.700110+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py'})
+[result] """Intelligent context management system.
+
+This module provides an intelligent context manager that reduces token usage
+while preserving important context through importance scoring, clustering,
+and a...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test_intelligent_context*.py'})
+[result] .agent_tasks/auto-improve/test_intelligent_context.py
+.agent_tasks/auto-improve/test_intelligent_context_refactor.py
+.agent_tasks/auto-improve/test_intelligent_context_refactoring.py
+.agent_tasks/auto...
+Let me check the main test file:
+[tool] read_file({'path': 'tests/utils/test_intelligent_context.py', 
+'start_line': 1, 'end_line': 100})
+[result] """Tests for intelligent context management."""
+
+import pytest
+from henchman.providers.base import Message, ToolCall
+from henchman.utils.intelligent_context import (
+    IntelligentContextManager,
+   ...
+Let me continue reading the test file to understand the structure better:
+[tool] read_file({'path': 'tests/utils/test_intelligent_context.py', 
+'start_line': 100, 'end_line': 200})
+[result]     This test exposes a bug where empty code blocks are not extracted.
+    """
+    # Test 1: Empty code block with no content - 6 backticks is NOT a valid code
+block
+    # because there's no newline b...
+Now let me create the documentation stub first as required by the workflow:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-utils-intelligent_context/README.md', 'content': "# 
+Four Lenses Bug Report: src/henchman/utils/intelligent_context.py\n## Date: 
+2025-03-13T14:30:00+00:00\n## Bug Summary\nThe 
+`IntelligentTruncator._truncate_with_marker` method has a logic error where it 
+calculates `available_for_content = self.safety_limit - marker_tokens` but then 
+uses `params.min_content_tokens` instead of `available_for_content` when 
+determining the truncation limit, potentially causing content truncation to 
+exceed the safety limit.\n\n## Lens\n**Phase 1: The Intent vs. Reality Check** -
+Logic Gaps\n\n## Expected vs. Observed\n| Expected Behavior | Observed Risk 
+|\n|---|---|\n| When truncating content with a marker, the method should ensure 
+total tokens (content + marker) ≤ safety_limit | The method uses 
+`min(params.min_content_tokens, available_for_content)` but if 
+`params.min_content_tokens > available_for_content`, it will use 
+`available_for_content` which is correct. However, there's a deeper issue: the 
+method doesn't properly handle the case where `available_for_content <= 0` 
+before checking `params.min_content_tokens`. |\n| Content should be truncated to
+fit within remaining space after reserving tokens for marker | The logic 
+calculates `available_for_content` but then uses `min(params.min_content_tokens,
+available_for_content)` which could still be > 0 even when 
+`available_for_content <= 0` if the check happens in wrong order |\n\n## Root 
+Cause\nThe bug is in the `_truncate_with_marker` method at lines ~403-420. The 
+method has this logic flow:\n1. Calculate `marker_tokens = 
+TokenCounter.count_text(params.marker)`\n2. Calculate `available_for_content = 
+self.safety_limit - marker_tokens`\n3. If `available_for_content <= 0`: handle 
+marker-only case\n4. Else: use `limit = min(params.min_content_tokens, 
+available_for_content)`\n\nThe issue is that `params.min_content_tokens` has a 
+default value (from `TruncationParams` dataclass), and if 
+`available_for_content` is negative or zero, the method should handle it in step
+3. However, there's a risk that the check order or default values could cause 
+incorrect behavior.\n\n## Fix Plan\n1. Add explicit check for 
+`available_for_content <= 0` before using `params.min_content_tokens`\n2. Ensure
+the method always respects `self.safety_limit` as the absolute maximum\n3. Write
+a test that demonstrates the bug with edge cases (marker tokens ≥ 
+safety_limit)\n\n## Status: IN PROGRESS"})
+[result] Successfully wrote 2353 bytes to 
+.agent_tasks/four-lenses-utils-intelligent_context/README.md...
+Wait, I need to examine the actual code more carefully. Let me look at the `_truncate_with_marker` method and check for the `TruncationParams` class:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 400, 'end_line': 450})
+[result] 
+        return preserved_content + marker
+
+    def _truncate_with_marker(
+        self: IntelligentTruncator,
+        params: TruncationParams,
+    ) -> str:
+        """Consolidated truncation logic ...
+Now I need to find the `TruncationParams` class definition:
+[tool] grep({'pattern': 'class TruncationParams', 'path': 
+'src/henchman/utils/intelligent_context.py'})
+[result] No matches found...

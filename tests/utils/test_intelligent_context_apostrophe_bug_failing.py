@@ -1,7 +1,7 @@
 """Failing test for apostrophe bug in intelligent_context.py."""
 
 import pytest
-from henchman.utils.intelligent_context import ContentExtractor
+from henchman.utils.intelligent_context_extractor import ContentExtractor
 
 
 def test_variable_followed_by_string_literal():

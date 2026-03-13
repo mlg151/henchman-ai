@@ -1,6 +1,6 @@
 """Test for ar"test" bug in intelligent_context.py."""
 
-from henchman.utils.intelligent_context import ContentExtractor
+from henchman.utils.intelligent_context_extractor import ContentExtractor
 
 
 def test_extract_code_blocks_ar_string_bug():

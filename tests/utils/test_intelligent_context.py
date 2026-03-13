@@ -700,7 +700,7 @@ def test_string_prefix_validation_empty_string_bug():
     an empty string, which is incorrect. An empty string is not a valid
     Python string prefix.
     """
-    from henchman.utils.intelligent_context import _ParserState
+    from henchman.utils.intelligent_context_parser import _ApostropheDetector, _ParserState
     
     state = _ParserState()
     
@@ -915,7 +915,7 @@ def test_is_apostrophe_in_word_negative_index_bug():
     This test exposes a bug where the function raises IndexError when
     i is a negative index and i-1 is out of bounds.
     """
-    from henchman.utils.intelligent_context import _ParserState
+    from henchman.utils.intelligent_context_parser import _ApostropheDetector, _ParserState
     
     state = _ParserState()
     
@@ -923,7 +923,7 @@ def test_is_apostrophe_in_word_negative_index_bug():
     # This should not raise IndexError
     text1 = "'"
     try:
-        result1 = state._is_apostrophe_in_word(text1, -1)
+        result1 = _ApostropheDetector.is_apostrophe_in_word(state, text1, -1)
         # Should return False (not an apostrophe in a word)
         assert result1 is False, f"Expected False for single quote, got {result1}"
     except IndexError as e:
@@ -932,7 +932,7 @@ def test_is_apostrophe_in_word_negative_index_bug():
     # Test 2: String "a'", i = -1 (points to the quote)
     text2 = "a'"
     try:
-        result2 = state._is_apostrophe_in_word(text2, -1)
+        result2 = _ApostropheDetector.is_apostrophe_in_word(state, text2, -1)
         # 'a' is alnum, next char is end of string, so should return False
         assert result2 is False, f"Expected False for 'a\\'', i=-1, got {result2}"
     except IndexError as e:
@@ -941,7 +941,7 @@ def test_is_apostrophe_in_word_negative_index_bug():
     # Test 3: String "don't", i = 3 (the apostrophe)
     text3 = "don't"
     try:
-        result3 = state._is_apostrophe_in_word(text3, 3)
+        result3 = _ApostropheDetector.is_apostrophe_in_word(state, text3, 3)
         # Should return True (apostrophe in word)
         assert result3 is True, f"Expected True for 'don\\'t', i=3, got {result3}"
     except IndexError as e:
@@ -951,7 +951,7 @@ def test_is_apostrophe_in_word_negative_index_bug():
     # Tests string prefix detection with negative index
     text4 = "ur'"
     try:
-        result4 = state._is_apostrophe_in_word(text4, -1)
+        result4 = _ApostropheDetector.is_apostrophe_in_word(state, text4, -1)
         # "ur" is invalid string prefix, should return False
         assert result4 is False, f"Expected False for 'ur\\'', i=-1, got {result4}"
     except IndexError as e:
@@ -960,7 +960,7 @@ def test_is_apostrophe_in_word_negative_index_bug():
     # Test 5: Edge case - i = -len(text) (first character as negative index)
     text5 = "'test"
     try:
-        result5 = state._is_apostrophe_in_word(text5, -5)  # -len(text) = -5
+        result5 = _ApostropheDetector.is_apostrophe_in_word(state, text5, -5)  # -len(text) = -5
         # i = -5, i-1 = -6 which is out of bounds
         # The function should handle this without IndexError
         # Should return False (quote at beginning, not apostrophe in word)

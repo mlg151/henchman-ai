@@ -5,7 +5,7 @@ This test demonstrates that _is_apostrophe_in_word incorrectly rejects
 """
 
 import pytest
-from henchman.utils.intelligent_context import _ParserState
+from henchman.utils.intelligent_context_parser import _ApostropheDetector, _ParserState
 
 
 def test_is_apostrophe_in_word_mayve_bug():
@@ -22,14 +22,14 @@ def test_is_apostrophe_in_word_mayve_bug():
     i = text.find("'")  # Position of apostrophe
     
     # Should return True (valid contraction)
-    result = parser._is_apostrophe_in_word(text, i)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, text, i)
     assert result == True, f"Text '{text}' at position {i}: expected True for valid contraction 'may've', got {result}"
     
     # Test 2: "they've" should still work
     text2 = "they've"
     i2 = text2.find("'")
     
-    result2 = parser._is_apostrophe_in_word(text2, i2)
+    result2 = _ApostropheDetector.is_apostrophe_in_word(parser, text2, i2)
     assert result2 == True, f"Text '{text2}' at position {i2}: expected True, got {result2}"
     
     # Test 3: Other valid 've contractions should work
@@ -49,7 +49,7 @@ def test_is_apostrophe_in_word_mayve_bug():
     
     for text, expected in test_cases:
         i = text.find("'")
-        result = parser._is_apostrophe_in_word(text, i)
+        result = _ApostropheDetector.is_apostrophe_in_word(parser, text, i)
         assert result == expected, f"Text '{text}': expected {expected}, got {result}"
 
 

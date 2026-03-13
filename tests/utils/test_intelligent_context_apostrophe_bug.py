@@ -1,7 +1,7 @@
 """Test for apostrophe bug in intelligent_context.py."""
 
 import pytest
-from henchman.utils.intelligent_context import ContentExtractor
+from henchman.utils.intelligent_context_extractor import ContentExtractor
 
 
 def test_apostrophe_after_variable():

@@ -4,7 +4,7 @@ Test triple quote string parsing bug.
 """
 
 import pytest
-from henchman.utils.intelligent_context import _ParserState
+from henchman.utils.intelligent_context_parser import _ParserState
 
 
 def test_triple_quote_string_parsing():
@@ -56,7 +56,7 @@ def test_triple_quote_string_parsing():
 
 def test_triple_quote_in_code_block():
     """Test triple quotes inside code blocks."""
-    from henchman.utils.intelligent_context import ContentExtractor
+    from henchman.utils.intelligent_context_extractor import ContentExtractor
     
     # Code block with triple-quoted string
     content = '''```python
@@ -72,7 +72,7 @@ print("""Hello world""")
 
 def test_mixed_quotes_in_code():
     """Test mixed single and triple quotes in code."""
-    from henchman.utils.intelligent_context import ContentExtractor
+    from henchman.utils.intelligent_context_extractor import ContentExtractor
     
     content = '''```python
 s1 = 'single'
