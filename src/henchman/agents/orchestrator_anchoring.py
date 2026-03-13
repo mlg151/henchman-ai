@@ -82,10 +82,13 @@ def assess_agent_completion(orchestrator: Any, agent: Agent) -> CompletionStatus
 
     Returns:
         CompletionStatus: The completion status of the agent
-            (STALLED, NO_WORK_DONE, or COMPLETED).
+            (STALLED, NO_WORK_DONE, TIMED_OUT, or COMPLETED).
     """
     raw_tool_calls = getattr(orchestrator, "_last_loop_tool_call_count", 0)
     tool_calls = _parse_tool_call_count(raw_tool_calls)
+    raw_success = getattr(orchestrator, "_last_loop_success_count", 0)
+    success_calls = _parse_tool_call_count(raw_success)
+    timed_out = getattr(orchestrator, "_last_loop_timed_out", False)
 
     stalled = False
 
@@ -98,7 +101,9 @@ def assess_agent_completion(orchestrator: Any, agent: Agent) -> CompletionStatus
 
     if stalled:
         return CompletionStatus.STALLED
-    if tool_calls == 0:
+    if timed_out:
+        return CompletionStatus.TIMED_OUT
+    if success_calls == 0:
         return CompletionStatus.NO_WORK_DONE
     return CompletionStatus.COMPLETED
 
@@ -137,7 +142,7 @@ def _enrich_completion_from_report(
     fields such as ``STATUS`` and ``BLOCKERS``.  This function downgrades
     a ``COMPLETED`` base status when those fields signal failure, and
     passes through definitive failure statuses (``STALLED``,
-    ``NO_WORK_DONE``) unchanged.
+    ``NO_WORK_DONE``, ``TIMED_OUT``) unchanged.
 
     Args:
         base_status: The coarse status derived from tool-call counts / stall
@@ -148,7 +153,11 @@ def _enrich_completion_from_report(
     Returns:
         The refined ``CompletionStatus``.
     """
-    if base_status in (CompletionStatus.STALLED, CompletionStatus.NO_WORK_DONE):
+    if base_status in (
+        CompletionStatus.STALLED,
+        CompletionStatus.NO_WORK_DONE,
+        CompletionStatus.TIMED_OUT,
+    ):
         return base_status
 
     structured_status = parsed.get("status", "").strip().lower()

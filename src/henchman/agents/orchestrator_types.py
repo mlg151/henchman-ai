@@ -59,9 +59,11 @@ class LoopState:
     """Internal state for the agent execution loop."""
 
     tool_call_count: int = 0
+    successful_tool_call_count: int = 0
     tool_errors: list[str] = field(default_factory=list)
     wrapup_warned: bool = False
     colon_stall_retries: int = 0
+    timed_out: bool = False
 
 
 @dataclass

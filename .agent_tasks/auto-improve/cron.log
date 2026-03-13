@@ -664723,3 +664723,132 @@ TOTAL                                                       18834    253   4990 
 =========== 5686 passed, 6 skipped, 46 warnings in 263.07s (0:04:23) ===========
 [2026-03-13T17:00:03Z] All tests passed.
 Committing changes...
+[main d6f944d] fix(four-lenses): four-lenses-agents-working_memory
+ 6 files changed, 1661 insertions(+), 743 deletions(-)
+[2026-03-13T17:00:03Z] Auto-improve complete.
+[2026-03-13T18:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-13T18:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by reading the smell report and then analyze the target file through the four lenses of failure.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.9/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-13T18:00:42.579668+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py...
+
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me create the documentation stub for the four lenses analysis:THINKING: I need to analyze the target file through the four lenses of failure and identify exactly ONE real bug in core functionality. Let me start by creating the documentation stub as required.
+
+First, I'll create the directory structure and README file:
+[tool] shell({'command': 'mkdir -p 
+.agent_tasks/four-lenses-agents-working_memory'})
+[result] (no output)...
+
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/agents/working_memory.py\n## Date: 
+2026-03-13T18:15:00+00:00\n## Bug Summary\nThe `should_read_file` method 
+incorrectly returns `False` when a file was read fully (`lines_read="full"`) but
+a specific line range is requested, causing the agent to skip reading needed 
+lines.\n\n## Lens\n**Phase 1: The Intent vs. Reality Check** - Logic Gaps\n\n## 
+Expected vs. Observed\n| Expected Behavior | Observed Risk |\n|---|---|\n| When 
+a file was read fully (`lines_read="full"`), any subsequent request to read any 
+line range should return `False` (already read). | The method returns `True` for
+line range requests when `lines_read="full"`, causing unnecessary re-reads and 
+potential context window waste. |\n| The method should handle the special case 
+`lines_read="full"` before attempting to parse it as a line range. | The method 
+tries to parse "full" as a line range, fails, and falls through to returning 
+`True`. |\n\n## Root Cause\nIn the `should_read_file` method, when 
+`match.lines_read == "full"`, the method returns `False` only when called 
+without line range arguments (`start` or `end` is `None`). However, when line 
+range arguments are provided, the code proceeds to try parsing "full" as a line 
+range via `LineRange.from_str("full")`, which returns `None`. This causes the 
+method to fall through to the final return statement, returning `True` with the 
+reason "Cannot determine overlap - invalid lines_read format".\n\n## Fix 
+Plan\nAdd an early return after the `if match.lines_read == "full":` check to 
+handle both cases (with and without line range arguments). The fix should return
+`False` for any line range request when the file was read fully.\n\n## Status: 
+IN PROGRESS'})
+[result] Successfully wrote 1700 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/README.md...
+Now I need to analyze the code through all four lenses to ensure I've identified the right bug. Let me examine the code more carefully:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+120, 'end_line': 180})
+[result] 
+@dataclass
+class WorkingMemory(SerializableDataclass):
+    """In-memory context store for a single agent task."""
+
+    current_task: str = ""
+    task_objectives: list[str] = field(default_factory=li...
+Let me look at the `should_read_file` method specifically:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+160, 'end_line': 210})
+[result]         """Record a completed step.
+        
+        Args:
+            step: A string describing the completed step.
+        
+        Returns:
+            None
+        """
+        # Add extra logic to...
+THINKING: I need to examine the `should_read_file` method more carefully. Let me find it:
+[tool] grep({'pattern': 'def should_read_file', 'path': 
+'src/henchman/agents/working_memory.py', 'line_numbers': True})
+[result] 228:    def should_read_file(...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+228, 'end_line': 280})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+Now I can see the bug clearly! Looking at the `should_read_file` method:
+
+1. Line 242-243: `if match.lines_read == "full": return False, "File already read (full)"`
+2. This return happens BEFORE checking if `start is None or end is None` (line 245)
+
+Wait, actually looking more carefully at the test file, there's a test that shows this bug: `test_memory_should_read_file_full_read`. The test comment says: "BUG: This should be False! If file was read fully, any line range should be considered already read. Current implementation returns True because LineRange.from_str("full") returns None"
+
+But looking at the code, it seems like the bug might actually be that the early return for "full" happens BEFORE checking line ranges. Let me trace through the logic:
+
+1. If `lines_read == "full"`: returns `False` immediately (line 243)
+2. So actually the bug might be different than what I thought...
+
+Wait, let me re-examine. The test says the current implementation returns `True`. But the code shows it returns `False` when `lines_read == "full"`. Let me check if there's something else going on. Actually, I think I need to run the existing tests to see what's happening:

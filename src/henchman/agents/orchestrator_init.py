@@ -98,6 +98,8 @@ def _init_core(
     orch.metrics = OrchestratorMetrics()
     orch._reporter = MetricsReporter(orch.metrics)  # noqa: SLF001
     orch._last_loop_tool_call_count = 0  # noqa: SLF001
+    orch._last_loop_success_count = 0  # noqa: SLF001
+    orch._last_loop_timed_out = False  # noqa: SLF001
     orch.last_completion_status = CompletionStatus.COMPLETED
     orch.validator = AgentValidator(orch)
     orch.tool_controller = ToolController(orch)

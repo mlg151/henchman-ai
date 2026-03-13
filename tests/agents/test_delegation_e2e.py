@@ -593,9 +593,17 @@ class TestDelegateTaskEndToEnd:
                         },
                     )
                 ],
-                # 2. Coder streams a response
+                # 2. Coder calls a tool to fix the bug
+                [
+                    ToolCall(
+                        id="tc_2",
+                        name="write_file",
+                        arguments={"file_path": "main.py", "content": "fixed"},
+                    )
+                ],
+                # 3. Coder streams a response
                 "I fixed the bug in main.py",
-                # 3. Tech Lead continues
+                # 4. Tech Lead continues
                 "Bug is fixed.",
             ]
         )

@@ -59,6 +59,7 @@ class TestAssessCompletion:
 
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = 0
+        orchestrator._last_loop_success_count = 0
 
         agent = MagicMock(spec=["_stall"])
         agent._stall = StallDetector()  # failure=False by default
@@ -71,6 +72,7 @@ class TestAssessCompletion:
 
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = 5
+        orchestrator._last_loop_success_count = 5
 
         agent = MagicMock(spec=["_stall"])
         agent._stall = StallDetector()  # failure=False by default
@@ -83,6 +85,7 @@ class TestAssessCompletion:
 
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = 0
+        orchestrator._last_loop_success_count = 0
 
         agent = MagicMock(spec=["_stall"])
         stall = StallDetector()
@@ -97,6 +100,7 @@ class TestAssessCompletion:
 
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = 3
+        orchestrator._last_loop_success_count = 3
 
         agent = MagicMock(spec=["_stall"])
         stall = StallDetector()
@@ -109,6 +113,7 @@ class TestAssessCompletion:
         """Agent without _stall_failure attribute defaults to checking tool count."""
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = 2
+        orchestrator._last_loop_success_count = 2
 
         agent = MagicMock(spec=[])  # Empty spec so getattr returns default
 
@@ -118,6 +123,7 @@ class TestAssessCompletion:
         """Agent without _stall_failure attr and no tools → NO_WORK_DONE."""
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = 0
+        orchestrator._last_loop_success_count = 0
 
         agent = MagicMock(spec=[])
 
@@ -337,6 +343,7 @@ class TestOrchestratorInit:
         """Orchestrator starts with 0 loop tool call count."""
         orchestrator = Orchestrator(default_provider=mock_provider)
         assert orchestrator._last_loop_tool_call_count == 0
+        assert orchestrator._last_loop_success_count == 0
 
 
 # ---------------------------------------------------------------------------
@@ -437,6 +444,7 @@ class TestAssessCompletionEdgeCases:
         """Boolean True _last_loop_tool_call_count is treated as 1 (COMPLETED)."""
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = True
+        orchestrator._last_loop_success_count = True
         agent = MagicMock(spec=[])
         assert orchestrator._assess_completion(agent) == CompletionStatus.COMPLETED
 
@@ -450,7 +458,8 @@ class TestAssessCompletionEdgeCases:
     def test_float_tool_call_count_coerced_to_int(self, mock_provider):
         """Float _last_loop_tool_call_count is converted to int."""
         orchestrator = Orchestrator(default_provider=mock_provider)
-        orchestrator._last_loop_tool_call_count = 3.7
+        orchestrator._last_loop_tool_call_count = 3
+        orchestrator._last_loop_success_count = 3.7
         agent = MagicMock(spec=[])
         assert orchestrator._assess_completion(agent) == CompletionStatus.COMPLETED
 
@@ -458,6 +467,7 @@ class TestAssessCompletionEdgeCases:
         """String numeric _last_loop_tool_call_count is parsed."""
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = "5"
+        orchestrator._last_loop_success_count = "5"
         agent = MagicMock(spec=[])
         assert orchestrator._assess_completion(agent) == CompletionStatus.COMPLETED
 
@@ -465,6 +475,7 @@ class TestAssessCompletionEdgeCases:
         """Empty string _last_loop_tool_call_count is treated as 0."""
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = ""
+        orchestrator._last_loop_success_count = ""
         agent = MagicMock(spec=[])
         assert orchestrator._assess_completion(agent) == CompletionStatus.NO_WORK_DONE
 
@@ -488,5 +499,6 @@ class TestAssessCompletionEdgeCases:
         """Negative _last_loop_tool_call_count is clamped to 0 (NO_WORK_DONE)."""
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = -3
+        orchestrator._last_loop_success_count = -3
         agent = MagicMock(spec=[])
         assert orchestrator._assess_completion(agent) == CompletionStatus.NO_WORK_DONE
