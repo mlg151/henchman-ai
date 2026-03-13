@@ -214,9 +214,9 @@ class TestWorkingMemory:
         # Check for file2 (should skip file1 with continue, find file2)
         should_read, reason = memory.should_read_file("/test/file2.py", 60, 150)
         
-        # file2 was read lines 1-100, we want 60-150 (overlapping)
-        assert should_read is False
-        assert "overlapping lines" in reason
+        # file2 was read lines 1-100, we want 60-150 (not fully contained - need 101-150)
+        assert should_read is True
+        assert "need to be read" in reason.lower()
 
     def test_memory_should_read_file_already_read_full(self):
         """Test should_read_file for a file already read fully."""
@@ -243,8 +243,9 @@ class TestWorkingMemory:
         memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "10-50"))
         should_read, reason = memory.should_read_file("/test/file.py", 30, 70)
         
-        assert should_read is False
-        assert "overlapping lines" in reason
+        # With the fix: 30-70 is not fully contained in 10-50 (need lines 51-70)
+        assert should_read is True
+        assert "New or partially overlapping" in reason or "need to be read" in reason
 
     def test_memory_should_read_file_different_lines(self):
         """Test should_read_file for different lines."""
@@ -253,7 +254,7 @@ class TestWorkingMemory:
         should_read, reason = memory.should_read_file("/test/file.py", 60, 100)
         
         assert should_read is True
-        assert "different lines" in reason
+        assert "need to be read" in reason.lower()
 
     def test_memory_should_read_file_full_read(self):
         """Test should_read_file when file was read fully (lines_read='full')."""
@@ -274,7 +275,26 @@ class TestWorkingMemory:
         should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
         
         assert should_read is True
-        assert "different lines than previously read" in reason.lower()
+        assert "invalid lines_read format" in reason.lower()
+
+    def test_memory_should_read_file_overlap_but_not_contained(self):
+        """Test should_read_file when ranges overlap but requested range is not fully contained."""
+        memory = WorkingMemory(current_task="Test")
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "10-50"))
+        
+        # Bug case: previously read 10-50, want to read 1-100 (overlaps but not contained)
+        should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
+        assert should_read is True, "Should read when requested range (1-100) is not fully contained in previously read (10-50)"
+        # New reason: "New or partially overlapping lines need to be read"
+        assert "need to be read" in reason.lower()
+        
+        # Another bug case: previously read 10-50, want to read 30-70  
+        should_read2, reason2 = memory.should_read_file("/test/file.py", 30, 70)
+        assert should_read2 is True, "Should read when requested range (30-70) is not fully contained in previously read (10-50)"
+        
+        # Case where we shouldn't read: previously read 10-50, want 20-40 (fully contained)
+        should_read3, reason3 = memory.should_read_file("/test/file.py", 20, 40)
+        assert should_read3 is False, "Should NOT read when requested range (20-40) is fully contained in previously read (10-50)"
 
     def test_memory_get_file_insights(self):
         """Test getting insights for a file."""
