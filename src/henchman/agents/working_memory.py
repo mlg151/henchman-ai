@@ -253,11 +253,12 @@ class WorkingMemory(SerializableDataclass):
             return True, "File not in recent files"
         
         # Special case: file was read fully
-        if match.lines_read == "full":
+        if match.lines_read.lower() == "full":
             return False, "File already read (full)"
         
         if start is None or end is None:
             # No line range specified but file wasn't read fully
+            return True, "File not fully read - partial read recorded"
             return True, "File not fully read - partial read recorded"
 
         # Validate line range
