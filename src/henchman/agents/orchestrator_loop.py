@@ -69,15 +69,17 @@ async def run_tools_and_collect(
         list[AgentEvent]: List of events generated during tool execution.
     """
     tool_ctrl = orchestrator.tool_controller
-    events = [
-        event
-        async for event in tool_ctrl.process_pending_tool_calls(
-            agent,
-            pending,
-            params.depth,
-            state.tool_errors,
-        )
-    ]
+    events = []
+    async for event in tool_ctrl.process_pending_tool_calls(
+        agent,
+        pending,
+        params.depth,
+        state.tool_errors,
+    ):
+        if event.type == EventType.TOOL_CALL_RESULT and event.data.get("success"):
+            state.successful_tool_call_count += 1
+        events.append(event)
+
     state.tool_call_count += len(pending)
     inject_role_anchor(orchestrator, agent, state.tool_call_count)
     return events
@@ -140,7 +142,7 @@ def check_turn_limits(
         msg_start_index=params.msg_start_index,
         wrapup_warned=state.wrapup_warned,
     )
-    should_break, state.wrapup_warned, err = enforcement.enforce_limits()
+    should_break, state.wrapup_warned, state.timed_out, err = enforcement.enforce_limits()
     return should_break, err
 
 
@@ -176,6 +178,8 @@ def finalize_loop(
         agent._delegation_tool_errors = state.tool_errors  # noqa: SLF001
 
     orchestrator._last_loop_tool_call_count = state.tool_call_count  # noqa: SLF001
+    orchestrator._last_loop_success_count = state.successful_tool_call_count  # noqa: SLF001
+    orchestrator._last_loop_timed_out = state.timed_out  # noqa: SLF001
 
 
 # ---------------------------------------------------------------------------

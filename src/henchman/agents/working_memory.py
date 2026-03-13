@@ -215,6 +215,9 @@ class WorkingMemory(SerializableDataclass):
 
         Args:
             updated: The updated problem entry containing new status and resolution.
+            
+        Returns:
+            None
         """
         for e in self.problems_encountered:
             if e.problem == updated.problem:
@@ -286,6 +289,9 @@ class WorkingMemory(SerializableDataclass):
             purpose: Why the file was read.
             line_range: The range of lines that were read.
             insights: Optional list of key insights gained.
+            
+        Returns:
+            None
         """
         self.add_recent_file(
             WorkingMemoryEntry(
@@ -358,17 +364,38 @@ class WorkingMemorySystem:
         return t_id
 
     def switch_memory(self: WorkingMemorySystem, t_id: str) -> None:
-        """Switch active memory."""
+        """Switch active memory.
+        
+        Args:
+            t_id: The task ID to switch to.
+            
+        Raises:
+            KeyError: If the task ID is not found in the memory registry.
+        """
         if t_id not in self.memories:
             raise KeyError(f"Task ID '{t_id}' not found")
         self.current_task_id = t_id
 
     def get_current_memory(self: WorkingMemorySystem) -> WorkingMemory | None:
-        """Return active memory."""
+        """Return active memory.
+        
+        Returns:
+            WorkingMemory | None: The current working memory, or None if no task is active.
+        """
         return self.memories.get(self.current_task_id) if self.current_task_id else None
 
     def archive_current_memory(self: WorkingMemorySystem, archive_dir: Path) -> Path:
-        """Archive current memory and remove from registry."""
+        """Archive current memory and remove from registry.
+        
+        Args:
+            archive_dir: Directory where the memory should be archived.
+            
+        Returns:
+            Path: The path where the memory was saved.
+            
+        Raises:
+            ValueError: If there is no current task to archive.
+        """
         if not self.current_task_id:
             raise ValueError("No current task to archive")
 

@@ -1,27 +1,27 @@
-# Code Smell Report — ⚠️ C (Score: 79.0/100)
+# Code Smell Report — ⚠️ C (Score: 78.9/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-13T17:00:35.676236+00:00_
+_Generated: 2026-03-13T18:00:42.579668+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ⚠️ C |
-| **Overall Score** | 79.0/100 |
+| **Overall Score** | 78.9/100 |
 | **Files Scanned** | 215 |
-| **Total Lines (non-blank)** | 44,060 |
-| **Total Smells** | 575 |
+| **Total Lines (non-blank)** | 44,098 |
+| **Total Smells** | 577 |
 | **Avg Maintainability Index** | 70.0 |
-| **Avg Cyclomatic Complexity** | 13.1 |
+| **Avg Cyclomatic Complexity** | 13.4 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 391 |
-| medium | 184 |
+| low | 390 |
+| medium | 187 |
 
 ### Smells by Category
 
@@ -29,7 +29,7 @@ _Generated: 2026-03-13T17:00:35.676236+00:00_
 |:---------|------:|
 | Missing Type Hint | 142 |
 | Duplicate Code | 112 |
-| Feature Envy | 78 |
+| Feature Envy | 80 |
 | Long Method | 73 |
 | Magic Number | 44 |
 | Primitive Obsession | 43 |
@@ -45,8 +45,8 @@ These are the highest-impact smells to address first:
    Function '_validate_messages_access' has cyclomatic complexity 12 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-2. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:120** — 🟡 MEDIUM — Complex Function  
-   Function '_run_delegation' has cyclomatic complexity 11 (rank C)  
+2. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:122** — 🟡 MEDIUM — Complex Function  
+   Function '_run_delegation' has cyclomatic complexity 18 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 3. **/home/matthew/mlg-cli/src/henchman/config/context.py:132** — 🟡 MEDIUM — Complex Function  
@@ -106,7 +106,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/working_memory.py | ❌ F | 50.4 | 12 | 285 | 54 | 0.0 |
+| 1 | agents/working_memory.py | ❌ F | 50.3 | 12 | 285 | 53 | 0.0 |
 | 2 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
 | 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
 | 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
@@ -114,16 +114,16 @@ These are the highest-impact smells to address first:
 | 6 | tools/builtins/file_overview.py | 🔶 D | 63.5 | 11 | 295 | 51 | 11.0 |
 | 7 | tools/builtins/pattern_search.py | 🔶 D | 64.1 | 10 | 312 | 55 | 12.0 |
 | 8 | utils/compaction.py | 🔶 D | 64.3 | 6 | 838 | 30 | 11.0 |
-| 9 | utils/message_compactor.py | 🔶 D | 65.1 | 15 | 235 | 61 | 12.0 |
-| 10 | knowledge/store.py | 🔶 D | 65.2 | 6 | 462 | 47 | 0.0 |
+| 9 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
+| 10 | utils/message_compactor.py | 🔶 D | 65.1 | 15 | 235 | 61 | 12.0 |
 
 ## 📁 Per-File Details
 
 _Showing 20 worst files. 195 additional files omitted._
 
-### agents/working_memory.py — ❌ F (50.4/100)
+### agents/working_memory.py — ❌ F (50.3/100)
 
-LOC: 285 | Classes: 7 | Functions: 0 | MI: 54 | Avg CC: 0.0
+LOC: 285 | Classes: 7 | Functions: 0 | MI: 53 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
@@ -266,6 +266,21 @@ LOC: 838 | Classes: 11 | Functions: 11 | MI: 30 | Avg CC: 11.0
 | 555 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._select_sequences_to_keep' accesses 'last_sequence' 3 times but 'self' only 1 times | Move Method — consider moving '_select_sequences_to_keep' to the class that owns 'last_sequence'. |
 | 598 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._reconstruct_result' accesses 'result' 4 times but 'self' only 0 times | Move Method — consider moving '_reconstruct_result' to the class that owns 'result'. |
 | 699 | 🟢 LOW | Long Method | Function '_perform_compaction' has 33 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+
+### agents/orchestrator_delegation_ctrl.py — 🔶 D (65.1/100)
+
+LOC: 179 | Classes: 2 | Functions: 0 | MI: 63 | Avg CC: 18.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 122 | 🟡 MEDIUM | Long Method | Function '_run_delegation' has 70 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 122 | 🟡 MEDIUM | Feature Envy | Method 'DelegationController._run_delegation' accesses 'params' 6 times but 'self' only 5 times | Move Method — consider moving '_run_delegation' to the class that owns 'params'. |
+| 122 | 🟡 MEDIUM | Feature Envy | Method 'DelegationController._run_delegation' accesses 'state' 8 times but 'self' only 5 times | Move Method — consider moving '_run_delegation' to the class that owns 'state'. |
+| 122 | 🟡 MEDIUM | Feature Envy | Method 'DelegationController._run_delegation' accesses 'final_state' 8 times but 'self' only 5 times | Move Method — consider moving '_run_delegation' to the class that owns 'final_state'. |
+| 122 | 🟡 MEDIUM | Complex Function | Function '_run_delegation' has cyclomatic complexity 18 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 206 | 🟡 MEDIUM | Feature Envy | Method 'DelegationController._stream_delegation' accesses 'state' 5 times but 'self' only 1 times | Move Method — consider moving '_stream_delegation' to the class that owns 'state'. |
+| 206 | 🟢 LOW | Feature Envy | Method 'DelegationController._stream_delegation' accesses 'params' 4 times but 'self' only 1 times | Move Method — consider moving '_stream_delegation' to the class that owns 'params'. |
+| 206 | 🟢 LOW | Feature Envy | Method 'DelegationController._stream_delegation' accesses 'sub_event' 4 times but 'self' only 1 times | Move Method — consider moving '_stream_delegation' to the class that owns 'sub_event'. |
 
 ### utils/message_compactor.py — 🔶 D (65.1/100)
 
@@ -447,24 +462,6 @@ LOC: 125 | Classes: 1 | Functions: 1 | MI: 70 | Avg CC: 0.0
 | 181 | 🟢 LOW | Magic Number | Magic number 10 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 188 | 🟢 LOW | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-### agents/pool.py — ⚠️ C (70.8/100)
-
-LOC: 197 | Classes: 1 | Functions: 1 | MI: 68 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 65 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: environment_context: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), intelligent_context: Name(id='bool', ctx=Load()), importance_threshold: Name(id='float', ctx=Load()), cluster_similarity_threshold: Name(id='float', ctx=Load()), adaptive_compression: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 105 | 🟡 MEDIUM | Long Method | Function 'get_agent' has 62 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 65 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/11 params untyped | Add Type Annotations for all parameters and return type. |
-| 105 | 🟢 LOW | Missing Type Hint | Function 'get_agent' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 180 | 🟢 LOW | Missing Type Hint | Function 'get_identity' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 201 | 🟢 LOW | Missing Type Hint | Function 'list_agents' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 201 | 🟢 LOW | Feature Envy | Method 'AgentPool.list_agents' accesses 'config' 3 times but 'self' only 1 times | Move Method — consider moving 'list_agents' to the class that owns 'config'. |
-| 218 | 🟢 LOW | Missing Type Hint | Function 'list_active_agents' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 226 | 🟢 LOW | Missing Type Hint | Function 'reset_agent' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 238 | 🟢 LOW | Missing Type Hint | Function 'reset_all' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 247 | 🟢 LOW | Missing Type Hint | Function 'shutdown' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-
 ## ✨ Clean Files (77 files with no smells)
 
 <details><summary>Click to expand</summary>
@@ -483,7 +480,7 @@ LOC: 197 | Classes: 1 | Functions: 1 | MI: 68 | Avg CC: 0.0
 - agents/orchestrator_timeout.py — ✅ A
 - agents/orchestrator_tools.py — ✅ A
 - agents/orchestrator_turns.py — ✅ A
-- agents/orchestrator_types.py — ✅ A
+- agents/orchestrator_types.py — 👍 B
 - agents/orchestrator_validation.py — ✅ A
 - api/__init__.py — ✅ A
 - api/auth.py — ✅ A

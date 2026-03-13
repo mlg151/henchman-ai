@@ -69,6 +69,8 @@ def create_tool_result_event(
     agent: Agent,
     tool_call: ToolCall,
     result_content: str,
+    *,
+    success: bool = True,
 ) -> AgentEvent:
     """Create a tool result event.
 
@@ -76,6 +78,7 @@ def create_tool_result_event(
         agent: The agent that executed the tool.
         tool_call: The tool call that was executed.
         result_content: The result content from the tool execution.
+        success: Whether the tool execution was successful.
 
     Returns:
         AgentEvent of type TOOL_CALL_RESULT with tool result data.
@@ -86,7 +89,7 @@ def create_tool_result_event(
             "tool_call_id": tool_call.id,
             "tool_name": tool_call.name,
             "result": (result_content or "")[:RESULT_PREVIEW_LENGTH],
-            "success": True,
+            "success": success,
         },
         source_agent=agent.identity.id if agent.identity else None,
     )

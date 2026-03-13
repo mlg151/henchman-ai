@@ -45,11 +45,13 @@ class _StreamState:
     Attributes:
         result_content: The summary text from the AGENT_COMPLETED event.
         had_error: True if any ERROR event was emitted during the delegation.
+        error_message: The content of the first ERROR event emitted.
         status: The status string from the AGENT_COMPLETED event.
     """
 
     result_content: str = field(default="")
     had_error: bool = field(default=False)
+    error_message: str = field(default="")
     status: str = field(default="")
 
 
@@ -144,10 +146,18 @@ class DelegationController(OrchestratorComponent):
                 yield sub_event
 
             result = state.result_content or "Delegation completed (no output)."
+            if state.had_error and state.error_message:
+                result = f"\u274c ERROR: {state.error_message}\n\n{result}"
+
             if state.status == "no_work_done":
                 result = (
                     f"\u26a0\ufe0f Agent {target} ended without "
                     f"making any tool calls.\n\n{result}"
+                )
+            elif state.status == "timed_out":
+                result = (
+                    f"\u26a0\ufe0f Agent {target} reached the turn limit "
+                    f"before finishing its task.\n\n{result}"
                 )
 
             # Update ledger now so _inject_failure_context can see it on retry
@@ -170,10 +180,18 @@ class DelegationController(OrchestratorComponent):
                 )
 
         final_result = final_state.result_content or "Delegation completed (no output)."
+        if final_state.had_error and final_state.error_message:
+            final_result = f"\u274c ERROR: {final_state.error_message}\n\n{final_result}"
+
         if final_state.status == "no_work_done":
             final_result = (
                 f"\u26a0\ufe0f Agent {target} ended without "
                 f"making any tool calls.\n\n{final_result}"
+            )
+        elif final_state.status == "timed_out":
+            final_result = (
+                f"\u26a0\ufe0f Agent {target} reached the turn limit "
+                f"before finishing its task.\n\n{final_result}"
             )
 
         submitted = final_result
@@ -182,7 +200,8 @@ class DelegationController(OrchestratorComponent):
             submitted = f"{final_result}\n\n{ledger.render()}"
 
         agent.submit_tool_result(tool_call.id, submitted)
-        yield create_tool_result_event(agent, tool_call, final_result)
+        success = not final_state.had_error and final_state.status != "no_work_done"
+        yield create_tool_result_event(agent, tool_call, final_result, success=success)
 
     async def _stream_delegation(
         self: DelegationController,
@@ -215,4 +234,6 @@ class DelegationController(OrchestratorComponent):
                 state.status = data.get("status", "completed")
             if sub_event.type == EventType.ERROR:
                 state.had_error = True
+                if not state.error_message:
+                    state.error_message = str(sub_event.data)
             yield sub_event
