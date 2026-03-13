@@ -577,17 +577,22 @@ class _ParserState:
                     if char_before not in valid_before_chars:
                         continue
                 elif suffix == "ve":  # 've
-                    # Valid characters before 've: vowels, d, t, y (I've, you've, we've, they've, could've, should've, would've, might've, must've)
-                    # Note: 'y' is for "they've" - this also accepts "y've" which is invalid but unlikely in code
+                    # Valid characters before 've: vowels, d, t, y (I've, you've, we've, they've, could've, should've, would've, might've, must've, may've)
+                    # Note: 'y' can be for "they've", "may've", or other words ending in 'y'
+                    # We need to ensure it's not just "y've" (single letter)
                     valid_before_chars = "aeiouydt"
                     if char_before not in valid_before_chars:
                         continue
                     
-                    # Special case for 'y': must be part of "they" (not just standalone "y've")
+                    # Special case for 'y': ensure it's not just "y've" (single letter before apostrophe)
                     if char_before == 'y':
-                        # Check if it's actually "they" (positions i-3 through i-1 should be "hey")
-                        if i < 4 or text[i-3:i].lower() != "hey":
-                            continue  # Not "they've", reject
+                        # Require at least 2 characters before apostrophe to avoid accepting "y've"
+                        if i < 2:
+                            continue  # "y've" - single letter 'y' is not a valid word
+                        # Also ensure the character before 'y' is a letter (forming a multi-letter word)
+                        # This accepts "they've", "may've", "day've", etc.
+                        if not text[i - 2].isalpha():
+                            continue  # Not a word ending in 'y'
                 elif suffix == "d":  # 'd
                     # Valid characters before 'd: vowels, t, h (I'd, you'd, he'd, she'd, it'd, we'd, they'd, that'd, what'd, who'd)
                     valid_before_chars = "aeiouyth"
