@@ -240,12 +240,14 @@ class WorkingMemory(SerializableDataclass):
         match = next((e for e in self.recent_files if e.path == path), None)
         if not match:
             return True, "File not in recent files"
-        if start is None or end is None:
-            return False, "File already read"
-
+        
         # Special case: file was read fully
         if match.lines_read == "full":
             return False, "File already read (full)"
+        
+        if start is None or end is None:
+            # No line range specified but file wasn't read fully
+            return True, "File not fully read - partial read recorded"
 
         rng = LineRange.from_str(match.lines_read)
         if rng:
