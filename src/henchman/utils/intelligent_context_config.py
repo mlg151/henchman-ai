@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import ClassVar
+from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING, ClassVar, TypeVar
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
+
+V = TypeVar("V")  # Generic type variable for values
 
 
 @dataclass
@@ -69,7 +74,7 @@ class IntelligentContextConfig:
     max_protected_ratio: float = field(default=DEFAULT_MAX_PROTECTED_RATIO)
     importance_threshold: float = field(default=DEFAULT_IMPORTANCE_THRESHOLD)
     cluster_similarity_threshold: float = field(
-        default=DEFAULT_CLUSTER_SIMILARITY_THRESHOLD
+        default=DEFAULT_CLUSTER_SIMILARITY_THRESHOLD,
     )
     adaptive_compression: bool = field(default=True)
     safety_limit_ratio: float = field(default=DEFAULT_SAFETY_LIMIT_RATIO)
@@ -77,20 +82,22 @@ class IntelligentContextConfig:
     minimum_shared_words: int = field(default=DEFAULT_MINIMUM_SHARED_WORDS)
     cluster_size_boost_factor: float = field(default=DEFAULT_CLUSTER_SIZE_BOOST_FACTOR)
     compression_high_threshold: float = field(default=DEFAULT_COMPRESSION_HIGH_THRESHOLD)
-    compression_medium_threshold: float = field(default=DEFAULT_COMPRESSION_MEDIUM_THRESHOLD)
+    compression_medium_threshold: float = field(
+        default=DEFAULT_COMPRESSION_MEDIUM_THRESHOLD,
+    )
     minimum_keyword_count_for_type_detection: int = field(
-        default=DEFAULT_MINIMUM_KEYWORD_COUNT_FOR_TYPE_DETECTION
+        default=DEFAULT_MINIMUM_KEYWORD_COUNT_FOR_TYPE_DETECTION,
     )
     max_topics_to_show_in_summary: int = field(
-        default=DEFAULT_MAX_TOPICS_TO_SHOW_IN_SUMMARY
+        default=DEFAULT_MAX_TOPICS_TO_SHOW_IN_SUMMARY,
     )
 
     @classmethod
     def from_params(
-        cls: type[C],
+        cls: type[Self],
         params: IntelligentContextParams,
         config: IntelligentContextConfig | None = None,
-    ) -> C:
+    ) -> Self:
         """Create configuration from params with proper default handling.
 
         Args:
@@ -103,58 +110,6 @@ class IntelligentContextConfig:
         if config is not None:
             return config
 
-        return cls._create_from_params(params)
-
-    @classmethod
-    def _create_from_params(cls: type[C], params: IntelligentContextParams) -> C:
-        """Create configuration from params with proper default handling.
-
-        Extracted to reduce feature envy and improve readability.
-
-        Args:
-            params: IntelligentContextParams object.
-
-        Returns:
-            IntelligentContextConfig object.
-        """
-        # Use the class's helper method directly to reduce nesting and improve clarity
-        get_val = cls._get_value_or_default
-
-        return cls(
-            max_tokens=get_val(params.max_tokens, cls.DEFAULT_MAX_TOKENS),
-            max_protected_ratio=get_val(
-                params.max_protected_ratio, cls.DEFAULT_MAX_PROTECTED_RATIO
-            ),
-            importance_threshold=get_val(
-                params.importance_threshold,
-                cls.DEFAULT_IMPORTANCE_THRESHOLD,
-            ),
-            cluster_similarity_threshold=get_val(
-                params.cluster_similarity_threshold,
-                cls.DEFAULT_CLUSTER_SIMILARITY_THRESHOLD,
-            ),
-            adaptive_compression=get_val(params.adaptive_compression, True),
-            # Use defaults for other attributes since they're not in params
-        )
-
-    @staticmethod
-    def _get_value_or_default(value: V | None, default: V) -> V:
-        """Get value or default if value is None.
-
-        Args:
-            value: The value to check.
-            default: Default value to use if value is None.
-
-        Returns:
-            value if not None, otherwise default.
-        """
-        return value if value is not None else default
-
-
-# Type variables for Self type annotations
-from typing import TypeVar  # noqa: E402
-
-C = TypeVar("C", bound="IntelligentContextConfig")
-V = TypeVar("V")  # Generic type variable for values
-
-# IntelligentContextParams is defined above
+        # Filter out None values to use defaults in the config constructor
+        params_dict = {k: v for k, v in asdict(params).items() if v is not None}
+        return cls(**params_dict)
