@@ -76,7 +76,9 @@ class LineRange:
     end: int
 
     def __post_init__(self) -> None:
-        """Validate that start <= end."""
+        """Validate that start <= end and line numbers are positive (1-indexed)."""
+        if self.start < 1 or self.end < 1:
+            raise ValueError(f"Line numbers must be positive (1-indexed): start={self.start}, end={self.end}")
         if self.start > self.end:
             raise ValueError(f"Invalid LineRange: start ({self.start}) > end ({self.end})")
 

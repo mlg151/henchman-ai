@@ -644,3 +644,29 @@ class TestHelperFunctions:
         # Test that from_str also validates
         result = LineRange.from_str("50-10")
         assert result is None  # Should return None for invalid range
+
+    def test_line_range_positive_line_numbers(self):
+        """Test that LineRange validates line numbers are positive (1-indexed)."""
+        # LineRange should raise ValueError for non-positive line numbers
+        with pytest.raises(ValueError, match="Line numbers must be positive"):
+            LineRange(0, 10)  # start=0 is invalid (1-indexed)
+        
+        with pytest.raises(ValueError, match="Line numbers must be positive"):
+            LineRange(-5, 10)  # start=-5 is invalid
+        
+        with pytest.raises(ValueError, match="Line numbers must be positive"):
+            LineRange(1, 0)  # end=0 is invalid (also start > end)
+        
+        with pytest.raises(ValueError, match="Line numbers must be positive"):
+            LineRange(1, -5)  # end=-5 is invalid
+        
+        # Test that from_str also validates
+        result = LineRange.from_str("0-10")
+        assert result is None, "Should return None for line 0"
+        
+        result = LineRange.from_str("-5-10")
+        assert result is None, "Should return None for negative line numbers"
+        
+        # Valid ranges should work
+        assert LineRange(1, 10) is not None
+        assert LineRange.from_str("1-10") is not None
