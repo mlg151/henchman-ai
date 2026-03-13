@@ -334,7 +334,16 @@ class WorkingMemorySystem:
     current_task_id: str | None = None
 
     def create_memory(self: WorkingMemorySystem, task: str, objectives: list[str] | None = None) -> str:
-        """Create a new working memory."""
+        """Create a new working memory.
+        
+        Args:
+            task: A string describing the current task.
+            objectives: Optional list of specific objectives for the task.
+                Defaults to an empty list.
+        
+        Returns:
+            str: The unique task ID (UUID) assigned to the new memory.
+        """
         t_id = str(uuid.uuid4())
         self.memories[t_id] = WorkingMemory(current_task=task, task_objectives=objectives or [])
         self.current_task_id = t_id
