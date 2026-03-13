@@ -45,7 +45,17 @@ _PATTERN_REGISTRY: dict[str, list[str]] = {
 
 
 def extract_code_blocks(content: str | None) -> list[str]:
-    """Extract code blocks from content."""
+    """Extract code blocks from content.
+    
+    Args:
+        content: The text content to extract code blocks from. Can be None.
+        
+    Returns:
+        A list of code blocks found in the content. Each block is a string
+        containing the complete code block including triple backticks and
+        optional language specifier. Returns an empty list if content is None
+        or no code blocks are found.
+    """
     if not content:
         return []
 
