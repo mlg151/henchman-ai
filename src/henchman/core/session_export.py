@@ -72,13 +72,15 @@ def _render_summaries(summaries: list[TurnSummaryRecord]) -> list[str]:
         return []
     lines = ["## Turn Summaries", ""]
     for ts in summaries:
-        lines.extend([
-            f"### Turn {ts.turn_number}",
-            f"*{ts.timestamp}*  ",
-            "",
-            ts.summary_text,
-            "",
-        ])
+        lines.extend(
+            [
+                f"### Turn {ts.turn_number}",
+                f"*{ts.timestamp}*  ",
+                "",
+                ts.summary_text,
+                "",
+            ]
+        )
     return lines
 
 
@@ -124,6 +126,9 @@ def import_json_session(
         tag: Optional new tag.
         new_id: New unique ID for the imported session.
         now: ISO timestamp.
+
+    Returns:
+        None
     """
     session.id = new_id
     session.last_updated = now

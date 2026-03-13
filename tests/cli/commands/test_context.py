@@ -164,7 +164,6 @@ async def test_context_command_stats(ctx):
     fake_class = type("IntelligentContextManager", (), {})
     mock_compactor.__class__ = fake_class
     with patch("henchman.utils.intelligent_context.IntelligentContextManager", fake_class):
-
         await cmd.execute(ctx)
 
         # Should show statistics

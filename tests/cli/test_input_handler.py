@@ -47,7 +47,7 @@ class TestInputHandler:
         with patch("henchman.cli.input_handler.create_session") as mock_create:
             mock_session = MagicMock(spec=PromptSession)
             mock_create.return_value = mock_session
-            
+
             # Mock WordCompleter to capture its creation
             with patch("henchman.cli.input_handler.WordCompleter") as mock_word_completer:
                 mock_completer = MagicMock()

@@ -1,6 +1,7 @@
 """Environment inspector tool implementation."""
 
 from __future__ import annotations
+
 import os
 import sys
 from pathlib import Path
@@ -20,6 +21,9 @@ SECRET_PATTERNS: frozenset[str] = frozenset(
         "PRIVATE",
     },
 )
+
+
+_MAX_ENV_VALUE_LENGTH = 200
 
 
 class EnvInspectTool(Tool):
@@ -79,6 +83,7 @@ class EnvInspectTool(Tool):
         self: EnvInspectTool,
         cwd: str | None = None,
         packages: list[str] | None = None,
+        *,
         show_env_vars: bool = False,
         show_path: bool = False,
         **kwargs: object,  # noqa: ARG002
@@ -159,7 +164,7 @@ class EnvInspectTool(Tool):
             Version string or 'not installed'.
         """
         try:
-            from importlib.metadata import version
+            from importlib.metadata import version  # noqa: PLC0415
 
             return version(name)
         except Exception:  # noqa: BLE001
@@ -208,8 +213,8 @@ class EnvInspectTool(Tool):
             if any(pattern in upper for pattern in SECRET_PATTERNS):
                 continue
             # Also skip very long values
-            if len(value) > 200:
-                safe[key] = value[:200] + "..."
+            if len(value) > _MAX_ENV_VALUE_LENGTH:
+                safe[key] = value[:_MAX_ENV_VALUE_LENGTH] + "..."
             else:
                 safe[key] = value
         return safe

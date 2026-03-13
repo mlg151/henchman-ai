@@ -37,7 +37,6 @@ _MAX_PAGE_SIZE: int = 100
 """Maximum number of results per page in plugin search."""
 
 
-
 class PluginPermission(str, Enum):
     """Permissions that plugins can request."""
 

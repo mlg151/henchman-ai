@@ -3,15 +3,15 @@
 
 import subprocess
 import time
+
 import requests
-import sys
 
 
 def test_server_start():
     """Test that the server can start and respond to basic requests."""
-    
+
     print("Testing Henchman-AI API server startup...")
-    
+
     # Start server in background
     print("Starting server on port 8001...")
     server_process = subprocess.Popen(
@@ -20,11 +20,11 @@ def test_server_start():
         stderr=subprocess.PIPE,
         text=True
     )
-    
+
     # Give server time to start
     print("Waiting for server to start...")
     time.sleep(3)
-    
+
     try:
         # Test health endpoint
         print("\nTesting health endpoint...")
@@ -35,7 +35,7 @@ def test_server_start():
             print("✓ Health endpoint works")
         else:
             print(f"✗ Health endpoint failed: {response.text}")
-        
+
         # Test root endpoint
         print("\nTesting root endpoint...")
         response = requests.get("http://127.0.0.1:8001/", timeout=5)
@@ -45,7 +45,7 @@ def test_server_start():
             print("✓ Root endpoint works")
         else:
             print(f"✗ Root endpoint failed: {response.text}")
-        
+
         # Test OpenAPI docs
         print("\nTesting OpenAPI documentation...")
         response = requests.get("http://127.0.0.1:8001/docs", timeout=5)
@@ -54,7 +54,7 @@ def test_server_start():
             print("✓ OpenAPI docs available")
         else:
             print(f"✗ OpenAPI docs failed: {response.status_code}")
-        
+
     except requests.exceptions.ConnectionError:
         print("✗ Could not connect to server. It may have failed to start.")
         # Try to get server output

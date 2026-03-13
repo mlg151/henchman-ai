@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 from scripts.smell_detector.models import (
     FileMetrics,
@@ -17,7 +16,6 @@ from scripts.smell_detector.models import (
     SmellSeverity,
     SmellType,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -79,9 +77,7 @@ def run_ruff(target_dir: str) -> list[SmellInstance]:
 
         # Classify severity by rule category.
         severity = SmellSeverity.LOW
-        if code.startswith(("C9", "PLR")):  # complexity, refactor
-            severity = SmellSeverity.MEDIUM
-        elif code.startswith(("B", "SIM")):  # bugbear, simplicity
+        if code.startswith(("C9", "PLR")) or code.startswith(("B", "SIM")):  # complexity, refactor
             severity = SmellSeverity.MEDIUM
 
         smells.append(

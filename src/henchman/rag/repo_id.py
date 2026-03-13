@@ -172,22 +172,22 @@ def migrate_old_index(git_root: Path, new_index_dir: Path) -> bool:
     if old_index_dir.exists():
         try:
             # ChromaDB is just a directory with files
-            import shutil
+            import shutil  # noqa: PLC0415
 
             shutil.copytree(old_index_dir, new_index_dir / "chroma", dirs_exist_ok=True)
             migrated = True
-        except Exception:
+        except Exception:  # noqa: BLE001
             # If migration fails, we'll just reindex
             pass
 
     # Migrate manifest if it exists
     if old_manifest.exists():
         try:
-            import shutil
+            import shutil  # noqa: PLC0415
 
             shutil.copy2(old_manifest, new_index_dir / "manifest.json")
             migrated = True
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
     return migrated

@@ -1,6 +1,6 @@
 # Henchman-AI Copilot Instructions
 
-Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. It supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, Ollama) via a unified provider abstraction.
+Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-cli. It supports multiple LLM providers (DeepSeek, OpenAI/OpenAI-compatible APIs, Anthropic, Ollama, OpenRouter) via a unified provider abstraction.
 
 ## Project Status
 - **Phase 1**: Project Foundation ✅
@@ -19,17 +19,21 @@ Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by gemini-c
 ## Architecture Overview
 ```
 src/henchman/
-├── agents/     # Multi-agent system: Orchestrator, AgentPool, Identity, Prompts, Presets
+├── agents/     # Multi-agent system: Orchestrator, AgentPool, Identity, Prompts, Presets, Delegation, Ledger, Metrics
+├── api/        # REST API server for programmatic access
 ├── cli/        # UI layer: Rich console, prompt_toolkit input, slash commands (/agent, /team)
-├── core/       # Agent layer: Agent, EventBus, events, session
-├── providers/  # Model providers: OpenAICompatible base, DeepSeek, Anthropic, Ollama
-├── tools/      # Built-in tools: read_file, write_file, delegate_task, send_message
-├── mcp/        # MCP integration: McpClient, McpManager, McpTool wrapper
-├── extensions/ # Plugin system: Extension ABC, ExtensionManager, /extensions command
 ├── config/     # Pydantic settings, hierarchical YAML loading, AgentConfig
+├── core/       # Agent layer: Agent, EventBus, events, session
+├── extensions/ # Plugin system: Extension ABC, ExtensionManager, /extensions command
+├── knowledge/  # Knowledge graph for project understanding and context
+├── mcp/        # MCP integration: McpClient, McpManager, McpTool wrapper
+├── metrics/    # Performance metrics collection, storage, and reporting
+├── providers/  # Model providers: OpenAICompatible base, DeepSeek, Anthropic, Ollama, OpenRouter
+├── rag/        # Retrieval-Augmented Generation for semantic code search
+├── tools/      # Built-in tools: read_file, write_file, delegate_task, ask_user
 └── utils/      # Utility functions and helpers
 ```
-**Key insight**: DeepSeek uses OpenAI-compatible API, so `OpenAICompatibleProvider` handles DeepSeek, OpenAI, Together, Groq, and similar APIs.
+**Key insight**: The `OpenAICompatibleProvider` handles any OpenAI-compatible API including DeepSeek, OpenAI, OpenRouter, Together, Groq, Fireworks AI, and similar services. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs.
 ## Development Setup
 ```bash
 pip install -e ".[dev]"       # Install in editable mode with dev deps
@@ -71,9 +75,14 @@ async for chunk in provider.chat_completion_stream(
 ### Available Providers
 | Provider | API Key Env Var | Default Model | Notes |
 |----------|----------------|---------------|-------|
-| `deepseek` | `DEEPSEEK_API_KEY` | deepseek-chat | OpenAI-compatible |
-| `anthropic` | `ANTHROPIC_API_KEY` | claude-sonnet-4-20250514 | Native SDK |
-| `ollama` | None required | llama3.2 | Local models |
+| DeepSeek (`deepseek`) | `DEEPSEEK_API_KEY` | deepseek-chat | OpenAI-compatible, default provider |
+| Anthropic (`anthropic`) | `ANTHROPIC_API_KEY` | claude-sonnet-4-20250514 | Native SDK |
+| Ollama (`ollama`) | None required | llama3.2 | Local models, OpenAI-compatible API |
+| OpenRouter (`openrouter`) | `OPENROUTER_API_KEY` | openai/gpt-4o | OpenAI-compatible, access to hundreds of models |
+| OpenAI-Compatible (`openai_compat`) | Varies by service | gpt-4o | Generic provider for ANY OpenAI-compatible API (OpenAI, Together, Groq, Fireworks, etc.) |
+| Together AI (`together`) | `TOGETHER_API_KEY` | meta-llama/Llama-3.3-70B-Instruct-Turbo | OpenAI-compatible (alias for openai_compat with Together base URL) |
+| Groq (`groq`) | `GROQ_API_KEY` | llama-3.3-70b-specdec | OpenAI-compatible (alias for openai_compat with Groq base URL) |
+| Fireworks AI (`fireworks`) | `FIREWORKS_API_KEY` | accounts/fireworks/models/llama-v3p1-70b-instruct | OpenAI-compatible (alias for openai_compat with Fireworks base URL) |
 ### Core Types
 ```python
 from henchman.providers import (
@@ -931,15 +940,42 @@ henchman-ai/
 │   └── tools/                  # Tool system
 │       ├── base.py             # Tool ABC, ToolKind, ToolResult
 │       ├── registry.py         # ToolRegistry
-│       └── builtins/           # Built-in tools
-│           ├── file_read.py    # ReadFileTool
-│           ├── file_write.py   # WriteFileTool
-│           ├── file_edit.py    # EditFileTool
-│           ├── ls.py           # LsTool
-│           ├── glob_tool.py    # GlobTool
-│           ├── grep.py         # GrepTool
-│           ├── shell.py        # ShellTool
-│           └── web_fetch.py    # WebFetchTool
+│       ├── security.py         # Security validation
+│       └── builtins/           # 34 built-in tools
+│           ├── ask_user.py     # AskUserTool - ask user questions
+│           ├── code_format.py  # CodeFormatTool - ruff formatting
+│           ├── coverage_map.py # CoverageMapTool - parse coverage reports
+│           ├── dead_code.py    # DeadCodeTool - detect unused code
+│           ├── deep_research.py # DeepResearchTool - end-to-end web research
+│           ├── delegate.py     # DelegateTaskTool - delegate to specialists
+│           ├── diff_view.py    # DiffViewTool - show git diffs
+│           ├── env_inspect.py  # EnvInspectTool - inspect Python environment
+│           ├── file_edit.py    # EditFileTool - surgical file edits
+│           ├── file_overview.py # FileOverviewTool - structural file summary
+│           ├── file_read.py    # ReadFileTool - read file contents
+│           ├── file_write.py   # WriteFileTool - write to files
+│           ├── git_ops.py      # GitOpsTool - git operations
+│           ├── glob_tool.py    # GlobTool - find files by pattern
+│           ├── grep.py         # GrepTool - search file contents
+│           ├── import_graph.py # ImportGraphTool - analyze dependencies
+│           ├── kg_query.py     # KgQueryTool - query knowledge graph
+│           ├── kg_update.py    # KgUpdateTool - update knowledge graph
+│           ├── lint_check.py   # LintCheckTool - ruff/mypy linting
+│           ├── ls.py           # LsTool - list directory contents
+│           ├── patch_apply.py  # PatchApplyTool - apply unified diffs
+│           ├── pattern_search.py # PatternSearchTool - natural language code search
+│           ├── pip_inspect.py  # PipInspectTool - query packages
+│           ├── pytest_run.py   # PytestRunTool - run pytest tests
+│           ├── python_ast.py   # PythonAstTool - parse Python AST
+│           ├── python_exec.py  # PythonExecTool - execute Python code
+│           ├── rag_search.py   # RagSearchTool - semantic code search
+│           ├── research_notes.py # ResearchNotesTool - persistent note-taking
+│           ├── shell.py        # ShellTool - execute shell commands
+│           ├── symbol_trace.py # SymbolTraceTool - trace symbol provenance
+│           ├── test_gen.py     # TestGenTool - generate test stubs
+│           ├── traceback_parse.py # TracebackParseTool - parse tracebacks
+│           ├── web_fetch.py    # WebFetchTool - fetch web content
+│           └── web_search.py   # WebSearchTool - search the web
 ├── tests/                      # Test suite (mirrors src structure)
 ├── scripts/ci.sh               # CI pipeline script
 ├── pyproject.toml              # Project configuration

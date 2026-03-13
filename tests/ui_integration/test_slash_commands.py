@@ -42,12 +42,12 @@ class TestSlashCommandIntegration:
 
         # Mock command_registry.get to return our mock command
         repl.command_processor.command_registry.get = Mock(return_value=mock_command)
-        repl.command_processor.command_registry.list_commands = Mock(
+        repl.command_processor.command_registry.list_names = Mock(
             return_value=[
-                ("help", "Show help"),
-                ("quit", "Exit CLI"),
-                ("clear", "Clear screen"),
-                ("tools", "List available tools"),
+                "help",
+                "quit",
+                "clear",
+                "tools",
                 ("chat", "Start new chat"),
                 ("extensions", "List extensions"),
                 ("mcp", "MCP commands"),
@@ -290,9 +290,7 @@ class TestREPLSlashCommandRouting:
         result = await repl.process_input("/help")
 
         assert result is True
-        repl.command_processor.handle_command.assert_called_once_with(
-            "/help", repl.agent, repl
-        )
+        repl.command_processor.handle_command.assert_called_once_with("/help", repl.agent, repl)
 
     @pytest.mark.asyncio
     async def test_repl_continues_after_slash_command(self, repl_with_mock_handler):

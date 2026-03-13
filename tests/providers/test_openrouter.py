@@ -61,13 +61,16 @@ class TestOpenRouterProvider:
 
     def test_base_url_custom(self) -> None:
         """Test that custom base_url can be provided."""
-        provider = OpenRouterProvider(api_key="test-key", base_url="https://custom.openrouter.ai/api/v1")
+        provider = OpenRouterProvider(
+            api_key="test-key", base_url="https://custom.openrouter.ai/api/v1"
+        )
         assert "custom.openrouter.ai" in provider.base_url
 
     def test_inherits_from_openai_compatible(self) -> None:
         """Test that OpenRouterProvider inherits from OpenAICompatibleProvider."""
         provider = OpenRouterProvider(api_key="test-key")
         from henchman.providers.openai_compat import OpenAICompatibleProvider
+
         assert isinstance(provider, OpenAICompatibleProvider)
 
     @pytest.mark.asyncio
@@ -84,7 +87,7 @@ class TestOpenRouterProvider:
         mock_chunk.choices[0].finish_reason = "stop"
         mock_response.__aiter__.return_value = [mock_chunk]
 
-        with patch.object(provider._client.chat.completions, 'create', return_value=mock_response):
+        with patch.object(provider._client.chat.completions, "create", return_value=mock_response):
             chunks = []
             async for chunk in provider.chat_completion_stream(messages):
                 chunks.append(chunk)
@@ -95,10 +98,7 @@ class TestOpenRouterProvider:
     def test_additional_kwargs_passed_to_parent(self) -> None:
         """Test that additional kwargs are passed to parent class."""
         _provider = OpenRouterProvider(
-            api_key="test-key",
-            temperature=0.7,
-            max_tokens=1000,
-            custom_param="value"
+            api_key="test-key", temperature=0.7, max_tokens=1000, custom_param="value"
         )
         # Check that provider has these attributes (they would be passed to parent)
         # The parent should handle these kwargs

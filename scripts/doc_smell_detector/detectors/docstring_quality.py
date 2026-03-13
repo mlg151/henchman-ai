@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import Any
 
 from scripts.doc_smell_detector.detectors.base import DocSmellDetector, ScanContext
 from scripts.doc_smell_detector.models import (

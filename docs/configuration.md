@@ -23,7 +23,7 @@ providers:
   deepseek:
     model: deepseek-chat
     
-  openai:
+  openai_compat:
     model: gpt-4
     api_key: ${OPENAI_API_KEY}  # Environment variable expansion
     
@@ -67,7 +67,7 @@ providers:
 
 ```yaml
 providers:
-  openai:
+  openai_compat:
     model: gpt-4  # or gpt-3.5-turbo, gpt-4-turbo
     base_url: https://api.openai.com/v1  # Optional
 ```
@@ -187,17 +187,10 @@ agents:
 
   # Agent overrides and custom agents
   agents:
-    # Example: give Architect a more powerful model
-    architect:
+    # Example: give Engineer a more powerful model and extra tools
+    engineer:
       provider: "anthropic"
       model: "claude-3-5-sonnet-20240620"
-
-    # Example: disable DevOps agent
-    devops:
-      enabled: false
-
-    # Example: add extra tools to Coder
-    coder:
       tools:
         - read_file
         - write_file
@@ -206,7 +199,11 @@ agents:
         - glob
         - grep
         - shell
-        - web_fetch  # Allow Coder to search docs directly
+        - web_fetch  # Allow Engineer to search docs directly
+
+    # Example: disable Data Engineer agent
+    data_engineer:
+      enabled: false
 
     # Example: fully custom agent
     security_auditor:
@@ -219,5 +216,5 @@ agents:
         - grep
         - glob
         - web_fetch
-      can_delegate_to: ["researcher"]
+      can_delegate_to: ["explorer"]
 ```

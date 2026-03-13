@@ -1,3 +1,30 @@
+"""EventBus module for Henchman-AI.
+
+This module provides a thread-safe, event-driven publish/subscribe system for agent communication.
+The EventBus enables decoupled communication between different components of the multi-agent system,
+allowing agents, tools, and UI components to communicate via events without direct dependencies.
+
+Key Features:
+- Thread-safe operations with anyio locks
+- Event history tracking with configurable limits
+- Type-safe event subscriptions with EventType filtering
+- Support for both async and sync event handlers
+- Unique subscription IDs for precise handler management
+
+Usage Example:
+    ```python
+    from henchman.core.eventbus import EventBus
+    from henchman.core.events import AgentEvent, EventType
+
+    async def handle_content(event: AgentEvent) -> None:
+        print(f"Content: {event.data}")
+
+    bus = EventBus()
+    sub_id = await bus.subscribe(EventType.CONTENT, handle_content)
+    await bus.publish(AgentEvent(EventType.CONTENT, "Hello, world!"))
+    ```
+"""
+
 import uuid
 from collections import deque
 from collections.abc import Callable
@@ -55,6 +82,9 @@ class EventBus:
 
         Args:
             subscription_id: The ID returned from subscribe().
+
+        Returns:
+            None
         """
         async with self._lock:
             self._handlers.pop(subscription_id, None)
@@ -64,6 +94,9 @@ class EventBus:
 
         Args:
             event: The event to publish.
+
+        Returns:
+            None
         """
         async with self._lock:
             self._history.append(event)
@@ -76,13 +109,13 @@ class EventBus:
         # Dispatch handlers outside the lock to avoid deadlocks and blocking
         for handler in handlers_to_call:
             try:
-                import inspect
+                import inspect  # noqa: PLC0415
 
                 if inspect.iscoroutinefunction(handler):
                     await handler(event)
                 else:
                     handler(event)
-            except Exception:  # noqa: PERF203
+            except Exception:  # noqa: BLE001, PERF203
                 # Error isolation: log but don't stop other handlers
                 pass
 
@@ -115,6 +148,10 @@ class EventBus:
             return results
 
     async def clear_history(self) -> None:
-        """Clear the event history."""
+        """Clear the event history.
+
+        Returns:
+            None
+        """
         async with self._lock:
             self._history.clear()

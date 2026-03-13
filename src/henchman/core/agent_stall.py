@@ -61,6 +61,7 @@ class StallDetector:
     def should_skip(
         self: StallDetector,
         response_text: str,
+        *,
         had_tool_calls: bool,
     ) -> bool:
         """Determine if stall check should be skipped.
@@ -103,6 +104,7 @@ class StallDetector:
     async def check(
         self: StallDetector,
         response_text: str,
+        *,
         had_tool_calls: bool,
     ) -> str | None:
         """Check for stalling and return nudge message if detected.
@@ -114,7 +116,7 @@ class StallDetector:
         Returns:
             Nudge message string if stalling detected, None otherwise.
         """
-        if self.should_skip(response_text, had_tool_calls):
+        if self.should_skip(response_text, had_tool_calls=had_tool_calls):
             return None
         if not self.detect_patterns(response_text):
             return None

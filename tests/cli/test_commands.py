@@ -115,7 +115,7 @@ class TestCommandRegistry:
 
         cmd = TestCommand()
         registry.register(cmd)
-        assert "test" in registry.list_commands()
+        assert "test" in registry.list_names()
 
     def test_get_command(self) -> None:
         """Test getting a registered command."""
@@ -147,8 +147,8 @@ class TestCommandRegistry:
         registry = CommandRegistry()
         assert registry.get("unknown") is None
 
-    def test_list_commands(self) -> None:
-        """Test listing registered commands."""
+    def test_list_names(self) -> None:
+        """Test listing registered command names."""
         registry = CommandRegistry()
 
         class Cmd1(Command):
@@ -185,9 +185,9 @@ class TestCommandRegistry:
 
         registry.register(Cmd1())
         registry.register(Cmd2())
-        commands = registry.list_commands()
-        assert "cmd1" in commands
-        assert "cmd2" in commands
+        names = registry.list_names()
+        assert "cmd1" in names
+        assert "cmd2" in names
 
     @pytest.mark.anyio
     async def test_execute_command(self) -> None:
@@ -223,3 +223,30 @@ class TestCommandRegistry:
         ctx = CommandContext(console=MagicMock(), args=[])
         with pytest.raises(KeyError):
             await registry.execute("unknown", ctx)
+
+    def test_register_duplicate_command_raises(self) -> None:
+        """Test registering duplicate command raises ValueError."""
+        registry = CommandRegistry()
+
+        class TestCommand(Command):
+            @property
+            def name(self) -> str:
+                return "test"
+
+            @property
+            def description(self) -> str:
+                return "Test command"
+
+            @property
+            def usage(self) -> str:
+                return "/test"
+
+            async def execute(self, ctx: CommandContext) -> None:
+                pass
+
+        cmd1 = TestCommand()
+        cmd2 = TestCommand()  # Same name
+        
+        registry.register(cmd1)
+        with pytest.raises(ValueError, match="Command 'test' is already registered"):
+            registry.register(cmd2)

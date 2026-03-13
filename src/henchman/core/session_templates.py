@@ -164,6 +164,9 @@ def delete_template(templates_dir: Path, template_id: str) -> None:
 
     Raises:
         FileNotFoundError: If template doesn't exist.
+
+    Returns:
+        None
     """
     path = templates_dir / f"{template_id}.json"
     if not path.exists():

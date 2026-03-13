@@ -5,10 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+**Note on historical measurements**: Line counts marked with "(historical snapshot)" represent file sizes and refactoring achievements **at the time of the change**. These are intentionally preserved historical records, not current file sizes. They document the scale of refactoring work and are valuable for understanding project evolution, even though the specific numbers may become "stale" relative to the current codebase.
+
 ## [Unreleased]
 
+## [0.3.14] - 2026-03-10
+
+### Fixed
+- **BUG-1 🔴 CRITICAL — Deadlock in `run_parallel_delegations`** (`delegation.py`)
+  - `max_buffer_size=256` on the anyio `MemoryObjectSendStream` caused a classic producer/consumer deadlock: producer tasks would block on `send()` once the buffer was full, the task group could never exit, and the consumer loop never started. Fixed by setting `max_buffer_size=float("inf")` so producers never block.
+- **BUG-2 🔴 HIGH — Race condition in `record_delegation_errors`** (`agent.py`)
+  - TOCTOU race: two concurrent threads could both observe `not hasattr(self, "_delegation_tool_errors_lock")` → `True`, each create a new `threading.Lock()`, and the second assignment would silently overwrite the first, losing all errors recorded by the first thread. Fixed by eagerly initializing `_delegation_tool_errors` and `_delegation_tool_errors_lock` in `Agent.__init__()`.
+- **BUG-3 🟡 MEDIUM — Double `FINISHED` event emitted per `Agent.run()` call** (`agent.py`, `agent_streaming.py`)
+  - `generate_stream_events()` always emits `EventType.FINISHED` in its `finally` block, which flowed through `_stream_with_stall_loop` to callers. `run()` also emits its own richer FINISHED event. Every consumer received two FINISHED events, causing double-finalization and discarding the outer event's usage payload. Fixed by filtering `EventType.FINISHED` in `_stream_with_stall_loop` so only the canonical outer FINISHED propagates.
+- **BUG-4 🟡 MEDIUM — Silent exception swallowing in `_fetch_agent_errors`** (`delegation.py`)
+  - Bare `except Exception: pass` silently discarded all protocol-level failures from specialist agents. Fixed by logging at `WARNING` level with `exc_info=True` before returning `[]`, preserving graceful degradation while making failures visible in logs.
+- **BUG-5 🟡 MEDIUM — Read-only tool duplicate counter never increments** (`turn.py`)
+  - `_track_duplicates` only incremented `_consecutive_duplicates` for read-only tools when the counter was already ≥ threshold — a self-defeating condition that kept the counter at 0 permanently. Spinning agents that looped on `read_file`, `ls`, `glob`, or `grep` were never detected. Fixed by always incrementing the counter and using a new `_last_call_is_read_only` field in `is_spinning()` to apply the correct threshold per tool type.
+- **BUG-6 🟢 LOW — `execute_batch` result key collision** (`registry.py`)
+  - Batch result keys used `f"{tool_name}_{i}"`, which collided when a tool was literally named `my_tool_0` and called at any index. Fixed by using `f"{i}:{tool_name}"` (colon is not a valid Python identifier character, eliminating all ambiguity).
+
+### Added
+- **5 new research and exploration tools** in `src/henchman/tools/builtins/`:
+  - **`file_overview`** (`FileOverviewTool`) — Hierarchical structural summary of any file without reading full content. For Python: imports, class tree, function signatures, docstrings (first line). Adapts detail level to file size (small files: full read; medium files: structure+docs; large files: structure only). Handles Markdown headings, JSON keys, YAML keys for non-Python files. `ToolKind.READ`.
+  - **`deep_research`** (`DeepResearchTool`) — End-to-end web research in a single call. Decomposes a question into sub-queries, searches DuckDuckGo for each, fetches top results, and synthesizes findings into a Markdown report with citations. Replaces 6–15 sequential `web_search` + `web_fetch` calls. `ToolKind.NETWORK`.
+  - **`symbol_trace`** (`SymbolTraceTool`) — Full symbol provenance across a codebase. Given a symbol name, finds all definition sites (via AST), import sites, call/reference sites, and type annotations in one call. Replaces manual combination of `python_ast` + `grep` + `import_graph`. `ToolKind.READ`.
+  - **`research_notes`** (`ResearchNotesTool`) — Persistent in-session note-taking scratchpad stored in `~/.henchman/notes/`. Actions: `write`, `append`, `read`, `list`, `search`. Write/append require confirmation; read/list/search are auto-approved. Fills the gap between ephemeral tool results and long-term research findings. `ToolKind.WRITE`.
+  - **`pattern_search`** (`PatternSearchTool`) — Natural language code search. Extracts structural patterns (inheritance, decorators, async, exceptions, etc.) and keywords from a description, then combines both into ranked results. Goes beyond exact regex (`grep`) without requiring a pre-built vector store. `ToolKind.READ`.
+- 162 tests added across 5 new test files in `tests/tools/`.
+
+## [0.3.13] - 2026-02-25
+
 ### Changed
-- **`cli/commands/session.py` refactored to A quality** — 919-line F-grade file (30.0/100, 77 smells) refactored to A (100.0/100, 0 smells).
+- **`cli/commands/session.py` refactored to A quality** — F-grade file that was historically a large file (historical snapshot) (30.0/100, 77 smells) refactored to A (100.0/100, 0 smells).
   - Converted `SessionDisplayFormatter` class (10 `@staticmethod` methods) to module-level functions — eliminates feature envy detection entirely.
   - Removed `SessionCommandHelper` class; its private methods became module-level `_get_manager()` and `_execute_with_executor()` — fixes SLF001 violations.
   - Added `self: ClassName` explicit annotations to all 37 affected instance methods (fixes type-hint detector bug).
@@ -16,37 +45,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Extracted `_ARG_IDX_3 = 3` and `_ARG_IDX_4 = 4` module-level constants (fixes 7 magic number smells).
   - Fixed lint: PIE790 (`pass` → `...`), 12× COM812 (trailing commas), A001/FURB110 (`format` → `fmt`, ternary → `or`), ASYNC240 (`# noqa`), RET505, RUF012 (`ClassVar`), E501 (wrapped long line).
   - All 6 session tests pass unchanged.
-- **`tool_executor.py` refactored to A quality** — Split monolithic 873-line F-grade file (30.0/100, 111 smells) into 2 focused modules, both grade A (100.0/100, 0 smells).
+- **`tool_executor.py` refactored to A quality** — Split monolithic F-grade file (30.0/100, 111 smells) that was historically a very large file (historical snapshot) into 2 focused modules, both grade A (100.0/100, 0 smells).
   - New module: `stream_event_handlers.py` (StreamState dataclass + module-level event handler functions, A 100.0).
-  - `tool_executor.py` reduced from 873→243 lines, F (30.0) → A (100.0). Method count from 30 to 9.
-  - Fixed: Large Class (838 lines, 30 methods), Feature Envy (×4 HIGH/MEDIUM), Deep Nesting (depth 6–7), Primitive Obsession, Duplicate Code (×2), Long Methods, PLR0913, COM812, FBT001, E501, ARG002, N806, PIE790, PLC0415, SLF001, TC001/TC003/TC004, TRY300, UP035, Missing Type Hints (×27).
+  - `tool_executor.py` reduced from historically a very large file (historical snapshot) to a significantly more compact size (historical snapshot), F (30.0) → A (100.0). Method count from 30 to 9.
+  - Fixed: Large Class (historically very large with 30 methods) (historical snapshot), Feature Envy (×4 HIGH/MEDIUM), Deep Nesting (depth 6–7), Primitive Obsession, Duplicate Code (×2), Long Methods, PLR0913, COM812, FBT001, E501, ARG002, N806, PIE790, PLC0415, SLF001, TC001/TC003/TC004, TRY300, UP035, Missing Type Hints (×27).
   - Key techniques: `StreamState` parameter object for primitive obsession/PLR0913, module-level functions for feature envy, `match/case` dispatch for deep nesting, merged duplicate event handlers.
   - All 126 tests pass unchanged.
-- **`agent.py` refactored to A quality** — Split monolithic 705-line F-grade file (30.0/100) into 4 focused modules, all grade A.
+- **`agent.py` refactored to A quality** — Split monolithic large F-grade file (30.0/100) into 4 focused modules, all grade A.
   - New modules: `agent_config.py` (AgentConfig dataclass, A 95.8), `agent_stall.py` (StallDetector, A 97.2), `agent_streaming.py` (StreamState/StreamContext/generate_stream_events, A 91.6).
-  - `agent.py` reduced from 705→300 lines, F (30.0) → A (93.0). Method count from 30+ to 16.
+  - `agent.py` reduced from a large file to a much more compact size (historical snapshot), F (30.0) → A (93.0). Method count from 30+ to 16.
   - Fixed: Large Class, 64 Duplicate Code smells (property getter/setter pairs), Feature Envy, Primitive Obsession, Long Methods, Missing Type Hints, PLR0913, BLE001.
   - Key techniques: `__getattr__`/`__setattr__` delegation for backward-compat property access (eliminates duplicate code), module-level functions for feature envy, `AgentConfig` parameter object for primitive obsession, `StreamContext` for PLR0913.
   - All 2586 tests pass unchanged.
 - **`turn.py` refactored to A quality** — Extracted 15+ magic numbers to named module-level constants (F 30.0 → A 97.2).
   - Constants: `HASH_PREFIX_LENGTH`, `READ_ONLY_DUPLICATE_THRESHOLD`, `MAX_RECENT_HASHES`, `READ_ONLY_TOOLS`, `WRITE_TOOLS`, etc.
   - Added `self: TurnState` type annotations to all methods.
-- **`session.py` refactored to A quality** — Split monolithic 926-line F-grade file (11.0/100, 120 smells) into 10 focused modules, all grade A (90.7/100, 0 smells).
+- **`session.py` refactored to A quality** — Split monolithic very large F-grade file (11.0/100, 120 smells) into 10 focused modules, all grade A (90.7/100, 0 smells).
   - New modules: `session_models`, `session_data`, `session_helpers`, `session_manager_base`, `session_manager`, `session_merge`, `session_export`, `session_templates`, `session_branch`.
-  - `session.py` is now a thin facade (~27 LOC, MI=100) with full backward-compatible re-exports.
-  - Fixed: Large Class (621 lines), Long Method (97 lines), Feature Envy (×6 HIGH), Deep Nesting, Complex Functions (CC=16), Missing Type Hints (×34), Duplicate Code, Primitive Obsession.
+  - `session.py` is now a thin facade (nearly 27 LOC, MI=100) with full backward-compatible re-exports.
+  - Fixed: Large Class (historically very large) (historical snapshot), Long Method (historically long) (historical snapshot), Feature Envy (×6 HIGH), Deep Nesting, Complex Functions (CC=16), Missing Type Hints (×34), Duplicate Code, Primitive Obsession.
   - Key techniques: `_AsDictMixin` for duplicate code, parameter objects (`_BranchMeta`, `_TemplateInfo`, `_TemplateIO`), `TypeAlias` for primitive obsession, module-level functions for feature envy, inheritance split for Large Class.
   - All 125 session tests pass unchanged.
-- **`orchestrator.py` refactored to A quality** — Split monolithic 1662-line F-grade file (3.6/100, 137 smells) into 16 focused modules, all grade A (92.7/100, 0 smells).
+- **`orchestrator.py` refactored to A quality** — Split monolithic extremely large F-grade file (3.6/100, 137 smells) into 16 focused modules, all grade A (92.7/100, 0 smells).
   - New modules: `orchestrator_types`, `orchestrator_prompts`, `orchestrator_timeout`, `orchestrator_turns`, `orchestrator_metrics_ctrl`, `orchestrator_validation`, `orchestrator_tools`, `orchestrator_components`, `orchestrator_events`, `orchestrator_loop`, `orchestrator_anchoring`, `orchestrator_execution`, `orchestrator_delegation_ctrl`, `orchestrator_init`, `orchestrator_run`, `orchestrator_tech_lead`.
   - `orchestrator.py` is now a thin facade (~124 LOC, MI=100) with full backward-compatible re-exports.
   - Fixed: Long Methods, Large Class, Feature Envy, Primitive Obsession, FBT001/FBT002, TC001/TC003, SLF001, PERF401, RUF022, and all other detected smells.
   - All 221 agent tests pass with no changes (3 test lines updated for keyword-only `success=` arg).
 - **`textual_app.py` code smell refactoring** — Raised grade from F (30/100) to A (94.4/100).
   - Extracted 12 mixin classes into new `src/henchman/cli/textual_mixins.py` (also grade A, 98.6/100).
-  - Resolved Large Class HIGH smell (1760 → ~300 lines), Long Method HIGH, and Duplicate Code HIGH.
+  - Resolved Large Class HIGH smell (historically extremely large → much more compact) (historical snapshot), Long Method HIGH, and Duplicate Code HIGH.
   - Added type hints, fixed BLE001/PLC0415 lint violations, unified toggle actions via `_toggle_tab()`.
-  - `textual_app.py` retains full public API via `__all__` re-exports for backward compatibility.
+  - `textual_app.py` retains full public API via `__all__ re-exports for backward compatibility.
 - **`orchestrator.py`** — Added `from __future__ import annotations` to fix forward-reference `NameError` for `CompletionStatus` used before its definition.
 - **`command_processor.py`** — Restored special-case handling for `/quit` (returns `False` directly) ensuring correct REPL exit semantics.
 
@@ -113,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.7] - 2026-02-20
 
 ### Refactored
-- **Textual TUI modularization** — Split the monolithic `textual_app.py` (2302 lines) into six focused modules while preserving all public imports via re-exports:
+- **Textual TUI modularization** — Split the monolithic `textual_app.py` (which was previously very large) into six focused modules while preserving all public imports via re-exports:
   - `textual_config.py` — `TextualConfig`, `ComponentConfig`, `ComponentInitializer`
   - `textual_messages.py` — All Textual `Message` subclasses
   - `textual_widgets.py` — `ChatPane`, `StatusBar`, `ThinkingPane`, `ToolPane`, etc.
@@ -732,7 +761,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Rebranded from henchman-cli to henchman-ai
 
-[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.3.14...HEAD
+[0.3.14]: https://github.com/mlg151/henchman-ai/compare/v0.3.13...v0.3.14
+[0.3.13]: https://github.com/mlg151/henchman-ai/compare/v0.3.11...v0.3.13
+[0.3.11]: https://github.com/mlg151/henchman-ai/compare/v0.3.10...v0.3.11
+[0.3.10]: https://github.com/mlg151/henchman-ai/compare/v0.3.9...v0.3.10
+[0.3.9]: https://github.com/mlg151/henchman-ai/compare/v0.3.8...v0.3.9
+[0.3.8]: https://github.com/mlg151/henchman-ai/compare/v0.3.7...v0.3.8
+[0.3.7]: https://github.com/mlg151/henchman-ai/compare/v0.3.3...v0.3.7
 [0.3.3]: https://github.com/mlg151/henchman-ai/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/mlg151/henchman-ai/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/mlg151/henchman-ai/compare/v0.2.22...v0.3.1

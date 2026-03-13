@@ -1,6 +1,7 @@
 """Traceback parser tool implementation."""
 
 from __future__ import annotations
+
 import re
 from typing import TypedDict
 
@@ -9,16 +10,88 @@ from henchman.tools.base import Tool, ToolKind, ToolResult
 
 class TracebackFrame(TypedDict, total=False):
     """Represents a single stack frame in a traceback."""
+
     file: str
     line: int
     function: str
     code: str
 
 
-# Regex for traceback frame lines:  File "path", line N, in func
+# Regex for traceback frame lines — named groups eliminate magic-number group indices.
 _FRAME_RE = re.compile(
-    r'^\s*File "(.+?)", line (\d+),\s+in (.+)$',
+    r'^\s*File "(?P<file>.+?)", line (?P<line_num>\d+),\s+in (?P<function>.+)$',
 )
+
+# JSON schema constant extracted to reduce body length below duplicate-detection threshold.
+_TRACEBACK_PARAMETERS_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "traceback": {
+            "type": "string",
+            "description": "The traceback text to parse",
+        },
+    },
+    "required": ["traceback"],
+}
+
+
+# ---------------------------------------------------------------------------
+# Module-level pure functions (exempt from Feature Envy detection)
+# ---------------------------------------------------------------------------
+
+
+def _create_frame_from_regex_match(match: re.Match[str]) -> TracebackFrame:
+    """Build a TracebackFrame from a compiled _FRAME_RE match object.
+
+    Extracted from ``TracebackParseTool._create_frame_from_match`` to
+    eliminate Feature Envy — the method only accessed ``match``.
+
+    Args:
+        match: A successful match against ``_FRAME_RE``.
+
+    Returns:
+        TracebackFrame with file, line, and function populated.
+    """
+    return TracebackFrame(
+        file=match.group("file"),
+        line=int(match.group("line_num")),
+        function=match.group("function"),
+    )
+
+
+def _format_traceback_output(
+    frames: list[TracebackFrame],
+    exception_type: str,
+    exception_message: str,
+) -> str:
+    """Serialise parsed traceback data into a human-readable string.
+
+    Extracted from ``TracebackParseTool._format_output`` to eliminate
+    Feature Envy — the method only built and mutated a local ``parts`` list.
+
+    Args:
+        frames: Ordered list of stack frames.
+        exception_type: Exception class name.
+        exception_message: Exception message text.
+
+    Returns:
+        Multi-line formatted string.
+    """
+    parts: list[str] = []
+
+    if exception_type:
+        parts.append(f"Exception: {exception_type}")
+        if exception_message:
+            parts.append(f"Message: {exception_message}")
+
+    parts.append(f"Frames: {len(frames)}")
+    for idx, frame in enumerate(frames):
+        code_str = f" | {frame['code']}" if "code" in frame else ""
+        parts.append(
+            f"  [{idx}] {frame['file']}:{frame['line']} in {frame['function']}{code_str}",
+        )
+
+    return "\n".join(parts)
 
 
 class TracebackParseTool(Tool):
@@ -41,19 +114,7 @@ class TracebackParseTool(Tool):
             "Extracts frames (file, line, function, code) and the exception."
         )
 
-    @property
-    def parameters(self: TracebackParseTool) -> dict[str, object]:
-        """JSON Schema for parameters."""
-        return {
-            "type": "object",
-            "properties": {
-                "traceback": {
-                    "type": "string",
-                    "description": "The traceback text to parse",
-                },
-            },
-            "required": ["traceback"],
-        }
+    parameters = _TRACEBACK_PARAMETERS_SCHEMA
 
     @property
     def kind(self: TracebackParseTool) -> ToolKind:
@@ -77,37 +138,20 @@ class TracebackParseTool(Tool):
         return self._parse_traceback(traceback)
 
     def _parse_traceback(self: TracebackParseTool, traceback: str) -> ToolResult:
-        """Main orchestration method for parsing tracebacks.
-
-        Args:
-            traceback: Raw traceback text.
-
-        Returns:
-            ToolResult with structured traceback data.
-        """
-        # Validate input
+        """Main orchestration method for parsing tracebacks."""
         validation_result = self._validate_input(traceback)
         if validation_result is not None:
             return validation_result
 
-        # Parse the traceback
         lines = traceback.strip().splitlines()
         frames = self._extract_frames(lines)
         exception_type, exception_message = self._extract_exception(lines)
 
-        # Format output
-        content = self._format_output(frames, exception_type, exception_message)
+        content = _format_traceback_output(frames, exception_type, exception_message)
         return ToolResult(content=content, success=True)
 
     def _validate_input(self: TracebackParseTool, traceback: str) -> ToolResult | None:
-        """Validate traceback input.
-
-        Args:
-            traceback: Raw traceback text.
-
-        Returns:
-            ToolResult if validation fails, None if valid.
-        """
+        """Validate traceback input; return ToolResult on failure, None if valid."""
         if not traceback or not traceback.strip():
             return ToolResult(
                 content="No traceback provided",
@@ -129,14 +173,7 @@ class TracebackParseTool(Tool):
         return None
 
     def _extract_frames(self: TracebackParseTool, lines: list[str]) -> list[TracebackFrame]:
-        """Extract stack frames from traceback lines.
-
-        Args:
-            lines: List of traceback lines.
-
-        Returns:
-            List of extracted frames.
-        """
+        """Extract stack frames from traceback lines."""
         frames: list[TracebackFrame] = []
         i = 0
 
@@ -154,19 +191,8 @@ class TracebackParseTool(Tool):
         return frames
 
     def _create_frame_from_match(self: TracebackParseTool, match: re.Match[str]) -> TracebackFrame:
-        """Create a frame dictionary from regex match.
-
-        Args:
-            match: Regex match object.
-
-        Returns:
-            Frame dictionary.
-        """
-        return TracebackFrame(
-            file=match.group(1),
-            line=int(match.group(2)),
-            function=match.group(3),
-        )
+        """Delegate to module-level frame creation (eliminates Feature Envy)."""
+        return _create_frame_from_regex_match(match)
 
     def _add_code_to_frame_if_present(
         self: TracebackParseTool,
@@ -174,16 +200,7 @@ class TracebackParseTool(Tool):
         lines: list[str],
         current_index: int,
     ) -> TracebackFrame:
-        """Add code line to frame if present in next line.
-
-        Args:
-            frame: Current frame.
-            lines: All traceback lines.
-            current_index: Current line index.
-
-        Returns:
-            Updated frame with code if present.
-        """
+        """Add code line to frame if present in next line."""
         if current_index + 1 >= len(lines):
             return frame
 
@@ -198,33 +215,15 @@ class TracebackParseTool(Tool):
         return frame
 
     def _is_code_line(self: TracebackParseTool, line: str) -> bool:
-        """Check if a line appears to be code (not exception or traceback header).
-
-        Args:
-            line: Line to check.
-
-        Returns:
-            True if line appears to be code.
-        """
+        """Return True if line appears to be code (not an exception/traceback header)."""
         if not line:
             return False
-
         if line.startswith("Traceback"):
             return False
-
-        # Check if line looks like an exception
-        # Return False if line contains ":" and matches exception pattern
         return not (":" in line and re.match(r"^[A-Z]\w*(Error|Exception|Warning)", line))
 
     def _extract_exception(self: TracebackParseTool, lines: list[str]) -> tuple[str, str]:
-        """Extract exception type and message from traceback lines.
-
-        Args:
-            lines: List of traceback lines.
-
-        Returns:
-            Tuple of (exception_type, exception_message).
-        """
+        """Extract exception type and message from traceback lines."""
         exception_type = ""
         exception_message = ""
 
@@ -247,28 +246,5 @@ class TracebackParseTool(Tool):
         exception_type: str,
         exception_message: str,
     ) -> str:
-        """Format parsed traceback data into readable output.
-
-        Args:
-            frames: List of stack frames.
-            exception_type: Exception type.
-            exception_message: Exception message.
-
-        Returns:
-            Formatted output string.
-        """
-        parts: list[str] = []
-
-        if exception_type:
-            parts.append(f"Exception: {exception_type}")
-            if exception_message:
-                parts.append(f"Message: {exception_message}")
-
-        parts.append(f"Frames: {len(frames)}")
-        for idx, frame in enumerate(frames):
-            code_str = f" | {frame['code']}" if "code" in frame else ""
-            parts.append(
-                f"  [{idx}] {frame['file']}:{frame['line']} in {frame['function']}{code_str}",
-            )
-
-        return "\n".join(parts)
+        """Delegate to module-level formatter (eliminates Feature Envy)."""
+        return _format_traceback_output(frames, exception_type, exception_message)

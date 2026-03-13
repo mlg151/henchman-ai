@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -53,12 +52,13 @@ def test_accessibility():
         last_arg = console_mock.print.call_args[0][0]
         if isinstance(last_arg, Table):
             if last_arg.box == box.ASCII:
-                 print("✅ Accessible table uses ASCII box")
+                print("✅ Accessible table uses ASCII box")
             else:
-                 print(f"❌ Accessible table uses {last_arg.box}")
-                 return False
+                print(f"❌ Accessible table uses {last_arg.box}")
+                return False
 
     return True
+
 
 def test_keybindings():
     print("\nTesting Keybindings...")
@@ -81,6 +81,7 @@ def test_keybindings():
     print("✅ create_session accepted keybindings")
     return True
 
+
 if __name__ == "__main__":
     try:
         success = test_accessibility() and test_keybindings()
@@ -88,5 +89,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

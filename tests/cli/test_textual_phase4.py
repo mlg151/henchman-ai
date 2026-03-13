@@ -51,22 +51,16 @@ class TestTextualPhase4:
         textual_app.push_screen.assert_called_once()
         # Verify it's the help screen (check class name or similar if possible)
 
-    def test_provider_switcher(self, textual_app):
+    def test_provider_switcher(self, textual_app: "HenchmanTextualApp") -> None:
         """Test provider switching logic."""
-        # This might be an action or a command
-        # Let's say we have action_switch_provider
-
         textual_app.provider = MagicMock()
         textual_app.provider.name = "Old Provider"
 
-        # We need a way to switch. Maybe a modal or just cycling for now?
-        # Or a command /provider <name>
-
-        # If we implement it as a command in palette:
-        with patch.object(textual_app, "query_one") as mock_query_one:  # noqa: F841
+        # Mock push_screen to avoid requiring a running event loop
+        textual_app.push_screen = MagicMock()
+        with patch.object(textual_app, "query_one"):
             textual_app.action_switch_provider()
-            # Should probably show a modal or option list
-            # For now, let's verify it triggers *something* UI related
+            textual_app.push_screen.assert_called_once()
 
     def test_apply_code_block(self, textual_app):
         """Test apply code block action."""

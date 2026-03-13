@@ -7,11 +7,9 @@ from __future__ import annotations
 
 from scripts.smell_detector.models import (
     SEVERITY_PENALTY,
-    FileMetrics,
     FileReport,
     RepoReport,
     RepoSummary,
-    SmellSeverity,
 )
 
 # Grade boundaries (score → letter).

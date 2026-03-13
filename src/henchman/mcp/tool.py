@@ -25,6 +25,7 @@ class McpTool(Tool):
         mcp_tool: McpToolDefinition,
         client: McpClient,
         server_name: str,
+        *,
         trusted: bool = False,
     ) -> None:
         """Initialize the tool wrapper.
@@ -85,7 +86,8 @@ class McpTool(Tool):
         """Execute the tool via MCP.
 
         Args:
-            params: Tool parameters as keyword arguments. These are passed directly to the MCP server tool.  # noqa: E501
+            params: Tool parameters as keyword arguments. Passed directly
+                to the MCP server tool.
 
         Returns:
             Tool execution result.

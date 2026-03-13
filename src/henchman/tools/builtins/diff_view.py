@@ -1,26 +1,129 @@
 """Diff view tool implementation."""
 
+from __future__ import annotations
+
 import asyncio
+from dataclasses import dataclass
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
 MAX_OUTPUT_CHARS = 100_000
+_GIT_TIMEOUT_SECONDS = 30
+
+
+@dataclass
+class DiffParams:
+    """Parameters for the diff view operation."""
+
+    path: str | None = None
+    staged: bool = False
+    compare: str | None = None
+    stat: bool = False
+    name_only: bool = False
+    context_lines: int | None = None
+    cwd: str | None = None
+
+
+def _build_diff_params_from_kwargs(kwargs: dict[str, object]) -> DiffParams:
+    """Build a :class:`DiffParams` from raw ``**kwargs``."""
+    raw_context = kwargs.get("context_lines")
+    return DiffParams(
+        path=str(kwargs["path"]) if kwargs.get("path") is not None else None,
+        staged=bool(kwargs.get("staged", False)),
+        compare=str(kwargs["compare"]) if kwargs.get("compare") is not None else None,
+        stat=bool(kwargs.get("stat", False)),
+        name_only=bool(kwargs.get("name_only", False)),
+        context_lines=int(raw_context) if raw_context is not None else None,
+        cwd=str(kwargs["cwd"]) if kwargs.get("cwd") is not None else None,
+    )
+
+
+def _build_diff_command(params: DiffParams) -> list[str]:
+    """Build a git diff command from DiffParams."""
+    cmd = ["git", "--no-pager", "diff"]
+    if params.staged and not params.compare:
+        cmd.append("--cached")
+    if params.stat:
+        cmd.append("--stat")
+    if params.name_only:
+        cmd.append("--name-only")
+    if params.context_lines is not None:
+        cmd.append(f"-U{params.context_lines}")
+    if params.compare:
+        cmd.append(params.compare)
+    if params.path:
+        cmd.extend(["--", params.path])
+    return cmd
+
+
+def _parse_git_output(
+    stdout: bytes,
+    stderr: bytes,
+    returncode: int | None,
+) -> ToolResult:
+    """Parse git command output into a ToolResult."""
+    stdout_text = stdout.decode("utf-8", errors="replace")
+    stderr_text = stderr.decode("utf-8", errors="replace")
+
+    if returncode != 0:
+        return ToolResult(
+            content=f"Error: {stderr_text.strip() or 'git diff failed'}",
+            success=False,
+            error=stderr_text.strip(),
+        )
+
+    if not stdout_text.strip():
+        return ToolResult(content="No changes detected.", success=True)
+
+    output = stdout_text
+    if len(output) > MAX_OUTPUT_CHARS:
+        output = output[:MAX_OUTPUT_CHARS] + f"\n... (truncated after {MAX_OUTPUT_CHARS} chars)"
+
+    return ToolResult(content=output, success=True)
+
+
+async def _run_git_command(
+    cmd: list[str],
+    cwd: str | None = None,
+) -> ToolResult:
+    """Execute a git command and return the result."""
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=cwd,
+        )
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(),
+            timeout=_GIT_TIMEOUT_SECONDS,
+        )
+        return _parse_git_output(stdout, stderr, process.returncode)
+
+    except FileNotFoundError:
+        return ToolResult(
+            content="Error: git is not installed",
+            success=False,
+            error="git not found",
+        )
+    except (TimeoutError, asyncio.TimeoutError):
+        return ToolResult(
+            content=f"git diff timed out after {_GIT_TIMEOUT_SECONDS}s",
+            success=False,
+            error="Timeout",
+        )
 
 
 class DiffViewTool(Tool):
-    """Show git diff of current changes or compare branches/refs.
-
-    Displays working-tree, staged, or branch-comparison diffs in a git
-    repository, optionally filtered to a specific file.
-    """
+    """Show git diff of current changes or compare branches/refs."""
 
     @property
-    def name(self) -> str:
+    def name(self: DiffViewTool) -> str:
         """Tool name."""
         return "diff_view"
 
     @property
-    def description(self) -> str:
+    def description(self: DiffViewTool) -> str:
         """Tool description."""
         return (
             "Show git diff of current changes or compare branches/refs. "
@@ -30,7 +133,7 @@ class DiffViewTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: DiffViewTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -72,147 +175,34 @@ class DiffViewTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: DiffViewTool) -> ToolKind:
         """Tool kind - READ is auto-approved."""
         return ToolKind.READ
 
     async def execute(  # type: ignore[override]
-        self,
-        path: str | None = None,
-        staged: bool = False,
-        compare: str | None = None,
-        stat: bool = False,
-        name_only: bool = False,
-        context_lines: int | None = None,
-        cwd: str | None = None,
-        **kwargs: object,  # noqa: ARG002
+        self: DiffViewTool,
+        **kwargs: object,
     ) -> ToolResult:
         """Show git diff.
 
         Args:
-            path: Optional file path to filter diff.
-            staged: Show staged changes instead of unstaged.
-            compare: Compare two refs (e.g. 'main..feature').
-            stat: Show --stat summary instead of full diff.
-            name_only: Show only changed file names.
-            context_lines: Number of context lines (git -U flag).
-            cwd: Working directory (must be a git repo).
-            **kwargs: Additional arguments (ignored).
+            **kwargs: Diff parameters - path, staged, compare, stat,
+                name_only, context_lines, cwd.
 
         Returns:
             ToolResult with diff output.
         """
-        cmd = self._build_command(
-            path=path,
-            staged=staged,
-            compare=compare,
-            stat=stat,
-            name_only=name_only,
-            context_lines=context_lines,
-        )
-        return await self._run_git(cmd, cwd=cwd)
+        params = _build_diff_params_from_kwargs(kwargs)
+        cmd = _build_diff_command(params)
+        return await _run_git_command(cmd, cwd=params.cwd)
 
-    def _build_command(
-        self,
-        *,
-        path: str | None,
-        staged: bool,
-        compare: str | None,
-        stat: bool,
-        name_only: bool,
-        context_lines: int | None,
-    ) -> list[str]:
-        """Build the git diff command.
-
-        Args:
-            path: Optional file path filter.
-            staged: Use --cached for staged changes.
-            compare: Ref comparison spec (e.g. 'main..feature').
-            stat: Use --stat for summary.
-            name_only: Use --name-only for file list.
-            context_lines: Number of context lines.
-
-        Returns:
-            Command as list of strings.
-        """
-        cmd = ["git", "--no-pager", "diff"]
-        cmd_append = cmd.append
-        cmd_extend = cmd.extend
-        if staged and not compare:
-            cmd_append("--cached")
-        if stat:
-            cmd_append("--stat")
-        if name_only:
-            cmd_append("--name-only")
-        if context_lines is not None:
-            cmd_append(f"-U{context_lines}")
-        if compare:
-            cmd_append(compare)
-        if path:
-            cmd_extend(["--", path])
-        return cmd
+    def _build_command(self: DiffViewTool, params: DiffParams) -> list[str]:
+        return _build_diff_command(params)
 
     async def _run_git(
-        self,
+        self: DiffViewTool,
         cmd: list[str],
         cwd: str | None = None,
     ) -> ToolResult:
-        """Execute a git command and return the result.
-
-        Args:
-            cmd: Command to execute.
-            cwd: Working directory.
-
-        Returns:
-            ToolResult with command output.
-        """
-        create_subprocess_exec = asyncio.create_subprocess_exec
-        PIPE = asyncio.subprocess.PIPE
-        try:
-            process = await create_subprocess_exec(
-                *cmd,
-                stdout=PIPE,
-                stderr=PIPE,
-                cwd=cwd,
-            )
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=30,
-            )
-            stdout_text = stdout.decode("utf-8", errors="replace")
-            stderr_text = stderr.decode("utf-8", errors="replace")
-
-            if process.returncode != 0:
-                return ToolResult(
-                    content=f"Error: {stderr_text.strip() or 'git diff failed'}",
-                    success=False,
-                    error=stderr_text.strip(),
-                )
-
-            if not stdout_text.strip():
-                return ToolResult(
-                    content="No changes detected.",
-                    success=True,
-                )
-
-            output = stdout_text
-            if len(output) > MAX_OUTPUT_CHARS:
-                output = (
-                    output[:MAX_OUTPUT_CHARS]
-                    + f"\n... (truncated after {MAX_OUTPUT_CHARS} chars)"
-                )
-
-            return ToolResult(content=output, success=True)
-
-        except FileNotFoundError:
-            return ToolResult(
-                content="Error: git is not installed",
-                success=False,
-                error="git not found",
-            )
-        except (TimeoutError, asyncio.TimeoutError):
-            return ToolResult(
-                content="git diff timed out after 30s",
-                success=False,
-                error="Timeout",
-            )
+        """Execute a git command and return the result."""
+        return await _run_git_command(cmd, cwd=cwd)

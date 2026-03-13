@@ -303,7 +303,7 @@ class TestSession:
             template_parameters={"project": "test"},
             export_metadata={"exported": True},
         )
-        
+
         assert session.parent_id == "parent_123"
         assert session.branch_point == 5
         assert session.template_id == "template_123"
@@ -323,11 +323,11 @@ class TestSession:
             template_parameters={"param1": "value1"},
             export_metadata={"key": "value"},
         )
-        
+
         # Convert to dict and back
         data = session.to_dict()
         session2 = Session.from_dict(data)
-        
+
         assert session2.parent_id == "parent_123"
         assert session2.branch_point == 3
         assert session2.template_id == "template_456"
@@ -344,11 +344,11 @@ class TestSession:
             parent_id="parent_123",
             template_id="template_789",
         )
-        
+
         # Convert to JSON and back
         json_str = session.to_json()
         session2 = Session.from_json(json_str)
-        
+
         assert session2.parent_id == "parent_123"
         assert session2.template_id == "template_789"
         assert session2.branch_point is None  # Should be None when not set

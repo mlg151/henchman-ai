@@ -89,7 +89,7 @@ class TestReplImportable:
 
     def test_run_interactive_imports_repl(self) -> None:
         """_run_interactive successfully imports Repl."""
-        from henchman.cli.app import RunConfig, _run_interactive
+        from henchman.cli.app import _run_interactive
 
         # The import should happen without errors
         assert _run_interactive is not None
@@ -280,7 +280,10 @@ class TestNoAttributeErrorRegression:
         """Ensure app.py calls repl.run(), not repl.start()."""
         # Read app.py and check for repl.run() calls
         import os
-        app_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src/henchman/cli/app.py")
+
+        app_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src/henchman/cli/app.py"
+        )
         with open(app_path) as f:
             app_content = f.read()
 
@@ -307,7 +310,10 @@ class TestCoverageRegression:
     def test_app_py_references_repl_run(self) -> None:
         """Ensure app.py properly references repl.run()."""
         import os
-        app_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src/henchman/cli/app.py")
+
+        app_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src/henchman/cli/app.py"
+        )
         with open(app_path) as f:
             content = f.read()
 
@@ -333,7 +339,10 @@ class TestCoverageRegression:
     def test_repl_run_vs_start_differentiation(self) -> None:
         """Ensure app.py doesn't accidentally use 'start' instead of 'run'."""
         import os
-        app_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src/henchman/cli/app.py")
+
+        app_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src/henchman/cli/app.py"
+        )
         with open(app_path) as f:
             app_content = f.read()
 

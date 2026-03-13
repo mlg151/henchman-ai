@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -24,6 +23,7 @@ class TestPlugin(UIPlugin):
 
     def register(self, repl: Repl) -> None:
         repl.renderer.success("Test Plugin Registered")
+
 
 def test_plugin_system():
     print("Testing Plugin System...")
@@ -84,6 +84,7 @@ class FilePlugin(UIPlugin):
 
     return True
 
+
 if __name__ == "__main__":
     try:
         success = test_plugin_system()
@@ -91,5 +92,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

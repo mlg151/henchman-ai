@@ -18,8 +18,14 @@ def validate_message_sequence(messages: list["Message"]) -> None:
     2. Tool messages must have a tool_call_id matching the preceding assistant.
     3. Every tool_call must have exactly one tool response.
 
+    Args:
+        messages: List of Message objects to validate.
+
     Raises:
         ValueError: If the sequence violates OpenAI API rules.
+
+    Returns:
+        None
     """
     i = 0
     while i < len(messages):
@@ -85,6 +91,34 @@ def validate_message_sequence(messages: list["Message"]) -> None:
         i += 1
 
 
+def _gather_tool_messages_for_assistant(
+    messages: list["Message"],
+    start_index: int,
+    expected_ids: set[str],
+) -> tuple[list["Message"], int, bool]:
+    """Gather immediately-following tool messages for an assistant.
+
+    Returns:
+        Tuple of (list of valid tool messages, next index to process, was_repaired).
+    """
+    tool_msgs: list[Message] = []
+    j = start_index
+    repaired = False
+    while j < len(messages) and messages[j].role == "tool":
+        if messages[j].tool_call_id in expected_ids:
+            tool_msgs.append(messages[j])
+        else:
+            # Orphaned tool message — drop it
+            repaired = True
+            logger.warning(
+                "Repair: dropping orphaned tool message at index %d (tool_call_id=%s)",
+                j,
+                messages[j].tool_call_id,
+            )
+        j += 1
+    return tool_msgs, j, repaired
+
+
 def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
     """Repair a broken message sequence so it follows OpenAI API rules.
 
@@ -92,17 +126,13 @@ def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
     assistant message with tool_calls) and strips tool_calls from assistant
     messages whose tool responses are missing or incomplete.
 
-    This is intended as a recovery mechanism when compaction or session restore
-    produces an invalid sequence, so the agent can continue instead of being
-    stuck in an unrecoverable error loop.
-
     Args:
         messages: The potentially broken message sequence.
 
     Returns:
         A repaired message sequence that passes validation.
     """
-    from henchman.providers.base import Message as Msg
+    from henchman.providers.base import Message as Msg  # noqa: PLC0415
 
     if not messages:
         return messages
@@ -116,22 +146,10 @@ def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
 
         if msg.role == "assistant" and msg.tool_calls:
             expected_ids = {tc.id for tc in msg.tool_calls}
-
-            # Gather immediately-following tool messages
-            tool_msgs: list[Message] = []
-            j = i + 1
-            while j < len(messages) and messages[j].role == "tool":
-                if messages[j].tool_call_id in expected_ids:
-                    tool_msgs.append(messages[j])
-                else:
-                    # Orphaned tool message — drop it
-                    repaired = True
-                    logger.warning(
-                        "Repair: dropping orphaned tool message at index %d (tool_call_id=%s)",
-                        j,
-                        messages[j].tool_call_id,
-                    )
-                j += 1
+            tool_msgs, j, was_rep = _gather_tool_messages_for_assistant(
+                messages, i + 1, expected_ids
+            )
+            repaired = repaired or was_rep
 
             seen_ids = {tm.tool_call_id for tm in tool_msgs}
             missing = expected_ids - seen_ids
@@ -153,7 +171,6 @@ def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
                         tool_call_id=None,
                     ),
                 )
-                # Drop ALL tool messages for this assistant (they're now orphaned)
             else:
                 # Complete — keep assistant + tool messages
                 result.append(msg)
@@ -191,18 +208,25 @@ def repair_message_sequence(messages: list["Message"]) -> list["Message"]:
 def is_valid_message_sequence(messages: list["Message"]) -> bool:
     """Check if a message sequence follows OpenAI API rules.
 
+    Args:
+        messages: List of Message objects to validate.
+
     Returns:
         True if the sequence is valid, False otherwise.
     """
     try:
         validate_message_sequence(messages)
-        return True
     except ValueError:
         return False
+    else:
+        return True
 
 
 def format_message_sequence_for_debug(messages: list["Message"]) -> str:
     """Format message sequence for debugging purposes.
+
+    Args:
+        messages: List of Message objects to format.
 
     Returns:
         A formatted string showing the message sequence.

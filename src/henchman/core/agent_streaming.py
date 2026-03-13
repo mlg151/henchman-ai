@@ -181,7 +181,7 @@ def _handle_finish(
     if chunk.finish_reason in stop_reasons:
         if state.has_unreported_content():
             events.append(_make_event(EventType.CONTENT, state.content, source_agent))
-    elif chunk.finish_reason == FinishReason.TOOL_CALLS:
+    elif chunk.finish_reason == FinishReason.TOOL_CALLS:  # pragma: no branch
         events.extend(
             _make_event(EventType.TOOL_CALL_REQUEST, tc, source_agent)
             for tc in state.get_pending_tool_calls(chunk.tool_calls)
@@ -192,6 +192,7 @@ def _handle_finish(
 async def generate_stream_events(
     ctx: StreamContext,
     state: StreamState,
+    *,
     compacted: bool,
 ) -> AsyncIterator[AgentEvent]:
     """Generate agent events from a provider streaming response.

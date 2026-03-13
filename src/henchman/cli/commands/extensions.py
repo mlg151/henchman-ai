@@ -51,6 +51,9 @@ class ExtensionsCommand(Command):
 
         Args:
             ctx: Command context with console.
+
+        Returns:
+            None
         """
         extensions = self._manager.list_extensions()
 

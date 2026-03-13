@@ -129,9 +129,7 @@ def session_from_dict(data: dict[str, Any]) -> Session:
         last_updated=data["last_updated"],
         plan_mode=data.get("plan_mode", False),
         messages=[message_from_dict(m) for m in data.get("messages", [])],
-        turn_summaries=[
-            turn_summary_from_dict(ts) for ts in data.get("turn_summaries", [])
-        ],
+        turn_summaries=[turn_summary_from_dict(ts) for ts in data.get("turn_summaries", [])],
         active_agents=data.get("active_agents", []),
         delegation_log=data.get("delegation_log", []),
         parent_id=data.get("parent_id"),

@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 
     from henchman.config.schema import Settings
 
+DEFAULT_SHELL_TIMEOUT = 3600
+
 
 class ToolManager:
     """Manages tool registration and configuration for the REPL.
@@ -20,7 +22,7 @@ class ToolManager:
     - Configuring tool settings
     """
 
-    def __init__(self, settings: "Settings | None" = None) -> None:
+    def __init__(self: "ToolManager", settings: "Settings | None" = None) -> None:
         """Initialize the tool manager.
 
         Args:
@@ -29,21 +31,43 @@ class ToolManager:
         self.settings = settings
         self.registry = ToolRegistry()
         self.auto_approve = False
-        self._confirmation_handler: (
-            Callable[[ConfirmationRequest], Awaitable[bool]] | None
-        ) = None
+        self._confirmation_handler: Callable[[ConfirmationRequest], Awaitable[bool]] | None = (
+            None
+        )
 
-    def register_builtin_tools(self) -> None:
-        """Register all built-in tools with the registry."""
-        from henchman.tools.builtins import (
+    def register_builtin_tools(self: "ToolManager") -> None:
+        """Register all built-in tools with the registry.
+
+        Returns:
+            None
+        """
+        shell_timeout = (
+            self.settings.tools.shell_timeout if self.settings else DEFAULT_SHELL_TIMEOUT
+        )
+        for tool in self._create_builtin_tools(shell_timeout):
+            self.registry.register(tool)
+
+    @staticmethod
+    def _create_builtin_tools(shell_timeout: int) -> list:  # type: ignore[type-arg]
+        """Instantiate every built-in tool and return them as a list.
+
+        Args:
+            shell_timeout: Timeout in seconds to pass to ShellTool.
+
+        Returns:
+            List of instantiated tool objects.
+        """
+        from henchman.tools.builtins import (  # noqa: PLC0415
             AskUserTool,
             CodeFormatTool,
             CoverageMapTool,
             DeadCodeTool,
+            DeepResearchTool,
+            DelegateTaskTool,
             DiffViewTool,
-            DuckDuckGoSearchTool,
             EditFileTool,
             EnvInspectTool,
+            FileOverviewTool,
             GitOpsTool,
             GlobTool,
             GrepTool,
@@ -53,26 +77,33 @@ class ToolManager:
             LintCheckTool,
             LsTool,
             PatchApplyTool,
+            PatternSearchTool,
             PipInspectTool,
             PytestRunTool,
             PythonAstTool,
             PythonExecTool,
             ReadFileTool,
+            ResearchNotesTool,
             ShellTool,
+            SymbolTraceTool,
             TestGenTool,
             TracebackParseTool,
             WebFetchTool,
+            WebSearchTool,
             WriteFileTool,
         )
 
-        tools = [
+        return [
             AskUserTool(),
             CodeFormatTool(),
             CoverageMapTool(),
             DeadCodeTool(),
+            DeepResearchTool(),
+            DelegateTaskTool(),
             DiffViewTool(),
             EditFileTool(),
             EnvInspectTool(),
+            FileOverviewTool(),
             GitOpsTool(),
             GlobTool(),
             GrepTool(),
@@ -82,26 +113,26 @@ class ToolManager:
             LintCheckTool(),
             LsTool(),
             PatchApplyTool(),
+            PatternSearchTool(),
             PipInspectTool(),
             PythonAstTool(),
             PythonExecTool(),
             PytestRunTool(),
             ReadFileTool(),
-            ShellTool(
-                default_timeout=(
-                    self.settings.tools.shell_timeout if self.settings else 3600
-                ),
-            ),
+            ResearchNotesTool(),
+            ShellTool(default_timeout=shell_timeout),
+            SymbolTraceTool(),
             TestGenTool(),
             TracebackParseTool(),
             WebFetchTool(),
-            DuckDuckGoSearchTool(),
+            WebSearchTool(),
             WriteFileTool(),
         ]
-        for tool in tools:
-            self.registry.register(tool)
 
-    async def handle_confirmation(self, request: ConfirmationRequest) -> bool:
+    async def handle_confirmation(
+        self: "ToolManager",
+        request: ConfirmationRequest,
+    ) -> bool:
         """Handle a tool confirmation request.
 
         Args:
@@ -110,42 +141,46 @@ class ToolManager:
         Returns:
             True if approved, False otherwise.
         """
-        # Auto-approve if configured
         if self.auto_approve:
             return True
-
-        # Use custom confirmation handler if provided
         if self._confirmation_handler:
             return await self._confirmation_handler(request)
-
-        # Default behavior: require confirmation
-        # In the actual REPL, this would show a prompt to the user
         return False
 
     def set_confirmation_handler(
-        self, handler: "Callable[[ConfirmationRequest], Awaitable[bool]] | None" = None,
+        self: "ToolManager",
+        handler: "Callable[[ConfirmationRequest], Awaitable[bool]] | None" = None,
     ) -> None:
         """Set the confirmation handler on the registry.
 
         Args:
             handler: Optional custom confirmation handler. If None, uses the default handler.
+
+        Returns:
+            None
         """
         if handler:
             self._confirmation_handler = handler
         self.registry.set_confirmation_handler(self.handle_confirmation)
 
-    def set_auto_approve(self, auto_approve: bool) -> None:
+    def set_auto_approve(self: "ToolManager", *, auto_approve: bool) -> None:
         """Set auto-approve mode for tools.
 
         Args:
             auto_approve: If True, all tools are auto-approved.
+
+        Returns:
+            None
         """
         self.auto_approve = auto_approve
 
-    def set_plan_mode(self, plan_mode: bool) -> None:
+    def set_plan_mode(self: "ToolManager", *, plan_mode: bool) -> None:
         """Set plan mode on the registry.
 
         Args:
             plan_mode: If True, tools are in plan mode (read-only).
+
+        Returns:
+            None
         """
-        self.registry.set_plan_mode(plan_mode)
+        self.registry.set_plan_mode(enabled=plan_mode)

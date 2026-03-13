@@ -91,7 +91,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     state.provider_registry = get_default_registry()
 
     # Load API keys from settings
-    if state.settings.api and hasattr(state.settings.api, "api_keys"):
+    if state.settings.api and hasattr(state.settings.api, "api_keys"):  # pragma: no branch
         state.api_keys = set(state.settings.api.api_keys)
 
     # Create default agent
@@ -109,7 +109,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             system_prompt="",  # Empty system prompt for API server
         )
         print(f"Created agent with provider: {provider_name}")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Warning: Failed to create agent: {e}")
         state.agent = None
 
@@ -145,7 +145,14 @@ app.include_router(health.router)
 
 @app.get("/", include_in_schema=False)
 async def root() -> dict[str, str]:
-    """Root endpoint."""
+    """Root endpoint.
+
+    Returns:
+        dict[str, str]: A dictionary containing API information with keys:
+            - "message": The API name ("Henchman-AI API")
+            - "version": The API version string
+            - "docs": The URL path to API documentation ("/docs")
+    """
     return {
         "message": "Henchman-AI API",
         "version": "0.3.11",
@@ -198,6 +205,7 @@ async def generic_exception_handler(request: Request, _exc: Exception) -> JSONRe
 def run_server(
     host: str = "127.0.0.1",
     port: int = 8000,
+    *,
     reload: bool = False,
     workers: int = 1,
 ) -> None:
@@ -208,8 +216,12 @@ def run_server(
         port: Port to bind to.
         reload: Enable auto-reload for development.
         workers: Number of worker processes.
+
+    Returns:
+        None: This function runs the server indefinitely and does not return
+        unless interrupted.
     """
-    import uvicorn
+    import uvicorn  # noqa: PLC0415
 
     uvicorn.run(
         "henchman.api.server:app",

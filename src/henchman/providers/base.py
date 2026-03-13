@@ -79,7 +79,9 @@ class StreamChunk:
     tool_calls: list[ToolCall] | None = None
     finish_reason: FinishReason | None = None
     thinking: str | None = None  # For reasoning models like deepseek-reasoner
-    usage: dict[str, int] | None = None  # Token usage information (prompt_tokens, completion_tokens, total_tokens)  # noqa: E501
+    usage: dict[str, int] | None = (
+        None  # Token usage information (prompt_tokens, completion_tokens, total_tokens)  # noqa: E501
+    )
 
 
 class ModelProvider(ABC):

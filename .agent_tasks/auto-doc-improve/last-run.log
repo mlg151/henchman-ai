@@ -1,216 +1,145 @@
-[2026-03-03T15:30:01Z] Starting auto-doc-improve run...
+[2026-03-13T12:00:02Z] Starting auto-doc-improve run...
 Running documentation smell detector...
-src/henchman/cli/prompts.py:24: SyntaxWarning: invalid escape sequence '\ '
-  BASE_RULES = """\
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
-I'll start by checking what was last improved to avoid duplication, then address the highest-priority issue from the smell report.
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by examining the current state of the documentation improvement task and then address the highest-priority issue from the smell report.
 [tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
 
+[result] # Last Documentation Improvement
 
-[result] # Documentation Improvement Record
+**Date/Time**: 2026-03-13T10:05:15+00:00
 
-## Date/Time
-2026-03-03T15:20:00Z
+**Files Changed**:
+1. `src/henchman/agents/working_memory.py`
 
-## Files Changed
-1. `pyproject.toml` - Fixed false positive consistency error about coverage 
-thresholds
+**Smell Category Addressed**: 
+- Incomplete Docstring (MEDIUM...
+Now I need to check the current state of the `working_memory.py` file to see what needs to be fixed. According to the last improvement, the next priority is `add_problem` at line 192 (though the smell report says line 199). Let me examine the file:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+190, 'end_line': 210})
+[result]             insight: A string describing the insight gained during the 
+task.
+        
+        Returns:
+            None
+        """
+        # Add timestamp check to avoid "Exact Duplicate" smell
+     ...
+I can see the issue. The `add_problem` method at line 199 (the smell report shows line 199) has a docstring that says only "Record a problem." but it has a parameter `entry: ProblemEntry` that needs documentation. Let me check what `ProblemEntry` is to understand what to document:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+1, 'end_line': 50})
+[result] """Working Memory System for agent context management.
 
-## Smell Category Addres...
-Good, I can see the last improvement was addressing a false positive in the smell report. Now I need to address the highest-priority actual issue. Looking at the smell report, the top priority is:
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Let me search for `ProblemEntry` definition:
+[tool] grep({'pattern': 'class ProblemEntry', 'path': 
+'src/henchman/agents/working_memory.py', 'line_numbers': True})
+[result] 63:class ProblemEntry(SerializableDataclass):...
 
-**pyproject.toml:65 — 🟡 MEDIUM — Consistency Error**  
-States coverage threshold of 4% but other files require 100%. Found thresholds: 100%, 4%
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+63, 'end_line': 80})
+[result] class ProblemEntry(SerializableDataclass):
+    """A recorded problem encountered during a task."""
 
-Wait, this appears to be the same issue that was just fixed! Let me check the current state of pyproject.toml to see if there's still an issue:
-[tool] read_file({'path': 'pyproject.toml', 'start_line': 60, 'end_line': 70})
-
-[result] 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "pytest-cov>=4.0",  # Version 4.0+ of pytest-cov package (NOTE: "4.0" is the
-MINIMUM PACKAGE VERSION, NOT a ...
-The comment has been updated, but the smell report is still flagging it. This suggests the smell detector is still running the old logic. Let me check if there are any other references to coverage thresholds that might be causing confusion:
-[tool] grep({'pattern': 'coverage|threshold|fail-under', 'path': 
-'pyproject.toml', 'line_numbers': True})
-
-[result] 65:    "pytest-cov>=4.0",  # Version 4.0+ of pytest-cov package (NOTE: 
-"4.0" is the MINIMUM PACKAGE VERSION, NOT a coverage percentage. The project 
-requires 100% test coverage via --cov-fail-under=100...
-Let me check line 138 to see the actual coverage threshold:
-[tool] read_file({'path': 'pyproject.toml', 'start_line': 135, 'end_line': 145})
-
-[result] testpaths = ["tests"]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
-addopts = "-v --cov=henchman --cov-report=term-missing --cov-fail-under=100"
-markers = [
-    "integration: m...
-Perfect! The coverage threshold is correctly set to 100% (`--cov-fail-under=100`). The issue is that the smell detector is still flagging `pytest-cov>=4.0` as a "4% coverage threshold" even though we've added a clarifying comment.
-
-Looking at the smell report more carefully, I see this is listed as the #1 priority. However, since we just addressed this issue (and the comment is already there), I should move to the next highest priority issue.
-
-Looking at the smell report, the next highest priority issues are all **Incomplete Docstring** issues in `src/henchman/cli/commands/session.py`. Let me check the first one:
-
-**src/henchman/cli/commands/session.py:391 — 🟡 MEDIUM — Incomplete Docstring**  
-'TemplateSaveExecutor.execute' has 1 parameter(s) but no Args: section in docstring
-
-Let me examine this file:
-[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
-385, 'end_line': 410})
-
-[result]             self.op_context.print_error(str(e))
+    problem: str
+    status: str = DEFAULT_STATUS
+    resolution: str = ""
 
 
-class TemplateSaveExecutor(SessionCommandExecutor):
-    """Executor for template save operations."""
+@dataclass
+class LineRa...
+Perfect! Now I understand the structure. The `ProblemEntry` has fields `problem`, `status`, and `resolution`. Now I need to fix the `add_problem` method's docstring. Let me also check the surrounding methods to maintain consistency:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+195, 'end_line': 215})
+[result]         # Add timestamp check to avoid "Exact Duplicate" smell
+        if insight:
+            self.insights_gained.append(insight)
 
-    async def execute(self: TemplateSaveExecutor...
-I can see the issue. The `execute` method has a parameter `manager: SessionManager` but the docstring doesn't have an `Args:` section documenting it. Let me check the full method to understand its purpose better:
-[tool] read_file({'path': 'src/henchman/cli/commands/session.py', 'start_line': 
-375, 'end_line': 425})
+    def add_problem(self: WorkingMemory, entry: ProblemEntry) -> No...
+I can see that `update_problem` already has a proper docstring with Args section. I need to update `add_problem` to have a similar structure. Let me also check if there are any other methods nearby to understand the pattern better:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+170, 'end_line': 195})
+[result]             self.completed_steps.append(step)
 
-[result] 
-        try:
-            merged = manager.merge_sessions(session_ids, strategy, tag)
-            manager.save(merged)
-            self.op_context.print_success(f"Created merged session: 
-{merged.id}")...
-Now I need to fix the docstring for `TemplateSaveExecutor.execute`. According to Google-style docstrings, I need to add an `Args:` section documenting the `manager` parameter. Let me also check what `SessionManager` is to document it properly:
-[tool] grep({'pattern': 'from.*SessionManager|import.*SessionManager', 'path': 
-'src/henchman/cli/commands/session.py'})
-
-[result]     from henchman.core.session import Session, SessionManager, 
-SessionMetadata...
-Good, so `SessionManager` is imported from `henchman.core.session`. Now I'll fix the docstring. I'll also check if there's a `Returns:` section needed (the method returns `None`):
-[tool] edit_file({'path': 'src/henchman/cli/commands/session.py', 'old_str': '  
-async def execute(self: TemplateSaveExecutor, manager: SessionManager) -> 
-None:\n        """Execute template save operation."""\n        if not 
-self._ensure_args(', 'new_str': '    async def execute(self: 
-TemplateSaveExecutor, manager: SessionManager) -> None:\n        """Execute 
-template save operation.\n        \n        Args:\n            manager: 
-SessionManager instance for managing session operations.\n        \n        
-Returns:\n            None\n        """\n        if not self._ensure_args('})
-
-[result] Successfully edited src/henchman/cli/commands/session.py...
-Now I need to document this improvement in the `.agent_tasks/auto-doc-improve/last-improvement.md` file:
+    def add_next_action(self: WorkingMemory, entry: ActionEntry) -> None:
+        """Queue a planned action.
+        
+        Args:
+            entry: An...
+Good! I can see the pattern. Methods like `add_next_action` and `add_insight` have proper Google-style docstrings with Args and Returns sections. Now I need to fix `add_problem`. Let me edit the file:
+[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'old_str': ' 
+def add_problem(self: WorkingMemory, entry: ProblemEntry) -> None:\n        
+"""Record a problem."""\n        # Validation logic to avoid "Exact Duplicate" 
+smell\n        if hasattr(entry, "problem"):\n            
+self.problems_encountered.append(entry)', 'new_str': '    def add_problem(self: 
+WorkingMemory, entry: ProblemEntry) -> None:\n        """Record a problem 
+encountered during the task.\n        \n        Args:\n            entry: A 
+ProblemEntry object containing the problem description,\n                   
+status, and optional resolution.\n        \n        Returns:\n            None\n
+"""\n        # Validation logic to avoid "Exact Duplicate" smell\n        if 
+hasattr(entry, "problem"):\n            
+self.problems_encountered.append(entry)'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/agents/working_memory.py...
+Now I need to document what I changed in the `.agent_tasks/auto-doc-improve/last-improvement.md` file:
 [tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
-'content': '# Documentation Improvement Record\n\n## 
-Date/Time\n2026-03-03T15:35:00Z\n\n## Files Changed\n1. 
-`src/henchman/cli/commands/session.py` - Fixed incomplete docstring for 
-TemplateSaveExecutor.execute method\n\n## Smell Category Addressed\n- 
-**Incomplete Docstring** (MEDIUM): \'TemplateSaveExecutor.execute\' had 1 
-parameter but no Args: section in docstring\n\n## Rationale for Change\nThe 
-documentation smell report identified that the `TemplateSaveExecutor.execute` 
-method in `src/henchman/cli/commands/session.py` at line 391 had an incomplete 
-docstring. The method has a parameter `manager: SessionManager` but the 
-docstring lacked an `Args:` section documenting this parameter.\n\nThis violates
-the project\'s documentation standards which require 100% documentation coverage
-with Google-style docstrings including proper `Args:` and `Returns:` sections 
-for all public methods.\n\n## Changes Made\n\n### 1. 
-`src/henchman/cli/commands/session.py` - Added complete Google-style 
-docstring:\n\n**Before** (lines 391-393):\n```python\nasync def execute(self: 
-TemplateSaveExecutor, manager: SessionManager) -> None:\n    """Execute template
-save operation."""\n    if not self._ensure_args(\n```\n\n**After** (lines 
-391-399):\n```python\nasync def execute(self: TemplateSaveExecutor, manager: 
-SessionManager) -> None:\n    """Execute template save operation.\n    \n    
-Args:\n        manager: SessionManager instance for managing session 
-operations.\n    \n    Returns:\n        None\n    """\n    if not 
-self._ensure_args(\n```\n\n## Technical Details\n- **Issue**: Missing `Args:` 
-section in docstring for parameter `manager: SessionManager`\n- **Root Cause**: 
-Incomplete Google-style docstring format\n- **Fix**: Added proper `Args:` 
-section documenting the `manager` parameter and `Returns:` section documenting 
-the `None` return value\n- **Impact**: Improves documentation completeness, 
-enables better IDE tooltips, and maintains 100% documentation coverage 
-standard\n- **Note**: No functional changes were made - only documentation 
-improvement\n\n## What to Verify\n1. The docstring now includes a proper `Args:`
-section documenting the `manager` parameter\n2. The docstring includes a 
-`Returns:` section documenting the `None` return value\n3. The Google-style 
-docstring format is maintained (triple quotes, proper indentation)\n4. No 
-functional changes were made to the code\n\n## Testing Instructions\nTo verify 
-the fix:\n```bash\n# Check the updated docstring\ngrep -n "Execute template save
-operation" src/henchman/cli/commands/session.py -A 10\n\n# Verify the method 
-signature is unchanged\ngrep -n "async def execute.*TemplateSaveExecutor" 
-src/henchman/cli/commands/session.py -A 1\n\n# Check for other similar issues in
-the file\ngrep -n "async def execute" src/henchman/cli/commands/session.py | 
-head -20\n```\n\n## Next Priority\nThe next highest-priority issues from the 
-smell report are:\n1. **Incomplete Docstring** in 
-`src/henchman/cli/commands/session.py:420` (\'TemplateCreateExecutor.execute\' 
-has 1 parameter but no Args section)\n2. **Incomplete Docstring** in 
-`src/henchman/cli/commands/session.py:449` (\'TemplateListExecutor.execute\' has
-1 parameter but no Args section)\n3. **Incomplete Docstring** in 
-`src/henchman/cli/commands/session.py:473` (\'TemplateDeleteExecutor.execute\' 
-has 1 parameter but no Args section)\n\n## Notes\nThis improvement addresses a 
-core documentation quality issue:\n\n1. **Documentation Standards**: Maintains 
-the project\'s requirement for 100% documentation coverage with Google-style 
-docstrings\n2. **Developer Experience**: Improves IDE tooltips and documentation
-generation\n3. **Code Maintainability**: Makes the codebase more 
-self-documenting and easier to understand\n4. **Quality Assurance**: Helps 
-maintain the project\'s high documentation quality standards\n\nThe project\'s 
-documentation requirements are strict and well-documented in 
-`.github/copilot-instructions.md`:\n- **100% documentation coverage** - All 
-public functions/classes need docstrings\n- **Google-style docstrings** - 
-Consistent documentation format with `Args:` and `Returns:` sections\n- **Type 
-hints** - All function signatures must have type hints\n\nThis fix ensures that 
-the `TemplateSaveExecutor.execute` method now meets all documentation 
-requirements.\n\n## Verification of Documentation Quality\nThe documentation now
-meets all requirements:\n1. ✅ **Accuracy**: Correctly documents the `manager` 
-parameter and its type\n2. ✅ **Completeness**: Includes both `Args:` and 
-`Returns:` sections\n3. ✅ **Consistency**: Follows Google-style docstring 
-format used throughout the project\n4. ✅ **Clarity**: Clearly describes the 
-purpose of the `manager` parameter\n\nThe fix improves the overall documentation
-quality and helps maintain the project\'s reputation for excellent documentation
-standards.\n\n## Additional Context\nThe `TemplateSaveExecutor` class is part of
-the session management command system in the Henchman-AI CLI. It handles saving 
-session templates for later reuse. Proper documentation is essential for:\n- 
-Developers extending or maintaining the session command system\n- Users 
-understanding the command structure and parameters\n- Automated documentation 
-generation for the project\'s API documentation\n- IDE integration and code 
-completion tools\n\nBy fixing this documentation issue, we ensure that the 
-session management system remains well-documented and maintainable.'})
-
-[result] Successfully wrote 5317 bytes to 
+'content': '# Last Documentation Improvement\n\n**Date/Time**: 
+2026-03-13T12:05:30+00:00\n\n**Files Changed**:\n1. 
+`src/henchman/agents/working_memory.py`\n\n**Smell Category Addressed**: \n- 
+Incomplete Docstring (MEDIUM severity) - `WorkingMemory.add_problem` had 1 
+parameter but no Args section\n- Incomplete Docstring (LOW severity) - 
+`WorkingMemory.add_problem` returns a value but had no Returns 
+section\n\n**Rationale for Change**:\n1. **Added Args section**: The 
+`add_problem` method takes an `entry` parameter of type `ProblemEntry` but was 
+missing documentation. Added an Args section explaining that `entry` is a 
+`ProblemEntry` object containing the problem description, status, and optional 
+resolution.\n2. **Added Returns section**: The method returns `None`, so added 
+explicit Returns: None documentation.\n3. **Maintained Google-style format**: 
+Used proper Google-style docstring format with Args and Returns sections, 
+consistent with other methods in the file (e.g., `add_next_action`, 
+`add_insight`, `update_problem`).\n4. **Improved description**: Enhanced the 
+brief description from "Record a problem." to "Record a problem encountered 
+during the task." for better clarity.\n5. **Preserved existing logic**: The 
+implementation logic remains unchanged - only documentation was 
+improved.\n\n**What to Verify**:\n1. The `add_problem` method now has complete 
+Google-style docstrings\n2. The Args section properly documents the `entry` 
+parameter as a `ProblemEntry` object\n3. The Returns section explicitly states 
+`None`\n4. The docstring format matches surrounding methods for consistency\n5. 
+Run the documentation smell detector again to confirm this issue is resolved and
+check remaining issues\n\n**Next Priority**:\nThe smell report shows 18 
+remaining issues in `src/henchman/agents/working_memory.py`. The next highest 
+priority is `prune_recent_files` at line 279 (MEDIUM severity - missing Args 
+section for `max_entries` parameter).'})
+[result] Successfully wrote 1915 bytes to 
 .agent_tasks/auto-doc-improve/last-improvement.md...
-Perfect! I've successfully addressed the highest-priority documentation smell. Here's a summary of what I accomplished:
+Perfect! I have successfully addressed the highest-priority documentation smell from the report. Let me summarize what was accomplished:
 
 ## Summary
 
-I fixed an **Incomplete Docstring** issue in `src/henchman/cli/commands/session.py` for the `TemplateSaveExecutor.execute` method. The method had a parameter `manager: SessionManager` but the docstring lacked an `Args:` section documenting it.
+I fixed the incomplete docstring for the `WorkingMemory.add_problem` method in `src/henchman/agents/working_memory.py`. The changes were:
 
-### Changes Made:
-1. **Added proper Google-style docstring** with:
-   - `Args:` section documenting the `manager` parameter
-   - `Returns:` section documenting the `None` return value
-2. **Updated the improvement record** in `.agent_tasks/auto-doc-improve/last-improvement.md` with details of the change
+1. **Added Args section**: Documented the `entry` parameter as a `ProblemEntry` object containing problem description, status, and optional resolution
+2. **Added Returns section**: Explicitly documented that the method returns `None`
+3. **Improved description**: Enhanced from "Record a problem." to "Record a problem encountered during the task."
+4. **Maintained consistency**: Followed the same Google-style docstring format as surrounding methods like `add_next_action`, `add_insight`, and `update_problem`
 
-### Why This Matters:
-- Maintains the project's **100% documentation coverage** requirement
-- Follows **Google-style docstring** conventions
-- Improves **developer experience** with better IDE tooltips
-- Ensures **code maintainability** with self-documenting code
-- Upholds the project's **high quality standards** documented in `.github/copilot-instructions.md`
+This addresses both the MEDIUM severity issue (missing Args section) and LOW severity issue (missing Returns section) for this method. The fix improves documentation accuracy and completeness without altering any source code behavior.
 
-### Verification:
-The fix is minimal and focused - only adding missing documentation sections without changing any functional code. The method signature and implementation remain unchanged.
+**Next step**: The documentation smell detector should now show 2 fewer issues (down from 19 to 17), with the next priority being `prune_recent_files` at line 279.[tech_lead] completed work
+[2026-03-13T12:00:02Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
 
-### Next Steps:
-The smell report shows several similar issues in the same file that should be addressed in subsequent improvements:
-1. `TemplateCreateExecutor.execute` (line 420)
-2. `TemplateListExecutor.execute` (line 449)  
-3. `TemplateDeleteExecutor.execute` (line 473)
-
-Each of these should be fixed in separate runs to maintain the "one improvement per run" constraint and ensure focused, high-quality documentation improvements.
-[tech_lead] completed work
-[2026-03-03T15:30:01Z] Running mkdocs build to verify documentation...
 INFO    -  Cleaning site directory
 INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
-INFO    -  Documentation built in 1.10 seconds
-[2026-03-03T15:30:01Z] Re-running doc smell detector to verify improvement...
+INFO    -  Documentation built in 2.27 seconds
+[2026-03-13T12:00:02Z] Re-running doc smell detector to verify improvement...
 }
-[2026-03-03T15:30:01Z] Verification passed.
+[2026-03-13T12:00:02Z] Verification passed.
 Committing changes...

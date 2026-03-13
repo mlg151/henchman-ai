@@ -7,7 +7,7 @@ with FastEmbed as the default local implementation.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -80,7 +80,7 @@ class FastEmbedProvider(EmbeddingProvider):
     """
 
     # Known model dimensions
-    MODEL_DIMENSIONS: dict[str, int] = {
+    MODEL_DIMENSIONS: ClassVar[dict[str, int]] = {
         "BAAI/bge-small-en-v1.5": 384,
         "BAAI/bge-base-en-v1.5": 768,
         "BAAI/bge-large-en-v1.5": 1024,
@@ -94,7 +94,7 @@ class FastEmbedProvider(EmbeddingProvider):
             model_name: Name of the FastEmbed model to use.
                 Defaults to BAAI/bge-small-en-v1.5 (384 dimensions).
         """
-        from fastembed import TextEmbedding
+        from fastembed import TextEmbedding  # noqa: PLC0415
 
         self._model_name = model_name
         self.model = TextEmbedding(model_name=model_name)

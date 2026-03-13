@@ -65,7 +65,9 @@ class TestHenchmanTextualApp:
         """Test that the CSS is loaded from external TCSS file."""
         from pathlib import Path
 
-        tcss_path = Path(__file__).resolve().parents[2] / "src" / "henchman" / "cli" / "henchman.tcss"
+        tcss_path = (
+            Path(__file__).resolve().parents[2] / "src" / "henchman" / "cli" / "henchman.tcss"
+        )
         assert tcss_path.exists(), "henchman.tcss should exist"
         css_content = tcss_path.read_text()
         assert "#chat-pane" in css_content
@@ -376,8 +378,9 @@ class TestHenchmanTextualApp:
 
         # BUG: Provider IS changed even though initialization fails
         # This test will FAIL because the bug exists
-        assert textual_app.provider == original_provider, \
+        assert textual_app.provider == original_provider, (
             "Provider should be rolled back when component initialization fails"
+        )
 
         # _initialize_core_components WAS called (and failed)
         mock_initialize_core_components.assert_called_once()
@@ -397,26 +400,30 @@ class TestHenchmanTextualApp:
         """
         # Check that the method is decorated with @work (has __wrapped__)
         method = textual_app.on_tree_node_selected
-        assert hasattr(method, '__wrapped__'), "Method should be decorated with @work"
+        assert hasattr(method, "__wrapped__"), "Method should be decorated with @work"
 
         # Get the wrapped function
         wrapped = method.__wrapped__
 
         # Check the source code is async (delegates to helper)
         import inspect
+
         source = inspect.getsource(wrapped)
-        assert 'await' in source, "Method should be async"
+        assert "await" in source, "Method should be async"
 
         # asyncio.to_thread is now in the extracted helper _read_context_file_content
         from henchman.cli import textual_mixins
+
         helper_source = inspect.getsource(textual_mixins._read_context_file_content)
-        assert 'asyncio.to_thread' in helper_source, "Helper should use asyncio.to_thread for async file reading"
+        assert "asyncio.to_thread" in helper_source, (
+            "Helper should use asyncio.to_thread for async file reading"
+        )
 
         # Error handling is in _handle_file_read_error helper
-        error_handler_source = inspect.getsource(
-            textual_app._handle_file_read_error
+        error_handler_source = inspect.getsource(textual_app._handle_file_read_error)
+        assert "add_error_message" in error_handler_source, (
+            "Error handler should show error message"
         )
-        assert 'add_error_message' in error_handler_source, "Error handler should show error message"
 
     @patch.object(HenchmanTextualApp, "query_one")
     @patch("asyncio.to_thread")
@@ -500,7 +507,7 @@ class TestHenchmanTextualApp:
 
         # Verify settings were set to defaults
         assert textual_app.settings is not None
-        assert hasattr(textual_app.settings, 'ui')  # Default Settings object
+        assert hasattr(textual_app.settings, "ui")  # Default Settings object
 
         # Test 2: TextualConfig() raises exception - should be handled
         mock_load_settings.reset_mock(side_effect=True)
@@ -512,7 +519,7 @@ class TestHenchmanTextualApp:
 
         # Verify config was set to defaults
         assert textual_app.config is not None
-        assert hasattr(textual_app.config, 'prompt')  # Default TextualConfig object
+        assert hasattr(textual_app.config, "prompt")  # Default TextualConfig object
 
         # Test 3: format_environment_block() raises exception - should be handled
         mock_textual_config.reset_mock(side_effect=True)
@@ -573,12 +580,12 @@ class TestHenchmanTextualApp:
         mock_loader.discover_files.assert_called_once()
 
         # Verify error was logged for context loading failure
-        mock_logger.error.assert_called_once_with(
-            "Failed to load context files: %s", error
-        )
+        mock_logger.error.assert_called_once_with("Failed to load context files: %s", error)
 
         # Verify tree.root.add_leaf() was attempted (suppressed when it fails)
-        mock_root.add_leaf.assert_called_once_with("Error loading context: Context discovery failed")
+        mock_root.add_leaf.assert_called_once_with(
+            "Error loading context: Context discovery failed"
+        )
 
     @patch("builtins.open")
     @patch.object(HenchmanTextualApp, "query_one")
@@ -632,4 +639,3 @@ class TestHenchmanTextualApp:
 
         # Verify the file-write error was logged
         mock_logger.error.assert_called_with("Failed to persist history entry: %s", error2)
-

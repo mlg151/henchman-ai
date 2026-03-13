@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 from henchman.tools.base import ToolKind
-from henchman.tools.builtins.diff_view import DiffViewTool
+from henchman.tools.builtins.diff_view import DiffParams, DiffViewTool
 
 
 class TestDiffViewTool:
@@ -298,26 +298,21 @@ class TestDiffViewTool:
     def test_build_command_defaults(self) -> None:
         """Build command with defaults produces basic diff."""
         tool = DiffViewTool()
-        cmd = tool._build_command(
-            path=None,
-            staged=False,
-            compare=None,
-            stat=False,
-            name_only=False,
-            context_lines=None,
-        )
+        cmd = tool._build_command(DiffParams())
         assert cmd == ["git", "--no-pager", "diff"]
 
     def test_build_command_all_options(self) -> None:
         """Build command with all options."""
         tool = DiffViewTool()
         cmd = tool._build_command(
-            path="file.py",
-            staged=False,
-            compare="a..b",
-            stat=True,
-            name_only=True,
-            context_lines=5,
+            DiffParams(
+                path="file.py",
+                staged=False,
+                compare="a..b",
+                stat=True,
+                name_only=True,
+                context_lines=5,
+            )
         )
         assert "--stat" in cmd
         assert "--name-only" in cmd
@@ -328,13 +323,59 @@ class TestDiffViewTool:
     def test_build_command_staged_ignored_with_compare(self) -> None:
         """Staged flag is ignored when compare is set."""
         tool = DiffViewTool()
-        cmd = tool._build_command(
-            path=None,
-            staged=True,
-            compare="main..dev",
-            stat=False,
-            name_only=False,
-            context_lines=None,
-        )
+        cmd = tool._build_command(DiffParams(staged=True, compare="main..dev"))
         assert "--cached" not in cmd
         assert "main..dev" in cmd
+
+    async def test_output_truncation(self) -> None:
+        """Large diff output is truncated."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        large_output = "+" + "x" * 200_000
+        mock_process = MagicMock()
+        mock_process.communicate = AsyncMock(return_value=(large_output.encode(), b""))
+        mock_process.returncode = 0
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+            from henchman.tools.builtins.diff_view import DiffViewTool
+            tool = DiffViewTool()
+            result = await tool.execute()
+            assert result.success is True
+            assert "truncated" in result.content
+
+    async def test_git_not_installed(self) -> None:
+        """Handle git not installed."""
+        from unittest.mock import patch
+
+        from henchman.tools.builtins.diff_view import DiffViewTool
+        tool = DiffViewTool()
+        with patch("asyncio.create_subprocess_exec", side_effect=FileNotFoundError()):
+            result = await tool.execute()
+            assert result.success is False
+            assert "not installed" in result.content
+
+    async def test_git_timeout(self) -> None:
+        """Handle git command timeout."""
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from henchman.tools.builtins.diff_view import DiffViewTool
+        tool = DiffViewTool()
+        mock_process = MagicMock()
+        mock_process.communicate = AsyncMock()
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+            with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError()):
+                result = await tool.execute()
+                assert result.success is False
+                assert "timed out" in result.content
+
+    async def test_run_git_method(self) -> None:
+        """DiffViewTool._run_git delegates to _run_git_command."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from henchman.tools.builtins.diff_view import DiffViewTool
+        tool = DiffViewTool()
+        mock_process = MagicMock()
+        mock_process.communicate = AsyncMock(return_value=(b"diff output", b""))
+        mock_process.returncode = 0
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+            result = await tool._run_git(["git", "diff"])
+            assert result.success is True

@@ -43,7 +43,7 @@ class TestTextualPhase2:
         """Test search logic finding matches."""
         # Mock query_one to prevent ScreenStackError
         textual_app.query_one = MagicMock()
-        textual_app.query_one.return_value.display = True # for thinking/tool pane
+        textual_app.query_one.return_value.display = True  # for thinking/tool pane
 
         # Test basic search activation
         textual_app.action_search()
@@ -52,11 +52,11 @@ class TestTextualPhase2:
         # Test performing search
         # We need to mock _search_richlog or the panes themselves
         with patch.object(textual_app, "_search_richlog") as mock_search_in_pane:
-             textual_app._perform_search("test")
+            textual_app._perform_search("test")
 
-             # Should search in all valid panes
-             # Note: logic might skip if panes are hidden/not found, but with mocks it should try
-             assert mock_search_in_pane.call_count >= 1
+            # Should search in all valid panes
+            # Note: logic might skip if panes are hidden/not found, but with mocks it should try
+            assert mock_search_in_pane.call_count >= 1
 
     def test_slash_command_trigger(self, textual_app):
         """Test that slash commands trigger a popup or autocomplete state."""

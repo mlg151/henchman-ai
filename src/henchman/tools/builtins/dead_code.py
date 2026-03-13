@@ -1,12 +1,12 @@
 """Dead code detection tool implementation."""
 
 from __future__ import annotations
+
 import ast
 from dataclasses import dataclass
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
-from henchman.tools.utils import create_path_parameter_schema
 
 # Well-known names that are intentionally "unused"
 DEFAULT_WHITELIST: frozenset[str] = frozenset(
@@ -59,8 +59,8 @@ def is_import_context(name_node: ast.Name, tree: ast.Module) -> bool:
         True if the node is within an import statement.
     """
     ast_walk = ast.walk
-    Import = ast.Import
-    ImportFrom = ast.ImportFrom
+    Import = ast.Import  # noqa: N806
+    ImportFrom = ast.ImportFrom  # noqa: N806
     for import_node in ast_walk(tree):
         if (
             isinstance(import_node, (Import, ImportFrom))
@@ -82,9 +82,9 @@ def collect_top_level_definitions(tree: ast.Module) -> dict[str, tuple[str, int]
     """
     definitions: dict[str, tuple[str, int]] = {}
     iter_child_nodes = ast.iter_child_nodes
-    FunctionDef = ast.FunctionDef
-    AsyncFunctionDef = ast.AsyncFunctionDef
-    ClassDef = ast.ClassDef
+    FunctionDef = ast.FunctionDef  # noqa: N806
+    AsyncFunctionDef = ast.AsyncFunctionDef  # noqa: N806
+    ClassDef = ast.ClassDef  # noqa: N806
     for node in iter_child_nodes(tree):
         node_name = node.name if hasattr(node, "name") else ""
         if isinstance(node, (FunctionDef, AsyncFunctionDef)):
@@ -105,10 +105,10 @@ def find_all_assignment(node: ast.AST) -> ast.expr | None:
         The value expression if node assigns to __all__ with list/tuple,
         None otherwise.
     """
-    Assign = ast.Assign
-    Name = ast.Name
-    List = ast.List
-    Tuple = ast.Tuple
+    Assign = ast.Assign  # noqa: N806
+    Name = ast.Name  # noqa: N806
+    List = ast.List  # noqa: N806
+    Tuple = ast.Tuple  # noqa: N806
     if not isinstance(node, Assign):
         return None
 
@@ -196,6 +196,23 @@ def _process_attribute_node(node: ast.Attribute) -> str | None:
     return current.id if isinstance(current, ast.Name) else None
 
 
+def _extract_used_name(node: ast.AST, tree: ast.Module) -> str | None:
+    """Extract a referenced name from a Name or Attribute node.
+
+    Args:
+        node: AST node to inspect.
+        tree: Module AST used for import-context checking.
+
+    Returns:
+        The referenced name string, or None if not applicable.
+    """
+    if isinstance(node, ast.Name):
+        return _process_name_node(node, tree)
+    if isinstance(node, ast.Attribute):
+        return _process_attribute_node(node)
+    return None
+
+
 def collect_used_names(tree: ast.Module) -> set[str]:
     """Collect all used names from AST (excluding import context).
 
@@ -206,17 +223,10 @@ def collect_used_names(tree: ast.Module) -> set[str]:
         Set of used names.
     """
     used_names: set[str] = set()
-
     for node in ast.walk(tree):
-        if isinstance(node, ast.Name):
-            name = _process_name_node(node, tree)
-            if name:
-                used_names.add(name)
-        elif isinstance(node, ast.Attribute):
-            root_name = _process_attribute_node(node)
-            if root_name:
-                used_names.add(root_name)
-
+        name = _extract_used_name(node, tree)
+        if name:
+            used_names.add(name)
     return used_names
 
 
@@ -273,12 +283,30 @@ def _extract_names_from_all(value: ast.expr) -> set[str] | None:
     return names or None
 
 
+def _is_unused_name(
+    name: str,
+    used_names: set[str],
+    whitelist: frozenset[str],
+) -> bool:
+    """Return True if name is a dead code candidate.
+
+    Args:
+        name: Symbol name to check.
+        used_names: Names referenced in the file.
+        whitelist: Names to always consider as used.
+
+    Returns:
+        True when the name is not in used_names or whitelist.
+    """
+    return name not in used_names and name not in whitelist
+
+
 def _identify_unused_items(
     items: dict[str, int],
     used_names: set[str],
     whitelist: frozenset[str],
 ) -> list[tuple[str, int]]:
-    """Identify unused items from collected data.
+    """Identify unused items from imported names dict.
 
     Args:
         items: Dictionary mapping item name to line number.
@@ -286,13 +314,13 @@ def _identify_unused_items(
         whitelist: Names to ignore.
 
     Returns:
-        List of (item_name, line_number) tuples.
+        List of (item_name, line_number) tuples sorted by line.
     """
     unused: list[tuple[str, int]] = []
-    for name, line in sorted(items.items(), key=lambda x: x[1]):
-        if name not in used_names and name not in whitelist:
+    for name, line in items.items():
+        if _is_unused_name(name, used_names, whitelist):
             unused.append((name, line))
-    return unused
+    return sorted(unused, key=lambda pair: pair[1])
 
 
 def _identify_unused_definitions(
@@ -300,7 +328,7 @@ def _identify_unused_definitions(
     used_names: set[str],
     whitelist: frozenset[str],
 ) -> list[tuple[str, str, int]]:
-    """Identify unused definitions from collected data.
+    """Identify unused top-level definitions.
 
     Args:
         definitions: Dictionary mapping name to (kind, line_number).
@@ -308,13 +336,80 @@ def _identify_unused_definitions(
         whitelist: Names to ignore.
 
     Returns:
+        List of (kind, name, line_number) tuples sorted by line.
+    """
+    return sorted(
+        [
+            (kind, name, line)
+            for name, (kind, line) in definitions.items()
+            if _is_unused_name(name, used_names, whitelist)
+        ],
+        key=lambda x: x[2],
+    )
+
+
+def _find_unused_imports(context: AnalysisContext) -> list[tuple[str, int]]:
+    """Find imports that are never used in the file.
+
+    Args:
+        context: Analysis context.
+
+    Returns:
+        List of (import_name, line_number) tuples.
+    """
+    imported = collect_imported_names(context.tree)
+    used_names = collect_used_names(context.tree)
+    return _identify_unused_items(imported, used_names, context.params.whitelist)
+
+
+def _find_unused_definitions(context: AnalysisContext) -> list[tuple[str, str, int]]:
+    """Find functions/classes defined but never referenced in the same file.
+
+    Args:
+        context: Analysis context.
+
+    Returns:
         List of (kind, name, line_number) tuples.
     """
-    unused: list[tuple[str, str, int]] = []
-    for name, (kind, line) in sorted(definitions.items(), key=lambda x: x[1][1]):
-        if name not in whitelist and name not in used_names:
-            unused.append((kind, name, line))
-    return unused
+    definitions = collect_top_level_definitions(context.tree)
+    used_names = collect_all_references(context.tree)
+    all_names = get_all_names(context.tree)
+    if all_names is not None:
+        used_names.update(all_names)
+    return _identify_unused_definitions(definitions, used_names, context.params.whitelist)
+
+
+def _get_file_finding(file_result: ToolResult) -> str | None:
+    """Return the finding content if the result contains dead code findings.
+
+    Args:
+        file_result: ToolResult from analyzing a single file.
+
+    Returns:
+        Content string if there are findings, None otherwise.
+    """
+    if file_result.success and "No dead code" not in file_result.content:
+        return file_result.content
+    return None
+
+
+def _extract_dead_code_params(
+    params: dict[str, object],
+) -> tuple[str, bool, bool, list[str]]:
+    """Extract and validate execution parameters for dead code analysis.
+
+    Args:
+        params: Raw keyword parameters dict.
+
+    Returns:
+        Tuple of (path, check_imports, check_functions, whitelist).
+    """
+    path = str(params.get("path", ""))
+    check_imports = bool(params.get("check_imports", True))
+    check_functions = bool(params.get("check_functions", True))
+    whitelist_raw = params.get("whitelist")
+    whitelist: list[str] = list(whitelist_raw) if isinstance(whitelist_raw, list) else []
+    return path, check_imports, check_functions, whitelist
 
 
 class DeadCodeTool(Tool):
@@ -341,8 +436,18 @@ class DeadCodeTool(Tool):
     @property
     def parameters(self: DeadCodeTool) -> dict[str, object]:
         """JSON Schema for parameters."""
-        return create_path_parameter_schema(
-            additional_params={
+        whitelist_schema: dict[str, object] = {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Names to exclude from dead code detection",
+        }
+        return {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file or directory",
+                },
                 "check_imports": {
                     "type": "boolean",
                     "description": "Check for unused imports (default true)",
@@ -353,13 +458,10 @@ class DeadCodeTool(Tool):
                     "description": "Check for unused functions/classes (default true)",
                     "default": True,
                 },
-                "whitelist": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Names to exclude from dead code detection",
-                },
-            }
-        )
+                "whitelist": whitelist_schema,
+            },
+            "required": ["path"],
+        }
 
     @property
     def kind(self: DeadCodeTool) -> ToolKind:
@@ -368,24 +470,22 @@ class DeadCodeTool(Tool):
 
     async def execute(  # type: ignore[override]
         self: DeadCodeTool,
-        path: str = "",
-        check_imports: bool = True,
-        check_functions: bool = True,
-        whitelist: list[str] | None = None,
-        **kwargs: object,  # noqa: ARG002
+        **params: object,
     ) -> ToolResult:
         """Detect dead code in Python files.
 
         Args:
-            path: Path to file or directory.
-            check_imports: Whether to check unused imports.
-            check_functions: Whether to check unused functions/classes.
-            whitelist: Additional names to ignore.
-            **kwargs: Additional arguments (ignored).
+            params: Tool parameters passed as keyword arguments.
+                Expected keys:
+                    path (str): Path to file or directory.
+                    check_imports (bool): Whether to check unused imports.
+                    check_functions (bool): Whether to check unused functions/classes.
+                    whitelist (list[str]): Additional names to ignore.
 
         Returns:
             ToolResult with dead code report.
         """
+        path, check_imports, check_functions, whitelist = _extract_dead_code_params(params)
         if not path:
             return ToolResult(
                 content="Error: No path provided",
@@ -394,22 +494,22 @@ class DeadCodeTool(Tool):
             )
 
         target = Path(path)
-        if not target.exists():
+        if not target.exists():  # noqa: ASYNC240
             return ToolResult(
                 content=f"Error: Path not found: {path}",
                 success=False,
                 error=f"Path not found: {path}",
             )
 
-        params = AnalysisParameters(
+        analysis_params = AnalysisParameters(
             check_imports=check_imports,
             check_functions=check_functions,
-            whitelist=DEFAULT_WHITELIST | frozenset(whitelist or []),
+            whitelist=DEFAULT_WHITELIST | frozenset(whitelist),
         )
 
-        if target.is_file():
-            return self._analyze_file(target, params)
-        return self._analyze_directory(target, params)
+        if target.is_file():  # noqa: ASYNC240
+            return self._analyze_file(target, analysis_params)
+        return self._analyze_directory(target, analysis_params)
 
     def _analyze_file(
         self: DeadCodeTool,
@@ -470,28 +570,34 @@ class DeadCodeTool(Tool):
         Returns:
             Formatted analysis results.
         """
-        parts: list[str] = [f"Dead code analysis: {context.filename}"]
+        filename = context.filename
+        analysis_params = context.params
+        parts: list[str] = [f"Dead code analysis: {filename}"]
         findings: list[str] = []
 
-        if context.params.check_imports:
-            unused_imports = self._find_unused_imports(context)
+        if analysis_params.check_imports:
+            unused_imports = _find_unused_imports(context)
             if unused_imports:
-                findings.extend(self._format_import_findings(unused_imports))
+                findings += self._format_findings(
+                    "\nUnused imports:",
+                    [f"  line {line}: {name}" for name, line in unused_imports],
+                )
 
-        if context.params.check_functions:
-            unused_defs = self._find_unused_definitions(context)
+        if analysis_params.check_functions:
+            unused_defs = _find_unused_definitions(context)
             if unused_defs:
-                findings.extend(self._format_definition_findings(unused_defs))
+                findings += self._format_findings(
+                    "\nPossibly unused definitions:",
+                    [f"  line {line}: {kind} {name}" for kind, name, line in unused_defs],
+                )
 
-        if findings:
-            parts.extend(findings)
-        else:
-            parts.append("\n  No dead code detected.")
-
+        parts.extend(findings or ["\n  No dead code detected."])
         return "\n".join(parts)
 
     def _format_findings(
-        self: DeadCodeTool, header: str, items: list[str],
+        self: DeadCodeTool,
+        header: str,
+        items: list[str],
     ) -> list[str]:
         """Format a list of finding lines under a section header.
 
@@ -504,33 +610,7 @@ class DeadCodeTool(Tool):
         """
         return [header, *items]
 
-    def _format_import_findings(self: DeadCodeTool, unused_imports: list[tuple[str, int]]) -> list[str]:  # noqa: E501
-        """Format unused import findings for output.
 
-        Args:
-            unused_imports: List of (name, line) tuples.
-
-        Returns:
-            Formatted findings lines.
-        """
-        return self._format_findings(
-            "\nUnused imports:",
-            [f"  line {line}: {name}" for name, line in unused_imports],
-        )
-
-    def _format_definition_findings(self: DeadCodeTool, unused_defs: list[tuple[str, str, int]]) -> list[str]:  # noqa: E501
-        """Format unused definition findings for output.
-
-        Args:
-            unused_defs: List of (kind, name, line) tuples.
-
-        Returns:
-            Formatted findings lines.
-        """
-        return self._format_findings(
-            "\nPossibly unused definitions:",
-            [f"  line {line}: {kind} {name}" for kind, name, line in unused_defs],
-        )
 
     def _analyze_directory(
         self: DeadCodeTool,
@@ -550,9 +630,9 @@ class DeadCodeTool(Tool):
         files_scanned = 0
 
         for py_file in sorted(directory.rglob("*.py")):
-            result = self._analyze_file(py_file, params)
-            if result.success and "No dead code" not in result.content:
-                all_findings.append(result.content)
+            finding = _get_file_finding(self._analyze_file(py_file, params))
+            if finding:
+                all_findings.append(finding)
             files_scanned += 1
 
         if not all_findings:
@@ -567,41 +647,4 @@ class DeadCodeTool(Tool):
             success=True,
         )
 
-    def _find_unused_imports(
-        self: DeadCodeTool,
-        context: AnalysisContext,
-    ) -> list[tuple[str, int]]:
-        """Find imports that are never used in the file.
 
-        Args:
-            context: Analysis context.
-
-        Returns:
-            List of (import_name, line_number) tuples.
-        """
-        imported = collect_imported_names(context.tree)
-        used_names = collect_used_names(context.tree)
-        return _identify_unused_items(imported, used_names, context.params.whitelist)
-
-    def _find_unused_definitions(
-        self: DeadCodeTool,
-        context: AnalysisContext,
-    ) -> list[tuple[str, str, int]]:
-        """Find functions/classes defined but never referenced.
-
-        Only checks top-level definitions within the same file.
-
-        Args:
-            context: Analysis context.
-
-        Returns:
-            List of (kind, name, line_number) tuples.
-        """
-        definitions = collect_top_level_definitions(context.tree)
-        used_names = collect_all_references(context.tree)
-        all_names = get_all_names(context.tree)
-
-        if all_names is not None:
-            used_names.update(all_names)
-
-        return _identify_unused_definitions(definitions, used_names, context.params.whitelist)

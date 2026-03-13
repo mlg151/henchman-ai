@@ -33,11 +33,17 @@ def setup_tech_lead(
         default_provider: The default model provider.
         system_prompt: Optional custom system prompt.
         environment_context: Optional environment context.
+
+    Returns:
+        None: This function sets up the Tech Lead agent on the orchestrator
+        instance but returns nothing.
     """
     if not orch.tool_registry.get("delegate_task"):
         orch.tool_registry.register(DelegateTaskTool())
     tl_prompt = PromptFactory.create_tech_lead_prompt(
-        agent_configs, system_prompt, environment_context,
+        agent_configs,
+        system_prompt,
+        environment_context,
     )
     ctx = orch.settings.context
     orch.tech_lead = Agent(
@@ -50,11 +56,15 @@ def setup_tech_lead(
         cluster_similarity_threshold=ctx.cluster_similarity_threshold,
         adaptive_compression=ctx.adaptive_compression,
     )
-    orch.tech_lead._stall.enabled = False
+    orch.tech_lead._stall.enabled = False  # noqa: SLF001
 
 
 def create_tech_lead_identity() -> Any:
-    """Create the Tech Lead agent identity."""
+    """Create the Tech Lead agent identity.
+
+    Returns:
+        AgentIdentity: An identity object configured for the Tech Lead role.
+    """
     from henchman.agents.identity import AgentIdentity  # noqa: PLC0415
 
     return AgentIdentity(

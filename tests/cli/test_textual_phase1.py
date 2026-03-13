@@ -39,7 +39,6 @@ class TestTextualPhase1:
         )
         return app
 
-
     @patch("henchman.cli.textual_app.TabbedContent")
     @patch("henchman.cli.textual_app.TabPane")
     @patch("henchman.cli.textual_app.ChatPane")
@@ -62,7 +61,7 @@ class TestTextualPhase1:
         mock_chat_pane,
         mock_tab_pane,
         mock_tabbed_content,
-        textual_app
+        textual_app,
     ):
         """Test that the app uses TabbedContent structure."""
         # Mock the context manager behavior of TabbedContent and TabPane
@@ -78,7 +77,11 @@ class TestTextualPhase1:
         # Verify HenchmanTextArea was used for input
         mock_textarea.assert_called()
         # Verify the ID was set to 'input' in one of the calls
-        input_call = [call for call in mock_textarea.call_args_list if "id='input'" in str(call) or "id" in call.kwargs and call.kwargs["id"] == "input"]
+        input_call = [
+            call
+            for call in mock_textarea.call_args_list
+            if "id='input'" in str(call) or "id" in call.kwargs and call.kwargs["id"] == "input"
+        ]
         assert input_call, "HenchmanTextArea with id='input' not found"
 
     def test_textarea_input(self, textual_app):
@@ -118,4 +121,3 @@ class TestTextualPhase1:
 
         # Verify history update
         assert "Test message" in textual_app.command_history
-

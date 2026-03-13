@@ -85,7 +85,9 @@ def test_main_function_via_import() -> None:
     from henchman.cli.app import main as imported_main
 
     assert imported_main is main
-    assert main.__doc__ == "Main entry point for the CLI."
+    # Check that docstring starts with expected text
+    assert main.__doc__ is not None
+    assert main.__doc__.startswith("Main entry point for the CLI.")
 
 
 class TestGetProvider:
@@ -238,7 +240,6 @@ class TestShowTeamInfo:
         ):
             _show_team_info()
         mock_console.print.assert_called()
-
 
     """Tests for _run_interactive function."""
 

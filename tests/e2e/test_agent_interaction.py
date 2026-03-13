@@ -40,6 +40,7 @@ async def test_agent_interaction_flow():
 
         async def chat_completion_stream(self, *args, **kwargs):
             from henchman.providers.base import FinishReason, StreamChunk
+
             yield StreamChunk(content="Mock response", finish_reason=FinishReason.STOP)
 
         async def embed_async(self, *args, **kwargs):
@@ -67,28 +68,23 @@ async def test_agent_interaction_flow():
             type=EventType.AGENT_THOUGHT,
             source="Assistant",
             content="I should reply to the user.",
-            payload={"thought": "I should reply to the user."}
+            payload={"thought": "I should reply to the user."},
         )
         # 2. Content chunks
         yield AgentEvent(
             type=EventType.AGENT_CONTENT,
             source="Assistant",
             content="Hello",
-            payload={"content": "Hello"}
+            payload={"content": "Hello"},
         )
         yield AgentEvent(
             type=EventType.AGENT_CONTENT,
             source="Assistant",
             content=" World!",
-            payload={"content": " World!"}
+            payload={"content": " World!"},
         )
         # 3. Finished
-        yield AgentEvent(
-            type=EventType.AGENT_FINISHED,
-            source="Assistant",
-            content="",
-            payload={}
-        )
+        yield AgentEvent(type=EventType.AGENT_FINISHED, source="Assistant", content="", payload={})
 
     # Mock the orchestrator
     mock_orchestrator = MagicMock()
@@ -97,16 +93,13 @@ async def test_agent_interaction_flow():
     # Mock CoreContext
     mock_core_context = MagicMock()
     mock_core_context.orchestrator = mock_orchestrator
-    mock_core_context.session_manager = MagicMock() # To prevent AttributeError in set_session
+    mock_core_context.session_manager = MagicMock()  # To prevent AttributeError in set_session
 
     # Patch create_core_context to return our mock
     with patch("henchman.cli.textual_app.create_core_context", return_value=mock_core_context):
-
         config = TextualConfig()
         app = HenchmanTextualApp(
-            provider=mock_provider,
-            config=config,
-            environment_context="TestEnv"
+            provider=mock_provider, config=config, environment_context="TestEnv"
         )
 
         async with app.run_test() as pilot:
@@ -122,7 +115,9 @@ async def test_agent_interaction_flow():
 
             # Debug: Check if we have the right orchestrator
             assert app.core_context is not None
-            assert app.core_context.orchestrator is mock_orchestrator, f"Orchestrator mismatch! Got {app.core_context.orchestrator} expected {mock_orchestrator}"
+            assert app.core_context.orchestrator is mock_orchestrator, (
+                f"Orchestrator mismatch! Got {app.core_context.orchestrator} expected {mock_orchestrator}"
+            )
 
             # 3. Verify user message in chat
             _chat_pane = app.query_one("#chat-pane")  # noqa: F841
@@ -143,4 +138,3 @@ async def test_agent_interaction_flow():
             # Check input cleared
             input_widget = app.query_one("#input")
             assert input_widget.text == ""
-

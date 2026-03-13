@@ -168,24 +168,24 @@ class TestToolsCommand:
     @pytest.mark.anyio
     async def test_execute_with_tool_registry(self) -> None:
         """Test that tools command uses tool registry when available."""
-        from unittest.mock import Mock, AsyncMock
-        
+        from unittest.mock import Mock
+
         # Create a mock tool registry
         mock_tool_registry = Mock()
         mock_tool = Mock()
         mock_tool.description = "Test tool description"
         mock_tool_registry.list_tools.return_value = ["test_tool", "another_tool"]
         mock_tool_registry.get.return_value = mock_tool
-        
+
         # Create console and context with tool registry
         console = Console(file=StringIO(), force_terminal=True, width=80)
         ctx = CommandContext(console=console, args=[], tool_registry=mock_tool_registry)
-        
+
         cmd = ToolsCommand()
         await cmd.execute(ctx)
-        
+
         output = console.file.getvalue()  # type: ignore[union-attr]
-        
+
         # Should show output
         assert len(output) > 0
         # Should call tool registry methods
@@ -198,28 +198,28 @@ class TestToolsCommand:
     @pytest.mark.anyio
     async def test_execute_with_agent_tool_registry(self) -> None:
         """Test that tools command uses agent's tool registry when available."""
-        from unittest.mock import Mock, AsyncMock
-        
+        from unittest.mock import Mock
+
         # Create a mock tool registry
         mock_tool_registry = Mock()
         mock_tool = Mock()
         mock_tool.description = "Agent tool description"
         mock_tool_registry.list_tools.return_value = ["agent_tool", "another_agent_tool"]
         mock_tool_registry.get.return_value = mock_tool
-        
+
         # Create a mock agent with tool registry
         mock_agent = Mock()
         mock_agent.tool_registry = mock_tool_registry
-        
+
         # Create console and context with agent but no direct tool registry
         console = Console(file=StringIO(), force_terminal=True, width=80)
         ctx = CommandContext(console=console, args=[], agent=mock_agent)
-        
+
         cmd = ToolsCommand()
         await cmd.execute(ctx)
-        
+
         output = console.file.getvalue()  # type: ignore[union-attr]
-        
+
         # Should show output
         assert len(output) > 0
         # Should call agent's tool registry methods

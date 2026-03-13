@@ -1,5 +1,10 @@
 """Utility functions and helpers."""
 
+from henchman.utils.intelligent_context_config import (
+    IntelligentContextConfig,
+    IntelligentContextParams,
+)
+from henchman.utils.message_analyzer import MessageAnalyzer
 from henchman.utils.retry import (
     RetryConfig,
     calculate_delay,
@@ -8,6 +13,9 @@ from henchman.utils.retry import (
 )
 
 __all__ = [
+    "IntelligentContextConfig",
+    "IntelligentContextParams",
+    "MessageAnalyzer",
     "RetryConfig",
     "calculate_delay",
     "retry_async",

@@ -6,12 +6,10 @@ to the project knowledge graph.
 
 from __future__ import annotations
 
-import subprocess
-from pathlib import Path
-
 from henchman.knowledge.models import Entity, Observation, Relation
 from henchman.knowledge.store import KnowledgeStore
-from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.base import ToolKind, ToolResult
+from henchman.tools.builtins.kg_common import KgToolBase, _find_git_root
 
 # Allowed values ---------------------------------------------------------------
 
@@ -45,22 +43,6 @@ VALID_RELATION_TYPES = frozenset(
 )
 
 
-def _find_git_root() -> Path | None:
-    """Locate the git repository root from cwd."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return Path(result.stdout.strip())
-    except (subprocess.SubprocessError, FileNotFoundError):
-        pass
-    return None
-
-
 def _validate_id(raw: object) -> str | None:
     """Return a cleaned entity id or None if invalid."""
     text = str(raw).strip() if raw else ""
@@ -69,22 +51,12 @@ def _validate_id(raw: object) -> str | None:
     return text
 
 
-class KgUpdateTool(Tool):
+class KgUpdateTool(KgToolBase):
     """Update the project knowledge graph.
 
     Supports actions: add_entity, add_observation, add_relation,
     and remove_entity.  Changes are persisted to disk after each call.
     """
-
-    def __init__(self: KgUpdateTool, store: KnowledgeStore | None = None) -> None:
-        """Initialise the knowledge graph update tool.
-
-        Args:
-            store: Optional pre-built store.  When ``None`` the tool
-                will auto-discover the git root and create one.
-        """
-        self._store = store
-        self._initialised = store is not None
 
     @property
     def name(self: KgUpdateTool) -> str:
@@ -233,7 +205,10 @@ class KgUpdateTool(Tool):
         return ToolResult(content=f"Unknown action: '{action}'.")
 
     def _handle_add_entity(
-        self: KgUpdateTool, store: KnowledgeStore, entity_id: str, params: dict[str, object],
+        self: KgUpdateTool,
+        store: KnowledgeStore,
+        entity_id: str,
+        params: dict[str, object],
     ) -> ToolResult:
         """Handle add_entity action."""
         params_get = params.get
@@ -267,7 +242,10 @@ class KgUpdateTool(Tool):
         return ToolResult(content=f"Added entity '{entity_id}' ({entity_type}).")
 
     def _handle_add_observation(
-        self: KgUpdateTool, store: KnowledgeStore, entity_id: str, params: dict[str, object],
+        self: KgUpdateTool,
+        store: KnowledgeStore,
+        entity_id: str,
+        params: dict[str, object],
     ) -> ToolResult:
         """Handle add_observation action."""
         observation_text = str(
@@ -289,7 +267,10 @@ class KgUpdateTool(Tool):
         return ToolResult(content=f"Added observation to '{entity_id}': {observation_text}")
 
     def _handle_add_relation(
-        self: KgUpdateTool, store: KnowledgeStore, entity_id: str, params: dict[str, object],
+        self: KgUpdateTool,
+        store: KnowledgeStore,
+        entity_id: str,
+        params: dict[str, object],
     ) -> ToolResult:
         """Handle add_relation action."""
         target_id = _validate_id(params.get("target_id"))
@@ -334,7 +315,9 @@ class KgUpdateTool(Tool):
         )
 
     def _handle_remove_entity(
-        self: KgUpdateTool, store: KnowledgeStore, entity_id: str,
+        self: KgUpdateTool,
+        store: KnowledgeStore,
+        entity_id: str,
     ) -> ToolResult:
         """Handle remove_entity action."""
         if store.remove_entity(entity_id):

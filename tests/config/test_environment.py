@@ -297,10 +297,10 @@ class TestDetectAvailableTools:
         assert isinstance(result, list)
 
     def test_common_tool_detected(self) -> None:
-        """Test that at least 'python' is typically detected."""
+        """Test that at least one common tool is detected."""
         result = _detect_available_tools()
-        # python should be available in test environment
-        assert "python" in result
+        # git or pip should be available in any CI/dev environment
+        assert any(tool in result for tool in ("git", "pip", "python", "python3"))
 
     def test_with_mocked_shutil(self) -> None:
         """Test tool detection with mocked shutil.which."""

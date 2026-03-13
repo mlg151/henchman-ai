@@ -71,13 +71,13 @@ class TestAnthropicFormatting:
 
     def test_format_tool(self) -> None:
         """Test tool formatting for Anthropic API."""
-        provider = AnthropicProvider(api_key="test-key")
+        from henchman.providers.anthropic import _format_tool_for_anthropic
         tool = ToolDeclaration(
             name="test_tool",
             description="A test tool",
             parameters={"type": "object", "properties": {}},
         )
-        formatted = provider._format_tool(tool)
+        formatted = _format_tool_for_anthropic(tool)
         assert formatted["name"] == "test_tool"
         assert formatted["description"] == "A test tool"
         assert formatted["input_schema"] == {"type": "object", "properties": {}}
@@ -158,33 +158,39 @@ class TestAnthropicFinishReasons:
 
     def test_parse_finish_reason_end_turn(self) -> None:
         """Test end_turn maps to STOP."""
-        provider = AnthropicProvider(api_key="test-key")
-        assert provider._parse_finish_reason("end_turn") == FinishReason.STOP
+        from henchman.providers.anthropic import ANTHROPIC_FINISH_REASON_MAPPING
+        from henchman.providers.utils import parse_finish_reason
+        assert parse_finish_reason("end_turn", ANTHROPIC_FINISH_REASON_MAPPING) == FinishReason.STOP
 
     def test_parse_finish_reason_stop_sequence(self) -> None:
         """Test stop_sequence maps to STOP."""
-        provider = AnthropicProvider(api_key="test-key")
-        assert provider._parse_finish_reason("stop_sequence") == FinishReason.STOP
+        from henchman.providers.anthropic import ANTHROPIC_FINISH_REASON_MAPPING
+        from henchman.providers.utils import parse_finish_reason
+        assert parse_finish_reason("stop_sequence", ANTHROPIC_FINISH_REASON_MAPPING) == FinishReason.STOP
 
     def test_parse_finish_reason_tool_use(self) -> None:
         """Test tool_use maps to TOOL_CALLS."""
-        provider = AnthropicProvider(api_key="test-key")
-        assert provider._parse_finish_reason("tool_use") == FinishReason.TOOL_CALLS
+        from henchman.providers.anthropic import ANTHROPIC_FINISH_REASON_MAPPING
+        from henchman.providers.utils import parse_finish_reason
+        assert parse_finish_reason("tool_use", ANTHROPIC_FINISH_REASON_MAPPING) == FinishReason.TOOL_CALLS
 
     def test_parse_finish_reason_max_tokens(self) -> None:
         """Test max_tokens maps to LENGTH."""
-        provider = AnthropicProvider(api_key="test-key")
-        assert provider._parse_finish_reason("max_tokens") == FinishReason.LENGTH
+        from henchman.providers.anthropic import ANTHROPIC_FINISH_REASON_MAPPING
+        from henchman.providers.utils import parse_finish_reason
+        assert parse_finish_reason("max_tokens", ANTHROPIC_FINISH_REASON_MAPPING) == FinishReason.LENGTH
 
     def test_parse_finish_reason_none(self) -> None:
         """Test None returns None."""
-        provider = AnthropicProvider(api_key="test-key")
-        assert provider._parse_finish_reason(None) is None
+        from henchman.providers.anthropic import ANTHROPIC_FINISH_REASON_MAPPING
+        from henchman.providers.utils import parse_finish_reason
+        assert parse_finish_reason(None, ANTHROPIC_FINISH_REASON_MAPPING) is None
 
     def test_parse_finish_reason_unknown(self) -> None:
         """Test unknown reason defaults to STOP."""
-        provider = AnthropicProvider(api_key="test-key")
-        assert provider._parse_finish_reason("unknown") == FinishReason.STOP
+        from henchman.providers.anthropic import ANTHROPIC_FINISH_REASON_MAPPING
+        from henchman.providers.utils import parse_finish_reason
+        assert parse_finish_reason("unknown", ANTHROPIC_FINISH_REASON_MAPPING) == FinishReason.STOP
 
 
 class TestAnthropicStreaming:

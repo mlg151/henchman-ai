@@ -22,15 +22,17 @@ def test_bug1_duplicate_config_classes():
     textual_fields = TextualConfig.__dataclass_fields__.keys()
     repl_fields = ReplConfig.__dataclass_fields__.keys()
 
-    assert set(textual_fields) == set(repl_fields), \
+    assert set(textual_fields) == set(repl_fields), (
         f"Fields differ: TextualConfig={textual_fields}, ReplConfig={repl_fields}"
+    )
 
     # Check field types match
     for field in textual_fields:
         textual_type = TextualConfig.__dataclass_fields__[field].type
         repl_type = ReplConfig.__dataclass_fields__[field].type
-        assert textual_type == repl_type, \
+        assert textual_type == repl_type, (
             f"Field {field} type mismatch: {textual_type} != {repl_type}"
+        )
 
     # This is the bug - they should be the same class or one should inherit
 
@@ -77,8 +79,8 @@ def test_bug2_input_handler_wrong_config_type():
     mock_input_handler_cls.assert_called_once()
     call_kwargs = mock_input_handler_cls.call_args.kwargs
 
-    assert 'config' in call_kwargs
-    assert isinstance(call_kwargs['config'], TextualConfig)
+    assert "config" in call_kwargs
+    assert isinstance(call_kwargs["config"], TextualConfig)
 
     # The type annotation in InputHandler.__init__ expects ReplConfig
     # but we're passing TextualConfig - this is the bug
@@ -105,8 +107,8 @@ def test_bug3_plugin_manager_missing_ui_instance():
     mock_core_context = MagicMock()
     mock_core_context.plugin_manager = MagicMock()
     # Remove ui_instance to simulate the bug
-    if hasattr(mock_core_context.plugin_manager, 'ui_instance'):
-        delattr(mock_core_context.plugin_manager, 'ui_instance')
+    if hasattr(mock_core_context.plugin_manager, "ui_instance"):
+        delattr(mock_core_context.plugin_manager, "ui_instance")
 
     initializer._create_context_fn = lambda **_: mock_core_context
 

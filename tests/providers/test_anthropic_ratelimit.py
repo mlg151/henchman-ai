@@ -26,55 +26,56 @@ async def test_anthropic_rate_limiting_delays():
     # "Hello world" is about 2 tokens + overhead, let's say 10 tokens total estimate
 
     # Mock asyncio.sleep to avoid waiting for real time
-    with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep, patch(
-        "henchman.providers.anthropic.AsyncAnthropic"
-    ) as mock_anthropic:
-            mock_client = MagicMock()
-            mock_anthropic.return_value = mock_client
+    with (
+        patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        patch("henchman.providers.anthropic.AsyncAnthropic") as mock_anthropic,
+    ):
+        mock_client = MagicMock()
+        mock_anthropic.return_value = mock_client
 
-            provider = AnthropicProvider(api_key="test", tokens_per_minute=limit)
+        provider = AnthropicProvider(api_key="test", tokens_per_minute=limit)
 
-            # Mock the stream
-            mock_stream = AsyncMock()
+        # Mock the stream
+        mock_stream = AsyncMock()
 
-            async def mock_aiter():
-                if False:
-                    yield None
+        async def mock_aiter():
+            if False:
+                yield None
 
-            mock_stream.__aenter__.return_value = mock_aiter()
-            mock_client.messages.stream.return_value = mock_stream
+        mock_stream.__aenter__.return_value = mock_aiter()
+        mock_client.messages.stream.return_value = mock_stream
 
-            _start_time = time.time()
+        _start_time = time.time()
 
-            # First call should be fast
-            async for _ in provider.chat_completion_stream(messages):
-                pass
+        # First call should be fast
+        async for _ in provider.chat_completion_stream(messages):
+            pass
 
-            # Manually add a lot of usage to trigger limit
-            await provider._rate_limiter.add_usage(limit - 5)
+        # Manually add a lot of usage to trigger limit
+        await provider._rate_limiter.add_usage(limit - 5)
 
-            # Define side effect to break the rate limit loop
-            async def sleep_side_effect(*args, **kwargs):  # noqa: ARG001
-                provider._rate_limiter.usage.clear()
-                return None
-
-            mock_sleep.side_effect = sleep_side_effect
-
-            # Second call should wait (mocked) and then succeed because usage is cleared
-            async for _ in provider.chat_completion_stream(messages):
-                pass
-
-            # Reset side effect for next check
-            mock_sleep.side_effect = None
-
-            # Reset rate limiter usage for the assertion part
+        # Define side effect to break the rate limit loop
+        async def sleep_side_effect(*args, **kwargs):  # noqa: ARG001
             provider._rate_limiter.usage.clear()
-            await provider._rate_limiter.add_usage(limit - 1)
+            return None
 
-            async for _ in provider.chat_completion_stream(messages):
-                pass
+        mock_sleep.side_effect = sleep_side_effect
 
-            assert mock_sleep.called
+        # Second call should wait (mocked) and then succeed because usage is cleared
+        async for _ in provider.chat_completion_stream(messages):
+            pass
+
+        # Reset side effect for next check
+        mock_sleep.side_effect = None
+
+        # Reset rate limiter usage for the assertion part
+        provider._rate_limiter.usage.clear()
+        await provider._rate_limiter.add_usage(limit - 1)
+
+        async for _ in provider.chat_completion_stream(messages):
+            pass
+
+        assert mock_sleep.called
 
 
 @pytest.mark.asyncio

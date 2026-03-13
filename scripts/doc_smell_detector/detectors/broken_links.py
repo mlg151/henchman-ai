@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 
 from scripts.doc_smell_detector.detectors.base import DocSmellDetector, ScanContext
 from scripts.doc_smell_detector.models import (

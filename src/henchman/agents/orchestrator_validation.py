@@ -43,15 +43,20 @@ def handle_valid_thinking(metrics: Any, content: str) -> None:
     Args:
         metrics: The metrics object to update.
         content: The thinking content to analyze.
+
+    Returns:
+        None: This function updates metrics in-place and returns nothing.
     """
     metrics.thinking_pattern_usage += 1
     numbered = [
-        ln for ln in content.strip().split("\n")
+        ln
+        for ln in content.strip().split("\n")
         if ln.strip().startswith(("1.", "2.", "3.", "4.", "5."))
     ]
     if len(numbered) >= _MIN_LINES:
         metrics.thinking_quality_score = min(
-            _MAX_SCORE, metrics.thinking_quality_score + _SCORE_INC,
+            _MAX_SCORE,
+            metrics.thinking_quality_score + _SCORE_INC,
         )
 
 

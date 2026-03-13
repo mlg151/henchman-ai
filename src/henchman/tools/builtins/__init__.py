@@ -4,9 +4,12 @@ from henchman.tools.builtins.ask_user import AskUserTool
 from henchman.tools.builtins.code_format import CodeFormatTool
 from henchman.tools.builtins.coverage_map import CoverageMapTool
 from henchman.tools.builtins.dead_code import DeadCodeTool
+from henchman.tools.builtins.deep_research import DeepResearchTool
+from henchman.tools.builtins.delegate import DelegateTaskTool
 from henchman.tools.builtins.diff_view import DiffViewTool
 from henchman.tools.builtins.env_inspect import EnvInspectTool
 from henchman.tools.builtins.file_edit import EditFileTool
+from henchman.tools.builtins.file_overview import FileOverviewTool
 from henchman.tools.builtins.file_read import ReadFileTool
 from henchman.tools.builtins.file_write import WriteFileTool
 from henchman.tools.builtins.git_ops import GitOpsTool
@@ -18,26 +21,31 @@ from henchman.tools.builtins.kg_update import KgUpdateTool
 from henchman.tools.builtins.lint_check import LintCheckTool
 from henchman.tools.builtins.ls import LsTool
 from henchman.tools.builtins.patch_apply import PatchApplyTool
+from henchman.tools.builtins.pattern_search import PatternSearchTool
 from henchman.tools.builtins.pip_inspect import PipInspectTool
 from henchman.tools.builtins.pytest_run import PytestRunTool
 from henchman.tools.builtins.python_ast import PythonAstTool
 from henchman.tools.builtins.python_exec import PythonExecTool
 from henchman.tools.builtins.rag_search import RagSearchTool
+from henchman.tools.builtins.research_notes import ResearchNotesTool
 from henchman.tools.builtins.shell import ShellTool
+from henchman.tools.builtins.symbol_trace import SymbolTraceTool
 from henchman.tools.builtins.test_gen import TestGenTool
 from henchman.tools.builtins.traceback_parse import TracebackParseTool
 from henchman.tools.builtins.web_fetch import WebFetchTool
-from henchman.tools.builtins.web_search import DuckDuckGoSearchTool
+from henchman.tools.builtins.web_search import DuckDuckGoSearchTool as WebSearchTool
 
 __all__ = [
     "AskUserTool",
     "CodeFormatTool",
     "CoverageMapTool",
     "DeadCodeTool",
+    "DeepResearchTool",
+    "DelegateTaskTool",
     "DiffViewTool",
-    "DuckDuckGoSearchTool",
     "EditFileTool",
     "EnvInspectTool",
+    "FileOverviewTool",
     "GitOpsTool",
     "GlobTool",
     "GrepTool",
@@ -47,15 +55,19 @@ __all__ = [
     "LintCheckTool",
     "LsTool",
     "PatchApplyTool",
+    "PatternSearchTool",
     "PipInspectTool",
     "PytestRunTool",
     "PythonAstTool",
     "PythonExecTool",
     "RagSearchTool",
     "ReadFileTool",
+    "ResearchNotesTool",
     "ShellTool",
+    "SymbolTraceTool",
     "TestGenTool",
     "TracebackParseTool",
     "WebFetchTool",
+    "WebSearchTool",
     "WriteFileTool",
 ]

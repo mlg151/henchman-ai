@@ -20,9 +20,9 @@ class TestThinkingIndicator:
         renderer = UIRenderer(console=console)
 
         # Should have thinking indicator attributes but inactive initially
-        assert hasattr(renderer, '_thinking_status')
+        assert hasattr(renderer, "_thinking_status")
         assert renderer._thinking_status is None
-        assert hasattr(renderer, '_is_thinking')
+        assert hasattr(renderer, "_is_thinking")
         assert renderer._is_thinking is False
 
     def test_start_thinking(self) -> None:
@@ -32,13 +32,12 @@ class TestThinkingIndicator:
 
         # Mock the console.status method
         mock_status = MagicMock(spec=Status)
-        with patch.object(console, 'status', return_value=mock_status) as mock_status_method:
+        with patch.object(console, "status", return_value=mock_status) as mock_status_method:
             renderer.start_thinking("Processing your request...")
 
             # Should create a status with thinking message
             mock_status_method.assert_called_once_with(
-                "[dim]Thinking...[/] Processing your request...",
-                spinner="dots"
+                "[dim]Thinking...[/] Processing your request...", spinner="dots"
             )
 
             # Should start the status
@@ -54,14 +53,11 @@ class TestThinkingIndicator:
         renderer = UIRenderer(console=console)
 
         mock_status = MagicMock(spec=Status)
-        with patch.object(console, 'status', return_value=mock_status):
+        with patch.object(console, "status", return_value=mock_status):
             renderer.start_thinking()
 
             # Should use default message
-            console.status.assert_called_once_with(
-                "[dim]Thinking...[/]",
-                spinner="dots"
-            )
+            console.status.assert_called_once_with("[dim]Thinking...[/]", spinner="dots")
 
     def test_stop_thinking(self) -> None:
         """Test stopping a thinking indicator."""
@@ -101,7 +97,7 @@ class TestThinkingIndicator:
 
         mock_status = MagicMock(spec=Status)
 
-        with patch.object(console, 'status', return_value=mock_status):
+        with patch.object(console, "status", return_value=mock_status):
             # Use as context manager
             with renderer.thinking_context("Analyzing code..."):
                 assert renderer.is_thinking
@@ -117,7 +113,7 @@ class TestThinkingIndicator:
 
         mock_status = MagicMock(spec=Status)
 
-        with patch.object(console, 'status', return_value=mock_status):
+        with patch.object(console, "status", return_value=mock_status):
             with renderer.thinking_context():
                 assert renderer.is_thinking
                 mock_status.__enter__.assert_called_once()
@@ -146,13 +142,10 @@ class TestThinkingIndicator:
         renderer = UIRenderer(console=console)
 
         mock_status = MagicMock(spec=Status)
-        with patch.object(console, 'status', return_value=mock_status):
+        with patch.object(console, "status", return_value=mock_status):
             renderer.start_thinking("Processing", spinner="line")
 
-            console.status.assert_called_once_with(
-                "[dim]Thinking...[/] Processing",
-                spinner="line"
-            )
+            console.status.assert_called_once_with("[dim]Thinking...[/] Processing", spinner="line")
 
     def test_thinking_context_manager_exception_handling(self) -> None:
         """Test that thinking indicator stops even if exception occurs."""
@@ -161,7 +154,7 @@ class TestThinkingIndicator:
 
         mock_status = MagicMock(spec=Status)
 
-        with patch.object(console, 'status', return_value=mock_status):
+        with patch.object(console, "status", return_value=mock_status):
             try:
                 with renderer.thinking_context("Working..."):
                     raise ValueError("Test error")
@@ -179,7 +172,7 @@ class TestThinkingIndicator:
         mock_status1 = MagicMock(spec=Status)
         mock_status2 = MagicMock(spec=Status)
 
-        with patch.object(console, 'status', side_effect=[mock_status1, mock_status2]):
+        with patch.object(console, "status", side_effect=[mock_status1, mock_status2]):
             # First thinking indicator
             renderer.start_thinking("First thought")
             assert renderer._thinking_status == mock_status1

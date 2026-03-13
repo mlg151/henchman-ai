@@ -1,79 +1,649 @@
-[2026-03-03T15:30:03Z] Starting auto-improve run...
+[2026-03-13T13:00:03Z] Starting Four Lenses bug-hunt run...
 Running code smell detector...
-cli/prompts.py:24: SyntaxWarning: invalid escape sequence '\ '
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
-[2026-03-03T15:30:03Z] Targeting lowest-graded file: cli/textual_bridge.py
+[2026-03-13T13:00:03Z] Targeting lowest-graded file: src/henchman/utils/intelligent_context.py
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-ℹ [blue]CHAT[/] | Tokens: ~[cyan]9710[/]
-I'll analyze the target file `src/henchman/cli/textual_bridge.py` and address all the code smells listed in the report. Let me first read the file to understand its structure and issues.
-[tool] read_file({'path': 'src/henchman/cli/textual_bridge.py'})
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by reading the smell report and the target file to understand the context and identify bugs.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
 
+[result] # Code Smell Report — ⚠️ C (Score: 74.9/100)
 
-[result] """Console adapter and event bridge for the Textual TUI.
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-``TuiConsoleAdapter`` redirects Rich Console output into the TUI chat
-pane.  ``EventBridge`` translates ``AgentEvent`` objects into Textual
-``...
-Now let me examine the specific code smells from the report for this file. The report shows 25 smells for `cli/textual_bridge.py`, mostly duplicate code issues. Let me analyze the key issues:
+_Generated: 2026-03-13T13:00:25.267950+00:00_
 
-**Identified Smells from Report:**
-1. **Duplicate Code**: Function `post` is 100% similar to `_post` (line 121 vs 261) and `_on_thought` (line 419)
-2. **Duplicate Code**: Function `post_tool_message` is 100% similar to `_add_message_with_prefix` and other message functions
-3. **Duplicate Code**: Function `post_status_message` is 100% similar to `_on_finished`
-4. **Duplicate Code**: Function `_post` is 100% similar to `_on_thought` and others
-5. **Duplicate Code**: Function `_create_status_message_handler` is 100% similar to `_create_prefixed_message_handler`
+## Executive Summary
 
-Looking at the code, I can see the main issues:
-1. **MessagePoster class** has duplicate methods (`post` and `_post_message` have similar logic)
-2. **EventBridge class** has factory methods that create similar handlers
-3. **Duplicate handler creation logic** across multiple methods
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 1, 'end_line': 100})
+[result] """Intelligent context management system.
 
-Let me run the tests first to ensure I don't break anything:
-[tool] pytest_run({'path': 'tests/cli/test_textual_bridge.py', 'verbose': True})
+This module provides an intelligent context manager that reduces token usage
+while preserving important context through importance scoring, clustering,
+and a...
+Let me continue reading the file to understand the main functionality:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 100, 'end_line': 200})
+[result] 
+    # Context window constants for line-based context extraction
+    CONTEXT_LINES_BEFORE: int = 2  # Lines before a section to include in 
+context
+    CONTEXT_LINES_AFTER: int = 2  # Lines after a se...
+Let me continue reading to find the main functions:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 200, 'end_line': 300})
+[result] 
 
-✗ \[error] ============================= test session starts 
+@dataclass
+class FenceResult:
+    """Result of finding a closing fence for a code block.
+
+    Attributes:
+        code_end: The position where the code content ends.
+        next_pos: The position a...
+Let me continue reading to find the problematic function mentioned in the smell report:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 479, 'end_line': 600})
+[result]     def _is_apostrophe_in_word(self: _ParserState, text: str, i: int) 
+-> bool:
+        """Check if single quote at i is an apostrophe in a word."""
+        # Check bounds first (negative indices wrap ...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test_intelligent_context*'})
+[result] 
+.agent_tasks/auto-improve/__pycache__/test_intelligent_context.cpython-312-pytes
+t-9.0.2.pyc
+.agent_tasks/auto-improve/__pycache__/test_intelligent_context_refactor.cpython-
+312-pytest-9.0.2.pyc
+.agent_...
+Let me look at the main test file:
+[tool] read_file({'path': 'tests/utils/test_intelligent_context.py', 
+'start_line': 1, 'end_line': 50})
+[result] """Tests for intelligent context management."""
+
+import pytest
+from henchman.providers.base import Message, ToolCall
+from henchman.utils.intelligent_context import (
+    IntelligentContextManager,
+   ...
+Now let me examine the `_is_apostrophe_in_word` function more closely to understand its logic and find a bug. First, let me read more of the function:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 600, 'end_line': 700})
+[result]         # In code context, treat as string delimiter to be safe
+        return False
+
+    def _handle_potential_string_start(self: _ParserState, text: str, i: int) ->
+int:
+        """Handle potential ...
+Now I need to analyze the `_is_apostrophe_in_word` function using the Four Lenses of Failure. Let me first create the documentation stub as required:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-utils-intelligent_context/README.md', 'content': "# 
+Four Lenses Bug Report: src/henchman/utils/intelligent_context.py\n## Date: 
+2025-03-13T13:15:00.000Z\n## Bug Summary\nThe `_is_apostrophe_in_word` function 
+has an index out-of-bounds bug when checking character before apostrophe at 
+position 0 (beginning of string).\n\n## Lens\n**Lens 1: The Intent vs. Reality 
+Check** - Logic Gaps\n\n## Expected vs. Observed\n| Expected Behavior | Observed
+Risk |\n|---|---|\n| Function should safely handle apostrophe at position 0 
+(beginning of string) | Function attempts to access `text[i-1]` when `i=0`, 
+causing IndexError |\n| Function should return False for apostrophe at string 
+start | Function crashes with IndexError before any logic can execute |\n| 
+Bounds checking should prevent negative index access | Bounds check `if i < 
+-len(text) or i >= len(text):` doesn't catch i=0 case for `text[i-1]` |\n\n## 
+Root Cause\nThe function has an early bounds check for `i`, but after converting
+negative indices to positive, it doesn't validate that `i-1` is a valid index 
+before accessing `text[i-1]`. When `i=0`, `text[i-1]` accesses `text[-1]` (last 
+character), which is incorrect logic for checking character before 
+apostrophe.\n\n## Fix Plan\nAdd validation that `i-1 >= 0` before accessing 
+`text[i-1]` when checking character before apostrophe. Also need to handle the 
+case where apostrophe is at position 0 (beginning of string) - it cannot be an 
+apostrophe in a word.\n\n## Status: IN PROGRESS"})
+[result] Successfully wrote 1419 bytes to 
+.agent_tasks/four-lenses-utils-intelligent_context/README.md...
+Now I need to write a failing test first (TDD). Let me check if there are existing tests for this function:
+[tool] grep({'pattern': '_is_apostrophe_in_word', 'path': 'tests/', 
+'line_numbers': True})
+[result] tests/utils/test_intelligent_context.py:912:def 
+test_is_apostrophe_in_word_negative_index_bug():
+tests/utils/test_intelligent_context.py:913:    """Test that 
+_is_apostrophe_in_word handles negative in...
+I see there are already many tests for this function. Let me look at one of the test files that seems to be testing the exact bug I identified:
+[tool] read_file({'path': 
+'tests/utils/test_intelligent_context_four_lenses_bug_final.py'})
+[result] """Test for the Four Lenses bug in _is_apostrophe_in_word method.
+
+This test demonstrates the bug where _is_apostrophe_in_word incorrectly
+checks text[i-1] when i == 0 after negative index conversion....
+Great! There's already a test for this bug. Let me run this test to confirm it fails:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/utils/test_intelligent_context_four_lenses_bug_final.py::test_is_apostroph
+e_in_word_negative_index_at_start_bug -x -q --tb=short'})
+[result] ============================= test session starts 
 ==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-Let me check if there are any tests for this file:
-[tool] glob({'pattern': '**/test*textual*.py'})
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Interesting! The test passes. Let me examine the actual function more carefully to see if the bug has already been fixed:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 479, 'end_line': 520})
+[result]     def _is_apostrophe_in_word(self: _ParserState, text: str, i: int) 
+-> bool:
+        """Check if single quote at i is an apostrophe in a word."""
+        # Check bounds first (negative indices wrap ...
+I see! The function already has a check `if text[i] != "'" or i == 0: return False` which handles the case where `i == 0`. But wait, let me trace through the logic more carefully. After converting negative indices to positive, if `i` was `-len(text)` (pointing to first character), it becomes `0`. Then the check `if text[i] != "'" or i == 0: return False` would return `False`. So the bug might already be fixed!
 
-[result] .agent_tasks/debug-scripts/test_minimal_textual.py
-.agent_tasks/debug-scripts/test_textual_debug.py
-.agent_tasks/debug-scripts/test_textual_flow.py
-.agent_tasks/debug-scripts/test_textual_message.py
-....
-Let me check if there's a test file for textual_bridge:
-[tool] glob({'pattern': '**/*textual_bridge*test*.py'})
+But let me think about this more carefully. Actually, looking at the test again:
 
-[result] No matches found...
-Let me run the textual bridge bugs test:
-[tool] pytest_run({'path': 'tests/cli/test_textual_bridge_bugs.py', 'verbose': 
-True})
+```python
+text = "'hello"  # Quote at position 0
+i = -6  # -len(text) = -6, points to first character "'"
+```
 
-✗ \[error] ============================= test session starts 
+After conversion: `i = len(text) + i = 6 + (-6) = 0`. Then `if text[i] != "'" or i == 0: return False` evaluates to `if "'" != "'" or 0 == 0: return False` which is `if False or True: return False` which is `if True: return False`. So it returns `False`. That's correct!
+
+But wait, the test comment says "Actual bug: Accesses text[-1] (last character 'o') and may return True if 'o' is alnum". But with the current code, it would return `False` at the `i == 0` check before accessing `text[i-1]`.
+
+Let me run a simpler test to verify:
+[tool] python_exec({'code': 'from henchman.utils.intelligent_context import 
+_ParserState\n\nparser = _ParserState()\ntext = "\'hello"\ni = -6  # 
+-len(text)\n\nprint(f"text: {text}")\nprint(f"len(text): 
+{len(text)}")\nprint(f"i: {i}")\nprint(f"i after conversion would be: {len(text)
++ i}")\nprint(f"text[i] (before conversion): {text[i]}")\nprint(f"text[i] == 
+\\"\'\\": {text[i] == \\"\'\\"}")\n\n# Simulate the logic\nif i < -len(text) or 
+i >= len(text):\n    print("Bounds check: False (would return)")\nelse:\n    
+print("Bounds check: passed")\n    \nif i < 0:\n    i_converted = len(text) + 
+i\n    print(f"i converted to: {i_converted}")\n    \n    if text[i_converted] 
+!= "\'" or i_converted == 0:\n        print(f"Check: text[i_converted] != 
+\\"\'\\" or i_converted == 0: {text[i_converted] != \\"\'\\" or i_converted == 
+0}")\n        print("Would return False")\n    else:\n        print("Would 
+continue to check text[i_converted-1]")'})
+✗ \[error]   File "<string>", line 12
+    print(f"text\[i] == \"'\": {text\[i] == \"'\"}")
+                                           ^
+SyntaxError: unexpected character after line continuation character
+
+
+[tool] python_exec({'code': 'from henchman.utils.intelligent_context import 
+_ParserState\n\nparser = _ParserState()\ntext = "\'hello"\ni = -6  # 
+-len(text)\n\nprint(f"text: {text}")\nprint(f"len(text): 
+{len(text)}")\nprint(f"i: {i}")\nprint(f"i after conversion would be: {len(text)
++ i}")\nprint(f"text[i] (before conversion): {text[i]}")\n\n# Simulate the 
+logic\nif i < -len(text) or i >= len(text):\n    print("Bounds check: False 
+(would return)")\nelse:\n    print("Bounds check: passed")\n    \nif i < 0:\n   
+i_converted = len(text) + i\n    print(f"i converted to: {i_converted}")\n    \n
+if text[i_converted] != "\'" or i_converted == 0:\n        print(f"Check: 
+text[i_converted] != \\"\'\\" or i_converted == 0: {text[i_converted] != 
+\\"\'\\" or i_converted == 0}")\n        print("Would return False")\n    
+else:\n        print("Would continue to check text[i_converted-1]")'})
+✗ \[error]   File "<string>", line 24
+    print(f"Check: text\[i_converted] != \"'\" or i_converted == 0: 
+{text\[i_converted] != \"'\" or i_converted == 0}")
+                                                       
+
+[tool] python_exec({'code': 'from henchman.utils.intelligent_context import 
+_ParserState\n\nparser = _ParserState()\ntext = "\'hello"\ni = -6  # 
+-len(text)\n\nprint(f"text: {text}")\nprint(f"len(text): 
+{len(text)}")\nprint(f"i: {i}")\nprint(f"i after conversion would be: {len(text)
++ i}")\nprint(f"text[i] (before conversion): {text[i]}")\n\n# Simulate the 
+logic\nif i < -len(text) or i >= len(text):\n    print("Bounds check: False 
+(would return)")\nelse:\n    print("Bounds check: passed")\n    \nif i < 0:\n   
+i_converted = len(text) + i\n    print(f"i converted to: {i_converted}")\n    \n
+check_result = text[i_converted] != "\'" or i_converted == 0\n    print(f"Check:
+text[i_converted] != \\"\'\\" or i_converted == 0: {check_result}")\n    if 
+check_result:\n        print("Would return False")\n    else:\n        
+print("Would continue to check text[i_converted-1]")'})
+[result] text: 'hello
+len(text): 6
+i: -6
+i after conversion would be: 0
+text[i] (before conversion): '
+Bounds check: passed
+i converted to: 0
+Check: text[i_converted] != "'" or i_converted == 0: True
+Would ret...
+So the bug appears to already be fixed! But wait, let me look more carefully at the actual test that's passing. Maybe the test is wrong or the bug is more subtle. Let me examine the actual function implementation again and look for other potential bugs using the Four Lenses.
+
+Let me re-examine the function with a fresh look, applying all four lenses:
+
+## Lens 1: The Intent vs. Reality Check
+
+Looking at the function again, I notice something: after checking `if text[i] != "'" or i == 0: return False`, the function then checks `if not (text[i - 1].isalnum() or text[i - 1] == "_"): return False`. 
+
+Wait! If `i == 0` after conversion, we return `False` at the previous check. So `text[i-1]` is never accessed when `i == 0`. That's good.
+
+But what about when `i == 1` after conversion (original `i` was `-len(text) + 1`)? Then `i-1 == 0`, which is valid. So that's fine.
+
+Actually, let me think about the bounds check: `if i < -len(text) or i >= len(text): return False`. If `i = -len(text) - 1`, then `i < -len(text)` is `True`, so we return `False`. Good.
+
+But what about `i = len(text)`? Then `i >= len(text)` is `True`, so we return `False`. Good.
+
+Actually, I think the bug might be elsewhere. Let me look at the function more carefully for other issues.
+
+## Lens 2: State & Side Effects
+
+The function doesn't modify any state, it's a pure function. Good.
+
+## Lens 3: Performance & Resource Management
+
+The function has a while loop that goes backwards checking for string prefixes. In worst case, it could check up to `i` characters (which could be the entire string length). That's O(n) in worst case, but `i` is bounded by string length, so it's O(n) overall. Acceptable for this use case.
+
+## Lens 4: The Forensic Refactor
+
+Wait! I think I found a real bug! Look at this part:
+
+```python
+# Check if it's a string prefix
+j = i - 1
+while j >= 0 and text[j].lower() in ("r", "u", "b", "f"):
+    j -= 1
+
+# If we found at least one prefix character, check if it's a valid prefix
+if j < i - 1:
+    # Check if prefix is part of an identifier (preceded by alnum/underscore)
+    # If so, it's not a string prefix
+    if j >= 0 and (text[j].isalnum() or text[j] == "_"):
+        # The prefix characters are part of an identifier, not a string prefix
+        # Continue to check if it's an apostrophe
+        pass
+    else:
+        # Extract the potential prefix
+        prefix_start = j + 1
+        prefix = text[prefix_start:i].lower()  # Characters between j+1 and i-1
+        # Check if it's a valid string prefix
+        if self._is_valid_string_prefix(prefix):
+            return False  # Valid string prefix, not an apostrophe
+        # Invalid prefix combination (e.g., "fb", "ar", "ur")
+        # In code context, treat as string delimiter (even if invalid syntax)
+        # rather than apostrophe in word
+        return False
+```
+
+There's a bug here! When `j == -1` (meaning we've gone all the way to the beginning of the string checking for prefix characters), then `j >= 0` is `False`, so we go to the `else` block. Then `prefix_start = j + 1 = 0`, and `prefix = text[0:i]` (from start to `i-1`). That's correct.
+
+But wait, what if `j == -1` and `text[0:i]` is not a valid string prefix? Then we `return False`. But that might be wrong! For example, consider `text = "r'hello"` with `i = 1` (the quote). The prefix would be `"r"`, which IS a valid string prefix! So `_is_valid_string_prefix("r")` should return `True`, and we return `False`. That's correct - `r'hello` is a raw string in Python, not an apostrophe.
+
+But what about `text = "ar'hello"` with `i = 2`? The prefix would be `"ar"`, which is NOT a valid string prefix (`"ar"` is not a valid Python string prefix). So `_is_valid_string_prefix("ar")` returns `False`, and we return `False`. That's correct - treat it as string delimiter, not apostrophe.
+
+Actually, I think the logic is correct here. Let me look for a different bug.
+
+Wait! Let me check the `_is_valid_string_prefix` method:
+[tool] grep({'pattern': 'def _is_valid_string_prefix', 'path': 
+'src/henchman/utils/intelligent_context.py', 'line_numbers': True})
+[result] 409:    def _is_valid_string_prefix(self: _ParserState, prefix: str) ->
+bool:...
+
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 409, 'end_line': 430})
+[result]     def _is_valid_string_prefix(self: _ParserState, prefix: str) -> 
+bool:
+        """Check if a prefix is a valid Python string prefix (any type).
+
+        Valid Python 3 string prefixes:
+        - Si...
+
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 430, 'end_line': 460})
+[result]         """
+        # Convert to lowercase for case-insensitive comparison
+        prefix = prefix.lower()
+
+        # Empty string is not a valid prefix
+        if len(prefix) == 0:
+            return...
+
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 460, 'end_line': 470})
+[result] 
+        # Single character prefixes are all valid (r, b, f, u)
+        return True
+
+    def _handle_newline(self: _ParserState, i: int, *, was_escaped: bool) -> 
+int:
+        """Handle newline charact...
+OK, so `_is_valid_string_prefix` looks correct. Let me think about other potential bugs...
+
+Actually, wait! I think I found a real bug! Look at this part of `_is_apostrophe_in_word`:
+
+```python
+# Check character before quote
+if not (text[i - 1].isalnum() or text[i - 1] == "_"):
+    return False
+```
+
+This accesses `text[i-1]` without checking if `i-1 >= 0`! But wait, we already checked `if text[i] != "'" or i == 0: return False`, so if `i == 0`, we would have returned already. So `i >= 1` at this point. So `i-1 >= 0`. That's safe.
+
+Hmm, let me think about edge cases more carefully. What if the string is like `"'hello"` (quote at position 0)? We return at `i == 0` check. Good.
+
+What if the string is like `"a'hello"` with `i = 1`? Then `i-1 = 0`, which is valid. Good.
+
+Actually, I need to find a REAL bug. Let me run the existing tests to see if any fail:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/utils/test_intelligent_context_four_lenses_bug_final.py -x -q --tb=short 
+2>&1 | head -50'})
+[result] ============================= test session starts 
 ==============================
-platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
-/home/matthew/anaconda3/bin/python
-cachedir: .pytest_cac
-Good, the tests pass. Now let me analyze the code smells more carefully and create a refactoring plan. Looking at the code, I can see several duplicate code patterns:
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+All tests pass. Let me look for other test files that might be failing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/utils/test_intelligent_context*.py -x -q --tb=short 2>&1 | tail -20'})
+[result] src/henchman/utils/compaction.py                        340    340    
+108      0     0%   7-1068
+src/henchman/utils/compression_strategy.py              101     71     48      0
+20%   63, 86-141, 1...
+All tests pass! So maybe the bug has already been fixed. But I need to find ONE real bug to fix. Let me examine the function more carefully for logical errors.
 
-**Identified Smells:**
+Actually, wait! I think I found a bug! Look at this logic:
 
-1. **MessagePoster.post()** (line 121) is similar to **MessagePoster._post_message()** - both post messages but with different parameter structures
-2. **MessagePoster.post_tool_message()** (line 177) is similar to **MessagePoster._post_message()** - redundant wrapper
-3. **EventBridge._post()** (line 261) is similar to **MessagePoster.post()** - duplicate functionality
-4. **EventBridge._create_status_message_handler()** (line 395) is similar to **EventBridge._create_prefixed_message_handler()** (line 406) - both use `_create_handler()` with different parameters
-5. **Multiple handler factory methods** that could be consolidated
+```python
+# Check if it's a string prefix
+j = i - 1
+while j >= 0 and text[j].lower() in ("r", "u", "b", "f"):
+    j -= 1
 
-**Refactoring Strategy:**
+# If we found at least one prefix character, check if it's a valid prefix
+if j < i - 1:
+    # Check if prefix is part of an identifier (preceded by alnum/underscore)
+    # If so, it's not a string prefix
+    if j >= 0 and (text[j].isalnum() or text[j] == "_"):
+        # The prefix characters are part of an identifier, not a string prefix
+        # Continue to check if it's an apostrophe
+        pass
+    else:
+        # Extract the potential prefix
+        prefix_start = j + 1
+        prefix = text[prefix_start:i].lower()  # Characters between j+1 and i-1
+        # Check if it's a valid string prefix
+        if self._is_valid_string_prefix(prefix):
+            return False  # Valid string prefix, not an apostrophe
+        # Invalid prefix combination (e.g., "fb", "ar", "ur")
+        # In code context, treat as string delimiter (even if invalid syntax)
+        # rather than apostrophe in word
+        return False
+```
 
-1. **Extract Method**: Create a unified message posting utility function
-2. **Replace Conditional with Polymorphism**: Use a strategy pattern for different message types
-3. **Introduce Parameter Object**: Create a `MessagePostingConfig` dataclass for handler creation
-4. **Remove Duplicate Code**: Consolidate `post()`, `_post_message()`, `post_tool_message()` into a single method
-5. **Simplify Handler Factory**: Merge `_create_status_message_handler()` and `_create_prefixed_message_handler()` into a single configurable method
+The bug is in the comment: "Characters between j+1 and i-1". But `text[prefix_start:i]` gives characters from `j+1` to `i` (exclusive of `i`), not `i-1`! Since `i` is the position of the quote, `text[prefix_start:i]` gives characters from `j+1` to `i-1`, which is correct! Because Python slicing is exclusive of the end index.
 
-Let me implement the refactoring:
+Wait, that's actually correct. `text[prefix_start:i]` gives `text[j+1:i]`, which is characters from position `j+1` to position `i-1`. That's the prefix characters before the quote. Good.
+
+But wait, there's another issue! What if `j == -1` (we checked all the way to beginning of string)? Then `prefix_start = 0`, and `prefix = text[0:i]`. That includes ALL characters from start to `i-1`. But what if there are non-prefix characters mixed in? For example, `text = "xr'hello"` with `i = 2`. The while loop would check `text[1] = 'r'` (in prefix chars), `j` becomes `0`, check `text[0] = 'x'` (NOT in prefix chars), loop stops. So `j = 0`, `j < i - 1` is `0 < 1` which is `True`. Then `j >= 0` is `True`, and `text[j].isalnum()` is `True` ('x' is alnum), so we go to the `pass` branch (treat as identifier). That's correct - `xr'hello` is not a valid Python string, `xr` is an identifier.
+
+Actually, I think the logic is correct. Let me look for a different bug...
+
+Wait! I need to actually run the code and test edge cases. Let me write a test that exposes a bug:
+[tool] python_exec({'code': 'from henchman.utils.intelligent_context import 
+_ParserState\n\nparser = _ParserState()\n\n# Test cases that might expose 
+bugs\ntest_cases = [\n    # (text, i, expected, description)\n    ("\'hello", 0,
+False, "Quote at position 0"),\n    ("a\'hello", 1, False, "a\'hello - not a 
+valid contraction"),\n    ("don\'t", 3, True, "Valid contraction don\'t"),\n    
+("can\'t", 3, True, "Valid contraction can\'t"),\n    ("it\'s", 2, True, "Valid 
+contraction it\'s"),\n    ("they\'ve", 4, True, "Valid contraction they\'ve"),\n
+("y\'ve", 1, False, "Invalid contraction y\'ve"),\n    ("ur\'hello", 2, False, 
+"ur prefix (invalid in Python 3)"),\n    ("ru\'hello", 2, False, "ru prefix 
+(invalid in Python 3)"),\n    ("r\'hello", 1, False, "r prefix (valid raw 
+string)"),\n    ("b\'hello", 1, False, "b prefix (valid bytes)"),\n    
+("f\'hello", 1, False, "f prefix (valid f-string)"),\n    ("u\'hello", 1, False,
+"u prefix (valid Unicode)"),\n    ("br\'hello", 2, False, "br prefix (valid 
+bytes raw)"),\n    ("rb\'hello", 2, False, "rb prefix (valid raw bytes)"),\n    
+("fr\'hello", 2, False, "fr prefix (valid f-string raw)"),\n    ("rf\'hello", 2,
+False, "rf prefix (valid raw f-string)"),\n    ("fb\'hello", 2, False, "fb 
+prefix (invalid)"),\n    ("bf\'hello", 2, False, "bf prefix (invalid)"),\n    
+("ar\'hello", 2, False, "ar prefix (invalid)"),\n    ("ra\'hello", 2, False, "ra
+prefix (invalid)"),\n]\n\nprint("Testing _is_apostrophe_in_word:")\nprint("=" * 
+60)\nfor text, i, expected, description in test_cases:\n    try:\n        result
+= parser._is_apostrophe_in_word(text, i)\n        status = "✓" if result == 
+expected else "✗"\n        print(f"{status} {description:30} text={text:10} 
+i={i} expected={expected} got={result}")\n        if result != expected:\n      
+print(f"  MISMATCH!")\n    except Exception as e:\n        print(f"✗ 
+{description:30} text={text:10} i={i} ERROR: {e}")'})
+[result] Testing _is_apostrophe_in_word:
+============================================================
+✓ Quote at position 0            text='hello     i=0 expected=False got=False
+✓ a'hello - not a valid contr...
+All tests pass! The function seems correct. But I need to find a bug. Let me think about edge cases more carefully...
+
+Actually, wait! I think I found a bug! Look at the bounds check again:
+
+```python
+# Check bounds first (negative indices wrap in Python)
+if i < -len(text) or i >= len(text):
+    return False
+```
+
+This handles negative indices that are too negative (`i < -len(text)`). But what about when `text` is empty? Then `len(text) = 0`, so `-len(text) = 0`. The condition becomes `if i < 0 or i >= 0: return False`. For `i = 0`, this is `if 0 < 0 or 0 >= 0: return False` which is `if False or True: return False` which is `if True: return False`. So for empty string with `i = 0`, it returns `False`. That's correct.
+
+But wait, what about `i = -1` with empty string? `len(text) = 0`, so `-len(text) = 0`. Condition: `if -1 < 0 or -1 >= 0: return False` which is `if True or False: return False` which is `if True: return False`. Returns `False`. Good.
+
+Actually, I think the bounds check is correct for empty string too.
+
+Hmm, let me look at the function one more time very carefully. Oh wait! I think I see a bug! Look at this:
+
+```python
+# Check if character after quote is a letter or underscore
+# (underscore for cases like word'_suffix, though rare)
+if not (text[i + 1].isalpha() or text[i + 1] == "_"):
+    return False
+```
+
+This accesses `text[i + 1]` without checking if `i + 1 < len(text)`! If `i` is the last character in the string, then `i + 1 >= len(text)`, so `text[i + 1]` would be out of bounds!
+
+For example: `text = "a'"` (string ending with quote) with `i = 1`. Then `i + 1 = 2`, but `len(text) = 2`, so `text[2]` is out of bounds!
+
+Let me test this:
+[tool] python_exec({'code': 'from henchman.utils.intelligent_context import 
+_ParserState\n\nparser = _ParserState()\n\n# Test string ending with quote\ntext
+= "a\'"\ni = 1  # Position of quote\n\nprint(f"Testing text=\'{text}\', i={i}, 
+len(text)={len(text)}")\nprint(f"text[i] = \'{text[i]}\'")\nprint(f"i+1 = {i+1},
+len(text) = {len(text)}, i+1 < len(text)? {i+1 < len(text)}")\n\ntry:\n    
+result = parser._is_apostrophe_in_word(text, i)\n    print(f"Result: 
+{result}")\nexcept IndexError as e:\n    print(f"IndexError: {e}")'})
+[result] Testing text='a'', i=1, len(text)=2
+text[i] = '''
+i+1 = 2, len(text) = 2, i+1 < len(text)? False
+Result: False
+...
+Interesting! It returns `False` without raising an IndexError. Let me trace through the logic:
+
+1. `i = 1`, `len(text) = 2`, bounds check passes (`i < -len(text)` is `1 < -2`? No. `i >= len(text)` is `1 >= 2`? No.)
+2. `i` is not negative, so no conversion
+3. `text[i] != "'" or i == 0`: `"'" != "'"` is `False`, `i == 0` is `False`, so `False or False` is `False`, doesn't return
+4. Check `text[i-1].isalnum()`: `text[0] = 'a'`, `'a'.isalnum()` is `True`, doesn't return
+5. String prefix check... probably doesn't return
+6. Then `if i + 1 >= len(text):` wait, there's no check! Let me look at the code again:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 520, 'end_line': 540})
+[result]                 return False
+
+        # It's an apostrophe if next character is alphanumeric or underscore
+        # BUT: for patterns like a'hello', we should NOT treat as apostrophe in 
+word
+        ...
+Ah! There IS a check: `if i + 1 >= len(text): return False`! So the code already handles this case. Good.
+
+But wait, let me check if this check is in the right place. It's after the string prefix check. That's fine.
+
+Actually, I think I need to look for a more subtle bug. Let me examine the contraction validation logic more carefully:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 540, 'end_line': 600})
+[result]         # Check for common contraction suffixes (case-insensitive)
+        common_suffixes = ["t", "s", "m", "ll", "re", "ve", "d"]
+        for suffix in common_suffixes:
+            if remaining.lowe...
+OK, I think I found a bug! Look at this line in the `'m` (apostrophe-m) case:
+
+```python
+if not (text[i - 1].lower() == "i" and (i == 1 or not text[i - 2].isalpha())):
+    continue
+```
+
+This checks if the character before apostrophe is 'i' (for "I'm"), and also checks `(i == 1 or not text[i - 2].isalpha())`. 
+
+The logic is: if `i == 1` (apostrophe at position 1, so character before is at position 0), then it's OK. OR if `text[i - 2]` is not alphabetic (meaning the character before 'i' is not a letter, so it's not part of a longer word like "him").
+
+But wait! What if `i == 1`? Then `i - 2 = -1`! So `text[i - 2]` accesses `text[-1]` (last character of string)! That's wrong! We should check if `i >= 2` before accessing `text[i - 2]`.
+
+Actually, let me think: if `i == 1`, then `(i == 1 or not text[i - 2].isalpha())` evaluates to `(True or not text[-1].isalpha())`. Since it's `or` with `True`, the whole expression is `True` regardless of `text[-1].isalpha()`. So it doesn't matter that we access `text[-1]`. But we're still accessing out of bounds (negative index wraps to end of string).
+
+Actually, in Python, `text[-1]` is valid - it gets the last character. But that's not what we want! We want to check the character before 'i', which at position `i-2`. If `i == 1`, then `i-2 = -1`, which is the last character, not the character before position 0 (which doesn't exist).
+
+The logic should be: if `i == 1`, then there's no character before position 0, so we don't need to check `text[i-2]`. The current logic `(i == 1 or not text[i - 2].isalpha())` means: if `i == 1`, accept; otherwise, check that character before 'i' is not alphabetic.
+
+But when `i == 1`, we still evaluate `text[i - 2]` which is `text[-1]`. That's accessing the wrong character! We should check `i >= 2` before accessing `text[i-2]`.
+
+Actually, wait. Let me re-examine: `(i == 1 or not text[i - 2].isalpha())`. Python evaluates `or` lazily. If `i == 1` is `True`, it doesn't evaluate `not text[i - 2].isalpha()`. So `text[i-2]` is never accessed when `i == 1`! That's correct.
+
+So this is actually OK. The bug is elsewhere.
+
+Wait! I think I found a real bug! Look at the `'ve` case:
+
+```python
+# Special case for 'y': must be part of "they" (not just standalone "y've")
+if char_before == 'y':
+    # Check if it's actually "they" (positions i-3 through i-1 should be "hey")
+    if i < 4 or text[i-3:i].lower() != "hey":
+        continue  # Not "they've", reject
+```
+
+If `char_before == 'y'` (character before apostrophe is 'y'), we check if it's "they've". We check `if i < 4 or text[i-3:i].lower() != "hey"`. 
+
+But wait! If `i < 4`, then `text[i-3:i]` might be invalid! For example, if `i = 3`, then `i-3 = 0`, `text[0:3]` is first 3 characters. That's OK.
+
+But what if `i = 2`? Then `i-3 = -1`, `text[-1:2]` is weird but valid in Python (gets from position -1 to 2). Actually, `text[-1:2]` would be empty if string length is > 2? Let me think...
+
+Actually, `text[i-3:i]` when `i=2` gives `text[-1:2]`. In Python, `text[-1]` is the last character. So `text[-1:2]` gets from last character to position 2 (exclusive). That's probably not what we want!
+
+The check should be `if i < 4: continue` (reject if not enough characters for "they"). But the current code is `if i < 4 or text[i-3:i].lower() != "hey":`. That means: if `i < 4`, then the whole condition is `True`, so we `continue` (reject). That's correct! Because `i < 4` means not enough characters for "they".
+
+But we still evaluate `text[i-3:i]` when `i < 4`? No, because `or` is lazy. If `i < 4` is `True`, it doesn't evaluate `text[i-3:i].lower() != "hey"`. So `text[i-3:i]` is never accessed when `i < 4`. That's correct.
+
+Actually, I think the code is correct! But let me write a test to verify:
+[tool] python_exec({'code': 'from henchman.utils.intelligent_context import 
+_ParserState\n\nparser = _ParserState()\n\n# Test "they\'ve" cases\ntest_cases =
+[\n    ("they\'ve", 4, True, "Valid they\'ve"),\n    ("y\'ve", 1, False, 
+"Invalid y\'ve"),\n    ("hey\'ve", 3, False, "hey\'ve (not they)"),\n    
+("they\'ve", 4, True, "they\'ve at position 4"),\n]\n\nprint("Testing \'ve 
+contraction logic:")\nprint("=" * 60)\nfor text, i, expected, description in 
+test_cases:\n    try:\n        result = parser._is_apostrophe_in_word(text, i)\n
+status = "✓" if result == expected else "✗"\n        print(f"{status} 
+{description:20} text={text:10} i={i} expected={expected} got={result}")\n    
+except Exception as e:\n        print(f"✗ {description:20} text={text:10} i={i} 
+ERROR: {e}")\n\n# Test edge case: i=2 (not enough for "they")\ntext = "y\'ve"\ni
+= 1\nprint(f"\\nTesting edge case: text=\'{text}\', i={i}")\nprint(f"i < 4? {i <
+4}")\nprint(f"char_before = text[{i}-1] = text[0] = 
+\'{text[0]}\'")\nprint(f"char_before == \'y\'? {text[0] == \'y\'}")\n\n# The 
+code should check: if i < 4 or text[i-3:i].lower() != "hey":\n# Since i < 4 is 
+True, it won\'t evaluate text[i-3:i]\nprint(f"text[i-3:i] would be 
+text[{i-3}:{i}] = text[{-2}:1]")\nprint(f"But since i < 4 is True, text[i-3:i] 
+is never evaluated due to short-circuit OR")'})
+[result] Testing 've contraction logic:
+============================================================
+✓ Valid they've        text=they've    i=4 expected=True got=True
+✓ Invalid y've         text=y've       i=1...
+The code works correctly. I'm having trouble finding a bug! Let me think about this differently. The smell report says the function has cyclomatic complexity 41 (rank F) and 120 lines. That's a code smell, but not necessarily a bug. I need to find an actual bug in core functionality.
+
+Let me look at the function one more time, focusing on the string prefix logic. Actually, I think I found a bug! Look at this:
+
+```python
+# Check if it's a string prefix
+j = i - 1
+while j >= 0 and text[j].lower() in ("r", "u", "b", "f"):
+    j -= 1
+
+# If we found at least one prefix character, check if it's a valid prefix
+if j < i - 1:
+    # Check if prefix is part of an identifier (preceded by alnum/underscore)
+    # If so, it's not a string prefix
+    if j >= 0 and (text[j].isalnum() or text[j] == "_"):
+        # The prefix characters are part of an identifier, not a string prefix
+        # Continue to check if it's an apostrophe
+        pass
+    else:
+        # Extract the potential prefix
+        prefix_start = j + 1
+        prefix = text[prefix_start:i].lower()  # Characters between j+1 and i-1
+        # Check if it's a valid string prefix
+        if self._is_valid_string_prefix(prefix):
+            return False  # Valid string prefix, not an apostrophe
+        # Invalid prefix combination (e.g., "fb", "ar", "ur")
+        # In code context, treat as string delimiter (even if invalid syntax)
+        # rather than apostrophe in word
+        return False
+```
+
+The bug is in the logic! When `j == -1` (we checked all the way to beginning of string), then `j >= 0` is `False`, so we go to the `else` block. We extract `prefix = text[0:i]` and check if it's a valid string prefix.
+
+But what if the prefix is something like `"rr"`? The while loop checks `text[j].lower() in ("r", "u", "b", "f")`. If we have `"rr'hello"`, the loop would check position `i-1 = 1` (second 'r'), it's in the set, `j` becomes `0`, check `text[0] = 'r'`, it's in the set, `j` becomes `-1`, loop stops. So `j = -1`, `j < i - 1` is `-1 < 1` which is `True`. `j >= 0` is `False`, so we go to `else` block. `prefix = text[0:2] = "rr"`. `_is_valid_string_prefix("rr")` checks `len(set(prefix)) != len(prefix)`. `set("rr") = {"r"}`, length 1, `len("rr") = 2`, so `1 != 2` is `True`, returns `False`. So we `return False`. That's correct - `"rr"` is not a valid string prefix.
+
+But wait! What about `"uu"`? Same logic. `_is_valid_string_prefix("uu")` would return `False` because duplicate characters. Good.
+
+What about `"ur"`? The while loop would check both 'r' and 'u', `j = -1`, `prefix = "ur"`. `_is_valid_string_prefix("ur")` checks if `"u" in prefix` (yes), then `return len(prefix) == 1`. `len("ur") = 2`, so returns `False`. So we `return False`. That's correct - `"ur"` is not valid in Python 3.
+
+Actually, I think the logic is correct! I'm really struggling to find a bug.
+
+Wait! Let me think about the overall purpose of this function. It's trying to distinguish between:
+1. Apostrophes in English contractions (like "don't")
+2. Single quotes that are Python string delimiters (like `'hello'` or `r'hello'`)
+
+The function returns `True` for apostrophes in words (English contractions), `False` for string delimiters.
+
+One potential bug: what about escaped quotes in strings? Like `'don\'t'` in Python? The backslash escapes the quote, so it's not a string delimiter. But this function is called during parsing to find code block fences (backticks). It's trying to parse the content to understand if a quote is part of a string literal or not.
+
+Actually, I think I need to look at how this function is used. Let me search for its usage:
+[tool] grep({'pattern': '_is_apostrophe_in_word', 'path': 
+'src/henchman/utils/intelligent_context.py', 'line_numbers': True})
+[result] 479:    def _is_apostrophe_in_word(self: _ParserState, text: str, i: 
+int) -> bool:
+605:        if self._is_apostrophe_in_word(text, i):...
+
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context.py', 
+'start_line': 600, 'end_line': 610})
+[result]         # In code context, treat as string delimiter to be safe
+        return False
+
+    def _handle_potential_string_start(self: _ParserState, text: str, i: int) ->
+int:
+        """Handle potential ...
+So `_is_apostrophe_in_word` is used in `_handle_potential_string_start`. If it returns `True` (it's an apostrophe in a word), then we don't start a string, we just return `i`. If it returns `False` (it's a string delimiter), we call `handle_string_start`.
+
+OK, so the function is working as intended. But I still need to find a bug! Let me think about edge cases with the contraction validation...
+
+Actually, wait! I think I found a bug! Look at the `'m` case again:
+
+```python
+elif suffix == "m":  # 'm
+    # Only valid contraction is I'm (case-insensitive)
+    if not (text[i - 1].lower() == "i" and (i == 1 or not text[i - 2].isalpha())):
+        continue
+```
+
+This checks for "I'm". But what about "I'M" (uppercase)? `text[i - 1].lower() == "i"` handles case-insensitive. Good.
+
+But what about "i'm" (lowercase i)? That's also valid. Good.
+
+But wait! What if the text is `"I'm"` with `i = 1` (apostrophe at position 1)? Then `i == 1` is `True`, so condition passes. Good.
+
+What if text is `"HI'm"` with `i = 2`? Then `i == 1` is `False`, so we check `not text[i - 2].isalpha()`. `text[i-2] = text[0] = 'H'`, which `isalpha()` is `True`, so `not True` is `False`. So condition is `text[i-1].lower() == "i" and False` which is `False`, so we `continue` (reject). That's correct - "HI'm" is not a valid contraction.
+
+But what about `" I'm"` (space before I)? With `i = 2` (apostrophe at position 2), `text[i-1] = text[1] = 'I'`, `text[i-2] = text[0] = ' '` (space). `' '.isalpha()` is `False`, so `not False` is `True`. Condition is `True and True` = `True`, so we accept. That's correct - " I'm" with space before is valid.
+
+Actually, I think the logic is correct!
+
+I'm running out of time. Let me think of one more potential bug... What about Unicode characters? The function uses `.isalpha()`, `.isalnum()`, etc. These work with Unicode. Good.
+
+What about the check `text[i + 1].isalpha() or text[i + 1] == "_"`? What if `text[i+1]` is a Unicode letter? `.isalpha()` returns `True` for Unicode letters. Good.
+
+OK, I give up trying to find a logical bug in `_is_apostrophe_in_word`. Maybe the bug is in a different function in the same file. Let me look for other potential bugs.
+
+Actually, wait! I just realized something. The test `tests/utils/test_intelligent_context_four_lenses_bug_final.py` is testing for a bug that might have already been fixed! But the test passes, which means either:
+1. The bug was already fixed
+2. The test is wrong
+3. My analysis is wrong
+
+Let me update my bug report to reflect that I think the bug has already been fixed, and then look for a different bug:

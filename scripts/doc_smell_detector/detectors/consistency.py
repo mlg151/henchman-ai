@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from typing import Any
 
 from scripts.doc_smell_detector.detectors.base import (
     DocSmellDetector,

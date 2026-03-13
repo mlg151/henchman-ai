@@ -33,13 +33,13 @@ async def test_plan_toggle(ctx):
     # Toggle ON
     await cmd.execute(ctx)
     assert ctx.session.plan_mode is True
-    ctx.tool_registry.set_plan_mode.assert_called_with(True)
+    ctx.tool_registry.set_plan_mode.assert_called_with(enabled=True)
     assert PLAN_MODE_PROMPT in ctx.agent.system_prompt
 
     # Toggle OFF
     await cmd.execute(ctx)
     assert ctx.session.plan_mode is False
-    ctx.tool_registry.set_plan_mode.assert_called_with(False)
+    ctx.tool_registry.set_plan_mode.assert_called_with(enabled=False)
     assert PLAN_MODE_PROMPT not in ctx.agent.system_prompt
     assert ctx.agent.system_prompt == "Base prompt"
 
@@ -80,13 +80,13 @@ async def test_plan_no_agent(ctx):
     # Toggle ON
     await cmd.execute(ctx)
     assert ctx.session.plan_mode is True
-    ctx.tool_registry.set_plan_mode.assert_called_with(True)
+    ctx.tool_registry.set_plan_mode.assert_called_with(enabled=True)
     # Should not crash even without agent
 
     # Toggle OFF
     await cmd.execute(ctx)
     assert ctx.session.plan_mode is False
-    ctx.tool_registry.set_plan_mode.assert_called_with(False)
+    ctx.tool_registry.set_plan_mode.assert_called_with(enabled=False)
 
 
 @pytest.mark.asyncio

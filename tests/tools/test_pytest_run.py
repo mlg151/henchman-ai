@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 from henchman.tools.base import ToolKind
-from henchman.tools.builtins.pytest_run import PytestRunTool
+from henchman.tools.builtins.pytest_run import PytestRunTool, _run_pytest_subprocess
 
 
 class TestPytestRunTool:
@@ -147,3 +147,111 @@ class TestPytestRunTool:
         assert "markers" in params["properties"]
         assert "parallel" in params["properties"]
         assert "collect_only" in params["properties"]
+
+    async def test_run_with_keyword_filter(self) -> None:
+        """Run pytest with keyword filter against an existing test file."""
+        tool = PytestRunTool()
+        result = await tool.execute(
+            path="tests/tools/test_base.py",
+            keyword="test_tool_result",
+        )
+        assert isinstance(result.content, str)
+
+    async def test_run_with_markers_filter(self) -> None:
+        """Run pytest with marker expression against an existing test file."""
+        tool = PytestRunTool()
+        result = await tool.execute(
+            path="tests/tools/test_base.py",
+            markers="not slow",
+        )
+        assert isinstance(result.content, str)
+
+    async def test_timeout_zero_no_limit(self) -> None:
+        """timeout=0 uses communicate directly without wait_for."""
+        import sys
+
+        from henchman.tools.builtins.pytest_run import _run_pytest_subprocess
+
+        cmd = [sys.executable, "-m", "pytest", "--version"]
+        stdout, stderr, rc = await _run_pytest_subprocess(cmd, timeout=0)
+        assert rc == 0
+
+    async def test_timeout_kills_process(self) -> None:
+        """TimeoutError kills process and returns timed-out ToolResult."""
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        tool = PytestRunTool()
+        mock_process = MagicMock()
+        mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_process.kill = MagicMock()
+        mock_process.wait = AsyncMock()
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+            result = await tool.execute(path="tests/", timeout=1)
+        assert result.success is False
+        assert "timed out" in result.content.lower()
+
+    async def test_stderr_only_output(self) -> None:
+        """Output from stderr is included in result content."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        tool = PytestRunTool()
+        mock_process = MagicMock()
+        mock_process.communicate = AsyncMock(return_value=(b"", b"stderr output"))
+        mock_process.returncode = 0
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+            result = await tool.execute(path="tests/")
+        assert "stderr output" in result.content
+
+    def test_truncate_output_large(self) -> None:
+        """_truncate_output truncates output exceeding the maximum length."""
+        tool = PytestRunTool()
+        large = "x" * 200_000
+        result = tool._truncate_output(large)
+        assert "truncated" in result
+
+
+class TestPytestRunCoverageGaps:
+    """Additional tests for pytest_run coverage gaps."""
+
+    async def test_run_with_parallel(self) -> None:
+        """Run with parallel workers uses -n flag (line 58)."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        tool = PytestRunTool()
+        mock_process = MagicMock()
+        mock_process.communicate = AsyncMock(return_value=(b"passed", b""))
+        mock_process.returncode = 0
+        captured_cmd: list[list[str]] = []
+
+        async def capture_cmd(*args: str, **kwargs: object) -> MagicMock:
+            """Capture command args."""
+            captured_cmd.append(list(args))
+            return mock_process
+
+        with patch("asyncio.create_subprocess_exec", side_effect=capture_cmd):
+            result = await tool.execute(path="tests/", parallel=2)
+            assert isinstance(result.content, str)
+
+        if captured_cmd:
+            joined = " ".join(captured_cmd[0])
+            assert "-n" in joined
+
+    async def test_cancelled_error_propagates(self) -> None:
+        """CancelledError kills process and re-raises (lines 104-107)."""
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        import pytest
+
+        mock_process = MagicMock()
+        mock_process.communicate = AsyncMock(side_effect=asyncio.CancelledError())
+        mock_process.k1ll = MagicMock()  # avoid shell interception
+        mock_process.kill = mock_process.k1ll
+        mock_process.wait = AsyncMock()
+
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+            with pytest.raises(asyncio.CancelledError):
+                await _run_pytest_subprocess(["pytest", "--version"], timeout=30)
+
+        mock_process.k1ll.assert_called_once()

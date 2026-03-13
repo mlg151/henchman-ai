@@ -26,8 +26,10 @@ class TestContextSafety:
 
     async def test_glob_tool_truncation(self, tmp_path):
         """Test that GlobTool truncates matching list."""
+        from henchman.tools.builtins.glob_tool import _MAX_MATCHES
+
         tool = GlobTool()
-        limit = tool.MAX_MATCHES
+        limit = _MAX_MATCHES
 
         # Create more files than the limit
         test_dir = tmp_path / "glob_test"

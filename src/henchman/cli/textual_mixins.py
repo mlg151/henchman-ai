@@ -163,9 +163,7 @@ def _extract_line_text(item: Any) -> str:
     if isinstance(item, str):
         return item
     try:
-        return "".join(
-            str(seg.text) if hasattr(seg, "text") else str(seg) for seg in item
-        )
+        return "".join(str(seg.text) if hasattr(seg, "text") else str(seg) for seg in item)
     except (TypeError, AttributeError):
         return str(item)
 
@@ -668,9 +666,7 @@ class _StatusBarMixin:
         tools = self._count_tools()
         mcp = self._mcp_status_fragment()
         settings = self.settings  # type: ignore[attr-defined]
-        mode = (
-            "Plan" if (settings and getattr(settings, "plan_mode", False)) else "Chat"
-        )
+        mode = "Plan" if (settings and getattr(settings, "plan_mode", False)) else "Chat"
         return f"{mode} | {provider}:{model} | Tools: {tools}{mcp}"
 
     def _count_tools(self: _StatusBarMixin) -> int:
@@ -1061,7 +1057,8 @@ class _CommandPaletteMixin:
         self._render_command_options(options)
 
     def _build_palette_options(
-        self: _CommandPaletteMixin, query: str,
+        self: _CommandPaletteMixin,
+        query: str,
     ) -> list[str]:
         """Build the list of matching command label strings.
 
@@ -1089,13 +1086,11 @@ class _CommandPaletteMixin:
             Commands whose name prefix matches the query.
         """
         commands = processor.command_registry.get_commands()
-        return [
-            cmd for cmd in commands
-            if f"/{cmd.name}".startswith(query) or query == "/"
-        ]
+        return [cmd for cmd in commands if f"/{cmd.name}".startswith(query) or query == "/"]
 
     def _render_command_options(
-        self: _CommandPaletteMixin, options: list[str],
+        self: _CommandPaletteMixin,
+        options: list[str],
     ) -> None:
         """Populate the palette widget and set its visibility.
 
@@ -1109,7 +1104,8 @@ class _CommandPaletteMixin:
         self._set_palette_visible(bool(options))
 
     def _set_palette_visible(
-        self: _CommandPaletteMixin, visible: bool,  # noqa: FBT001
+        self: _CommandPaletteMixin,
+        visible: bool,  # noqa: FBT001
     ) -> None:
         """Set the command palette display state.
 
@@ -1211,8 +1207,7 @@ class _MessageHandlerMixin:
             )
             label = source or "Agent"
             thinking.write(
-                f"[dim]\U0001f914 {_safe_markup(label)}: "
-                f"{_safe_markup(thought)}[/]",
+                f"[dim]\U0001f914 {_safe_markup(label)}: {_safe_markup(thought)}[/]",
             )
             thinking.scroll_end(animate=False)
         except Exception:  # noqa: BLE001
@@ -1241,8 +1236,7 @@ class _MessageHandlerMixin:
             )
             full_args = self._format_full_tool_args(tc)
             tool_pane.write(
-                f"[yellow]\u25b6 {_safe_markup(tc.name)}[/]\n"
-                f"[dim]{_safe_markup(full_args)}[/]",
+                f"[yellow]\u25b6 {_safe_markup(tc.name)}[/]\n[dim]{_safe_markup(full_args)}[/]",
             )
             tool_pane.scroll_end(animate=False)
         except Exception:  # noqa: BLE001
@@ -1701,10 +1695,7 @@ class _SearchMixin:
         else:
             cur = self._current_match_index + 1  # type: ignore[attr-defined]
             tot = len(matches)
-            bar.status_text = (
-                f"Match {cur}/{tot} for '{query}'"
-                " - F3=next  Shift+F3=prev  Esc=clear"
-            )
+            bar.status_text = f"Match {cur}/{tot} for '{query}' - F3=next  Shift+F3=prev  Esc=clear"
 
 
 # ------------------------------------------------------------------ #
@@ -1799,4 +1790,3 @@ class _PublicAPIMixin:
             chat.add_user_message(text)
         else:
             chat.add_system_message(text)
-

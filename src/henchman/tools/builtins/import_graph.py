@@ -1,6 +1,7 @@
 """Import graph analysis tool implementation."""
 
 from __future__ import annotations
+
 import ast
 import sys
 from dataclasses import dataclass
@@ -17,16 +18,8 @@ STDLIB_MODULES: frozenset[str] = frozenset(sys.stdlib_module_names)
 
 
 def _extract_top_level_module(import_str: str) -> str:
-    """Extract the top-level module name from an import statement.
-
-    Args:
-        import_str: The import statement string (e.g. 'import os').
-
-    Returns:
-        Top-level module name or empty string.
-    """
+    """Extract the top-level module name from an import statement."""
     if import_str.startswith("from "):
-        # "from X.Y import Z" -> extract X
         parts = import_str.split()
         return parts[1].split(".")[0] if len(parts) > 1 else ""
     if import_str.startswith("import "):
@@ -36,23 +29,12 @@ def _extract_top_level_module(import_str: str) -> str:
 
 
 def _classify_import(import_str: str, local_modules: set[str]) -> str:
-    """Classify an import as stdlib, local, or third-party.
-
-    Args:
-        import_str: The import statement string (e.g. 'import os').
-        local_modules: Set of local module names.
-
-    Returns:
-        One of 'stdlib', 'local', or 'third-party'.
-    """
-    # Extract the top-level module name
+    """Classify an import as stdlib, local, or third-party."""
     if import_str.startswith(("from .", "from ..")):
         return "local"
-
     module = _extract_top_level_module(import_str)
     if not module:
         return "third-party"
-
     if module in STDLIB_MODULES:
         return "stdlib"
     if module in local_modules:
@@ -61,14 +43,7 @@ def _classify_import(import_str: str, local_modules: set[str]) -> str:
 
 
 def _extract_imports_from_ast(tree: ast.AST) -> list[str]:
-    """Extract import statements from AST.
-
-    Args:
-        tree: Parsed AST.
-
-    Returns:
-        List of import strings.
-    """
+    """Extract import statements from AST."""
     imports: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -79,14 +54,7 @@ def _extract_imports_from_ast(tree: ast.AST) -> list[str]:
 
 
 def _extract_imports_from_import_node(node: ast.Import) -> list[str]:
-    """Extract import strings from an Import node.
-
-    Args:
-        node: Import AST node.
-
-    Returns:
-        List of import strings.
-    """
+    """Extract import strings from an Import node."""
     imports: list[str] = []
     for alias in node.names:
         name = alias.name
@@ -97,39 +65,213 @@ def _extract_imports_from_import_node(node: ast.Import) -> list[str]:
 
 
 def _extract_import_from_import_from_node(node: ast.ImportFrom) -> str:
-    """Extract import string from an ImportFrom node.
-
-    Args:
-        node: ImportFrom AST node.
-
-    Returns:
-        Import string.
-    """
+    """Extract import string from an ImportFrom node."""
     module = node.module or ""
     level = "." * (node.level or 0)
     names = ", ".join(a.name + (f" as {a.asname}" if a.asname else "") for a in node.names)
     return f"from {level}{module} import {names}"
 
 
+def _collect_python_module_stems(directory: Path) -> set[str]:
+    """Collect Python module stem names from a directory tree.
+
+    Returns empty set if directory does not exist.
+    """
+    if not directory.is_dir():
+        return set()
+    return {py_file.stem for py_file in directory.rglob("*.py")}
+
+
+def _add_local_dep_if_known(
+    module_name: str,
+    current_module: str,
+    local_modules: set[str],
+    deps: set[str],
+) -> None:
+    """Add a module to deps if it is local and not the current module."""
+    if module_name in local_modules and module_name != current_module:
+        deps.add(module_name)
+
+
+def _extract_import_node_deps(
+    node: ast.Import,
+    mod_name: str,
+    local_modules: set[str],
+    deps: set[str],
+) -> None:
+    """Extract local dependencies from a plain import node."""
+    for alias in node.names:
+        top = alias.name.split(".")[0]
+        _add_local_dep_if_known(top, mod_name, local_modules, deps)
+
+
+def _extract_import_from_node_deps(
+    node: ast.ImportFrom,
+    mod_name: str,
+    local_modules: set[str],
+    deps: set[str],
+) -> None:
+    """Extract local dependencies from a from-import node."""
+    mod = node.module or ""
+    top = mod.split(".")[0] if mod else ""
+    _add_local_dep_if_known(top, mod_name, local_modules, deps)
+    for alias in node.names:
+        _add_local_dep_if_known(alias.name, mod_name, local_modules, deps)
+
+
+def _extract_ast_node_deps(
+    node: ast.AST,
+    mod_name: str,
+    local_modules: set[str],
+    deps: set[str],
+) -> None:
+    """Dispatch dependency extraction to the appropriate AST node handler."""
+    if isinstance(node, ast.Import):
+        _extract_import_node_deps(node, mod_name, local_modules, deps)
+    elif isinstance(node, ast.ImportFrom):
+        _extract_import_from_node_deps(node, mod_name, local_modules, deps)
+
+
+def _extract_file_dependencies(
+    py_file: Path,
+    mod_name: str,
+    local_modules: set[str],
+) -> set[str] | None:
+    """Parse a Python file and return its local module dependencies."""
+    try:
+        source = py_file.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(py_file))
+    except (SyntaxError, OSError, UnicodeDecodeError):
+        return None
+    deps: set[str] = set()
+    for node in ast.walk(tree):
+        _extract_ast_node_deps(node, mod_name, local_modules, deps)
+    return deps
+
+
+def _import_node_contains_module(node: ast.Import, module_name: str) -> bool:
+    """Return True if an Import node references the given module."""
+    return any(module_name in alias.name.split(".") for alias in node.names)
+
+
+def _import_from_node_contains_module(node: ast.ImportFrom, module_name: str) -> bool:
+    """Return True if an ImportFrom node references the given module."""
+    mod = node.module or ""
+    if module_name in mod.split("."):
+        return True
+    return module_name in [a.name for a in node.names]
+
+
+def _tree_imports_module(tree: ast.AST, module_name: str) -> bool:
+    """Return True if any node in the AST imports the given module."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import) and _import_node_contains_module(node, module_name):
+            return True
+        if isinstance(node, ast.ImportFrom) and _import_from_node_contains_module(
+            node, module_name
+        ):
+            return True
+    return False
+
+
+def _should_skip_file(py_file: Path, exclude_resolved: Path) -> bool:
+    """Return True if a file should be excluded from reverse-import search."""
+    return py_file.resolve() == exclude_resolved
+
+
+def _file_imports_module(py_file: Path, module_name: str) -> bool:
+    """Return True if a source file imports the given module."""
+    try:
+        source = py_file.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(py_file))
+    except (SyntaxError, OSError, UnicodeDecodeError):
+        return False
+    return _tree_imports_module(tree, module_name)
+
+
+def _find_reverse_imports(scan_dir: Path, module_name: str, exclude: Path) -> list[str]:
+    """Find all files in a directory that import the given module."""
+    exclude_resolved = exclude.resolve()
+    return [
+        str(py_file)
+        for py_file in scan_dir.rglob("*.py")
+        if not _should_skip_file(py_file, exclude_resolved)
+        and _file_imports_module(py_file, module_name)
+    ]
+
+
+def _parse_import_analysis_request(params: dict[str, object]) -> ImportAnalysisRequest:
+    """Build an ImportAnalysisRequest from raw tool parameters."""
+    return ImportAnalysisRequest(
+        path=str(params.get("path", "")),
+        scan_dir=str(params.get("scan_dir", "")),
+        detect_cycles=bool(params.get("detect_cycles", False)),
+        classify=bool(params.get("classify", False)),
+    )
+
+
+def _add_imports_section(
+    parts: list[str],
+    filename: str,
+    imports: list[str],
+    *,
+    classify: bool,
+    analyzer: ImportAnalyzer,
+) -> None:
+    """Append an imports summary block to the result parts list."""
+    parts.append(f"Imports in {filename}:")
+    if imports:
+        for imp in imports:
+            if classify:
+                label = analyzer.classify_import(imp)
+                parts.append(f"  {imp}  [{label}]")
+            else:
+                parts.append(f"  {imp}")
+    else:
+        parts.append("  (none)")
+
+
+def _add_reverse_imports_section(
+    parts: list[str],
+    scan_path: Path,
+    target: Path,
+) -> None:
+    """Append a reverse-imports summary block to the result parts list."""
+    module_name = target.stem
+    reverse = _find_reverse_imports(scan_path, module_name, target)
+    parts.append(f"\nFiles importing {module_name}:")
+    if reverse:
+        parts.extend(f"  {rev}" for rev in sorted(reverse))
+    else:
+        parts.append("  (none)")
+
+
+def _add_circular_imports_section(parts: list[str], scan_path: Path) -> None:
+    """Append a circular-imports summary block to the result parts list."""
+    builder = ImportGraphBuilder(scan_path)
+    cycles = builder.detect_cycles()
+    parts.append("\nCircular imports:")
+    if cycles:
+        parts.extend(f"  {' -> '.join(cycle)}" for cycle in cycles)
+    else:
+        parts.append("  (none detected)")
+
+
 class ImportAnalyzer:
     """Analyzes imports in Python files."""
 
     def __init__(self: ImportAnalyzer, local_modules: set[str]) -> None:
-        """Initialize analyzer with local module context.
-
-        Args:
-            local_modules: Set of local module names.
-        """
+        """Initialize analyzer with local module context."""
         self.local_modules: set[str] = local_modules
 
     def extract_imports(self: ImportAnalyzer, tree: ast.AST) -> list[str]:
         """Extract import statements from AST.
 
         Args:
-            tree: Parsed AST.
+            tree: The AST (Abstract Syntax Tree) to analyze.
 
         Returns:
-            List of import strings.
+            List of import strings found in the AST.
         """
         return _extract_imports_from_ast(tree)
 
@@ -137,10 +279,10 @@ class ImportAnalyzer:
         """Classify an import as stdlib, local, or third-party.
 
         Args:
-            import_str: The import statement string (e.g. 'import os').
+            import_str: The import statement string to classify.
 
         Returns:
-            One of 'stdlib', 'local', or 'third-party'.
+            Classification string: 'stdlib', 'local', or 'third-party'.
         """
         return _classify_import(import_str, self.local_modules)
 
@@ -149,150 +291,23 @@ class ImportGraphBuilder:
     """Builds and analyzes import graphs."""
 
     def __init__(self: ImportGraphBuilder, scan_dir: Path) -> None:
-        """Initialize graph builder.
-
-        Args:
-            scan_dir: Directory to scan for imports.
-        """
+        """Initialize graph builder."""
         self.scan_dir = scan_dir
 
     def build_graph(self: ImportGraphBuilder) -> dict[str, set[str]]:
         """Build a module-level import graph for a directory.
 
         Returns:
-            Dict mapping module stems to sets of imported module stems.
+            Dictionary mapping module names to sets of their dependencies.
         """
         graph: dict[str, set[str]] = {}
-
-        # Collect all local module names
-        local_modules = self._collect_local_modules()
-
-        # Build import edges for each file
+        local_modules = _collect_python_module_stems(self.scan_dir)
         for py_file in self.scan_dir.rglob("*.py"):
             mod_name = py_file.stem
-            deps = self._extract_dependencies_from_file(py_file, mod_name, local_modules)
+            deps = _extract_file_dependencies(py_file, mod_name, local_modules)
             if deps is not None:
                 graph[mod_name] = deps
-
         return graph
-
-    def _collect_local_modules(self: ImportGraphBuilder) -> set[str]:
-        """Collect local module names for graph building.
-
-        Returns:
-            Set of local module names.
-        """
-        local_modules: set[str] = set()
-        for py_file in self.scan_dir.rglob("*.py"):
-            local_modules.add(py_file.stem)
-        return local_modules
-
-    def _extract_dependencies_from_file(
-        self: ImportGraphBuilder,
-        py_file: Path,
-        mod_name: str,
-        local_modules: set[str],
-    ) -> set[str] | None:
-        """Extract dependencies from a Python file.
-
-        Args:
-            py_file: Path to Python file.
-            mod_name: Name of the module (file stem).
-            local_modules: Set of local module names.
-
-        Returns:
-            Set of dependencies or None if file cannot be parsed.
-        """
-        try:
-            source = py_file.read_text(encoding="utf-8")
-            tree = ast.parse(source, filename=str(py_file))
-        except (SyntaxError, OSError, UnicodeDecodeError):
-            return None
-
-        deps: set[str] = set()
-        for node in ast.walk(tree):
-            self._extract_dependencies_from_node(node, mod_name, local_modules, deps)
-
-        return deps
-
-    def _extract_dependencies_from_node(
-        self: ImportGraphBuilder,
-        node: ast.AST,
-        mod_name: str,
-        local_modules: set[str],
-        deps: set[str],
-    ) -> None:
-        """Extract dependencies from an AST node.
-
-        Args:
-            node: AST node to analyze.
-            mod_name: Name of the current module.
-            local_modules: Set of local module names.
-            deps: Set to add dependencies to.
-        """
-        if isinstance(node, ast.Import):
-            self._extract_dependencies_from_import(node, mod_name, local_modules, deps)
-        elif isinstance(node, ast.ImportFrom):
-            self._extract_dependencies_from_import_from(node, mod_name, local_modules, deps)
-
-    def _extract_dependencies_from_import(
-        self: ImportGraphBuilder,
-        node: ast.Import,
-        mod_name: str,
-        local_modules: set[str],
-        deps: set[str],
-    ) -> None:
-        """Extract dependencies from an Import node.
-
-        Args:
-            node: Import AST node.
-            mod_name: Name of the current module.
-            local_modules: Set of local module names.
-            deps: Set to add dependencies to.
-        """
-        for alias in node.names:
-            top = alias.name.split(".")[0]
-            self._add_dependency_if_local(top, mod_name, local_modules, deps)
-
-    def _extract_dependencies_from_import_from(
-        self: ImportGraphBuilder,
-        node: ast.ImportFrom,
-        mod_name: str,
-        local_modules: set[str],
-        deps: set[str],
-    ) -> None:
-        """Extract dependencies from an ImportFrom node.
-
-        Args:
-            node: ImportFrom AST node.
-            mod_name: Name of the current module.
-            local_modules: Set of local module names.
-            deps: Set to add dependencies to.
-        """
-        mod = node.module or ""
-        top = mod.split(".")[0] if mod else ""
-        self._add_dependency_if_local(top, mod_name, local_modules, deps)
-
-        for alias in node.names:
-            self._add_dependency_if_local(alias.name, mod_name, local_modules, deps)
-
-    def _add_dependency_if_local(
-        self: ImportGraphBuilder,
-        module_name: str,
-        current_module: str,
-        local_modules: set[str],
-        deps: set[str],
-    ) -> None:
-        """Add a module to dependencies if it's a local module and not the current module.
-
-        Args:
-            module_name: Name of the module to check.
-            current_module: Name of the current module.
-            local_modules: Set of local module names.
-            deps: Set to add dependencies to.
-        """
-        if module_name in local_modules and module_name != current_module:
-            deps.add(module_name)
 
     def detect_cycles(self: ImportGraphBuilder) -> list[list[str]]:
         """Detect circular import chains using DFS.
@@ -301,19 +316,20 @@ class ImportGraphBuilder:
             List of cycles, each cycle is a list of module names.
         """
         graph = self.build_graph()
-        return self._find_cycles_in_graph(graph)
+        return _CycleFinder(graph).find_cycles()
 
-    def _find_cycles_in_graph(self: ImportGraphBuilder, graph: dict[str, set[str]]) -> list[list[str]]:  # noqa: E501
-        """Find cycles in a directed graph using DFS.
-
-        Args:
-            graph: Directed graph as adjacency list.
+    def _extract_dependencies_from_file(
+        self: ImportGraphBuilder,
+        py_file: Path,
+        mod_name: str,
+        local_modules: set[str],
+    ) -> set[str] | None:
+        """Thin wrapper around ``_extract_file_dependencies`` for test compatibility.
 
         Returns:
-            List of cycles, each cycle is a list of node names.
+            Set of dependency module names, or None if the file has no dependencies.
         """
-        cycle_finder = _CycleFinder(graph)
-        return cycle_finder.find_cycles()
+        return _extract_file_dependencies(py_file, mod_name, local_modules)
 
 
 class _CycleFinder:
@@ -419,12 +435,7 @@ class ImportAnalysisRequest:
 
 
 class ImportGraphTool(Tool):
-    """Analyze Python import dependencies.
-
-    Parses a Python file to extract its imports, and optionally scans
-    a directory for reverse imports (files that import the target).
-    Supports circular import detection and import classification.
-    """
+    """Analyze Python import dependencies."""
 
     @property
     def name(self: ImportGraphTool) -> str:
@@ -482,55 +493,38 @@ class ImportGraphTool(Tool):
             params: Tool parameters passed as keyword arguments.
                 Expected parameters:
                     path (str): Path to the Python file to analyze.
-                    scan_dir (str, optional): Directory to scan for reverse imports.
-                    detect_cycles (bool, optional): Scan for circular import chains.
-                        Defaults to False.
-                    classify (bool, optional): Classify imports as stdlib/local/third-party.
-                        Defaults to False.
+                    scan_dir (str, optional): Directory to scan for reverse imports
+                        (files that import the target).
+                    detect_cycles (bool, optional): Scan directory for circular import
+                        chains (requires scan_dir). Defaults to False.
+                    classify (bool, optional): Classify imports as stdlib, local, or
+                        third-party. Defaults to False.
 
         Returns:
-            ToolResult with import analysis.
+            ToolResult with import analysis results.
         """
-        # Create and validate request directly from params
-        request = ImportAnalysisRequest(
-            path=str(params.get("path", "")),
-            scan_dir=str(params.get("scan_dir", "")),
-            detect_cycles=bool(params.get("detect_cycles", False)),
-            classify=bool(params.get("classify", False)),
-        )
-
+        request = _parse_import_analysis_request(params)
         validation_result = request.validate()
         if validation_result is not None:
             return validation_result
-
         return await self._execute_with_request(request)
 
-    async def _execute_with_request(self: ImportGraphTool, request: ImportAnalysisRequest) -> ToolResult:  # noqa: E501
-        """Execute import analysis with validated request.
+    async def _execute_with_request(
+        self: ImportGraphTool,
+        request: ImportAnalysisRequest,
+    ) -> ToolResult:
+        """Execute import analysis with a validated request."""
+        target_path, scan_path, should_classify, should_detect_cycles = request.extract_params()
 
-        Args:
-            request: Validated import analysis request.
-
-        Returns:
-            ToolResult with import analysis.
-        """
-        # Extract parameters from request
-        target_path, scan_path, should_classify, should_detect_cycles = (
-            self._extract_request_params(request)
-        )
-
-        # Parse file and extract AST
         parse_result = self._parse_file(target_path, str(target_path))
         if isinstance(parse_result, ToolResult):
             return parse_result
         tree, _ = parse_result
 
-        # Analyze imports
-        local_modules = self._collect_local_modules(scan_path) if scan_path else set()
+        local_modules = _collect_python_module_stems(scan_path) if scan_path else set()
         analyzer = ImportAnalyzer(local_modules)
         imports = analyzer.extract_imports(tree)
 
-        # Build and return analysis result
         return self._build_analysis_result(
             target_path=target_path,
             scan_path=scan_path,
@@ -540,70 +534,44 @@ class ImportGraphTool(Tool):
             should_detect_cycles=should_detect_cycles,
         )
 
-    @staticmethod
-    def _extract_request_params(
-        request: ImportAnalysisRequest,
-    ) -> tuple[Path, Path | None, bool, bool]:
-        """Extract parameters from ImportAnalysisRequest.
-
-        Args:
-            request: The request object.
-
-        Returns:
-            Tuple of (target_path, scan_path, should_classify, should_detect_cycles).
-        """
-        return request.extract_params()
-
-    def _build_analysis_result(
+    def _build_analysis_result(  # noqa: PLR0913
         self: ImportGraphTool,
         target_path: Path,
         scan_path: Path | None,
         imports: list[str],
         analyzer: ImportAnalyzer,
+        *,
         should_classify: bool,
         should_detect_cycles: bool,
     ) -> ToolResult:
-        """Build the analysis result from extracted data.
-
-        Args:
-            target_path: Path to the target file.
-            scan_path: Optional directory to scan for reverse imports.
-            imports: List of import statements.
-            analyzer: Import analyzer instance.
-            should_classify: Whether to classify imports.
-            should_detect_cycles: Whether to detect circular imports.
-
-        Returns:
-            ToolResult with import analysis.
-        """
+        """Assemble the final ToolResult from all analysis sections."""
         parts: list[str] = []
 
-        # Add imports analysis
-        self._add_imports_analysis(parts, target_path.name, imports, should_classify, analyzer)
+        _add_imports_section(
+            parts,
+            target_path.name,
+            imports,
+            classify=should_classify,
+            analyzer=analyzer,
+        )
 
-        # Add reverse imports analysis if scan_dir provided
         if scan_path:
-            self._add_reverse_imports_analysis(parts, scan_path, target_path)
+            _add_reverse_imports_section(parts, scan_path, target_path)
 
-        # Add circular import detection if requested
         if should_detect_cycles and scan_path:
-            self._add_circular_imports_analysis(parts, scan_path)
+            _add_circular_imports_section(parts, scan_path)
 
         return ToolResult(
             content="\n".join(parts),
             success=True,
         )
 
-    def _parse_file(self: ImportGraphTool, target: Path, path: str) -> tuple[ast.AST, str] | ToolResult:  # noqa: E501
-        """Parse a Python file and return AST and source.
-
-        Args:
-            target: Path object for the file.
-            path: Original path string for error messages.
-
-        Returns:
-            Tuple of (AST, source) or ToolResult with error.
-        """
+    def _parse_file(
+        self: ImportGraphTool,
+        target: Path,
+        path: str,
+    ) -> tuple[ast.AST, str] | ToolResult:
+        """Parse a Python source file and return its AST and source text."""
         try:
             source = target.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as exc:
@@ -624,192 +592,30 @@ class ImportGraphTool(Tool):
 
         return tree, source
 
-    def _add_imports_analysis(
-        self: ImportGraphTool,
-        parts: list[str],
-        filename: str,
-        imports: list[str],
-        classify: bool,
-        analyzer: ImportAnalyzer,
-    ) -> None:
-        """Add imports analysis to result parts.
-
-        Args:
-            parts: List to append result parts to.
-            filename: Name of the file being analyzed.
-            imports: List of import statements.
-            classify: Whether to classify imports.
-            analyzer: Import analyzer instance.
-        """
-        parts.append(f"Imports in {filename}:")
-        if imports:
-            for imp in imports:
-                if classify:
-                    label = analyzer.classify_import(imp)
-                    parts.append(f"  {imp}  [{label}]")
-                else:
-                    parts.append(f"  {imp}")
-        else:
-            parts.append("  (none)")
-
-    def _add_reverse_imports_analysis(
-        self: ImportGraphTool,
-        parts: list[str],
-        scan_path: Path,
-        target: Path,
-    ) -> None:
-        """Add reverse imports analysis to result parts.
-
-        Args:
-            parts: List to append result parts to.
-            scan_path: Directory to scan for reverse imports.
-            target: Target file to find imports of.
-        """
-        module_name = target.stem
-        reverse = self._find_reverse_imports(scan_path, module_name, target)
-        parts.append(f"\nFiles importing {module_name}:")
-        if reverse:
-            parts.extend(f"  {rev}" for rev in sorted(reverse))
-        else:
-            parts.append("  (none)")
-
-    def _add_circular_imports_analysis(
-        self: ImportGraphTool,
-        parts: list[str],
-        scan_path: Path,
-    ) -> None:
-        """Add circular imports analysis to result parts.
-
-        Args:
-            parts: List to append result parts to.
-            scan_path: Directory to scan for circular imports.
-        """
-        builder = ImportGraphBuilder(scan_path)
-        cycles = builder.detect_cycles()
-        parts.append("\nCircular imports:")
-        if cycles:
-            parts.extend(f"  {' -> '.join(cycle)}" for cycle in cycles)
-        else:
-            parts.append("  (none detected)")
-
-    def _find_reverse_imports(
-        self: ImportGraphTool,
-        scan_dir: Path,
-        module_name: str,
-        exclude: Path,
-    ) -> list[str]:
-        """Find files that import the given module.
-
-        Args:
-            scan_dir: Directory to scan.
-            module_name: Module name to search for.
-            exclude: File to exclude (the target itself).
-
-        Returns:
-            List of file paths that import the module.
-        """
-        results: list[str] = []
-        exclude_resolved = exclude.resolve()
-
-        for py_file in scan_dir.rglob("*.py"):
-            if self._should_skip_file(py_file, exclude_resolved):
-                continue
-
-            if self._file_imports_module(py_file, module_name):
-                results.append(str(py_file))
-
-        return results
-
-    def _should_skip_file(self: ImportGraphTool, py_file: Path, exclude_resolved: Path) -> bool:
-        """Check if a file should be skipped in reverse import search.
-
-        Args:
-            py_file: File to check.
-            exclude_resolved: Resolved path of file to exclude.
-
-        Returns:
-            True if file should be skipped, False otherwise.
-        """
-        return py_file.resolve() == exclude_resolved
+    # ── Test-compatibility wrappers ──────────────────────────────────────────
 
     def _file_imports_module(self: ImportGraphTool, py_file: Path, module_name: str) -> bool:
-        """Check if a file imports a specific module.
+        """Thin wrapper around module-level ``_file_imports_module``.
 
         Args:
-            py_file: File to check.
-            module_name: Module name to search for.
+            py_file: Path to the Python file.
+            module_name: Name of the module to check for.
 
         Returns:
-            True if file imports the module, False otherwise.
+            True if the file imports the module.
         """
-        try:
-            source = py_file.read_text(encoding="utf-8")
-            tree = ast.parse(source, filename=str(py_file))
-        except (SyntaxError, OSError, UnicodeDecodeError):
+        if py_file is None:  # pragma: no cover
             return False
+        return _file_imports_module(py_file, module_name)
 
-        return self._tree_imports_module(tree, module_name)
-
-    def _tree_imports_module(self: ImportGraphTool, tree: ast.AST, module_name: str) -> bool:
-        """Check if an AST tree imports a specific module.
-
-        Args:
-            tree: AST to check.
-            module_name: Module name to search for.
-
-        Returns:
-            True if tree imports the module, False otherwise.
-        """
-        for node in ast.walk(tree):
-            if (
-                (isinstance(node, ast.Import)
-                and self._import_node_contains_module(node, module_name))
-                or (isinstance(node, ast.ImportFrom)
-                and self._import_from_node_contains_module(node, module_name))
-            ):
-                return True
-        return False
-
-    def _import_node_contains_module(self: ImportGraphTool, node: ast.Import, module_name: str) -> bool:  # noqa: E501
-        """Check if an Import node contains a specific module.
-
-        Args:
-            node: Import AST node.
-            module_name: Module name to search for.
-
-        Returns:
-            True if import contains the module, False otherwise.
-        """
-        return any(module_name in alias.name.split(".") for alias in node.names)
-
-    def _import_from_node_contains_module(self: ImportGraphTool, node: ast.ImportFrom, module_name: str) -> bool:  # noqa: E501
-        """Check if an ImportFrom node contains a specific module.
-
-        Args:
-            node: ImportFrom AST node.
-            module_name: Module name to search for.
-
-        Returns:
-            True if import contains the module, False otherwise.
-        """
-        mod = node.module or ""
-        if module_name in mod.split("."):
-            return True
-
-        names = [a.name for a in node.names]
-        return module_name in names
+    def _import_from_node_contains_module(
+        self: ImportGraphTool,
+        node: ast.ImportFrom,
+        module_name: str,
+    ) -> bool:
+        """Thin wrapper around module-level ``_import_from_node_contains_module``."""
+        return _import_from_node_contains_module(node, module_name)
 
     def _collect_local_modules(self: ImportGraphTool, scan_dir: Path) -> set[str]:
-        """Collect module names from a local directory.
-
-        Args:
-            scan_dir: Directory to scan for Python files.
-
-        Returns:
-            Set of module stem names found locally.
-        """
-        modules: set[str] = set()
-        if scan_dir.exists() and scan_dir.is_dir():
-            for py_file in scan_dir.rglob("*.py"):
-                modules.add(py_file.stem)
-        return modules
+        """Thin wrapper around ``_collect_python_module_stems``."""
+        return _collect_python_module_stems(scan_dir)

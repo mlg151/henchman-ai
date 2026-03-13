@@ -1,12 +1,13 @@
 """Tests for interactive shell tool functionality (sudo support)."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from henchman.tools.builtins.shell import ShellTool
 
 
-def _make_mock_process(stdout_data: bytes = b"test output\n", stderr_data: bytes = b"", returncode: int = 0) -> AsyncMock:
+def _make_mock_process(
+    stdout_data: bytes = b"test output\n", stderr_data: bytes = b"", returncode: int = 0
+) -> AsyncMock:
     """Create a mock process with properly terminating stdout/stderr streams."""
     mock_process = AsyncMock()
     mock_process.returncode = returncode
@@ -48,7 +49,9 @@ class TestShellToolInteractive:
         assert tool._is_sudo_command("  sudo apt update  ") is True
         assert tool._is_sudo_command("echo hello") is False
         assert tool._is_sudo_command("") is False
-        assert tool._is_sudo_command("sudo") is False  # "sudo" alone (no space) is not a valid sudo command
+        assert (
+            tool._is_sudo_command("sudo") is False
+        )  # "sudo" alone (no space) is not a valid sudo command
         assert tool._is_sudo_command("notsudo command") is False
 
     async def test_non_interactive_mode_for_non_sudo(self) -> None:
@@ -56,7 +59,7 @@ class TestShellToolInteractive:
         tool = ShellTool()
         mock_process = _make_mock_process()
 
-        with patch('asyncio.create_subprocess_shell', return_value=mock_process) as mock_create:
+        with patch("asyncio.create_subprocess_shell", return_value=mock_process) as mock_create:
             result = await tool.execute(command="echo test")
 
             mock_create.assert_called_once()
@@ -69,13 +72,15 @@ class TestShellToolInteractive:
         mock_process = _make_mock_process()
 
         with (
-            patch('sys.stdin') as mock_stdin,
-            patch('asyncio.create_subprocess_shell', return_value=mock_process) as mock_create,
+            patch("sys.stdin") as mock_stdin,
+            patch("asyncio.create_subprocess_shell", return_value=mock_process) as mock_create,
         ):
             mock_stdin.isatty.return_value = False
             result = await tool.execute(command="sudo echo test")
 
             mock_create.assert_called_once()
             call_args = mock_create.call_args[0][0]
-            assert "sudo -A" in call_args or "SUDO_ASKPASS" in str(mock_create.call_args[1].get('env', {}))
+            assert "sudo -A" in call_args or "SUDO_ASKPASS" in str(
+                mock_create.call_args[1].get("env", {})
+            )
             assert result.success is True

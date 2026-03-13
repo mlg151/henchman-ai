@@ -1,0 +1,953 @@
+"""Delegation execution for the orchestrator."""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Sequence
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+
+from henchman.core.events import AgentEvent, EventType
+from henchman.providers.base import Message
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable
+
+    from henchman.agents.ledger import TaskLedger
+    from henchman.agents.orchestrator import (
+        AgentLoopParams,
+        CompletionStatus,
+        DelegationParams,
+        OrchestratorMetrics,
+    )
+    from henchman.agents.pool import AgentPool
+    from henchman.config.schema import Settings
+    from henchman.core.agent import Agent
+
+
+@runtime_checkable
+class AgentProtocol(Protocol):
+    """Protocol defining the minimum interface required for delegation.
+
+    This ensures type safety when working with agent instances in delegation.
+    """
+
+    messages: Sequence[Message]
+    """The agent's conversation history."""
+
+    def clear_history(self) -> None:
+        """Clear conversation history while preserving system prompt.
+
+        Returns:
+            None: This method always returns None.
+        """
+        ...
+
+
+# Constants re-exported from orchestrator for delegation logic.
+RECENT_CONTEXT_ENTRIES = 5
+"""Number of recent shared-context entries to include in handoffs."""
+
+MAX_SUMMARY_LENGTH = 200
+"""Maximum length for summary text in handoff notes."""
+
+RECENT_ERRORS_TO_SHOW = 10
+"""Number of recent tool errors to show in delegation summaries."""
+
+MAX_CONTENT_LENGTH = 800
+"""Maximum length for shared-context summary entries."""
+
+MAX_SHARED_CONTEXT_ENTRIES = 50
+"""Maximum number of entries to keep in shared context (prevents memory leaks)."""
+
+# Pre-compiled regex patterns for performance
+# Use [^\n]* instead of (.+?) for efficiency - matches any non-newline characters
+_COMPLETION_REPORT_PATTERNS = {
+    "status": re.compile(r"(?i)STATUS:\s*([^\n]*)"),
+    "files_modified": re.compile(r"(?i)FILES_MODIFIED:\s*([^\n]*)"),
+    "tests_run": re.compile(r"(?i)TESTS_RUN:\s*([^\n]*)"),
+    "verification": re.compile(r"(?i)VERIFICATION:\s*([^\n]*)"),
+    "blockers": re.compile(r"(?i)BLOCKERS:\s*([^\n]*)"),
+    "handoff_notes": re.compile(r"(?i)HANDOFF_NOTES:\s*([^\n]*)"),
+    "artifacts": re.compile(r"(?i)ARTIFACTS:\s*([^\n]*)"),
+}
+"""Pre-compiled regex patterns for parsing completion reports."""
+
+
+def _add_to_shared_context(
+    shared_context: list[dict[str, Any]],
+    target_role: str,
+    summary: str,
+    parsed: dict[str, str],
+) -> None:
+    """Add delegation result to shared context with size limits.
+
+    Args:
+        shared_context: The mutable shared context list to update.
+        target_role: Role of the agent that completed the delegation.
+        summary: Summary text from the agent.
+        parsed: Parsed completion report dictionary.
+
+    Returns:
+        None: Modifies shared_context in-place with size enforcement.
+
+    Raises:
+        TypeError: If shared_context is not a list or parsed is not a dict.
+        ValueError: If target_role or summary are empty/invalid.
+    """
+    # DEFENSIVE VALIDATION: Prevent crashes from invalid inputs
+    # This is critical because this function is called during delegation
+    # finalization and a crash here would lose the delegation results.
+
+    # Validate shared_context is a mutable list
+    if not isinstance(shared_context, list):
+        raise TypeError(
+            f"shared_context must be a list, got {type(shared_context).__name__}"
+        )
+
+    # Validate target_role is a non-empty string
+    if not isinstance(target_role, str) or not target_role.strip():
+        raise ValueError(
+            f"target_role must be a non-empty string, got {repr(target_role)}"
+        )
+
+    # Validate summary is a string or None (will be converted to empty string)
+    if summary is not None and not isinstance(summary, str):
+        raise TypeError(
+            f"summary must be a string or None, got {type(summary).__name__}"
+        )
+
+    # Validate parsed is a dict
+    if not isinstance(parsed, dict):
+        raise TypeError(
+            f"parsed must be a dict, got {type(parsed).__name__}"
+        )
+
+    # Safe string slicing with None check
+    summary_text = summary[:MAX_CONTENT_LENGTH] if summary else ""
+
+    # Safe dict access with fallback
+    files_modified = parsed.get("files_modified", "") if parsed else ""
+
+    entry = {
+        "agent": target_role,
+        "summary": summary_text,
+        "files_modified": files_modified,
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+    }
+
+    shared_context.append(entry)
+
+    # Enforce size limit (FIFO eviction) with safe bounds checking
+    if len(shared_context) > MAX_SHARED_CONTEXT_ENTRIES:
+        # Remove oldest entries to stay within limit
+        excess = len(shared_context) - MAX_SHARED_CONTEXT_ENTRIES
+        # Use list slicing for safe removal (works even if excess > len)
+        del shared_context[:excess]
+
+
+class AgentLoopRunner(Protocol):
+    """Protocol for the agent loop callback."""
+
+    def __call__(self: AgentLoopRunner, params: AgentLoopParams) -> AsyncIterator[AgentEvent]:
+        """Run the agent loop.
+
+        Args:
+            params: Agent loop parameters.
+
+        Yields:
+            AgentEvents from the loop.
+        """
+        ...  # pragma: no cover
+
+
+# ---------------------------------------------------------------------------
+# Module-level delegation lifecycle helpers
+# (extracted to eliminate Feature Envy — each method accessed ``params``
+# more times than it used ``self``.)
+# ---------------------------------------------------------------------------
+
+
+def _prepare_execution(runner: DelegationRunner, params: DelegationParams) -> None:
+    """Prepare agent and context for delegation execution.
+
+    Mutates ``params`` in place, setting ``full_task`` and ``msg_start``.
+
+    Args:
+        runner: The ``DelegationRunner`` that owns this delegation.
+        params: Delegation parameters (must have ``target_agent`` set).
+
+    Raises:
+        ValueError: If ``params.target_agent`` is None or invalid.
+        TypeError: If ``target_agent`` doesn't conform to AgentProtocol.
+        RuntimeError: If agent operations fail after validation.
+    """
+    if params.target_agent is None:
+        raise ValueError(
+            f"Cannot prepare execution for agent '{params.target_role}': "
+            "target_agent is None. This indicates a bug in delegation setup."
+        )
+    target_agent = params.target_agent
+
+    # DEFENSIVE VALIDATION: Even though validation happens earlier in _get_target_agent_with_error_handling(),
+
+    # DEFENSIVE VALIDATION: Even though validation happens earlier in _get_target_agent_with_error_handling(),
+    # this function is public and could be called directly, so we must validate.
+
+    # COMPREHENSIVE VALIDATION: Replace unreliable @runtime_checkable with explicit checks
+    # @runtime_checkable only checks attribute existence, not callability or type compatibility
+
+    # Check 1: messages attribute exists and is not None
+    if not hasattr(target_agent, "messages"):
+        raise TypeError(
+            f"Agent '{params.target_role}' (type: {type(target_agent).__name__}) "
+            f"does not conform to AgentProtocol. Missing required 'messages' attribute.\n"
+            f"Required interface:\n"
+            f"  - messages: Sequence[Message]\n"
+            f"  - clear_history() -> None method"
+        )
+
+    if target_agent.messages is None:
+        raise TypeError(
+            f"Agent '{params.target_role}' has messages=None. "
+            f"Expected Sequence[Message], got NoneType."
+        )
+
+    # Check 2: clear_history method exists and is callable
+    if not hasattr(target_agent, "clear_history"):
+        raise TypeError(
+            f"Agent '{params.target_role}' does not conform to AgentProtocol. "
+            f"Missing required 'clear_history()' method. "
+            f"Got attributes: {[a for a in dir(target_agent) if not a.startswith('_')][:10]}..."
+        )
+
+    clear_history_attr = target_agent.clear_history
+    if not callable(clear_history_attr):
+        raise TypeError(
+            f"Agent '{params.target_role}' clear_history attribute is not callable: "
+            f"got {type(clear_history_attr).__name__} (value: {repr(clear_history_attr)})"
+        )
+
+    # CRITICAL FIX: @runtime_checkable only checks method existence, not type compatibility.
+    # We must explicitly validate that messages is actually a Sequence (not just duck-typed).
+
+    # Validate messages is actually a Sequence (not a string, bytes, or other non-sequence)
+    # Strings and bytes are technically Sequences in Python but not what we want
+    if isinstance(target_agent.messages, (str, bytes)):
+        raise TypeError(
+            f"Agent '{params.target_role}' has invalid 'messages' attribute: "
+            f"expected Sequence[Message], got {type(target_agent.messages).__name__} "
+            f"(strings/bytes are not valid message sequences)"
+        )
+
+    if not isinstance(target_agent.messages, Sequence):
+        raise TypeError(
+            f"Agent '{params.target_role}' has invalid 'messages' attribute: "
+            f"expected Sequence[Message], got {type(target_agent.messages).__name__} "
+            f"(value: {repr(target_agent.messages)[:100]})"
+        )
+
+    # Optional but recommended: Verify Sequence contains Message-like objects
+    # Check first few messages to catch type mismatches early
+    if target_agent.messages:
+        try:
+            sample_msg = target_agent.messages[0]
+        except (IndexError, TypeError) as e:
+            # Handle broken sequences that raise exceptions on indexing
+            raise TypeError(
+                f"Agent '{params.target_role}' messages sequence is invalid: "
+                f"cannot access index 0: {e}"
+            ) from e
+
+        if not (hasattr(sample_msg, "role") and hasattr(sample_msg, "content")):
+            raise TypeError(
+                f"Agent '{params.target_role}' messages appear to not be Message instances. "
+                f"First message type: {type(sample_msg).__name__}, "
+                f"value: {repr(sample_msg)[:100]}"
+            )
+
+    # Clean start: wipe prior conversation so the specialist has no
+    # stale context from earlier delegations.
+    try:
+        target_agent.clear_history()
+    except AttributeError as e:
+        # This should never happen due to AgentProtocol check, but handle defensively
+        raise AttributeError(
+            f"Agent '{params.target_role}' missing 'clear_history()' method "
+            f"despite passing protocol check: {e}"
+        ) from e
+    except Exception as e:
+        # Preserve original exception type for better error handling upstream
+        raise type(e)(f"Failed to clear history for agent '{params.target_role}': {e}") from e
+
+    prepared_brief = runner._prepare_delegation_context(params.target_role, params.brief)
+    params.full_task = runner._assemble_delegation_input(
+        params.task,
+        prepared_brief,
+        mission=runner.ledger.goal if runner.ledger else None,
+    )
+
+    # Safely get message count (now guaranteed to work due to AgentProtocol)
+    params.msg_start = len(target_agent.messages)
+
+
+async def _execute_loop(
+    runner: DelegationRunner,
+    params: DelegationParams,
+) -> AsyncIterator[AgentEvent]:
+    """Execute the agent loop for a single delegation.
+
+    Args:
+        runner: The ``DelegationRunner`` that owns this delegation.
+        params: Delegation parameters (must have ``target_agent``,
+            ``full_task``, and ``msg_start`` set).
+
+    Yields:
+        AgentEvents from the specialist agent.
+
+    Raises:
+        RuntimeError: If agent loop execution fails unexpectedly.
+        TypeError: If runner._run_agent_loop doesn't return an async iterator.
+    """
+    from henchman.agents.orchestrator import AgentLoopParams  # noqa: PLC0415
+
+    max_turns = runner.settings.agents.max_delegation_turns
+    loop_params = AgentLoopParams(
+        agent=params.target_agent,
+        input_text=params.full_task,
+        depth=params.depth,
+        max_turns=max_turns,
+        msg_start_index=params.msg_start,
+    )
+
+    try:
+        # Validate that runner._run_agent_loop returns an async iterator
+        agent_loop_result = runner._run_agent_loop(loop_params)
+
+        # Check if it has __aiter__ method (async iterator protocol)
+        if not hasattr(agent_loop_result, "__aiter__"):
+            raise TypeError(
+                f"runner._run_agent_loop must return an async iterator, "
+                f"got {type(agent_loop_result).__name__}. "
+                f"Check that the agent loop implementation is correct."
+            )
+
+        async for event in agent_loop_result:
+            yield event
+
+    except Exception as e:
+        # Convert ALL execution errors to ERROR events for consistent error handling
+        # This catches ConnectionError, IOError, OSError, etc.
+        # Re-raise as RuntimeError with context for the caller to handle
+        raise RuntimeError(
+            f"Failed to execute agent loop for '{params.target_role}': "
+            f"{type(e).__name__}: {e}"
+        ) from e
+
+
+async def _finalize_execution(
+    runner: DelegationRunner,
+    params: DelegationParams,
+) -> AsyncIterator[AgentEvent]:
+    """Process delegation results and emit the completion event.
+
+    Args:
+        runner: The ``DelegationRunner`` that owns this delegation.
+        params: Delegation parameters (must have ``target_agent``
+            and ``msg_start`` set).
+
+    Yields:
+        AGENT_COMPLETED event with results.
+
+    Raises:
+        ValueError: If ``params.target_agent`` is None.
+    """
+    if params.target_agent is None:
+        raise ValueError(
+            f"Cannot finalize execution for agent '{params.target_role}': "
+            "target_agent is None. This indicates a bug in delegation execution."
+        )
+
+    summary, parsed, status = runner._process_delegation_results(
+        params.target_role,
+        params.target_agent,
+        params.msg_start,
+    )
+
+    # Add to shared context with size limiting
+    _add_to_shared_context(
+        runner.shared_context,
+        params.target_role,
+        summary,
+        parsed,
+    )
+
+    # Safely get status value, handling cases where status might not be a CompletionStatus
+    try:
+        status_value = status.value
+    except AttributeError:
+        # Fallback for unexpected status types
+        try:
+            status_value = str(status)
+        except Exception:
+            # Ultimate fallback for completely broken status objects
+            status_value = "UNKNOWN_STATUS"
+
+    yield AgentEvent(
+        type=EventType.AGENT_COMPLETED,
+        data={
+            "agent": params.target_role,
+            "summary": summary,
+            "status": status_value,
+            **parsed,
+        },
+        source_agent="orchestrator",
+    )
+
+
+class DelegationRunner:
+    """Executes delegations from the orchestrator to specialist agents.
+
+    This class encapsulates the delegation workflow that was previously
+    spread across 12 methods in the Orchestrator class.
+
+    Args:
+        pool: Agent pool for resolving target agents.
+        settings: Application settings (max depth, max turns).
+        shared_context: Shared mutable context list.
+        metrics: Metrics instance for delegation counting.
+        run_agent_loop: Callback to run the core agent loop.
+        assess_completion: Callback to assess agent completion status.
+    """
+
+    def __init__(  # noqa: PLR0913
+        self: DelegationRunner,
+        pool: AgentPool,
+        settings: Settings,
+        shared_context: list[dict[str, Any]],
+        metrics: OrchestratorMetrics,
+        run_agent_loop: AgentLoopRunner,
+        assess_completion: Callable[[Agent], CompletionStatus],
+    ) -> None:
+        self.pool = pool
+        self.settings = settings
+        self.shared_context = shared_context
+        self.metrics = metrics
+        self._run_agent_loop = run_agent_loop
+        self._assess_completion = assess_completion
+        self.ledger: TaskLedger | None = None
+
+    # -- Main entry point -----------------------------------------------------
+
+    async def run_delegation(
+        self: DelegationRunner,
+        params: DelegationParams,
+    ) -> AsyncIterator[AgentEvent]:
+        """Execute a delegation to a specialist agent.
+
+        Each specialist starts with a **clean context** -- its conversation
+        history is cleared before every delegation so it operates from a
+        self-contained brief rather than accumulated (and often polluted)
+        prior context.
+
+        Args:
+            params: Delegation parameters containing target role, task,
+                brief, and depth.
+
+        Yields:
+            AgentEvents from the specialist agent.
+
+        Raises:
+            ValueError: If delegation depth is exceeded.
+            RuntimeError: If agent preparation fails after AGENT_STARTED event.
+        """
+        # Validate delegation depth
+        if self._is_delegation_depth_exceeded(params.depth):
+            async for event in self._yield_depth_exceeded_error():
+                yield event
+            return
+
+        # Get target agent with error handling
+        target_agent_result = await self._get_target_agent_with_error_handling(params.target_role)
+        if isinstance(target_agent_result, AgentEvent):
+            # Validate it's actually an error event
+            if target_agent_result.type != EventType.ERROR:
+                # Wrap non-error events as errors for consistency
+                yield AgentEvent(
+                    type=EventType.ERROR,
+                    data=f"Unexpected event type '{target_agent_result.type}' "
+                    f"when getting agent '{params.target_role}'",
+                    source_agent="orchestrator",
+                )
+            else:
+                yield target_agent_result
+            return
+
+        params.target_agent = target_agent_result
+
+        # CRITICAL FIX: Validate agent BEFORE emitting AGENT_STARTED
+        try:
+            _prepare_execution(self, params)
+        except (ValueError, AttributeError, TypeError, RuntimeError) as e:
+            # Handle all preparation errors before starting the agent
+            # Consistent error format with _get_target_agent_with_error_handling
+            yield AgentEvent(
+                type=EventType.ERROR,
+                data=f"Failed to prepare delegation for '{params.target_role}': {type(e).__name__}: {e}",
+                source_agent="orchestrator",
+            )
+            return
+
+        # Only emit AGENT_STARTED after successful preparation
+        yield AgentEvent(
+            type=EventType.AGENT_STARTED,
+            data={"agent": params.target_role},
+            source_agent="orchestrator",
+        )
+
+        # Execute the agent loop with error handling
+        try:
+            async for event in _execute_loop(self, params):
+                yield event
+        except Exception as e:
+            # Handle ALL execution errors consistently with other phases
+            # This catches errors from _execute_loop including:
+            # - runner._run_agent_loop not returning async iterator (TypeError)
+            # - Exceptions during agent loop execution (RuntimeError, ConnectionError, etc.)
+            # - Any other errors in the execution phase
+            # Note: _execute_loop converts all exceptions to RuntimeError with context
+            yield AgentEvent(
+                type=EventType.ERROR,
+                data=f"Failed to execute delegation for '{params.target_role}': {type(e).__name__}: {e}",
+                source_agent="orchestrator",
+            )
+            return
+
+        # Finalize delegation
+        try:
+            async for event in _finalize_execution(self, params):
+                yield event
+        except (ValueError, AttributeError, TypeError, RuntimeError, IndexError) as e:
+            # Handle all finalization errors consistently with preparation phase
+            # Added IndexError for potential sequence indexing issues
+            # Consistent error format with other error handlers
+            yield AgentEvent(
+                type=EventType.ERROR,
+                data=f"Failed to finalize delegation for '{params.target_role}': {type(e).__name__}: {e}",
+                source_agent="orchestrator",
+            )
+            return
+
+    # -- Delegation sub-steps -------------------------------------------------
+
+    def _is_delegation_depth_exceeded(self: DelegationRunner, depth: int) -> bool:
+        """Check if delegation depth exceeds configured limit.
+
+        Args:
+            depth: Current recursion depth.
+
+        Returns:
+            True if depth exceeds limit, False otherwise.
+        """
+        return depth > self.settings.agents.max_delegation_depth
+
+    async def _yield_depth_exceeded_error(self: DelegationRunner) -> AsyncIterator[AgentEvent]:
+        """Yield error events for exceeded delegation depth.
+
+        Yields:
+            ERROR event only (no AGENT_COMPLETED to avoid duplicate reporting).
+        """
+        yield AgentEvent(
+            type=EventType.ERROR,
+            data=f"Error: Maximum delegation depth ({self.settings.agents.max_delegation_depth}) exceeded.",  # noqa: E501
+            source_agent="orchestrator",
+        )
+
+    async def _get_target_agent_with_error_handling(
+        self: DelegationRunner,
+        target_role: str,
+    ) -> Agent | AgentEvent:
+        """Get target agent with proper error handling.
+
+        Args:
+            target_role: The role ID of the specialist.
+
+        Returns:
+            Agent instance if found and valid, otherwise AgentEvent with error.
+
+        Raises:
+            Exception: Only re-raises if we cannot create an AgentEvent (should never happen).
+        """
+        try:
+            agent = self.pool.get_agent(target_role)
+
+            # CRITICAL: Validate agent protocol compliance IMMEDIATELY after retrieval
+            # This prevents invalid agents from being assigned to params.target_agent
+            # We don't use isinstance(agent, AgentProtocol) because @runtime_checkable
+            # only checks attribute existence, not type compatibility.
+
+            # Check 1: messages attribute exists and is not None
+            if not hasattr(agent, "messages"):
+                error_msg = (
+                    f"Agent '{target_role}' (type: {type(agent).__name__}) "
+                    f"does not conform to AgentProtocol. Missing required 'messages' attribute.\n"
+                    f"Required interface:\n"
+                    f"  - messages: Sequence[Message]\n"
+                    f"  - clear_history() -> None method"
+                )
+                return AgentEvent(type=EventType.ERROR, data=error_msg, source_agent="orchestrator")
+
+            if agent.messages is None:
+                error_msg = (
+                    f"Agent '{target_role}' has messages=None. "
+                    f"Expected Sequence[Message], got NoneType."
+                )
+                return AgentEvent(type=EventType.ERROR, data=error_msg, source_agent="orchestrator")
+
+            # Check 2: messages is a proper Sequence (not string, bytes, or other non-sequence)
+            if isinstance(agent.messages, (str, bytes)):
+                error_msg = (
+                    f"Agent '{target_role}' has invalid 'messages' attribute: "
+                    f"expected Sequence[Message], got {type(agent.messages).__name__} "
+                    f"(strings/bytes are not valid message sequences)"
+                )
+                return AgentEvent(type=EventType.ERROR, data=error_msg, source_agent="orchestrator")
+
+            if not isinstance(agent.messages, Sequence):
+                error_msg = (
+                    f"Agent '{target_role}' has invalid 'messages' attribute: "
+                    f"expected Sequence[Message], got {type(agent.messages).__name__} "
+                    f"(value: {repr(agent.messages)[:100]})"
+                )
+                return AgentEvent(type=EventType.ERROR, data=error_msg, source_agent="orchestrator")
+
+            # Check 3: clear_history method exists, is callable, and has correct signature
+            if not hasattr(agent, "clear_history"):
+                error_msg = (
+                    f"Agent '{target_role}' does not conform to AgentProtocol. "
+                    f"Missing required 'clear_history()' method. "
+                    f"Got attributes: {[a for a in dir(agent) if not a.startswith('_')][:10]}..."
+                )
+                return AgentEvent(type=EventType.ERROR, data=error_msg, source_agent="orchestrator")
+
+            clear_history_attr = agent.clear_history
+            if not callable(clear_history_attr):
+                error_msg = (
+                    f"Agent '{target_role}' clear_history attribute is not callable: "
+                    f"got {type(clear_history_attr).__name__} (value: {repr(clear_history_attr)})"
+                )
+                return AgentEvent(type=EventType.ERROR, data=error_msg, source_agent="orchestrator")
+
+            # Additional check: Try to inspect the callable if possible
+            # This helps catch MagicMock auto-created methods vs real methods
+            # Note: We don't import inspect to avoid unused import warnings
+            # Check if it's a mock that was auto-created (not explicitly set)
+            # MagicMock auto-created methods have special repr
+            if hasattr(clear_history_attr, '_mock_name'):
+                # It's a mock, check if it was explicitly configured
+                # For now, we just note it's a mock but allow it
+                # Real validation happens when we actually call it in _prepare_execution
+                pass
+
+            return agent
+        except Exception as e:
+            # Catch ALL exceptions during agent creation/lookup
+            # This includes ValueError, RuntimeError, ImportError, AttributeError, etc.
+            error_msg = f"Failed to get agent '{target_role}': {type(e).__name__}: {e}"
+            # Log the error for debugging (though in production this would use proper logging)
+            # print(f"DEBUG: Agent lookup failed for '{target_role}': {e}")  # Uncomment for debugging
+            return AgentEvent(type=EventType.ERROR, data=error_msg, source_agent="orchestrator")
+
+    # -- Context preparation --------------------------------------------------
+
+    def _prepare_delegation_context(
+        self: DelegationRunner,
+        target_role: str,
+        brief: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Prepare context for delegation by adding handoff notes and failure context.
+
+        Args:
+            target_role: The role ID of the specialist.
+            brief: Original delegation brief.
+
+        Returns:
+            Updated brief with handoff notes and failure context added.
+        """
+        brief = dict(brief) if brief else {}
+
+        # Cross-delegation handoff: auto-inject recent shared_context
+        # entries into the brief's background field so the specialist
+        # knows what prior agents accomplished.
+        if self.shared_context:
+            handoff_lines = [
+                f"- **{entry['agent']}**: {entry['summary'][:MAX_SUMMARY_LENGTH]}"
+                for entry in self.shared_context[-RECENT_CONTEXT_ENTRIES:]
+            ]
+            handoff_notes = "### Prior agent work\n" + "\n".join(handoff_lines)
+            existing_bg = brief.get("background") or ""
+            brief["background"] = (
+                f"{existing_bg}\n\n{handoff_notes}" if existing_bg else handoff_notes
+            )
+
+        # Inject prior failure context if the same role failed before (#17)
+        if self.ledger:
+            prior_failures = [
+                d
+                for d in self.ledger.delegations
+                if d.agent == target_role and d.status == "FAILED"
+            ]
+            if prior_failures:
+                last_fail = prior_failures[-1]
+                fail_note = (
+                    f"### Prior Attempt Failed\n"
+                    f"A previous delegation to you for "
+                    f'"{last_fail.task}" ended with status FAILED. '
+                    f"Avoid repeating the same approach."
+                )
+                existing_bg = brief.get("background") or ""
+                brief["background"] = f"{existing_bg}\n\n{fail_note}" if existing_bg else fail_note
+
+        return brief
+
+    # -- Result processing ----------------------------------------------------
+
+    def _process_delegation_results(
+        self: DelegationRunner,
+        target_role: str,  # noqa: ARG002
+        target_agent: Agent,
+        msg_start: int,
+    ) -> tuple[str, dict[str, str], CompletionStatus]:
+        """Process delegation results and prepare completion data.
+
+        Args:
+            target_role: The role ID of the specialist.
+            target_agent: The agent that executed the delegation.
+            msg_start: Index where the agent's messages started.
+
+        Returns:
+            Tuple of (summary, parsed_completion_report, completion_status)
+
+        Raises:
+            ValueError: If msg_start is out of bounds or invalid.
+            TypeError: If target_agent.messages is not a valid sequence.
+        """
+        # CRITICAL FIX: Validate msg_start bounds to prevent silent failures
+        # Original bug: msg_start > len(messages) would produce empty summary silently
+        if not isinstance(msg_start, int):
+            raise TypeError(
+                f"msg_start must be an integer, got {type(msg_start).__name__}"
+            )
+
+        if msg_start < 0:
+            raise ValueError(
+                f"msg_start must be non-negative, got {msg_start}"
+            )
+
+        # Validate target_agent.messages is accessible
+        if not hasattr(target_agent, "messages"):
+            raise AttributeError(
+                f"target_agent missing 'messages' attribute (type: {type(target_agent).__name__})"
+            )
+
+        messages = target_agent.messages
+        if messages is None:
+            raise ValueError("target_agent.messages is None")
+
+        if not isinstance(messages, Sequence):
+            raise TypeError(
+                f"target_agent.messages must be a Sequence, got {type(messages).__name__}"
+            )
+
+        # Check bounds - prevent silent failure when msg_start is out of range
+        if msg_start > len(messages):
+            raise ValueError(
+                f"msg_start ({msg_start}) exceeds messages length ({len(messages)})"
+            )
+
+        # Additional validation: Ensure messages contain Message-like objects
+        # This prevents AttributeError when iterating over non-Message objects
+        if messages and msg_start < len(messages):
+            try:
+                sample_msg = messages[msg_start]
+                # Quick check for Message-like structure
+                if not (hasattr(sample_msg, "role") and hasattr(sample_msg, "content")):
+                    raise TypeError(
+                        f"messages do not appear to be Message instances. "
+                        f"First message type: {type(sample_msg).__name__}"
+                    )
+            except (IndexError, TypeError) as e:
+                # Handle broken sequences or invalid indices
+                raise TypeError(
+                    f"Invalid messages sequence at index {msg_start}: {e}"
+                ) from e
+
+        # Build summary from the agent's conversation history, which stores
+        # accumulated content correctly without streaming duplication.
+        # Use generator expression instead of list comprehension for memory efficiency
+        # This avoids creating an intermediate list that could be large for long conversations
+        summary_parts = (
+            m.content
+            for m in messages[msg_start:]
+            if m.role == "assistant" and m.content
+        )
+        summary = "\n\n".join(summary_parts)
+
+        # Append tool-error digest so the Tech Lead sees what failed
+        # Use new API method if available, with fallback for backward compatibility
+        tool_errors: list[str] = []
+        try:
+            if hasattr(target_agent, "get_delegation_errors"):
+                # DEFENSIVE: Handle cases where get_delegation_errors might raise
+                # or return invalid data (None, non-list, list with None values)
+                errors = target_agent.get_delegation_errors()
+                if errors is not None and isinstance(errors, list):
+                    # Filter out None values and ensure all items are strings
+                    # Use try-except for each item to handle non-stringifiable objects
+                    for item in errors:
+                        if item is not None:
+                            try:
+                                tool_errors.append(str(item))
+                            except (TypeError, ValueError):
+                                # Skip items that can't be converted to string
+                                continue
+            else:
+                # Fallback for agents without the new API method
+                # CRITICAL FIX: Check attribute existence before accessing
+                # to detect wrong types (string, dict, etc. instead of list)
+                if hasattr(target_agent, "_delegation_tool_errors"):
+                    errors = target_agent._delegation_tool_errors
+                    if errors is not None and isinstance(errors, list):
+                        # Filter out None values and ensure all items are strings
+                        # Use try-except for each item to handle non-stringifiable objects
+                        for item in errors:
+                            if item is not None:
+                                try:
+                                    tool_errors.append(str(item))
+                                except (TypeError, ValueError):
+                                    # Skip items that can't be converted to string
+                                    continue
+                # If attribute doesn't exist or is wrong type, tool_errors stays []
+        except (AttributeError, TypeError, ValueError, RuntimeError):
+            # Expected exceptions from tool error retrieval:
+            # - AttributeError: get_delegation_errors missing or not callable
+            # - TypeError: Wrong return type or non-callable attribute
+            # - ValueError: String conversion errors
+            # - RuntimeError: Various runtime issues in agent implementation
+            # It's better to have no error digest than to crash the delegation
+            tool_errors = []
+        except Exception:
+            # Catch-all for any other unexpected exceptions
+            # We still don't want to crash the delegation due to agent bugs
+            tool_errors = []
+
+        if tool_errors:
+            # Safely slice with bounds checking
+            recent_errors = tool_errors[-RECENT_ERRORS_TO_SHOW:] if tool_errors else []
+            error_digest = "\n--- ⚠️ TOOL ERRORS ---\n" + "\n".join(
+                f"• {e}" for e in recent_errors
+            )
+            summary = f"{summary}\n{error_digest}"
+
+        # Parse structured completion report from specialist output
+        parsed = self._parse_completion_report(summary)
+
+        # Assess whether the specialist actually did meaningful work
+        status = self._assess_completion(target_agent)
+
+        return summary, parsed, status
+
+    # -- Static helpers -------------------------------------------------------
+
+    @staticmethod
+    def _assemble_delegation_input(
+        task: str,
+        brief: dict[str, Any] | None,
+        mission: str | None = None,
+    ) -> str:
+        """Build a self-contained input string from the structured delegation brief.
+
+        The resulting text gives the specialist everything it needs without
+        any prior conversation history.
+
+        Args:
+            task: The core task description.
+            brief: Optional structured fields from the Tech Lead.
+            mission: Optional high-level mission statement for context.
+
+        Returns:
+            A formatted string ready to be passed as user input to the specialist.
+        """
+        sections: list[str] = []
+        sections_append = sections.append
+
+        # Mission header gives the specialist project-level context (#6)
+        if mission:
+            sections_append(f"## Mission\n{mission}")
+
+        sections_append(f"## Task\n{task}")
+
+        if not brief:
+            return "\n\n".join(sections)
+
+        brief_get = brief.get
+        if brief_get("done_when"):
+            sections_append(
+                f"## Done When\n{brief_get('done_when')}\n"
+                f"_(Stop working once these conditions are met.)_",
+            )
+
+        if brief_get("requirements"):
+            sections_append(f"## Requirements\n{brief_get('requirements')}")
+
+        files = brief_get("files")
+        if files:
+            # CRITICAL FIX: Handle string files parameter (convert to list)
+            # Original bug: for f in "single_file.py" iterates over characters
+            if isinstance(files, str):
+                files = [files]
+            file_list = "\n".join(f"- `{f}`" for f in files)
+            sections_append(f"## Relevant Files\n{file_list}")
+
+        # Dependency chain awareness (#10)
+        depends_on = brief_get("depends_on")
+        if depends_on:
+            if isinstance(depends_on, str):
+                depends_on = [depends_on]
+            dep_list = "\n".join(f"- {d}" for d in depends_on)
+            sections_append(
+                f"## Depends On\n{dep_list}\n"
+                f"_(These tasks were completed earlier; "
+                f"build on their outputs.)_",
+            )
+
+        if brief_get("background"):
+            sections_append(f"## Background\n{brief_get('background')}")
+
+        if brief_get("context"):
+            sections_append(f"## Additional Context\n{brief_get('context')}")
+
+        return "\n\n".join(sections)
+
+    @staticmethod
+    def _parse_completion_report(summary: str) -> dict[str, str]:
+        """Extract structured fields from a specialist's completion report.
+
+        Looks for the ``DELEGATION_SUMMARY_SCHEMA`` format::
+
+            STATUS: DONE | FAILED | BLOCKED
+            FILES_MODIFIED: ...
+            VERIFICATION: ...
+
+        Args:
+            summary: Raw summary text from the specialist.
+
+        Returns:
+            Dict with extracted fields (may be empty if format not found).
+        """
+        parsed: dict[str, str] = {}
+        for key, pattern in _COMPLETION_REPORT_PATTERNS.items():
+            match = pattern.search(summary)
+            if match:
+                parsed[key] = match.group(1).strip()
+        return parsed

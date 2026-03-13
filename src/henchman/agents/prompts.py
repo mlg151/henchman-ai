@@ -1,5 +1,7 @@
 """Role-specific system prompt templates for the multi-agent team."""
 
+# ruff: noqa: E501
+
 from henchman.cli.prompts import (
     BASE_CONSTRAINTS,
     BASE_IDENTITY,

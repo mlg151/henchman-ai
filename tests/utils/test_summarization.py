@@ -6,10 +6,11 @@ import pytest
 
 from henchman.providers.base import FinishReason, Message, StreamChunk
 from henchman.utils.compaction import (
+    CompactionParams,
     CompactionResult,
     ContextCompactor,
     MessageSummarizer,
-    compact_with_summarization,
+    compact_messages,
 )
 
 
@@ -250,7 +251,7 @@ class TestCompactWithSummarization:
     async def test_no_compaction_needed(self):
         """Returns unchanged when under limit."""
         msgs = [Message(role="user", content="Hello")]
-        result = await compact_with_summarization(msgs, max_tokens=10000)
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=10000))
 
         assert result.was_compacted is False
         assert result.messages == msgs
@@ -265,7 +266,7 @@ class TestCompactWithSummarization:
             Message(role="user", content="Latest message."),
         ]
 
-        result = await compact_with_summarization(msgs, max_tokens=100, provider=None)
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=100, provider=None))
 
         assert result.was_compacted is True
         assert result.summary is None  # No summary without provider
@@ -287,9 +288,7 @@ class TestCompactWithSummarization:
             Message(role="user", content="Latest."),
         ]
 
-        result = await compact_with_summarization(
-            msgs, max_tokens=50, provider=mock_provider, summarize=True
-        )
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=50, provider=mock_provider, summarize=True))
 
         assert result.was_compacted is True
         # Summary should be present in result
@@ -308,9 +307,7 @@ class TestCompactWithSummarization:
             Message(role="user", content="Latest."),
         ]
 
-        result = await compact_with_summarization(
-            msgs, max_tokens=50, provider=mock_provider, summarize=False
-        )
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=50, provider=mock_provider, summarize=False))
 
         assert result.was_compacted is True
         assert result.summary is None
@@ -335,9 +332,7 @@ class TestCompactWithSummarization:
         ]
 
         # Should not raise, should fall back to simple compaction
-        result = await compact_with_summarization(
-            msgs, max_tokens=50, provider=mock_provider, summarize=True
-        )
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=50, provider=mock_provider, summarize=True))
 
         assert result.was_compacted is True
         # Compaction should still work even if summarization failed
@@ -361,9 +356,7 @@ class TestCompactWithSummarization:
             Message(role="user", content="Latest message."),
         ]
 
-        result = await compact_with_summarization(
-            msgs, max_tokens=50, provider=mock_provider, summarize=True
-        )
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=50, provider=mock_provider, summarize=True))
 
         assert result.was_compacted is True
         assert result.summary == "Test summary text"
@@ -374,7 +367,9 @@ class TestCompactWithSummarization:
         assert system_msg_count == 3  # 2 original + 1 summary
 
         # Find the summary message
-        summary_msgs = [m for m in result.messages if "Summary of earlier conversation" in m.content]
+        summary_msgs = [
+            m for m in result.messages if "Summary of earlier conversation" in m.content
+        ]
         assert len(summary_msgs) == 1
         summary_msg = summary_msgs[0]
         assert summary_msg.role == "system"
@@ -401,15 +396,15 @@ class TestCompactWithSummarization:
             Message(role="user", content="Latest."),
         ]
 
-        result = await compact_with_summarization(
-            msgs, max_tokens=50, provider=mock_provider, summarize=True
-        )
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=50, provider=mock_provider, summarize=True))
 
         assert result.was_compacted is True
         assert result.summary is None
 
         # No summary messages should be present
-        summary_msgs = [m for m in result.messages if "Summary of earlier conversation" in m.content]
+        summary_msgs = [
+            m for m in result.messages if "Summary of earlier conversation" in m.content
+        ]
         assert len(summary_msgs) == 0
 
     @pytest.mark.anyio
@@ -433,13 +428,7 @@ class TestCompactWithSummarization:
         ]
 
         # Protect last 2 messages (index 5)
-        result = await compact_with_summarization(
-            msgs,
-            max_tokens=100,
-            provider=mock_provider,
-            summarize=True,
-            protect_from_index=5
-        )
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=100, provider=mock_provider, summarize=True, protect_from_index=5))
 
         assert result.was_compacted is True
         # Protected messages should be preserved
@@ -458,9 +447,7 @@ class TestCompactWithSummarization:
             Message(role="user", content="Short message"),
         ]
 
-        result = await compact_with_summarization(
-            msgs, max_tokens=10000, provider=mock_provider, summarize=True
-        )
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=10000, provider=mock_provider, summarize=True))
 
         assert result.was_compacted is False
         assert result.summary is None
@@ -484,13 +471,15 @@ class TestCompactWithSummarization:
             Message(role="user", content="Latest."),
         ]
 
-        result = await compact_with_summarization(
-            msgs,
-            max_tokens=50,
-            provider=mock_provider,
-            summarize=True,
-            max_protected_ratio=0.5  # Higher ratio than default
-        )
+        result = await compact_messages(
+            CompactionParams(
+                messages=msgs,
+                max_tokens=50,
+                provider=mock_provider,
+                summarize=True,
+                max_protected_ratio=0.5,
+            )
+        )  # Higher ratio than default
 
         assert result.was_compacted is True
         # Function should complete without error
@@ -513,14 +502,14 @@ class TestCompactWithSummarization:
             Message(role="user", content="Latest."),
         ]
 
-        result = await compact_with_summarization(
-            msgs, max_tokens=50, provider=mock_provider, summarize=True
-        )
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=50, provider=mock_provider, summarize=True))
 
         assert result.was_compacted is True
         assert result.summary is None
         # No summary message should be added
-        summary_msgs = [m for m in result.messages if "Summary of earlier conversation" in m.content]
+        summary_msgs = [
+            m for m in result.messages if "Summary of earlier conversation" in m.content
+        ]
         assert len(summary_msgs) == 0
 
     @pytest.mark.anyio
@@ -535,9 +524,7 @@ class TestCompactWithSummarization:
             Message(role="user", content="Latest."),
         ]
 
-        result = await compact_with_summarization(
-            msgs, max_tokens=50, provider=mock_provider, summarize=False
-        )
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=50, provider=mock_provider, summarize=False))
 
         assert result.was_compacted is True
         assert result.summary is None
@@ -563,9 +550,7 @@ class TestCompactWithSummarization:
         ]
 
         # Should not raise exception
-        result = await compact_with_summarization(
-            msgs, max_tokens=50, provider=mock_provider, summarize=True
-        )
+        result = await compact_messages(CompactionParams(messages=msgs, max_tokens=50, provider=mock_provider, summarize=True))
 
         assert result.was_compacted is True
         # Compaction should still work even if summarization failed
@@ -576,9 +561,11 @@ class TestCompactWithSummarization:
         """Test all code paths in summarize method."""
         # Test 1: With provider, successful summary with caching
         mock_provider1 = MagicMock()
+
         async def mock_stream1(*_args, **_kwargs):
             yield StreamChunk(content="Summary ", finish_reason=None)
             yield StreamChunk(content="text", finish_reason=FinishReason.STOP)
+
         mock_provider1.chat_completion_stream = mock_stream1
 
         summarizer1 = MessageSummarizer(provider=mock_provider1)
@@ -588,8 +575,10 @@ class TestCompactWithSummarization:
 
         # Test 2: With provider, empty summary returns None
         mock_provider2 = MagicMock()
+
         async def mock_stream2(*_args, **_kwargs):
             yield StreamChunk(content="", finish_reason=FinishReason.STOP)
+
         mock_provider2.chat_completion_stream = mock_stream2
 
         summarizer2 = MessageSummarizer(provider=mock_provider2)

@@ -1,0 +1,644 @@
+"""Task Ledger for tracking delegation progress - REFACTORED VERSION.
+
+The TaskLedger gives the Tech Lead a persistent, structured view of the
+overall task: what was requested, what has been delegated, and the outcome
+of each delegation.  The Orchestrator injects a rendered snapshot of the
+ledger into every delegation tool-result so the Tech Lead can re-orient
+even after context compaction drops older messages.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, TypeVar
+
+# Constants
+SUMMARY_MAX_LENGTH: int = 500  # Maximum length for delegation summaries
+
+# Type variables for generic methods
+_T = TypeVar("_T")
+
+
+# ------------------------------------------------------------------
+# Utility functions for delegation counting (to eliminate duplicate code)
+# ------------------------------------------------------------------
+
+
+def _count_delegations_by_status_util(
+    delegations: Iterable[DelegationRecord], status: DelegationStatus
+) -> int:
+    """Count delegations with a specific status (utility function).
+
+    Args:
+        delegations: Iterable of delegation records.
+        status: The status to count.
+
+    Returns:
+        Number of delegations with the given status.
+    """
+    return sum(1 for d in delegations if d.status == status)
+
+
+def _get_delegation_counts_util(delegations: Iterable[DelegationRecord]) -> tuple[int, int, int]:
+    """Get counts of delegations by status (utility function).
+
+    Args:
+        delegations: Iterable of delegation records.
+
+    Returns:
+        Tuple of (completed_count, pending_count, failed_count)
+    """
+    completed = _count_delegations_by_status_util(delegations, DelegationStatus.COMPLETED)
+    pending = _count_delegations_by_status_util(delegations, DelegationStatus.PENDING)
+    failed = _count_delegations_by_status_util(delegations, DelegationStatus.FAILED)
+
+    return completed, pending, failed
+
+
+@dataclass
+class ProgressCounts:
+    """Counts of delegations by status for progress reporting.
+
+    Attributes:
+        completed: Number of completed delegations.
+        pending: Number of pending delegations.
+        failed: Number of failed delegations.
+        total: Total number of delegations.
+    """
+
+    completed: int
+    pending: int
+    failed: int
+    total: int
+
+
+class DelegationStatus(str, Enum):
+    """Status of a single delegation."""
+
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+@dataclass
+class ChecklistItem:
+    """A single item on the Tech Lead's task checklist.
+
+    Attributes:
+        description: What needs to be done.
+        done: Whether this item has been completed.
+    """
+
+    description: str
+    done: bool = False
+
+
+@dataclass
+class DelegationRecord:
+    """Record of a single delegation to a specialist agent.
+
+    Attributes:
+        agent: Role of the delegated agent (e.g. ``"coder"``).
+        task: Short description of the delegated task.
+        status: Current status of the delegation.
+        summary: Result summary returned by the agent.
+    """
+
+    agent: str
+    task: str
+    status: DelegationStatus = DelegationStatus.PENDING
+    summary: str = ""
+
+    def format_line(self: DelegationRecord, max_summary_length: int = 120) -> str:
+        """Format this delegation record as a display line.
+
+        Args:
+            max_summary_length: Maximum length of summary to include.
+
+        Returns:
+            Formatted line string.
+        """
+        icon = self._get_icon()
+        summary_brief = self.summary[:max_summary_length].replace("\n", " ") if self.summary else ""
+        line = f"  {icon} {self.agent} → {self.task}"
+        if summary_brief:
+            line += f" — {summary_brief}"
+        return line
+
+    def _get_icon(self: DelegationRecord) -> str:
+        """Get the icon for this delegation's status.
+
+        Returns:
+            The appropriate icon.
+        """
+        return {"completed": "✅", "failed": "❌", "pending": "⏳"}[self.status.value]
+
+
+class LedgerRenderer:
+    """Renderer for TaskLedger to separate rendering logic from data model."""
+
+    def __init__(self: LedgerRenderer, ledger: TaskLedger, max_entries: int = 10) -> None:
+        """Initialize the renderer with a ledger and configuration.
+
+        Args:
+            ledger: The TaskLedger to render.
+            max_entries: Maximum number of delegation entries to show in detail.
+        """
+        self.ledger = ledger
+        self.max_entries = max_entries
+
+    def render(self: LedgerRenderer) -> str:
+        """Render a compact text snapshot of the ledger.
+
+        Returns:
+            A multi-line status board string.
+        """
+        return self._render_ledger()
+
+    def _render_checklist_section(self: LedgerRenderer, lines: list[str]) -> None:
+        """Render the checklist section to the lines list.
+
+        Args:
+            lines: The list to append checklist lines to.
+
+        Returns:
+            None
+        """
+        if not self.ledger.checklist:
+            return
+
+        lines.append("Checklist:")
+        for item in self.ledger.checklist:
+            icon = "✅" if item.done else "☐"
+            lines.append(f"  {icon} {item.description}")
+
+    @staticmethod
+    def get_visible_delegations(
+        delegations: list[DelegationRecord], max_entries: int
+    ) -> tuple[list[DelegationRecord], int]:
+        """Get the delegations to display and count of collapsed ones (static version).
+
+        Args:
+            delegations: List of delegation records.
+            max_entries: Maximum number of entries to show.
+
+        Returns:
+            Tuple of (visible_delegations, collapsed_count)
+        """
+        # Handle edge cases: zero or negative max_entries
+        if max_entries <= 0:
+            return [], len(delegations)
+
+        if len(delegations) <= max_entries:
+            return delegations, 0
+
+        collapsed_count = len(delegations) - max_entries
+        visible = delegations[-max_entries:]
+        return visible, collapsed_count
+
+    def _get_visible_delegations(self: LedgerRenderer) -> tuple[list[DelegationRecord], int]:
+        """Get the delegations to display and count of collapsed ones (instance version).
+
+        Returns:
+            Tuple of (visible_delegations, collapsed_count)
+        """
+        return LedgerRenderer.get_visible_delegations(self.ledger.delegations, self.max_entries)
+
+    def _get_delegation_counts(self: LedgerRenderer) -> tuple[int, int, int]:
+        """Get counts of delegations by status.
+
+        Returns:
+            Tuple of (completed_count, pending_count, failed_count)
+        """
+        return _get_delegation_counts_util(self.ledger.delegations)
+
+    def _count_delegations_by_status(self: LedgerRenderer, status: DelegationStatus) -> int:
+        """Count delegations with a specific status.
+
+        Args:
+            status: The status to count.
+
+        Returns:
+            Number of delegations with the given status.
+        """
+        return _count_delegations_by_status_util(self.ledger.delegations, status)
+
+    @staticmethod
+    def _format_progress_line(
+        completed: int | ProgressCounts,
+        pending: int | None = None,
+        failed: int | None = None,
+        total: int | None = None,
+    ) -> str:
+        """Format a progress line for delegations.
+
+        Can be called with either:
+        - Four integers: completed, pending, failed, total
+        - A single ProgressCounts object
+
+        Args:
+            completed: Number of completed delegations, or a ProgressCounts object.
+            pending: Number of pending delegations (required if completed is int).
+            failed: Number of failed delegations (required if completed is int).
+            total: Total number of delegations (required if completed is int).
+
+        Returns:
+            Formatted progress line string.
+
+        Raises:
+            TypeError: If arguments are invalid.
+        """
+        if isinstance(completed, ProgressCounts):
+            # Single ProgressCounts object provided
+            if pending is not None or failed is not None or total is not None:
+                raise TypeError(
+                    "When passing a ProgressCounts object as first argument, "
+                    "other arguments must be None"
+                )
+            return LedgerRenderer._format_progress_line_from_counts(completed)
+        else:
+            # Four integers provided
+            if pending is None or failed is None or total is None:
+                raise TypeError("When passing integers, all four parameters must be provided")
+            return LedgerRenderer._format_progress_line_from_counts(
+                ProgressCounts(completed=completed, pending=pending, failed=failed, total=total)
+            )
+
+    @staticmethod
+    def _format_progress_line_from_counts(counts: ProgressCounts) -> str:
+        """Format a progress line for delegations using ProgressCounts object.
+
+        Args:
+            counts: ProgressCounts object containing delegation counts.
+
+        Returns:
+            Formatted progress line string.
+        """
+        return (
+            f"Progress: {counts.completed} done, {counts.pending} in-progress, "
+            f"{counts.failed} failed / {counts.total} total"
+        )
+
+    @staticmethod
+    def _get_delegation_counts_static(delegations: list[DelegationRecord]) -> tuple[int, int, int]:
+        """Get counts of delegations by status (static version).
+
+        Args:
+            delegations: List of delegation records.
+
+        Returns:
+            Tuple of (completed_count, pending_count, failed_count)
+        """
+        return _get_delegation_counts_util(delegations)
+
+    @staticmethod
+    def count_delegations_by_status(
+        delegations: list[DelegationRecord], status: DelegationStatus
+    ) -> int:
+        """Count delegations with a specific status (static version).
+
+        Args:
+            delegations: List of delegation records.
+            status: The status to count.
+
+        Returns:
+            Number of delegations with the given status.
+        """
+        return _count_delegations_by_status_util(delegations, status)
+
+    def _render_delegations_section(self: LedgerRenderer, lines: list[str]) -> None:
+        """Render the delegations section to the lines list.
+
+        Args:
+            lines: The list to append delegation lines to.
+
+        Returns:
+            None
+        """
+        if not self.ledger.delegations:
+            lines.append("No delegations yet.")
+            return
+
+        visible, collapsed_count = self._get_visible_delegations()
+        completed, pending, failed = self._get_delegation_counts()
+
+        progress_line = LedgerRenderer._format_progress_line_from_counts(
+            ProgressCounts(
+                completed=completed,
+                pending=pending,
+                failed=failed,
+                total=len(self.ledger.delegations),
+            )
+        )
+        lines.append(progress_line)
+
+        if collapsed_count:
+            lines.append(f"  ({collapsed_count} earlier delegations omitted)")
+
+        for rec in visible:
+            lines.append(rec.format_line())
+
+    @staticmethod
+    def render_delegations_section(
+        delegations: list[DelegationRecord], lines: list[str], max_entries: int
+    ) -> None:
+        """Render the delegations section to the lines list (static version).
+
+        Args:
+            delegations: The list of delegation records.
+            lines: The list to append delegation lines to.
+            max_entries: Maximum number of entries to show.
+
+        Returns:
+            None
+        """
+        # Create a dummy ledger and renderer for backward compatibility
+        from .ledger import TaskLedger
+
+        dummy_ledger = TaskLedger(goal="")
+        dummy_ledger.delegations = delegations
+        renderer = LedgerRenderer(dummy_ledger, max_entries)
+        renderer._render_delegations_section(lines)
+
+    def _render_ledger(self: LedgerRenderer) -> str:
+        """Render a compact text snapshot of the ledger (instance version).
+
+        Returns:
+            A multi-line status board string.
+        """
+        lines: list[str] = [
+            "--- 📋 TASK LEDGER (auto-maintained) ---",
+            f"Goal: {self.ledger.goal}",
+        ]
+
+        # Mission recap line
+        lines.append(self.ledger.mission_recap())
+
+        # Checklist section
+        self._render_checklist_section(lines)
+
+        # Delegations section
+        self._render_delegations_section(lines)
+
+        lines.append("---")
+        return "\n".join(lines)
+
+    @staticmethod
+    def render_static(ledger: TaskLedger, max_entries: int = 10) -> str:
+        """Render a compact text snapshot of the ledger (static version).
+
+        Args:
+            ledger: The TaskLedger to render.
+            max_entries: Maximum number of delegation entries to show in
+                detail.  Older entries are collapsed to a one-line count.
+
+        Returns:
+            A multi-line status board string.
+        """
+        renderer = LedgerRenderer(ledger, max_entries)
+        return renderer._render_ledger()
+
+
+@dataclass
+class TaskLedger:
+    """Structured task tracker maintained by the Orchestrator.
+
+    The ledger is created at the start of each ``Orchestrator.run()`` call
+    and updated after every delegation.  A compact text rendering is
+    appended to every delegation tool-result so the Tech Lead always has
+    an up-to-date status board.
+
+    Attributes:
+        goal: The original user request (never mutated).
+        checklist: Ordered list of checklist items for the mission plan.
+        delegations: Ordered list of delegation records.
+        verified: Whether the overall task has been verified.
+    """
+
+    goal: str
+    checklist: list[ChecklistItem] = field(default_factory=list)
+    delegations: list[DelegationRecord] = field(default_factory=list)
+    verified: bool = False
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _create_and_append(
+        self: TaskLedger,
+        item_list: list[_T],
+        item: _T,
+    ) -> _T:
+        """Helper method to create an item and append it to a list.
+
+        Args:
+            item_list: The list to append to.
+            item: The item to append.
+
+        Returns:
+            The appended item.
+        """
+        item_list.append(item)
+        return item
+
+    def _add_item_factory(
+        self: TaskLedger,
+        item_list: list[_T],
+        factory_func: Callable[..., _T],
+        *args: Any,
+        **kwargs: Any,
+    ) -> _T:
+        """Generic helper to create and append an item using a factory function.
+
+        This addresses the duplicate code smell between add_checklist_item and add_delegation.
+
+        Args:
+            item_list: The list to append to.
+            factory_func: Function that creates the item.
+            *args: Arguments to pass to factory_func.
+            **kwargs: Keyword arguments to pass to factory_func.
+
+        Returns:
+            The newly created and appended item.
+        """
+        item = factory_func(*args, **kwargs)
+        return self._create_and_append(item_list, item)
+
+    # ------------------------------------------------------------------
+    # Checklist helpers (Task 1: Checklist-First Initiation)
+    # ------------------------------------------------------------------
+
+    def add_checklist_item(self: TaskLedger, description: str) -> ChecklistItem:
+        """Add a new item to the mission checklist.
+
+        Args:
+            description: What needs to be done.
+
+        Returns:
+            The newly created ChecklistItem.
+        """
+        return self._add_item_factory(
+            self.checklist,
+            ChecklistItem,
+            description=description,
+        )
+
+    def check_item(self: TaskLedger, index: int) -> None:
+        """Mark a checklist item as done by index.
+
+        Args:
+            index: Zero-based index of the item to check.
+
+        Raises:
+            IndexError: If index is out of range.
+
+        Returns:
+            None
+        """
+        if index < 0 or index >= len(self.checklist):
+            raise IndexError(f"Checklist index {index} out of range (0-{len(self.checklist) - 1})")
+        self.checklist[index].done = True
+
+    # ------------------------------------------------------------------
+    # Mutation helpers
+    # ------------------------------------------------------------------
+
+    def add_delegation(self: TaskLedger, agent: str, task: str) -> DelegationRecord:
+        """Register a new delegation.
+
+        Args:
+            agent: Target agent role.
+            task: Task description sent to the agent.
+
+        Returns:
+            The newly created DelegationRecord.
+        """
+        return self._add_item_factory(
+            self.delegations,
+            DelegationRecord,
+            agent=agent,
+            task=task,
+        )
+
+    def _update_delegation(
+        self: TaskLedger,
+        record: DelegationRecord,
+        status: DelegationStatus,
+        summary: str,
+    ) -> None:
+        """Internal helper to update a delegation record.
+
+        Args:
+            record: The record to update.
+            status: The new status.
+            summary: The agent's result summary or failure reason.
+        """
+        record.status = status
+        record.summary = summary[:SUMMARY_MAX_LENGTH]
+
+    def complete_delegation(self: TaskLedger, record: DelegationRecord, summary: str) -> None:
+        """Mark a delegation as completed.
+
+        Args:
+            record: The record to update.
+            summary: The agent's result summary.
+
+        Returns:
+            None
+        """
+        self._update_delegation(record, DelegationStatus.COMPLETED, summary)
+
+    def fail_delegation(self: TaskLedger, record: DelegationRecord, reason: str) -> None:
+        """Mark a delegation as failed.
+
+        Args:
+            record: The record to update.
+            reason: Short failure reason.
+
+        Returns:
+            None
+        """
+        # Use keywords to differentiate AST from complete_delegation
+        self._update_delegation(
+            record=record,
+            status=DelegationStatus.FAILED,
+            summary=reason,
+        )
+
+    def mark_verified(self: TaskLedger) -> None:
+        """Mark the task as verified (Task 3: Verification Tool-Lock).
+
+        Returns:
+            None
+        """
+        self.verified = True
+
+    # ------------------------------------------------------------------
+    # Mission recap (Task 9: Mission Recapitulation)
+    # ------------------------------------------------------------------
+
+    def _get_verification_status(self: TaskLedger) -> str:
+        """Get the verification status string.
+
+        Returns:
+            "✅ verified" or "⚠️ unverified"
+        """
+        return "✅ verified" if self.verified else "⚠️ unverified"
+
+    def _count_delegations_by_status(self: TaskLedger, status: DelegationStatus) -> int:
+        """Count delegations with a specific status.
+
+        Args:
+            status: The status to count.
+
+        Returns:
+            Number of delegations with the given status.
+        """
+        return _count_delegations_by_status_util(self.delegations, status)
+
+    def _get_delegation_counts(self: TaskLedger) -> tuple[int, int, int]:
+        """Get counts of delegations by status.
+
+        Returns:
+            Tuple of (completed_count, pending_count, failed_count)
+        """
+        return _get_delegation_counts_util(self.delegations)
+
+    def mission_recap(self: TaskLedger) -> str:
+        """Return a one-sentence mission status summary.
+
+        Returns:
+            A concise status string suitable for injection before actions.
+        """
+        completed, pending, failed = self._get_delegation_counts()
+        checked = sum(1 for c in self.checklist if c.done)
+        total_checks = len(self.checklist)
+        verification = self._get_verification_status()
+
+        if total_checks:
+            return (
+                f"Mission [{verification}]: {checked}/{total_checks} checklist items done, "
+                f"{completed} delegations done, {pending} pending, {failed} failed."
+            )
+        return (
+            f"Mission [{verification}]: "
+            f"{completed} delegations done, {pending} pending, {failed} failed."
+        )
+
+    # ------------------------------------------------------------------
+    # Rendering (delegated to LedgerRenderer but kept for backward compatibility)
+    # ------------------------------------------------------------------
+
+    def render(self: TaskLedger, max_entries: int = 10) -> str:
+        """Render a compact text snapshot of the ledger.
+
+        Args:
+            max_entries: Maximum number of delegation entries to show in
+                detail.  Older entries are collapsed to a one-line count.
+
+        Returns:
+            A multi-line status board string.
+        """
+        return LedgerRenderer.render_static(self, max_entries)

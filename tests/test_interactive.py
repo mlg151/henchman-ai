@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -23,10 +22,11 @@ def test_tool_form():
     print("Testing ToolForm...")
 
     # Patch the classes where they are imported in henchman.cli.input
-    with patch("henchman.cli.input.Prompt") as prompt_mock, \
-         patch("henchman.cli.input.Confirm") as confirm_mock, \
-         patch("henchman.cli.input.IntPrompt") as int_prompt_mock:
-
+    with (
+        patch("henchman.cli.input.Prompt") as prompt_mock,
+        patch("henchman.cli.input.Confirm") as confirm_mock,
+        patch("henchman.cli.input.IntPrompt") as int_prompt_mock,
+    ):
         prompt_mock.ask.return_value = "default_value"
         confirm_mock.ask.return_value = True
         int_prompt_mock.ask.return_value = 42
@@ -37,9 +37,9 @@ def test_tool_form():
             "properties": {
                 "name": {"type": "string", "description": "Name param"},
                 "count": {"type": "integer", "description": "Count param"},
-                "force": {"type": "boolean", "description": "Force param"}
+                "force": {"type": "boolean", "description": "Force param"},
             },
-            "required": ["name"]
+            "required": ["name"],
         }
 
         result = form.prompt_for_parameters("test_tool", params)
@@ -59,6 +59,7 @@ def test_tool_form():
         print("✅ ToolForm parameters collected correctly")
         return True
 
+
 def test_tab_completion():
     print("Testing Tab Completion setup...")
 
@@ -72,11 +73,12 @@ def test_tab_completion():
 
         # Check if completer was set on session
         if hasattr(session_mock, "completer") and session_mock.completer:
-             print("✅ Completer attached to session")
-             return True
+            print("✅ Completer attached to session")
+            return True
         else:
-             print("❌ Completer not attached to session")
-             return False
+            print("❌ Completer not attached to session")
+            return False
+
 
 if __name__ == "__main__":
     try:
@@ -85,5 +87,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

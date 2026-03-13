@@ -145,3 +145,52 @@ class TestWebFetchTool:
 
         assert result.success is False
         assert "timeout" in result.error.lower()
+
+    async def test_ssrf_blocked(self) -> None:
+        """SSRF URLs are rejected by validation."""
+        tool = WebFetchTool()
+        # Localhost is blocked by SSRF protection
+        result = await tool.execute(url="http://localhost/secret")
+        assert result.success is False
+        assert "Security" in result.content or "validation" in result.content.lower()
+
+    async def test_private_ip_blocked(self) -> None:
+        """Private IP addresses are blocked."""
+        tool = WebFetchTool()
+        result = await tool.execute(url="http://192.168.1.1/secret")
+        assert result.success is False
+
+
+class TestDuckDuckGoSearchToolKind:
+    """Tests for DuckDuckGoSearchTool."""
+
+    def test_kind_is_network(self) -> None:
+        """DuckDuckGoSearchTool is NETWORK kind."""
+        from henchman.tools.base import ToolKind
+        from henchman.tools.builtins.web_search import DuckDuckGoSearchTool
+
+        tool = DuckDuckGoSearchTool()
+        assert tool.kind == ToolKind.NETWORK
+
+
+class TestDuckDuckGoProperties:
+    """Tests for DuckDuckGoSearchTool properties."""
+
+    def test_name(self) -> None:
+        """Tool has correct name."""
+        from henchman.tools.builtins.web_search import DuckDuckGoSearchTool
+        tool = DuckDuckGoSearchTool()
+        assert tool.name == "web_search"
+
+    def test_description(self) -> None:
+        """Tool has description."""
+        from henchman.tools.builtins.web_search import DuckDuckGoSearchTool
+        tool = DuckDuckGoSearchTool()
+        assert len(tool.description) > 5
+
+    def test_parameters(self) -> None:
+        """Tool has parameters schema with query."""
+        from henchman.tools.builtins.web_search import DuckDuckGoSearchTool
+        tool = DuckDuckGoSearchTool()
+        params = tool.parameters
+        assert "query" in params["properties"]

@@ -47,14 +47,15 @@ class Agent:
 @dataclass
 class AgentConfig:
     system_prompt: str = ""
+    max_tokens: int = 0  # 0 means auto-detect from model
     model: str | None = None
-    base_tool_iterations: int = 5
-    intelligent_context: bool = True
-    importance_threshold: float = 0.7
-    cluster_similarity_threshold: float = 0.85
-    adaptive_compression: bool = True
-    max_protected_ratio: float = 0.3
     summarize_dropped: bool = True
+    base_tool_iterations: int = 25
+    max_protected_ratio: float = 0.3
+    intelligent_context: bool = False
+    importance_threshold: float = 0.5
+    cluster_similarity_threshold: float = 0.7
+    adaptive_compression: bool = True
 ```
 
 #### EventType
@@ -618,7 +619,7 @@ class ThemeManager:
         """Get a theme by name."""
 ```
 
-## Agents (Multi-Agent System)
+## Agents (Multi-Agent Dev Team)
 
 ```python
 from henchman.agents import (

@@ -30,7 +30,7 @@ class FilteredStream(io.StringIO):
     INFO and DEBUG logs while still capturing errors.
     """
 
-    def __init__(self, verbose: bool = False) -> None:
+    def __init__(self, *, verbose: bool = False) -> None:
         """Initialize the filtered stream.
 
         Args:
@@ -78,12 +78,14 @@ class FilteredStream(io.StringIO):
 
             # Also check for common Python logging format variations
             if (
-                line_stripped.startswith(("INFO ", "DEBUG ", "INFO:", "DEBUG:")) or "[INFO]" in line_stripped or "[DEBUG]" in line_stripped  # noqa: E501
+                line_stripped.startswith(("INFO ", "DEBUG ", "INFO:", "DEBUG:"))
+                or "[INFO]" in line_stripped
+                or "[DEBUG]" in line_stripped  # noqa: E501
             ):
                 continue
 
             # For non-INFO/DEBUG lines (errors, warnings, regular output), pass through
-            if line.strip():
+            if line.strip():  # pragma: no branch
                 filtered_lines.append(line)
 
         if filtered_lines:
@@ -128,7 +130,7 @@ class McpClient:
     Manages the connection lifecycle and tool discovery/execution.
     """
 
-    def __init__(self, name: str, config: McpServerConfig, verbose: bool = False) -> None:
+    def __init__(self, name: str, config: McpServerConfig, *, verbose: bool = False) -> None:
         """Initialize the client.
 
         Args:
@@ -154,6 +156,9 @@ class McpClient:
         Uses AsyncExitStack to properly manage the stdio_client and
         ClientSession context managers, keeping their task groups alive
         for the duration of the connection.
+
+        Returns:
+            None
         """
         if self._session is not None:
             return
@@ -191,7 +196,11 @@ class McpClient:
             raise
 
     async def disconnect(self) -> None:
-        """Disconnect from the MCP server."""
+        """Disconnect from the MCP server.
+
+        Returns:
+            None
+        """
         if self._exit_stack is not None:
             with suppress(Exception):
                 await self._exit_stack.aclose()

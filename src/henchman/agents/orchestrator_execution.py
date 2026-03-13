@@ -74,31 +74,71 @@ class ExecutionController:
         if params.agent is None:
             msg = "Agent must be provided in AgentLoopParams"
             raise ValueError(msg)
+
         agent = params.agent
         generator: AsyncIterator[AgentEvent] = agent.run(params.input_text)
         state = LoopState()
+
         while True:
             pending: list[ToolCall] = []
-            async for event in collect_events(generator, pending):
-                yield event
-            if not pending:
-                should_break, evts, new_gen = self._process_no_pending(agent, state)
-                for evt in evts:
-                    yield evt
-                if should_break:
-                    break
-                if new_gen is not None:
-                    generator = new_gen
-                continue
-            should_break, events = await _execute_and_check(
-                self.orchestrator, agent, pending, params, state,
+            generator_exhausted = False
+            try:
+                async for event in collect_events(generator, pending):
+                    yield event
+            except StopAsyncIteration:
+                generator_exhausted = True
+
+            # Decide next action based on pending tool calls
+            should_break, events, next_gen = await self._step_loop(
+                agent, pending, params, state, generator_exhausted
             )
+
             for evt in events:
                 yield evt
+
             if should_break:
                 break
-            generator = agent.continue_with_tool_results()
+
+            if next_gen is not None:
+                generator = next_gen
+                continue
+
+            # If no tools and no new generator, we're done
+            if not pending:
+                break
+
         finalize_loop(self.orchestrator, agent, state)
+
+    async def _step_loop(
+        self: ExecutionController,
+        agent: Agent,
+        pending: list[ToolCall],
+        params: AgentLoopParams,
+        state: LoopState,
+        generator_exhausted: bool,
+    ) -> tuple[bool, list[AgentEvent], AsyncIterator[AgentEvent] | None]:
+        """Determine next step in the agent loop.
+
+        Returns:
+            Tuple of (should_break, events, next_generator).
+        """
+        if not pending:
+            return self._process_no_pending(agent, state)
+
+        # Execute tools and check limits
+        should_break, events = await _execute_and_check(
+            self.orchestrator,
+            agent,
+            pending,
+            params,
+            state,
+        )
+
+        if should_break:
+            return True, events, None
+
+        return False, events, agent.continue_with_tool_results()
+
 
     def _process_no_pending(
         self: ExecutionController,
@@ -108,11 +148,22 @@ class ExecutionController:
         """Process when no tool calls are pending."""
         events: list[AgentEvent] = []
 
-        thinking_event = self.orchestrator.validator.check_thinking_pattern(agent)
+        # Validator is required for proper agent operation
+        validator = self.orchestrator.validator
+        if validator is None:
+            raise RuntimeError(
+                "Orchestrator validator is None. This is required for "
+                "thinking pattern validation and stall detection. "
+                "Ensure the orchestrator is properly initialized."
+            )
+
+        # Check thinking patterns
+        thinking_event = validator.check_thinking_pattern(agent)
         if thinking_event:
             events.append(thinking_event)
 
-        stall_event = self.orchestrator.validator.check_stall_failure(agent)
+        # Check for stall failures
+        stall_event = validator.check_stall_failure(agent)
         if stall_event:
             events.append(stall_event)
 

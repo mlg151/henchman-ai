@@ -40,7 +40,9 @@ class ImportanceScorer:
     _TOOL_CONTENT_THRESHOLD: int = 20
     _MINIMUM_IMPORTANCE: float = 0.1
 
-    def calculate_importance_scores(self: ImportanceScorer, messages: list[Message]) -> dict[int, float]:  # noqa: E501
+    def calculate_importance_scores(
+        self: ImportanceScorer, messages: list[Message]
+    ) -> dict[int, float]:  # noqa: E501
         """Calculate importance scores for each message.
 
         Args:
@@ -61,7 +63,10 @@ class ImportanceScorer:
         return importance_scores
 
     def _calculate_message_importance(
-        self: ImportanceScorer, message: Message, index: int, total_messages: int,
+        self: ImportanceScorer,
+        message: Message,
+        index: int,
+        total_messages: int,
     ) -> float:
         """Calculate importance score for a single message.
 
@@ -87,7 +92,6 @@ class ImportanceScorer:
 
         # Apply minimum score if no other factors applied
         return self._apply_minimum_score(score)
-
 
     def _calculate_base_importance(self: ImportanceScorer, message: Message) -> float:
         """Calculate base importance score based on message features.
@@ -115,7 +119,6 @@ class ImportanceScorer:
 
         # 3. Check message role
         return max(score, self._get_role_based_importance(message))
-
 
     def _has_tool_calls(self: ImportanceScorer, message: Message) -> bool:
         """Check if message has tool calls.
@@ -202,7 +205,10 @@ class ImportanceScorer:
         return self._TOOL_WITHOUT_CONTENT_IMPORTANCE
 
     def _apply_position_boost(
-        self: ImportanceScorer, score: float, index: int, total_messages: int,
+        self: ImportanceScorer,
+        score: float,
+        index: int,
+        total_messages: int,
     ) -> float:
         """Apply position-based boost to score.
 
@@ -223,7 +229,9 @@ class ImportanceScorer:
         position_boost = position_factor * self._POSITION_BOOST_MAX
         return min(1.0, score + position_boost)
 
-    def _apply_content_length_boost(self: ImportanceScorer, score: float, message: Message) -> float:  # noqa: E501
+    def _apply_content_length_boost(
+        self: ImportanceScorer, score: float, message: Message
+    ) -> float:  # noqa: E501
         """Apply content length boost to score.
 
         Longer messages might be more important.

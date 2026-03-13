@@ -23,7 +23,8 @@ class ChatMessage(BaseModel):
     role: str = Field(description="Message role (user, assistant, system)")
     content: str = Field(description="Message content")
     tool_calls: list[dict[str, Any]] | None = Field(
-        default=None, description="Tool calls associated with the message",
+        default=None,
+        description="Tool calls associated with the message",
     )
     tool_call_id: str | None = Field(default=None, description="Tool call ID for tool responses")
 
@@ -86,7 +87,9 @@ def _convert_chat_message_to_internal(msg: ChatMessage) -> Message:
 
 
 def _setup_agent_history(
-    agent: Agent, request_messages: list[ChatMessage], last_user_index: int,
+    agent: Agent,
+    request_messages: list[ChatMessage],
+    last_user_index: int,
 ) -> None:
     """Set up agent history from request messages.
 
@@ -180,7 +183,8 @@ def _update_metrics(usage: dict[str, int] | None, tool_calls: list[dict[str, Any
         )
         # Assume all tool calls are successful for now
         state.metrics["tool_calls_successful"] = state.metrics.get(
-            "tool_calls_successful", 0,
+            "tool_calls_successful",
+            0,
         ) + len(tool_calls)
 
 
@@ -342,7 +346,10 @@ async def chat_completion(
     try:
         async for event in agent.run(user_input=user_input):
             event_finish_reason, event_usage = _process_agent_event(
-                event, content_parts, tool_calls, valid_finish_reasons,
+                event,
+                content_parts,
+                tool_calls,
+                valid_finish_reasons,
             )
             if event_finish_reason is not None and finish_reason is None:
                 finish_reason = event_finish_reason
@@ -421,7 +428,9 @@ async def chat_completion_stream(
         try:
             async for event in agent.run(user_input=user_input):
                 chunk_type, chunk_data, index, tool_calls_count = _process_stream_event(
-                    event, index, tool_calls_count,
+                    event,
+                    index,
+                    tool_calls_count,
                 )
 
                 chunk = ChatStreamChunk(
@@ -443,7 +452,7 @@ async def chat_completion_stream(
             )
             yield f"data: {done_chunk.model_dump_json()}\n\n"
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             yield _handle_stream_error(e, index)
 
     return StreamingResponse(
@@ -460,7 +469,9 @@ async def chat_completion_stream(
 async def get_chat_history(
     api_key: Annotated[str | None, Depends(verify_api_key)],
     agent: Annotated[Agent, Depends(get_agent)],
-    limit: Annotated[int, Query(ge=1, le=1000, description="Maximum number of messages to return")] = 100,  # noqa: E501
+    limit: Annotated[
+        int, Query(ge=1, le=1000, description="Maximum number of messages to return")
+    ] = 100,  # noqa: E501
 ) -> list[ChatMessage]:
     """Get chat history.
 
@@ -482,7 +493,7 @@ async def get_chat_history(
     messages = agent.get_messages_for_api()
 
     # Convert to response format
-    response_messages = [
+    return [
         ChatMessage(
             role=msg.role,
             content=msg.content or "",
@@ -491,8 +502,6 @@ async def get_chat_history(
         )
         for msg in messages[-limit:]
     ]
-
-    return response_messages
 
 
 @router.delete("/history")

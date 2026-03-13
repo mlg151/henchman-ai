@@ -115,14 +115,14 @@ async def _execute_tool_calls(
     for tool_call in pending_tool_calls:
         result = await repl.tool_registry.execute(tool_call.name, tool_call.arguments)
         repl.agent.submit_tool_result(tool_call.id, result.content)
-        
+
         if json_renderer:
             event = AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result)
             if stream_json:
                 json_renderer.render_stream_json(event)
             else:
                 json_renderer.render(event)
-        
+
         if collect_events is not None:
             collect_events.append(AgentEvent(type=EventType.TOOL_CALL_RESULT, data=result))
 
@@ -165,10 +165,10 @@ async def _process_agent_stream(
                     json_renderer.render_stream_json(event)
                 else:
                     json_renderer.render(event)
-            
+
             if collect_events is not None:
                 collect_events.append(event)
-            
+
             if event.type == EventType.TOOL_CALL_REQUEST:
                 pending_tool_calls.append(event.data)
 
@@ -201,10 +201,10 @@ def _run_headless_refactored(
         console: Console for output rendering.
     """
     from henchman.cli.app import _get_provider
-    
+
     if console is None:
         console = Console()
-    
+
     provider = _get_provider()
     settings = load_settings()
 

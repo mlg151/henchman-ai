@@ -19,8 +19,9 @@ if TYPE_CHECKING:
 
 try:
     from typing import Self
-except ImportError:
+except ImportError:  # pragma: no cover
     from typing_extensions import Self
+
 
 class UIPlugin(ABC):
     """Base class for UI plugins.
@@ -44,6 +45,9 @@ class UIPlugin(ABC):
 
         Args:
             repl: The REPL instance.
+
+        Returns:
+            None
         """
 
     def render(self: Self, data: Any) -> None:  # noqa: B027
@@ -51,6 +55,9 @@ class UIPlugin(ABC):
 
         Args:
             data: Data to render.
+
+        Returns:
+            None
         """
 
 
@@ -62,6 +69,9 @@ class PluginManager:
 
         Args:
             repl: The REPL instance, or None if not yet available.
+
+        Returns:
+            None
         """
         self.repl = repl
         self.plugins: dict[str, UIPlugin] = {}
@@ -71,6 +81,9 @@ class PluginManager:
 
         Args:
             directory: Directory containing plugin python files.
+
+        Returns:
+            None
         """
         if not directory.exists() or not directory.is_dir():
             return
@@ -81,7 +94,7 @@ class PluginManager:
 
             try:
                 self._load_plugin_from_file(path)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 # Log error but continue loading other plugins
                 if self.repl and self.repl.settings and self.repl.settings.ui.mcp_logging:
                     self.repl.renderer.warning(f"Failed to load plugin {path.name}: {e}")
@@ -100,7 +113,7 @@ class PluginManager:
             return False
         try:
             self.register_plugin(attr())
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             if self.repl and self.repl.settings and self.repl.settings.ui.mcp_logging:
                 self.repl.renderer.warning(f"Failed to instantiate plugin {attr_name}: {e}")
             return False
@@ -112,6 +125,9 @@ class PluginManager:
 
         Args:
             path: Path to python file.
+
+        Returns:
+            None
         """
         module_name = f"henchman_plugin_{path.stem}"
         spec = importlib.util.spec_from_file_location(module_name, path)
@@ -136,6 +152,9 @@ class PluginManager:
 
         Args:
             plugin: Plugin instance.
+
+        Returns:
+            None
         """
         if plugin.name in self.plugins:
             return

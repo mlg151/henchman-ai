@@ -188,8 +188,10 @@ class TestAsyncRateLimiter:
             await limiter2.add_usage(50)
 
         # Now request more than limit
-        with patch("time.time") as mock_time, \
-             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with (
+            patch("time.time") as mock_time,
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
             # Need enough time calls for:
             # 1. _clean_old_usage() call 1
             # 2. sleep_time calculation
@@ -223,10 +225,12 @@ class TestAsyncRateLimiter:
         def get_current_usage_side_effect():
             return usage_values.pop(0) if usage_values else 0
 
-        with patch("time.time") as mock_time, \
-             patch.object(limiter, "_clean_old_usage"), \
-             patch.object(limiter, "_get_current_usage", side_effect=get_current_usage_side_effect), \
-             patch("asyncio.sleep", mock_sleep):
+        with (
+            patch("time.time") as mock_time,
+            patch.object(limiter, "_clean_old_usage"),
+            patch.object(limiter, "_get_current_usage", side_effect=get_current_usage_side_effect),
+            patch("asyncio.sleep", mock_sleep),
+        ):
             mock_time.return_value = 1000.0
 
             # Call wait_for_capacity
@@ -371,8 +375,10 @@ class TestAsyncRateLimiter:
         # sleep_time = 1000.0 + 60.1 - 1060.1 = 0.0
         limiter.usage.append((1000.0, 80))
 
-        with patch("time.time") as mock_time, \
-             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with (
+            patch("time.time") as mock_time,
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
             # Current time is exactly at expiration boundary
             mock_time.side_effect = [1060.1, 1060.1]
 
@@ -426,14 +432,16 @@ class TestAsyncRateLimiter:
 
         # Add multiple usage entries, some expired, some not
         # This tests the branch where sleep_time <= 0 but we still loop
-        limiter.usage.append((900.0, 40))   # Expired (100 seconds old)
-        limiter.usage.append((950.0, 40))   # Expired (50 seconds old)
-        limiter.usage.append((980.0, 40))   # Not expired (20 seconds old)
+        limiter.usage.append((900.0, 40))  # Expired (100 seconds old)
+        limiter.usage.append((950.0, 40))  # Expired (50 seconds old)
+        limiter.usage.append((980.0, 40))  # Not expired (20 seconds old)
         # Total usage in window: 40 (only the last entry)
         # But we need 70 tokens
 
-        with patch("time.time") as mock_time, \
-             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with (
+            patch("time.time") as mock_time,
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
             # First call: time is 1000.0
             # sleep_time = 980.0 + 60.1 - 1000.0 = 40.1 > 0
             # So we should sleep
@@ -468,18 +476,21 @@ class TestAsyncRateLimiter:
 
         # Mock _clean_old_usage to NOT clean the entry
         # This simulates a race condition or edge case
-        with patch.object(limiter, "_clean_old_usage") as mock_clean, \
-             patch("time.time") as mock_time, \
-             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-
+        with (
+            patch.object(limiter, "_clean_old_usage") as mock_clean,
+            patch("time.time") as mock_time,
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
             # Mock _get_current_usage to return 80 first, then 0
             # to break out of the loop
             usage_values = [80, 0]
+
             def get_current_usage_side_effect():
                 return usage_values.pop(0) if usage_values else 0
 
-            with patch.object(limiter, "_get_current_usage",
-                            side_effect=get_current_usage_side_effect):
+            with patch.object(
+                limiter, "_get_current_usage", side_effect=get_current_usage_side_effect
+            ):
                 # Set time such that sleep_time <= 0
                 # entry_time + 60.1 - current_time <= 0
                 # 1000.0 + 60.1 - current_time <= 0

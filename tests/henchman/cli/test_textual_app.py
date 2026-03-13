@@ -129,9 +129,7 @@ class TestChatPane:
 
     def test_append_thinking_auto_begin(self, chat_pane):
         chat_pane.append_thinking_chunk("AgentX", "think")
-        assert (
-            len([c for c in chat_pane.children if isinstance(c, ThinkingMessage)]) == 1
-        )
+        assert len([c for c in chat_pane.children if isinstance(c, ThinkingMessage)]) == 1
 
     def test_clear_thinking_removes(self, chat_pane):
         chat_pane.begin_thinking_stream()

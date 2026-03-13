@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -21,10 +20,7 @@ from henchman.cli.console import OutputRenderer, get_theme  # noqa: E402
 def test_style_overrides():
     print("Testing Style Overrides...")
 
-    overrides = {
-        "primary": "magenta",
-        "success": "bright_green"
-    }
+    overrides = {"primary": "magenta", "success": "bright_green"}
 
     # 1. Test get_theme with overrides
     theme = get_theme("dark", overrides=overrides)
@@ -40,7 +36,7 @@ def test_style_overrides():
         print(f"❌ Theme success color mismatch: {theme.success}")
         return False
 
-    if theme.error == "red": # default
+    if theme.error == "red":  # default
         print("✅ Theme error color remains default")
     else:
         print(f"❌ Theme error color modified: {theme.error}")
@@ -58,6 +54,7 @@ def test_style_overrides():
 
     return True
 
+
 if __name__ == "__main__":
     try:
         success = test_style_overrides()
@@ -65,5 +62,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

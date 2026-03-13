@@ -461,7 +461,7 @@ class TestToolRegistryBatch:
         assert result.successful == 1
         assert result.failed == 0
         assert len(result.results) == 1
-        assert result.results["read_file_0"].content == "Contents of /test.txt"
+        assert result.results["0:read_file"].content == "Contents of /test.txt"
 
     async def test_execute_batch_multiple(self) -> None:
         """Multiple tools execute in parallel."""
@@ -496,9 +496,9 @@ class TestToolRegistryBatch:
 
         assert result.successful == 2
         assert result.failed == 1
-        assert result.results["read_file_0"].success is True
-        assert result.results["nonexistent_tool_1"].success is False
-        assert result.results["read_file_2"].success is True
+        assert result.results["0:read_file"].success is True
+        assert result.results["1:nonexistent_tool"].success is False
+        assert result.results["2:read_file"].success is True
 
     async def test_execute_batch_duplicate_tool_names(self) -> None:
         """Duplicate tool names get unique keys."""
@@ -514,9 +514,9 @@ class TestToolRegistryBatch:
         )
 
         assert result.successful == 3
-        assert "read_file_0" in result.results
-        assert "read_file_1" in result.results
-        assert "read_file_2" in result.results
+        assert "0:read_file" in result.results
+        assert "1:read_file" in result.results
+        assert "2:read_file" in result.results
 
     async def test_batch_result_dataclass(self) -> None:
         """BatchResult dataclass works correctly."""
@@ -528,3 +528,88 @@ class TestToolRegistryBatch:
         assert result.successful == 1
         assert result.failed == 0
         assert result.results["tool_0"].content == "ok"
+
+    async def test_execute_batch_exception_as_result(self) -> None:
+        """BaseException from gather is converted to failed ToolResult."""
+        from unittest.mock import patch
+
+        from henchman.tools.builtins.file_read import ReadFileTool
+        from henchman.tools.registry import ToolRegistry
+
+        registry = ToolRegistry()
+        registry.register(ReadFileTool())
+
+        # Patch execute to raise an exception
+        with patch.object(registry, "execute", side_effect=RuntimeError("tool exploded")):
+            result = await registry.execute_batch([("read_file", {"path": "test.txt"})])
+
+        assert result.failed == 1
+        assert "tool exploded" in list(result.results.values())[0].content
+
+
+class TestRegistryCoverageGaps:
+    """Additional tests for registry coverage gaps."""
+
+    def test_len(self) -> None:
+        """__len__ returns number of registered tools."""
+        from henchman.tools.registry import ToolRegistry
+
+        registry = ToolRegistry()
+        assert len(registry) == 0
+
+    async def test_execute_large_output_truncated(self) -> None:
+        """Large tool output is truncated to prevent context overflow."""
+        from henchman.tools.base import ToolKind, ToolResult
+        from henchman.tools.registry import MAX_TOOL_OUTPUT, ToolRegistry
+
+        # Build a tool that returns very large output
+        class LargeTool(Tool):
+            """Tool that returns very large output."""
+
+            @property
+            def name(self) -> str:
+                """Tool name."""
+                return "large_output_tool"
+
+            @property
+            def description(self) -> str:
+                """Tool description."""
+                return "Returns large output"
+
+            @property
+            def parameters(self) -> dict:
+                """JSON Schema for parameters."""
+                return {"type": "object", "properties": {}}
+
+            @property
+            def kind(self) -> ToolKind:
+                """Read-only tool."""
+                return ToolKind.READ
+
+            async def execute(self, **params: object) -> ToolResult:
+                """Return very large content."""
+                return ToolResult(content="x" * (MAX_TOOL_OUTPUT + 1), success=True)
+
+        registry = ToolRegistry()
+        registry.register(LargeTool())
+        result = await registry.execute("large_output_tool", {})
+        assert result.success is True
+        assert "truncated" in result.content
+
+    async def test_execute_batch_base_exception(self) -> None:
+        """BaseException from gather is converted to failed ToolResult (lines 294-299)."""
+        from unittest.mock import patch
+
+        from henchman.tools.registry import ToolRegistry
+
+        registry = ToolRegistry()
+        registry.register(MockReadTool())
+
+        async def exploding_execute(name: str, params: dict) -> None:
+            raise RuntimeError("tool exploded")
+
+        with patch.object(registry, "execute", side_effect=RuntimeError("exploded again")):
+            result = await registry.execute_batch([("read_file", {"path": "x.txt"})])
+
+        assert result.failed == 1
+        assert "exploded again" in list(result.results.values())[0].content

@@ -39,6 +39,7 @@ from henchman.config import load_settings
 def serve_command(
     host: str,
     port: int,
+    *,
     reload: bool,
     workers: int,
 ) -> None:
@@ -46,6 +47,18 @@ def serve_command(
 
     This command starts a FastAPI server that provides REST API access
     to Henchman-AI functionality.
+
+    Args:
+        host: The host address to bind the server to.
+        port: The port number to listen on.
+        reload: Whether to enable auto-reload for development.
+        workers: Number of worker processes.
+
+    Returns:
+        None
+
+    Raises:
+        click.ClickException: If the server fails to start.
 
     Examples:
         henchman serve
@@ -87,7 +100,7 @@ def serve_command(
         )
     except KeyboardInterrupt:
         console.print("\n[yellow]Server stopped by user[/]")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         console.print(f"\n[red]Error starting server: {e}[/]")
         msg = f"Failed to start server: {e}"
-        raise click.ClickException(msg)
+        raise click.ClickException(msg)  # noqa: B904

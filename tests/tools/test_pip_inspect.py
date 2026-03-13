@@ -58,3 +58,43 @@ class TestPipInspectTool:
         assert result.success is True
         # Should have at least some version-like strings
         assert "." in result.content
+
+    async def test_pip_error_message(self) -> None:
+        """Returns error when pip fails."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        tool = PipInspectTool()
+        mock_process = MagicMock()
+        mock_process.communicate = AsyncMock(return_value=(b"", b"ERROR: some pip error"))
+        mock_process.returncode = 1
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+            result = await tool.execute()
+            assert result.success is False
+            assert "ERROR" in result.content or "error" in result.content.lower()
+
+    async def test_output_truncation(self) -> None:
+        """Large output is truncated."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        tool = PipInspectTool()
+        large_output = ("package==1.0.0\n" * 10000).encode()
+        mock_process = MagicMock()
+        mock_process.communicate = AsyncMock(return_value=(large_output, b""))
+        mock_process.returncode = 0
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+            result = await tool.execute()
+            assert result.success is True
+            assert "truncated" in result.content
+
+    async def test_empty_output_no_packages(self) -> None:
+        """Empty stdout with success returns no packages message (line 93)."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        tool = PipInspectTool()
+        mock_process = MagicMock()
+        mock_process.communicate = AsyncMock(return_value=(b"", b""))
+        mock_process.returncode = 0
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+            result = await tool.execute()
+            assert result.success is True
+            assert "No packages" in result.content

@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -31,10 +30,7 @@ def test_layout_settings():
     console_mock = MagicMock(spec=Console)
 
     # 1. Test OutputRenderer with compact_tables=True
-    renderer = OutputRenderer(
-        console=console_mock,
-        layout_settings=layout_settings
-    )
+    renderer = OutputRenderer(console=console_mock, layout_settings=layout_settings)
 
     # Render a table
     renderer.table([{"a": 1}])
@@ -44,6 +40,7 @@ def test_layout_settings():
     if console_mock.print.called:
         last_arg = console_mock.print.call_args[0][0]
         from rich.table import Table
+
         if isinstance(last_arg, Table):
             if last_arg.box == box.MINIMAL:
                 print("✅ Compact table setting applied (box.MINIMAL used)")
@@ -59,6 +56,7 @@ def test_layout_settings():
 
     return True
 
+
 if __name__ == "__main__":
     try:
         success = test_layout_settings()
@@ -66,5 +64,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

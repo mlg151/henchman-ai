@@ -11,7 +11,6 @@ from scripts.doc_smell_detector.models import (
     DocFileReport,
     DocRepoReport,
     DocRepoSummary,
-    DocSmellSeverity,
 )
 
 # Grade boundaries (score -> letter).

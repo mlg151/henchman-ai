@@ -31,6 +31,9 @@ DEFAULT_MAX_DELEGATION_TURNS = 150
 DEFAULT_SHARED_CONTEXT_TOKENS = 2000
 """Default max tokens for shared context between agents."""
 
+DEFAULT_MAX_DELEGATION_RETRIES = 1
+"""Default number of automatic retries for a failed specialist delegation."""
+
 DEFAULT_RAG_CHUNK_SIZE = 512
 """Default target tokens per RAG chunk."""
 
@@ -48,16 +51,18 @@ class AgentConfig(BaseModel):
     role: str = Field(..., description="Unique role identifier")
     description: str = Field(..., description="One-line description of the agent's purpose")
     system_prompt: str | None = Field(
-        None, description="Role-specific instructions (None for default)",
+        None,
+        description="Role-specific instructions (None for default)",
     )
     tools: list[str] = Field(default_factory=list, description="Allowlist of tool names")
     provider: str | None = Field(None, description="Override model provider")
     model: str | None = Field(None, description="Override model name")
     auto_approve: list[str] = Field(default_factory=list, description="Tools to auto-approve")
     can_delegate_to: list[str] = Field(
-        default_factory=list, description="Roles this agent can delegate to",
+        default_factory=list,
+        description="Roles this agent can delegate to",
     )
-    enabled: bool = Field(True, description="Whether this agent is active")
+    enabled: bool = Field(default=True, description="Whether this agent is active")
 
     @field_validator("tools")
     @classmethod
@@ -189,6 +194,8 @@ class AgentSettings(BaseModel):
         max_delegation_depth: Maximum recursive delegation depth.
         max_delegation_turns: Maximum tool-call turns per specialist delegation.
         shared_context_max_tokens: Max tokens for shared context between agents.
+        max_delegation_retries: How many times to automatically retry a failed
+            specialist delegation before surfacing the failure to the Tech Lead.
     """
 
     team_preset: str = "default"
@@ -196,6 +203,7 @@ class AgentSettings(BaseModel):
     max_delegation_depth: int = DEFAULT_MAX_DELEGATION_DEPTH
     max_delegation_turns: int = DEFAULT_MAX_DELEGATION_TURNS
     shared_context_max_tokens: int = DEFAULT_SHARED_CONTEXT_TOKENS
+    max_delegation_retries: int = DEFAULT_MAX_DELEGATION_RETRIES
 
 
 class RagSettings(BaseModel):

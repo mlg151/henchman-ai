@@ -1,6 +1,5 @@
 """Tests for progress indicators in textual UI."""
 
-
 from henchman.cli.textual_app import ProgressIndicator
 
 

@@ -8,7 +8,6 @@ from rich.status import Status
 from henchman.cli.output_handler import OutputHandler
 from henchman.cli.session_manager import ReplSessionManager
 from henchman.cli.tool_manager import ToolManager
-from henchman.cli.ui_renderer import UIRenderer
 from henchman.core.agent import Agent
 from henchman.core.session import Session
 from henchman.mcp.manager import McpManager
@@ -20,7 +19,7 @@ class TestOutputHandler:
 
     def test_initialization(self) -> None:
         """Test OutputHandler initialization."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -42,7 +41,7 @@ class TestOutputHandler:
 
     def test_initialization_with_optional_args(self) -> None:
         """Test OutputHandler initialization with optional arguments."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -66,7 +65,7 @@ class TestOutputHandler:
 
     def test_get_toolbar_status_basic(self) -> None:
         """Test get_toolbar_status with basic configuration."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -96,7 +95,7 @@ class TestOutputHandler:
 
     def test_get_toolbar_status_plan_mode(self) -> None:
         """Test get_toolbar_status with plan mode enabled."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -120,7 +119,7 @@ class TestOutputHandler:
 
     def test_get_toolbar_status_with_tokens(self) -> None:
         """Test get_toolbar_status with token counting."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -157,7 +156,7 @@ class TestOutputHandler:
 
     def test_get_toolbar_status_with_tool_count(self) -> None:
         """Test get_toolbar_status with tool count."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -186,7 +185,7 @@ class TestOutputHandler:
 
     def test_get_toolbar_status_with_mcp(self) -> None:
         """Test get_toolbar_status with MCP connections."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -219,7 +218,7 @@ class TestOutputHandler:
 
     def test_get_toolbar_status_with_rag_indexing(self) -> None:
         """Test get_toolbar_status with RAG indexing."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -248,7 +247,7 @@ class TestOutputHandler:
 
     def test_get_rich_status_message(self) -> None:
         """Test get_rich_status_message method."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -273,7 +272,7 @@ class TestOutputHandler:
 
     def test_delegation_methods(self) -> None:
         """Test delegation methods to renderer."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -315,7 +314,7 @@ class TestOutputHandler:
 
     def test_create_status(self) -> None:
         """Test create_status method."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -337,7 +336,7 @@ class TestOutputHandler:
 
     def test_show_turn_status(self) -> None:
         """Test show_turn_status method."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -367,7 +366,7 @@ class TestOutputHandler:
 
     def test_show_turn_status_spinning(self) -> None:
         """Test show_turn_status when agent is spinning."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -392,7 +391,7 @@ class TestOutputHandler:
 
     def test_show_turn_status_approaching_limit(self) -> None:
         """Test show_turn_status when approaching limit."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -418,7 +417,7 @@ class TestOutputHandler:
     @pytest.mark.asyncio
     async def test_start_background_indexing(self) -> None:
         """Test start_background_indexing method."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -450,7 +449,7 @@ class TestOutputHandler:
 
     def test_start_background_indexing_no_rag(self) -> None:
         """Test start_background_indexing without RAG system."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)
@@ -467,7 +466,7 @@ class TestOutputHandler:
 
     def test_start_background_indexing_no_index_async(self) -> None:
         """Test start_background_indexing when RAG system has no index_async method."""
-        renderer = MagicMock(spec=UIRenderer)
+        renderer = MagicMock()
         tool_manager = MagicMock(spec=ToolManager)
         session_manager = MagicMock(spec=ReplSessionManager)
         provider = MagicMock(spec=ModelProvider)

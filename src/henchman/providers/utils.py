@@ -24,8 +24,8 @@ def get_env_var_for_provider(provider_name: str) -> str:
         "together": "HENCHMAN_API_KEY",
         "groq": "HENCHMAN_API_KEY",
         "fireworks": "HENCHMAN_API_KEY",
-        "openrouter": "HENCHMAN_API_KEY",
-        # Ollama doesn't need an API key
+        "openrouter": "OPENROUTER_API_KEY",
+        "ollama": "",  # Ollama doesn't need an API key
     }
 
     # Default to HENCHMAN_API_KEY for unknown providers
@@ -62,6 +62,9 @@ def validate_messages(messages: list[Message]) -> None:
 
     Args:
         messages: The conversation history to validate.
+
+    Returns:
+        None
 
     Raises:
         ValueError: If messages are empty or have invalid content.

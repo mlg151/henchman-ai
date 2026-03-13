@@ -65,6 +65,9 @@ def init_orchestrator(
         default_provider: The default model provider.
         config: Optional grouped configuration.
         **kwargs: Legacy keyword arguments (forwarded to OrchestratorConfig).
+
+    Returns:
+        None
     """
     if config is None:
         config = OrchestratorConfig(**kwargs)
@@ -115,7 +118,9 @@ def _init_agents(
     orch.shared_context: list[dict[str, Any]] = []
     orch.ledger: TaskLedger | None = None
     setup_tech_lead(
-        orch, agent_configs, default_provider,
+        orch,
+        agent_configs,
+        default_provider,
         system_prompt=config.system_prompt,
         environment_context=config.environment_context,
     )

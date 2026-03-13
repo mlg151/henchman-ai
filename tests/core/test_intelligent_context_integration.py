@@ -11,7 +11,7 @@ import pytest
 from henchman.core.agent import Agent
 from henchman.core.events import EventType
 from henchman.providers.base import FinishReason, Message, ModelProvider, StreamChunk, ToolCall
-from henchman.utils.intelligent_context import IntelligentContextManager
+from henchman.utils.intelligent_context import IntelligentContextManager, IntelligentContextParams
 
 
 @pytest.fixture
@@ -44,11 +44,7 @@ def sample_messages():
 @pytest.fixture
 def sample_messages_with_tools():
     """Create sample messages with tool calls for testing."""
-    tool_call = ToolCall(
-        id="test-tool-call-123",
-        name="test_tool",
-        arguments={"param": "value"}
-    )
+    tool_call = ToolCall(id="test-tool-call-123", name="test_tool", arguments={"param": "value"})
     return [
         Message(role="system", content="You are a helpful assistant"),
         Message(role="user", content="Please execute this tool"),
@@ -86,7 +82,9 @@ class TestAgentIntelligentContextIntegration:
         assert agent.cluster_similarity_threshold == 0.7
         assert agent.adaptive_compression is True
 
-    def test_get_messages_for_api_with_intelligent_context_enabled(self, mock_provider, sample_messages):
+    def test_get_messages_for_api_with_intelligent_context_enabled(
+        self, mock_provider, sample_messages
+    ):
         """Test get_messages_for_api() with intelligent context enabled."""
         agent = Agent(
             provider=mock_provider,
@@ -96,7 +94,9 @@ class TestAgentIntelligentContextIntegration:
         agent.messages = sample_messages
 
         # Mock the IntelligentContextManager to verify it's used
-        with patch('henchman.utils.intelligent_context.IntelligentContextManager') as mock_manager_class:
+        with patch(
+            "henchman.utils.intelligent_context.IntelligentContextManager"
+        ) as mock_manager_class:
             mock_manager = MagicMock()
             mock_manager.compact.return_value = sample_messages[:3]  # Return compacted version
             mock_manager_class.return_value = mock_manager
@@ -105,11 +105,13 @@ class TestAgentIntelligentContextIntegration:
 
             # Verify IntelligentContextManager was instantiated with correct params
             mock_manager_class.assert_called_once_with(
-                max_tokens=100,
-                max_protected_ratio=0.3,
-                importance_threshold=0.5,  # Default
-                cluster_similarity_threshold=0.7,  # Default
-                adaptive_compression=True,  # Default
+                params=IntelligentContextParams(
+                    max_tokens=100,
+                    max_protected_ratio=0.3,
+                    importance_threshold=0.5,  # Default
+                    cluster_similarity_threshold=0.7,  # Default
+                    adaptive_compression=True,  # Default
+                )
             )
             mock_manager.compact.assert_called_once_with(
                 sample_messages,
@@ -117,7 +119,9 @@ class TestAgentIntelligentContextIntegration:
             )
             assert result == sample_messages[:3]
 
-    def test_get_messages_for_api_with_intelligent_context_disabled(self, mock_provider, sample_messages):
+    def test_get_messages_for_api_with_intelligent_context_disabled(
+        self, mock_provider, sample_messages
+    ):
         """Test get_messages_for_api() with intelligent context disabled."""
         agent = Agent(
             provider=mock_provider,
@@ -127,7 +131,7 @@ class TestAgentIntelligentContextIntegration:
         agent.messages = sample_messages
 
         # Mock the ContextCompactor to verify it's used
-        with patch('henchman.utils.compaction.ContextCompactor') as mock_compactor_class:
+        with patch("henchman.utils.compaction.ContextCompactor") as mock_compactor_class:
             mock_compactor = MagicMock()
             mock_compactor.compact.return_value = sample_messages[:3]  # Return compacted version
             mock_compactor_class.return_value = mock_compactor
@@ -155,7 +159,9 @@ class TestAgentIntelligentContextIntegration:
         agent.messages = sample_messages
         agent.turn.start_index = 4  # Protect last 3 messages (indices 4, 5, 6)
 
-        with patch('henchman.utils.intelligent_context.IntelligentContextManager') as mock_manager_class:
+        with patch(
+            "henchman.utils.intelligent_context.IntelligentContextManager"
+        ) as mock_manager_class:
             mock_manager = MagicMock()
             mock_manager.compact.return_value = sample_messages  # Return same for simplicity
             mock_manager_class.return_value = mock_manager
@@ -168,7 +174,9 @@ class TestAgentIntelligentContextIntegration:
             )
 
     @pytest.mark.asyncio
-    async def test_apply_simple_compaction_with_intelligent_context(self, mock_provider, sample_messages):
+    async def test_apply_simple_compaction_with_intelligent_context(
+        self, mock_provider, sample_messages
+    ):
         """Test _apply_simple_compaction() uses intelligent context when enabled."""
         agent = Agent(
             provider=mock_provider,
@@ -179,22 +187,26 @@ class TestAgentIntelligentContextIntegration:
         agent.messages = sample_messages
         agent.turn.start_index = 0
 
-        with patch('henchman.utils.intelligent_context.IntelligentContextManager') as mock_manager_class:
+        with patch(
+            "henchman.utils.intelligent_context.IntelligentContextManager"
+        ) as mock_manager_class:
             mock_manager = MagicMock()
             mock_manager.compact.return_value = sample_messages[:3]
             mock_manager_class.return_value = mock_manager
 
             # Mock repair_message_sequence to return same messages
-            with patch('henchman.core.agent.repair_message_sequence', side_effect=lambda x: x):
+            with patch("henchman.core.agent.repair_message_sequence", side_effect=lambda x: x):
                 await agent._apply_simple_compaction(protected_count=0)
 
                 # Verify IntelligentContextManager was used
                 mock_manager_class.assert_called_once_with(
-                    max_tokens=50,
-                    max_protected_ratio=0.3,
-                    importance_threshold=0.5,
-                    cluster_similarity_threshold=0.7,
-                    adaptive_compression=True,
+                    params=IntelligentContextParams(
+                        max_tokens=50,
+                        max_protected_ratio=0.3,
+                        importance_threshold=0.5,
+                        cluster_similarity_threshold=0.7,
+                        adaptive_compression=True,
+                    )
                 )
                 mock_manager.compact.assert_called_once_with(
                     sample_messages,
@@ -203,7 +215,9 @@ class TestAgentIntelligentContextIntegration:
                 assert agent.messages == sample_messages[:3]
 
     @pytest.mark.asyncio
-    async def test_apply_simple_compaction_without_intelligent_context(self, mock_provider, sample_messages):
+    async def test_apply_simple_compaction_without_intelligent_context(
+        self, mock_provider, sample_messages
+    ):
         """Test _apply_simple_compaction() uses ContextCompactor when intelligent context disabled."""
         agent = Agent(
             provider=mock_provider,
@@ -214,13 +228,13 @@ class TestAgentIntelligentContextIntegration:
         agent.messages = sample_messages
         agent.turn.start_index = 0
 
-        with patch('henchman.utils.compaction.ContextCompactor') as mock_compactor_class:
+        with patch("henchman.utils.compaction.ContextCompactor") as mock_compactor_class:
             mock_compactor = MagicMock()
             mock_compactor.compact.return_value = sample_messages[:3]
             mock_compactor_class.return_value = mock_compactor
 
             # Mock repair_message_sequence to return same messages
-            with patch('henchman.core.agent.repair_message_sequence', side_effect=lambda x: x):
+            with patch("henchman.core.agent.repair_message_sequence", side_effect=lambda x: x):
                 await agent._apply_simple_compaction(protected_count=0)
 
                 # Verify ContextCompactor was used
@@ -258,7 +272,10 @@ class TestAgentIntelligentContextIntegration:
         )
 
         # Replace the manager creation with our mock
-        with patch('henchman.utils.intelligent_context.IntelligentContextManager', return_value=mock_manager):
+        with patch(
+            "henchman.utils.intelligent_context.IntelligentContextManager",
+            return_value=mock_manager,
+        ):
             # The get_messages_for_api should return just the messages
             result = agent.get_messages_for_api()
             assert result == compacted_messages
@@ -309,7 +326,9 @@ class TestAgentIntelligentContextIntegration:
         assert agent.max_protected_ratio == 0.4
 
         # Verify these settings are passed to IntelligentContextManager
-        with patch('henchman.utils.intelligent_context.IntelligentContextManager') as mock_manager_class:
+        with patch(
+            "henchman.utils.intelligent_context.IntelligentContextManager"
+        ) as mock_manager_class:
             mock_manager = MagicMock()
             mock_manager.compact.return_value = []
             mock_manager_class.return_value = mock_manager
@@ -317,14 +336,18 @@ class TestAgentIntelligentContextIntegration:
             agent.get_messages_for_api()
 
             mock_manager_class.assert_called_once_with(
-                max_tokens=agent.max_tokens,
-                max_protected_ratio=0.4,  # From agent config
-                importance_threshold=0.8,  # From agent config
-                cluster_similarity_threshold=0.9,  # From agent config
-                adaptive_compression=False,  # From agent config
+                params=IntelligentContextParams(
+                    max_tokens=agent.max_tokens,
+                    max_protected_ratio=0.4,  # From agent config
+                    importance_threshold=0.8,  # From agent config
+                    cluster_similarity_threshold=0.9,  # From agent config
+                    adaptive_compression=False,  # From agent config
+                )
             )
 
-    def test_message_compaction_integration_with_tool_sequences(self, mock_provider, sample_messages_with_tools):
+    def test_message_compaction_integration_with_tool_sequences(
+        self, mock_provider, sample_messages_with_tools
+    ):
         """Test that intelligent context preserves tool call sequences."""
         agent = Agent(
             provider=mock_provider,
@@ -334,7 +357,9 @@ class TestAgentIntelligentContextIntegration:
         agent.messages = sample_messages_with_tools
 
         # Mock the IntelligentContextManager
-        with patch('henchman.utils.intelligent_context.IntelligentContextManager') as mock_manager_class:
+        with patch(
+            "henchman.utils.intelligent_context.IntelligentContextManager"
+        ) as mock_manager_class:
             mock_manager = MagicMock()
             # Return compacted version that should preserve tool sequence
             compacted = [

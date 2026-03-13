@@ -1,6 +1,6 @@
 # Tools
 
-Henchman-AI includes a set of built-in tools that the AI agent can use to interact with your system.
+Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent can use to interact with your system.
 
 ## Quick Reference
 
@@ -10,6 +10,7 @@ Henchman-AI includes a set of built-in tools that the AI agent can use to intera
 | `write_file` | File Operations | WRITE | Write content to a file |
 | `edit_file` | File Operations | WRITE | Make surgical edits to a file |
 | `patch_apply` | File Operations | WRITE | Apply unified diff patches |
+| `file_overview` | File Operations | READ | Get structural summary without reading full content |
 | `ls` | Directory Operations | READ | List directory contents |
 | `glob` | Directory Operations | READ | Find files matching patterns |
 | `grep` | Directory Operations | READ | Search file contents with regex |
@@ -18,6 +19,8 @@ Henchman-AI includes a set of built-in tools that the AI agent can use to intera
 | `dead_code` | Code Analysis | READ | Detect unused code |
 | `python_ast` | Code Analysis | READ | Parse Python AST and symbol table |
 | `import_graph` | Code Analysis | READ | Analyze import dependencies |
+| `pattern_search` | Code Analysis | READ | Search code using natural language descriptions |
+| `symbol_trace` | Code Analysis | READ | Trace symbol provenance across codebase |
 | `pytest_run` | Testing | EXECUTE | Run pytest tests |
 | `coverage_map` | Testing | READ | Parse coverage reports |
 | `test_gen` | Testing | WRITE | Generate pytest test stubs |
@@ -30,11 +33,13 @@ Henchman-AI includes a set of built-in tools that the AI agent can use to intera
 | `shell` | Shell Execution | EXECUTE | Execute shell commands |
 | `web_fetch` | Web Operations | NETWORK | Fetch content from URLs |
 | `web_search` | Web Operations | NETWORK | Search the web |
+| `deep_research` | Web Operations | NETWORK | End-to-end web research with synthesis |
 | `kg_query` | Knowledge Graph | READ | Query project knowledge graph |
 | `kg_update` | Knowledge Graph | WRITE | Update knowledge graph |
 | `rag_search` | RAG | READ | Semantic code search |
+| `research_notes` | Knowledge Graph | WRITE | Persistent note-taking scratchpad |
 | `ask_user` | Agent Interaction | READ | Ask user questions |
-| `delegate_task` | Agent Interaction | EXECUTE | Delegate tasks to specialist agents |
+| `delegate_task` | Agent Interaction | READ | Delegate tasks to specialist agents |
 
 ## Built-in Tools
 
@@ -104,6 +109,21 @@ Apply a unified diff patch to one or more files.
     "path": "string (optional) - Target file path",
     "dry_run": "boolean (optional) - Preview changes without applying",
     "fuzz": "integer (optional) - Lines of fuzz for context matching"
+  }
+}
+```
+
+#### file_overview
+
+Get a hierarchical structural summary of a file without reading full content. For Python files: shows imports, class tree, function signatures, and docstrings. Adapts detail level to file size. Much faster than read_file for understanding structure.
+
+```json
+{
+  "name": "file_overview",
+  "kind": "READ",
+  "parameters": {
+    "path": "string (required) - Path to the file to summarize",
+    "depth": "integer (optional) - Nesting depth: 1 = top-level only, 2 = include class methods (default: 2)"
   }
 }
 ```
@@ -240,6 +260,39 @@ Analyze import dependencies of a Python file.
     "scan_dir": "string (optional) - Directory to scan for reverse imports",
     "detect_cycles": "boolean (optional) - Scan for circular import chains",
     "classify": "boolean (optional) - Classify imports as stdlib/local/third-party"
+  }
+}
+```
+
+#### pattern_search
+
+Search code using natural language descriptions. Extracts keywords and structural patterns (inheritance, decorators, async, etc.) from the description, then searches and ranks results. Use instead of crafting complex grep regexes.
+
+```json
+{
+  "name": "pattern_search",
+  "kind": "READ",
+  "parameters": {
+    "description": "string (required) - Natural language description of what to find, e.g. 'functions that handle HTTP errors', 'classes that inherit from Tool'",
+    "path": "string (optional) - Root directory or file to search (defaults to current directory)",
+    "top_k": "integer (optional) - Maximum number of results to return",
+    "strategy": "string (optional) - Search strategy: 'semantic' (keyword-based), 'structural' (structural pattern extraction), or 'combined' (both)"
+  }
+}
+```
+
+#### symbol_trace
+
+Trace a symbol's full provenance across a codebase: definition site(s), all import statements, all call/reference sites, and type annotations. Replaces the manual combination of python_ast + grep + import_graph.
+
+```json
+{
+  "name": "symbol_trace",
+  "kind": "READ",
+  "parameters": {
+    "symbol": "string (required) - Symbol name to trace (function, class, variable, or alias)",
+    "path": "string (optional) - Root directory or file to search (defaults to current directory)",
+    "include_tests": "boolean (optional) - Whether to include test files in the trace"
   }
 }
 ```
@@ -465,6 +518,22 @@ Search the web for information.
 }
 ```
 
+#### deep_research
+
+Perform end-to-end web research on a question: generates sub-queries, searches the web for each, fetches top results, and synthesizes findings into a structured Markdown report with citations. Use instead of multiple web_search + web_fetch calls.
+
+```json
+{
+  "name": "deep_research",
+  "kind": "NETWORK",
+  "parameters": {
+    "question": "string (required) - Research question or topic to investigate",
+    "max_sources": "integer (optional) - Maximum number of sources to gather (default: 5)",
+    "focus": "string (optional) - Optional focus keyword to narrow sub-queries (e.g. 'Python', 'security', 'performance')"
+  }
+}
+```
+
 ### Knowledge Graph & RAG
 
 #### kg_query
@@ -524,6 +593,23 @@ Search the codebase using semantic similarity.
 }
 ```
 
+#### research_notes
+
+Persistent in-session note-taking scratchpad. Write, append, read, list, or search named notes stored in ~/.henchman/notes/. Use to accumulate research findings and decisions across multiple agent turns.
+
+```json
+{
+  "name": "research_notes",
+  "kind": "WRITE",
+  "parameters": {
+    "action": "string (required) - Action: 'write', 'append', 'read', 'list', or 'search'",
+    "tag": "string (optional) - Note identifier/name (required for write/append/read)",
+    "content": "string (optional) - Note content (required for write/append)",
+    "query": "string (optional) - Search query (required for search)"
+  }
+}
+```
+
 ### Agent Interaction
 
 #### ask_user
@@ -548,7 +634,7 @@ Delegate a task to a specialist agent.
 ```json
 {
   "name": "delegate_task",
-  "kind": "EXECUTE",
+  "kind": "READ",
   "parameters": {
     "agent": "string (required) - Specialist agent role: 'planner', 'explorer', 'engineer', 'data_engineer'",
     "task": "string (required) - Precise description of the task",

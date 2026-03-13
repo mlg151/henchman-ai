@@ -67,9 +67,7 @@ class TestSafeMarkup:
         assert "\x1b" not in result
         assert "\033" not in result
 
-    @pytest.mark.parametrize(
-        "payload", RICH_MARKUP_PAYLOADS, ids=range(len(RICH_MARKUP_PAYLOADS))
-    )
+    @pytest.mark.parametrize("payload", RICH_MARKUP_PAYLOADS, ids=range(len(RICH_MARKUP_PAYLOADS)))
     def test_escapes_rich_tags(self, payload):
         """Rich markup brackets must be escaped or neutralised."""
         from henchman.cli.textual_widgets import _safe_markup

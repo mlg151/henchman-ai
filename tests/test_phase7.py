@@ -1,4 +1,3 @@
-
 import asyncio
 import sys
 from pathlib import Path
@@ -44,6 +43,7 @@ async def test_async_renderer():
 
     return True
 
+
 async def test_chunked_file_read():
     print("\nTesting Chunked File Read (Async)...")
 
@@ -54,7 +54,7 @@ async def test_chunked_file_read():
     with tempfile.NamedTemporaryFile(mode="w+", delete=False) as tmp:
         # Write 100 lines
         for i in range(100):
-            tmp.write(f"Line {i+1}\n")
+            tmp.write(f"Line {i + 1}\n")
         tmp_path = tmp.name
 
     try:
@@ -72,11 +72,11 @@ async def test_chunked_file_read():
         if result.success and len(lines) == 11 and "Line 10" in result.content:
             print("✅ Read Line 10-20 successfully")
         else:
-             print(f"❌ Read range failed: Got {len(lines)} lines")
-             return False
+            print(f"❌ Read range failed: Got {len(lines)} lines")
+            return False
 
         # Test 3: Max chars
-        result = await tool.execute(path=tmp_path, max_chars=50) # Should truncate
+        result = await tool.execute(path=tmp_path, max_chars=50)  # Should truncate
         if "truncated" in result.content:
             print("✅ Truncation works")
         else:
@@ -88,14 +88,18 @@ async def test_chunked_file_read():
 
     return True
 
+
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        success = loop.run_until_complete(test_async_renderer()) and loop.run_until_complete(test_chunked_file_read())
+        success = loop.run_until_complete(test_async_renderer()) and loop.run_until_complete(
+            test_chunked_file_read()
+        )
         sys.exit(0 if success else 1)
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

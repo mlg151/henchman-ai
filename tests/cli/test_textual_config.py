@@ -46,9 +46,7 @@ class TestComponentInitializer:
             app=mock_app,
         )
 
-    def test_initialize_all_creates_input_handler_with_correct_config_type(
-        self, component_config
-    ):
+    def test_initialize_all_creates_input_handler_with_correct_config_type(self, component_config):
         """Test that InputHandler is created with correct config type.
 
         Bug: InputHandler expects ReplConfig but receives TextualConfig.

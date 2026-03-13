@@ -104,9 +104,7 @@ def _patch_core_init():
 
     def _fake_init(self_app):
         self_app.core_context = mock_core_context
-        self_app._ui_renderer = (
-            MagicMock()
-        )  # renderer is a property reading _ui_renderer
+        self_app._ui_renderer = MagicMock()  # renderer is a property reading _ui_renderer
         self_app.output_handler = MagicMock()
         self_app.command_processor = MagicMock()
         self_app.tool_executor = MagicMock()
@@ -348,9 +346,7 @@ class TestMessageDisplay:
         with _patch_core_init():
             async with app.run_test() as _pilot:
                 await _pilot.pause()
-                app.post_message(
-                    AgentContentMessage("Hello from agent", source_agent="TestBot")
-                )
+                app.post_message(AgentContentMessage("Hello from agent", source_agent="TestBot"))
                 await _pilot.pause()
 
                 chat = app.query_one("#chat-pane", ChatPane)
@@ -363,9 +359,7 @@ class TestMessageDisplay:
         with _patch_core_init():
             async with app.run_test() as _pilot:
                 await _pilot.pause()
-                app.post_message(
-                    AgentThoughtMessage("Thinking hard...", source_agent="Bot")
-                )
+                app.post_message(AgentThoughtMessage("Thinking hard...", source_agent="Bot"))
                 await _pilot.pause()
 
                 # Check that thinking pane has legacy message
@@ -375,13 +369,9 @@ class TestMessageDisplay:
                 # Check that chat pane contains a ThinkingMessage widget
                 chat_pane = app.query_one("#chat-pane", ChatPane)
                 thinking_messages = [
-                    child
-                    for child in chat_pane.children
-                    if isinstance(child, ThinkingMessage)
+                    child for child in chat_pane.children if isinstance(child, ThinkingMessage)
                 ]
-                assert (
-                    len(thinking_messages) > 0
-                ), "No ThinkingMessage found in chat pane"
+                assert len(thinking_messages) > 0, "No ThinkingMessage found in chat pane"
 
                 # Check that the ThinkingMessage has the correct content
                 thinking_msg = thinking_messages[0]
@@ -424,9 +414,7 @@ class TestMessageDisplay:
         with _patch_core_init():
             async with app.run_test() as _pilot:
                 await _pilot.pause()
-                app.post_message(
-                    AgentStatusMessage("Working on it...", source_agent="Bot")
-                )
+                app.post_message(AgentStatusMessage("Working on it...", source_agent="Bot"))
                 await _pilot.pause()
 
                 status_bar = app.query_one("#status-bar", StatusBar)
@@ -607,8 +595,7 @@ class TestSearchFunctionality:
 
                 status_bar = app.query_one("#status-bar", StatusBar)
                 assert (
-                    "Search" in status_bar.status_text
-                    or "search" in status_bar.status_text.lower()
+                    "Search" in status_bar.status_text or "search" in status_bar.status_text.lower()
                 )
 
     @pytest.mark.asyncio
@@ -945,12 +932,8 @@ class TestEventBridge:
                 bridge = EventBridge(app)
 
                 async def event_stream():
-                    yield AgentEvent(
-                        type=EventType.CONTENT, data="hello", source_agent="Bot"
-                    )
-                    yield AgentEvent(
-                        type=EventType.FINISHED, data=None, source_agent="Bot"
-                    )
+                    yield AgentEvent(type=EventType.CONTENT, data="hello", source_agent="Bot")
+                    yield AgentEvent(type=EventType.FINISHED, data=None, source_agent="Bot")
 
                 await bridge.forward_events(event_stream())
                 await _pilot.pause()
@@ -1155,35 +1138,31 @@ class TestEndToEndMessageFlow:
             # --- Assert: the user's message appeared in the chat pane ---
             chat = app.query_one("#chat-pane", ChatPane)
             # Chat pane is a RichLog — check deferred renders + lines
-            assert _chatpane_has_content(
-                chat
-            ), "Chat pane should have content after submission"
+            assert _chatpane_has_content(chat), "Chat pane should have content after submission"
 
             # Extract plain text from chat pane for content assertions
             all_chat_text = _get_chatpane_text(chat)
 
             # The user's message should be visible (process_user_input writes "You: <msg>")
-            assert (
-                "Hello provider!" in all_chat_text
-            ), f"User message not found in chat pane. Chat content:\n{all_chat_text}"
+            assert "Hello provider!" in all_chat_text, (
+                f"User message not found in chat pane. Chat content:\n{all_chat_text}"
+            )
 
             # --- Assert: the provider received the user's message ---
-            assert (
-                len(provider.calls) >= 1
-            ), "Provider should have been called at least once"
+            assert len(provider.calls) >= 1, "Provider should have been called at least once"
             # Find the user message in the last provider call
             last_call_messages = provider.calls[-1]
             user_messages = [
                 m.content for m in last_call_messages if m.role == "user" and m.content
             ]
-            assert any(
-                "Hello provider!" in msg for msg in user_messages
-            ), f"User message not found in provider call. Messages sent:\n{user_messages}"
+            assert any("Hello provider!" in msg for msg in user_messages), (
+                f"User message not found in provider call. Messages sent:\n{user_messages}"
+            )
 
             # --- Assert: the provider's response appeared in the chat pane ---
-            assert (
-                "Hello human, I am the mock agent!" in all_chat_text
-            ), f"Provider response not found in chat pane. Chat content:\n{all_chat_text}"
+            assert "Hello human, I am the mock agent!" in all_chat_text, (
+                f"Provider response not found in chat pane. Chat content:\n{all_chat_text}"
+            )
 
     @pytest.mark.asyncio
     async def test_multiple_messages_accumulate_in_chat(self):
@@ -1243,17 +1222,17 @@ class TestEndToEndMessageFlow:
             all_chat_text = _get_chatpane_text(chat)
 
             # Both user messages should appear
-            assert (
-                "First message" in all_chat_text
-            ), f"Missing first message. Content:\n{all_chat_text}"
-            assert (
-                "Second message" in all_chat_text
-            ), f"Missing second message. Content:\n{all_chat_text}"
+            assert "First message" in all_chat_text, (
+                f"Missing first message. Content:\n{all_chat_text}"
+            )
+            assert "Second message" in all_chat_text, (
+                f"Missing second message. Content:\n{all_chat_text}"
+            )
 
             # Both responses should appear
-            assert (
-                "Response number 1" in all_chat_text
-            ), f"Missing response 1. Content:\n{all_chat_text}"
-            assert (
-                "Response number 2" in all_chat_text
-            ), f"Missing response 2. Content:\n{all_chat_text}"
+            assert "Response number 1" in all_chat_text, (
+                f"Missing response 1. Content:\n{all_chat_text}"
+            )
+            assert "Response number 2" in all_chat_text, (
+                f"Missing response 2. Content:\n{all_chat_text}"
+            )

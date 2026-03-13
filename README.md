@@ -6,20 +6,28 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/henchman-ai.svg)](https://pypi.org/project/henchman-ai/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Henchman-AI is a powerful, terminal-based AI agent that supports multiple LLM providers (DeepSeek, OpenAI, Anthropic, Ollama, and more) through a unified interface. Inspired by gemini-cli, built for extensibility and production use.
+Henchman-AI is a powerful, terminal-based AI agent that supports multiple LLM providers (DeepSeek, OpenAI-compatible APIs, Anthropic, Ollama, OpenRouter, and more) through a unified interface. Inspired by gemini-cli, built for extensibility and production use.
 
 ## ✨ Features
 
-- 🤝 **Multi-Agent Dev Team**: Orchestrate a team of specialists (Architect, Coder, Reviewer, Tester, etc.) to solve complex engineering tasks.
+- 🤝 **Multi-Agent Dev Team**: Orchestrate a team of specialists (Tech Lead, Planner, Explorer, Engineer, Data Engineer) to solve complex engineering tasks.
 - 🔄 **Model-Agnostic**: Support any LLM provider through a unified abstraction layer
 - 🐍 **Pythonic**: Leverages Python's async ecosystem and rich libraries for optimal performance
 - 🔌 **Extensible**: Plugin system for tools, providers, and custom commands
-- 🚀 **Production-Ready**: Proper error handling, comprehensive testing, and semantic versioning
-- 🛠️ **Tool Integration**: Built-in support for file operations, web search, code execution, and more
+- 🚀 **Production-Ready**: Proper error handling, comprehensive testing with 100% coverage, and semantic versioning
+- 🛠️ **Built-in Tools**: File operations, shell commands, web fetching, and more
+- 🔗 **MCP Integration**: Connect to external tool servers via Model Context Protocol
 - ⚡ **Fast & Efficient**: Async-first design with intelligent caching and rate limiting
 - 🔒 **Secure**: Environment-based configuration and safe execution sandboxing
 
 ## 📦 Installation
+
+### Prerequisites
+
+- **Python 3.10 or higher**: Henchman-AI requires Python 3.10+
+- **API Key**: For your chosen LLM provider (DeepSeek, OpenAI, Anthropic, etc.)
+- **Git** (optional): For installing from source
+- **uv** (optional): For faster dependency management
 
 ### From PyPI (Recommended)
 ```bash
@@ -82,7 +90,7 @@ Henchman-AI features a modular, component-based architecture designed for mainta
 
 ### Component Responsibilities
 
-1. **REPL (Orchestrator)**: Main coordination class (406 lines, down from 559)
+1. **REPL (Orchestrator)**: Main coordination class
    - Initializes and connects all components
    - Manages the main interaction loop
    - Delegates work to specialized components
@@ -136,7 +144,7 @@ henchman
 henchman -p "Summarize the key points from README.md"
 
 # Specify a provider
-henchman --provider openai -p "Write a Python function to calculate fibonacci"
+henchman --provider openai_compat -p "Write a Python function to calculate fibonacci"
 
 # Use a specific model
 henchman --model gpt-4-turbo -p "Analyze this code for security issues"
@@ -167,12 +175,12 @@ Henchman-AI uses hierarchical configuration (later settings override earlier one
 ```yaml
 # Provider configuration
 providers:
-  default: deepseek  # or openai, anthropic, ollama, openrouter
+  default: deepseek  # or openai_compat, anthropic, ollama, openrouter
   deepseek:
     model: deepseek-chat
     base_url: "https://api.deepseek.com"
     temperature: 0.7
-  openai:
+  openai_compat:
     model: gpt-4-turbo-preview
     organization: "org-xxx"
 
@@ -203,20 +211,27 @@ export OPENAI_API_KEY="sk-xxx"
 export ANTHROPIC_API_KEY="sk-xxx"
 
 # Configuration overrides
-export HENCHMAN_DEFAULT_PROVIDER="openai"
+export HENCHMAN_DEFAULT_PROVIDER="openai_compat"
 export HENCHMAN_DEFAULT_MODEL="gpt-4"
 export HENCHMAN_TEMPERATURE="0.5"
 ```
 
 ## 🔌 Supported Providers
 
-| Provider | Models | Features |
-|----------|--------|----------|
-| **DeepSeek** | deepseek-chat, deepseek-coder | Free tier, Code completion |
-| **OpenAI** | gpt-4, gpt-3.5-turbo, etc. | Function calling, JSON mode |
-| **Anthropic** | claude-3-opus, claude-3-sonnet | Long context, Constitutional AI |
-| **Ollama** | llama2, mistral, codellama | Local models, Custom models |
-| **Custom** | Any OpenAI-compatible API | Self-hosted, Local inference |
+| Provider | Status | Registry Name | Notes |
+|----------|--------|---------------|-------|
+| DeepSeek | ✅ | `deepseek` | Default provider, OpenAI-compatible API |
+| Anthropic | ✅ | `anthropic` | Claude models (native SDK) |
+| Ollama | ✅ | `ollama` | Local models, OpenAI-compatible API |
+| OpenRouter | ✅ | `openrouter` | Access to hundreds of models, OpenAI-compatible API |
+| OpenAI-Compatible (`openai_compat`) | ✅ | `openai_compat` | Generic provider for ANY OpenAI-compatible API (OpenAI, Together, Groq, Fireworks, etc.) |
+| Together AI (`together`) | ✅ | `together` | Alias for `openai_compat` with Together base URL |
+| Groq (`groq`) | ✅ | `groq` | Alias for `openai_compat` with Groq base URL |
+| Fireworks AI (`fireworks`) | ✅ | `fireworks` | Alias for `openai_compat` with Fireworks base URL |
+
+**Note**: The `openai_compat` provider is a generic provider for any OpenAI-compatible API. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs pre-configured.
+
+**See [Providers](docs/providers.md) for complete details and configuration.**
 
 ## 🛠️ Development
 
@@ -230,13 +245,15 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
+**For AI Agent Development**: Henchman-AI includes comprehensive copilot instructions for AI agents working on the codebase. See [.github/copilot-instructions.md](https://github.com/mlg151/henchman-ai/blob/main/.github/copilot-instructions.md) for architecture overview, development workflows, performance optimization strategies, and agent effectiveness guidelines.
+
 ### Running Tests
 ```bash
 # Run all tests
 pytest
 
-# Run with coverage
-pytest --cov=henchman --cov-report=html
+# Run with coverage (100% required)
+pytest --cov=henchman --cov-report=html --cov-fail-under=100
 
 # Run specific test categories
 pytest tests/unit/ -v

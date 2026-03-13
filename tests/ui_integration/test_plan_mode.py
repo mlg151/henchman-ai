@@ -68,7 +68,7 @@ class TestPlanModeIntegration:
                 # Toggle plan mode
                 repl_instance.session.plan_mode = not repl_instance.session.plan_mode
                 # Call set_plan_mode on tool registry
-                repl_instance.tool_registry.set_plan_mode(repl_instance.session.plan_mode)
+                repl_instance.tool_registry.set_plan_mode(enabled=repl_instance.session.plan_mode)
 
                 # Update agent system prompt
                 plan_prompt = "---\n**PLAN MODE ACTIVE**\nYou are currently in PLAN MODE.\nYour goal is to discuss, plan, and architect solutions without modifying the codebase.\nYou can read files and explore the project, but you cannot write files or execute commands that modify state.\nFocus on creating detailed implementation plans.\n---\n"
@@ -112,7 +112,7 @@ class TestPlanModeIntegration:
 
         # Check that plan mode is enabled
         assert repl_instance.session.plan_mode is True
-        repl_instance.tool_registry.set_plan_mode.assert_called_with(True)
+        repl_instance.tool_registry.set_plan_mode.assert_called_with(enabled=True)
 
         # Check console output
         output = console_with_recording.export_text()
@@ -129,7 +129,7 @@ class TestPlanModeIntegration:
         assert repl_instance.session.plan_mode is False
         # set_plan_mode should have been called twice
         assert repl_instance.tool_registry.set_plan_mode.call_count == 2
-        repl_instance.tool_registry.set_plan_mode.assert_called_with(False)
+        repl_instance.tool_registry.set_plan_mode.assert_called_with(enabled=False)
 
         # Check console output
         output = console_with_recording.export_text()

@@ -76,13 +76,15 @@ def test_get_toolbar_status_with_settings(repl):
     session.plan_mode = False
     repl.session_manager.session = session
 
-    # Mock settings with max_tokens
+    # Mock settings with max_tokens (used as fallback when model limit is unknown)
     settings = Mock()
     context = Mock()
     context.max_tokens = 10000
     settings.context = context
     repl.settings = settings
     repl.output_handler.settings = settings
+    # Force settings fallback by clearing model name
+    repl.output_handler.provider.default_model = None
 
     # Mock token count to be 3000 (30%)
     with patch("henchman.utils.tokens.TokenCounter.count_messages") as mock_count:
@@ -103,13 +105,15 @@ def test_get_toolbar_status_token_colors(repl):
     session.plan_mode = False
     repl.session_manager.session = session
 
-    # Mock settings with max_tokens
+    # Mock settings with max_tokens (used as fallback when model limit is unknown)
     settings = Mock()
     context = Mock()
     context.max_tokens = 10000
     settings.context = context
     repl.settings = settings
     repl.output_handler.settings = settings
+    # Force settings fallback by clearing model name
+    repl.output_handler.provider.default_model = None
 
     # Test different percentages
     test_cases = [

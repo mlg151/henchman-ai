@@ -36,6 +36,7 @@ class ToolCategoryConfig:
     This dataclass groups related boolean parameters that control which
     tool categories are enabled for an agent configuration.
     """
+
     basic_file_tools: bool = True
     file_edit_tools: bool = False
     git_tools: bool = True

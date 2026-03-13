@@ -264,7 +264,11 @@ class HenchmanTextualApp(
         yield Footer()
 
     def on_mount(self) -> None:
-        """Initialize core components after DOM is ready."""
+        """Initialize core components after DOM is ready.
+
+        Returns:
+            None
+        """
         self._initialize_core_components()
         from henchman import __version__  # noqa: PLC0415
 
@@ -279,7 +283,11 @@ class HenchmanTextualApp(
         self._activate_chat_tab()
 
     def on_unmount(self) -> None:
-        """Clean up resources when the app is unmounted."""
+        """Clean up resources when the app is unmounted.
+
+        Returns:
+            None
+        """
         self._cleanup_confirm_futures()
 
 
@@ -296,7 +304,7 @@ _UNICODE_ERROR_MSG: str = (
 
 def _check_utf8_encoding() -> None:
     """Warn if the terminal encoding is not UTF-8."""
-    if sys.platform == "win32":
+    if sys.platform == "win32":  # pragma: no cover
         return
     try:
         encoding = getattr(sys.stdin, "encoding", "").lower()
@@ -326,6 +334,9 @@ def run_textual_app(
         config: TUI configuration.
         settings: Application settings.
         environment_context: Pre-formatted environment block.
+
+    Returns:
+        None
     """
     _check_utf8_encoding()
     from henchman.cli.textual_driver import RobustLinuxDriver  # noqa: PLC0415

@@ -51,18 +51,35 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Architecture: architecture.md
-  - Multi-Agent System: agents.md
+  - Multi-Agent Dev Team: agents.md
   - Configuration:
-    - Overview: configuration.md
+    - Configuration: configuration.md
     - Intelligent Context Management: intelligent-context-management.md
   - Providers: providers.md
   - Tools: tools.md
   - MCP Integration: mcp.md
   - Extensions: extensions.md
   - API Reference: api.md
+  - Behavioral Evaluations: evals/README.md
+  - Contributing: CONTRIBUTING.md
+  - Changelog: CHANGELOG.md
+  - Release Checklist: RELEASE_CHECKLIST.md
 
 plugins:
   - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            heading_level: 3
+            filters: ["!^_"]
+            members_order: source
+            docstring_style: google
+            show_signature_annotations: true
 
 extra:
   social:

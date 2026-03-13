@@ -13,6 +13,7 @@ def test_bug14_confirm_tool_screen_json_serialization():
     Description: Uses bare `except Exception:` instead of catching specific
     JSON serialization errors. Also doesn't handle non-string params well.
     """
+
     # Create a ConfirmationRequest with non-JSON-serializable params
     class NonSerializable:
         def __str__(self):
@@ -34,6 +35,7 @@ def test_bug14_confirm_tool_screen_json_serialization():
     assert len(labels) == 1
     # Check it's a Label widget
     from textual.widgets import Label
+
     assert isinstance(labels[0], Label)
 
     # The bug: uses bare `except Exception:` instead of `except (TypeError, ValueError):`
@@ -85,6 +87,7 @@ def test_bug16_help_screen_static_content():
     # Can't easily test compose() without Textual framework
     # But we can check that keybindings are hardcoded
     import inspect
+
     source = inspect.getsource(screen.compose)
     assert "Enter          Submit message" in source
     assert "Ctrl+Q / Ctrl+C    Quit" in source

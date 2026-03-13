@@ -19,6 +19,8 @@ class MessageClusterer:
     same conversational thread.
     """
 
+    _MIN_MESSAGES_TO_CLUSTER = 2
+
     def __init__(
         self: MessageClusterer,
         cluster_similarity_threshold: float = 0.7,
@@ -64,9 +66,10 @@ class MessageClusterer:
         # Step 4: Merge by role patterns (user-assistant pairs)
         return self._cluster_role_patterns(messages, clusters)
 
-
     def _cluster_tool_call_sequences(
-        self: MessageClusterer, messages: list[Message], clusters: list[list[int]],
+        self: MessageClusterer,
+        messages: list[Message],
+        clusters: list[list[int]],
     ) -> list[list[int]]:
         """Group tool call sequences as atomic clusters.
 
@@ -80,7 +83,7 @@ class MessageClusterer:
         Returns:
             Updated clusters with tool sequences merged.
         """
-        if len(messages) < 2:
+        if len(messages) < self._MIN_MESSAGES_TO_CLUSTER:
             return clusters
 
         # Find assistant messages with tool calls
@@ -104,7 +107,9 @@ class MessageClusterer:
         return clusters
 
     def _cluster_temporal_proximity(
-        self: MessageClusterer, messages: list[Message], clusters: list[list[int]],
+        self: MessageClusterer,
+        messages: list[Message],
+        clusters: list[list[int]],
     ) -> list[list[int]]:
         """Merge adjacent messages that are temporally close.
 
@@ -118,7 +123,7 @@ class MessageClusterer:
         Returns:
             Updated clusters with temporally adjacent messages merged.
         """
-        if len(clusters) < 2:
+        if len(clusters) < self._MIN_MESSAGES_TO_CLUSTER:
             return clusters
 
         i = 0
@@ -141,7 +146,10 @@ class MessageClusterer:
         return clusters
 
     def _should_merge_adjacent_clusters(
-        self: MessageClusterer, messages: list[Message], curr_cluster: list[int], next_cluster: list[int],  # noqa: E501
+        self: MessageClusterer,
+        messages: list[Message],
+        curr_cluster: list[int],
+        next_cluster: list[int],  # noqa: E501
     ) -> bool:
         """Determine if two adjacent clusters should be merged.
 
@@ -169,16 +177,15 @@ class MessageClusterer:
 
         # Merge if same role (except tool responses which are handled separately)
         return (
-            (last_msg.role == first_msg.role
-            and last_msg.role != "tool")
-            or (last_msg.role == "user"
-            and first_msg.role == "assistant")
-            or (last_msg.role == "assistant"
-            and first_msg.role == "user")
+            (last_msg.role == first_msg.role and last_msg.role != "tool")
+            or (last_msg.role == "user" and first_msg.role == "assistant")
+            or (last_msg.role == "assistant" and first_msg.role == "user")
         )
 
     def _cluster_topic_similarity(
-        self: MessageClusterer, messages: list[Message], clusters: list[list[int]],
+        self: MessageClusterer,
+        messages: list[Message],
+        clusters: list[list[int]],
     ) -> list[list[int]]:
         """Merge clusters that discuss similar topics.
 
@@ -192,7 +199,7 @@ class MessageClusterer:
         Returns:
             Updated clusters with similar topics merged.
         """
-        if len(clusters) < 2:
+        if len(clusters) < self._MIN_MESSAGES_TO_CLUSTER:
             return clusters
 
         # Extract keywords for each cluster
@@ -232,7 +239,9 @@ class MessageClusterer:
         return clusters
 
     def _extract_cluster_keywords(
-        self: MessageClusterer, messages: list[Message], cluster: list[int],
+        self: MessageClusterer,
+        messages: list[Message],
+        cluster: list[int],
     ) -> set[str]:
         """Extract keywords from messages in a cluster.
 
@@ -252,13 +261,15 @@ class MessageClusterer:
                 words = msg.content.lower().split()
                 for word in words:
                     # Remove punctuation
-                    word = word.strip(".,!?;:\"'()[]{}")
+                    word = word.strip(".,!?;:\"'()[]{}")  # noqa: PLW2901
                     if len(word) > self.minimum_word_length and not word.startswith("http"):
                         keywords.add(word)
         return keywords
 
     def _cluster_role_patterns(
-        self: MessageClusterer, messages: list[Message], clusters: list[list[int]],
+        self: MessageClusterer,
+        messages: list[Message],
+        clusters: list[list[int]],
     ) -> list[list[int]]:
         """Merge clusters based on role patterns.
 
@@ -271,7 +282,7 @@ class MessageClusterer:
         Returns:
             Updated clusters with role patterns merged.
         """
-        if len(clusters) < 2:
+        if len(clusters) < self._MIN_MESSAGES_TO_CLUSTER:
             return clusters
 
         i = 0
@@ -289,7 +300,10 @@ class MessageClusterer:
         return clusters
 
     def _should_merge_clusters_by_role_pattern(
-        self: MessageClusterer, messages: list[Message], clusters: list[list[int]], index: int,
+        self: MessageClusterer,
+        messages: list[Message],
+        clusters: list[list[int]],
+        index: int,
     ) -> bool:
         """Determine if two adjacent clusters should be merged based on role patterns.
 
@@ -312,7 +326,10 @@ class MessageClusterer:
         return self._do_clusters_share_significant_words(messages, curr_cluster, next_cluster)
 
     def _are_clusters_role_complementary(
-        self: MessageClusterer, messages: list[Message], cluster1: list[int], cluster2: list[int],
+        self: MessageClusterer,
+        messages: list[Message],
+        cluster1: list[int],
+        cluster2: list[int],
     ) -> bool:
         """Check if two clusters have complementary roles (user-assistant pair).
 
@@ -332,7 +349,10 @@ class MessageClusterer:
         )
 
     def _do_clusters_share_significant_words(
-        self: MessageClusterer, messages: list[Message], cluster1: list[int], cluster2: list[int],
+        self: MessageClusterer,
+        messages: list[Message],
+        cluster1: list[int],
+        cluster2: list[int],
     ) -> bool:
         """Check if two clusters share enough significant words to be merged.
 
@@ -356,7 +376,9 @@ class MessageClusterer:
         common_words = cluster1_words & cluster2_words
         return len(common_words) >= self.minimum_shared_words
 
-    def _extract_cluster_content(self: MessageClusterer, messages: list[Message], cluster: list[int]) -> str:  # noqa: E501
+    def _extract_cluster_content(
+        self: MessageClusterer, messages: list[Message], cluster: list[int]
+    ) -> str:  # noqa: E501
         """Extract and concatenate content from messages in a cluster.
 
         Args:
@@ -385,13 +407,15 @@ class MessageClusterer:
         words = set()
         for word in text.split():
             # Remove punctuation
-            word = word.strip(".,!?;:\"'()[]{}")
+            word = word.strip(".,!?;:\"'()[]{}")  # noqa: PLW2901
             if len(word) > self.minimum_word_length and not word.startswith("http"):
                 words.add(word)
         return words
 
     def _merge_clusters_containing_indices(
-        self: MessageClusterer, clusters: list[list[int]], indices: list[int],
+        self: MessageClusterer,
+        clusters: list[list[int]],
+        indices: list[int],
     ) -> list[list[int]]:
         """Merge clusters that contain any of the given indices.
 

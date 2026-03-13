@@ -23,7 +23,9 @@ def test_sudo_detection_logic():
 
     for command, expected in test_cases:
         result = tool._is_sudo_command(command)
-        assert result == expected, f"Failed for command: '{command}' - expected {expected}, got {result}"
+        assert result == expected, (
+            f"Failed for command: '{command}' - expected {expected}, got {result}"
+        )
 
     print("✓ All sudo detection tests passed")
 
@@ -34,8 +36,12 @@ def test_parameter_schema():
     params = tool.parameters
 
     assert "interactive" in params["properties"], "Interactive parameter missing from schema"
-    assert params["properties"]["interactive"]["type"] == "boolean", "Interactive parameter should be boolean"
-    assert params["properties"]["interactive"]["default"] is False, "Interactive should default to False"
+    assert params["properties"]["interactive"]["type"] == "boolean", (
+        "Interactive parameter should be boolean"
+    )
+    assert params["properties"]["interactive"]["default"] is False, (
+        "Interactive should default to False"
+    )
 
     desc = params["properties"]["interactive"]["description"].lower()
     assert "sudo" in desc or "interactive" in desc, "Description should mention sudo or interactive"
@@ -58,7 +64,13 @@ def test_execution_path_logic():
         ("sudo apt update", True, True, True, False),  # Explicit interactive for sudo
     ]
 
-    for command, is_tty, interactive_param, should_use_interactive, should_use_sudo_fallback in scenarios:
+    for (
+        command,
+        is_tty,
+        interactive_param,
+        should_use_interactive,
+        should_use_sudo_fallback,
+    ) in scenarios:
         is_sudo = tool._is_sudo_command(command)
 
         # Logic from execute method
@@ -83,15 +95,13 @@ async def test_mocked_execution():
     tool = ShellTool()
 
     # Mock a successful command execution
-    mock_result = ToolResult(
-        content="test output",
-        success=True,
-        error=None
-    )
+    mock_result = ToolResult(content="test output", success=True, error=None)
 
     # Patch the actual execution to return our mock result and simulate TTY
-    with patch.object(tool, '_execute_interactive_sudo', return_value=mock_result), \
-         patch('sys.stdin') as mock_stdin:
+    with (
+        patch.object(tool, "_execute_interactive_sudo", return_value=mock_result),
+        patch("sys.stdin") as mock_stdin,
+    ):
         mock_stdin.isatty.return_value = True
         # This should use interactive mode since we're in a TTY and it's sudo
         result = await tool.execute(command="sudo echo test")
@@ -116,6 +126,7 @@ if __name__ == "__main__":
 
     # Run async test
     import asyncio
+
     asyncio.run(test_mocked_execution())
 
     print("=" * 50)
