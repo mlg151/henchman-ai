@@ -75,6 +75,11 @@ class LineRange:
     start: int
     end: int
 
+    def __post_init__(self) -> None:
+        """Validate that start <= end."""
+        if self.start > self.end:
+            raise ValueError(f"Invalid LineRange: start ({self.start}) > end ({self.end})")
+
     def overlaps(self: LineRange, other: LineRange) -> bool:
         """Check if this line range overlaps with another.
 
@@ -102,8 +107,11 @@ class LineRange:
         parts = s.split("-")
         if len(parts) == EXPECTED_RANGE_PARTS:
             try:
-                return cls(start=int(parts[0]), end=int(parts[1]))
+                line_range = cls(start=int(parts[0]), end=int(parts[1]))
+                # __post_init__ will validate start <= end
+                return line_range
             except ValueError:
+                # Could be from int() conversion or __post_init__ validation
                 return None
         return None
 
@@ -251,6 +259,10 @@ class WorkingMemory(SerializableDataclass):
         if start is None or end is None:
             # No line range specified but file wasn't read fully
             return True, "File not fully read - partial read recorded"
+
+        # Validate line range
+        if start > end:
+            return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"
 
         rng = LineRange.from_str(match.lines_read)
         if rng:

@@ -563,3 +563,13 @@ class TestHelperFunctions:
         r1 = LineRange(10, 50)
         assert r1.overlaps(LineRange(60, 100)) is False  # Completely separate
         assert r1.overlaps(LineRange(1, 5)) is False     # Separate before
+
+    def test_line_range_invalid_start_gt_end(self):
+        """Test that LineRange validates start <= end."""
+        # LineRange should raise ValueError when start > end
+        with pytest.raises(ValueError, match="Invalid LineRange: start .50. > end .10."):
+            LineRange(50, 10)  # start=50, end=10 (invalid!)
+        
+        # Test that from_str also validates
+        result = LineRange.from_str("50-10")
+        assert result is None  # Should return None for invalid range
