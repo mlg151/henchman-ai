@@ -18,4 +18,34 @@ The `LineRange.from_str("full")` returns `None` because "full" doesn't match the
 ## Fix Plan
 Modify the `should_read_file` method to handle the special case where `match.lines_read == "full"`. When a file was read fully, we should return `False` regardless of the requested line range.
 
-## Status: IN PROGRESS
+## Status: FIXED
+
+## Files Changed
+1. `src/henchman/agents/working_memory.py` - Modified `should_read_file` method to check for `lines_read == "full"` before attempting to parse as a line range.
+2. `tests/agents/test_working_memory.py` - Updated `test_memory_should_read_file_full_read` test to expect correct behavior (False instead of True).
+
+## Fix Details
+The fix adds a check for `match.lines_read == "full"` before attempting to parse it as a `LineRange`. When a file was read fully, any subsequent read request (even with specific line ranges) should return `False` since the entire file content is already cached.
+
+Before fix:
+```python
+rng = LineRange.from_str(match.lines_read)
+if rng and rng.overlaps(LineRange(start, end)):
+    return False, "File already read (overlapping lines)"
+```
+
+After fix:
+```python
+# Special case: file was read fully
+if match.lines_read == "full":
+    return False, "File already read (full)"
+
+rng = LineRange.from_str(match.lines_read)
+if rng and rng.overlaps(LineRange(start, end)):
+    return False, "File already read (overlapping lines)"
+```
+
+## Impact
+- Prevents redundant file reads when entire file is already cached
+- Reduces token usage and improves agent efficiency
+- Maintains backward compatibility with existing tests (all 39 tests pass)

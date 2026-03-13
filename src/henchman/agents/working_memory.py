@@ -243,6 +243,10 @@ class WorkingMemory(SerializableDataclass):
         if start is None or end is None:
             return False, "File already read"
 
+        # Special case: file was read fully
+        if match.lines_read == "full":
+            return False, "File already read (full)"
+
         rng = LineRange.from_str(match.lines_read)
         if rng and rng.overlaps(LineRange(start, end)):
             return False, "File already read (overlapping lines)"
