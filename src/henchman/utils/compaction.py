@@ -967,8 +967,6 @@ async def compact_messages(params: CompactionParams) -> CompactionResult:
         max_protected_ratio=params.max_protected_ratio,
     )
     return await _compact_with_summarization_impl(params.messages, params.max_tokens, config)
-
-
 async def compact_with_summarization(
     messages: list[Message],
     max_tokens: TokenLimit,
@@ -978,7 +976,27 @@ async def compact_with_summarization(
     protect_from_index: ProtectionIndex = -1,
     **kwargs: Any,
 ) -> CompactionResult:
-    """Alias for compact_messages (deprecated)."""
+    """Compact messages with optional summarization of dropped content.
+
+    This is a deprecated alias for `compact_messages`. Use `compact_messages`
+    instead for better type safety and configuration.
+
+    Args:
+        messages: The messages to compact.
+        max_tokens: Maximum tokens allowed in the compacted result.
+        provider: Optional model provider for summarization. If None,
+            summarization will be skipped.
+        summarize: Whether to summarize dropped content. If True and a
+            provider is available, dropped messages will be summarized.
+        protect_from_index: Index from which messages are protected from
+            being dropped. Use -1 to protect all messages (no compaction),
+            or 0 to allow all messages to be compacted.
+        **kwargs: Additional keyword arguments passed to `compact_messages`.
+
+    Returns:
+        CompactionResult with compacted messages and metadata about
+        what was dropped and any summary generated.
+    """
     params = CompactionParams(
         messages=messages,
         max_tokens=max_tokens,
