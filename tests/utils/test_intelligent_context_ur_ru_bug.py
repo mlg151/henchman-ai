@@ -5,7 +5,7 @@ in Python 3 (they are invalid syntax, not valid string prefixes).
 """
 
 import pytest
-from henchman.utils.intelligent_context import _ParserState
+from henchman.utils.intelligent_context_parser import _ParserState
 
 
 def test_is_valid_raw_string_prefix_ur_ru():

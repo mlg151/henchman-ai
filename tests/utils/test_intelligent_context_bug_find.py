@@ -1,7 +1,7 @@
 """Test to find a bug in intelligent_context.py."""
 
 import pytest
-from henchman.utils.intelligent_context import ContentExtractor
+from henchman.utils.intelligent_context_extractor import ContentExtractor
 
 
 def test_code_block_with_backtick_in_comment():

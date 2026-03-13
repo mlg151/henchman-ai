@@ -279,11 +279,7 @@ class _ParserState:
         if j >= i - 1:
             return False
 
-        if j >= 0 and (text[j].isalnum() or text[j] == "_"):
-            return False
-
-        prefix = text[j + 1 : i].lower()
-        return self._is_valid_string_prefix(prefix)
+        return not (j >= 0 and (text[j].isalnum() or text[j] == "_"))
 
     def _is_valid_string_prefix(self: _ParserState, prefix: str) -> bool:
         """Check if a prefix is a valid Python string prefix."""

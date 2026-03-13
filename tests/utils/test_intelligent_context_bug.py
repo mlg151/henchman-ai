@@ -1,6 +1,6 @@
 """Test for the backslash escape bug in intelligent_context.py."""
 
-from henchman.utils.intelligent_context import ContentExtractor
+from henchman.utils.intelligent_context_extractor import ContentExtractor
 
 
 def test_escaped_quote_in_string():

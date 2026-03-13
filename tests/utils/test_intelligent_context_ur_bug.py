@@ -1,7 +1,7 @@
 """Test for ur/ru prefix bug in intelligent_context.py."""
 
 import pytest
-from henchman.utils.intelligent_context import ContentExtractor
+from henchman.utils.intelligent_context_extractor import ContentExtractor
 
 
 def test_ur_prefix_invalid_python3():

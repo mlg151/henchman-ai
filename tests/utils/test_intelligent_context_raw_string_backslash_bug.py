@@ -6,7 +6,7 @@ processed incorrectly.
 """
 
 import pytest
-from henchman.utils.intelligent_context import ContentExtractor, _ParserState
+from henchman.utils.intelligent_context_extractor import ContentExtractor, _ParserState
 
 
 def test_raw_string_escaped_quote_does_not_end_string():

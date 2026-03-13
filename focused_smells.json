@@ -1,0 +1,540 @@
+{
+  "path": "intelligent_context.py",
+  "smells": [
+    {
+      "file": "intelligent_context.py",
+      "line": 483,
+      "end_line": 533,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function '_add_context_with_truncation' has 34 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method — break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "_add_context_with_truncation"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 1043,
+      "end_line": 1097,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function 'preserve_critical_context' has 32 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method — break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "preserve_critical_context"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 1487,
+      "end_line": 1534,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function '_analyze_dropped_content' has 35 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method — break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "_analyze_dropped_content"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 2007,
+      "end_line": 2059,
+      "smell_type": "Long Method",
+      "severity": "low",
+      "message": "Function '_compact_messages_with_intelligence' has 37 lines (threshold: 30)",
+      "suggested_refactoring": "Extract Method — break this function into smaller, intention-revealing helper functions.",
+      "symbol_name": "_compact_messages_with_intelligence"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 1408,
+      "end_line": 1764,
+      "smell_type": "Large Class",
+      "severity": "low",
+      "message": "Class 'SummaryGenerator' spans 357 lines (threshold: 300)",
+      "suggested_refactoring": "Extract Class — split into smaller, cohesive classes with single responsibilities.",
+      "symbol_name": "SummaryGenerator"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 1766,
+      "end_line": 2239,
+      "smell_type": "Large Class",
+      "severity": "low",
+      "message": "Class 'IntelligentContextManager' spans 474 lines (threshold: 300)",
+      "suggested_refactoring": "Extract Class — split into smaller, cohesive classes with single responsibilities.",
+      "symbol_name": "IntelligentContextManager"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 1595,
+      "end_line": 1595,
+      "smell_type": "Magic Number",
+      "severity": "low",
+      "message": "Magic number 100 — consider extracting to a named constant",
+      "suggested_refactoring": "Extract Constant / Introduce Named Constant.",
+      "symbol_name": ""
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 52,
+      "end_line": 64,
+      "smell_type": "Missing Type Hint",
+      "severity": "low",
+      "message": "Function 'from_sections' has incomplete type hints: 1/2 params untyped",
+      "suggested_refactoring": "Add Type Annotations for all parameters and return type.",
+      "symbol_name": "from_sections"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 297,
+      "end_line": 326,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'MessageSafetyEnforcer._enforce_message_safety_limit' accesses 'message' 4 times but 'self' only 3 times",
+      "suggested_refactoring": "Move Method — consider moving '_enforce_message_safety_limit' to the class that owns 'message'.",
+      "symbol_name": "MessageSafetyEnforcer._enforce_message_safety_limit"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 328,
+      "end_line": 353,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'MessageSafetyEnforcer._create_truncated_message' accesses 'message' 4 times but 'self' only 2 times",
+      "suggested_refactoring": "Move Method — consider moving '_create_truncated_message' to the class that owns 'message'.",
+      "symbol_name": "MessageSafetyEnforcer._create_truncated_message"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 359,
+      "end_line": 379,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'TokenCounterWrapper.count_messages_tokens' accesses 'msg' 4 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving 'count_messages_tokens' to the class that owns 'msg'.",
+      "symbol_name": "TokenCounterWrapper.count_messages_tokens"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 483,
+      "end_line": 533,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'IntelligentTruncator._add_context_with_truncation' accesses 'TokenCounter' 3 times but 'self' only 1 times",
+      "suggested_refactoring": "Move Method — consider moving '_add_context_with_truncation' to the class that owns 'TokenCounter'.",
+      "symbol_name": "IntelligentTruncator._add_context_with_truncation"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 574,
+      "end_line": 607,
+      "smell_type": "Feature Envy",
+      "severity": "medium",
+      "message": "Method 'IntelligentTruncator._truncate_with_marker' accesses 'params' 6 times but 'self' only 3 times",
+      "suggested_refactoring": "Move Method — consider moving '_truncate_with_marker' to the class that owns 'params'.",
+      "symbol_name": "IntelligentTruncator._truncate_with_marker"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 838,
+      "end_line": 873,
+      "smell_type": "Feature Envy",
+      "severity": "medium",
+      "message": "Method 'SequenceValidator.validate_compacted_sequence' accesses 'cls' 5 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving 'validate_compacted_sequence' to the class that owns 'cls'.",
+      "symbol_name": "SequenceValidator.validate_compacted_sequence"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 897,
+      "end_line": 926,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'SequenceValidator._is_duplicate_assistant_message' accesses 'current_msg' 3 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_is_duplicate_assistant_message' to the class that owns 'current_msg'.",
+      "symbol_name": "SequenceValidator._is_duplicate_assistant_message"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 897,
+      "end_line": 926,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'SequenceValidator._is_duplicate_assistant_message' accesses 'prev_msg' 3 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_is_duplicate_assistant_message' to the class that owns 'prev_msg'.",
+      "symbol_name": "SequenceValidator._is_duplicate_assistant_message"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 929,
+      "end_line": 960,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'SequenceValidator._validate_conversation_flow' accesses 'prev' 3 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_validate_conversation_flow' to the class that owns 'prev'.",
+      "symbol_name": "SequenceValidator._validate_conversation_flow"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 999,
+      "end_line": 1025,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'SequenceValidator._validate_no_duplicate_consecutive_messages' accesses 'curr' 4 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_validate_no_duplicate_consecutive_messages' to the class that owns 'curr'.",
+      "symbol_name": "SequenceValidator._validate_no_duplicate_consecutive_messages"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 999,
+      "end_line": 1025,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'SequenceValidator._validate_no_duplicate_consecutive_messages' accesses 'prev' 4 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_validate_no_duplicate_consecutive_messages' to the class that owns 'prev'.",
+      "symbol_name": "SequenceValidator._validate_no_duplicate_consecutive_messages"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 1153,
+      "end_line": 1186,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'MessagePreserver._preserve_tool_call_sequences' accesses 'curr_msg' 3 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_preserve_tool_call_sequences' to the class that owns 'curr_msg'.",
+      "symbol_name": "MessagePreserver._preserve_tool_call_sequences"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 1153,
+      "end_line": 1186,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'MessagePreserver._preserve_tool_call_sequences' accesses 'next_msg' 3 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_preserve_tool_call_sequences' to the class that owns 'next_msg'.",
+      "symbol_name": "MessagePreserver._preserve_tool_call_sequences"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 1188,
+      "end_line": 1218,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'MessagePreserver._preserve_critical_content_messages' accesses 'msg' 3 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_preserve_critical_content_messages' to the class that owns 'msg'.",
+      "symbol_name": "MessagePreserver._preserve_critical_content_messages"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 1603,
+      "end_line": 1622,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'SummaryGenerator._add_content_analysis_parts' accesses 'summary_parts' 4 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_add_content_analysis_parts' to the class that owns 'summary_parts'.",
+      "symbol_name": "SummaryGenerator._add_content_analysis_parts"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 1888,
+      "end_line": 1922,
+      "smell_type": "Feature Envy",
+      "severity": "medium",
+      "message": "Method 'IntelligentContextManager._apply_intelligent_truncation_with_semantic_preservation' accesses 'message' 5 times but 'self' only 2 times",
+      "suggested_refactoring": "Move Method — consider moving '_apply_intelligent_truncation_with_semantic_preservation' to the class that owns 'message'.",
+      "symbol_name": "IntelligentContextManager._apply_intelligent_truncation_with_semantic_preservation"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 52,
+      "end_line": 64,
+      "smell_type": "Duplicate Code",
+      "severity": "medium",
+      "message": "Function 'from_sections' is 97% similar to 'from_sections' at intelligent_context_types.py:29",
+      "suggested_refactoring": "Extract Shared Function — identify the common logic and parameterise the differences.",
+      "symbol_name": "from_sections"
+    },
+    {
+      "file": "intelligent_context.py",
+      "line": 1924,
+      "end_line": 1934,
+      "smell_type": "Duplicate Code",
+      "severity": "medium",
+      "message": "Function '_count_tokens' is 100% similar to 'validate_compacted_sequence' at intelligent_context.py:2144",
+      "suggested_refactoring": "Extract Shared Function — identify the common logic and parameterise the differences.",
+      "symbol_name": "_count_tokens"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 8,
+      "end_line": 29,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[I001] Import block is un-sorted or un-formatted",
+      "suggested_refactoring": "Fix ruff violation I001.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 10,
+      "end_line": 10,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[F401] `re` imported but unused",
+      "suggested_refactoring": "Fix ruff violation F401.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 24,
+      "end_line": 24,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[F401] `henchman.utils.intelligent_context_parser._ParserState` imported but unused",
+      "suggested_refactoring": "Fix ruff violation F401.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 25,
+      "end_line": 25,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[F401] `henchman.utils.intelligent_context_types.FenceResult` imported but unused",
+      "suggested_refactoring": "Fix ruff violation F401.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 25,
+      "end_line": 25,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[F401] `henchman.utils.intelligent_context_types.FenceParams` imported but unused",
+      "suggested_refactoring": "Fix ruff violation F401.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 25,
+      "end_line": 25,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[E501] Line too long (106 > 100)",
+      "suggested_refactoring": "Fix ruff violation E501.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 431,
+      "end_line": 431,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[F821] Undefined name `TruncationParams`",
+      "suggested_refactoring": "Fix ruff violation F821.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 457,
+      "end_line": 457,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[F821] Undefined name `TruncationParams`",
+      "suggested_refactoring": "Fix ruff violation F821.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 557,
+      "end_line": 557,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[F821] Undefined name `TruncationParams`",
+      "suggested_refactoring": "Fix ruff violation F821.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 576,
+      "end_line": 576,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[F821] Undefined name `TruncationParams`",
+      "suggested_refactoring": "Fix ruff violation F821.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 828,
+      "end_line": 828,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[SLF001] Private member accessed: `_is_duplicate_assistant_message`",
+      "suggested_refactoring": "Fix ruff violation SLF001.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 1385,
+      "end_line": 1385,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[SLF001] Private member accessed: `_apply_intelligent_truncation`",
+      "suggested_refactoring": "Fix ruff violation SLF001.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 1391,
+      "end_line": 1391,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[SLF001] Private member accessed: `_count_tokens`",
+      "suggested_refactoring": "Fix ruff violation SLF001.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 1592,
+      "end_line": 1595,
+      "smell_type": "Lint Violation",
+      "severity": "medium",
+      "message": "[SIM108] Use ternary operator `percentage = 0.0 if total_messages == 0 else low_importance_count / total_messages * 100` instead of `if`-`else`-block",
+      "suggested_refactoring": "Fix ruff violation SIM108.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 1718,
+      "end_line": 1718,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[PERF401] Use a list comprehension to create a transformed list",
+      "suggested_refactoring": "Fix ruff violation PERF401.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 1798,
+      "end_line": 1798,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[PLC0415] `import` should be at the top-level of a file",
+      "suggested_refactoring": "Fix ruff violation PLC0415.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context.py",
+      "line": 2232,
+      "end_line": 2232,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[SLF001] Private member accessed: `_calculate_cluster_importance`",
+      "suggested_refactoring": "Fix ruff violation SLF001.",
+      "symbol_name": ""
+    }
+  ],
+  "metrics": {
+    "lines_of_code": 1649,
+    "cyclomatic_complexity_avg": 0,
+    "cyclomatic_complexity_max": 0,
+    "maintainability_index": 9.069823262201746,
+    "num_classes": 14,
+    "num_functions": 0
+  },
+  "grade": "F",
+  "score": 2.7
+}
+{
+  "path": "intelligent_context_extractor.py",
+  "smells": [
+    {
+      "file": "intelligent_context_extractor.py",
+      "line": 71,
+      "end_line": 96,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'ContentExtractor._extract_single_block' accesses 'cls' 3 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_extract_single_block' to the class that owns 'cls'.",
+      "symbol_name": "ContentExtractor._extract_single_block"
+    },
+    {
+      "file": "intelligent_context_extractor.py",
+      "line": 71,
+      "end_line": 96,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'ContentExtractor._extract_single_block' accesses 'res' 3 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_extract_single_block' to the class that owns 'res'.",
+      "symbol_name": "ContentExtractor._extract_single_block"
+    },
+    {
+      "file": "intelligent_context_extractor.py",
+      "line": 160,
+      "end_line": 176,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'ContentExtractor._extract_by_patterns' accesses 're' 3 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving '_extract_by_patterns' to the class that owns 're'.",
+      "symbol_name": "ContentExtractor._extract_by_patterns"
+    },
+    {
+      "file": "intelligent_context_extractor.py",
+      "line": 238,
+      "end_line": 247,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'ContentExtractor.extract_critical_sections' accesses 'sections' 3 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving 'extract_critical_sections' to the class that owns 'sections'.",
+      "symbol_name": "ContentExtractor.extract_critical_sections"
+    },
+    {
+      "file": "intelligent_context_extractor.py",
+      "line": 238,
+      "end_line": 247,
+      "smell_type": "Feature Envy",
+      "severity": "low",
+      "message": "Method 'ContentExtractor.extract_critical_sections' accesses 'cls' 4 times but 'self' only 0 times",
+      "suggested_refactoring": "Move Method — consider moving 'extract_critical_sections' to the class that owns 'cls'.",
+      "symbol_name": "ContentExtractor.extract_critical_sections"
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_extractor.py",
+      "line": 71,
+      "end_line": 71,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[E501] Line too long (107 > 100)",
+      "suggested_refactoring": "Fix ruff violation E501.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_extractor.py",
+      "line": 148,
+      "end_line": 148,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[E501] Line too long (116 > 100)",
+      "suggested_refactoring": "Fix ruff violation E501.",
+      "symbol_name": ""
+    },
+    {
+      "file": "/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_extractor.py",
+      "line": 211,
+      "end_line": 211,
+      "smell_type": "Lint Violation",
+      "severity": "low",
+      "message": "[E501] Line too long (112 > 100)",
+      "suggested_refactoring": "Fix ruff violation E501.",
+      "symbol_name": ""
+    }
+  ],
+  "metrics": {
+    "lines_of_code": 211,
+    "cyclomatic_complexity_avg": 0,
+    "cyclomatic_complexity_max": 0,
+    "maintainability_index": 33.632661183795584,
+    "num_classes": 1,
+    "num_functions": 0
+  },
+  "grade": "D",
+  "score": 68.9
+}

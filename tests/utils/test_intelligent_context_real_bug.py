@@ -1,7 +1,8 @@
+from henchman.utils.intelligent_context_parser import _ApostropheDetector
 """Test for a real bug in intelligent_context.py."""
 
 import pytest
-from henchman.utils.intelligent_context import ContentExtractor, _ParserState
+from henchman.utils.intelligent_context_extractor import ContentExtractor, _ParserState
 
 
 def test_parser_state_apostrophe_bug():
@@ -18,7 +19,7 @@ def test_parser_state_apostrophe_bug():
     # Because 'a' is alphanumeric, it skips the prefix check.
     text1 = "ar'hello'"
     i1 = 2  # position of '
-    result1 = parser._is_apostrophe_in_word(text1, i1)
+    result1 = _ApostropheDetector.is_apostrophe_in_word(parser, text1, i1)
     print(f"ar'hello' at position {i1}: {result1}")
     # Currently returns True (thinks it's apostrophe)
     # But 'ar'hello' is invalid Python syntax
@@ -26,28 +27,28 @@ def test_parser_state_apostrophe_bug():
     # Test case 2: r'hello' (valid raw string)
     text2 = "r'hello'"
     i2 = 1  # position of '
-    result2 = parser._is_apostrophe_in_word(text2, i2)
+    result2 = _ApostropheDetector.is_apostrophe_in_word(parser, text2, i2)
     print(f"r'hello' at position {i2}: {result2}")
     # Should return False (it's a string delimiter, not apostrophe)
     
     # Test case 3: x = r'hello'
     text3 = "x = r'hello'"
     i3 = 5  # position of ' (after r)
-    result3 = parser._is_apostrophe_in_word(text3, i3)
+    result3 = _ApostropheDetector.is_apostrophe_in_word(parser, text3, i3)
     print(f"x = r'hello' at position {i3}: {result3}")
     # Should return False (string delimiter)
     
     # Test case 4: isn't (apostrophe in word)
     text4 = "isn't"
     i4 = 3  # position of '
-    result4 = parser._is_apostrophe_in_word(text4, i4)
+    result4 = _ApostropheDetector.is_apostrophe_in_word(parser, text4, i4)
     print(f"isn't at position {i4}: {result4}")
     # Should return True (apostrophe in word)
     
     # Test case 5: ur'hello' (invalid Python 3 prefix)
     text5 = "ur'hello'"
     i5 = 2  # position of '
-    result5 = parser._is_apostrophe_in_word(text5, i5)
+    result5 = _ApostropheDetector.is_apostrophe_in_word(parser, text5, i5)
     print(f"ur'hello' at position {i5}: {result5}")
     # Currently returns True (thinks it's apostrophe)
     # But ur'hello' is trying to be a string literal (invalid)
@@ -55,7 +56,7 @@ def test_parser_state_apostrophe_bug():
     # Test case 6: variable'string (invalid Python)
     text6 = "variable'string"
     i6 = 8  # position of '
-    result6 = parser._is_apostrophe_in_word(text6, i6)
+    result6 = _ApostropheDetector.is_apostrophe_in_word(parser, text6, i6)
     print(f"variable'string at position {i6}: {result6}")
     # Should return True? variable'string is invalid Python syntax
     # But it looks like an apostrophe in a word

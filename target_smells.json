@@ -1,0 +1,17 @@
+import json
+
+with open('smells.json', 'r') as f:
+    data = json.load(f)
+
+files = [f for f in data['files'] if f['path'].startswith('intelligent_context')]
+
+summary = []
+for file in files:
+    summary.append({
+        'path': file['path'],
+        'smells_count': len(file['smells']),
+        'grade': file['grade'],
+        'score': file['score']
+    })
+
+print(json.dumps(summary, indent=2))

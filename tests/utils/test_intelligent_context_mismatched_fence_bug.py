@@ -1,7 +1,7 @@
 """Test for mismatched fence bug in intelligent_context.py."""
 
 import pytest
-from henchman.utils.intelligent_context import ContentExtractor
+from henchman.utils.intelligent_context_extractor import ContentExtractor
 
 
 def test_extract_code_blocks_mismatched_fence_bug():
@@ -41,8 +41,8 @@ More text"""
 
 
 def test_mismatched_fence_direct():
-    """Direct test of the _check_closing_fence bug."""
-    from henchman.utils.intelligent_context import _ParserState, FenceParams
+    """Direct test of the _check_fence bug."""
+    from henchman.utils.intelligent_context_parser import _ParserState, FenceParams
 
     parser = _ParserState()
     parser.in_string = False
@@ -54,7 +54,7 @@ def test_mismatched_fence_direct():
 
     # This is the bug: it returns a FenceResult when it should return None
     params = FenceParams(content=text, opening_count=3)
-    result = parser._check_closing_fence(4, params)  # i=4 (last backtick), opening_count=3
+    result = parser._check_fence(4, params)  # i=4 (last backtick), opening_count=3
 
     # With the bug: result is not None (incorrect)
     # After fix: result should be None
@@ -63,7 +63,7 @@ def test_mismatched_fence_direct():
 
 def test_exact_match_fence():
     """Test that exact match works correctly."""
-    from henchman.utils.intelligent_context import _ParserState, FenceParams
+    from henchman.utils.intelligent_context_parser import _ParserState, FenceParams
 
     parser = _ParserState()
     parser.in_string = False
@@ -74,7 +74,7 @@ def test_exact_match_fence():
     parser.backtick_count = 3
 
     params = FenceParams(content=text, opening_count=3)
-    result = parser._check_closing_fence(2, params)  # i=2 (last backtick), opening_count=3
+    result = parser._check_fence(2, params)  # i=2 (last backtick), opening_count=3
 
     # This should work
     assert result is not None, f"Expected FenceResult for exact match (3 backticks), got None"
@@ -83,7 +83,7 @@ def test_exact_match_fence():
 
 def test_too_few_backticks():
     """Test that too few backticks doesn't close."""
-    from henchman.utils.intelligent_context import _ParserState, FenceParams
+    from henchman.utils.intelligent_context_parser import _ParserState, FenceParams
 
     parser = _ParserState()
     parser.in_string = False
@@ -94,7 +94,7 @@ def test_too_few_backticks():
     parser.backtick_count = 2
 
     params = FenceParams(content=text, opening_count=3)
-    result = parser._check_closing_fence(1, params)  # i=1 (last backtick), opening_count=3
+    result = parser._check_fence(1, params)  # i=1 (last backtick), opening_count=3
 
     # This should already work (current code has this check)
     assert result is None, f"Expected None for too few backticks (2 closing 3), got {result}"

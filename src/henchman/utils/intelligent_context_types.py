@@ -94,6 +94,13 @@ class IntelligentContextConstants:
 
     # Summary generation constants
     MAX_TOPICS_TO_SHOW_IN_SUMMARY: int = 3  # Maximum number of topics to show in summary
+    PERCENTAGE_MULTIPLIER: float = 100.0
+
+    # Keyword analysis categories
+    ERROR_KEYWORDS: ClassVar[list[str]] = ["error", "exception", "fail", "warning", "traceback"]
+    DECISION_KEYWORDS: ClassVar[list[str]] = ["decision", "conclusion", "recommend", "suggest", "choose"]
+    TOOL_KEYWORDS: ClassVar[list[str]] = ["tool", "function", "call", "execute", "run"]
+    PYTHON_CODE_MARKERS: ClassVar[list[str]] = ["def ", "class ", "import ", "from ", "async ", "await "]
 
     # Critical keywords for preservation and analysis
     CRITICAL_KEYWORDS: ClassVar[list[str]] = [

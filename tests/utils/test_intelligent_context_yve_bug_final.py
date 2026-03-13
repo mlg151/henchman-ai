@@ -5,7 +5,7 @@ are incorrectly identified as apostrophes in words.
 """
 
 import pytest
-from henchman.utils.intelligent_context import _ParserState
+from henchman.utils.intelligent_context_parser import _ApostropheDetector, _ParserState
 
 
 def test_is_apostrophe_in_word_yve_bug():
@@ -15,7 +15,7 @@ def test_is_apostrophe_in_word_yve_bug():
     # BUG: "y've" is NOT a valid English contraction but returns True
     text = "y've"
     pos = 1  # position of '
-    result = parser._is_apostrophe_in_word(text, pos)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, text, pos)
     
     # This should be False but is True (BUG)
     assert result == False, f"BUG: 'y've' should return False (invalid contraction), got {result}"
@@ -38,7 +38,7 @@ def test_is_apostrophe_in_word_valid_contractions_still_work():
     ]
     
     for text, pos, expected in valid_contractions:
-        result = parser._is_apostrophe_in_word(text, pos)
+        result = _ApostropheDetector.is_apostrophe_in_word(parser, text, pos)
         assert result == expected, f"Text '{text}' at position {pos}: expected {expected}, got {result}"
 
 
@@ -57,7 +57,7 @@ def test_is_apostrophe_in_word_invalid_single_letter_contractions():
     ]
     
     for text, pos, expected in invalid_contractions:
-        result = parser._is_apostrophe_in_word(text, pos)
+        result = _ApostropheDetector.is_apostrophe_in_word(parser, text, pos)
         assert result == expected, f"Text '{text}' at position {pos}: expected {expected}, got {result}"
 
 

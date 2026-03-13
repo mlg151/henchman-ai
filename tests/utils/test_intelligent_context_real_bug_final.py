@@ -4,7 +4,8 @@ This test demonstrates a real bug found through careful analysis.
 """
 
 import pytest
-from henchman.utils.intelligent_context import _ParserState, ContentExtractor
+from henchman.utils.intelligent_context_parser import _ApostropheDetector, _ParserState
+from henchman.utils.intelligent_context_extractor import ContentExtractor
 
 
 def test_is_valid_string_prefix_edge_cases():
@@ -94,7 +95,7 @@ def test_apostrophe_detection_bug():
     ]
     
     for text, pos, expected in test_cases:
-        result = parser._is_apostrophe_in_word(text, pos)
+        result = _ApostropheDetector.is_apostrophe_in_word(parser, text, pos)
         assert result == expected, f"Text '{text}' at position {pos}: expected {expected}, got {result}"
 
 

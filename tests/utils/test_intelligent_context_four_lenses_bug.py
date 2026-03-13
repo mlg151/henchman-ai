@@ -1,7 +1,8 @@
+from henchman.utils.intelligent_context_parser import _ApostropheDetector
 """Test for Four Lenses bug in intelligent_context.py."""
 
 import pytest
-from henchman.utils.intelligent_context import ContentExtractor
+from henchman.utils.intelligent_context_extractor import ContentExtractor
 
 
 def test_bug_ar_prefix_affects_code_block():

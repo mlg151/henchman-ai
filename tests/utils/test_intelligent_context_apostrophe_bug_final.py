@@ -5,7 +5,7 @@ returns False for valid English contractions like "they've".
 """
 
 import pytest
-from henchman.utils.intelligent_context import _ParserState
+from henchman.utils.intelligent_context_parser import _ApostropheDetector, _ParserState
 
 
 def test_is_apostrophe_in_word_theyve_bug():
@@ -16,7 +16,7 @@ def test_is_apostrophe_in_word_theyve_bug():
     text = "they've"
     pos = 4  # Position of the quote character
     
-    result = parser._is_apostrophe_in_word(text, pos)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, text, pos)
     
     # This test will FAIL, demonstrating the bug
     assert result == True, f"Text '{text}' at position {pos}: expected True (apostrophe in contraction), got {result}"
@@ -34,7 +34,7 @@ def test_is_apostrophe_in_word_theyve_bug():
     ]
     
     for text, pos, expected in test_cases:
-        result = parser._is_apostrophe_in_word(text, pos)
+        result = _ApostropheDetector.is_apostrophe_in_word(parser, text, pos)
         assert result == expected, f"Text '{text}' at position {pos}: expected {expected}, got {result}"
 
 
@@ -124,7 +124,7 @@ def test_is_apostrophe_in_word_common_contractions():
     ]
     
     for text, pos, expected in test_cases:
-        result = parser._is_apostrophe_in_word(text, pos)
+        result = _ApostropheDetector.is_apostrophe_in_word(parser, text, pos)
         assert result == expected, f"Text '{text}' at position {pos}: expected {expected}, got {result}"
 
 

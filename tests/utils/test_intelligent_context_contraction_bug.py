@@ -5,7 +5,7 @@ valid English contractions as invalid and invalid contractions as valid.
 """
 
 import pytest
-from henchman.utils.intelligent_context import _ParserState
+from henchman.utils.intelligent_context_parser import _ApostropheDetector, _ParserState
 
 
 def test_is_apostrophe_in_word_invalid_contractions():
@@ -30,12 +30,12 @@ def test_is_apostrophe_in_word_invalid_contractions():
     ]
     
     for text, pos in invalid_contractions:
-        result = parser._is_apostrophe_in_word(text, pos)
+        result = _ApostropheDetector.is_apostrophe_in_word(parser, text, pos)
         assert result == False, f"Expected False for invalid contraction '{text}' at position {pos}, got {result}"
     
     # "y've" is accepted due to heuristic limitation (y is valid for "'ve" in "they've")
     # This is acceptable for code parsing where "y've" is unlikely to appear
-    result = parser._is_apostrophe_in_word("y've", 1)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, "y've", 1)
     # Note: This returns True, which is a limitation but acceptable for the heuristic
 
 
@@ -99,7 +99,7 @@ def test_is_apostrophe_in_word_valid_contractions():
     ]
     
     for text, pos in valid_contractions:
-        result = parser._is_apostrophe_in_word(text, pos)
+        result = _ApostropheDetector.is_apostrophe_in_word(parser, text, pos)
         # Note: "café's" at position 4 may return False due to Unicode handling
         # This is a known limitation
         if text == "café's" and pos == 4:
@@ -113,19 +113,19 @@ def test_is_apostrophe_in_word_edge_cases():
     parser = _ParserState()
     
     # Apostrophe with underscore after (should be False)
-    result = parser._is_apostrophe_in_word("word'_suffix", 4)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, "word'_suffix", 4)
     assert result == False, f"Expected False for 'word'_suffix', got {result}"
     
     # Apostrophe with digits after (should be False)
-    result = parser._is_apostrophe_in_word("word'123", 4)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, "word'123", 4)
     assert result == False, f"Expected False for 'word'123', got {result}"
     
     # Just "'t" (should be False - no character before)
-    result = parser._is_apostrophe_in_word("'t", 0)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, "'t", 0)
     assert result == False, f"Expected False for \"'t\", got {result}"
     
     # Just "t'" (should be False - not a contraction)
-    result = parser._is_apostrophe_in_word("t'", 1)
+    result = _ApostropheDetector.is_apostrophe_in_word(parser, "t'", 1)
     assert result == False, f"Expected False for \"t'\", got {result}"
 
 
