@@ -465,7 +465,6 @@ class TestWorkingMemory:
             "Bug: should_read_file finds FIRST entry, not MOST RECENT."
         )
         assert "already read" in reason.lower() or "contained" in reason.lower()
-        
         # Another test case: most recent read is subset of earlier read
         memory2 = WorkingMemory(current_task="Test")
         memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "First read", "1-100"))
@@ -481,10 +480,42 @@ class TestWorkingMemory:
             "Bug: should_read_file finds FIRST entry (1-100), not MOST RECENT (10-50)."
         )
         assert "need to be read" in reason2.lower()
-
-        assert "need to be read" in reason2.lower()
-
-
+        
+        # Test with uppercase "FULL"
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "FULL"))
+        should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
+        
+        # BUG: This should be False! File was read fully (FULL = full)
+        # Current implementation returns True because "FULL" != "full"
+        assert should_read is False, "File read fully (FULL) should return False for any line range"
+        assert "already read" in reason.lower()
+        
+        # Test with mixed case "Full"
+        memory2 = WorkingMemory(current_task="Test")
+        memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Test", "Full"))
+        should_read2, reason2 = memory2.should_read_file("/test/file2.py", 10, 50)
+        
+        assert should_read2 is False, "File read fully (Full) should return False for any line range"
+        assert "already read" in reason2.lower()
+        """Test should_read_file handles case-insensitive 'full'."""
+        memory = WorkingMemory(current_task="Test")
+        
+        # Test with uppercase "FULL"
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "FULL"))
+        should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
+        
+        # BUG: This should be False! File was read fully (FULL = full)
+        # Current implementation returns True because "FULL" != "full"
+        assert should_read is False, "File read fully (FULL) should return False for any line range"
+        assert "already read" in reason.lower()
+        
+        # Test with mixed case "Full"
+        memory2 = WorkingMemory(current_task="Test")
+        memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Test", "Full"))
+        should_read2, reason2 = memory2.should_read_file("/test/file2.py", 10, 50)
+        
+        assert should_read2 is False, "File read fully (Full) should return False for any line range"
+        assert "already read" in reason2.lower()
 class TestWorkingMemorySystem:
     """Test WorkingMemorySystem class."""
 
