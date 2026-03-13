@@ -265,6 +265,10 @@ class WorkingMemory(SerializableDataclass):
         # Validate line range
         if start > end:
             return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"
+        
+        # Validate line numbers are positive (1-indexed)
+        if start < 1 or end < 1:
+            return True, f"Invalid line numbers: must be positive (1-indexed), got start={start}, end={end}"
 
         rng = LineRange.from_str(match.lines_read)
         if rng:

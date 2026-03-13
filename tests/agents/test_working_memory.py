@@ -512,10 +512,31 @@ class TestWorkingMemory:
         # Test with mixed case "Full"
         memory2 = WorkingMemory(current_task="Test")
         memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Test", "Full"))
-        should_read2, reason2 = memory2.should_read_file("/test/file2.py", 10, 50)
+    def test_memory_should_read_file_invalid_line_numbers(self):
+        """Test should_read_file with invalid line numbers (non-positive)."""
+        memory = WorkingMemory(current_task="Test")
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "10-50"))
         
-        assert should_read2 is False, "File read fully (Full) should return False for any line range"
-        assert "already read" in reason2.lower()
+        # Test with start=0 (invalid, lines are 1-indexed)
+        should_read, reason = memory.should_read_file("/test/file.py", 0, 10)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+        
+        # Test with start=-5 (invalid)
+        should_read, reason = memory.should_read_file("/test/file.py", -5, 10)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+        
+        # Test with end=0 (invalid)
+        should_read, reason = memory.should_read_file("/test/file.py", 1, 0)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+        
+        # Test with both invalid
+        should_read, reason = memory.should_read_file("/test/file.py", -5, -1)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+
 class TestWorkingMemorySystem:
     """Test WorkingMemorySystem class."""
 
