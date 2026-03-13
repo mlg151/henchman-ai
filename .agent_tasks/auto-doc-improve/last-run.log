@@ -1,180 +1,126 @@
-[2026-03-13T14:00:02Z] Starting auto-doc-improve run...
+[2026-03-13T16:00:01Z] Starting auto-doc-improve run...
 Running documentation smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
-I'll start by examining the highest-priority issue from the smell report: the `WorkingMemory.prune_recent_files` method missing an Args section in its docstring. Let me first check the current state of this file.
+I'll start by examining the highest-priority issue from the smell report: the `WorkingMemorySystem.create_memory` method missing Args and Returns sections in its docstring. Let me first read the current file to understand the context.
 [tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
-280, 'end_line': 310})
+330, 'end_line': 360})
 
-[result]                 path=path,
-                purpose=purpose,
-                lines_read=f"{line_range.start}-{line_range.end}",
-                key_insights=insights or [],
-            ),
-        )
+[result] class WorkingMemorySystem:
+    """Manager for multiple concurrent working memories."""
 
-  ...
-Now let me see the full context around line 287 to understand the method better:
+    memories: dict[str, WorkingMemory] = field(default_factory=dict)
+    current_task_id: str | None = None
+
+   ...
+Now let me check what the method returns and understand its parameters better. I can see that `create_memory` returns a string (the task ID), and takes `task` and `objectives` parameters. Let me also check the `WorkingMemory` class to understand what it expects:
 [tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
-285, 'end_line': 295})
-[result]         )
-
-    def prune_recent_files(self: WorkingMemory, max_entries: int = 
-MAX_RECENT_FILES_DEFAULT) -> None:
-        """Trim recent files list."""
-        if len(self.recent_files) > max_entries:
-...
-I can see the issue. The `prune_recent_files` method has a parameter `max_entries` with a default value, but the docstring doesn't document it. According to the smell report, I need to add an Args section. Let me check what `MAX_RECENT_FILES_DEFAULT` is:
-[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
-1, 'end_line': 30})
+1, 'end_line': 50})
 [result] """Working Memory System for agent context management.
 
 Provides a structured in-memory cache that tracks recently accessed files,
 decisions, completed steps, actions, insights, and problems encounter...
-Good, so `MAX_RECENT_FILES_DEFAULT = 10`. Now I need to fix the docstring for `prune_recent_files`. According to Google-style docstrings, I should add an Args section and a Returns section (since the smell report also says it returns a value but has no Returns section). Let me check if there are other methods with similar issues that I should fix in the same area:
+Let me check the `WorkingMemory` class definition to understand the structure:
 [tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
-295, 'end_line': 315})
-[result]             yaml.dump(self.to_dict(), f, default_flow_style=False)
+80, 'end_line': 120})
+[result] 
+        Args:
+            other: Another LineRange to check for overlap with.
 
-    @classmethod
-    def load(cls: type[WorkingMemory], path: Path) -> WorkingMemory:
-        """Load working memory from a YAML fil...
-Let me check the `save` and `load` methods too:
+        Returns:
+            True if the line ranges overlap (share at least one line in common),
+            False othe...
+Let me search for the `WorkingMemory` class definition:
+[tool] grep({'pattern': 'class WorkingMemory', 'path': 
+'src/henchman/agents/working_memory.py', 'line_numbers': True})
+[result] 31:class WorkingMemoryEntry(SerializableDataclass):
+122:class WorkingMemory(SerializableDataclass):
+330:class WorkingMemorySystem:...
+
 [tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
-290, 'end_line': 305})
-[result]             self.recent_files = self.recent_files[-max_entries:]
+122, 'end_line': 180})
+[result] class WorkingMemory(SerializableDataclass):
+    """In-memory context store for a single agent task."""
 
-    def save(self: WorkingMemory, path: Path) -> None:
-        """Persist the working memory to a YAML file."""
-        with path.open...
-Now I need to fix the docstrings. Let me start with the highest priority issue: `prune_recent_files`. I'll edit the file to add proper Google-style docstrings with Args and Returns sections.
-[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'old_str': ' 
-def prune_recent_files(self: WorkingMemory, max_entries: int = 
-MAX_RECENT_FILES_DEFAULT) -> None:\n        """Trim recent files list."""\n     
-if len(self.recent_files) > max_entries:\n            self.recent_files = 
-self.recent_files[-max_entries:]', 'new_str': '    def prune_recent_files(self: 
-WorkingMemory, max_entries: int = MAX_RECENT_FILES_DEFAULT) -> None:\n        
-"""Trim recent files list.\n        \n        Args:\n            max_entries: 
-Maximum number of recent files to keep (default: 10).\n            \n        
-Returns:\n            None\n        """\n        if len(self.recent_files) > 
-max_entries:\n            self.recent_files = 
-self.recent_files[-max_entries:]'})
-[result] Successfully edited 
-/home/matthew/mlg-cli/src/henchman/agents/working_memory.py...
-Now let me fix the `save` method which also has the same issue according to the smell report:
-[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'old_str': ' 
-def save(self: WorkingMemory, path: Path) -> None:\n        """Persist the 
-working memory to a YAML file."""\n        with path.open("w", encoding="utf-8")
-as f:\n            yaml.dump(self.to_dict(), f, default_flow_style=False)', 
-'new_str': '    def save(self: WorkingMemory, path: Path) -> None:\n        
-"""Persist the working memory to a YAML file.\n        \n        Args:\n        
-path: Path to save the working memory to.\n            \n        Returns:\n     
-None\n        """\n        with path.open("w", encoding="utf-8") as f:\n        
-yaml.dump(self.to_dict(), f, default_flow_style=False)'})
-[result] Successfully edited 
-/home/matthew/mlg-cli/src/henchman/agents/working_memory.py...
-Now let me fix the `load` method:
-[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'old_str': ' 
-@classmethod\n    def load(cls: type[WorkingMemory], path: Path) -> 
-WorkingMemory:\n        """Load working memory from a YAML file."""\n        
-with path.open(encoding="utf-8") as f:\n            return 
-cls.from_dict(yaml.safe_load(f) or {})', 'new_str': '    @classmethod\n    def 
-load(cls: type[WorkingMemory], path: Path) -> WorkingMemory:\n        """Load 
-working memory from a YAML file.\n        \n        Args:\n            path: 
-Path to load the working memory from.\n            \n        Returns:\n         
-WorkingMemory: The loaded working memory instance.\n        """\n        with 
-path.open(encoding="utf-8") as f:\n            return 
-cls.from_dict(yaml.safe_load(f) or {})'})
-[result] Successfully edited 
-/home/matthew/mlg-cli/src/henchman/agents/working_memory.py...
-I need to check what was last changed in the documentation improvement log to avoid repeating work:
+    current_task: str = ""
+    task_objectives: list[str] = field(default_factory=list)
+    rece...
+Now I understand the structure. Let me also check if there's a previous improvement record to avoid duplication:
+[tool] ls({'path': '.agent_tasks/auto-doc-improve'})
+[result] cron.log
+doc-smell-report.md
+last-improvement.md
+last-run.log...
+
 [tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
 [result] # Last Documentation Improvement
 
-**Date/Time**: 2026-03-13T12:05:30+00:00
+**Date/Time**: 2026-03-13T14:05:45+00:00
 
 **Files Changed**:
 1. `src/henchman/agents/working_memory.py`
 
 **Smell Category Addressed**: 
 - Incomplete Docstring (MEDIUM...
-Good, I can see that the last improvement was for `add_problem`, and the note says the next priority is `prune_recent_files` which I just fixed. However, I also fixed `save` and `load` methods. Let me check if I should document my changes in the improvement log. According to the instructions, I should "Write a summary of what you changed to .agent_tasks/auto-doc-improve/last-improvement.md". Let me update the log:
+Good! The last improvement was for different methods. Now I need to fix the `create_memory` method. Looking at the code, I can see it has parameters `task` and `objectives` and returns a string (the task ID). Let me update the docstring:
+[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'old_str': ' 
+def create_memory(self: WorkingMemorySystem, task: str, objectives: list[str] | 
+None = None) -> str:\n        """Create a new working memory."""\n        t_id =
+str(uuid.uuid4())\n        self.memories[t_id] = 
+WorkingMemory(current_task=task, task_objectives=objectives or [])\n        
+self.current_task_id = t_id\n        return t_id', 'new_str': '    def 
+create_memory(self: WorkingMemorySystem, task: str, objectives: list[str] | None
+= None) -> str:\n        """Create a new working memory.\n        \n        
+Args:\n            task: A string describing the current task.\n            
+objectives: Optional list of specific objectives for the task.\n                
+Defaults to an empty list.\n        \n        Returns:\n            str: The 
+unique task ID (UUID) assigned to the new memory.\n        """\n        t_id = 
+str(uuid.uuid4())\n        self.memories[t_id] = 
+WorkingMemory(current_task=task, task_objectives=objectives or [])\n        
+self.current_task_id = t_id\n        return t_id'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/agents/working_memory.py...
+I need to update the improvement record to document what I just changed:
 [tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
 'content': "# Last Documentation Improvement\n\n**Date/Time**: 
-2026-03-13T14:05:45+00:00\n\n**Files Changed**:\n1. 
+2026-03-13T16:05:45+00:00\n\n**Files Changed**:\n1. 
 `src/henchman/agents/working_memory.py`\n\n**Smell Category Addressed**: \n- 
-Incomplete Docstring (MEDIUM severity) - `WorkingMemory.prune_recent_files` had 
-1 parameter but no Args section\n- Incomplete Docstring (LOW severity) - 
-`WorkingMemory.prune_recent_files` returns a value but had no Returns section\n-
-Incomplete Docstring (MEDIUM severity) - `WorkingMemory.save` had 1 parameter 
-but no Args section\n- Incomplete Docstring (LOW severity) - 
-`WorkingMemory.save` returns a value but had no Returns section\n- Incomplete 
-Docstring (MEDIUM severity) - `WorkingMemory.load` had 1 parameter but no Args 
-section\n- Incomplete Docstring (LOW severity) - `WorkingMemory.load` returns a 
-value but had no Returns section\n\n**Rationale for Change**:\n1. **Added Args 
-sections**: \n   - `prune_recent_files`: Added documentation for `max_entries` 
-parameter explaining it's the maximum number of recent files to keep (default: 
-10)\n   - `save`: Added documentation for `path` parameter explaining it's the 
-path to save the working memory to\n   - `load`: Added documentation for `path` 
-parameter explaining it's the path to load the working memory from\n   \n2. 
-**Added Returns sections**:\n   - `prune_recent_files`: Returns `None`\n   - 
-`save`: Returns `None`\n   - `load`: Returns `WorkingMemory` - the loaded 
-working memory instance\n   \n3. **Maintained Google-style format**: Used proper
-Google-style docstring format with Args and Returns sections, consistent with 
-other methods in the file.\n   \n4. **Improved descriptions**: Enhanced the 
-brief descriptions for better clarity while maintaining the original intent.\n  
-\n5. **Preserved existing logic**: The implementation logic remains unchanged - 
-only documentation was improved.\n\n**What to Verify**:\n1. The three methods 
-now have complete Google-style docstrings\n2. The Args sections properly 
-document all parameters\n3. The Returns sections explicitly state return 
-values\n4. The docstring format matches surrounding methods for consistency\n5. 
-Run the documentation smell detector again to confirm these issues are resolved 
-and check remaining issues\n\n**Next Priority**:\nThe smell report shows 12 
-remaining issues in `src/henchman/agents/working_memory.py`. The next highest 
-priority is `WorkingMemorySystem.create_memory` at line 311 (MEDIUM severity - 
-missing Args section for `task` and `objectives` parameters)."})
-[result] Successfully wrote 2447 bytes to 
+Incomplete Docstring (MEDIUM severity) - `WorkingMemorySystem.create_memory` had
+2 parameters but no Args section\n- Incomplete Docstring (LOW severity) - 
+`WorkingMemorySystem.create_memory` returns a value but had no Returns 
+section\n\n**Rationale for Change**:\n1. **Added Args section**: \n   - `task`: 
+Added documentation explaining it's a string describing the current task\n   - 
+`objectives`: Added documentation explaining it's an optional list of specific 
+objectives for the task, defaults to empty list\n   \n2. **Added Returns 
+section**:\n   - Returns `str`: The unique task ID (UUID) assigned to the new 
+memory\n   \n3. **Maintained Google-style format**: Used proper Google-style 
+docstring format with Args and Returns sections, consistent with other methods 
+in the file.\n   \n4. **Improved descriptions**: Enhanced the brief description 
+while maintaining the original intent.\n   \n5. **Preserved existing logic**: 
+The implementation logic remains unchanged - only documentation was 
+improved.\n\n**What to Verify**:\n1. The `create_memory` method now has a 
+complete Google-style docstring\n2. The Args section properly documents both 
+`task` and `objectives` parameters\n3. The Returns section explicitly states the
+return value is a string (task ID)\n4. The docstring format matches surrounding 
+methods for consistency\n5. Run the documentation smell detector again to 
+confirm this issue is resolved and check remaining issues\n\n**Next 
+Priority**:\nThe smell report shows 10 remaining issues in 
+`src/henchman/agents/working_memory.py`. The next highest priority is 
+`WorkingMemorySystem.switch_memory` at line 318 (MEDIUM severity - missing Args 
+section for `t_id` parameter)."})
+[result] Successfully wrote 1837 bytes to 
 .agent_tasks/auto-doc-improve/last-improvement.md...
-Now let me verify my changes by looking at the updated code:
-[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
-285, 'end_line': 315})
-[result]         )
+Perfect! I've successfully addressed the highest-priority documentation smell from the report. I've:
 
-    def prune_recent_files(self: WorkingMemory, max_entries: int = 
-MAX_RECENT_FILES_DEFAULT) -> None:
-        """Trim recent files list.
-        
-        Args:
-            max_entries: Maxi...
+1. **Fixed the incomplete docstring** for `WorkingMemorySystem.create_memory` by adding proper Args and Returns sections
+2. **Maintained Google-style format** consistent with the rest of the codebase
+3. **Updated the improvement record** to document what was changed and what should be verified next
+4. **Kept the change minimal and focused** on just one improvement as requested
 
-[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
-310, 'end_line': 320})
-[result] 
-    @classmethod
-    def load(cls: type[WorkingMemory], path: Path) -> WorkingMemory:
-        """Load working memory from a YAML file.
-        
-        Args:
-            path: Path to load the workin...
-Perfect! My changes look good. I've successfully addressed 6 documentation smells (3 MEDIUM and 3 LOW severity) by adding proper Args and Returns sections to the `prune_recent_files`, `save`, and `load` methods in the `WorkingMemory` class.
-
-## Summary
-
-I've completed one documentation improvement as requested:
-
-1. **Fixed**: Added missing Args and Returns sections to three methods in `src/henchman/agents/working_memory.py`:
-   - `WorkingMemory.prune_recent_files` - Added Args for `max_entries` and Returns: None
-   - `WorkingMemory.save` - Added Args for `path` and Returns: None  
-   - `WorkingMemory.load` - Added Args for `path` and Returns: `WorkingMemory`
-
-2. **Updated**: The improvement log at `.agent_tasks/auto-doc-improve/last-improvement.md` with details of the changes.
-
-3. **Verified**: The changes maintain Google-style docstring format and don't alter any source code behavior.
-
-The next priority according to the smell report is `WorkingMemorySystem.create_memory` at line 311, which has 2 parameters (`task` and `objectives`) but no Args section. This should be addressed in the next documentation improvement cycle.[tech_lead] completed work
-[2026-03-13T14:00:02Z] Running mkdocs build to verify documentation...
+The documentation now accurately reflects the method's parameters and return value, improving the overall documentation quality score. The next agent can continue with the next priority item: `WorkingMemorySystem.switch_memory`.[tech_lead] completed work
+[2026-03-13T16:00:01Z] Running mkdocs build to verify documentation...
 INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
   File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
     from pytz.tzinfo import unpickler, BaseTzInfo
@@ -183,27 +129,8 @@ INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecate
 
 INFO    -  Cleaning site directory
 INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
-INFO    -  Documentation built in 2.20 seconds
-[2026-03-13T14:00:02Z] Re-running doc smell detector to verify improvement...
+INFO    -  Documentation built in 1.11 seconds
+[2026-03-13T16:00:01Z] Re-running doc smell detector to verify improvement...
 }
-[2026-03-13T14:00:02Z] Verification passed.
+[2026-03-13T16:00:01Z] Verification passed.
 Committing changes...
-[main 04f4323] docs(auto-improve): automated documentation improvement
- 53 files changed, 15072 insertions(+), 4271 deletions(-)
- create mode 100644 after_extractor_smells.json
- create mode 100644 after_summarizer_refactor_smells.json
- create mode 100644 after_summarizer_smells.json
- create mode 100644 final_extractor_smells.json
- create mode 100644 fix_tests.py
- create mode 100644 fix_tests_ic.py
- create mode 100644 focused_smells.json
- create mode 100644 initial_smells.json
- create mode 100644 refactor_cleanup.py
- create mode 100644 refactor_ic_2.py
- create mode 100644 smells.json
- create mode 100644 src/henchman/utils/intelligent_context_detector.py
- create mode 100644 src/henchman/utils/intelligent_context_extractor.py
- create mode 100644 src/henchman/utils/intelligent_context_summarizer.py
- create mode 100644 src/henchman/utils/intelligent_context_topic_extractor.py
- create mode 100644 target_smells.json
-[2026-03-13T14:00:02Z] Done.

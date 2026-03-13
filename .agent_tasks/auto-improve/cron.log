@@ -661873,3 +661873,35 @@ TOTAL                                                       18831    253   4988 
 =========== 5685 passed, 6 skipped, 46 warnings in 208.88s (0:03:28) ===========
 [2026-03-13T15:00:03Z] All tests passed.
 Committing changes...
+[main 361fbd3] fix(four-lenses): four-lenses-agents-working_memory
+ 4 files changed, 1947 insertions(+), 1 deletion(-)
+[2026-03-13T15:00:03Z] Auto-improve complete.
+[2026-03-13T16:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-13T16:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 79.0/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-13T16:00:46.754265+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file: `src/henchman/agents/working_memory.py`
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py...
