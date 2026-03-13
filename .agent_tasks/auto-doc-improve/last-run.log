@@ -1,173 +1,148 @@
-[2026-03-13T20:00:01Z] Starting auto-doc-improve run...
+[2026-03-13T22:00:01Z] Starting auto-doc-improve run...
 Running documentation smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
 ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
-I'll start by examining the highest-priority issue from the smell report: the `compact_with_summarization` function in `src/henchman/utils/compaction.py` has incomplete docstrings (missing Args and Returns sections). This is a MEDIUM severity issue that affects documentation completeness.
+I'll start by addressing the highest-priority documentation smell. Looking at the report, the file with the most issues is `src/henchman/utils/intelligent_context_extractor.py` with 10 smells (5 medium, 5 low). The first medium severity issue is at line 47 for the `extract_code_blocks` function which has 1 parameter but no Args section in the docstring.
 
-Let me first check the current state of the file to understand what needs to be fixed.
-[tool] read_file({'path': 'src/henchman/utils/compaction.py', 'start_line': 960,
-'end_line': 990})
+Let me examine the current state of this file to understand what needs to be fixed.
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'start_line': 40, 'end_line': 60})
 
-[result]     Returns:
-        CompactionResult with compacted messages and metadata.
-    """
-    config = SummarizationConfig(
-        provider=params.provider,
-        summarize=params.summarize,
-        prot...
-Now I can see the issue. The `compact_with_summarization` function at line 972 has a very minimal docstring ("Alias for compact_messages (deprecated).") but is missing the Args and Returns sections. According to the smell report, it has 6 parameters that need documentation. Let me check the function signature more carefully and see what the parameters are:
+[result] 
+_PATTERN_REGISTRY: dict[str, list[str]] = {
+    "error": _ERROR_PATTERNS,
+    "tool": _TOOL_PATTERNS,
+}
 
-1. `messages: list[Message]`
-2. `max_tokens: TokenLimit`
-3. `provider: ModelProvider | None = None`
-4. `summarize: bool = True`
-5. `protect_from_index: ProtectionIndex = -1`
-6. `**kwargs: Any`
 
-I should also check what `TokenLimit` and `ProtectionIndex` are, and look at the return type `CompactionResult`. Let me examine the imports and type definitions:
-[tool] read_file({'path': 'src/henchman/utils/compaction.py', 'start_line': 1, 
-'end_line': 50})
-[result] """Context compaction utilities.
-
-This module provides tools for managing context size by compacting
-older messages, with optional summarization of dropped content.
-"""
-
-from __future__ import annotat...
-Now let me check what the `compact_messages` function looks like to understand better what this function does:
-[tool] read_file({'path': 'src/henchman/utils/compaction.py', 'start_line': 920,
-'end_line': 960})
-[result]         Returns:
-            A Message object with the summary.
-        """
-        return Message(
-            role="system",
-            content=f"[Summary of earlier conversation: {summary}]",
-    ...
-Now I have a good understanding. The `compact_with_summarization` function is a deprecated alias for `compact_messages`. I need to add proper Google-style docstring with Args and Returns sections. Let me also check if there are any other similar functions in the file to maintain consistency:
-[tool] read_file({'path': 'src/henchman/utils/compaction.py', 'start_line': 850,
-'end_line': 920})
+def extract_code_blocks(content: str | None) -> list[str]:
+    """Extract code blocks from co...
+Now let me see more of this function to understand its complete signature and return value:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'start_line': 45, 'end_line': 80})
 [result] 
 
-class MessageSummarizer:
-    """Summarizes dropped messages for context preservation.
+def extract_code_blocks(content: str | None) -> list[str]:
+    """Extract code blocks from content."""
+    if not content:
+        return []
 
-    Uses the LLM provider to generate a concise summary of messages
-    that are being dropped during compactio...
-Now I need to update the `compact_with_summarization` function with proper documentation. Let me edit the file:
-[tool] edit_file({'path': 'src/henchman/utils/compaction.py', 'start_line': 970,
-'end_line': 990, 'new_str': 'async def compact_with_summarization(\n    
-messages: list[Message],\n    max_tokens: TokenLimit,\n    provider: 
-ModelProvider | None = None,\n    *,\n    summarize: bool = True,\n    
-protect_from_index: ProtectionIndex = -1,\n    **kwargs: Any,\n) -> 
-CompactionResult:\n    """Compact messages with optional summarization of 
-dropped content.\n\n    This is a deprecated alias for `compact_messages`. Use 
-`compact_messages`\n    instead for better type safety and configuration.\n\n   
-Args:\n        messages: The messages to compact.\n        max_tokens: Maximum 
-tokens allowed in the compacted result.\n        provider: Optional model 
-provider for summarization. If None,\n            summarization will be 
-skipped.\n        summarize: Whether to summarize dropped content. If True and 
-a\n            provider is available, dropped messages will be summarized.\n    
-protect_from_index: Index from which messages are protected from\n            
-being dropped. Use -1 to protect all messages (no compaction),\n            or 0
-to allow all messages to be compacted.\n        **kwargs: Additional keyword 
-arguments passed to `compact_messages`.\n\n    Returns:\n        
-CompactionResult with compacted messages and metadata about\n        what was 
-dropped and any summary generated.\n    """\n    params = CompactionParams(\n   
-messages=messages,\n        max_tokens=max_tokens,\n        provider=provider,\n
-summarize=summarize,\n        protect_from_index=protect_from_index,\n        
-max_protected_ratio=kwargs.get("max_protected_ratio", 
-DEFAULT_MAX_PROTECTED_RATIO),\n    )\n    return await 
-compact_messages(params)'})
-[result] Successfully edited 
-/home/matthew/mlg-cli/src/henchman/utils/compaction.py (replaced lines 
-970-990)...
-Now I need to check the last improvement file to document what I changed:
+    code_blocks: list[str] = []
+    i = 0
+    content_le...
+Now I need to check what the last improvement was to avoid repeating work:
 [tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
 [result] # Last Documentation Improvement
 
 ## Date/Time
-2026-03-13T18:15:00Z (approximate)
+2026-03-13T20:05:00Z (approximate)
 
 ## Files Changed
-- `src/henchman/agents/working_memory.py`
+- `src/henchman/utils/compaction.py`
 
 ## Smell Category Addressed
-Incomplete Docstring (MEDIUM ...
-Perfect! I can see that my current fix aligns with the "Next Priority" mentioned in the last improvement. Now I need to update the last-improvement.md file with my changes:
+Incomplete Docstring (MEDIUM and L...
+Perfect! The last improvement note shows that the next priority is exactly what I identified: `extract_code_blocks` in `src/henchman/utils/intelligent_context_extractor.py`. Let me examine the full function to understand what it does and then fix the docstring:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'start_line': 45, 'end_line': 100})
+[result] 
+
+def extract_code_blocks(content: str | None) -> list[str]:
+    """Extract code blocks from content."""
+    if not content:
+        return []
+
+    code_blocks: list[str] = []
+    i = 0
+    content_le...
+Now I need to understand what this function does by looking at its implementation. It extracts code blocks from content (presumably Markdown content with triple backtick code blocks). It returns a list of strings where each string is a complete code block including the backticks and optional language specifier.
+
+Let me also check if there are any imports or constants that might help understand the context:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'start_line': 1, 'end_line': 30})
+[result] """Content extraction for intelligent context management.
+
+This module provides functions for extracting critical sections
+from content, such as code blocks, error messages, and tool calls.
+"""
+
+from ...
+Now I have enough information to fix the docstring. The function `extract_code_blocks` takes a string content (or None) and returns a list of code blocks found in that content. I need to add an Args section documenting the `content` parameter and a Returns section describing the return value.
+
+Let me fix this docstring:
+[tool] edit_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'old_str': 'def extract_code_blocks(content: str | None) -> list[str]:\n    
+"""Extract code blocks from content."""\n    if not content:\n        return 
+[]', 'new_str': 'def extract_code_blocks(content: str | None) -> list[str]:\n   
+"""Extract code blocks from content.\n    \n    Args:\n        content: The text
+content to extract code blocks from. Can be None.\n        \n    Returns:\n     
+A list of code blocks found in the content. Each block is a string\n        
+containing the complete code block including triple backticks and\n        
+optional language specifier. Returns an empty list if content is None\n        
+or no code blocks are found.\n    """\n    if not content:\n        return []'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_extractor.py...
+Now let me verify the change was made correctly:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'start_line': 45, 'end_line': 65})
+[result] 
+
+def extract_code_blocks(content: str | None) -> list[str]:
+    """Extract code blocks from content.
+    
+    Args:
+        content: The text content to extract code blocks from. Can be None.
+       ...
+Good! Now I need to update the last improvement record to document what I changed:
 [tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
 'content': '# Last Documentation Improvement\n\n## 
-Date/Time\n2026-03-13T20:05:00Z (approximate)\n\n## Files Changed\n- 
-`src/henchman/utils/compaction.py`\n\n## Smell Category Addressed\nIncomplete 
-Docstring (MEDIUM and LOW severity)\n\n## Rationale for Change\nFixed missing 
-Args and Returns sections in the `compact_with_summarization` function 
-docstring, addressing the highest-priority issue from the documentation smell 
-report. The function had 6 parameters but no Args section, and it returns a 
-value but had no Returns section.\n\n## Changes Made\n1. 
-**compact_with_summarization function**: \n   - Added comprehensive Args section
-documenting all 6 parameters:\n     - `messages`: The messages to compact\n     
-- `max_tokens`: Maximum tokens allowed in the compacted result\n     - 
-`provider`: Optional model provider for summarization\n     - `summarize`: 
-Whether to summarize dropped content\n     - `protect_from_index`: Index from 
-which messages are protected from being dropped\n     - `**kwargs`: Additional 
-keyword arguments passed to `compact_messages`\n   - Added Returns section 
-describing the `CompactionResult` return value\n   - Updated the brief 
-description to clarify this is a deprecated alias for `compact_messages`\n   - 
-Maintained Google-style docstring format\n\n## What to Verify\n- The docstring 
-now accurately documents all parameters and return value\n- The documentation 
-matches the actual function signature and behavior\n- No breaking changes to 
-source code functionality\n- Google-style docstring format is maintained with 
-proper sections\n\n## Next Priority\nThe next highest priority from the smell 
-report is `extract_code_blocks` in 
+Date/Time\n2026-03-13T22:05:00Z (approximate)\n\n## Files Changed\n- 
+`src/henchman/utils/intelligent_context_extractor.py`\n\n## Smell Category 
+Addressed\nIncomplete Docstring (MEDIUM and LOW severity)\n\n## Rationale for 
+Change\nFixed missing Args and Returns sections in the `extract_code_blocks` 
+function docstring, addressing the highest-priority issue from the documentation
+smell report. The function had 1 parameter but no Args section, and it returns a
+value but had no Returns section.\n\n## Changes Made\n1. **extract_code_blocks 
+function**: \n   - Added Args section documenting the `content` parameter\n   - 
+Added Returns section describing the return value as a list of code block 
+strings\n   - Clarified that each block includes the complete code block with 
+triple backticks and optional language specifier\n   - Maintained Google-style 
+docstring format\n\n## What to Verify\n- The docstring now accurately documents 
+the parameter and return value\n- The documentation matches the actual function 
+signature and behavior\n- No breaking changes to source code functionality\n- 
+Google-style docstring format is maintained with proper sections\n\n## Next 
+Priority\nThe next highest priority from the smell report is 
+`extract_error_sections` in 
 `src/henchman/utils/intelligent_context_extractor.py` which has 1 parameter but 
 no Args section.'})
-[result] Successfully wrote 1722 bytes to 
+[result] Successfully wrote 1361 bytes to 
 .agent_tasks/auto-doc-improve/last-improvement.md...
-Now let me verify my changes by checking the updated function:
-[tool] read_file({'path': 'src/henchman/utils/compaction.py', 'start_line': 970,
-'end_line': 1010})
-[result] async def compact_with_summarization(
-    messages: list[Message],
-    max_tokens: TokenLimit,
-    provider: ModelProvider | None = None,
-    *,
-    summarize: bool = True,
-    protect_from_index: Pro...
-Perfect! I have successfully completed the documentation improvement task. Here's a summary of what I accomplished:
+Perfect! I've successfully addressed the highest-priority documentation smell by fixing the incomplete docstring for the `extract_code_blocks` function in `src/henchman/utils/intelligent_context_extractor.py`.
 
-## Documentation Improvement Completed
+## Summary of Changes:
 
-**Issue Addressed**: Fixed incomplete docstrings for the `compact_with_summarization` function in `src/henchman/utils/compaction.py`
+**File Modified**: `src/henchman/utils/intelligent_context_extractor.py`
 
-**Changes Made**:
-1. **Added comprehensive Args section** documenting all 6 parameters:
-   - `messages`: The messages to compact
-   - `max_tokens`: Maximum tokens allowed in the compacted result  
-   - `provider`: Optional model provider for summarization
-   - `summarize`: Whether to summarize dropped content
-   - `protect_from_index`: Index from which messages are protected from being dropped
-   - `**kwargs`: Additional keyword arguments passed to `compact_messages`
+**Function Fixed**: `extract_code_blocks`
 
-2. **Added Returns section** describing the `CompactionResult` return value with details about what it contains
+**What Was Added**:
+1. **Args section**: Documented the `content` parameter as "The text content to extract code blocks from. Can be None."
+2. **Returns section**: Described the return value as "A list of code blocks found in the content. Each block is a string containing the complete code block including triple backticks and optional language specifier. Returns an empty list if content is None or no code blocks are found."
 
-3. **Updated the brief description** to clarify that this is a deprecated alias for `compact_messages` and recommend using `compact_messages` instead for better type safety
-
-**Quality Improvements**:
-- ✅ **Accuracy**: Documentation now matches the actual function signature and behavior
-- ✅ **Completeness**: All parameters and return value are properly documented
-- ✅ **Consistency**: Maintains Google-style docstring format used throughout the codebase
-- ✅ **Clarity**: Provides clear explanations of parameter purposes and usage
+**Smell Category Addressed**: Incomplete Docstring (both MEDIUM and LOW severity issues for this function)
 
 **Verification**:
-- The docstring accurately reflects the function's purpose as a deprecated alias
-- All parameter types and default values are correctly documented
-- The return type and what it contains is clearly explained
-- No source code behavior was altered - only documentation improvements
+- ✅ The docstring now accurately documents the parameter and return value
+- ✅ The documentation matches the actual function signature and behavior  
+- ✅ No breaking changes to source code functionality
+- ✅ Google-style docstring format is maintained with proper sections
 
-This addresses the highest-priority MEDIUM severity issue from the documentation smell report and improves the overall documentation quality score for the project.[tech_lead] completed work
-[2026-03-13T20:00:01Z] Running mkdocs build to verify documentation...
+**Next Priority**: The next issue in the queue is `extract_error_sections` in the same file, which also has 1 parameter but no Args section.
+
+The improvement has been recorded in `.agent_tasks/auto-doc-improve/last-improvement.md` for tracking purposes.[tech_lead] completed work
+[2026-03-13T22:00:01Z] Running mkdocs build to verify documentation...
 INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
   File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
     from pytz.tzinfo import unpickler, BaseTzInfo
@@ -176,11 +151,8 @@ INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecate
 
 INFO    -  Cleaning site directory
 INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
-INFO    -  Documentation built in 2.93 seconds
-[2026-03-13T20:00:01Z] Re-running doc smell detector to verify improvement...
+INFO    -  Documentation built in 2.30 seconds
+[2026-03-13T22:00:01Z] Re-running doc smell detector to verify improvement...
 }
-[2026-03-13T20:00:01Z] Verification passed.
+[2026-03-13T22:00:01Z] Verification passed.
 Committing changes...
-[main 6f47502] docs(auto-improve): automated documentation improvement
- 9 files changed, 601 insertions(+), 1958 deletions(-)
-[2026-03-13T20:00:01Z] Done.

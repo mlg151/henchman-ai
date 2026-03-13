@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 99.9/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-13T20:00:03.532805+00:00_
+_Generated: 2026-03-13T22:00:03.412078+00:00_
 
 ## Executive Summary
 
@@ -11,79 +11,71 @@ _Generated: 2026-03-13T20:00:03.532805+00:00_
 | **Overall Score** | 99.9/100 |
 | **Doc Files Scanned** | 55 |
 | **Source Files Checked** | 190 |
-| **Total Smells** | 14 |
+| **Total Smells** | 12 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 8 |
-| medium | 6 |
+| low | 7 |
+| medium | 5 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 14 |
+| Incomplete Docstring | 12 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/utils/compaction.py:972** — 🟡 MEDIUM — Incomplete Docstring  
-   'compact_with_summarization' has 6 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: messages, max_tokens, provider, summarize, protect_from_index, kwargs_
-
-2. **src/henchman/utils/intelligent_context_extractor.py:47** — 🟡 MEDIUM — Incomplete Docstring  
+1. **src/henchman/utils/intelligent_context_extractor.py:47** — 🟡 MEDIUM — Incomplete Docstring  
    'extract_code_blocks' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: content_
 
-3. **src/henchman/utils/intelligent_context_extractor.py:135** — 🟡 MEDIUM — Incomplete Docstring  
+2. **src/henchman/utils/intelligent_context_extractor.py:135** — 🟡 MEDIUM — Incomplete Docstring  
    'extract_error_sections' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: content_
 
-4. **src/henchman/utils/intelligent_context_extractor.py:140** — 🟡 MEDIUM — Incomplete Docstring  
+3. **src/henchman/utils/intelligent_context_extractor.py:140** — 🟡 MEDIUM — Incomplete Docstring  
    'extract_tool_sections' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: content_
 
-5. **src/henchman/utils/intelligent_context_extractor.py:191** — 🟡 MEDIUM — Incomplete Docstring  
+4. **src/henchman/utils/intelligent_context_extractor.py:191** — 🟡 MEDIUM — Incomplete Docstring  
    'extract_keyword_sections' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: content, keywords_
 
-6. **src/henchman/utils/intelligent_context_extractor.py:241** — 🟡 MEDIUM — Incomplete Docstring  
+5. **src/henchman/utils/intelligent_context_extractor.py:241** — 🟡 MEDIUM — Incomplete Docstring  
    'extract_critical_sections' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: content_
 
-7. **src/henchman/agents/working_memory.py:378** — 🟢 LOW — Incomplete Docstring  
+6. **src/henchman/agents/working_memory.py:378** — 🟢 LOW — Incomplete Docstring  
    'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'._
 
-8. **src/henchman/utils/compaction.py:972** — 🟢 LOW — Incomplete Docstring  
-   'compact_with_summarization' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'compact_with_summarization'._
-
-9. **src/henchman/utils/intelligent_context_extractor.py:47** — 🟢 LOW — Incomplete Docstring  
+7. **src/henchman/utils/intelligent_context_extractor.py:47** — 🟢 LOW — Incomplete Docstring  
    'extract_code_blocks' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'extract_code_blocks'._
 
-10. **src/henchman/utils/intelligent_context_extractor.py:135** — 🟢 LOW — Incomplete Docstring  
+8. **src/henchman/utils/intelligent_context_extractor.py:135** — 🟢 LOW — Incomplete Docstring  
    'extract_error_sections' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'extract_error_sections'._
 
-11. **src/henchman/utils/intelligent_context_extractor.py:140** — 🟢 LOW — Incomplete Docstring  
+9. **src/henchman/utils/intelligent_context_extractor.py:140** — 🟢 LOW — Incomplete Docstring  
    'extract_tool_sections' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'extract_tool_sections'._
 
-12. **src/henchman/utils/intelligent_context_extractor.py:191** — 🟢 LOW — Incomplete Docstring  
+10. **src/henchman/utils/intelligent_context_extractor.py:191** — 🟢 LOW — Incomplete Docstring  
    'extract_keyword_sections' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'extract_keyword_sections'._
 
-13. **src/henchman/utils/intelligent_context_extractor.py:241** — 🟢 LOW — Incomplete Docstring  
+11. **src/henchman/utils/intelligent_context_extractor.py:241** — 🟢 LOW — Incomplete Docstring  
    'extract_critical_sections' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'extract_critical_sections'._
 
-14. **src/henchman/utils/intelligent_context_types.py:279** — 🟢 LOW — Incomplete Docstring  
+12. **src/henchman/utils/intelligent_context_types.py:279** — 🟢 LOW — Incomplete Docstring  
    'ContentAnalysis.update_from_content' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'ContentAnalysis.update_from_content'._
 
@@ -93,20 +85,20 @@ These are the highest-impact documentation smells to address first:
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
 | 1 | src/henchman/utils/intelligent_context_extractor.py | 🔶 D | 65.0 | 10 | 2026-03-13 |
-| 2 | src/henchman/utils/compaction.py | ✅ A | 93.0 | 2 | 2026-03-13 |
-| 3 | src/henchman/agents/working_memory.py | ✅ A | 98.0 | 1 | 2026-03-13 |
-| 4 | src/henchman/utils/intelligent_context_types.py | ✅ A | 98.0 | 1 | 2026-03-13 |
-| 5 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 6 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 7 | README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 8 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
-| 9 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 10 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 11 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 12 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 13 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 14 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 15 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 2 | src/henchman/agents/working_memory.py | ✅ A | 98.0 | 1 | 2026-03-13 |
+| 3 | src/henchman/utils/intelligent_context_types.py | ✅ A | 98.0 | 1 | 2026-03-13 |
+| 4 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 5 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 6 | README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 7 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
+| 8 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 9 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 10 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 11 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 12 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 13 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 14 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 15 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 
 ## 📁 Per-File Details
 
@@ -129,15 +121,6 @@ Public APIs: 6 | Documented: 6 | Coverage: 100.0%
 | 191 | 🟢 LOW | Incomplete Docstring | 'extract_keyword_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_keyword_sections'. |
 | 241 | 🟢 LOW | Incomplete Docstring | 'extract_critical_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_critical_sections'. |
 
-### src/henchman/utils/compaction.py — ✅ A (93.0/100) (last modified 2026-03-13)
-
-Public APIs: 26 | Documented: 26 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 972 | 🟡 MEDIUM | Incomplete Docstring | 'compact_with_summarization' has 6 parameter(s) but no Args: section in docstring | Add an Args: section documenting: messages, max_tokens, provider, summarize, protect_from_index, kwargs |
-| 972 | 🟢 LOW | Incomplete Docstring | 'compact_with_summarization' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'compact_with_summarization'. |
-
 ### src/henchman/agents/working_memory.py — ✅ A (98.0/100) (last modified 2026-03-13)
 
 Public APIs: 26 | Documented: 26 | Coverage: 100.0%
@@ -154,7 +137,7 @@ Public APIs: 20 | Documented: 20 | Coverage: 100.0%
 |-----:|:---------|:-----|:--------|:--------------|
 | 279 | 🟢 LOW | Incomplete Docstring | 'ContentAnalysis.update_from_content' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ContentAnalysis.update_from_content'. |
 
-## ✨ Clean Files (241 files with no smells)
+## ✨ Clean Files (242 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -378,6 +361,7 @@ Public APIs: 20 | Documented: 20 | Coverage: 100.0%
 - src/henchman/tools/security.py — ✅ A
 - src/henchman/tools/utils.py — ✅ A
 - src/henchman/utils/cluster_utils.py — ✅ A
+- src/henchman/utils/compaction.py — ✅ A
 - src/henchman/utils/compression_strategy.py — ✅ A
 - src/henchman/utils/importance_scorer.py — ✅ A
 - src/henchman/utils/intelligent_context.py — ✅ A

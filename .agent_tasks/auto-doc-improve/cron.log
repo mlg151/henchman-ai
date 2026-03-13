@@ -160323,3 +160323,161 @@ Committing changes...
 [main 6f47502] docs(auto-improve): automated documentation improvement
  9 files changed, 601 insertions(+), 1958 deletions(-)
 [2026-03-13T20:00:01Z] Done.
+[2026-03-13T22:00:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by addressing the highest-priority documentation smell. Looking at the report, the file with the most issues is `src/henchman/utils/intelligent_context_extractor.py` with 10 smells (5 medium, 5 low). The first medium severity issue is at line 47 for the `extract_code_blocks` function which has 1 parameter but no Args section in the docstring.
+
+Let me examine the current state of this file to understand what needs to be fixed.
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'start_line': 40, 'end_line': 60})
+
+[result] 
+_PATTERN_REGISTRY: dict[str, list[str]] = {
+    "error": _ERROR_PATTERNS,
+    "tool": _TOOL_PATTERNS,
+}
+
+
+def extract_code_blocks(content: str | None) -> list[str]:
+    """Extract code blocks from co...
+Now let me see more of this function to understand its complete signature and return value:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'start_line': 45, 'end_line': 80})
+[result] 
+
+def extract_code_blocks(content: str | None) -> list[str]:
+    """Extract code blocks from content."""
+    if not content:
+        return []
+
+    code_blocks: list[str] = []
+    i = 0
+    content_le...
+Now I need to check what the last improvement was to avoid repeating work:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+[result] # Last Documentation Improvement
+
+## Date/Time
+2026-03-13T20:05:00Z (approximate)
+
+## Files Changed
+- `src/henchman/utils/compaction.py`
+
+## Smell Category Addressed
+Incomplete Docstring (MEDIUM and L...
+Perfect! The last improvement note shows that the next priority is exactly what I identified: `extract_code_blocks` in `src/henchman/utils/intelligent_context_extractor.py`. Let me examine the full function to understand what it does and then fix the docstring:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'start_line': 45, 'end_line': 100})
+[result] 
+
+def extract_code_blocks(content: str | None) -> list[str]:
+    """Extract code blocks from content."""
+    if not content:
+        return []
+
+    code_blocks: list[str] = []
+    i = 0
+    content_le...
+Now I need to understand what this function does by looking at its implementation. It extracts code blocks from content (presumably Markdown content with triple backtick code blocks). It returns a list of strings where each string is a complete code block including the backticks and optional language specifier.
+
+Let me also check if there are any imports or constants that might help understand the context:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'start_line': 1, 'end_line': 30})
+[result] """Content extraction for intelligent context management.
+
+This module provides functions for extracting critical sections
+from content, such as code blocks, error messages, and tool calls.
+"""
+
+from ...
+Now I have enough information to fix the docstring. The function `extract_code_blocks` takes a string content (or None) and returns a list of code blocks found in that content. I need to add an Args section documenting the `content` parameter and a Returns section describing the return value.
+
+Let me fix this docstring:
+[tool] edit_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'old_str': 'def extract_code_blocks(content: str | None) -> list[str]:\n    
+"""Extract code blocks from content."""\n    if not content:\n        return 
+[]', 'new_str': 'def extract_code_blocks(content: str | None) -> list[str]:\n   
+"""Extract code blocks from content.\n    \n    Args:\n        content: The text
+content to extract code blocks from. Can be None.\n        \n    Returns:\n     
+A list of code blocks found in the content. Each block is a string\n        
+containing the complete code block including triple backticks and\n        
+optional language specifier. Returns an empty list if content is None\n        
+or no code blocks are found.\n    """\n    if not content:\n        return []'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/utils/intelligent_context_extractor.py...
+Now let me verify the change was made correctly:
+[tool] read_file({'path': 'src/henchman/utils/intelligent_context_extractor.py',
+'start_line': 45, 'end_line': 65})
+[result] 
+
+def extract_code_blocks(content: str | None) -> list[str]:
+    """Extract code blocks from content.
+    
+    Args:
+        content: The text content to extract code blocks from. Can be None.
+       ...
+Good! Now I need to update the last improvement record to document what I changed:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Last Documentation Improvement\n\n## 
+Date/Time\n2026-03-13T22:05:00Z (approximate)\n\n## Files Changed\n- 
+`src/henchman/utils/intelligent_context_extractor.py`\n\n## Smell Category 
+Addressed\nIncomplete Docstring (MEDIUM and LOW severity)\n\n## Rationale for 
+Change\nFixed missing Args and Returns sections in the `extract_code_blocks` 
+function docstring, addressing the highest-priority issue from the documentation
+smell report. The function had 1 parameter but no Args section, and it returns a
+value but had no Returns section.\n\n## Changes Made\n1. **extract_code_blocks 
+function**: \n   - Added Args section documenting the `content` parameter\n   - 
+Added Returns section describing the return value as a list of code block 
+strings\n   - Clarified that each block includes the complete code block with 
+triple backticks and optional language specifier\n   - Maintained Google-style 
+docstring format\n\n## What to Verify\n- The docstring now accurately documents 
+the parameter and return value\n- The documentation matches the actual function 
+signature and behavior\n- No breaking changes to source code functionality\n- 
+Google-style docstring format is maintained with proper sections\n\n## Next 
+Priority\nThe next highest priority from the smell report is 
+`extract_error_sections` in 
+`src/henchman/utils/intelligent_context_extractor.py` which has 1 parameter but 
+no Args section.'})
+[result] Successfully wrote 1361 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I've successfully addressed the highest-priority documentation smell by fixing the incomplete docstring for the `extract_code_blocks` function in `src/henchman/utils/intelligent_context_extractor.py`.
+
+## Summary of Changes:
+
+**File Modified**: `src/henchman/utils/intelligent_context_extractor.py`
+
+**Function Fixed**: `extract_code_blocks`
+
+**What Was Added**:
+1. **Args section**: Documented the `content` parameter as "The text content to extract code blocks from. Can be None."
+2. **Returns section**: Described the return value as "A list of code blocks found in the content. Each block is a string containing the complete code block including triple backticks and optional language specifier. Returns an empty list if content is None or no code blocks are found."
+
+**Smell Category Addressed**: Incomplete Docstring (both MEDIUM and LOW severity issues for this function)
+
+**Verification**:
+- ✅ The docstring now accurately documents the parameter and return value
+- ✅ The documentation matches the actual function signature and behavior  
+- ✅ No breaking changes to source code functionality
+- ✅ Google-style docstring format is maintained with proper sections
+
+**Next Priority**: The next issue in the queue is `extract_error_sections` in the same file, which also has 1 parameter but no Args section.
+
+The improvement has been recorded in `.agent_tasks/auto-doc-improve/last-improvement.md` for tracking purposes.[tech_lead] completed work
+[2026-03-13T22:00:01Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
+
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 2.30 seconds
+[2026-03-13T22:00:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-13T22:00:01Z] Verification passed.
+Committing changes...
