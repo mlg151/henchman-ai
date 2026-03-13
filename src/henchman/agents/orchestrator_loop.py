@@ -6,6 +6,7 @@ turn limit checks, colon stall detection, and finalization.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from henchman.core.events import AgentEvent, EventType
@@ -95,14 +96,19 @@ async def collect_events(
     Yields:
         AgentEvent: Each event from the generator, with tool call requests
             also added to the pending list
+
+    Raises:
+        StopAsyncIteration: When the generator is exhausted, re-raised to signal
+            to the caller that the generator has completed.
     """
     try:
         async for event in generator:
             if event.type == EventType.TOOL_CALL_REQUEST:
                 pending.append(event.data)
             yield event
-    except StopAsyncIteration:
-        pass
+    except StopAsyncIteration:  # pragma: no cover
+        # Re-raise to signal generator exhaustion to caller (unreachable in Python 3.12+)
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -153,9 +159,22 @@ def finalize_loop(
     Returns:
         None
     """
-    if not hasattr(agent, "_delegation_tool_errors"):
-        agent._delegation_tool_errors = []  # type: ignore[attr-defined]  # noqa: SLF001
-    agent._delegation_tool_errors = state.tool_errors  # type: ignore[attr-defined]  # noqa: SLF001
+    # Use the new API method if available, with fallback for backward compatibility
+    try:
+        agent.record_delegation_errors(state.tool_errors)
+    except AttributeError:
+        # Fallback for agents without the new API method
+        import warnings
+        warnings.warn(
+            f"Agent {agent.__class__.__name__} does not have record_delegation_errors() method. "
+            "Using dynamic attribute as fallback. This may cause race conditions in concurrent execution.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if not hasattr(agent, "_delegation_tool_errors"):
+            agent._delegation_tool_errors = []  # noqa: SLF001
+        agent._delegation_tool_errors = state.tool_errors  # noqa: SLF001
+
     orchestrator._last_loop_tool_call_count = state.tool_call_count  # noqa: SLF001
 
 
@@ -183,8 +202,20 @@ def check_colon_stall(
     """
     if retries >= MAX_COLON_STALL_RETRIES:
         return None
-    content = last_assistant_content(agent)
-    stripped = content.strip() if content else ""
+
+    try:
+        content = last_assistant_content(agent)
+    except TypeError as e:
+        # If we can't get the content, we can't check for colon stall
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Cannot check for colon stall: {e}")
+        return None
+
+    # Ensure content is a string before processing
+    if not isinstance(content, str):
+        content = str(content) if content is not None else ""
+
+    stripped = content.strip()
     if stripped and stripped.endswith(":") and len(stripped) > COLON_STALL_MIN_LENGTH:
         agent.messages.append(Message(role="user", content=COLON_STALL_NUDGE))
         return agent.continue_with_tool_results(), retries + 1
@@ -200,8 +231,20 @@ def last_assistant_content(agent: Agent) -> str:
     Returns:
         The content of the most recent assistant message, or an empty string
         if no assistant message with content is found.
+
+    Raises:
+        TypeError: If agent.messages is not a list or is None.
     """
-    for msg in reversed(agent.messages):
+    messages = agent.messages
+    if messages is None:
+        raise TypeError("agent.messages cannot be None")
+    if not isinstance(messages, list):
+        raise TypeError(f"agent.messages must be a list, got {type(messages)}")
+
+    for msg in reversed(messages):
         if msg.role == "assistant" and msg.content:
+            # Ensure content is a string
+            if not isinstance(msg.content, str):
+                return str(msg.content) if msg.content is not None else ""
             return msg.content
     return ""

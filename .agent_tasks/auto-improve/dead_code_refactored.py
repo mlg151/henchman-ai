@@ -3,7 +3,6 @@
 import ast
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
@@ -34,7 +33,7 @@ class AnalysisParameters:
     """Parameters for dead code analysis."""
     check_imports: bool = True
     check_functions: bool = True
-    whitelist: FrozenSet[str] = frozenset()
+    whitelist: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -47,7 +46,7 @@ class AnalysisContext:
 
 class ASTAnalyzer:
     """Utility class for AST analysis operations."""
-    
+
     @staticmethod
     def is_import_context(node: ast.Name, tree: ast.Module) -> bool:
         """Check if a Name node is part of an import statement.
@@ -67,9 +66,9 @@ class ASTAnalyzer:
             ):
                 return True
         return False
-    
+
     @staticmethod
-    def collect_top_level_definitions(tree: ast.Module) -> Dict[str, Tuple[str, int]]:
+    def collect_top_level_definitions(tree: ast.Module) -> dict[str, tuple[str, int]]:
         """Collect top-level function and class definitions.
 
         Args:
@@ -78,7 +77,7 @@ class ASTAnalyzer:
         Returns:
             Dictionary mapping name to (kind, line_number).
         """
-        definitions: Dict[str, Tuple[str, int]] = {}
+        definitions: dict[str, tuple[str, int]] = {}
         for node in ast.iter_child_nodes(tree):
             if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
                 if not node.name.startswith(_PRIVATE_PREFIX):
@@ -86,9 +85,9 @@ class ASTAnalyzer:
             elif isinstance(node, ast.ClassDef) and not node.name.startswith(_PRIVATE_PREFIX):
                 definitions[node.name] = ("class", node.lineno)
         return definitions
-    
+
     @staticmethod
-    def find_all_assignment(node: ast.AST) -> Optional[ast.expr]:
+    def find_all_assignment(node: ast.AST) -> ast.expr | None:
         """Find __all__ assignment value if node is an assignment to __all__.
 
         Args:
@@ -113,9 +112,9 @@ class ASTAnalyzer:
 
 class ImportAnalyzer:
     """Analyzes import usage in Python code."""
-    
+
     @staticmethod
-    def collect_imported_names(tree: ast.Module) -> Dict[str, int]:
+    def collect_imported_names(tree: ast.Module) -> dict[str, int]:
         """Collect all imported names from AST.
 
         Args:
@@ -124,16 +123,16 @@ class ImportAnalyzer:
         Returns:
             Dictionary mapping imported name to line number.
         """
-        imported: Dict[str, int] = {}
+        imported: dict[str, int] = {}
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 ImportAnalyzer._collect_import_names(node, imported)
             elif isinstance(node, ast.ImportFrom):
                 ImportAnalyzer._collect_import_from_names(node, imported)
         return imported
-    
+
     @staticmethod
-    def _collect_import_names(node: ast.Import, imported: Dict[str, int]) -> None:
+    def _collect_import_names(node: ast.Import, imported: dict[str, int]) -> None:
         """Collect names from ast.Import node.
 
         Args:
@@ -143,9 +142,9 @@ class ImportAnalyzer:
         for alias in node.names:
             name = alias.asname or alias.name.split(".")[0]
             imported[name] = node.lineno
-    
+
     @staticmethod
-    def _collect_import_from_names(node: ast.ImportFrom, imported: Dict[str, int]) -> None:
+    def _collect_import_from_names(node: ast.ImportFrom, imported: dict[str, int]) -> None:
         """Collect names from ast.ImportFrom node.
 
         Args:
@@ -157,9 +156,9 @@ class ImportAnalyzer:
                 continue
             name = alias.asname or alias.name
             imported[name] = node.lineno
-    
+
     @staticmethod
-    def collect_used_names(tree: ast.Module) -> Set[str]:
+    def collect_used_names(tree: ast.Module) -> set[str]:
         """Collect all used names from AST (excluding import context).
 
         Args:
@@ -168,7 +167,7 @@ class ImportAnalyzer:
         Returns:
             Set of used names.
         """
-        used_names: Set[str] = set()
+        used_names: set[str] = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Name) and not ASTAnalyzer.is_import_context(node, tree):
                 used_names.add(node.id)
@@ -177,9 +176,9 @@ class ImportAnalyzer:
                 if root_name:
                     used_names.add(root_name)
         return used_names
-    
+
     @staticmethod
-    def _extract_attribute_root_name(node: ast.Attribute) -> Optional[str]:
+    def _extract_attribute_root_name(node: ast.Attribute) -> str | None:
         """Extract the root name from an attribute chain.
 
         Args:
@@ -196,9 +195,9 @@ class ImportAnalyzer:
 
 class DefinitionAnalyzer:
     """Analyzes function and class definitions in Python code."""
-    
+
     @staticmethod
-    def collect_all_references(tree: ast.Module) -> Set[str]:
+    def collect_all_references(tree: ast.Module) -> set[str]:
         """Collect all name references from AST.
 
         Args:
@@ -207,16 +206,16 @@ class DefinitionAnalyzer:
         Returns:
             Set of referenced names.
         """
-        used: Set[str] = set()
+        used: set[str] = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Name):
                 used.add(node.id)
             elif isinstance(node, ast.Attribute):
                 used.add(node.attr)
         return used
-    
+
     @staticmethod
-    def get_all_names(tree: ast.Module) -> Optional[Set[str]]:
+    def get_all_names(tree: ast.Module) -> set[str] | None:
         """Extract names from __all__ if defined.
 
         Args:
@@ -230,9 +229,9 @@ class DefinitionAnalyzer:
             if all_assignment is not None:
                 return DefinitionAnalyzer._extract_names_from_all(all_assignment)
         return None
-    
+
     @staticmethod
-    def _extract_names_from_all(value: ast.expr) -> Optional[Set[str]]:
+    def _extract_names_from_all(value: ast.expr) -> set[str] | None:
         """Extract string names from __all__ list/tuple.
 
         Args:
@@ -244,7 +243,7 @@ class DefinitionAnalyzer:
         if not isinstance(value, ast.List | ast.Tuple):
             return None
 
-        names: Set[str] = set()
+        names: set[str] = set()
         for element in value.elts:
             if isinstance(element, ast.Constant) and isinstance(element.value, str):
                 names.add(element.value)
@@ -315,7 +314,7 @@ class DeadCodeTool(Tool):
         path: str = "",
         check_imports: bool = True,
         check_functions: bool = True,
-        whitelist: Optional[List[str]] = None,
+        whitelist: list[str] | None = None,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
         """Detect dead code in Python files.
@@ -414,8 +413,8 @@ class DeadCodeTool(Tool):
         Returns:
             Formatted analysis results.
         """
-        parts: List[str] = [f"Dead code analysis: {context.filename}"]
-        findings: List[str] = []
+        parts: list[str] = [f"Dead code analysis: {context.filename}"]
+        findings: list[str] = []
 
         if context.params.check_imports:
             unused_imports = self._find_unused_imports(context)
@@ -435,11 +434,11 @@ class DeadCodeTool(Tool):
         return "\n".join(parts)
 
     def _format_findings(
-        self, 
-        findings: List[Tuple[str, ...]], 
+        self,
+        findings: list[tuple[str, ...]],
         title: str,
         include_kind: bool = False
-    ) -> List[str]:
+    ) -> list[str]:
         """Format findings for output.
 
         Args:
@@ -450,7 +449,7 @@ class DeadCodeTool(Tool):
         Returns:
             Formatted findings lines.
         """
-        formatted: List[str] = [f"\n{title}:"]
+        formatted: list[str] = [f"\n{title}:"]
         for finding in findings:
             if include_kind:
                 kind, name, line = finding
@@ -474,7 +473,7 @@ class DeadCodeTool(Tool):
         Returns:
             ToolResult with findings.
         """
-        all_findings: List[str] = []
+        all_findings: list[str] = []
         files_scanned = 0
 
         for py_file in sorted(directory.rglob("*.py")):
@@ -498,7 +497,7 @@ class DeadCodeTool(Tool):
     def _find_unused_imports(
         self,
         context: AnalysisContext,
-    ) -> List[Tuple[str, int]]:
+    ) -> list[tuple[str, int]]:
         """Find imports that are never used in the file.
 
         Args:
@@ -514,7 +513,7 @@ class DeadCodeTool(Tool):
     def _find_unused_definitions(
         self,
         context: AnalysisContext,
-    ) -> List[Tuple[str, str, int]]:
+    ) -> list[tuple[str, str, int]]:
         """Find functions/classes defined but never referenced.
 
         Only checks top-level definitions within the same file.
@@ -536,10 +535,10 @@ class DeadCodeTool(Tool):
 
     def _identify_unused_items(
         self,
-        items: Dict[str, int],
-        used_names: Set[str],
-        whitelist: FrozenSet[str],
-    ) -> List[Tuple[str, int]]:
+        items: dict[str, int],
+        used_names: set[str],
+        whitelist: frozenset[str],
+    ) -> list[tuple[str, int]]:
         """Identify unused items from collected data.
 
         Args:
@@ -550,7 +549,7 @@ class DeadCodeTool(Tool):
         Returns:
             List of (item_name, line_number) tuples.
         """
-        unused: List[Tuple[str, int]] = []
+        unused: list[tuple[str, int]] = []
         for name, line in sorted(items.items(), key=lambda x: x[1]):
             if name not in used_names and name not in whitelist:
                 unused.append((name, line))
@@ -558,10 +557,10 @@ class DeadCodeTool(Tool):
 
     def _identify_unused_definitions(
         self,
-        definitions: Dict[str, Tuple[str, int]],
-        used_names: Set[str],
-        whitelist: FrozenSet[str],
-    ) -> List[Tuple[str, str, int]]:
+        definitions: dict[str, tuple[str, int]],
+        used_names: set[str],
+        whitelist: frozenset[str],
+    ) -> list[tuple[str, str, int]]:
         """Identify unused definitions from collected data.
 
         Args:
@@ -572,7 +571,7 @@ class DeadCodeTool(Tool):
         Returns:
             List of (kind, name, line_number) tuples.
         """
-        unused: List[Tuple[str, str, int]] = []
+        unused: list[tuple[str, str, int]] = []
         for name, (kind, line) in sorted(definitions.items(), key=lambda x: x[1][1]):
             if name not in whitelist and name not in used_names:
                 unused.append((kind, name, line))

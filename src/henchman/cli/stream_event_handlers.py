@@ -50,7 +50,15 @@ class StreamState:
 
 
 def determine_event_ownership(event: AgentEvent, agent: Agent) -> bool:
-    """Return True when *event* was emitted by *agent*."""
+    """Return True when *event* was emitted by *agent*.
+
+    Args:
+        event: The agent event to check ownership of.
+        agent: The agent to check if it emitted the event.
+
+    Returns:
+        True if the event was emitted by the agent, False otherwise.
+    """
     if event.source_agent is None:
         return True
     identity = getattr(agent, "identity", None)
@@ -66,7 +74,17 @@ def update_processing_state(
     event: AgentEvent,
     agent: Agent,
 ) -> None:
-    """Mutate *state* for the incoming *event* before dispatching."""
+    """Mutate *state* for the incoming *event* before dispatching.
+
+    Args:
+        output_handler: The output handler for console output.
+        state: The current stream processing state.
+        event: The incoming agent event.
+        agent: The agent associated with the event.
+
+    Returns:
+        None
+    """
     if state.is_thinking and event.type != EventType.THOUGHT:
         output_handler.print_newline()
         state.is_thinking = False
@@ -99,8 +117,7 @@ def _flush_pending_tool_calls(
 ) -> bool:
     """Record *state.pending_tool_calls* to the session and return True."""
     tool_calls_dicts = [
-        {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-        for tc in state.pending_tool_calls
+        {"id": tc.id, "name": tc.name, "arguments": tc.arguments} for tc in state.pending_tool_calls
     ]
     output_handler.session_manager.record_agent_message(
         content="".join(state.accumulated_content) or None,
@@ -245,7 +262,18 @@ def dispatch_event(
     agent: Agent,
     content_collector: list[str] | None,
 ) -> None:
-    """Update *state* and call the appropriate handler for *event*."""
+    """Update *state* and call the appropriate handler for *event*.
+
+    Args:
+        output_handler: The output handler for console output.
+        event: The agent event to dispatch.
+        state: The current stream processing state.
+        agent: The agent associated with the event.
+        content_collector: Optional list to collect content for headless mode.
+
+    Returns:
+        None
+    """
     update_processing_state(output_handler, state, event, agent)
     match event.type:
         case EventType.CONTENT:
@@ -280,7 +308,18 @@ async def handle_post_stream_processing(
     content_collector: list[str] | None,
     execute_tool_calls_fn: Callable[..., object],
 ) -> None:
-    """Record session messages and execute unhandled tool calls after stream ends."""
+    """Record session messages and execute unhandled tool calls after stream ends.
+
+    Args:
+        output_handler: The output handler for console output and session management.
+        state: The current stream processing state containing accumulated content and pending tool calls.
+        agent: The agent associated with the stream processing.
+        content_collector: Optional list to collect content for headless mode output.
+        execute_tool_calls_fn: Callback function to execute pending tool calls.
+
+    Returns:
+        None
+    """
     sm = output_handler.session_manager
     if not state.session_tool_calls_flushed:
         if state.pending_tool_calls:
@@ -303,10 +342,7 @@ async def handle_post_stream_processing(
             content="".join(state.accumulated_content),
             agent_id=state.last_agent_id,
         )
-    unhandled = [
-        tc for tc in state.pending_tool_calls
-        if tc.id not in state.handled_tool_call_ids
-    ]
+    unhandled = [tc for tc in state.pending_tool_calls if tc.id not in state.handled_tool_call_ids]
     if unhandled:
         await execute_tool_calls_fn(unhandled, agent, content_collector)
 
@@ -317,7 +353,15 @@ async def handle_post_stream_processing(
 
 
 def build_confirmation_message(request: ConfirmationRequest) -> str:
-    """Build a rich-markup confirmation prompt for *request*."""
+    """Build a rich-markup confirmation prompt for *request*.
+
+    Args:
+        request: The confirmation request containing tool name, parameters,
+            and description for building the confirmation message.
+
+    Returns:
+        A formatted confirmation message string with rich markup for display.
+    """
     tool_name = _escape(request.tool_name)
     msg = f"Allow tool [bold cyan]{tool_name}[/] to "
     match request.tool_name:
@@ -329,16 +373,10 @@ def build_confirmation_message(request: ConfirmationRequest) -> str:
             )
             msg += f"run command: [yellow]{_escape(str(command))}[/]"
         case "write_file":
-            path = (
-                request.params.get("path", "unknown path") if request.params
-                else "unknown path"
-            )
+            path = request.params.get("path", "unknown path") if request.params else "unknown path"
             msg += f"write to file: [yellow]{_escape(str(path))}[/]"
         case "edit_file":
-            path = (
-                request.params.get("path", "unknown path") if request.params
-                else "unknown path"
-            )
+            path = request.params.get("path", "unknown path") if request.params else "unknown path"
             msg += f"edit file: [yellow]{_escape(str(path))}[/]"
         case _:
             description = _escape(request.description)

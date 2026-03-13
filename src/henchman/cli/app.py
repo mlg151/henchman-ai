@@ -23,9 +23,7 @@ if TYPE_CHECKING:
     from henchman.providers.base import ModelProvider
 
 
-from henchman.utils.lazy_import import getattr_for_textual_app
-
-__getattr__ = getattr_for_textual_app(__name__)
+_MAX_TEAM_TOOLS_DISPLAY = 5
 
 console = Console()
 
@@ -85,7 +83,7 @@ def _get_provider_from_environment() -> ModelProvider | None:
     Returns:
         ModelProvider instance if environment provides configuration, None otherwise.
     """
-    from henchman.providers import DeepSeekProvider
+    from henchman.providers import DeepSeekProvider  # noqa: PLC0415
 
     api_key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("HENCHMAN_API_KEY")
     if api_key:
@@ -99,10 +97,10 @@ def _get_provider_from_settings() -> ModelProvider | None:
     Returns:
         ModelProvider instance if settings provide configuration, None otherwise.
     """
-    from henchman.providers import get_default_registry
+    from henchman.providers import get_default_registry  # noqa: PLC0415
 
     try:
-        from henchman.config import load_settings
+        from henchman.config import load_settings  # noqa: PLC0415
 
         settings = load_settings()
         registry = get_default_registry()
@@ -117,9 +115,9 @@ def _get_provider_from_settings() -> ModelProvider | None:
         _ensure_api_key_in_kwargs(provider_name, kwargs)
 
         return registry.create(provider_name, **kwargs)
-    except Exception:  # pragma: no cover
+    except Exception:  # pragma: no cover  # noqa: BLE001
         # Log the error for debugging but don't crash
-        import logging
+        import logging  # noqa: PLC0415
 
         logging.getLogger(__name__).debug("Failed to load provider from settings", exc_info=True)
         return None
@@ -136,7 +134,7 @@ def _ensure_api_key_in_kwargs(provider_name: str, kwargs: dict[str, object]) -> 
         return
 
     # Get the appropriate environment variable for this provider
-    from henchman.providers.utils import get_api_key_for_provider
+    from henchman.providers.utils import get_api_key_for_provider  # noqa: PLC0415
 
     api_key = get_api_key_for_provider(provider_name)
     if api_key:
@@ -145,9 +143,9 @@ def _ensure_api_key_in_kwargs(provider_name: str, kwargs: dict[str, object]) -> 
 
 def _show_team_info() -> None:
     """Display information about the agent team and exit."""
-    from rich.table import Table
+    from rich.table import Table  # noqa: PLC0415
 
-    from henchman.agents.presets import get_default_team
+    from henchman.agents.presets import get_default_team  # noqa: PLC0415
 
     table = Table(title="Henchman Team Roster")
     table.add_column("Role", style="cyan")
@@ -162,7 +160,8 @@ def _show_team_info() -> None:
         table.add_row(
             role,
             config.description,
-            ", ".join(config.tools[:5]) + ("..." if len(config.tools) > 5 else ""),
+            ", ".join(config.tools[:_MAX_TEAM_TOOLS_DISPLAY])
+            + ("..." if len(config.tools) > _MAX_TEAM_TOOLS_DISPLAY else ""),
         )
 
     console.print(table)
@@ -174,8 +173,11 @@ def _prepare_runtime_context() -> RuntimeContext:
     Returns:
         A RuntimeContext instance.
     """
-    from henchman.config import ContextLoader, load_settings
-    from henchman.config.environment import format_environment_block, gather_environment
+    from henchman.config import ContextLoader, load_settings  # noqa: PLC0415
+    from henchman.config.environment import (  # noqa: PLC0415
+        format_environment_block,
+        gather_environment,
+    )
 
     provider = _get_provider()
     settings = load_settings()
@@ -196,7 +198,7 @@ def _prepare_runtime_context() -> RuntimeContext:
     )
 
 
-def _get_theme_and_renderer(settings: Any, silent: bool = False) -> tuple[Any, Any]:
+def _get_theme_and_renderer(settings: Any, *, silent: bool = False) -> tuple[Any, Any]:
     """Initialize theme and UI renderer based on settings.
 
     Args:
@@ -206,8 +208,8 @@ def _get_theme_and_renderer(settings: Any, silent: bool = False) -> tuple[Any, A
     Returns:
         Tuple of (theme, renderer).
     """
-    from henchman.cli.console import OutputRenderer, ThemeManager
-    from henchman.cli.ui_renderer import UIRenderer
+    from henchman.cli.console import OutputRenderer, ThemeManager  # noqa: PLC0415
+    from henchman.cli.ui_renderer import UIRenderer  # noqa: PLC0415
 
     # Create themed renderer based on settings
     theme_manager = ThemeManager()
@@ -227,22 +229,21 @@ def _get_theme_and_renderer(settings: Any, silent: bool = False) -> tuple[Any, A
     return theme, renderer
 
 
-def _run_interactive(config: RunConfig) -> None:
-    """Run interactive REPL mode.
+def _build_repl_instance(ctx: RuntimeContext, config: RunConfig, renderer: Any) -> Any:
+    """Create a configured Repl instance from context and config.
 
     Args:
+        ctx: The runtime context containing provider and settings.
         config: Run configuration.
+        renderer: The UI renderer instance.
+
+    Returns:
+        Configured Repl instance.
     """
-    from pathlib import Path
-
-    from henchman.cli.repl import Repl, ReplConfig
-    from henchman.rag import initialize_rag
-
-    ctx = _prepare_runtime_context()
-    _, renderer = _get_theme_and_renderer(ctx.settings)
+    from henchman.cli.repl import Repl, ReplConfig  # noqa: PLC0415
 
     repl_config = ReplConfig(system_prompt=ctx.system_prompt, auto_approve_tools=config.yes)
-    repl = Repl(
+    return Repl(
         provider=ctx.provider,
         console=console,
         config=repl_config,
@@ -251,26 +252,62 @@ def _run_interactive(config: RunConfig) -> None:
         renderer=renderer,
     )
 
-    # Initialize session management
+
+def _setup_repl_session(repl: Any) -> None:
+    """Initialize session management for the REPL.
+
+    Args:
+        repl: The REPL instance.
+    """
+    from pathlib import Path  # noqa: PLC0415
+
     project_hash = repl.session_manager.compute_project_hash(Path.cwd())
     session = repl.session_manager.create_session(project_hash)
     repl.set_session(session)
 
-    # Initialize RAG system
-    rag_system = initialize_rag(ctx.settings.rag, console=console, index=False)
+
+def _setup_repl_rag(repl: Any, settings: Any, *, headless: bool = False) -> None:
+    """Initialize the RAG system for the REPL.
+
+    Args:
+        repl: The REPL instance.
+        settings: Application settings.
+        headless: If True, suppresses console output during RAG initialisation.
+    """
+    from henchman.rag import initialize_rag  # noqa: PLC0415
+
+    if headless:
+        rag_system = initialize_rag(settings.rag, index=False)
+    else:
+        rag_system = initialize_rag(settings.rag, console=console, index=False)
     if rag_system:
         repl.tool_registry.register(rag_system.search_tool)
         repl.rag_system = rag_system
 
-    # Set plan mode if requested
-    if config.plan_mode and repl.session_manager.current:
-        repl.session_manager.current.plan_mode = True
-        repl.tool_manager.set_plan_mode(True)
-        # Add plan mode prompt to system prompt
-        from henchman.cli.commands.plan import PLAN_MODE_PROMPT
 
-        repl.agent.system_prompt += PLAN_MODE_PROMPT
+def _apply_interactive_plan_mode(repl: Any, config: RunConfig) -> None:
+    """Apply plan mode settings to an interactive REPL, including the agent prompt.
 
+    Args:
+        repl: The REPL instance.
+        config: Run configuration.
+    """
+    if not config.plan_mode or not repl.session_manager.current:
+        return
+    from henchman.cli.commands.plan import PLAN_MODE_PROMPT  # noqa: PLC0415
+
+    repl.session_manager.current.plan_mode = True
+    repl.tool_manager.set_plan_mode(plan_mode=True)
+    repl.agent.system_prompt += PLAN_MODE_PROMPT
+
+
+def _dispatch_interactive_run(repl: Any, config: RunConfig) -> None:
+    """Run the interactive REPL, dispatching on output format.
+
+    Args:
+        repl: The REPL instance.
+        config: Run configuration.
+    """
     if config.output_format == "text":
         if config.agent_role:
 
@@ -289,24 +326,41 @@ def _run_interactive(config: RunConfig) -> None:
         anyio.run(repl.run)
 
 
+def _run_interactive(config: RunConfig) -> None:
+    """Run interactive REPL mode.
+
+    Args:
+        config: Run configuration.
+    """
+    ctx = _prepare_runtime_context()
+    _, renderer = _get_theme_and_renderer(ctx.settings)
+    repl = _build_repl_instance(ctx, config, renderer)
+    _setup_repl_session(repl)
+    _setup_repl_rag(repl, ctx.settings)
+    _apply_interactive_plan_mode(repl, config)
+    _dispatch_interactive_run(repl, config)
+
+
 def _run_textual_tui(config: RunConfig) -> None:
     """Run Textual TUI mode.
 
     Args:
         config: Run configuration.
     """
-    from henchman.cli.textual_app import TextualConfig, run_textual_app
+    from henchman.cli.textual_app import TextualConfig, run_textual_app  # noqa: PLC0415
 
     ctx = _prepare_runtime_context()
 
     # Add plan mode prompt if requested
     if config.plan_mode:
-        from henchman.cli.commands.plan import PLAN_MODE_PROMPT
+        from henchman.cli.commands.plan import PLAN_MODE_PROMPT  # noqa: PLC0415
 
         ctx.system_prompt += PLAN_MODE_PROMPT
 
     textual_config = TextualConfig(
-        system_prompt=ctx.system_prompt, auto_approve_tools=config.yes, agent_role=config.agent_role,  # noqa: E501
+        system_prompt=ctx.system_prompt,
+        auto_approve_tools=config.yes,
+        agent_role=config.agent_role,
     )
 
     if config.output_format != "text":
@@ -331,49 +385,44 @@ def _create_headless_repl(config: RunConfig) -> tuple[Any, Any, Any]:
     Returns:
         Tuple of (repl instance, settings, system_prompt).
     """
-    from pathlib import Path
-
-    from henchman.cli.repl import Repl, ReplConfig
-    from henchman.rag import initialize_rag
-
     ctx = _prepare_runtime_context()
 
-    # Add plan mode prompt if requested
+    # Add plan mode prompt before building the Repl so it is baked in
     if config.plan_mode:  # pragma: no cover
-        from henchman.cli.commands.plan import PLAN_MODE_PROMPT
+        from henchman.cli.commands.plan import PLAN_MODE_PROMPT  # noqa: PLC0415
 
         ctx.system_prompt += PLAN_MODE_PROMPT
 
-    # Initialize theme and UI renderer (for text output mode)
     _, renderer = _get_theme_and_renderer(ctx.settings, silent=True)
+    repl = _build_repl_instance(ctx, config, renderer)
+    _setup_repl_session(repl)
+    _setup_repl_rag(repl, ctx.settings, headless=True)
 
-    repl_config = ReplConfig(system_prompt=ctx.system_prompt, auto_approve_tools=config.yes)
-    repl = Repl(
-        provider=ctx.provider,
-        console=console,
-        config=repl_config,
-        settings=ctx.settings,
-        environment_context=ctx.env_block,
-        renderer=renderer,
-    )
-
-    # Initialize session management
-    project_hash = repl.session_manager.compute_project_hash(Path.cwd())
-    session = repl.session_manager.create_session(project_hash)
-    repl.set_session(session)
-
-    # Initialize RAG system
-    rag_system = initialize_rag(ctx.settings.rag, index=False)  # No console output in headless
-    if rag_system:
-        repl.tool_registry.register(rag_system.search_tool)
-        repl.rag_system = rag_system
-
-    # Set plan mode if requested
+    # Set plan mode on session/tool-manager if requested
     if config.plan_mode and repl.session_manager.current:  # pragma: no cover
         repl.session_manager.current.plan_mode = True
-        repl.tool_manager.set_plan_mode(True)
+        repl.tool_manager.set_plan_mode(plan_mode=True)
 
     return repl, ctx.settings, ctx.system_prompt
+
+
+def _dispatch_headless_format(repl: Any, config: RunConfig) -> None:
+    """Dispatch to the appropriate headless runner based on output format.
+
+    Args:
+        repl: The REPL instance.
+        config: Run configuration.
+    """
+    prompt = config.prompt
+    if config.output_format == "text":
+        anyio.run(_run_headless_text, repl, prompt, config.agent_role)
+        return
+    if config.output_format == "json":
+        anyio.run(_run_headless_json_format, repl, prompt, "json")
+    elif config.output_format == "stream-json":
+        anyio.run(_run_headless_json_format, repl, prompt, "stream-json")
+    elif config.output_format == "json-complete":  # pragma: no branch
+        anyio.run(_run_headless_json_complete, repl, prompt)
 
 
 def _run_headless(config: RunConfig) -> None:
@@ -386,18 +435,7 @@ def _run_headless(config: RunConfig) -> None:
         return
 
     repl, _, _ = _create_headless_repl(config)
-
-    if config.output_format == "text":
-        anyio.run(_run_headless_text, repl, config.prompt, config.agent_role)
-    elif config.output_format == "json":
-        anyio.run(_run_headless_json, repl, config.prompt)
-    elif config.output_format == "stream-json":
-        anyio.run(_run_headless_stream_json, repl, config.prompt)
-    elif config.output_format == "json-complete":
-        anyio.run(_run_headless_json_complete, repl, config.prompt)
-    else:  # pragma: no cover
-        pass
-
+    _dispatch_headless_format(repl, config)
     _check_completion_status(repl)
 
 
@@ -417,10 +455,10 @@ async def _run_headless_text(
     await repl.initialize_mcp()
 
     if repl.rag_system:
-        asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]
+        asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]  # noqa: RUF006
 
     if agent_role:
-        await repl._run_agent_direct(agent_role, prompt)
+        await repl._run_agent_direct(agent_role, prompt)  # noqa: SLF001
     else:
         await repl.process_input(prompt)
 
@@ -438,7 +476,7 @@ async def _initialize_json_processing(repl: Any) -> JsonOutputRenderer:
     await repl.initialize_mcp()
 
     if repl.rag_system:
-        asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]
+        asyncio.create_task(repl.rag_system.index_async())  # type: ignore[attr-defined]  # noqa: RUF006
 
     return JsonOutputRenderer(console)
 
@@ -471,73 +509,53 @@ async def _process_tool_calls(
             )
 
 
-async def _run_headless_json(
+async def _run_headless_json_mode(
     repl: Any,
     prompt: str,
+    render_event: Callable[[AgentEvent], None],
+) -> None:
+    """Process an agent stream using the provided render function.
+
+    Args:
+        repl: The REPL instance.
+        prompt: The prompt to process.
+        render_event: Function used to render each AgentEvent.
+    """
+
+    async def run_and_render(stream: AsyncIterator[AgentEvent]) -> None:
+        """Run the agent stream and render events."""
+        pending_tool_calls: list[Any] = []
+        async for event in stream:
+            render_event(event)
+            if event.type == EventType.TOOL_CALL_REQUEST:
+                pending_tool_calls.append(event.data)
+
+        if pending_tool_calls:
+            await _process_tool_calls(repl, pending_tool_calls, render_event)
+            await run_and_render(repl.agent.continue_with_tool_results())
+
+    await run_and_render(repl.agent.run(prompt))
+
+
+async def _run_headless_json_format(
+    repl: Any,
+    prompt: str,
+    render_mode: str,
 ) -> None:
     """Process a single prompt and exit with JSON output.
 
     Args:
         repl: The REPL instance.
         prompt: The prompt to process.
+        render_mode: Either "stream-json" (line-delimited) or "json" (batch).
     """
-
     json_renderer = await _initialize_json_processing(repl)
-
-    async def run_and_render(stream: AsyncIterator[AgentEvent]) -> None:
-        """Run the agent stream and render events to JSON.
-
-        Args:
-            stream: The stream of agent events.
-        """
-        pending_tool_calls = []
-        async for event in stream:
-            json_renderer.render(event)
-            if event.type == EventType.TOOL_CALL_REQUEST:
-                pending_tool_calls.append(event.data)
-
-        if pending_tool_calls:
-            await _process_tool_calls(
-                repl, pending_tool_calls, json_renderer.render,
-            )
-            # Continue
-            await run_and_render(repl.agent.continue_with_tool_results())
-
-    await run_and_render(repl.agent.run(prompt))
-
-
-async def _run_headless_stream_json(
-    repl: Any,
-    prompt: str,
-) -> None:
-    """Process a single prompt and exit with streaming JSON output.
-
-    Args:
-        repl: The REPL instance.
-        prompt: The prompt to process.
-    """
-
-    json_renderer = await _initialize_json_processing(repl)
-
-    async def run_and_render_stream(stream: AsyncIterator[AgentEvent]) -> None:
-        """Run the agent stream and render events.
-
-        Args:
-            stream: The stream of agent events.
-        """
-        pending_tool_calls = []
-        async for event in stream:
-            json_renderer.render_stream_json(event)
-            if event.type == EventType.TOOL_CALL_REQUEST:
-                pending_tool_calls.append(event.data)
-
-        if pending_tool_calls:
-            await _process_tool_calls(
-                repl, pending_tool_calls, json_renderer.render_stream_json,
-            )
-            await run_and_render_stream(repl.agent.continue_with_tool_results())
-
-    await run_and_render_stream(repl.agent.run(prompt))
+    render_fn = (
+        json_renderer.render_stream_json
+        if render_mode == "stream-json"
+        else json_renderer.render
+    )
+    await _run_headless_json_mode(repl, prompt, render_fn)
 
 
 async def _run_headless_json_complete(
@@ -568,7 +586,8 @@ async def _run_headless_json_complete(
 
         if pending_tool_calls:
             await _process_tool_calls(
-                repl, pending_tool_calls,
+                repl,
+                pending_tool_calls,
                 lambda _: None,  # No rendering during collection
                 collect_events=all_events,
             )
@@ -584,7 +603,7 @@ def _check_completion_status(repl: Any) -> None:
     Args:
         repl: The REPL instance.
     """
-    from henchman.agents.orchestrator import CompletionStatus
+    from henchman.agents.orchestrator import CompletionStatus  # noqa: PLC0415
 
     if (
         hasattr(repl, "orchestrator")
@@ -647,48 +666,26 @@ def cli(ctx: click.Context) -> None:
     default=False,
     help="Use Textual TUI interface (experimental)",
 )
-def chat_command(
-    prompt: str | None,
-    agent: str | None,
-    team: bool,
-    output_format: str,
-    plan: bool,
-    yes: bool,
-    tui: bool,
-    debug: bool,
-) -> None:
+def chat_command(**kwargs: Any) -> None:
     """Start an interactive chat session or run with --prompt for headless mode.
 
     Args:
-        prompt (str | None): Run with a single prompt and exit. If provided,
-            runs in headless mode with the given prompt.
-        agent (str | None): Target a specific specialist agent. If None,
-            uses the default agent.
-        team (bool): Show team information and exit. When True, displays
-            team information without starting a chat session.
-        output_format (str): Output format for responses. Must be one of:
-            "text", "json", "stream-json", or "json-complete".
-        plan (bool): Start in plan mode (read-only). When True, tools
-            that modify files or execute commands require confirmation.
-        yes (bool): Auto-approve all tool executions (non-interactive mode).
-            When True, automatically approves all tool execution requests.
-        tui (bool): Use Textual TUI interface (experimental). When True,
-            uses the Textual-based terminal UI instead of the standard REPL.
-        debug (bool): Enable debug output. When True, shows debug-level
-            logging information.
+        **kwargs: Click option values forwarded from the CLI decorators.
+            Recognised keys: prompt, agent, team, output_format, plan, yes,
+            tui, debug.
 
     Returns:
-        None: This function doesn't return anything.
+        None
     """
     config = RunConfig(
-        prompt=prompt,
-        agent_role=agent,
-        team=team,
-        output_format=output_format,
-        plan_mode=plan,
-        yes=yes,
-        tui=tui,
-        debug=debug,
+        prompt=kwargs.get("prompt"),
+        agent_role=kwargs.get("agent"),
+        team=kwargs.get("team", False),
+        output_format=kwargs.get("output_format", "text"),
+        plan_mode=kwargs.get("plan", False),
+        yes=kwargs.get("yes", False),
+        tui=kwargs.get("tui", False),
+        debug=kwargs.get("debug", False),
     )
     _execute_chat_command(config)
 
@@ -704,7 +701,7 @@ def _execute_chat_command(config: RunConfig) -> None:
     """
     # Configure debug output filtering
     if not config.debug:
-        import builtins
+        import builtins  # noqa: PLC0415
 
         _orig_print = builtins.print
 
@@ -739,29 +736,33 @@ cli.add_command(serve_command)
 
 
 def main() -> None:  # pragma: no cover
-    """Main entry point for the CLI."""
-    import sys
+    """Main entry point for the CLI.
+
+    Returns:
+        None
+    """
+    import sys  # noqa: PLC0415
 
     # If Textual is inspecting this via `textual run`, return the App directly.
     # This prevents Textual from calling the Click `cli` command which crashes.
     if "textual" in sys.argv[0] and "run" in sys.argv:
         # Lazy import to avoid loading Textual for REPL mode
-        from henchman.cli.textual_app import HenchmanTextualApp
+        from henchman.cli.textual_app import HenchmanTextualApp  # noqa: PLC0415
+
         HenchmanTextualApp().run()
         return
 
     # For backward compatibility, if no subcommand is specified,
     # assume the user wants to run chat with the old-style arguments
     if len(sys.argv) == 1 or (
-        len(sys.argv) > 1 and
-        not sys.argv[1].startswith("-") and
-        sys.argv[1] not in ["chat", "serve"]
+        len(sys.argv) > 1
+        and not sys.argv[1].startswith("-")
+        and sys.argv[1] not in ["chat", "serve"]
     ):
         # Insert "chat" as the subcommand
         sys.argv.insert(1, "chat")
 
     cli()
-
 
 
 if __name__ == "__main__":  # pragma: no cover

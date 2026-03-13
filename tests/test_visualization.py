@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -30,10 +29,7 @@ def test_visualization():
 
     # 1. Test Table Rendering
     print("Testing table rendering...")
-    data = [
-        {"name": "Alice", "role": "Engineer"},
-        {"name": "Bob", "role": "Designer"}
-    ]
+    data = [{"name": "Alice", "role": "Engineer"}, {"name": "Bob", "role": "Designer"}]
     renderer.table(data, title="Team")
 
     # Verify console.print was called with a Table
@@ -47,8 +43,8 @@ def test_visualization():
             if last_arg.title == "Team":
                 print("✅ Table title correct")
             else:
-                 print(f"❌ Table title mismatch: {last_arg.title}")
-                 return False
+                print(f"❌ Table title mismatch: {last_arg.title}")
+                return False
 
             # Check columns (might need internal access or check row count)
             if len(last_arg.columns) == 2:
@@ -68,7 +64,7 @@ def test_visualization():
     tree_data = [
         ("src/main.py", "File"),
         ("src/utils/helper.py", "File"),
-        ("tests/test_main.py", "Test")
+        ("tests/test_main.py", "Test"),
     ]
     renderer.tree("Project", tree_data)
 
@@ -112,6 +108,7 @@ def test_visualization():
 
     return True
 
+
 if __name__ == "__main__":
     try:
         success = test_visualization()
@@ -119,5 +116,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Exception: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

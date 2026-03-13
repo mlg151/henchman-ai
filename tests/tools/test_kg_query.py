@@ -196,3 +196,92 @@ def test_tool_properties() -> None:
     assert t.name == "kg_query"
     assert t.kind.name == "READ"
     assert "action" in t.parameters["properties"]  # type: ignore[index]
+
+
+def test_parse_int_param_non_digit() -> None:
+    """_parse_int_param returns default for non-digit values."""
+    from henchman.tools.builtins.kg_query import _parse_int_param
+
+    assert _parse_int_param("abc", 10) == 10
+    assert _parse_int_param(None, 5) == 5
+    assert _parse_int_param(7, 10) == 7
+
+
+async def test_lazy_init_with_git_root(tmp_path: Path) -> None:
+    """Tool initialises store when git root is found."""
+    import unittest.mock as mock
+
+    from henchman.knowledge.store import KnowledgeStore
+    from henchman.tools.builtins.kg_query import KgQueryTool
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+
+    store = KnowledgeStore(git_root=repo, base_dir=tmp_path / "kg")
+    store.load()
+
+    tool = KgQueryTool(store=None)
+    tool._initialised = False
+
+    with mock.patch("henchman.tools.builtins.kg_query._find_git_root", return_value=repo):
+        with mock.patch.object(KnowledgeStore, "load", return_value=None):
+            with mock.patch.object(
+                KgQueryTool, "_ensure_initialised", return_value=store
+            ):
+                result = await tool.execute(action="stats")
+                assert result.success is True
+
+
+async def test_lazy_init_scans_when_empty(tmp_path: Path) -> None:
+    """_ensure_initialised calls scan_repository when store is empty (lines 150-151)."""
+    import unittest.mock as mock
+
+    from henchman.knowledge.store import KnowledgeStore
+    from henchman.tools.builtins.kg_query import KgQueryTool
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+
+    tool = KgQueryTool(store=None)
+    tool._initialised = False
+
+    with mock.patch("henchman.tools.builtins.kg_query._find_git_root", return_value=repo):
+        with mock.patch.object(KnowledgeStore, "load", return_value=None):
+            with mock.patch.object(KnowledgeStore, "entity_count", return_value=0):
+                with mock.patch("henchman.tools.builtins.kg_query.scan_repository") as mock_scan:
+                    with mock.patch.object(KnowledgeStore, "save", return_value=None):
+                        store = tool._ensure_initialised()
+                        assert store is not None
+                        mock_scan.assert_called_once()
+
+
+def test_kg_query_description() -> None:
+    """KgQueryTool.description property returns non-empty string."""
+    from henchman.tools.builtins.kg_query import KgQueryTool
+    tool = KgQueryTool()
+    assert len(tool.description) > 10
+    assert "search" in tool.description.lower() or "query" in tool.description.lower()
+
+
+async def test_lazy_init_with_real_git_root(tmp_path: Path) -> None:
+    """_ensure_initialised creates store when git root is found."""
+    import unittest.mock as mock
+
+    from henchman.knowledge.store import KnowledgeStore
+    from henchman.tools.builtins.kg_query import KgQueryTool
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+
+    tool = KgQueryTool(store=None)
+    tool._initialised = False
+
+    with mock.patch("henchman.tools.builtins.kg_query._find_git_root", return_value=repo):
+        with mock.patch.object(KnowledgeStore, "load", return_value=None):
+            with mock.patch.object(KnowledgeStore, "entity_count", return_value=1):
+                store = tool._ensure_initialised()
+                assert store is not None
+                assert tool._initialised is True

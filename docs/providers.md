@@ -4,15 +4,19 @@ Henchman-AI supports multiple LLM providers through a unified interface.
 
 ## Supported Providers
 
-| Provider | Status | API Compatibility |
-|----------|--------|-------------------|
-| DeepSeek | ✅ Default | OpenAI-compatible |
-| OpenAI | ✅ | Native |
-| Anthropic | ✅ | Native |
-| Ollama | ✅ | OpenAI-compatible |
-| OpenRouter | ✅ | OpenAI-compatible |
-| Together | ✅ | OpenAI-compatible |
-| Groq | ✅ | OpenAI-compatible |
+| Provider | Status | API Compatibility | Registry Name | Notes |
+|----------|--------|-------------------|---------------|-------|
+| DeepSeek | ✅ Default | OpenAI-compatible | `deepseek` | Default provider |
+| Anthropic | ✅ | Native SDK | `anthropic` | Claude models via native SDK |
+| Ollama | ✅ | OpenAI-compatible | `ollama` | Local models, no API key required |
+| OpenRouter | ✅ | OpenAI-compatible | `openrouter` | Access to hundreds of models |
+| OpenAI-Compatible (`openai_compat`) | ✅ | OpenAI-compatible | `openai_compat` | Generic provider for ANY OpenAI-compatible API (OpenAI, Together, Groq, Fireworks, etc.) |
+| OpenAI (via `openai_compat`) | ✅ | OpenAI-compatible | `openai_compat` | Use with `base_url: https://api.openai.com/v1` |
+| Together AI (`together`) | ✅ | OpenAI-compatible | `together` | Alias for `openai_compat` with Together base URL |
+| Groq (`groq`) | ✅ | OpenAI-compatible | `groq` | Alias for `openai_compat` with Groq base URL |
+| Fireworks AI (`fireworks`) | ✅ | OpenAI-compatible | `fireworks` | Alias for `openai_compat` with Fireworks base URL |
+
+**Note**: The `openai_compat` provider is a generic provider for any OpenAI-compatible API. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs pre-configured. For OpenAI specifically, use `openai_compat` with `base_url: https://api.openai.com/v1` and `api_key: ${OPENAI_API_KEY}`.
 
 ## DeepSeek (Default)
 
@@ -38,28 +42,69 @@ providers:
 - `deepseek-chat` - General purpose chat model
 - `deepseek-coder` - Optimized for code generation
 
-## OpenAI
+## OpenAI-Compatible Providers
 
-### Setup
+The `openai_compat` provider works with any API that follows the OpenAI chat completions format. This includes OpenAI itself, Together AI, Groq, Fireworks AI, and other compatible services.
+
+### OpenAI
+
+To use OpenAI models, configure the `openai_compat` provider with OpenAI's base URL:
+
+#### Setup
 
 ```bash
 export OPENAI_API_KEY="your-api-key"
 ```
 
-### Configuration
+#### Configuration
 
 ```yaml
 providers:
-  default: openai
-  openai:
+  default: openai_compat
+  openai_compat:
     model: gpt-4
+    base_url: https://api.openai.com/v1
+    api_key: ${OPENAI_API_KEY}
 ```
 
-### Models
+#### Models
 
 - `gpt-4` - Most capable model
 - `gpt-4-turbo` - Faster, cheaper GPT-4
 - `gpt-3.5-turbo` - Fast and economical
+
+### Together AI
+
+```yaml
+providers:
+  default: together
+  together:
+    model: meta-llama/Llama-3-70b-chat-hf
+    base_url: https://api.together.xyz/v1
+    api_key: ${TOGETHER_API_KEY}
+```
+
+### Groq
+
+```yaml
+providers:
+  default: groq
+  groq:
+    model: llama3-70b-8192
+    base_url: https://api.groq.com/openai/v1
+    api_key: ${GROQ_API_KEY}
+```
+
+### Fireworks AI
+
+```yaml
+providers:
+  default: fireworks
+  fireworks:
+    model: fireworks-ai/llama-v3-70b-instruct
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key: ${FIREWORKS_API_KEY}
+```
 
 ## Anthropic
 
@@ -137,33 +182,7 @@ providers:
 
 OpenRouter supports hundreds of models from various providers. Refer to the [OpenRouter Model List](https://openrouter.ai/models) for specific model identifiers.
 
-## OpenAI-Compatible Providers
-
-Many providers use the OpenAI-compatible API format.
-
-### Together AI
-
-```yaml
-providers:
-  default: together
-  together:
-    model: meta-llama/Llama-3-70b-chat-hf
-    base_url: https://api.together.xyz/v1
-    api_key: ${TOGETHER_API_KEY}
-```
-
-### Groq
-
-```yaml
-providers:
-  default: groq
-  groq:
-    model: llama3-70b-8192
-    base_url: https://api.groq.com/openai/v1
-    api_key: ${GROQ_API_KEY}
-```
-
-## Programmatic Usage
+## Basic Usage
 
 ```python
 from henchman.providers import DeepSeekProvider, Message

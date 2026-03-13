@@ -73,8 +73,7 @@ def _extract_tool_info(
     """Extract tool call information for the timeout summary."""
     tc_args = tc.arguments
     args_str = ", ".join(
-        f"{k}={v!r}"
-        for k, v in list(tc_args.items())[:MAX_TOOL_ARGUMENTS_TO_DISPLAY]
+        f"{k}={v!r}" for k, v in list(tc_args.items())[:MAX_TOOL_ARGUMENTS_TO_DISPLAY]
     )
     tools_used.append(f"{tc.name}({args_str})")
 
@@ -100,8 +99,7 @@ def _format_summary(
         lines.append(f"- Files touched: {', '.join(sorted(files_touched))}")
     if narration_parts:
         lines.append(
-            f"- Last agent output: "
-            f"{narration_parts[-1][:MAX_NARRATION_DISPLAY_LENGTH]}",
+            f"- Last agent output: {narration_parts[-1][:MAX_NARRATION_DISPLAY_LENGTH]}",
         )
     if not tools_used and not narration_parts:
         lines.append("- No significant progress was made.")

@@ -1,6 +1,6 @@
 """Extended tests for CLI entry point to reach 100% coverage."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
@@ -46,7 +46,7 @@ def test_run_interactive_plan_mode():
     ):
         _run_interactive(RunConfig(output_format="text", plan_mode=True))
         assert mock_session.plan_mode is True
-        mock_repl_instance.tool_manager.set_plan_mode.assert_called_once_with(True)
+        mock_repl_instance.tool_manager.set_plan_mode.assert_called_once_with(plan_mode=True)
         assert "PLAN" in mock_repl_instance.agent.system_prompt
 
 
@@ -69,7 +69,7 @@ def test_run_headless_json():
         mock_run.assert_called_once()
         # Get the internal function passed to anyio.run
         run_func = mock_run.call_args[0][0]
-        assert "_run_headless_json" in run_func.__name__
+        assert "_run_headless_json_format" in run_func.__name__
 
 
 def test_run_headless_stream_json():
@@ -90,13 +90,13 @@ def test_run_headless_stream_json():
         _run_headless("prompt", "stream-json")
         mock_run.assert_called_once()
         run_func = mock_run.call_args[0][0]
-        assert "_run_headless_stream_json" in run_func.__name__
+        assert "_run_headless_json_format" in run_func.__name__
 
 
 @pytest.mark.anyio
 async def test_run_headless_json():
-    """Test the _run_headless_json function."""
-    from henchman.cli.app import _run_headless_json
+    """Test the _run_headless_json_format function with json mode."""
+    from henchman.cli.app import _run_headless_json_format
 
     mock_repl_instance = MagicMock()
 
@@ -112,20 +112,20 @@ async def test_run_headless_json():
         yield AgentEvent(type=EventType.FINISHED)
 
     mock_repl_instance.agent.run = mock_run_gen
-    
+
     # Mock JsonOutputRenderer
     mock_renderer = MagicMock()
     mock_renderer.render = MagicMock()
-    
+
     with patch("henchman.cli.app._initialize_json_processing", return_value=mock_renderer):
-        await _run_headless_json(mock_repl_instance, "prompt")
+        await _run_headless_json_format(mock_repl_instance, "prompt", "json")
         assert mock_renderer.render.call_count == 2
 
 
 @pytest.mark.anyio
 async def test_run_headless_stream_json():
-    """Test the _run_headless_stream_json function."""
-    from henchman.cli.app import _run_headless_stream_json
+    """Test the _run_headless_json_format function with stream-json mode."""
+    from henchman.cli.app import _run_headless_json_format
 
     mock_repl_instance = MagicMock()
 
@@ -139,13 +139,13 @@ async def test_run_headless_stream_json():
         yield AgentEvent(type=EventType.CONTENT, data="Result")
 
     mock_repl_instance.agent.run = mock_run_gen
-    
+
     # Mock JsonOutputRenderer
     mock_renderer = MagicMock()
     mock_renderer.render_stream_json = MagicMock()
-    
+
     with patch("henchman.cli.app._initialize_json_processing", return_value=mock_renderer):
-        await _run_headless_stream_json(mock_repl_instance, "prompt")
+        await _run_headless_json_format(mock_repl_instance, "prompt", "stream-json")
         assert mock_renderer.render_stream_json.called
 
 

@@ -36,7 +36,9 @@ class TestChatPaneBugs:
         # Test second chunk for same agent - should scroll
         scroll_calls.clear()
         pane.append_agent_chunk("agent1", " World")
-        assert len(scroll_calls) == 1, f"Expected 1 scroll for existing agent, got {len(scroll_calls)}"
+        assert len(scroll_calls) == 1, (
+            f"Expected 1 scroll for existing agent, got {len(scroll_calls)}"
+        )
 
     def test_bug5_finish_agent_stream_silent_failure(self):
         """Bug 5: finish_agent_stream fails silently for non-existent agent.
@@ -68,10 +70,12 @@ class TestChatPaneBugs:
         # We can't easily test this without creating actual ThinkingMessage widgets
         # But we can verify the code now uses isinstance instead of string comparison
         import inspect
+
         source = inspect.getsource(pane.clear_thinking_messages)
         # Should use isinstance now, not string comparison
-        assert "isinstance(child, ThinkingMessage)" in source, \
-               "Should use isinstance check, not string comparison"
+        assert "isinstance(child, ThinkingMessage)" in source, (
+            "Should use isinstance check, not string comparison"
+        )
 
     def test_bug7_chatmessage_escape_handling(self):
         """Bug 7: ChatMessage escapes content but prefix may contain markup.
@@ -102,9 +106,9 @@ class TestChatPaneBugs:
         widget = ToolMessage(thought="test thought", tool_call={"name": "test"})
 
         # These attributes are stored but not used in rendering
-        assert hasattr(widget, '_thought')
-        assert hasattr(widget, '_tool_call')
-        assert hasattr(widget, '_content')
+        assert hasattr(widget, "_thought")
+        assert hasattr(widget, "_tool_call")
+        assert hasattr(widget, "_content")
 
         # _update_renderable only uses _content
         # thought and tool_call are dead code

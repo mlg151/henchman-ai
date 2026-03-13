@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ast
 import re
-from pathlib import Path
 
 from scripts.doc_smell_detector.detectors.base import (
     DocSmellDetector,

@@ -101,7 +101,7 @@ class TestPlanModeEnforcement:
         registry.register(MockWriteTool())
 
         # Enable plan mode
-        registry.set_plan_mode(True)
+        registry.set_plan_mode(enabled=True)
 
         result = await registry.execute("write_file", {"path": "/test", "content": "data"})
         assert result.success is False
@@ -114,7 +114,7 @@ class TestPlanModeEnforcement:
         registry.register(MockExecuteTool())
 
         # Enable plan mode
-        registry.set_plan_mode(True)
+        registry.set_plan_mode(enabled=True)
 
         result = await registry.execute("shell", {"command": "ls"})
         assert result.success is False
@@ -127,7 +127,7 @@ class TestPlanModeEnforcement:
         registry.register(MockReadTool())
 
         # Enable plan mode
-        registry.set_plan_mode(True)
+        registry.set_plan_mode(enabled=True)
 
         result = await registry.execute("read_file", {"path": "/test"})
         assert result.success is True
@@ -139,7 +139,7 @@ class TestPlanModeEnforcement:
         registry.register(MockWriteTool())
 
         # Plan mode disabled (default)
-        registry.set_plan_mode(False)
+        registry.set_plan_mode(enabled=False)
 
         result = await registry.execute("write_file", {"path": "/test", "content": "data"})
         assert result.success is True
@@ -178,7 +178,7 @@ class TestPlanModeEnforcement:
         registry.register(MockNetworkTool())
 
         # Enable plan mode
-        registry.set_plan_mode(True)
+        registry.set_plan_mode(enabled=True)
 
         result = await registry.execute("web_fetch", {"url": "http://example.com"})
         assert result.success is False

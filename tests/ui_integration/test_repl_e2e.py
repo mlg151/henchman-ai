@@ -45,7 +45,9 @@ class TestReplE2E:
         # Patch _run_agent_with_monitor to bypass KeyMonitor (no stdin in tests)
         original_tool_executor = repl.tool_executor
 
-        async def _simple_run_agent_with_monitor(event_stream, agent, assistant_content, status_msg):  # noqa: ARG001
+        async def _simple_run_agent_with_monitor(
+            event_stream, agent, assistant_content, status_msg
+        ):  # noqa: ARG001
             """Simplified version that skips KeyMonitor for testing."""
             await original_tool_executor.process_agent_stream(
                 event_stream, agent, assistant_content, None

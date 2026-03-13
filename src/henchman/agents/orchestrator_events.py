@@ -18,8 +18,12 @@ if TYPE_CHECKING:
 
 
 _BRIEF_FIELDS = (
-    "done_when", "context", "files",
-    "background", "requirements", "depends_on",
+    "done_when",
+    "context",
+    "files",
+    "background",
+    "requirements",
+    "depends_on",
 )
 
 
@@ -102,6 +106,9 @@ def update_ledger(
         record: The delegation record to update.
         result: The result of the delegation.
         had_error: Whether the delegation had an error.
+
+    Returns:
+        None
     """
     if not ledger or not record:
         return

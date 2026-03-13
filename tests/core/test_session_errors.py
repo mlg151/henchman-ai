@@ -19,7 +19,7 @@ def test_load_ambiguous_session_id() -> None:
     mock_file2.name = "session-abc456.json"
 
     # Patch the glob method on Path
-    with patch('pathlib.Path.glob') as mock_glob:
+    with patch("pathlib.Path.glob") as mock_glob:
         mock_glob.return_value = [mock_file1, mock_file2]
 
         with pytest.raises(ValueError, match="Ambiguous session ID prefix: session-abc"):
@@ -30,7 +30,7 @@ def test_load_session_not_found() -> None:
     """Test that load() raises FileNotFoundError when session doesn't exist."""
     manager = SessionManager()
 
-    with patch('pathlib.Path.glob') as mock_glob:
+    with patch("pathlib.Path.glob") as mock_glob:
         mock_glob.return_value = []  # No matching files
 
         with pytest.raises(FileNotFoundError, match="Session not found: nonexistent"):

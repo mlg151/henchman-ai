@@ -50,6 +50,7 @@ _PROBE_TOOLS: list[str] = [
 ]
 
 _SUBPROCESS_TIMEOUT = 5
+_GIT_STATUS_MAX_LINES = 10
 
 
 @dataclass(frozen=True)
@@ -91,7 +92,7 @@ def _run_cmd(*args: str) -> str | None:
         Stripped stdout string, or None if the command failed.
     """
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: PLW1510
             args,
             capture_output=True,
             text=True,
@@ -145,7 +146,7 @@ def _detect_git_status(cwd: Path) -> str | None:
         return "clean (no uncommitted changes)"
 
     lines = output.splitlines()
-    if len(lines) <= 10:
+    if len(lines) <= _GIT_STATUS_MAX_LINES:
         return output
 
     # Summarise by category

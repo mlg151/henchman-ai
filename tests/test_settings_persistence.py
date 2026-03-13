@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 
@@ -15,9 +14,7 @@ def test_settings_persistence():
     print("Testing settings persistence...")
 
     # Create test settings
-    settings = Settings(
-        ui=UISettings(theme="dracula", show_line_numbers=False)
-    )
+    settings = Settings(ui=UISettings(theme="dracula", show_line_numbers=False))
 
     # Define test path
     test_path = Path("test_settings.yaml")
@@ -42,8 +39,10 @@ def test_settings_persistence():
             return False
 
         if data.get("ui", {}).get("show_line_numbers") is not False:
-             print(f"❌ show_line_numbers mismatch. Expected False, got {data.get('ui', {}).get('show_line_numbers')}")
-             return False
+            print(
+                f"❌ show_line_numbers mismatch. Expected False, got {data.get('ui', {}).get('show_line_numbers')}"
+            )
+            return False
 
         print("✅ Settings persisted correctly")
         return True
@@ -55,6 +54,7 @@ def test_settings_persistence():
         # Cleanup
         if test_path.exists():
             test_path.unlink()
+
 
 if __name__ == "__main__":
     success = test_settings_persistence()

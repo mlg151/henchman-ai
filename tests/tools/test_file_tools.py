@@ -139,6 +139,13 @@ class TestWriteFileTool:
             assert Path(f.name).read_text() == "new content"
         Path(f.name).unlink()
 
+    async def test_path_traversal_rejected(self) -> None:
+        """Path traversal in write path is rejected."""
+        tool = WriteFileTool()
+        result = await tool.execute(path="../../../etc/passwd", content="malicious")
+        assert result.success is False
+        assert "Security" in result.content or "validation" in result.content.lower()
+
 
 class TestEditFileTool:
     """Tests for EditFileTool."""
@@ -249,9 +256,7 @@ class TestEditFileTool:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("line1\nline2\n")
             f.flush()
-            result = await tool.execute(
-                path=f.name, new_str="x", start_line=3, end_line=1
-            )
+            result = await tool.execute(path=f.name, new_str="x", start_line=3, end_line=1)
             assert result.success is False
         Path(f.name).unlink()
 
@@ -261,9 +266,7 @@ class TestEditFileTool:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("line1\n")
             f.flush()
-            result = await tool.execute(
-                path=f.name, new_str="x", start_line=5, end_line=10
-            )
+            result = await tool.execute(path=f.name, new_str="x", start_line=5, end_line=10)
             assert result.success is False
             assert "exceeds" in result.content.lower() or "start_line" in result.content.lower()
         Path(f.name).unlink()
@@ -320,6 +323,48 @@ class TestEditFileTool:
             assert "dry run" in result.content.lower()
             assert Path(f.name).read_text() == "line1\nline2\nline3\n"
         Path(f.name).unlink()
+
+    async def test_path_traversal_rejected(self) -> None:
+        """Path traversal in edit path is rejected."""
+        tool = EditFileTool()
+        result = await tool.execute(
+            path="../../../etc/passwd",
+            old_str="root",
+            new_str="hacked",
+        )
+        assert result.success is False
+        assert "Security" in result.content or "validation" in result.content.lower()
+
+    async def test_line_range_replacement_adds_newline(self) -> None:
+        """Line range replacement adds newline when mid-file replacement needed."""
+        tool = EditFileTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = Path(tmpdir) / "test.py"
+            f.write_text("line1\nline2\nline3\nline4\n")
+            result = await tool.execute(
+                path=str(f),
+                start_line=2,
+                end_line=3,
+                new_str="replacement",
+            )
+            assert result.success is True
+            content = f.read_text()
+            assert "replacement" in content
+
+    async def test_dry_run_no_changes(self) -> None:
+        """Dry run with no changes returns no changes message."""
+        tool = EditFileTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = Path(tmpdir) / "test.py"
+            f.write_text("line1\nline2\nline3\n")
+            result = await tool.execute(
+                path=str(f),
+                start_line=1,
+                end_line=1,
+                new_str="line1\n",
+                dry_run=True,
+            )
+            assert result.success is True
 
 
 class TestFileToolPermissionErrors:

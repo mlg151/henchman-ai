@@ -48,9 +48,14 @@ class ToolController(OrchestratorComponent):
             tool_name: Name of the tool that was called.
             args: Dictionary of arguments passed to the tool.
             success: Whether the tool call was successful. Defaults to True.
+
+        Returns:
+            None: This method delegates to the metrics controller and returns nothing.
         """
         self._metrics_controller.update_tool_metrics(
-            tool_name, args, success=success,
+            tool_name,
+            args,
+            success=success,
         )
 
     async def process_pending_tool_calls(
@@ -74,12 +79,17 @@ class ToolController(OrchestratorComponent):
         for tool_call in pending_tool_calls:
             if tool_call.name == DELEGATE_TASK_TOOL:
                 async for event in self._delegation_controller.execute_delegation_tool(
-                    agent, tool_call, depth,
+                    agent,
+                    tool_call,
+                    depth,
                 ):
                     yield event
             else:
                 async for event in _execute_regular_tool(
-                    agent, tool_call, tool_errors, self._metrics_controller,
+                    agent,
+                    tool_call,
+                    tool_errors,
+                    self._metrics_controller,
                 ):
                     yield event
 
@@ -92,7 +102,8 @@ async def _execute_regular_tool(
 ) -> AsyncIterator[AgentEvent]:
     """Execute a regular (non-delegation) tool call."""
     result = await agent.tool_registry.execute(
-        tool_call.name, tool_call.arguments,
+        tool_call.name,
+        tool_call.arguments,
     )
     tc_name = tool_call.name
     tc_id = tool_call.id
@@ -103,7 +114,9 @@ async def _execute_regular_tool(
         metrics.track_tool_error(tool_errors, tc_name, result.content)
 
     metrics.update_tool_metrics(
-        tc_name, tool_call.arguments, success=result.success,
+        tc_name,
+        tool_call.arguments,
+        success=result.success,
     )
 
     yield AgentEvent(

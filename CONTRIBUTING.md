@@ -33,9 +33,8 @@ Thank you for your interest in contributing to Henchman-AI! This document provid
 ```bash
 # 1. First, fork the repository on GitHub: https://github.com/mlg151/henchman-ai
 # 2. Then clone your fork:
-#    Replace 'your-username' with your actual GitHub username
-#    Example: git clone https://github.com/johndoe/henchman-ai.git
-git clone https://github.com/your-username/henchman-ai.git
+#    Replace '{your-username}' with your actual GitHub username
+git clone https://github.com/{your-username}/henchman-ai.git
 cd henchman-ai
 
 # Create virtual environment
@@ -48,6 +47,31 @@ pip install -e ".[dev]"
 # Install pre-commit hooks (optional but recommended)
 pre-commit install
 ```
+
+### AI Agent Development
+
+Henchman-AI is designed to be developed with AI assistance. The project includes comprehensive copilot instructions for AI agents working on the codebase:
+
+**Copilot Instructions**: `.github/copilot-instructions.md`
+
+This file contains:
+- **Architecture overview** of the entire system
+- **Development workflow** guidelines for AI agents
+- **Performance optimization** strategies for agent effectiveness
+- **Tool usage patterns** and best practices
+- **Testing requirements** and quality standards
+- **File structure** and conventions
+
+**Key guidelines for AI agents**:
+1. **Read the copilot instructions first** before making changes
+2. **Follow the structured thinking protocols** for complex tasks
+3. **Use the working memory system** to avoid redundant file reads
+4. **Apply smart file reading strategies** to optimize context usage
+5. **Delegate specialized tasks** to appropriate agent roles
+6. **Track performance metrics** to improve efficiency
+7. **Place non-source artifacts** in `.agent_tasks/` directory
+
+The copilot instructions are regularly updated to reflect the current architecture and development practices. AI agents should reference this file to understand project conventions, tool capabilities, and performance expectations.
 
 ### Running Tests
 ```bash
@@ -95,13 +119,37 @@ henchman-ai/
 └── evals/                # Evaluation scripts
 ```
 
+## 🛠️ Temporary Debugging Files
+
+During development and debugging, you may create temporary test files to reproduce specific issues or test fixes. These files differ from the official test suite:
+
+### Guidelines for Temporary Debugging Files
+
+**Location**: Root directory (not in `tests/`)
+**Naming**: Use `test_` prefix followed by descriptive name (e.g., `test_delegation_bug.py`, `test_actual_bug_manifestation.py`)
+**Purpose**: For reproducing bugs, testing fixes, or quick experiments
+**Cleanup**: Remove temporary debugging files before committing changes
+**Official Tests**: Permanent tests that should be part of the test suite belong in the `tests/` directory
+
+### Example Temporary Files
+```
+test_actual_bug_manifestation.py    # Reproduce specific bug
+test_delegation_bug.py              # Test delegation fix
+test_raw_string_simple.py           # Test string parsing issue
+```
+
+### Before Committing
+1. **Move to tests/**: If the test should be permanent, move it to `tests/` directory
+2. **Clean up**: Remove temporary debugging files from root directory
+3. **Verify**: Ensure only official tests remain in `tests/` directory
+
 ## 📝 Code Style
 
 ### Python Style Guide
 - Follow [PEP 8](https://peps.python.org/pep-0008/)
 - Use type hints for all functions and methods
 - Document public APIs with docstrings (Google style)
-- Keep functions focused and small (< 50 lines when possible)
+- Keep functions focused and small (aim for concise, single-purpose functions)
 
 ### Docstring Format (Google Style)
 ```python
@@ -210,7 +258,7 @@ We follow [Semantic Versioning](https://semver.org/):
 
 ## ❓ Getting Help
 
-- Check the [documentation](https://mlg151.github.io/henchman-ai/)
+- Check the [documentation](https://github.com/mlg151/henchman-ai)
 - Search existing [issues](https://github.com/mlg151/henchman-ai/issues)
 - Join discussions in [GitHub Discussions](https://github.com/mlg151/henchman-ai/discussions)
 

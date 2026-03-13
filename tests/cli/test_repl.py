@@ -45,9 +45,7 @@ class TestReplConfig:
 
     def test_custom_config(self) -> None:
         """Test custom configuration."""
-        config = ReplConfig(
-            prompt="> ", system_prompt="You are helpful", auto_save=False
-        )
+        config = ReplConfig(prompt="> ", system_prompt="You are helpful", auto_save=False)
         assert config.prompt == "> "
         assert config.system_prompt == "You are helpful"
         assert config.auto_save is False
@@ -80,17 +78,13 @@ class TestRepl:
         assert repl.provider is mock_provider
         assert repl.running is False
 
-    def test_repl_with_config(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    def test_repl_with_config(self, mock_provider: MockProvider, console: Console) -> None:
         """Test REPL with custom config."""
         config = ReplConfig(prompt=">> ", system_prompt="Be helpful")
         repl = Repl(provider=mock_provider, console=console, config=config)
         assert repl.agent.system_prompt == "Be helpful"
 
-    def test_builtin_tools_registered(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    def test_builtin_tools_registered(self, mock_provider: MockProvider, console: Console) -> None:
         """All built-in tools must be registered in the REPL tool registry."""
         repl = Repl(provider=mock_provider, console=console)
         expected = [
@@ -143,12 +137,10 @@ class TestRepl:
                 continue
             cls = getattr(builtins_mod, attr_name)
             if isinstance(cls, type) and issubclass(cls, Tool) and cls is not Tool:
-                instance = (
-                    cls() if attr_name != "ShellTool" else cls(default_timeout=60)
+                instance = cls() if attr_name != "ShellTool" else cls(default_timeout=60)
+                assert instance.name in registered_names, (
+                    f"{attr_name} exported but not registered in tool_manager"
                 )
-                assert (
-                    instance.name in registered_names
-                ), f"{attr_name} exported but not registered in tool_manager"
 
     @pytest.mark.anyio
     async def test_process_input_regular_message(
@@ -200,9 +192,7 @@ class TestRepl:
         assert "quit" in output.lower() or "help" in output.lower()
 
     @pytest.mark.anyio
-    async def test_process_input_empty(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_process_input_empty(self, mock_provider: MockProvider, console: Console) -> None:
         """Test empty input is ignored."""
         repl = Repl(provider=mock_provider, console=console)
         result = await repl.process_input("")
@@ -237,9 +227,7 @@ class TestRepl:
             mock_expand.assert_called_once()
 
     @pytest.mark.anyio
-    async def test_process_tool_call(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_process_tool_call(self, mock_provider: MockProvider, console: Console) -> None:
         """Test processing a tool call from the agent."""
         from henchman.providers.base import FinishReason, StreamChunk, ToolCall
 
@@ -255,11 +243,7 @@ class TestRepl:
             if call_count == 1:
                 yield StreamChunk(
                     content=None,
-                    tool_calls=[
-                        ToolCall(
-                            id="tc_1", name="mock_tool", arguments={"input": "test"}
-                        )
-                    ],
+                    tool_calls=[ToolCall(id="tc_1", name="mock_tool", arguments={"input": "test"})],
                     finish_reason=FinishReason.TOOL_CALLS,
                 )
             else:
@@ -299,9 +283,7 @@ class TestRepl:
         assert "mock_tool" in output or "Done!" in output
 
     @pytest.mark.anyio
-    async def test_unknown_command(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_unknown_command(self, mock_provider: MockProvider, console: Console) -> None:
         """Test unknown command shows error."""
         repl = Repl(provider=mock_provider, console=console)
         result = await repl.process_input("/nonexistent")
@@ -357,9 +339,7 @@ class TestRepl:
         """Test handling of error events from agent."""
 
         repl = Repl(provider=mock_provider, console=console)
-        await repl._handle_agent_event(
-            AgentEvent(type=EventType.ERROR, data="Test error")
-        )
+        await repl._handle_agent_event(AgentEvent(type=EventType.ERROR, data="Test error"))
         output = console.file.getvalue()  # type: ignore[union-attr]
         assert "test error" in output.lower()
 
@@ -374,9 +354,7 @@ class TestRepl:
         # No error should occur
 
     @pytest.mark.anyio
-    async def test_tool_call_failure(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_tool_call_failure(self, mock_provider: MockProvider, console: Console) -> None:
         """Test handling of tool call that fails."""
         from henchman.providers.base import FinishReason, StreamChunk, ToolCall
 
@@ -391,9 +369,7 @@ class TestRepl:
             if call_count == 1:
                 yield StreamChunk(
                     content=None,
-                    tool_calls=[
-                        ToolCall(id="tc_1", name="nonexistent_tool", arguments={})
-                    ],
+                    tool_calls=[ToolCall(id="tc_1", name="nonexistent_tool", arguments={})],
                     finish_reason=FinishReason.TOOL_CALLS,
                 )
             else:
@@ -408,9 +384,7 @@ class TestRepl:
         assert "not found" in output.lower() or "error" in output.lower()
 
     @pytest.mark.anyio
-    async def test_slash_only_command(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_slash_only_command(self, mock_provider: MockProvider, console: Console) -> None:
         """Test slash command that parses to None."""
         repl = Repl(provider=mock_provider, console=console)
         # "/ " is a slash command (starts with / and has content), but parses to None
@@ -419,9 +393,7 @@ class TestRepl:
         assert result is True
 
     @pytest.mark.anyio
-    async def test_get_input_method(
-        self, mock_provider: MockProvider, console: Console
-    ) -> None:
+    async def test_get_input_method(self, mock_provider: MockProvider, console: Console) -> None:
         """Test the _get_input method."""
         repl = Repl(provider=mock_provider, console=console)
         # Mock the input handler's get_input method
@@ -539,18 +511,14 @@ class TestSessionAutoSave:
         config = ReplConfig(auto_save=True)
 
         repl = Repl(provider=provider, console=console, config=config)
-        repl.session_manager = ReplSessionManager(
-            session_manager=manager, auto_save=True
-        )
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
         session = manager.create_session(project_hash="test-project")
         repl.set_session(session)
 
         # Add a message to the session
         from henchman.core.session import SessionMessage
 
-        repl.session_manager.current.messages.append(
-            SessionMessage(role="user", content="Hello")
-        )
+        repl.session_manager.current.messages.append(SessionMessage(role="user", content="Hello"))
 
         # Run with /quit to exit gracefully
         inputs = iter(["/quit"])
@@ -580,18 +548,14 @@ class TestSessionAutoSave:
         config = ReplConfig(auto_save=False)
 
         repl = Repl(provider=provider, console=console, config=config)
-        repl.session_manager = ReplSessionManager(
-            session_manager=manager, auto_save=False
-        )
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=False)
         session = manager.create_session(project_hash="test-project")
         repl.set_session(session)
 
         # Add a message to the session
         from henchman.core.session import SessionMessage
 
-        repl.session_manager.current.messages.append(
-            SessionMessage(role="user", content="Hello")
-        )
+        repl.session_manager.current.messages.append(SessionMessage(role="user", content="Hello"))
 
         # Run with /quit
         inputs = iter(["/quit"])
@@ -621,18 +585,14 @@ class TestSessionAutoSave:
         config = ReplConfig(auto_save=True)
 
         repl = Repl(provider=provider, console=console, config=config)
-        repl.session_manager = ReplSessionManager(
-            session_manager=manager, auto_save=True
-        )
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
         session = manager.create_session(project_hash="test-project")
         repl.set_session(session)
 
         # Add a message
         from henchman.core.session import SessionMessage
 
-        repl.session_manager.current.messages.append(
-            SessionMessage(role="user", content="Hello")
-        )
+        repl.session_manager.current.messages.append(SessionMessage(role="user", content="Hello"))
 
         # Simulate Ctrl+C then EOF
         with patch(
@@ -660,9 +620,7 @@ class TestSessionAutoSave:
         config = ReplConfig(auto_save=True)
 
         repl = Repl(provider=provider, console=console, config=config)
-        repl.session_manager = ReplSessionManager(
-            session_manager=manager, auto_save=True
-        )
+        repl.session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
         session = manager.create_session(project_hash="test-project")
         repl.set_session(session)
         # Don't add any messages
@@ -681,9 +639,7 @@ class TestSessionAutoSave:
         assert len(saved_sessions) == 0
 
     @pytest.mark.anyio
-    async def test_session_messages_recorded_during_conversation(
-        self, tmp_path: Any
-    ) -> None:
+    async def test_session_messages_recorded_during_conversation(self, tmp_path: Any) -> None:
         """Test that messages are recorded to session during conversation."""
         from henchman.cli.session_manager import ReplSessionManager
         from henchman.core.session import SessionManager
@@ -698,9 +654,7 @@ class TestSessionAutoSave:
 
         repl = Repl(provider=provider, console=console, config=config)
         # Replace session manager in all components
-        new_session_manager = ReplSessionManager(
-            session_manager=manager, auto_save=True
-        )
+        new_session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
         repl.session_manager = new_session_manager
         repl.output_handler.session_manager = new_session_manager
         repl.command_processor.session_manager = new_session_manager
@@ -799,9 +753,7 @@ class TestSessionAutoSave:
         repl = Repl(provider=provider, console=console, config=config)
         repl.tool_registry.register(MockTestTool())
         # Create new session manager and update all component references
-        new_session_manager = ReplSessionManager(
-            session_manager=manager, auto_save=True
-        )
+        new_session_manager = ReplSessionManager(session_manager=manager, auto_save=True)
         repl.session_manager = new_session_manager
         repl.output_handler.session_manager = new_session_manager
         repl.command_processor.session_manager = new_session_manager

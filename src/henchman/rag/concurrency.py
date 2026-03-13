@@ -82,7 +82,7 @@ class RagLock:
                 self.lock_path.parent.mkdir(parents=True, exist_ok=True)
 
                 # Open file for writing (creates if doesn't exist)
-                self.lock_file = open(self.lock_path, "w")  # noqa: SIM115
+                self.lock_file = open(self.lock_path, "w")  # noqa: PTH123, SIM115
 
                 # Try to acquire exclusive non-blocking lock
                 fcntl.flock(self.lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -103,7 +103,11 @@ class RagLock:
         return False
 
     def release(self: RagLock) -> None:
-        """Release the lock if it is held."""
+        """Release the lock if it is held.
+
+        Returns:
+            None
+        """
         if self._acquired and self.lock_file:
             try:
                 fcntl.flock(self.lock_file, fcntl.LOCK_UN)
@@ -118,7 +122,7 @@ class RagLock:
             raise LockTimeoutError(self.lock_path, 5.0)
         return self
 
-    def __exit__(self: RagLock, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(self: RagLock, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:  # noqa: PYI036
         """Context manager exit."""
         self.release()
 
@@ -145,7 +149,8 @@ def acquire_rag_lock(lock_path: Path | str, timeout: float = 5.0) -> tuple[bool,
 
 
 def retry_on_locked(
-    max_retries: int = 3, delay: float = 0.1,
+    max_retries: int = 3,
+    delay: float = 0.1,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator to retry operations on database lock errors.
 
@@ -194,7 +199,7 @@ def retry_on_locked(
                     time.sleep(min(wait_time, 1.0))  # Cap at 1 second
 
             # This should never be reached due to the raise above
-            raise last_exception  # type: ignore
+            raise last_exception  # type: ignore  # noqa: PGH003  # pragma: no cover
 
         return wrapper
 

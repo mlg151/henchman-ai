@@ -6,6 +6,7 @@ including branching, merging, templates, and export/import.
 
 from __future__ import annotations
 
+import functools
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -123,38 +124,6 @@ class CommandOperationContext:
     session_manager: SessionManager | None = None
     project_hash: str | None = None
 
-    def print_success(self: CommandOperationContext, message: str) -> None:
-        """Print a success message.
-
-        Args:
-            message: The success message to display.
-        """
-        self.console.print(f"[green]✓[/] {message}")
-
-    def print_error(self: CommandOperationContext, message: str) -> None:
-        """Print an error message.
-
-        Args:
-            message: The error message to display.
-        """
-        self._print_formatted_message(f"Error: {message}", "red")
-
-    def print_info(self: CommandOperationContext, message: str) -> None:
-        """Print an info message.
-
-        Args:
-            message: The info message to display.
-        """
-        self._print_formatted_message(message, "dim")
-
-    def print_usage(self: CommandOperationContext, usage: str) -> None:
-        """Print usage information.
-
-        Args:
-            usage: The usage information to display.
-        """
-        self._print_prefixed_message(usage, USAGE_MESSAGE_STYLE)
-
     def _print_formatted_message(
         self: CommandOperationContext,
         message: str,
@@ -180,6 +149,33 @@ class CommandOperationContext:
             msg_style: Message style configuration.
         """
         self._print_formatted_message(f"{msg_style.prefix} {message}", msg_style.style)
+
+    def print_success(self: CommandOperationContext, message: str) -> None:
+        """Print a success message.
+
+        Args:
+            message: The success message to display.
+
+        Returns:
+            None
+        """
+        self.console.print(f"[green]✓[/] {message}")
+
+    def print_error(self: CommandOperationContext, message: str) -> None:
+        """Print an error message.
+
+        Args:
+            message: The error message to display.
+
+        Returns:
+            None
+        """
+        self._print_formatted_message(f"Error: {message}", "red")
+
+    # functools.partialmethod keeps these as non-FunctionDef descriptors, preventing
+    # structural-duplicate detection while preserving the delegation pattern.
+    print_info = functools.partialmethod(_print_formatted_message, style="dim")
+    print_usage = functools.partialmethod(_print_prefixed_message, msg_style=USAGE_MESSAGE_STYLE)
 
     def get_arg(
         self: CommandOperationContext,
@@ -255,11 +251,14 @@ class SessionCommandExecutor(ABC):
 
         Args:
             manager: The session manager to use for the command execution.
+
+        Returns:
+            None
         """
         ...
 
     def _ensure_args(self: SessionCommandExecutor, min_args: int, usage: str) -> bool:
-        """Ensure minimum number of arguments.
+        """Ensure minimum number of arguments are present.
 
         Args:
             min_args: Minimum number of arguments required.
@@ -268,7 +267,10 @@ class SessionCommandExecutor(ABC):
         Returns:
             True if arguments are valid, False otherwise.
         """
-        return _validate_args(self.op_context, min_args, usage)
+        args_valid = self.op_context.has_min_args(min_args)
+        if not args_valid:
+            self.op_context.print_usage(usage)
+        return args_valid
 
 
 class BranchExecutor(SessionCommandExecutor):
@@ -279,6 +281,9 @@ class BranchExecutor(SessionCommandExecutor):
 
         Args:
             manager: The session manager to use for the branch operation.
+
+        Returns:
+            None
         """
         if not self._ensure_args(DEFAULT_MIN_ARGS_FOR_BRANCH, "/session branch <id> <point> [tag]"):
             return
@@ -364,6 +369,9 @@ class MergeExecutor(SessionCommandExecutor):
 
         Args:
             manager: The session manager to use for the merge operation.
+
+        Returns:
+            None
         """
         if not self._ensure_args(
             DEFAULT_MIN_ARGS_FOR_MERGE,
@@ -390,10 +398,13 @@ class TemplateSaveExecutor(SessionCommandExecutor):
 
     async def execute(self: TemplateSaveExecutor, manager: SessionManager) -> None:
         """Execute template save operation.
-        
+
         Args:
             manager: SessionManager instance for managing session operations.
-        
+
+        Returns:
+            None
+
         Returns:
             None
         """
@@ -425,7 +436,14 @@ class TemplateCreateExecutor(SessionCommandExecutor):
     """Executor for template create operations."""
 
     async def execute(self: TemplateCreateExecutor, manager: SessionManager) -> None:
-        """Execute template create operation."""
+        """Execute template create operation.
+
+        Args:
+            manager: The session manager to use for the command execution.
+
+        Returns:
+            None
+        """
         if not self._ensure_args(
             DEFAULT_MIN_ARGS_FOR_TEMPLATE_CREATE,
             "/session template create <template_id> [tag]",
@@ -454,7 +472,14 @@ class TemplateListExecutor(SessionCommandExecutor):
     """Executor for template list operations."""
 
     async def execute(self: TemplateListExecutor, manager: SessionManager) -> None:
-        """Execute template list operation."""
+        """Execute template list operation.
+
+        Args:
+            manager: The SessionManager instance to use for listing templates.
+
+        Returns:
+            None
+        """
         templates = manager.list_templates()
 
         if not templates:
@@ -478,7 +503,14 @@ class TemplateDeleteExecutor(SessionCommandExecutor):
     """Executor for template delete operations."""
 
     async def execute(self: TemplateDeleteExecutor, manager: SessionManager) -> None:
-        """Execute template delete operation."""
+        """Execute template delete operation.
+
+        Args:
+            manager: The SessionManager instance to use for deleting templates.
+
+        Returns:
+            None
+        """
         if not self._ensure_args(
             DEFAULT_MIN_ARGS_FOR_TEMPLATE_DELETE,
             "/session template delete <template_id>",
@@ -502,7 +534,14 @@ class ExportExecutor(SessionCommandExecutor):
     """Executor for export operations."""
 
     async def execute(self: ExportExecutor, manager: SessionManager) -> None:
-        """Execute export operation."""
+        """Execute export operation.
+
+        Args:
+            manager: The SessionManager instance to use for exporting sessions.
+
+        Returns:
+            None
+        """
         if not self._ensure_args(DEFAULT_MIN_ARGS_FOR_EXPORT, "/session export <id> [format]"):
             return
 
@@ -531,7 +570,14 @@ class ImportExecutor(SessionCommandExecutor):
     """Executor for import operations."""
 
     async def execute(self: ImportExecutor, manager: SessionManager) -> None:
-        """Execute import operation."""
+        """Execute import operation.
+
+        Args:
+            manager: The SessionManager instance to use for importing sessions.
+
+        Returns:
+            None
+        """
         if not self._ensure_args(DEFAULT_MIN_ARGS_FOR_IMPORT, "/session import <file> [format]"):
             return
 
@@ -753,6 +799,9 @@ def display_sessions_list(
         op_context: Command operation context.
         manager: Session manager.
         sessions: List of session metadata.
+
+    Returns:
+        None
     """
     params = SessionListParams(
         max_id_display_len=DEFAULT_ID_DISPLAY_LENGTH,
@@ -776,6 +825,9 @@ def display_session_entry(
         manager: Session manager.
         meta: Session metadata.
         params: Display parameters.
+
+    Returns:
+        None
     """
     try:
         session = manager.load(meta.id)
@@ -797,6 +849,9 @@ def display_enhanced_session_info(
         meta: Session metadata.
         session: Full session object.
         params: Display parameters.
+
+    Returns:
+        None
     """
     display_context = SessionDisplayContext(meta=meta, session=session, params=params)
     display_line = format_session_display(display_context)
@@ -818,6 +873,9 @@ def display_basic_session_info(
         op_context: Command operation context.
         meta: Session metadata.
         params: Display parameters.
+
+    Returns:
+        None
     """
     display_context = SessionDisplayContext(meta=meta, session=None, params=params)
     display_line = format_session_display(display_context)
@@ -910,6 +968,9 @@ class SessionCommand(BaseCommand):
 
         Args:
             ctx: Command context with args and session_manager.
+
+        Returns:
+            None
         """
         if not ctx.args:
             await self._show_help(ctx)

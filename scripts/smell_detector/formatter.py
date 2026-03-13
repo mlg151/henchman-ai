@@ -93,8 +93,8 @@ def format_markdown(report: RepoReport) -> str:
     # --- Executive Summary ---
     s = report.summary
     sections.append("## Executive Summary\n")
-    sections.append(f"| Metric | Value |")
-    sections.append(f"|:-------|------:|")
+    sections.append("| Metric | Value |")
+    sections.append("|:-------|------:|")
     sections.append(f"| **Overall Grade** | {_grade_badge(report.overall_grade)} |")
     sections.append(f"| **Overall Score** | {report.overall_score}/100 |")
     sections.append(f"| **Files Scanned** | {s.total_files} |")

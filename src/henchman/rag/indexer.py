@@ -44,6 +44,9 @@ class IndexManifest:
 
         Args:
             path: Path to save the manifest.
+
+        Returns:
+            None
         """
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
@@ -113,7 +116,7 @@ class GitFileIndexer:
         file_extensions: File extensions to index.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self: GitFileIndexer,
         git_root: Path,
         store: VectorStore,
@@ -214,6 +217,7 @@ class GitFileIndexer:
     def index(  # noqa: C901
         self: GitFileIndexer,
         console: Console | None = None,
+        *,
         force: bool = False,
         progress_callback: Callable[[str, int, int], None] | None = None,
     ) -> IndexStats:
@@ -234,10 +238,8 @@ class GitFileIndexer:
 
         # Check if we need full reindex due to config change
         if (
-            (manifest.model_name
-            and manifest.model_name != self.embedder.model_name)
-            or manifest.chunk_size != self.chunker.target_tokens
-        ):
+            manifest.model_name and manifest.model_name != self.embedder.model_name
+        ) or manifest.chunk_size != self.chunker.target_tokens:
             force = True
 
         if force:

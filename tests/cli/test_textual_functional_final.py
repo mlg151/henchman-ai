@@ -130,7 +130,7 @@ class TestTextualFunctionalFinal:
         mock_chat_pane = MagicMock()
 
         # Patch query_one on the actual instance
-        with patch.object(textual_app, 'query_one', return_value=mock_chat_pane):
+        with patch.object(textual_app, "query_one", return_value=mock_chat_pane):
             # Test user message
             textual_app.add_message("user", "Hello")
             mock_chat_pane.add_user_message.assert_called_with("Hello")
@@ -156,7 +156,9 @@ class TestTextualFunctionalFinal:
 
     @patch("henchman.cli.textual_app.HenchmanTextualApp.call_from_thread")
     @patch("henchman.cli.textual_app.HenchmanTextualApp.post_message")
-    async def test_event_bridge_forward_events(self, mock_post_message, mock_call_from_thread, textual_app):
+    async def test_event_bridge_forward_events(
+        self, mock_post_message, mock_call_from_thread, textual_app
+    ):
         """Test EventBridge forwarding events."""
         from henchman.core.events import AgentEvent, EventType
 
@@ -171,6 +173,7 @@ class TestTextualFunctionalFinal:
         # Mock call_from_thread to call the function directly
         def call_from_thread_side_effect(func, *args, **kwargs):
             return func(*args, **kwargs)
+
         mock_call_from_thread.side_effect = call_from_thread_side_effect
 
         # Forward events
@@ -189,6 +192,7 @@ class TestTextualFunctionalFinal:
         mock_textarea = MagicMock()
 
         call_count = 0
+
         def query_one_side_effect(query, widget_type):
             nonlocal call_count
             call_count += 1
@@ -426,7 +430,7 @@ class TestTextualFunctionalFinal:
     def test_keyboard_shortcuts(self, textual_app):
         """Test keyboard shortcuts are defined."""
         # Check BINDINGS exist
-        assert hasattr(textual_app, 'BINDINGS')
+        assert hasattr(textual_app, "BINDINGS")
         assert isinstance(textual_app.BINDINGS, list)
 
         # Should have some bindings
@@ -475,12 +479,12 @@ class TestTextualFunctionalFinal:
 
         # Check that the class has methods that handle messages
         # The actual handlers use @on decorator which registers them differently
-        assert hasattr(textual_app, 'on_agent_content_message')
-        assert hasattr(textual_app, 'on_agent_thought_message')
-        assert hasattr(textual_app, 'on_tool_call_request_message')
-        assert hasattr(textual_app, 'on_tool_call_result_message')
-        assert hasattr(textual_app, 'on_agent_status_message')
-        assert hasattr(textual_app, 'on_agent_finished_message')
+        assert hasattr(textual_app, "on_agent_content_message")
+        assert hasattr(textual_app, "on_agent_thought_message")
+        assert hasattr(textual_app, "on_tool_call_request_message")
+        assert hasattr(textual_app, "on_tool_call_result_message")
+        assert hasattr(textual_app, "on_agent_status_message")
+        assert hasattr(textual_app, "on_agent_finished_message")
 
     # === Integration Style Tests ===
 
@@ -488,11 +492,7 @@ class TestTextualFunctionalFinal:
     @patch("henchman.cli.textual_app.expand_at_references")
     @patch("henchman.cli.textual_app.EventBridge")
     def test_process_user_input_integration_style(
-        self,
-        mock_event_bridge_class,
-        mock_expand_references,
-        mock_query_one,
-        textual_app
+        self, mock_event_bridge_class, mock_expand_references, mock_query_one, textual_app
     ):
         """Integration-style test for process_user_input dependencies."""
         # Setup mocks

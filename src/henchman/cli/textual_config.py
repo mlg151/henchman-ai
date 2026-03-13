@@ -31,8 +31,9 @@ _DEFAULT_THEME_NAME = "dark"
 
 try:
     from typing import Self
-except ImportError:
+except ImportError:  # pragma: no cover
     from typing_extensions import Self
+
 
 @dataclass
 class TextualConfig(ReplConfig):
@@ -95,6 +96,9 @@ class ComponentInitializer:
                 The caller passes module-level references so
                 that tests can patch them on the originating
                 module.
+
+        Returns:
+            None
         """
         self.config = config
         ov = class_overrides or {}
@@ -119,6 +123,9 @@ class ComponentInitializer:
             MCP initialization is handled by the caller
             so the module-level ``initialize_mcp`` name
             can be patched in tests.
+
+        Returns:
+            None
         """
         self._initialize_tui_adapter()
         self._initialize_core_context()
@@ -131,13 +138,21 @@ class ComponentInitializer:
     # -- private helpers (one responsibility each) --
 
     def _initialize_tui_adapter(self: Self) -> None:
-        """Create the TUI console adapter."""
-        from henchman.cli.textual_bridge import TuiConsoleAdapter
+        """Create the TUI console adapter.
+
+        Returns:
+            None
+        """
+        from henchman.cli.textual_bridge import TuiConsoleAdapter  # noqa: PLC0415
 
         self._tui_adapter = TuiConsoleAdapter(self.config.app)
 
     def _initialize_core_context(self: Self) -> None:
-        """Create the core context and register UI instance."""
+        """Create the core context and register UI instance.
+
+        Returns:
+            None
+        """
         self.core_context = self._create_context_fn(
             provider=self.config.provider,
             system_prompt=self.config.config.system_prompt,
@@ -152,8 +167,12 @@ class ComponentInitializer:
             plugin_manager.ui_instance = self.config.app
 
     def _initialize_renderer(self: Self) -> None:
-        """Create the UI renderer with the configured theme."""
-        from henchman.cli.console import OutputRenderer, ThemeManager
+        """Create the UI renderer with the configured theme.
+
+        Returns:
+            None
+        """
+        from henchman.cli.console import OutputRenderer, ThemeManager  # noqa: PLC0415
 
         if not self._tui_adapter:
             msg = "TUI adapter must be initialized first"
@@ -165,7 +184,8 @@ class ComponentInitializer:
         theme = theme_manager.get_theme(theme_name)
         output_renderer = OutputRenderer(console=console, theme=theme)
         self._ui_renderer = self._ui_renderer_cls(
-            console=console, renderer=output_renderer,
+            console=console,
+            renderer=output_renderer,
         )
 
     def _resolve_theme_name(self: Self, theme_manager: Any) -> str:
@@ -187,7 +207,11 @@ class ComponentInitializer:
         return name
 
     def _initialize_output_handler(self: Self) -> None:
-        """Create the output handler."""
+        """Create the output handler.
+
+        Returns:
+            None
+        """
         if not self.core_context or not self._ui_renderer:
             msg = "Core context and renderer must be initialized"
             raise RuntimeError(msg)
@@ -202,12 +226,16 @@ class ComponentInitializer:
         )
 
     def _initialize_command_processor(self: Self) -> None:
-        """Create the command processor."""
+        """Create the command processor.
+
+        Returns:
+            None
+        """
         if not self.core_context or not self.output_handler:
             msg = "Core context and output handler required"
             raise RuntimeError(msg)
         if not self._command_processor_cls:
-            from henchman.cli.command_processor import (
+            from henchman.cli.command_processor import (  # noqa: PLC0415
                 CommandProcessor,
             )
 
@@ -221,7 +249,11 @@ class ComponentInitializer:
         )
 
     def _initialize_tool_executor(self: Self) -> None:
-        """Create the tool executor."""
+        """Create the tool executor.
+
+        Returns:
+            None
+        """
         if not self.core_context or not self.output_handler:
             msg = "Core context and output handler required"
             raise RuntimeError(msg)
@@ -234,19 +266,21 @@ class ComponentInitializer:
         )
 
     def _initialize_input_handler(self: Self) -> None:
-        """Create the input handler."""
+        """Create the input handler.
+
+        Returns:
+            None
+        """
         if not self._ui_renderer:
             msg = "Renderer must be initialized first"
             raise RuntimeError(msg)
         if not self._input_handler_cls:
-            from henchman.cli.input_handler import (
+            from henchman.cli.input_handler import (  # noqa: PLC0415
                 InputHandler,
             )
 
             self._input_handler_cls = InputHandler
-        history_file = (
-            self.config.config.history_file or Path.home() / ".henchman_history"
-        )
+        history_file = self.config.config.history_file or Path.home() / ".henchman_history"
         keybindings = self._get_keybindings()
         self.input_handler = self._input_handler_cls(
             config=self.config.config,
@@ -267,6 +301,10 @@ class ComponentInitializer:
         return None
 
     def _initialize_mcp(self: Self) -> None:
-        """Initialize MCP if a manager is available."""
+        """Initialize MCP if a manager is available.
+
+        Returns:
+            None
+        """
         if self.core_context and self.core_context.mcp_manager:
             initialize_mcp(self.core_context)

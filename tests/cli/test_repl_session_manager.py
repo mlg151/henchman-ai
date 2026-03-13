@@ -102,9 +102,7 @@ class TestReplSessionManagerRestoreHistory:
             SessionMessage(
                 role="assistant",
                 content=None,
-                tool_calls=[
-                    {"id": "call_1", "name": "read_file", "arguments": {"path": "/tmp/x"}}
-                ],
+                tool_calls=[{"id": "call_1", "name": "read_file", "arguments": {"path": "/tmp/x"}}],
             ),
             SessionMessage(
                 role="tool",
@@ -116,7 +114,9 @@ class TestReplSessionManagerRestoreHistory:
         # Mock orchestrator with tech_lead
         mock_orchestrator = MagicMock()
         mock_orchestrator.tech_lead.messages = []
-        mock_orchestrator.tech_lead.clear_history = MagicMock(side_effect=lambda: mock_orchestrator.tech_lead.messages.clear())
+        mock_orchestrator.tech_lead.clear_history = MagicMock(
+            side_effect=lambda: mock_orchestrator.tech_lead.messages.clear()
+        )
 
         rsm._sync_session_to_agent(session, mock_orchestrator)
 
@@ -142,7 +142,9 @@ class TestReplSessionManagerRestoreHistory:
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.tech_lead.messages = []
-        mock_orchestrator.tech_lead.clear_history = MagicMock(side_effect=lambda: mock_orchestrator.tech_lead.messages.clear())
+        mock_orchestrator.tech_lead.clear_history = MagicMock(
+            side_effect=lambda: mock_orchestrator.tech_lead.messages.clear()
+        )
 
         rsm._sync_session_to_agent(session, mock_orchestrator)
 

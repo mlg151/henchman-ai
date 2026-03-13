@@ -1,6 +1,7 @@
 """Tool base classes and types for Henchman-AI."""
 
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -95,10 +96,14 @@ class Tool(ABC):
         ...  # pragma: no cover
 
     @property
-    @abstractmethod
     def parameters(self: Tool) -> dict[str, object]:
-        """JSON Schema describing the tool's parameters."""
-        ...  # pragma: no cover
+        """JSON Schema describing the tool's parameters.
+
+        Defaults to returning `self._parameters` if defined by the subclass.
+        """
+        if hasattr(self, "_parameters"):
+            return self._parameters  # type: ignore[no-any-return]
+        return {}
 
     @property
     def kind(self: Tool) -> ToolKind:

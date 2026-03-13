@@ -54,8 +54,8 @@ def test_progress_manager():
 
         # Verify update was called on the correct Progress instance
         if not progress_mock.update.called:
-             print("❌ Progress.update() not called")
-             return False
+            print("❌ Progress.update() not called")
+            return False
 
         # Test completing a task
         print("Completing task...")
@@ -71,6 +71,7 @@ def test_progress_manager():
 
         print("✅ ProgressManager basic operations working")
         return True
+
 
 if __name__ == "__main__":
     try:

@@ -8,7 +8,7 @@ Note: Extracted from ``textual_app.py`` to keep modules under 500 lines.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from textual.message import Message
 
@@ -16,156 +16,142 @@ if TYPE_CHECKING:
     from henchman.tools.base import ConfirmationRequest
 
 
-class AgentContentMessage(Message):
+class _AgentPayloadMessage(Message):
+    """Base class for agent messages carrying a payload and optional source_agent."""
+
+    def __init__(
+        self: _AgentPayloadMessage,
+        _payload: Any,
+        source_agent: str | None = None,
+    ) -> None:
+        """Initialize.
+
+        Args:
+            _payload: The primary data carried by this message.
+            source_agent: Originating agent name.
+        """
+        super().__init__()
+        self._payload = _payload
+        self.source_agent = source_agent
+
+    @property
+    def _str_payload(self: _AgentPayloadMessage) -> str:
+        """Internal helper for string payloads."""
+        return cast("str", self._payload)
+
+
+class AgentContentMessage(_AgentPayloadMessage):
     """Streamed text content from an agent."""
 
-    def __init__(
-        self,
-        content: str,
-        source_agent: str | None = None,
-    ) -> None:
-        """Initialize.
-
-        Args:
-            content: Text chunk from the agent.
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.content = content
-        self.source_agent = source_agent
+    @property
+    def content(self: AgentContentMessage) -> str:
+        """The streamed text content."""
+        return self._str_payload
 
 
-class AgentThoughtMessage(Message):
+class AgentThoughtMessage(_AgentPayloadMessage):
     """Thinking/reasoning text from an agent."""
 
-    def __init__(
-        self,
-        thought: str,
-        source_agent: str | None = None,
-    ) -> None:
-        """Initialize.
-
-        Args:
-            thought: Reasoning text.
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.thought = thought
-        self.source_agent = source_agent
+    @property
+    def thought(self: AgentThoughtMessage) -> str:
+        """The thinking text."""
+        return self._str_payload
 
 
-class ToolCallRequestMessage(Message):
+class ToolCallRequestMessage(_AgentPayloadMessage):
     """Agent is requesting a tool call."""
 
-    def __init__(
-        self,
-        tool_call: Any,
-        source_agent: str | None = None,
-    ) -> None:
-        """Initialize.
-
-        Args:
-            tool_call: ToolCall object (name, arguments).
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.tool_call = tool_call
-        self.source_agent = source_agent
+    @property
+    def tool_call(self: ToolCallRequestMessage) -> Any:
+        """The tool call request data."""
+        return self._payload
 
 
-class ToolCallResultMessage(Message):
+class ToolCallResultMessage(_AgentPayloadMessage):
     """Result from a tool execution."""
 
-    def __init__(
-        self,
-        result: Any,
-        source_agent: str | None = None,
-    ) -> None:
-        """Initialize.
-
-        Args:
-            result: Tool result data.
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.result = result
-        self.source_agent = source_agent
+    @property
+    def result(self: ToolCallResultMessage) -> Any:
+        """The tool execution result data."""
+        return self._payload
 
 
-class ToolConfirmationMessage(Message):
+class ToolConfirmationMessage(_AgentPayloadMessage):
     """Agent is awaiting user approval for a tool call."""
 
-    def __init__(
-        self,
-        request: ConfirmationRequest,
-        source_agent: str | None = None,
-    ) -> None:
-        """Initialize.
-
-        Args:
-            request: ConfirmationRequest with tool details.
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.request = request
-        self.source_agent = source_agent
+    @property
+    def request(self: ToolConfirmationMessage) -> ConfirmationRequest:
+        """The confirmation request data."""
+        conf_req: ConfirmationRequest = cast("ConfirmationRequest", self._payload)
+        return conf_req
 
 
-class AgentStatusMessage(Message):
+class AgentStatusMessage(_AgentPayloadMessage):
     """Status update from the agent loop."""
 
+    @property
+    def status(self: AgentStatusMessage) -> str:
+        """The status message."""
+        return self._str_payload
+
+
+class AgentFinishedMessage(_AgentPayloadMessage):
+    """Agent has finished processing the current turn.
+
+    Stores ``None`` as the payload; the meaningful field is ``source_agent``
+    which is inherited from ``_AgentPayloadMessage``.
+    """
+
     def __init__(
-        self,
-        status: str,
+        self: AgentFinishedMessage,
         source_agent: str | None = None,
     ) -> None:
         """Initialize.
 
         Args:
-            status: Status string.
             source_agent: Originating agent name.
         """
-        super().__init__()
-        self.status = status
-        self.source_agent = source_agent
+        super().__init__(None, source_agent)
 
 
-class AgentFinishedMessage(Message):
-    """Agent has finished processing the current turn."""
-
-    def __init__(self, source_agent: str | None = None) -> None:
-        """Initialize.
-
-        Args:
-            source_agent: Originating agent name.
-        """
-        super().__init__()
-        self.source_agent = source_agent
-
-
-class CommandOutputMessage(Message):
+class CommandOutputMessage(_AgentPayloadMessage):
     """Output produced by a slash command."""
 
-    def __init__(self, text: str, style: str = "") -> None:
+    def __init__(
+        self: CommandOutputMessage,
+        text: str,
+        style: str = "",
+    ) -> None:
         """Initialize.
 
         Args:
             text: Output text.
             style: Optional Rich markup style.
         """
-        super().__init__()
-        self.text = text
+        super().__init__(text)
         self.style = style
 
+    @property
+    def text(self: CommandOutputMessage) -> str:
+        """The command output text."""
+        return self._str_payload
 
-class SwitchProviderMessage(Message):
+
+class SwitchProviderMessage(_AgentPayloadMessage):
     """Internal message to switch the active provider."""
 
-    def __init__(self, provider_name: str) -> None:
+    def __init__(
+        self: SwitchProviderMessage,
+        provider_name: str,
+    ) -> None:
         """Initialize.
 
         Args:
             provider_name: Provider to switch to.
         """
-        super().__init__()
-        self.provider_name = provider_name
+        super().__init__(provider_name)
+
+    @property
+    def provider_name(self: SwitchProviderMessage) -> str:
+        """The name of the provider to switch to."""
+        return self._str_payload

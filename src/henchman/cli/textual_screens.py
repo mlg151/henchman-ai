@@ -9,13 +9,15 @@ Note: Extracted from ``textual_app.py`` to keep modules under 500 lines.
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
+from textual.binding import Binding
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Select
 
 from henchman.cli.textual_messages import SwitchProviderMessage
+from henchman.core.session import SessionMetadata
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -78,7 +80,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
     }
     """
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         ("y", "approve", "Yes"),
         ("n", "deny", "No"),
         ("escape", "deny", "No"),
@@ -91,7 +93,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
             request: The tool confirmation request.
         """
         super().__init__()
-        self._request = request
+        self._request: ConfirmationRequest = request
 
     def compose(self) -> ComposeResult:
         """Build the confirmation dialog.
@@ -99,14 +101,22 @@ class ConfirmToolScreen(ModalScreen[bool]):
         Returns:
             ComposeResult with the dialog layout.
         """
-        from rich.markup import escape
+        yield self._build_confirmation_dialog()
+
+    def _build_confirmation_dialog(self) -> Vertical:
+        """Build the confirmation dialog widget.
+
+        Returns:
+            Vertical container with the dialog layout.
+        """
+        from rich.markup import escape  # noqa: PLC0415
 
         colour = _RISK_COLOURS.get(self._request.risk_level, _DEFAULT_RISK_COLOUR)
         tool = escape(self._request.tool_name)
         desc = escape(self._request.description)
         params_label = self._build_params_label()
 
-        yield Vertical(
+        return Vertical(
             Label(
                 f"[bold {colour}]⚠ Tool Approval Required[/]",
                 id="confirm-title",
@@ -141,7 +151,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         Returns:
             List containing zero or one ``Label`` widgets.
         """
-        from rich.markup import escape
+        from rich.markup import escape  # noqa: PLC0415
 
         if not self._request.params:
             return []
@@ -157,16 +167,27 @@ class ConfirmToolScreen(ModalScreen[bool]):
 
         Args:
             event: Button press event.
+
+        Returns:
+            None
         """
         self.dismiss(event.button.id == "btn-yes")
 
     def action_approve(self) -> None:
-        """Approve the tool call."""
-        self.dismiss(True)
+        """Approve the tool call.
+
+        Returns:
+            None
+        """
+        self.dismiss(result=True)
 
     def action_deny(self) -> None:
-        """Deny the tool call."""
-        self.dismiss(False)
+        """Deny the tool call.
+
+        Returns:
+            None
+        """
+        self.dismiss(result=False)
 
 
 # ------------------------------------------------------------------ #
@@ -190,7 +211,7 @@ class HelpScreen(ModalScreen[None]):
         align: center middle;
     }
     """
-    BINDINGS = [("escape", "app.pop_screen", "Close")]
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [("escape", "app.pop_screen", "Close")]
 
     def compose(self) -> ComposeResult:
         """Compose the help dialog.
@@ -231,6 +252,9 @@ class HelpScreen(ModalScreen[None]):
 
         Args:
             event: Button press event.
+
+        Returns:
+            None
         """
         if event.button.id == "close-help":
             self.app.pop_screen()
@@ -259,7 +283,7 @@ class ProviderScreen(ModalScreen[None]):
         margin: 1 0;
     }
     """
-    BINDINGS = [("escape", "app.pop_screen", "Close")]
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [("escape", "app.pop_screen", "Close")]
 
     def compose(self) -> ComposeResult:
         """Compose the provider dialog.
@@ -346,6 +370,9 @@ class ProviderScreen(ModalScreen[None]):
 
         Args:
             event: Button press event.
+
+        Returns:
+            None
         """
         if event.button.id == "btn-cancel":
             self.app.pop_screen()
@@ -393,9 +420,9 @@ class SessionScreen(ModalScreen[str | None]):
     }
     """
 
-    BINDINGS = [("escape", "cancel", "Close")]
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [("escape", "cancel", "Close")]
 
-    def __init__(self, sessions: list[Any] | None = None) -> None:
+    def __init__(self, sessions: list[SessionMetadata] | None = None) -> None:
         """Initialize with an optional pre-loaded session list.
 
         Args:
@@ -403,7 +430,7 @@ class SessionScreen(ModalScreen[str | None]):
                       Pass ``None`` to show an empty state.
         """
         super().__init__()
-        self._sessions: list[Any] = sessions or []
+        self._sessions: list[SessionMetadata] = sessions or []
 
     def compose(self) -> ComposeResult:
         """Build the session management dialog.
@@ -453,6 +480,9 @@ class SessionScreen(ModalScreen[str | None]):
 
         Args:
             event: Button press event.
+
+        Returns:
+            None
         """
         if event.button.id == "btn-cancel":
             self.dismiss(None)
@@ -467,5 +497,9 @@ class SessionScreen(ModalScreen[str | None]):
             self.dismiss(None)
 
     def action_cancel(self) -> None:
-        """Cancel and close."""
+        """Cancel and close.
+
+        Returns:
+            None
+        """
         self.dismiss(None)

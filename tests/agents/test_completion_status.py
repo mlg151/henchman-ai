@@ -55,41 +55,53 @@ class TestAssessCompletion:
 
     def test_no_tool_calls_returns_no_work_done(self, mock_provider):
         """Agent that made zero tool calls is flagged as NO_WORK_DONE."""
+        from henchman.core.agent_stall import StallDetector  # noqa: PLC0415
+
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = 0
 
-        agent = MagicMock()
-        agent._stall = MagicMock(failure=False)
+        agent = MagicMock(spec=["_stall"])
+        agent._stall = StallDetector()  # failure=False by default
 
         assert orchestrator._assess_completion(agent) == CompletionStatus.NO_WORK_DONE
 
     def test_tool_calls_returns_completed(self, mock_provider):
         """Agent that made tool calls is flagged as COMPLETED."""
+        from henchman.core.agent_stall import StallDetector  # noqa: PLC0415
+
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = 5
 
-        agent = MagicMock()
-        agent._stall = MagicMock(failure=False)
+        agent = MagicMock(spec=["_stall"])
+        agent._stall = StallDetector()  # failure=False by default
 
         assert orchestrator._assess_completion(agent) == CompletionStatus.COMPLETED
 
     def test_stall_failure_returns_stalled(self, mock_provider):
         """Agent that stalled after nudges is flagged as STALLED."""
+        from henchman.core.agent_stall import StallDetector  # noqa: PLC0415
+
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = 0
 
-        agent = MagicMock()
-        agent._stall = MagicMock(failure=True)
+        agent = MagicMock(spec=["_stall"])
+        stall = StallDetector()
+        stall.failure = True
+        agent._stall = stall
 
         assert orchestrator._assess_completion(agent) == CompletionStatus.STALLED
 
     def test_stall_failure_overrides_tool_count(self, mock_provider):
         """Stall failure takes priority even if some tool calls were made."""
+        from henchman.core.agent_stall import StallDetector  # noqa: PLC0415
+
         orchestrator = Orchestrator(default_provider=mock_provider)
         orchestrator._last_loop_tool_call_count = 3
 
-        agent = MagicMock()
-        agent._stall = MagicMock(failure=True)
+        agent = MagicMock(spec=["_stall"])
+        stall = StallDetector()
+        stall.failure = True
+        agent._stall = stall
 
         assert orchestrator._assess_completion(agent) == CompletionStatus.STALLED
 
@@ -124,9 +136,7 @@ class TestRunCompletionStatus:
     async def test_no_tool_calls_emits_error_and_no_work_done(self, mock_provider):
         """When the tech lead makes no tool calls, run() emits ERROR + NO_WORK_DONE status."""
         # Agent just says something and stops — no tool calls
-        chunk = StreamChunk(
-            content="Let me refactor this...", finish_reason=FinishReason.STOP
-        )
+        chunk = StreamChunk(content="Let me refactor this...", finish_reason=FinishReason.STOP)
 
         async def async_gen(*_args, **_kwargs):
             yield chunk
@@ -144,9 +154,7 @@ class TestRunCompletionStatus:
         assert any("without performing any actions" in str(e.data) for e in error_events)
 
         # The AGENT_COMPLETED event should have status=no_work_done
-        completed_events = [
-            e for e in events if e.type == EventType.AGENT_COMPLETED
-        ]
+        completed_events = [e for e in events if e.type == EventType.AGENT_COMPLETED]
         assert len(completed_events) == 1
         assert completed_events[0].data["status"] == "no_work_done"
         assert completed_events[0].data["agent"] == "tech_lead"
@@ -211,9 +219,7 @@ class TestRunCompletionStatus:
         assert not any("without performing any actions" in str(e.data) for e in error_events)
 
         # The AGENT_COMPLETED event should have status=completed
-        completed_events = [
-            e for e in events if e.type == EventType.AGENT_COMPLETED
-        ]
+        completed_events = [e for e in events if e.type == EventType.AGENT_COMPLETED]
         assert len(completed_events) == 1
         assert completed_events[0].data["status"] == "completed"
 
@@ -231,9 +237,7 @@ class TestRunDirectCompletionStatus:
     @pytest.mark.asyncio
     async def test_run_direct_no_work_done(self, mock_provider):
         """run_direct() emits NO_WORK_DONE when specialist makes no tool calls."""
-        chunk = StreamChunk(
-            content="I would do the work...", finish_reason=FinishReason.STOP
-        )
+        chunk = StreamChunk(content="I would do the work...", finish_reason=FinishReason.STOP)
 
         async def async_gen(*_args, **_kwargs):
             yield chunk
@@ -251,9 +255,7 @@ class TestRunDirectCompletionStatus:
         assert any("without performing any actions" in str(e.data) for e in error_events)
 
         # The AGENT_COMPLETED should report no_work_done
-        completed_events = [
-            e for e in events if e.type == EventType.AGENT_COMPLETED
-        ]
+        completed_events = [e for e in events if e.type == EventType.AGENT_COMPLETED]
         assert len(completed_events) == 1
         assert completed_events[0].data["status"] == "no_work_done"
         assert completed_events[0].data["agent"] == "explorer"
@@ -347,8 +349,7 @@ class TestAgentCompletionRendering:
 
     def _make_output_handler(self):
         """Create a mocked OutputHandler."""
-        from henchman.cli.output_handler import OutputHandler
-        return MagicMock(spec=OutputHandler)
+        return MagicMock()
 
     def test_completed_renders_muted(self):
         """Status 'completed' renders the standard muted message."""
@@ -415,3 +416,77 @@ class TestAgentCompletionRendering:
         _handle_agent_completed(output_handler, event)
         output_handler.muted.assert_called_once()
         assert "completed work" in output_handler.muted.call_args[0][0]
+
+
+# ---------------------------------------------------------------------------
+# assess_agent_completion — edge cases for type-coercion of tool_call_count
+# ---------------------------------------------------------------------------
+
+
+class TestAssessCompletionEdgeCases:
+    """Cover edge-case input types for _last_loop_tool_call_count."""
+
+    def test_none_tool_call_count_is_zero(self, mock_provider):
+        """None _last_loop_tool_call_count is treated as 0 (NO_WORK_DONE)."""
+        orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator._last_loop_tool_call_count = None
+        agent = MagicMock(spec=[])
+        assert orchestrator._assess_completion(agent) == CompletionStatus.NO_WORK_DONE
+
+    def test_bool_true_tool_call_count_is_one(self, mock_provider):
+        """Boolean True _last_loop_tool_call_count is treated as 1 (COMPLETED)."""
+        orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator._last_loop_tool_call_count = True
+        agent = MagicMock(spec=[])
+        assert orchestrator._assess_completion(agent) == CompletionStatus.COMPLETED
+
+    def test_bool_false_tool_call_count_is_zero(self, mock_provider):
+        """Boolean False _last_loop_tool_call_count is treated as 0 (NO_WORK_DONE)."""
+        orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator._last_loop_tool_call_count = False
+        agent = MagicMock(spec=[])
+        assert orchestrator._assess_completion(agent) == CompletionStatus.NO_WORK_DONE
+
+    def test_float_tool_call_count_coerced_to_int(self, mock_provider):
+        """Float _last_loop_tool_call_count is converted to int."""
+        orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator._last_loop_tool_call_count = 3.7
+        agent = MagicMock(spec=[])
+        assert orchestrator._assess_completion(agent) == CompletionStatus.COMPLETED
+
+    def test_string_numeric_tool_call_count(self, mock_provider):
+        """String numeric _last_loop_tool_call_count is parsed."""
+        orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator._last_loop_tool_call_count = "5"
+        agent = MagicMock(spec=[])
+        assert orchestrator._assess_completion(agent) == CompletionStatus.COMPLETED
+
+    def test_empty_string_tool_call_count_is_zero(self, mock_provider):
+        """Empty string _last_loop_tool_call_count is treated as 0."""
+        orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator._last_loop_tool_call_count = ""
+        agent = MagicMock(spec=[])
+        assert orchestrator._assess_completion(agent) == CompletionStatus.NO_WORK_DONE
+
+    def test_invalid_string_tool_call_count_raises(self, mock_provider):
+        """Non-numeric string _last_loop_tool_call_count raises TypeError."""
+        orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator._last_loop_tool_call_count = "not_a_number"
+        agent = MagicMock(spec=[])
+        with pytest.raises(TypeError):
+            orchestrator._assess_completion(agent)
+
+    def test_unknown_type_tool_call_count_raises(self, mock_provider):
+        """Unknown type for _last_loop_tool_call_count raises TypeError."""
+        orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator._last_loop_tool_call_count = object()
+        agent = MagicMock(spec=[])
+        with pytest.raises(TypeError):
+            orchestrator._assess_completion(agent)
+
+    def test_negative_tool_call_count_clamped_to_zero(self, mock_provider):
+        """Negative _last_loop_tool_call_count is clamped to 0 (NO_WORK_DONE)."""
+        orchestrator = Orchestrator(default_provider=mock_provider)
+        orchestrator._last_loop_tool_call_count = -3
+        agent = MagicMock(spec=[])
+        assert orchestrator._assess_completion(agent) == CompletionStatus.NO_WORK_DONE

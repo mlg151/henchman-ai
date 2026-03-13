@@ -6,7 +6,6 @@ Issue 2: Tool result header missing space between emoji and "Result:".
 """
 
 
-
 # ---------------------------------------------------------------------------
 # Issue 1: Thinking tokens should stream into a single widget
 # ---------------------------------------------------------------------------
@@ -32,13 +31,13 @@ class TestThinkingStreamAccumulation:
         mock_pane = MagicMock()
         mock_thinking = MagicMock()
 
-        with (patch.object(app, "query_one") as mock_query,):
+        with (
+            patch.object(app, "query_one") as mock_query,
+        ):
             # First call returns chat pane, second returns thinking pane
             mock_query.side_effect = [mock_pane, mock_thinking]
 
-            msg = AgentThoughtMessage.__new__(AgentThoughtMessage)
-            msg.thought = "Thinking about something"
-            msg.source_agent = "Agent"
+            msg = AgentThoughtMessage("Thinking about something", "Agent")
 
             app.on_agent_thought_message(msg)
 
@@ -87,9 +86,7 @@ class TestThinkingStreamAccumulation:
         with patch.object(app, "query_one") as mock_query:
             mock_query.side_effect = [mock_pane, mock_thinking]
 
-            msg = AgentThoughtMessage.__new__(AgentThoughtMessage)
-            msg.thought = "Thinking..."
-            msg.source_agent = None
+            msg = AgentThoughtMessage("Thinking...", source_agent=None)
 
             app.on_agent_thought_message(msg)
 
@@ -117,9 +114,9 @@ class TestToolResultSpacing:
         idx_emoji = header.index("🛠️")
         idx_result = header.index("Result:")
         between = header[idx_emoji + len("🛠️") : idx_result]
-        assert (
-            len(between.strip()) == 0 and len(between) >= 1
-        ), f"Expected whitespace between emoji and 'Result:', got {between!r}"
+        assert len(between.strip()) == 0 and len(between) >= 1, (
+            f"Expected whitespace between emoji and 'Result:', got {between!r}"
+        )
 
     def test_tool_pane_result_has_space_after_arrow(self):
         """The tool pane '← Result' should have space after arrow."""
@@ -136,8 +133,7 @@ class TestToolResultSpacing:
         with patch.object(app, "query_one") as mock_query:
             mock_query.side_effect = [mock_pane, mock_tool_pane]
 
-            msg = ToolCallResultMessage.__new__(ToolCallResultMessage)
-            msg.result = "success"
+            msg = ToolCallResultMessage("success")
 
             app.on_tool_call_result_message(msg)
 
@@ -160,13 +156,12 @@ class TestToolResultSpacing:
         with patch.object(app, "query_one") as mock_query:
             mock_query.side_effect = [mock_pane, mock_tool_pane]
 
-            msg = ToolCallResultMessage.__new__(ToolCallResultMessage)
-            msg.result = "output data"
+            msg = ToolCallResultMessage("output data")
 
             app.on_tool_call_result_message(msg)
 
             # Check add_tool_message was called with "Result: " (with space)
             call_args = mock_pane.add_tool_message.call_args[0][0]
-            assert call_args.startswith(
-                "Result: "
-            ), f"Expected 'Result: ' prefix, got: {call_args!r}"
+            assert call_args.startswith("Result: "), (
+                f"Expected 'Result: ' prefix, got: {call_args!r}"
+            )

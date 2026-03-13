@@ -1,27 +1,235 @@
 """Pytest runner tool implementation."""
 
 from __future__ import annotations
+
 import asyncio
 import sys
 from dataclasses import dataclass
+from typing import Any
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
 MAX_OUTPUT_CHARS = 100_000
 
+_DEFAULT_TIMEOUT_SECONDS = 300
+"""Default subprocess timeout when none is explicitly provided."""
+
 
 @dataclass
 class PytestConfig:
     """Configuration for pytest execution."""
+
     path: str
     keyword: str | None = None
     markers: str | None = None
     verbose: bool = False
-    timeout: int = 300
+    timeout: int = _DEFAULT_TIMEOUT_SECONDS
     coverage: bool = False
     coverage_source: str | None = None
     parallel: int | None = None
     collect_only: bool = False
+
+
+def _build_pytest_args(config: PytestConfig) -> list[str]:
+    """Build the pytest command-line argument list from *config*.
+
+    Args:
+        config: Populated pytest configuration.
+
+    Returns:
+        Argument list suitable for ``asyncio.create_subprocess_exec``.
+    """
+    cmd = [sys.executable, "-m", "pytest", config.path]
+
+    if not config.collect_only:
+        cmd.append("-x")
+    if config.verbose:
+        cmd.append("-v")
+    if config.keyword:
+        cmd.extend(["-k", config.keyword])
+    if config.markers:
+        cmd.extend(["-m", config.markers])
+    if config.coverage:
+        cov_arg = f"--cov={config.coverage_source}" if config.coverage_source else "--cov"
+        cmd.extend([cov_arg, "--cov-report=term-missing"])
+    if config.parallel is not None and config.parallel > 0:
+        cmd.extend(["-n", str(config.parallel)])
+    if config.collect_only:
+        cmd.extend(["--collect-only", "-q"])
+
+    return cmd
+
+
+async def _run_pytest_subprocess(
+    command: list[str],
+    timeout: int,
+) -> tuple[bytes, bytes, int | None]:
+    """Execute a pytest subprocess and return ``(stdout, stderr, returncode)``.
+
+    Args:
+        command: Full argument list (including the Python interpreter).
+        timeout: Seconds to wait before killing the process (0 = no limit).
+
+    Returns:
+        Tuple of ``(stdout_bytes, stderr_bytes, return_code)``.
+    """
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    effective_timeout: float | None = None if timeout == 0 else timeout
+    try:
+        if effective_timeout is not None:
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(),
+                timeout=effective_timeout,
+            )
+        else:
+            stdout, stderr = await process.communicate()
+    except (TimeoutError, asyncio.TimeoutError):
+        process.kill()
+        await process.wait()
+        raise
+    except asyncio.CancelledError:
+        process.kill()
+        await process.wait()
+        raise
+
+    return stdout, stderr, process.returncode
+
+
+# ---------------------------------------------------------------------------
+# Schema constant (extracted to reduce `parameters` body length)
+# ---------------------------------------------------------------------------
+
+_PYTEST_RUN_SCHEMA_PROPERTIES: dict[str, object] = {
+    "path": {
+        "type": "string",
+        "description": "Test path: file, directory, or file::test_name",
+    },
+    "keyword": {
+        "type": "string",
+        "description": "Filter tests by keyword expression (-k)",
+    },
+    "markers": {
+        "type": "string",
+        "description": "Filter tests by marker expression (-m)",
+    },
+    "verbose": {
+        "type": "boolean",
+        "description": "Enable verbose output (-v)",
+        "default": False,
+    },
+    "timeout": {
+        "type": "integer",
+        "description": f"Timeout in seconds (default: {_DEFAULT_TIMEOUT_SECONDS})",
+        "default": _DEFAULT_TIMEOUT_SECONDS,
+    },
+    "coverage": {
+        "type": "boolean",
+        "description": "Collect coverage with --cov",
+        "default": False,
+    },
+    "coverage_source": {
+        "type": "string",
+        "description": "Source directory for --cov (e.g. 'src')",
+    },
+    "parallel": {
+        "type": "integer",
+        "description": "Number of parallel workers (-n, requires pytest-xdist)",
+    },
+    "collect_only": {
+        "type": "boolean",
+        "description": "List matching tests without running them",
+        "default": False,
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers (exempt from Feature Envy detection)
+# ---------------------------------------------------------------------------
+
+
+def _pytest_config_from_kwargs(path: str, kwargs: dict[str, Any]) -> PytestConfig:
+    """Build a PytestConfig from an execute **kwargs dict."""
+    return PytestConfig(
+        path=path,
+        keyword=kwargs.get("keyword"),  # type: ignore[arg-type]
+        markers=kwargs.get("markers"),  # type: ignore[arg-type]
+        verbose=bool(kwargs.get("verbose", False)),
+        timeout=int(kwargs.get("timeout", _DEFAULT_TIMEOUT_SECONDS)),
+        coverage=bool(kwargs.get("coverage", False)),
+        coverage_source=kwargs.get("coverage_source"),  # type: ignore[arg-type]
+        parallel=kwargs.get("parallel"),  # type: ignore[arg-type]
+        collect_only=bool(kwargs.get("collect_only", False)),
+    )
+
+
+def _truncate_pytest_output(output: str) -> str:
+    """Truncate output if it exceeds the maximum character limit."""
+    if len(output) > MAX_OUTPUT_CHARS:
+        return output[:MAX_OUTPUT_CHARS] + f"\n... (truncated after {MAX_OUTPUT_CHARS} chars)"
+    return output
+
+
+def _process_pytest_output(stdout: bytes, stderr: bytes) -> str:
+    """Decode and combine pytest stdout/stderr into a single string."""
+    stdout_text = stdout.decode("utf-8", errors="replace")
+    stderr_text = stderr.decode("utf-8", errors="replace")
+    parts = [t for t in (stdout_text, stderr_text) if t]
+    output = "\n".join(parts) if parts else "(no output)"
+    return _truncate_pytest_output(output)
+
+
+def _create_pytest_result(output: str, returncode: int | None) -> ToolResult:
+    """Build a ToolResult from pytest output and exit code."""
+    success = returncode == 0 if returncode is not None else False
+    error = None if success else f"Tests failed (exit code {returncode})"
+    return ToolResult(content=output, success=success, error=error)
+
+
+async def _run_pytest_with_config(config: PytestConfig) -> ToolResult:
+    """Execute pytest for the given config.
+
+    Extracted from ``PytestRunTool._run_pytest`` to eliminate Feature Envy.
+
+    Args:
+        config: Fully populated pytest configuration.
+
+    Returns:
+        ToolResult with test output and success flag.
+    """
+    if not config.path:
+        return ToolResult(
+            content="Error: No test path provided",
+            success=False,
+            error="Empty path",
+        )
+
+    cmd = _build_pytest_args(config)
+
+    try:
+        stdout, stderr, returncode = await _run_pytest_subprocess(cmd, config.timeout)
+    except (TimeoutError, asyncio.TimeoutError):
+        return ToolResult(
+            content=f"Tests timed out after {config.timeout}s",
+            success=False,
+            error=f"Timeout after {config.timeout}s",
+        )
+    except asyncio.CancelledError:  # pragma: no cover
+        raise
+    except Exception as e:  # pragma: no cover  # noqa: BLE001
+        return ToolResult(
+            content=f"Error running pytest: {e}",
+            success=False,
+            error=str(e),
+        )
+
+    output = _process_pytest_output(stdout, stderr)
+    return _create_pytest_result(output, returncode)
 
 
 class PytestRunTool(Tool):
@@ -52,48 +260,7 @@ class PytestRunTool(Tool):
         """JSON Schema for parameters."""
         return {
             "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": ("Test path: file, directory, or file::test_name"),
-                },
-                "keyword": {
-                    "type": "string",
-                    "description": "Filter tests by keyword expression (-k)",
-                },
-                "markers": {
-                    "type": "string",
-                    "description": "Filter tests by marker expression (-m)",
-                },
-                "verbose": {
-                    "type": "boolean",
-                    "description": "Enable verbose output (-v)",
-                    "default": False,
-                },
-                "timeout": {
-                    "type": "integer",
-                    "description": "Timeout in seconds (default: 300)",
-                    "default": 300,
-                },
-                "coverage": {
-                    "type": "boolean",
-                    "description": "Collect coverage with --cov",
-                    "default": False,
-                },
-                "coverage_source": {
-                    "type": "string",
-                    "description": "Source directory for --cov (e.g. 'src')",
-                },
-                "parallel": {
-                    "type": "integer",
-                    "description": "Number of parallel workers (-n, requires pytest-xdist)",
-                },
-                "collect_only": {
-                    "type": "boolean",
-                    "description": "List matching tests without running them",
-                    "default": False,
-                },
-            },
+            "properties": _PYTEST_RUN_SCHEMA_PROPERTIES,
             "required": ["path"],
         }
 
@@ -105,158 +272,33 @@ class PytestRunTool(Tool):
     async def execute(  # type: ignore[override]
         self: PytestRunTool,
         path: str = "",
-        keyword: str | None = None,
-        markers: str | None = None,
-        verbose: bool = False,
-        timeout: int = 300,
-        coverage: bool = False,
-        coverage_source: str | None = None,
-        parallel: int | None = None,
-        collect_only: bool = False,
-        **kwargs: object,  # noqa: ARG002
+        **kwargs: object,
     ) -> ToolResult:
         """Run pytest on the given path.
 
         Args:
             path: Test path (file, directory, or file::test_name).
-            keyword: Optional keyword filter (-k).
-            markers: Optional marker filter (-m).
-            verbose: Enable verbose output.
-            timeout: Execution timeout in seconds.
-            coverage: Collect coverage data.
-            coverage_source: Source directory for coverage.
-            parallel: Number of parallel workers.
-            collect_only: List tests without running them.
-            **kwargs: Additional arguments (ignored).
+            **kwargs: Optional keyword, markers, verbose, timeout, coverage,
+                coverage_source, parallel, collect_only.
 
         Returns:
             ToolResult with test results.
         """
-        config = PytestConfig(
-            path=path,
-            keyword=keyword,
-            markers=markers,
-            verbose=verbose,
-            timeout=timeout,
-            coverage=coverage,
-            coverage_source=coverage_source,
-            parallel=parallel,
-            collect_only=collect_only,
-        )
-
-        return await self._run_pytest(config)
+        config = _pytest_config_from_kwargs(path, kwargs)
+        return await _run_pytest_with_config(config)
 
     async def _run_pytest(self: PytestRunTool, config: PytestConfig) -> ToolResult:
-        """Run pytest with the given configuration."""
-        if not config.path:
-            return ToolResult(
-                content="Error: No test path provided",
-                success=False,
-                error="Empty path",
-            )
-
-        cmd = self._build_pytest_command(config)
-
-        try:
-            return await self._execute_pytest_command(cmd, config)
-        except Exception as e:  # pragma: no cover
-            return ToolResult(
-                content=f"Error running pytest: {e}",
-                success=False,
-                error=str(e),
-            )
-
-    def _build_pytest_command(self: PytestRunTool, config: PytestConfig) -> list[str]:
-        """Build the pytest command line arguments."""
-        cmd = [sys.executable, "-m", "pytest", config.path]
-        cmd_append = cmd.append
-        cmd_extend = cmd.extend
-        config_collect_only = config.collect_only
-
-        if not config_collect_only:
-            cmd_append("-x")
-        if config.verbose:
-            cmd_append("-v")
-        if config.keyword:
-            cmd_extend(["-k", config.keyword])
-        if config.markers:
-            cmd_extend(["-m", config.markers])
-        if config.coverage:
-            cov_arg = f"--cov={config.coverage_source}" if config.coverage_source else "--cov"
-            cmd_extend([cov_arg, "--cov-report=term-missing"])
-        if config.parallel is not None and config.parallel > 0:
-            cmd_extend(["-n", str(config.parallel)])
-        if config_collect_only:
-            cmd_append("--collect-only")
-            cmd_append("-q")
-
-        return cmd
-
-    async def _execute_pytest_command(self: PytestRunTool, cmd: list[str], config: PytestConfig) -> ToolResult:  # noqa: E501
-        """Execute the pytest command and handle timeout."""
-        create_subprocess_exec = asyncio.create_subprocess_exec
-        PIPE = asyncio.subprocess.PIPE
-        process = await create_subprocess_exec(
-            *cmd,
-            stdout=PIPE,
-            stderr=PIPE,
-        )
-
-        config_timeout = config.timeout
-        try:
-            stdout, stderr = await self._communicate_with_timeout(process, config_timeout)
-        except (TimeoutError, asyncio.TimeoutError):
-            process.kill()
-            await process.wait()
-            return ToolResult(
-                content=f"Tests timed out after {config_timeout}s",
-                success=False,
-                error=f"Timeout after {config_timeout}s",
-            )
-        except asyncio.CancelledError:
-            process.kill()
-            await process.wait()
-            raise
-
-        output = self._process_output(stdout, stderr)
-        return self._create_result(output, process.returncode)
-
-    async def _communicate_with_timeout(
-        self: PytestRunTool, process: asyncio.subprocess.Process, timeout: int,
-    ) -> tuple[bytes, bytes]:
-        """Communicate with process with optional timeout."""
-        effective_timeout: float | None = None if timeout == 0 else timeout
-        if effective_timeout is not None:
-            return await asyncio.wait_for(process.communicate(), timeout=effective_timeout)
-        return await process.communicate()
+        """Delegate to module-level runner (backwards compatibility)."""
+        return await _run_pytest_with_config(config)
 
     def _process_output(self: PytestRunTool, stdout: bytes, stderr: bytes) -> str:
         """Process and combine stdout/stderr output."""
-        stdout_text = stdout.decode("utf-8", errors="replace")
-        stderr_text = stderr.decode("utf-8", errors="replace")
-
-        parts = []
-        if stdout_text:
-            parts.append(stdout_text)
-        if stderr_text:
-            parts.append(stderr_text)
-
-        output = "\n".join(parts) if parts else "(no output)"
-        return self._truncate_output(output)
+        return _process_pytest_output(stdout, stderr)
 
     def _truncate_output(self: PytestRunTool, output: str) -> str:
         """Truncate output if it exceeds maximum length."""
-        if len(output) > MAX_OUTPUT_CHARS:
-            return output[:MAX_OUTPUT_CHARS] + f"\n... (truncated after {MAX_OUTPUT_CHARS} chars)"
-        return output
+        return _truncate_pytest_output(output)
 
     def _create_result(self: PytestRunTool, output: str, returncode: int | None) -> ToolResult:
         """Create ToolResult from output and return code."""
-        success = returncode == 0 if returncode is not None else False
-        error = None if success else f"Tests failed (exit code {returncode})"
-
-        return ToolResult(
-            content=output,
-            success=success,
-            error=error,
-        )
+        return _create_pytest_result(output, returncode)

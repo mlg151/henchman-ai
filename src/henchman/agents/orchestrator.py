@@ -132,15 +132,27 @@ class Orchestrator:
     # ------------------------------------------------------------------
 
     def get_metrics_report(self: Orchestrator) -> str:
-        """Generate a formatted performance metrics dashboard."""
+        """Generate a formatted performance metrics dashboard.
+
+        Returns:
+            A formatted string containing performance metrics.
+        """
         return self._reporter.get_metrics_report()
 
     def get_pool(self: Orchestrator) -> AgentPool:
-        """Get the agent pool."""
+        """Get the agent pool.
+
+        Returns:
+            The AgentPool instance used by this orchestrator.
+        """
         return self.pool
 
     def get_event_bus(self: Orchestrator) -> EventBus:
-        """Get the event bus."""
+        """Get the event bus.
+
+        Returns:
+            The EventBus instance used by this orchestrator.
+        """
         return self.event_bus
 
     # ------------------------------------------------------------------
@@ -164,7 +176,9 @@ class Orchestrator:
     ) -> str:
         """Backward-compat delegate to DelegationRunner."""
         return DelegationRunner._assemble_delegation_input(  # noqa: SLF001
-            task, brief, mission,
+            task,
+            brief,
+            mission,
         )
 
     @staticmethod

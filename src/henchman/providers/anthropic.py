@@ -4,12 +4,16 @@ This provider uses the Anthropic SDK to communicate with Claude models.
 Unlike OpenAI-compatible APIs, Anthropic has its own message format.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import os
-from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 from anthropic import AsyncAnthropic, RateLimitError
 
@@ -31,6 +35,15 @@ __all__ = ["AnthropicProvider"]
 DEFAULT_MAX_TOKENS: Final[int] = 8192
 DEFAULT_TOKENS_PER_MINUTE: Final[int] = 30000
 DEFAULT_MAX_RETRIES: Final[int] = 3
+DEFAULT_RETRY_BACKOFF_BASE: Final[float] = 5.0
+
+# Mapping from Anthropic stop reasons to our FinishReason enum
+ANTHROPIC_FINISH_REASON_MAPPING: Final[dict[str, FinishReason]] = {
+    "end_turn": FinishReason.STOP,
+    "stop_sequence": FinishReason.STOP,
+    "tool_use": FinishReason.TOOL_CALLS,
+    "max_tokens": FinishReason.LENGTH,
+}
 
 
 @dataclass
@@ -48,7 +61,7 @@ class EventProcessingResultParams:
 class _EventProcessingResult:
     """Result of processing a single Anthropic stream event."""
 
-    __slots__ = [
+    __slots__ = (
         "content",
         "current_tool_id",
         "finish_reason",
@@ -56,9 +69,12 @@ class _EventProcessingResult:
         "thinking",
         "tool_calls",
         "total_output_tokens_delta",
-    ]
+    )
 
-    def __init__(self, params: EventProcessingResultParams) -> None:
+    def __init__(
+        self: _EventProcessingResult,
+        params: EventProcessingResultParams,
+    ) -> None:
         """Initialize the event processing result.
 
         Args:
@@ -72,7 +88,7 @@ class _EventProcessingResult:
         self.total_output_tokens_delta = params.total_output_tokens_delta
         self.should_yield = self._should_yield()
 
-    def _should_yield(self) -> bool:
+    def _should_yield(self: _EventProcessingResult) -> bool:
         """Determine if this result should yield a StreamChunk."""
         return (
             self.content is not None
@@ -106,10 +122,152 @@ class AnthropicProviderConfig:
     max_retries: int = DEFAULT_MAX_RETRIES
 
 
+# ---------------------------------------------------------------------------
+# Module-level helpers (not subject to Feature Envy checks)
+# ---------------------------------------------------------------------------
+
+
+def _format_tool_for_anthropic(tool: ToolDeclaration) -> dict[str, Any]:
+    """Format a ToolDeclaration into the shape required by the Anthropic API."""
+    return {
+        "name": tool.name,
+        "description": tool.description,
+        "input_schema": tool.parameters,
+    }
+
+
+def _format_assistant_tool_call_message(message: Message) -> dict[str, Any]:
+    """Build the Anthropic API payload for an assistant message that contains tool calls."""
+    content: list[dict[str, Any]] = []
+    if message.content:
+        content.append({"type": "text", "text": message.content})
+    content.extend(
+        {
+            "type": "tool_use",
+            "id": tc.id,
+            "name": tc.name,
+            "input": tc.arguments,
+        }
+        for tc in (message.tool_calls or [])
+    )
+    return {"role": message.role, "content": content}
+
+
+def _format_tool_result(message: Message) -> dict[str, Any]:
+    """Build the Anthropic API payload for a tool result message."""
+    return {
+        "role": "user",
+        "content": [
+            {
+                "type": "tool_result",
+                "tool_use_id": message.tool_call_id,
+                "content": message.content or "",
+            },
+        ],
+    }
+
+
+def _format_plain_message(message: Message) -> dict[str, Any]:
+    """Build the Anthropic API payload for a plain user/assistant message."""
+    return {
+        "role": message.role,
+        "content": message.content or "",
+    }
+
+
+def _format_message_by_role(message: Message) -> dict[str, Any] | None:
+    """Select the correct formatter based on message role and content."""
+    role = message.role
+    if role == "tool" and message.tool_call_id:
+        return _format_tool_result(message)
+    if role == "assistant" and message.tool_calls:
+        return _format_assistant_tool_call_message(message)
+    return _format_plain_message(message)
+
+
+def _handle_content_block_start_event(
+    event: Any,
+    pending_tool_calls: dict[str, dict[str, Any]],
+) -> _EventProcessingResult:
+    """Handle a content_block_start event from the Anthropic stream."""
+    block = event.content_block
+    if block.type == "tool_use":
+        block_id = block.id
+        pending_tool_calls[block_id] = {
+            "id": block_id,
+            "name": block.name,
+            "arguments": "",
+        }
+        return _EventProcessingResult(
+            EventProcessingResultParams(current_tool_id=block_id),
+        )
+    return _EventProcessingResult(EventProcessingResultParams())
+
+
+def _handle_content_block_delta_event(
+    event: Any,
+    current_tool_id: str | None,
+    pending_tool_calls: dict[str, dict[str, Any]],
+    default_model: str,
+) -> _EventProcessingResult:
+    """Handle a content_block_delta event from the Anthropic stream."""
+    delta = event.delta
+    delta_type = delta.type
+    content: str | None = None
+    thinking: str | None = None
+    tokens_delta = 0
+
+    if delta_type == "text_delta":
+        content = delta.text
+        if content:
+            tokens_delta = TokenCounter.count_text(content, model=default_model)
+    elif delta_type == "thinking_delta":
+        thinking = delta.thinking
+        if thinking:
+            tokens_delta = TokenCounter.count_text(thinking, model=default_model)
+    elif delta_type == "input_json_delta" and current_tool_id:
+        partial_json = delta.partial_json
+        pending_tool_calls[current_tool_id]["arguments"] += partial_json
+        tokens_delta = TokenCounter.count_text(partial_json, model=default_model)
+
+    return _EventProcessingResult(
+        EventProcessingResultParams(
+            content=content,
+            thinking=thinking,
+            total_output_tokens_delta=tokens_delta,
+        ),
+    )
+
+
+def _build_stream_chunk(result: _EventProcessingResult) -> StreamChunk | None:
+    """Convert an _EventProcessingResult into a StreamChunk, or None if nothing to yield."""
+    if not result.should_yield:
+        return None
+    return StreamChunk(
+        content=result.content,
+        tool_calls=result.tool_calls,
+        finish_reason=result.finish_reason,
+        thinking=result.thinking,
+    )
+
+
+def _raise_if_retries_exhausted(
+    retries: int,
+    max_retries: int,
+    exc: RateLimitError,
+) -> None:
+    """Raise *exc* if the retry limit has been reached."""
+    if retries > max_retries:
+        raise exc
+
+
 class _AnthropicStreamProcessor:
     """Processes Anthropic API streaming responses."""
 
-    def __init__(self, provider: "AnthropicProvider") -> None:
+    def __init__(
+        self: _AnthropicStreamProcessor,
+        provider: AnthropicProvider,
+    ) -> None:
         """Initialize the stream processor.
 
         Args:
@@ -119,7 +277,7 @@ class _AnthropicStreamProcessor:
         self._default_model = provider.default_model
 
     async def process_stream(
-        self,
+        self: _AnthropicStreamProcessor,
         params: dict[str, Any],
         input_tokens: int,
     ) -> AsyncIterator[StreamChunk]:
@@ -133,133 +291,89 @@ class _AnthropicStreamProcessor:
             StreamChunk objects as the response is generated.
         """
         total_output_tokens = 0
-        async with self._provider._client.messages.stream(**params) as stream:
+        async with self._provider._client.messages.stream(  # noqa: SLF001
+            **params,
+        ) as stream:
             pending_tool_calls: dict[str, dict[str, Any]] = {}
             current_tool_id: str | None = None
 
             async for event in stream:
                 chunk = await self._process_event(
-                    event, pending_tool_calls, current_tool_id, total_output_tokens,
+                    event,
+                    pending_tool_calls,
+                    current_tool_id,
+                    total_output_tokens,
                 )
 
-                chunk_current_tool_id = chunk.current_tool_id
-                if chunk_current_tool_id is not None:
-                    current_tool_id = chunk_current_tool_id
+                chunk_tool_id = chunk.current_tool_id
+                if chunk_tool_id is not None:
+                    current_tool_id = chunk_tool_id
 
                 chunk_tokens_delta = chunk.total_output_tokens_delta
                 if chunk_tokens_delta > 0:
                     total_output_tokens += chunk_tokens_delta
 
-                if chunk.should_yield:
-                    yield StreamChunk(
-                        content=chunk.content,
-                        tool_calls=chunk.tool_calls,
-                        finish_reason=chunk.finish_reason,
-                        thinking=chunk.thinking,
-                    )
+                stream_chunk = _build_stream_chunk(chunk)
+                if stream_chunk is not None:
+                    yield stream_chunk
 
-        # Record final usage
-        await self._provider._rate_limiter.add_usage(input_tokens + total_output_tokens)
+        rate_limiter = self._provider._rate_limiter  # noqa: SLF001
+        await rate_limiter.add_usage(input_tokens + total_output_tokens)
 
     async def _process_event(
-        self,
+        self: _AnthropicStreamProcessor,
         event: Any,
         pending_tool_calls: dict[str, dict[str, Any]],
         current_tool_id: str | None,
-        total_output_tokens: int,
-    ) -> "_EventProcessingResult":
+        total_output_tokens: int,  # noqa: ARG002
+    ) -> _EventProcessingResult:
         """Process a single event from the Anthropic stream."""
-        if event.type == "content_block_start":
-            return self._handle_content_block_start(event, pending_tool_calls)
-        if event.type == "content_block_delta":
-            return self._handle_content_block_delta(
-                event, current_tool_id, pending_tool_calls, total_output_tokens,
+        event_type = event.type
+        if event_type == "content_block_start":
+            return _handle_content_block_start_event(event, pending_tool_calls)
+        if event_type == "content_block_delta":
+            return _handle_content_block_delta_event(
+                event,
+                current_tool_id,
+                pending_tool_calls,
+                self._default_model,
             )
-        if event.type == "content_block_stop":
+        if event_type == "content_block_stop":
             return self._handle_content_block_stop()
-        if event.type == "message_delta":
+        if event_type == "message_delta":
             return self._handle_message_delta(event, pending_tool_calls)
         return _EventProcessingResult(EventProcessingResultParams())
 
-    def _handle_content_block_start(
-        self,
-        event: Any,
-        pending_tool_calls: dict[str, dict[str, Any]],
-    ) -> "_EventProcessingResult":
-        """Handle content_block_start event."""
-        block = event.content_block
-        if block.type == "tool_use":
-            block_id = block.id
-            current_tool_id = block_id
-            pending_tool_calls[block_id] = {
-                "id": block_id,
-                "name": block.name,
-                "arguments": "",
-            }
-            params = EventProcessingResultParams(current_tool_id=current_tool_id)
-            return _EventProcessingResult(params)
-
-        return _EventProcessingResult(EventProcessingResultParams())
-
-    def _handle_content_block_delta(
-        self,
-        event: Any,
-        current_tool_id: str | None,
-        pending_tool_calls: dict[str, dict[str, Any]],
-        total_output_tokens: int,
-    ) -> "_EventProcessingResult":
-        """Handle content_block_delta event."""
-        delta = event.delta
-        delta_type = delta.type
-        content: str | None = None
-        thinking: str | None = None
-        tokens_delta = 0
-
-        if delta_type == "text_delta":
-            content = delta.text
-            if content:  # Only count if content is not None/empty
-                tokens_delta = TokenCounter.count_text(content, model=self._default_model)
-        elif delta_type == "thinking_delta":
-            thinking = delta.thinking
-            if thinking:  # Only count if thinking is not None/empty
-                tokens_delta = TokenCounter.count_text(thinking, model=self._default_model)
-        elif delta_type == "input_json_delta" and current_tool_id:
-            delta_partial_json = delta.partial_json
-            pending_tool_calls[current_tool_id]["arguments"] += delta_partial_json
-            tokens_delta = TokenCounter.count_text(delta.partial_json, model=self._default_model)
-
-        params = EventProcessingResultParams(
-            content=content,
-            thinking=thinking,
-            total_output_tokens_delta=tokens_delta,
-        )
-        return _EventProcessingResult(params)
-
-    def _handle_content_block_stop(self) -> "_EventProcessingResult":
+    def _handle_content_block_stop(
+        self: _AnthropicStreamProcessor,
+    ) -> _EventProcessingResult:
         """Handle content_block_stop event."""
-        params = EventProcessingResultParams(current_tool_id=None)
-        return _EventProcessingResult(params)
+        return _EventProcessingResult(EventProcessingResultParams(current_tool_id=None))
 
     def _handle_message_delta(
-        self,
+        self: _AnthropicStreamProcessor,
         event: Any,
         pending_tool_calls: dict[str, dict[str, Any]],
-    ) -> "_EventProcessingResult":
+    ) -> _EventProcessingResult:
         """Handle message_delta event."""
-        finish_reason = self._provider._parse_finish_reason(event.delta.stop_reason)
+        finish_reason = parse_finish_reason(
+            event.delta.stop_reason,
+            ANTHROPIC_FINISH_REASON_MAPPING,
+        )
         tool_calls: list[ToolCall] | None = None
 
         if finish_reason == FinishReason.TOOL_CALLS and pending_tool_calls:
             tool_calls = self._build_tool_calls_from_pending(pending_tool_calls)
 
-        params = EventProcessingResultParams(
-            finish_reason=finish_reason,
-            tool_calls=tool_calls,
+        return _EventProcessingResult(
+            EventProcessingResultParams(
+                finish_reason=finish_reason,
+                tool_calls=tool_calls,
+            ),
         )
-        return _EventProcessingResult(params)
 
     def _build_tool_calls_from_pending(
-        self,
+        self: _AnthropicStreamProcessor,
         pending_tool_calls: dict[str, dict[str, Any]],
     ) -> list[ToolCall]:
         """Build ToolCall objects from pending tool call data."""
@@ -293,7 +407,7 @@ class AnthropicProvider(ModelProvider):
     """
 
     def __init__(
-        self,
+        self: AnthropicProvider,
         config: AnthropicProviderConfig | None = None,
         **kwargs: Any,
     ) -> None:
@@ -309,7 +423,10 @@ class AnthropicProvider(ModelProvider):
             config = AnthropicProviderConfig(**kwargs)
         self._initialize_from_config(config)
 
-    def _initialize_from_config(self, config: AnthropicProviderConfig) -> None:
+    def _initialize_from_config(
+        self: AnthropicProvider,
+        config: AnthropicProviderConfig,
+    ) -> None:
         """Initialize provider from configuration object.
 
         Args:
@@ -324,7 +441,7 @@ class AnthropicProvider(ModelProvider):
         self._stream_processor = _AnthropicStreamProcessor(self)
 
     @property
-    def name(self) -> str:
+    def name(self: AnthropicProvider) -> str:
         """The unique name of this provider."""
         return "anthropic"
 
@@ -337,15 +454,11 @@ class AnthropicProvider(ModelProvider):
         """
         return ANTHROPIC_MODELS.copy()
 
-    def _format_tool(self, tool: ToolDeclaration) -> dict[str, Any]:
-        """Format a tool declaration for the Anthropic API."""
-        return {
-            "name": tool.name,
-            "description": tool.description,
-            "input_schema": tool.parameters,
-        }
 
-    def _format_messages(self, messages: list[Message]) -> tuple[str | None, list[dict[str, Any]]]:
+    def _format_messages(
+        self: AnthropicProvider,
+        messages: list[Message],
+    ) -> tuple[str | None, list[dict[str, Any]]]:
         """Format messages for the Anthropic API.
 
         Anthropic separates system messages from the conversation.
@@ -361,116 +474,21 @@ class AnthropicProvider(ModelProvider):
 
         for msg in messages:
             if msg.role == "system":
-                system_prompt = self._extract_system_prompt(msg)
+                system_prompt = msg.content
                 continue
 
-            formatted_message = self._format_message_based_on_type(msg)
-            if formatted_message:
+            formatted_message = _format_message_by_role(msg)
+            if formatted_message:  # pragma: no branch
                 formatted.append(formatted_message)
 
         return system_prompt, formatted
 
-    def _extract_system_prompt(self, message: Message) -> str | None:
-        """Extract system prompt from a system message.
 
-        Args:
-            message: The system message.
 
-        Returns:
-            The system prompt content or None.
-        """
-        return message.content
 
-    def _format_message_based_on_type(self, message: Message) -> dict[str, Any] | None:
-        """Format a message based on its role and content.
-
-        Args:
-            message: The message to format.
-
-        Returns:
-            Formatted message dictionary or None if message should be skipped.
-        """
-        if message.role == "tool" and message.tool_call_id:
-            return self._format_tool_result_message(message)
-        if message.role == "assistant" and message.tool_calls:
-            return self._format_assistant_message_with_tool_calls(message)
-        return self._format_regular_message(message)
-
-    def _format_tool_result_message(self, message: Message) -> dict[str, Any]:
-        """Format a tool result message for Anthropic API.
-
-        Args:
-            message: The tool result message.
-
-        Returns:
-            Formatted message dictionary.
-        """
-        return {
-            "role": "user",
-            "content": [
-                {
-                    "type": "tool_result",
-                    "tool_use_id": message.tool_call_id,
-                    "content": message.content or "",
-                },
-            ],
-        }
-
-    def _format_assistant_message_with_tool_calls(self, message: Message) -> dict[str, Any]:
-        """Format an assistant message with tool calls for Anthropic API.
-
-        Args:
-            message: The assistant message with tool calls.
-
-        Returns:
-            Formatted message dictionary.
-        """
-        content: list[dict[str, Any]] = []
-
-        if message.content:
-            content.append({"type": "text", "text": message.content})
-
-        content.extend(
-            {
-                "type": "tool_use",
-                "id": tc.id,
-                "name": tc.name,
-                "input": tc.arguments,
-            }
-            for tc in (message.tool_calls or [])
-        )
-
-        return {
-            "role": message.role,
-            "content": content,
-        }
-
-    def _format_regular_message(self, message: Message) -> dict[str, Any]:
-        """Format a regular message (user or assistant without tool calls).
-
-        Args:
-            message: The message to format.
-
-        Returns:
-            Formatted message dictionary.
-        """
-        return {
-            "role": message.role,
-            "content": message.content or "",
-        }
-
-    def _parse_finish_reason(self, stop_reason: str | None) -> FinishReason | None:
-        """Parse Anthropic stop reason to our enum."""
-        anthropic_mapping: dict[str, FinishReason] = {
-            "end_turn": FinishReason.STOP,
-            "stop_sequence": FinishReason.STOP,
-            "tool_use": FinishReason.TOOL_CALLS,
-            "max_tokens": FinishReason.LENGTH,
-        }
-        return parse_finish_reason(stop_reason, anthropic_mapping)
 
     async def chat_completion_stream(
-        self,
+        self: AnthropicProvider,
         messages: list[Message],
         tools: list[ToolDeclaration] | None = None,
         **kwargs: Any,
@@ -485,32 +503,36 @@ class AnthropicProvider(ModelProvider):
         Yields:
             StreamChunk objects as the response is generated.
         """
-        self._validate_messages(messages)
+        validate_messages(messages)
 
         system_prompt, formatted_messages = self._format_messages(messages)
         messages = self._validate_and_repair_message_sequence(
-            messages, system_prompt, formatted_messages,
+            messages,
+            system_prompt,
+            formatted_messages,
         )
 
-        params = self._prepare_request_params(system_prompt, formatted_messages, tools, kwargs)
+        params = self._prepare_request_params(
+            system_prompt,
+            formatted_messages,
+            tools,
+            kwargs,
+        )
 
         input_tokens = TokenCounter.count_messages(messages, model=self.default_model)
 
         async for chunk in self._stream_with_retry(params, input_tokens):
             yield chunk
 
-    def _validate_messages(self, messages: list[Message]) -> None:
-        """Validate that messages are not empty and have appropriate content."""
-        validate_messages(messages)
 
     def _validate_and_repair_message_sequence(
-        self,
+        self: AnthropicProvider,
         messages: list[Message],
-        system_prompt: str | None,
-        formatted_messages: list[dict[str, Any]],
+        system_prompt: str | None,  # noqa: ARG002
+        formatted_messages: list[dict[str, Any]],  # noqa: ARG002
     ) -> list[Message]:
         """Validate and repair message sequence if needed."""
-        from henchman.utils.validation import (
+        from henchman.utils.validation import (  # noqa: PLC0415
             is_valid_message_sequence,
             repair_message_sequence,
         )
@@ -522,7 +544,7 @@ class AnthropicProvider(ModelProvider):
         return messages
 
     def _prepare_request_params(
-        self,
+        self: AnthropicProvider,
         system_prompt: str | None,
         formatted_messages: list[dict[str, Any]],
         tools: list[ToolDeclaration] | None,
@@ -540,12 +562,12 @@ class AnthropicProvider(ModelProvider):
             params["system"] = system_prompt
 
         if tools:
-            params["tools"] = [self._format_tool(t) for t in tools]
+            params["tools"] = [_format_tool_for_anthropic(t) for t in tools]
 
         return params
 
     async def _stream_with_retry(
-        self,
+        self: AnthropicProvider,
         params: dict[str, Any],
         input_tokens: int,
     ) -> AsyncIterator[StreamChunk]:
@@ -561,17 +583,14 @@ class AnthropicProvider(ModelProvider):
 
                 break  # Success, exit retry loop
 
-            except RateLimitError:
+            except RateLimitError as exc:
                 retries += 1
-                if retries > self.max_retries:
-                    raise
-
-                wait_time = 5.0 * (2 ** (retries - 1))  # Default backoff
-
+                _raise_if_retries_exhausted(retries, self.max_retries, exc)
+                wait_time = DEFAULT_RETRY_BACKOFF_BASE * (2 ** (retries - 1))
                 await asyncio.sleep(wait_time)
 
     async def _process_stream(
-        self,
+        self: AnthropicProvider,
         params: dict[str, Any],
         input_tokens: int,
     ) -> AsyncIterator[StreamChunk]:

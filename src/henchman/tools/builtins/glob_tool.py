@@ -1,20 +1,79 @@
 """Glob tool implementation."""
 
 from __future__ import annotations
+
 from pathlib import Path
+from typing import ClassVar
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 
+# Safety limit: maximum number of matches to return.
+_MAX_MATCHES = 1000
+
+
+def _collect_glob_matches(
+    base_path: Path,
+    pattern: str,
+    max_count: int,
+) -> tuple[list[Path], bool]:
+    """Collect up to *max_count* paths matching *pattern* under *base_path*.
+
+    Returns:
+        Tuple of (matches, truncated).
+    """
+    matches_iter = base_path.glob(pattern)  # noqa: ASYNC240
+    matches: list[Path] = []
+    try:
+        for _ in range(max_count + 1):
+            matches.append(next(matches_iter))  # noqa: PERF401
+    except StopIteration:
+        pass
+
+    if len(matches) > max_count:
+        return matches[:max_count], True
+    return matches, False
+
+
+def _format_glob_results(
+    matches: list[Path],
+    base_path: Path,
+    truncated: bool,
+    max_count: int,
+) -> str:
+    """Format matched paths as a newline-separated string."""
+    results: list[str] = []
+    for match in sorted(matches):
+        try:
+            rel_path = match.relative_to(base_path)
+            results.append(str(rel_path))
+        except ValueError:  # pragma: no cover
+            results.append(str(match))
+
+    if truncated:
+        results.append(
+            f"... Output truncated (limit reached: {max_count} matches) ...",
+        )
+    return "\n".join(results)
+
 
 class GlobTool(Tool):
-    """Find files matching a glob pattern.
+    """Find files matching a glob pattern."""
 
-    This tool searches for files matching a glob pattern
-    in a directory and its subdirectories.
-    """
-
-    # Safety limits
-    MAX_MATCHES = 1000
+    _glob_tool_parameters: ClassVar[dict[str, object]] = {
+        "type": "object",
+        "properties": {
+            "pattern": {
+                "type": "string",
+                "description": "Glob pattern to match (e.g., '*.py', '**/*.txt')",
+            },
+            "path": {
+                "type": "string",
+                "description": "Base path to search in. Defaults to current directory.",
+                "default": ".",
+            },
+        },
+        "required": ["pattern"],
+    }
 
     @property
     def name(self: GlobTool) -> str:
@@ -29,21 +88,7 @@ class GlobTool(Tool):
     @property
     def parameters(self: GlobTool) -> dict[str, object]:
         """JSON Schema for parameters."""
-        return {
-            "type": "object",
-            "properties": {
-                "pattern": {
-                    "type": "string",
-                    "description": "Glob pattern to match (e.g., '*.py', '**/*.txt')",
-                },
-                "path": {
-                    "type": "string",
-                    "description": "Base path to search in. Defaults to current directory.",
-                    "default": ".",
-                },
-            },
-            "required": ["pattern"],
-        }
+        return self._glob_tool_parameters
 
     @property
     def kind(self: GlobTool) -> ToolKind:
@@ -59,40 +104,24 @@ class GlobTool(Tool):
         """Find files matching glob pattern.
 
         Args:
-            pattern: Glob pattern to match.
-            path: Base path to search in.
+            pattern: Glob pattern to match (e.g., '*.py', '**/*.txt').
+            path: Base path to search in. Defaults to current directory.
             **kwargs: Additional arguments (ignored).
 
         Returns:
-            ToolResult with matching files or error.
+            ToolResult with matched files or error message.
         """
         try:
             base_path = Path(path)
 
-            if not base_path.exists():
+            if not base_path.exists():  # noqa: ASYNC240
                 return ToolResult(
                     content=f"Error: Path not found: {path}",
                     success=False,
                     error=f"Path not found: {path}",
                 )
 
-            # Find matching files
-            # Use a generator approach to avoid loading all files into memory if possible
-            # But glob() returns a generator anyway.
-            matches_iter = base_path.glob(pattern)
-
-            matches = []
-            truncated = False
-
-            try:
-                for _ in range(self.MAX_MATCHES + 1):
-                    matches.append(next(matches_iter))  # noqa: PERF401
-            except StopIteration:
-                pass
-
-            if len(matches) > self.MAX_MATCHES:
-                truncated = True
-                matches = matches[: self.MAX_MATCHES]
+            matches, truncated = _collect_glob_matches(base_path, pattern, _MAX_MATCHES)
 
             if not matches:
                 return ToolResult(
@@ -100,25 +129,10 @@ class GlobTool(Tool):
                     success=True,
                 )
 
-            # Format output
-            results = []
-            for match in sorted(matches):
-                try:
-                    rel_path = match.relative_to(base_path)
-                    results.append(str(rel_path))
-                except ValueError:  # pragma: no cover  # noqa: PERF203
-                    results.append(str(match))
+            content = _format_glob_results(matches, base_path, truncated, _MAX_MATCHES)
+            return ToolResult(content=content, success=True)
 
-            if truncated:
-                results.append(
-                    f"... Output truncated (limit reached: {self.MAX_MATCHES} matches) ...",
-                )
-
-            return ToolResult(
-                content="\n".join(results),
-                success=True,
-            )
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error searching files: {e}",
                 success=False,

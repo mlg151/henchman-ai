@@ -166,7 +166,7 @@ class TextChunker:
             current_tokens += line_tokens
 
         # Don't forget the last chunk
-        if current_lines:
+        if current_lines:  # pragma: no branch
             chunk_content = "".join(current_lines)
             chunks.append(
                 Chunk(

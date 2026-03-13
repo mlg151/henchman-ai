@@ -1,13 +1,18 @@
 """Tool registry for managing and executing tools."""
 
 from __future__ import annotations
+
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from henchman.providers.base import ToolDeclaration
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
+from henchman.tools.security import sanitize_error_message
 from henchman.utils.retry import RetryConfig, retry_async
+
+if TYPE_CHECKING:
+    from henchman.providers.base import ToolDeclaration
 
 # Type alias for confirmation handler
 ConfirmationHandler = Callable[[ConfirmationRequest], Awaitable[bool]]
@@ -21,7 +26,10 @@ class BatchResult:
     """Result of a batch tool execution.
 
     Attributes:
-        results: Mapping of tool names to their results.
+        results: Mapping of ``"{index}:{tool_name}"`` keys to ToolResult values.
+            The index-prefixed key guarantees uniqueness even when the same tool
+            is called multiple times.  Iterate ``results.values()`` for ordered
+            results, or use ``results[f"{i}:{name}"]`` for positional lookup.
         successful: Number of successful executions.
         failed: Number of failed executions.
     """
@@ -66,18 +74,24 @@ class ToolRegistry:
 
         Args:
             config: Retry configuration.
+
+        Returns:
+            None
         """
         self._retry_config = config
 
-    def set_plan_mode(self: ToolRegistry, enabled: bool) -> None:
+    def set_plan_mode(self: ToolRegistry, *, enabled: bool) -> None:
         """Enable or disable Plan Mode (Read-Only).
 
         Args:
             enabled: True to enable Plan Mode.
+
+        Returns:
+            None
         """
         self._plan_mode = enabled
 
-    def register(self: ToolRegistry, tool: Tool) -> None:
+    def register(self: ToolRegistry, tool: Tool) -> None:  # type: ignore[override]
         """Register a tool with the registry.
 
         Args:
@@ -85,6 +99,9 @@ class ToolRegistry:
 
         Raises:
             ValueError: If a tool with the same name is already registered.
+
+        Returns:
+            None
         """
         if tool.name in self._tools:
             msg = f"Tool '{tool.name}' is already registered"
@@ -97,6 +114,9 @@ class ToolRegistry:
         Args:
             name: The name of the tool to remove.
                   Silently does nothing if tool doesn't exist.
+
+        Returns:
+            None
         """
         self._tools.pop(name, None)
 
@@ -141,6 +161,9 @@ class ToolRegistry:
         Args:
             handler: An async function that takes a ConfirmationRequest
                     and returns True to approve, False to deny.
+
+        Returns:
+            None
         """
         self._confirmation_handler = handler
 
@@ -152,6 +175,9 @@ class ToolRegistry:
 
         Args:
             tool_name: The name of the tool to auto-approve.
+
+        Returns:
+            None
         """
         self._auto_approve_policies.add(tool_name)
 
@@ -160,6 +186,9 @@ class ToolRegistry:
 
         Args:
             tool_name: The name of the tool to remove from auto-approve.
+
+        Returns:
+            None
         """
         self._auto_approve_policies.discard(tool_name)
 
@@ -225,11 +254,12 @@ class ToolRegistry:
                 )
             else:
                 result = await tool.execute(**params)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
+            sanitized_error = sanitize_error_message(exc)
             return ToolResult(
-                content=f"Error executing tool '{name}': {exc}",
+                content=f"Error executing tool '{name}': {sanitized_error}",
                 success=False,
-                error=str(exc),
+                error=sanitized_error,
             )
 
         # Truncate large outputs to prevent context overflow
@@ -282,7 +312,12 @@ class ToolRegistry:
 
         for i, result in enumerate(results_list):
             tool_name = calls[i][0]
-            key = f"{tool_name}_{i}"  # Unique key for duplicate tool names
+            # Key is "{index}:{tool_name}" — the index prefix guarantees
+            # uniqueness even when the same tool appears multiple times, and
+            # avoids collisions with tool names that already contain "_N" suffixes
+            # (e.g. a tool named "my_tool_0" would have collided with the old
+            # "{tool_name}_{i}" scheme when i=0).
+            key = f"{i}:{tool_name}"
 
             if isinstance(result, BaseException):
                 results[key] = ToolResult(

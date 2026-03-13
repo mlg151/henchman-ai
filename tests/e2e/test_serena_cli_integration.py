@@ -335,7 +335,9 @@ class TestSerenaCliIntegration:
             McpToolDefinition(name="list_issues", description="GitHub tool", input_schema={})
         ]
 
-        def create_mock_client(name: str, config: McpServerConfig | None = None, verbose: bool = False) -> McpClient:  # noqa: ARG001
+        def create_mock_client(
+            name: str, config: McpServerConfig | None = None, verbose: bool = False
+        ) -> McpClient:  # noqa: ARG001
             clients = {
                 "serena": mock_serena_client,
                 "filesystem": mock_fs_client,

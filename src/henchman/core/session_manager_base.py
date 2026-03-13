@@ -179,10 +179,7 @@ class _SessionManagerBase:
         """
         if not self.data_dir.exists():
             return []
-        loaded = [
-            _try_load_metadata(p, project_hash)
-            for p in self.data_dir.glob("*.json")
-        ]
+        loaded = [_try_load_metadata(p, project_hash) for p in self.data_dir.glob("*.json")]
         sessions: list[Any] = [m for m in loaded if m is not None]
         sessions.sort(key=lambda s: s.last_updated, reverse=True)
         return sessions

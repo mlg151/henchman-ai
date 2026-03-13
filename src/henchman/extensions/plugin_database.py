@@ -1,5 +1,7 @@
 """Database operations for plugin management."""
 
+# ruff: noqa: E501
+
 from __future__ import annotations
 
 import json
@@ -35,6 +37,9 @@ class PluginDatabase:
         """Initialize the plugin database.
 
         Creates necessary tables and indexes if they don't exist.
+
+        Returns:
+            None
         """
         conn = sqlite3.connect(self.db_path)
         try:
@@ -54,8 +59,12 @@ class PluginDatabase:
             """)
 
             # Create indexes
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_installed_at ON plugin_installations(installed_at)")  # noqa: E501
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_enabled ON plugin_installations(enabled)")  # noqa: E501
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_installed_at ON plugin_installations(installed_at)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_enabled ON plugin_installations(enabled)"
+            )
 
             conn.commit()
         finally:
@@ -79,7 +88,8 @@ class PluginDatabase:
                     installations[installation.metadata.name] = installation
                 except (json.JSONDecodeError, ValidationError) as e:  # noqa: PERF203
                     # Log warning but continue loading other plugins
-                    import logging
+                    import logging  # noqa: PLC0415
+
                     logger = logging.getLogger(__name__)
                     logger.warning("Failed to load plugin installation from database: %s", e)
         finally:
@@ -100,18 +110,25 @@ class PluginDatabase:
             json.JSONDecodeError: If metadata JSON is invalid.
             ValidationError: If metadata validation fails.
         """
-        PC = PluginConstants
-        metadata_json = row[PC.DB_COL_METADATA_JSON]
+        PC = PluginConstants  # noqa: N806
+        col_metadata = PC.DB_COL_METADATA_JSON
+        col_installed_at = PC.DB_COL_INSTALLED_AT
+        col_installed_version = PC.DB_COL_INSTALLED_VERSION
+        col_enabled = PC.DB_COL_ENABLED
+        col_install_path = PC.DB_COL_INSTALLATION_PATH
+        metadata_json = row[col_metadata]
         metadata_dict = json.loads(metadata_json)
         metadata = PluginMetadata(**metadata_dict)
 
         return PluginInstallation(
             metadata=metadata,
-            installed_at=datetime.fromisoformat(row[PC.DB_COL_INSTALLED_AT]),
-            installed_version=row[PC.DB_COL_INSTALLED_VERSION],
-            enabled=bool(row[PC.DB_COL_ENABLED]),
-            installation_path=row[PC.DB_COL_INSTALLATION_PATH],
-            last_used=datetime.fromisoformat(row[PC.DB_COL_LAST_USED]) if row[PluginConstants.DB_COL_LAST_USED] else None,  # noqa: E501
+            installed_at=datetime.fromisoformat(row[col_installed_at]),
+            installed_version=row[col_installed_version],
+            enabled=bool(row[col_enabled]),
+            installation_path=row[col_install_path],
+            last_used=datetime.fromisoformat(row[PC.DB_COL_LAST_USED])
+            if row[PluginConstants.DB_COL_LAST_USED]
+            else None,
         )
 
     async def save_installation(self, installation: PluginInstallation) -> None:
@@ -119,16 +136,23 @@ class PluginDatabase:
 
         Args:
             installation: Plugin installation record.
+
+        Returns:
+            None
         """
         conn = sqlite3.connect(self.db_path)
         try:
             cursor = conn.cursor()
             params = self._build_installation_params(installation)
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO plugin_installations
-                (name, metadata_json, installed_at, installed_version, enabled, installation_path, last_used)
+                (name, metadata_json, installed_at, installed_version,
+                 enabled, installation_path, last_used)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, params)
+            """,
+                params,
+            )
             conn.commit()
         finally:
             conn.close()
@@ -145,13 +169,17 @@ class PluginDatabase:
         inst_meta = installation.metadata
         metadata_json = inst_meta.model_dump_json()
         inst_last_used = installation.last_used
+        inst_installed_at = installation.installed_at
+        inst_installed_version = installation.installed_version
+        inst_enabled = installation.enabled
+        inst_path = installation.installation_path
         return (
             inst_meta.name,
             metadata_json,
-            installation.installed_at.isoformat(),
-            installation.installed_version,
-            int(installation.enabled),
-            installation.installation_path,
+            inst_installed_at.isoformat(),
+            inst_installed_version,
+            int(inst_enabled),
+            inst_path,
             inst_last_used.isoformat() if inst_last_used else None,
         )
 
@@ -160,6 +188,9 @@ class PluginDatabase:
 
         Args:
             plugin_name: Name of plugin to delete.
+
+        Returns:
+            None
         """
         conn = sqlite3.connect(self.db_path)
         try:

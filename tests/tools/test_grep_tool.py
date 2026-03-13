@@ -245,3 +245,205 @@ class TestGrepTool:
         assert result.success is False
         assert "invalid regex" in result.content.lower() or "error" in result.content.lower()
         Path(f.name).unlink()
+
+
+class TestGrepInternals:
+    """Tests for grep internal functions and classes."""
+
+    def test_format_context_block_empty_indices(self) -> None:
+        """_format_context_block returns empty for no match indices."""
+        from henchman.tools.builtins.grep import ContextConfig, _format_context_block
+
+        config = ContextConfig(context_before=2, context_after=2, line_numbers=True, file_prefix="")
+        result = _format_context_block(["a", "b"], set(), config)
+        assert result == []
+
+    def test_format_context_block_separator(self) -> None:
+        """_format_context_block inserts -- separator between non-adjacent blocks."""
+        from henchman.tools.builtins.grep import ContextConfig, _format_context_block
+
+        lines = [f"line{i}" for i in range(20)]
+        config = ContextConfig(context_before=0, context_after=0, line_numbers=True, file_prefix="")
+        # Two non-adjacent matches
+        result = _format_context_block(lines, {0, 10}, config)
+        assert "--" in result
+
+    def test_format_context_block_no_line_numbers(self) -> None:
+        """_format_context_block works without line numbers."""
+        from henchman.tools.builtins.grep import ContextConfig, _format_context_block
+
+        lines = ["hello", "world"]
+        config = ContextConfig(context_before=0, context_after=0, line_numbers=False, file_prefix="")
+        result = _format_context_block(lines, {0}, config)
+        assert result == ["hello"]
+
+    def test_result_formatter_should_truncate(self) -> None:
+        """ResultFormatter.should_truncate returns True when limits exceeded."""
+        from henchman.tools.builtins.grep import ResultFormatter
+
+        fmt = ResultFormatter()
+        assert fmt.should_truncate(["x"] * 1000, 0) is True
+        assert fmt.should_truncate([], 100_001) is True
+        assert fmt.should_truncate([], 100) is False
+
+    def test_file_searcher_find_matching_indices(self) -> None:
+        """FileSearcher._find_matching_indices delegates correctly."""
+        import re
+
+        from henchman.tools.builtins.grep import FileSearcher, ResultFormatter
+
+        searcher = FileSearcher(ResultFormatter())
+        regex = re.compile("hello")
+        result = searcher._find_matching_indices(["hello", "world"], regex, False)
+        assert result == {0}
+
+    def test_file_searcher_validate_and_setup(self) -> None:
+        """FileSearcher._validate_and_setup returns error for missing path."""
+        from henchman.tools.builtins.grep import FileSearcher, ResultFormatter, ToolResult
+
+        searcher = FileSearcher(ResultFormatter())
+        from henchman.tools.builtins.grep import GrepParameters
+        result = searcher._validate_and_setup(GrepParameters(pattern="pattern", path="/nonexistent/path"))
+        assert isinstance(result, ToolResult)
+        assert result.success is False
+
+    def test_file_searcher_count_matches(self) -> None:
+        """FileSearcher._count_matches counts per file."""
+        import re
+        import tempfile
+        from pathlib import Path
+
+        from henchman.tools.builtins.grep import FileSearcher, ResultFormatter
+
+        searcher = FileSearcher(ResultFormatter())
+        regex = re.compile("hello")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = Path(tmpdir) / "test.txt"
+            f.write_text("hello\nworld\nhello\n")
+            result = searcher._count_matches([f], regex, False)
+            assert "2" in result.content
+
+    def test_file_searcher_search_single_file(self) -> None:
+        """FileSearcher._search_single_file delegates correctly."""
+        import re
+        import tempfile
+        from pathlib import Path
+
+        from henchman.tools.builtins.grep import FileSearcher, ResultFormatter, SearchConfig
+
+        searcher = FileSearcher(ResultFormatter())
+        regex = re.compile("hello")
+        config = SearchConfig(
+            invert_match=False,
+            has_context=False,
+            context_before=0,
+            context_after=0,
+            line_numbers=False,
+            multi_file=False,
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = Path(tmpdir) / "test.txt"
+            f.write_text("hello world\n")
+            result = searcher._search_single_file(f, regex, config, "")
+            assert result is not None
+            matches, chars = result
+            assert len(matches) > 0
+
+    def test_file_searcher_search_files(self) -> None:
+        """FileSearcher.search_files returns results."""
+        import re
+        import tempfile
+        from pathlib import Path
+
+        from henchman.tools.builtins.grep import FileSearcher, ResultFormatter, SearchConfig
+
+        searcher = FileSearcher(ResultFormatter())
+        regex = re.compile("hello")
+        config = SearchConfig(
+            invert_match=False,
+            has_context=False,
+            context_before=0,
+            context_after=0,
+            line_numbers=False,
+            multi_file=False,
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = Path(tmpdir) / "test.txt"
+            f.write_text("hello world\n")
+            result = searcher.search_files([f], regex, config)
+            assert result.success is True
+
+    async def test_execute_with_params(self) -> None:
+        """GrepTool._execute_with_params delegates to _execute_grep."""
+        import tempfile
+        from pathlib import Path
+
+        from henchman.tools.builtins.grep import GrepParameters, GrepTool
+
+        tool = GrepTool()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("hello world\n")
+            f.flush()
+            params = GrepParameters(pattern="hello", path=f.name)
+            result = await tool._execute_with_params(params)
+            Path(f.name).unlink()
+        assert result.success is True
+
+    async def test_truncation_on_many_matches(self) -> None:
+        """Results truncated when match limit exceeded."""
+        import tempfile
+        from pathlib import Path
+
+        from henchman.tools.builtins.grep import GrepTool
+
+        tool = GrepTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a file with 1001 matching lines
+            f = Path(tmpdir) / "big.txt"
+            f.write_text("\n".join(["match"] * 1001))
+            result = await tool.execute(pattern="match", path=str(f))
+            assert "truncated" in result.content or result.success is True
+
+    def test_file_searcher_collect_files(self) -> None:
+        """FileSearcher._collect_files delegates to _collect_files (line 428)."""
+        import tempfile
+        from pathlib import Path
+
+        from henchman.tools.builtins.grep import FileSearcher, ResultFormatter
+
+        searcher = FileSearcher(ResultFormatter())
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = Path(tmpdir) / "test.txt"
+            f.write_text("hello\n")
+            files = searcher._collect_files(Path(tmpdir), None)
+            assert f in files
+
+    async def test_truncation_across_files_line316(self) -> None:
+        """Outer loop breaks when truncated=True at start of next file (line 316)."""
+        import re
+        import tempfile
+        from pathlib import Path
+
+        from henchman.tools.builtins.grep import (
+            SearchConfig,
+            _search_files,
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f1 = Path(tmpdir) / "a.txt"
+            f2 = Path(tmpdir) / "b.txt"
+            f1.write_text("\n".join(["match"] * 600))
+            f2.write_text("match\n")
+
+            regex = re.compile("match")
+            config = SearchConfig(
+                invert_match=False,
+                has_context=False,
+                context_before=0,
+                context_after=0,
+                line_numbers=False,
+                multi_file=True,
+            )
+            # Use small max_matches to trigger truncation during first file
+            result = _search_files([f1, f2], regex, config, max_matches=3, max_output_chars=100_000)
+            assert "truncated" in result.content

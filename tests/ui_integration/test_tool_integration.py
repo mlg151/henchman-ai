@@ -72,14 +72,18 @@ class TestToolCallHandling:
         await mock_repl._handle_tool_call(tool_call)
 
         # Verify tool was executed via tool_executor's registry.execute
-        mock_repl.tool_executor.tool_manager.registry.execute.assert_called_once_with("test_tool", {"param": "value"})
+        mock_repl.tool_executor.tool_manager.registry.execute.assert_called_once_with(
+            "test_tool", {"param": "value"}
+        )
 
         # Verify agent received the result
         mock_repl.agent.submit_tool_result.assert_called_once_with("test-id", "Result")
 
     async def test_handle_tool_call_nonexistent_tool(self, mock_repl):
         """Test handling of call to non-existent tool."""
-        mock_repl.tool_executor.tool_manager.registry.execute.side_effect = ValueError("Tool not found")
+        mock_repl.tool_executor.tool_manager.registry.execute.side_effect = ValueError(
+            "Tool not found"
+        )
 
         tool_call = ToolCall(id="test-id", name="nonexistent_tool", arguments={})
 
@@ -155,8 +159,12 @@ class TestToolDisplayFormatting:
         # tool_executor calls output_handler.muted for tool calls and results
         assert repl_with_mock_display.tool_executor.output_handler.muted.call_count >= 2
         # First call shows the tool call
-        first_call_args = repl_with_mock_display.tool_executor.output_handler.muted.call_args_list[0][0][0]
+        first_call_args = repl_with_mock_display.tool_executor.output_handler.muted.call_args_list[
+            0
+        ][0][0]
         assert "read_file" in first_call_args
         # Second call shows the result
-        second_call_args = repl_with_mock_display.tool_executor.output_handler.muted.call_args_list[1][0][0]
+        second_call_args = repl_with_mock_display.tool_executor.output_handler.muted.call_args_list[
+            1
+        ][0][0]
         assert "result" in second_call_args.lower() or "Test content" in second_call_args

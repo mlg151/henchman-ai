@@ -156,7 +156,7 @@ def load_settings() -> Settings:
         try:
             file_settings = _load_file(path)
             merged = deep_merge(merged, file_settings)
-        except ConfigError:  # noqa: PERF203
+        except ConfigError:  # noqa: PERF203, TRY203
             raise
 
     # Apply environment overrides
@@ -176,6 +176,9 @@ def save_settings(settings: Settings, path: Path | None = None) -> None:
     Args:
         settings: Settings object to save.
         path: Path to save to. If None, uses ~/.henchman/settings.yaml.
+
+    Returns:
+        None
     """
     if path is None:
         path = Path.home() / ".henchman" / "settings.yaml"
@@ -187,7 +190,7 @@ def save_settings(settings: Settings, path: Path | None = None) -> None:
     data = settings.model_dump(exclude_defaults=True, mode="json")
 
     # Write to file
-    with open(path, "w") as f:
+    with open(path, "w") as f:  # noqa: PTH123
         if path.suffix in (".yaml", ".yml"):
             yaml.dump(data, f, default_flow_style=False)
         else:

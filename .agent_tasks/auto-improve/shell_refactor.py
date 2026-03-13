@@ -52,7 +52,7 @@ class PtyDescriptor:
     master_fd: int
     slave_fd: int
     old_termios_settings: list[int] | None = None
-    
+
     def __enter__(self):
         """Set up PTY with non-blocking mode."""
         flags = fcntl.fcntl(self.master_fd, fcntl.F_GETFL)
@@ -60,7 +60,7 @@ class PtyDescriptor:
         self.old_termios_settings = termios.tcgetattr(sys.stdin.fileno())
         tty.setraw(sys.stdin.fileno())
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Restore terminal settings and close file descriptors."""
         if self.old_termios_settings:
@@ -207,14 +207,14 @@ async def cancel_tasks(*tasks: asyncio.Task[None]) -> None:
 # ---------------------------------------------------------------------------
 class PtyManager:
     """Manages PTY (pseudo-terminal) operations for interactive commands."""
-    
+
     @staticmethod
     def create_pty() -> PtyDescriptor:
         """Create a new PTY pair."""
         master_fd, slave_fd = pty.openpty()
         os.setsid()
         return PtyDescriptor(master_fd=master_fd, slave_fd=slave_fd)
-    
+
     @staticmethod
     def drain_pty(master_fd: int, accumulator: list[str]) -> None:
         """Read remaining data from PTY after process exits."""
@@ -226,7 +226,7 @@ class PtyManager:
                 accumulator.append(chunk.decode("utf-8", errors="replace"))
         except OSError:
             pass
-    
+
     @staticmethod
     def handle_pty_io(
         master_fd: int,
@@ -260,13 +260,13 @@ class PtyManager:
 # ---------------------------------------------------------------------------
 class InteractiveLoop:
     """Manages the interactive loop for PTY-based commands."""
-    
+
     def __init__(self, pty_manager: PtyManager, timeout: float | None):
         self.pty_manager = pty_manager
         self.timeout = timeout
         self.output_data: list[str] = []
         self.start_time: float = 0.0
-    
+
     async def run(
         self,
         process: asyncio.subprocess.Process,
@@ -274,35 +274,35 @@ class InteractiveLoop:
     ) -> str:
         """Run the interactive loop until process completes or times out."""
         self.start_time = asyncio.get_running_loop().time()
-        
+
         with PtyDescriptor(master_fd, -1):  # Use PtyDescriptor as context manager
             while True:
                 if self._check_timeout(process):
                     return self._format_result(timed_out=True)
-                
+
                 if process.returncode is not None:
                     self.pty_manager.drain_pty(master_fd, self.output_data)
                     break
-                
+
                 await self._process_pty_io(master_fd)
-        
+
         await process.wait()
         return self._format_result(timed_out=False)
-    
+
     def _check_timeout(self, process: asyncio.subprocess.Process) -> bool:
         """Check if command has timed out."""
         if self.timeout and (asyncio.get_running_loop().time() - self.start_time > self.timeout):
             process.kill()
             return True
         return False
-    
+
     async def _process_pty_io(self, master_fd: int) -> None:
         """Process one iteration of PTY I/O."""
         rlist, _, _ = select.select(
             [master_fd, sys.stdin], [], [], _POLL_INTERVAL,
         )
         self.pty_manager.handle_pty_io(master_fd, rlist, self.output_data)
-    
+
     def _format_result(self, timed_out: bool) -> str:
         """Format the final output result."""
         output = "".join(self.output_data)
@@ -319,17 +319,17 @@ class InteractiveLoop:
 # ---------------------------------------------------------------------------
 class ShellTool(Tool):
     """Execute shell commands with improved structure."""
-    
+
     MAX_OUTPUT_CHARS = _MAX_OUTPUT_CHARS
-    
+
     def __init__(self, default_timeout: int = _DEFAULT_TIMEOUT) -> None:
         self._default_timeout = default_timeout
         self._pty_manager = PtyManager()
-    
+
     @property
     def name(self) -> str:
         return "shell"
-    
+
     @property
     def description(self) -> str:
         return (
@@ -337,7 +337,7 @@ class ShellTool(Tool):
             "Long-running commands (builds, tests, data jobs) are fully "
             "supported — the tool will wait until the command completes."
         )
-    
+
     @property
     def parameters(self) -> dict[str, object]:
         return {
@@ -368,11 +368,11 @@ class ShellTool(Tool):
             },
             "required": ["command"],
         }
-    
+
     @property
     def kind(self) -> ToolKind:
         return ToolKind.EXECUTE
-    
+
     async def execute(
         self,
         command: str = "",
@@ -382,34 +382,34 @@ class ShellTool(Tool):
     ) -> ToolResult:
         """Execute shell command with refactored structure."""
         effective_timeout = resolve_timeout(timeout, self._default_timeout)
-        
+
         try:
             env = build_env()
             interactive = kwargs.get("interactive", False)
             is_sudo = is_sudo_command(command)
-            
+
             # Interactive sudo path (TTY required)
             if (interactive or is_sudo) and sys.stdin.isatty():
                 return await self._execute_interactive_sudo(
                     command, env, cwd, effective_timeout,
                 )
-            
+
             # Create subprocess (with sudo fallback when no TTY)
             process = await self._create_process(command, env, cwd, is_sudo)
-            
+
             # Run subprocess and collect output
             outcome = await self._run_and_collect(process, effective_timeout)
-            
+
             output = format_output(outcome.stdout, outcome.stderr)
             return make_result(output, outcome.returncode, outcome.timed_out, effective_timeout)
-            
+
         except Exception as e:  # pragma: no cover
             return ToolResult(
                 content=f"Error executing command: {e}",
                 success=False,
                 error=str(e),
             )
-    
+
     async def _create_process(
         self,
         command: str,
@@ -421,7 +421,7 @@ class ShellTool(Tool):
         if is_sudo and not sys.stdin.isatty():
             env = {**env, "SUDO_ASKPASS": "/bin/false"}
             command = f"sudo -A {command[5:]}"
-        
+
         return await asyncio.create_subprocess_shell(
             command,
             stdout=asyncio.subprocess.PIPE,
@@ -429,7 +429,7 @@ class ShellTool(Tool):
             env=env,
             cwd=cwd,
         )
-    
+
     async def _run_and_collect(
         self,
         process: asyncio.subprocess.Process,
@@ -438,25 +438,25 @@ class ShellTool(Tool):
         """Drive process to completion and return captured output."""
         stdout_data: list[str] = []
         stderr_data: list[str] = []
-        
+
         stdout_task = asyncio.create_task(
             read_stream_into(process.stdout, stdout_data),  # type: ignore[arg-type]
         )
         stderr_task = asyncio.create_task(
             read_stream_into(process.stderr, stderr_data),  # type: ignore[arg-type]
         )
-        
+
         timed_out, elapsed = await poll_until_exit(process, timeout)
-        
+
         # Let readers finish consuming any remaining buffered data
         readers_done = await drain_readers(stdout_task, stderr_task)
-        
+
         force_close_pipes(process)
         await reap_process(process)
-        
+
         if not readers_done:
             await cancel_tasks(stdout_task, stderr_task)
-        
+
         return ProcessOutcome(
             stdout="".join(stdout_data),
             stderr="".join(stderr_data),
@@ -464,7 +464,7 @@ class ShellTool(Tool):
             timed_out=timed_out,
             elapsed=elapsed,
         )
-    
+
     async def _execute_interactive_sudo(
         self,
         command: str,
@@ -476,7 +476,7 @@ class ShellTool(Tool):
         try:
             # Create PTY and process
             pty_desc = self._pty_manager.create_pty()
-            
+
             process = await asyncio.create_subprocess_shell(
                 command,
                 stdin=pty_desc.slave_fd,
@@ -487,17 +487,17 @@ class ShellTool(Tool):
                 start_new_session=True,
             )
             os.close(pty_desc.slave_fd)
-            
+
             # Run interactive loop
             loop = InteractiveLoop(self._pty_manager, timeout)
             output = await loop.run(process, pty_desc.master_fd)
-            
+
             return ToolResult(
                 content=output,
                 success=process.returncode == 0,
                 error=f"Exit code: {process.returncode}" if process.returncode != 0 else None,
             )
-            
+
         except Exception as e:
             return ToolResult(
                 content=f"Error executing sudo command: {e}",

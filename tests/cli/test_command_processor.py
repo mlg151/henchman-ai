@@ -6,7 +6,6 @@ import pytest
 
 from henchman.cli.command_processor import CommandProcessor
 from henchman.cli.commands import Command, CommandContext, CommandRegistry
-from henchman.cli.output_handler import OutputHandler
 from henchman.cli.session_manager import ReplSessionManager
 from henchman.cli.tool_manager import ToolManager
 from henchman.core.agent import Agent
@@ -49,7 +48,7 @@ class TestCommandProcessor:
 
     def _create_mocks(self) -> tuple:
         """Create properly configured mocks for testing."""
-        output_handler = MagicMock(spec=OutputHandler)
+        output_handler = MagicMock()
         output_handler.renderer = MagicMock()
         output_handler.renderer.console = MagicMock()
 

@@ -298,7 +298,9 @@ class TestSerenaMcpIntegration:
             "filesystem": mock_fs_client,
         }
 
-        def create_mock_client(*, name: str, config: McpServerConfig, verbose: bool = False) -> McpClient:  # noqa: ARG001
+        def create_mock_client(
+            *, name: str, config: McpServerConfig, verbose: bool = False
+        ) -> McpClient:  # noqa: ARG001
             return mock_clients[name]
 
         with patch("henchman.mcp.manager.McpClient", side_effect=create_mock_client):

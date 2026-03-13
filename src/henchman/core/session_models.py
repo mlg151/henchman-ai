@@ -6,25 +6,10 @@ turn summaries used throughout the session system.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Shared mixin
-# ---------------------------------------------------------------------------
-
-
-class _AsDictMixin:
-    """Mixin providing ``to_dict`` via :func:`dataclasses.asdict`."""
-
-    def to_dict(self: _AsDictMixin) -> dict[str, Any]:
-        """Convert to dictionary.
-
-        Returns:
-            Dictionary representation.
-        """
-        return asdict(self)  # type: ignore[call-overload]
-
+from henchman.utils.serialization import AsDictMixin
 
 # ---------------------------------------------------------------------------
 # Session message
@@ -32,7 +17,7 @@ class _AsDictMixin:
 
 
 @dataclass
-class SessionMessage:
+class SessionMessage(AsDictMixin):
     """A message in a session.
 
     Attributes:
@@ -102,7 +87,7 @@ SessionMessage.from_dict = classmethod(  # type: ignore[attr-defined]
 
 
 @dataclass
-class SessionMetadata(_AsDictMixin):
+class SessionMetadata(AsDictMixin):
     """Metadata about a session (without messages).
 
     Attributes:
@@ -152,7 +137,7 @@ SessionMetadata.from_dict = classmethod(  # type: ignore[attr-defined]
 
 
 @dataclass
-class TurnSummaryRecord(_AsDictMixin):
+class TurnSummaryRecord(AsDictMixin):
     """Summary of a completed turn for persistence.
 
     Attributes:
@@ -171,13 +156,15 @@ class TurnSummaryRecord(_AsDictMixin):
 
     def __hash__(self: TurnSummaryRecord) -> int:
         """Make TurnSummaryRecord hashable for deduplication."""
-        return hash((
-            self.turn_number,
-            self.summary_text,
-            tuple(self.files_modified),
-            self.tool_count,
-            self.timestamp,
-        ))
+        return hash(
+            (
+                self.turn_number,
+                self.summary_text,
+                tuple(self.files_modified),
+                self.tool_count,
+                self.timestamp,
+            )
+        )
 
 
 def turn_summary_from_dict(data: dict[str, Any]) -> TurnSummaryRecord:

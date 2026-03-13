@@ -10,15 +10,29 @@ from henchman.agents.ledger import (
 )
 from henchman.agents.orchestrator import CompletionStatus, Orchestrator
 from henchman.agents.pool import AgentPool
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    ProblemEntry,
+    WorkingMemory,
+    WorkingMemoryEntry,
+    WorkingMemorySystem,
+)
 
 __all__ = [
+    "ActionEntry",
     "AgentConfig",
     "AgentIdentity",
     "AgentPool",
     "ChecklistItem",
     "CompletionStatus",
+    "DecisionEntry",
     "DelegationRecord",
     "DelegationStatus",
     "Orchestrator",
+    "ProblemEntry",
     "TaskLedger",
+    "WorkingMemory",
+    "WorkingMemoryEntry",
+    "WorkingMemorySystem",
 ]

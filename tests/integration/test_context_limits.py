@@ -123,7 +123,7 @@ class TestCompactionWithSummarization:
     async def test_summarization_enabled_creates_summary(self):
         """When summarize_dropped=True, dropped messages are summarized."""
         # This test verifies the summarization path is available
-        from henchman.utils.compaction import compact_with_summarization
+        from henchman.utils.compaction import CompactionParams, compact_messages
 
         mock_provider = MagicMock()
 
@@ -141,11 +141,13 @@ class TestCompactionWithSummarization:
             Message(role="user", content="Latest message."),
         ]
 
-        result = await compact_with_summarization(
-            msgs,
-            max_tokens=100,
-            provider=mock_provider,
-            summarize=True,
+        result = await compact_messages(
+            CompactionParams(
+                messages=msgs,
+                max_tokens=100,
+                provider=mock_provider,
+                summarize=True,
+            )
         )
 
         assert result.was_compacted is True

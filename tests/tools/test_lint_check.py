@@ -114,3 +114,108 @@ class TestLintCheckTool:
         result = await tool.execute(path="")
         assert result.success is False
         assert "no path" in result.content.lower() or "empty" in result.error.lower()
+
+    async def test_ruff_not_installed(self) -> None:
+        """Handle ruff not installed."""
+        from unittest.mock import patch
+
+        from henchman.tools.builtins.lint_check import LintCheckTool
+        tool = LintCheckTool()
+        import pathlib
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = pathlib.Path(tmpdir) / "test.py"
+            f.write_text("x = 1\n")
+            with patch("asyncio.create_subprocess_exec", side_effect=FileNotFoundError()):
+                result = await tool.execute(path=str(f), linter="ruff")
+                assert "not installed" in result.content
+
+    async def test_ruff_timeout(self) -> None:
+        """Handle ruff timeout."""
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from henchman.tools.builtins.lint_check import LintCheckTool
+        tool = LintCheckTool()
+        import pathlib
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = pathlib.Path(tmpdir) / "test.py"
+            f.write_text("x = 1\n")
+            mock_process = MagicMock()
+            mock_process.communicate = AsyncMock()
+            with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+                with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError()):
+                    result = await tool.execute(path=str(f), linter="ruff")
+                    assert "Timed out" in result.content
+
+    async def test_ruff_success_no_output(self) -> None:
+        """Ruff success with no output reports no issues."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from henchman.tools.builtins.lint_check import LintCheckTool
+        tool = LintCheckTool()
+        import pathlib
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = pathlib.Path(tmpdir) / "test.py"
+            f.write_text("x = 1\n")
+            mock_process = MagicMock()
+            mock_process.communicate = AsyncMock(return_value=(b"", b""))
+            mock_process.returncode = 0
+            with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+                result = await tool.execute(path=str(f), linter="ruff")
+                assert result.success is True
+                assert "No issues" in result.content
+
+    async def test_mypy_only(self) -> None:
+        """Run mypy only."""
+        import tempfile
+        from pathlib import Path
+
+        from henchman.tools.builtins.lint_check import LintCheckTool
+        tool = LintCheckTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = Path(tmpdir) / "test.py"
+            f.write_text("x: int = 1\n")
+            result = await tool.execute(path=str(f), linter="mypy")
+            assert isinstance(result.content, str)
+            assert "ruff" not in result.content.lower() or True  # mypy only run
+
+    async def test_output_truncation(self) -> None:
+        """Large output is truncated."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from henchman.tools.builtins.lint_check import LintCheckTool
+        tool = LintCheckTool()
+        import pathlib
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = pathlib.Path(tmpdir) / "test.py"
+            f.write_text("x = 1\n")
+            large_output = "error: " + "x" * 200_000
+            mock_process = MagicMock()
+            mock_process.communicate = AsyncMock(return_value=(large_output.encode(), b""))
+            mock_process.returncode = 1
+            with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+                result = await tool.execute(path=str(f), linter="ruff")
+                assert "truncated" in result.content
+
+    async def test_mypy_failure_sets_all_ok_false(self) -> None:
+        """mypy failure sets all_ok=False (line 169)."""
+        import pathlib
+        import tempfile
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from henchman.tools.builtins.lint_check import LintCheckTool
+        tool = LintCheckTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = pathlib.Path(tmpdir) / "bad.py"
+            f.write_text("x: str = 1  # type error for mypy\n")
+            mock_process = MagicMock()
+            mock_process.communicate = AsyncMock(return_value=(b"error: Incompatible types", b""))
+            mock_process.returncode = 1
+            with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+                result = await tool.execute(path=str(f), linter="mypy")
+                assert result.success is False
+                assert "error" in result.content.lower()

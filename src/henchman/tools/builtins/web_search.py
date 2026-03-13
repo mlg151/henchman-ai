@@ -1,7 +1,10 @@
 """Web search tool implementation using DuckDuckGo."""
 
 from __future__ import annotations
+
 from henchman.tools.base import Tool, ToolKind, ToolResult
+
+_HTTP_ERROR_THRESHOLD = 400
 
 
 class DuckDuckGoSearchTool(Tool):
@@ -61,8 +64,8 @@ class DuckDuckGoSearchTool(Tool):
             ToolResult with search results.
         """
         try:  # pragma: no cover
-            import aiohttp
-            from bs4 import BeautifulSoup
+            import aiohttp  # noqa: PLC0415
+            from bs4 import BeautifulSoup  # noqa: PLC0415
         except ImportError:  # pragma: no cover
             return ToolResult(
                 content="Error: aiohttp and beautifulsoup4 are required for web_search",
@@ -81,7 +84,7 @@ class DuckDuckGoSearchTool(Tool):
                 aiohttp.ClientSession(headers=headers) as session,
                 session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response,
             ):
-                if response.status >= 400:
+                if response.status >= _HTTP_ERROR_THRESHOLD:
                     return ToolResult(
                         content=f"Search failed with HTTP {response.status}",
                         success=False,
@@ -118,7 +121,7 @@ class DuckDuckGoSearchTool(Tool):
                     success=True,
                 )
 
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error performing search: {e}",
                 success=False,

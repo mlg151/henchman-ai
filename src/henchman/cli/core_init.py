@@ -60,6 +60,7 @@ def create_core_context(
     system_prompt: str = "",
     environment_context: str | None = None,
     settings: Settings | None = None,
+    *,
     auto_approve_tools: bool = False,
 ) -> CoreContext:
     """Create core components shared between UI implementations.
@@ -79,7 +80,7 @@ def create_core_context(
     """
     # Initialize tool manager
     tool_manager = ToolManager(settings=settings)
-    tool_manager.set_auto_approve(auto_approve_tools)
+    tool_manager.set_auto_approve(auto_approve=auto_approve_tools)
     tool_manager.register_builtin_tools()
     tool_registry = tool_manager.registry  # Backwards compatibility
 
@@ -87,7 +88,7 @@ def create_core_context(
     mcp_manager: McpManager | None = None
     if settings and settings.mcp_servers:
         mcp_logging = settings.ui.mcp_logging if settings and settings.ui else False
-        mcp_manager = McpManager.create_from_settings(settings, mcp_logging)
+        mcp_manager = McpManager.create_from_settings(settings, mcp_logging_enabled=mcp_logging)
 
     # Initialize Plugin Manager
     plugin_manager = PluginManager(None)  # UI instance set by caller
@@ -135,9 +136,13 @@ def initialize_mcp(context: CoreContext) -> None:
 
     Args:
         context: Core context with MCP manager.
+
+    Returns:
+        None
     """
     if context.mcp_manager and not context.mcp_manager.clients:
-        import asyncio
+        import asyncio  # noqa: PLC0415
+
         mcp_manager = context.mcp_manager  # Captured for closure typing
 
         async def connect_mcp() -> None:
@@ -147,9 +152,9 @@ def initialize_mcp(context: CoreContext) -> None:
                 # Register MCP tools with the tool registry
                 for tool in mcp_manager.get_all_tools():
                     context.tool_registry.register(tool)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 # Log error but don't crash
                 print(f"Failed to connect to MCP servers: {e}")
 
         # Run in background
-        asyncio.create_task(connect_mcp())
+        asyncio.create_task(connect_mcp())  # noqa: RUF006

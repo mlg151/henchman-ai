@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -33,9 +32,9 @@ class TestSessionEnhancedCoverage:
             SessionMessage(role="assistant", content="Hi!"),
         ]
         manager.save(session)
-        
+
         exported = manager.export_session(session.id, format="markdown", include_metadata=False)
-        
+
         # Should not contain metadata section
         assert "## Metadata" not in exported
         # Should still contain conversation
@@ -49,18 +48,16 @@ class TestSessionEnhancedCoverage:
             SessionMessage(
                 role="assistant",
                 content=None,
-                tool_calls=[{"id": "call_1", "name": "read_file", "arguments": {"path": "test.txt"}}]
+                tool_calls=[
+                    {"id": "call_1", "name": "read_file", "arguments": {"path": "test.txt"}}
+                ],
             ),
-            SessionMessage(
-                role="tool",
-                content="File contents",
-                tool_call_id="call_1"
-            ),
+            SessionMessage(role="tool", content="File contents", tool_call_id="call_1"),
         ]
         manager.save(session)
-        
+
         exported = manager.export_session(session.id, format="markdown")
-        
+
         # Should contain tool call information
         assert "Tool Calls" in exported
         assert "read_file" in exported
@@ -74,13 +71,13 @@ class TestSessionEnhancedCoverage:
                 summary_text="User asked about project structure",
                 files_modified=["src/main.py"],
                 tool_count=3,
-                timestamp="2026-01-23T12:00:00Z"
+                timestamp="2026-01-23T12:00:00Z",
             )
         ]
         manager.save(session)
-        
+
         exported = manager.export_session(session.id, format="markdown")
-        
+
         # Should contain turn summaries section
         assert "## Turn Summaries" in exported
         assert "User asked about project structure" in exported
@@ -93,13 +90,13 @@ class TestSessionEnhancedCoverage:
                 role="assistant",
                 content="I'll help with that",
                 agent_id="coder-1",
-                agent_role="coder"
+                agent_role="coder",
             ),
         ]
         manager.save(session)
-        
+
         exported = manager.export_session(session.id, format="markdown")
-        
+
         # Should contain agent information
         assert "Agent:" in exported
         assert "coder-1" in exported
@@ -107,7 +104,7 @@ class TestSessionEnhancedCoverage:
     def test_import_session_markdown_error(self, manager: SessionManager) -> None:
         """Test importing markdown format raises appropriate error."""
         markdown_content = "# Test Session\n\nSome content"
-        
+
         with pytest.raises(ValueError, match="Markdown import not fully implemented"):
             manager.import_session(markdown_content, format="markdown")
 
@@ -120,9 +117,9 @@ class TestSessionEnhancedCoverage:
         """Test saving template without parameters."""
         session = manager.create_session(project_hash="abc123")
         manager.save(session)
-        
+
         template = manager.save_template(session.id, name="Simple Template")
-        
+
         assert template["name"] == "Simple Template"
         assert template["parameters"] == {}
 
@@ -132,12 +129,12 @@ class TestSessionEnhancedCoverage:
         session = manager.create_session(project_hash="abc123", tag="source")
         session.messages = [SessionMessage(role="user", content="Simple message")]
         manager.save(session)
-        
+
         template = manager.save_template(session.id, name="Simple Template")
-        
+
         # Create from template without parameters
         new_session = manager.create_from_template(template["id"])
-        
+
         assert new_session.template_id == template["id"]
         assert len(new_session.messages) == 1
         assert new_session.messages[0].content == "Simple message"
@@ -168,7 +165,7 @@ class TestSessionEnhancedCoverage:
                     summary_text="Test summary",
                     files_modified=[],
                     tool_count=0,
-                    timestamp="2026-01-23T12:00:00Z"
+                    timestamp="2026-01-23T12:00:00Z",
                 )
             ],
             active_agents=["tech_lead", "coder"],
@@ -179,11 +176,11 @@ class TestSessionEnhancedCoverage:
             template_parameters={"param1": "value1", "param2": "value2"},
             export_metadata={"key1": "value1", "key2": "value2"},
         )
-        
+
         # Test serialization roundtrip
         data = session.to_dict()
         session2 = Session.from_dict(data)
-        
+
         # Verify all fields
         assert session2.id == "session_123"
         assert session2.tag == "test-session"
@@ -208,11 +205,11 @@ class TestSessionEnhancedCoverage:
                 summary_text="First session summary",
                 files_modified=[],
                 tool_count=0,
-                timestamp="2026-01-23T12:00:00Z"
+                timestamp="2026-01-23T12:00:00Z",
             )
         ]
         manager.save(s1)
-        
+
         # Create second session with turn summary
         s2 = manager.create_session(project_hash="abc123")
         s2.turn_summaries = [
@@ -221,14 +218,14 @@ class TestSessionEnhancedCoverage:
                 summary_text="Second session summary",
                 files_modified=[],
                 tool_count=0,
-                timestamp="2026-01-23T12:30:00Z"
+                timestamp="2026-01-23T12:30:00Z",
             )
         ]
         manager.save(s2)
-        
+
         # Merge sessions
         merged = manager.merge_sessions([s1.id, s2.id], strategy="union")
-        
+
         # Should have both turn summaries
         assert len(merged.turn_summaries) == 2
         summaries_text = [ts.summary_text for ts in merged.turn_summaries]
@@ -251,7 +248,7 @@ class TestSessionEnhancedCoverage:
                 summary_text="Turn 1 summary",
                 files_modified=[],
                 tool_count=0,
-                timestamp="2026-01-23T12:00:00Z"
+                timestamp="2026-01-23T12:00:00Z",
             )
         ]
         parent.active_agents = ["tech_lead"]
@@ -260,10 +257,10 @@ class TestSessionEnhancedCoverage:
         parent.template_parameters = {"param": "value"}
         parent.export_metadata = {"exported": True}
         manager.save(parent)
-        
+
         # Branch from the session
         branch = manager.branch_session(parent.id, branch_point=2, tag="branch")
-        
+
         # Verify metadata is preserved
         assert branch.parent_id == parent.id
         assert branch.branch_point == 2
@@ -276,7 +273,7 @@ class TestSessionEnhancedCoverage:
         assert branch.delegation_log == [{"task": "initial"}]
         assert len(branch.turn_summaries) == 1
         assert branch.turn_summaries[0].summary_text == "Turn 1 summary"
-        
+
         # Verify messages are copied up to branch point
         assert len(branch.messages) == 2
         assert branch.messages[0].content == "Message 1"
@@ -292,13 +289,13 @@ class TestSessionEnhancedCoverage:
         session.template_parameters = {"project": "test"}
         session.export_metadata = {"custom": "data"}
         manager.save(session)
-        
+
         # Export to JSON
         exported = manager.export_session(session.id, format="json")
-        
+
         # Import with new tag
         imported = manager.import_session(exported, format="json", tag="imported")
-        
+
         # Verify enhanced fields are preserved
         assert imported.parent_id == "parent_123"
         assert imported.branch_point == 3

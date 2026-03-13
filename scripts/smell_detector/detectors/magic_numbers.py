@@ -21,7 +21,7 @@ from scripts.smell_detector.detectors.base import SmellDetector
 from scripts.smell_detector.models import SmellInstance, SmellSeverity, SmellType
 
 # Numbers so common they are never flagged.
-TRIVIAL_NUMBERS: frozenset[int | float] = frozenset({0, 1, -1, 2, 0.0, 1.0, 0.5})
+TRIVIAL_NUMBERS: frozenset[int | float] = frozenset({0, 1, -1, 2, 0.5})
 
 # Functions whose numeric arguments are conventional.
 ALLOWED_CALL_FUNCS: frozenset[str] = frozenset(

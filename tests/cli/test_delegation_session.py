@@ -29,11 +29,17 @@ def _make_events_with_delegation() -> list[AgentEvent]:
      11. TL CONTENT (final answer)
     """
     return [
-        AgentEvent(type=EventType.AGENT_STARTED, data={"agent": "tech_lead"}, source_agent="orchestrator"),
+        AgentEvent(
+            type=EventType.AGENT_STARTED, data={"agent": "tech_lead"}, source_agent="orchestrator"
+        ),
         AgentEvent(type=EventType.CONTENT, data="I'll delegate this.", source_agent="tech_lead"),
         AgentEvent(
             type=EventType.TOOL_CALL_REQUEST,
-            data=ToolCall(id="call_delegate_1", name="delegate_task", arguments={"agent": "coder", "task": "fix it"}),
+            data=ToolCall(
+                id="call_delegate_1",
+                name="delegate_task",
+                arguments={"agent": "coder", "task": "fix it"},
+            ),
             source_agent="tech_lead",
         ),
         # Delegation begins
@@ -42,7 +48,9 @@ def _make_events_with_delegation() -> list[AgentEvent]:
             data={"from": "tech_lead", "to": "coder", "task": "fix it"},
             source_agent="orchestrator",
         ),
-        AgentEvent(type=EventType.AGENT_STARTED, data={"agent": "coder"}, source_agent="orchestrator"),
+        AgentEvent(
+            type=EventType.AGENT_STARTED, data={"agent": "coder"}, source_agent="orchestrator"
+        ),
         # Sub-agent events
         AgentEvent(type=EventType.CONTENT, data="Reading file...", source_agent="coder"),
         AgentEvent(
@@ -52,7 +60,12 @@ def _make_events_with_delegation() -> list[AgentEvent]:
         ),
         AgentEvent(
             type=EventType.TOOL_CALL_RESULT,
-            data={"tool_call_id": "call_sub_read", "tool_name": "read_file", "result": "file content", "success": True},
+            data={
+                "tool_call_id": "call_sub_read",
+                "tool_name": "read_file",
+                "result": "file content",
+                "success": True,
+            },
             source_agent="coder",
         ),
         AgentEvent(type=EventType.CONTENT, data="Done fixing.", source_agent="coder"),
@@ -65,12 +78,19 @@ def _make_events_with_delegation() -> list[AgentEvent]:
         # Back to top-level: delegate_task result
         AgentEvent(
             type=EventType.TOOL_CALL_RESULT,
-            data={"tool_call_id": "call_delegate_1", "tool_name": "delegate_task", "result": "Fixed the bug.", "success": True},
+            data={
+                "tool_call_id": "call_delegate_1",
+                "tool_name": "delegate_task",
+                "result": "Fixed the bug.",
+                "success": True,
+            },
             source_agent="tech_lead",
         ),
         # TL final response
         AgentEvent(type=EventType.CONTENT, data="All done!", source_agent="tech_lead"),
-        AgentEvent(type=EventType.AGENT_COMPLETED, data={"agent": "tech_lead"}, source_agent="orchestrator"),
+        AgentEvent(
+            type=EventType.AGENT_COMPLETED, data={"agent": "tech_lead"}, source_agent="orchestrator"
+        ),
     ]
 
 
@@ -149,18 +169,46 @@ class TestDelegationDepthTracking:
     async def test_nested_delegation_depth(self) -> None:
         """Nested delegations track depth correctly."""
         events = [
-            AgentEvent(type=EventType.AGENT_STARTED, data={"agent": "tech_lead"}, source_agent="orchestrator"),
+            AgentEvent(
+                type=EventType.AGENT_STARTED,
+                data={"agent": "tech_lead"},
+                source_agent="orchestrator",
+            ),
             # TL delegates to coder
-            AgentEvent(type=EventType.AGENT_DELEGATED, data={"from": "tech_lead", "to": "coder", "task": "a"}, source_agent="orchestrator"),
-            AgentEvent(type=EventType.AGENT_STARTED, data={"agent": "coder"}, source_agent="orchestrator"),
+            AgentEvent(
+                type=EventType.AGENT_DELEGATED,
+                data={"from": "tech_lead", "to": "coder", "task": "a"},
+                source_agent="orchestrator",
+            ),
+            AgentEvent(
+                type=EventType.AGENT_STARTED, data={"agent": "coder"}, source_agent="orchestrator"
+            ),
             # Coder delegates to researcher (nested)
-            AgentEvent(type=EventType.AGENT_DELEGATED, data={"from": "coder", "to": "researcher", "task": "b"}, source_agent="orchestrator"),
-            AgentEvent(type=EventType.AGENT_STARTED, data={"agent": "researcher"}, source_agent="orchestrator"),
-            AgentEvent(type=EventType.AGENT_COMPLETED, data={"agent": "researcher"}, source_agent="orchestrator"),
+            AgentEvent(
+                type=EventType.AGENT_DELEGATED,
+                data={"from": "coder", "to": "researcher", "task": "b"},
+                source_agent="orchestrator",
+            ),
+            AgentEvent(
+                type=EventType.AGENT_STARTED,
+                data={"agent": "researcher"},
+                source_agent="orchestrator",
+            ),
+            AgentEvent(
+                type=EventType.AGENT_COMPLETED,
+                data={"agent": "researcher"},
+                source_agent="orchestrator",
+            ),
             # Back to coder
-            AgentEvent(type=EventType.AGENT_COMPLETED, data={"agent": "coder"}, source_agent="orchestrator"),
+            AgentEvent(
+                type=EventType.AGENT_COMPLETED, data={"agent": "coder"}, source_agent="orchestrator"
+            ),
             # Back to TL
-            AgentEvent(type=EventType.AGENT_COMPLETED, data={"agent": "tech_lead"}, source_agent="orchestrator"),
+            AgentEvent(
+                type=EventType.AGENT_COMPLETED,
+                data={"agent": "tech_lead"},
+                source_agent="orchestrator",
+            ),
         ]
 
         depth = 0

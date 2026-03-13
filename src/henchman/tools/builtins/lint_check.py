@@ -1,12 +1,97 @@
 """Lint check tool implementation."""
 
+from __future__ import annotations
+
 import asyncio
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 from henchman.tools.base import ConfirmationRequest, Tool, ToolKind, ToolResult
 
 MAX_OUTPUT_CHARS = 100_000
+
+_LINT_TIMEOUT_SECONDS = 120
+"""Timeout in seconds for individual linter commands."""
+
+
+
+@dataclass
+class LintParams:
+    """Parameter object for lint check operations."""
+
+    path: str
+    linter: str = "both"
+    fix: bool = False
+
+
+async def _run_linter_command(cmd: list[str], label: str) -> tuple[bool, str]:
+    """Run a linter command and return (success, formatted output).
+
+    Args:
+        cmd: Command to execute.
+        label: Label for the output section header.
+
+    Returns:
+        Tuple of (success, formatted output).
+    """
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(),
+            timeout=_LINT_TIMEOUT_SECONDS,
+        )
+        stdout_text = stdout.decode("utf-8", errors="replace")
+        stderr_text = stderr.decode("utf-8", errors="replace")
+        combined = (stdout_text + "\n" + stderr_text).strip()
+        ok = process.returncode == 0
+    except FileNotFoundError:
+        return False, f"=== {label} ===\n{label} is not installed"
+    except (TimeoutError, asyncio.TimeoutError):
+        return False, f"=== {label} ===\nTimed out after {_LINT_TIMEOUT_SECONDS}s"
+    else:
+        if ok and not combined:
+            return True, f"=== {label} ===\nNo issues found \u2713"
+        return ok, f"=== {label} ===\n{combined}"
+
+
+async def _collect_lint_sections(params: LintParams) -> tuple[list[str], bool]:
+    """Run the selected linters and collect their output sections.
+
+    Args:
+        params: Lint check parameters.
+
+    Returns:
+        Tuple of (sections, all_ok).
+    """
+    sections: list[str] = []
+    all_ok = True
+
+    if params.linter in ("ruff", "both"):
+        ruff_cmd = [sys.executable, "-m", "ruff", "check"]
+        if params.fix:
+            ruff_cmd.append("--fix")
+        ruff_cmd.append(params.path)
+        label = "ruff --fix" if params.fix else "ruff"
+        ok, output = await _run_linter_command(ruff_cmd, label)
+        sections.append(output)
+        if not ok:
+            all_ok = False
+
+    if params.linter in ("mypy", "both"):
+        ok, output = await _run_linter_command(
+            [sys.executable, "-m", "mypy", params.path],
+            "mypy",
+        )
+        sections.append(output)
+        if not ok:
+            all_ok = False
+
+    return sections, all_ok
 
 
 class LintCheckTool(Tool):
@@ -18,12 +103,12 @@ class LintCheckTool(Tool):
     """
 
     @property
-    def name(self) -> str:
+    def name(self: LintCheckTool) -> str:
         """Tool name."""
         return "lint_check"
 
     @property
-    def description(self) -> str:
+    def description(self: LintCheckTool) -> str:
         """Tool description."""
         return (
             "Run ruff and/or mypy on a Python file or directory. "
@@ -32,7 +117,7 @@ class LintCheckTool(Tool):
         )
 
     @property
-    def parameters(self) -> dict[str, object]:
+    def parameters(self: LintCheckTool) -> dict[str, object]:
         """JSON Schema for parameters."""
         return {
             "type": "object",
@@ -57,11 +142,14 @@ class LintCheckTool(Tool):
         }
 
     @property
-    def kind(self) -> ToolKind:
+    def kind(self: LintCheckTool) -> ToolKind:
         """Tool kind - READ by default, but fix mode modifies files."""
         return ToolKind.READ
 
-    def needs_confirmation(self, params: dict[str, object]) -> ConfirmationRequest | None:
+    def needs_confirmation(
+        self: LintCheckTool,
+        params: dict[str, object],
+    ) -> ConfirmationRequest | None:
         """Require confirmation when fix mode is enabled.
 
         Args:
@@ -79,7 +167,11 @@ class LintCheckTool(Tool):
             )
         return None
 
-    async def _run_tool(self, cmd: list[str], label: str) -> tuple[bool, str]:
+    async def _run_tool(
+        self: LintCheckTool,
+        cmd: list[str],
+        label: str,
+    ) -> tuple[bool, str]:
         """Run a linter command and return (success, output).
 
         Args:
@@ -89,34 +181,13 @@ class LintCheckTool(Tool):
         Returns:
             Tuple of (success, formatted output).
         """
-        create_subprocess_exec = asyncio.create_subprocess_exec
-        PIPE = asyncio.subprocess.PIPE
-        try:
-            process = await create_subprocess_exec(
-                *cmd,
-                stdout=PIPE,
-                stderr=PIPE,
-            )
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=120,
-            )
-            stdout_text = stdout.decode("utf-8", errors="replace")
-            stderr_text = stderr.decode("utf-8", errors="replace")
-            combined = (stdout_text + "\n" + stderr_text).strip()
-            ok = process.returncode == 0
-            if ok and not combined:
-                return True, f"=== {label} ===\nNo issues found ✓"
-            return ok, f"=== {label} ===\n{combined}"
-        except FileNotFoundError:
-            return False, f"=== {label} ===\n{label} is not installed"
-        except (TimeoutError, asyncio.TimeoutError):
-            return False, f"=== {label} ===\nTimed out after 120s"
+        return await _run_linter_command(cmd, label)
 
     async def execute(  # type: ignore[override]
-        self,
+        self: LintCheckTool,
         path: str = "",
         linter: str = "both",
+        *,
         fix: bool = False,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
@@ -139,32 +210,15 @@ class LintCheckTool(Tool):
             )
 
         target = Path(path)
-        if not target.exists():
+        if not target.exists():  # noqa: ASYNC240
             return ToolResult(
                 content=f"Error: Path not found: {path}",
                 success=False,
                 error=f"Path not found: {path}",
             )
 
-        sections: list[str] = []
-        all_ok = True
-
-        if linter in ("ruff", "both"):
-            ruff_cmd = [sys.executable, "-m", "ruff", "check"]
-            if fix:
-                ruff_cmd.append("--fix")
-            ruff_cmd.append(path)
-            label = "ruff --fix" if fix else "ruff"
-            ok, output = await self._run_tool(ruff_cmd, label)
-            sections.append(output)
-            if not ok:
-                all_ok = False
-
-        if linter in ("mypy", "both"):
-            ok, output = await self._run_tool([sys.executable, "-m", "mypy", path], "mypy")
-            sections.append(output)
-            if not ok:
-                all_ok = False
+        lint_params = LintParams(path=path, linter=linter, fix=fix)
+        sections, all_ok = await _collect_lint_sections(lint_params)
 
         content = "\n\n".join(sections)
         if len(content) > MAX_OUTPUT_CHARS:

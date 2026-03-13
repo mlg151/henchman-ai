@@ -44,7 +44,7 @@ class HeadlessContext:
 
 class OutputStrategy(Protocol):
     """Protocol for different output strategies in headless mode."""
-    
+
     async def run(self, context: HeadlessContext, config: HeadlessConfig) -> None:
         """Execute the strategy with the given context and configuration."""
         ...
@@ -52,7 +52,7 @@ class OutputStrategy(Protocol):
 
 class TextOutputStrategy:
     """Strategy for text output format."""
-    
+
     async def run(self, context: HeadlessContext, config: HeadlessConfig) -> None:
         """Process a single prompt and exit with text output."""
         # Initialize MCP servers
@@ -69,10 +69,10 @@ class TextOutputStrategy:
 
 class JsonOutputStrategy:
     """Strategy for JSON output format."""
-    
+
     def __init__(self, console):
         self.console = console
-    
+
     async def run(self, context: HeadlessContext, config: HeadlessConfig) -> None:
         """Process a single prompt and exit with JSON output."""
         # Initialize MCP servers
@@ -113,10 +113,10 @@ class JsonOutputStrategy:
 
 class StreamJsonOutputStrategy:
     """Strategy for streaming JSON output format."""
-    
+
     def __init__(self, console):
         self.console = console
-    
+
     async def run(self, context: HeadlessContext, config: HeadlessConfig) -> None:
         """Process a single prompt and exit with streaming JSON output."""
         # Initialize MCP servers
@@ -156,10 +156,10 @@ class StreamJsonOutputStrategy:
 
 class CompleteJsonOutputStrategy:
     """Strategy for complete JSON output format."""
-    
+
     def __init__(self, console):
         self.console = console
-    
+
     async def run(self, context: HeadlessContext, config: HeadlessConfig) -> None:
         """Process a single prompt and exit with complete JSON output."""
         # Initialize MCP servers
@@ -281,10 +281,10 @@ def _get_output_strategy(output_format: str, console) -> OutputStrategy:
         "stream-json": StreamJsonOutputStrategy,
         "json-complete": CompleteJsonOutputStrategy,
     }
-    
+
     if output_format not in strategies:
         raise ValueError(f"Unsupported output format: {output_format}")
-    
+
     return strategies[output_format](console)
 
 
@@ -307,7 +307,7 @@ def _run_headless_refactored(
         console: Console for output rendering.
     """
     import anyio
-    
+
     provider = _get_provider()
     settings = load_settings()
 
@@ -350,8 +350,8 @@ def _run_headless_refactored(
 
     # Get and execute the appropriate strategy
     strategy = _get_output_strategy(output_format, console)
-    
+
     async def execute_strategy() -> None:
         await strategy.run(context, config)
-    
+
     anyio.run(execute_strategy)

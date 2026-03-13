@@ -83,7 +83,7 @@ class VectorStore:
             collection_name: Name of the ChromaDB collection.
             max_retries: Maximum retries for ChromaDB initialization.
         """
-        import time
+        import time  # noqa: PLC0415
 
         self.persist_path = Path(persist_path)
         self.embedder = embedder
@@ -125,8 +125,8 @@ class VectorStore:
                 raise
         else:
             # All retries exhausted
-            if last_error:
-                raise last_error
+            if last_error:  # pragma: no cover
+                raise last_error  # pragma: no cover
 
     @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
     def add_chunks(self: VectorStore, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
@@ -135,6 +135,9 @@ class VectorStore:
         Args:
             chunks: List of chunks to add.
             embeddings: Corresponding embeddings for each chunk.
+
+        Returns:
+            None
         """
         if not chunks:
             return
@@ -215,6 +218,9 @@ class VectorStore:
 
         Args:
             file_path: Path of the file whose chunks should be deleted.
+
+        Returns:
+            None
         """
         # Query to find all chunks from this file
         results = self.collection.get(
@@ -231,6 +237,9 @@ class VectorStore:
 
         Args:
             chunk_ids: List of chunk IDs to delete.
+
+        Returns:
+            None
         """
         if chunk_ids:
             self.collection.delete(ids=chunk_ids)
@@ -261,7 +270,11 @@ class VectorStore:
 
     @retry_on_locked(max_retries=_RETRY_MAX_RETRIES, delay=_RETRY_DELAY)
     def clear(self: VectorStore) -> None:
-        """Clear all chunks from the store."""
+        """Clear all chunks from the store.
+
+        Returns:
+            None
+        """
         # Delete and recreate the collection
         self.client.delete_collection(self.collection_name)
         self.collection = self.client.get_or_create_collection(

@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# auto-improve.sh — Run Henchman to make one codebase improvement, then commit.
+# auto-improve.sh — Four Lenses of Failure: find one real bug, TDD-fix it, commit.
 set -euo pipefail
 
 alias pytest='prlimit --as=16G --rss=16G python -m pytest'
-
 
 # Limit memory usage to 16GB
 ulimit -v 16777216  # 16GB in KB
@@ -25,86 +24,10 @@ cd "$WORKDIR"
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOGFILE")"
 
-echo "[$TIMESTAMP] Starting auto-improve run..." | tee "$LOGFILE"
-
-# # Bail out if the working tree is dirty (avoid mixing unrelated changes)
-# if ! git diff --quiet HEAD 2>/dev/null; then
-#   echo "ERROR: Working tree has uncommitted changes. Commit or stash first." | tee -a "$LOGFILE"
-#   exit 1
-# fi
-
-# PROMPT='You are running in an automated improvement cycle on the Henchman-AI codebase.
-
-# Your task:
-# 1. Pick ONE small, valuable improvement to make to the codebase. Examples:
-#    - Fix a TODO/FIXME comment
-#    - Improve a docstring or type hint
-#    - Add a missing edge-case test
-#    - Refactor a small piece of duplicated code
-#    - Improve an error message
-#    - Fix a minor bug
-#    Do NOT attempt large refactors or multi-file rewrites.
-#    DO check .agent_tasks/auto-improve/last-improvement.md for what was changed last time to avoid repeating the same improvement.
-
-# 2. Implement the change. Make sure tests still pass by running: ./scripts/ci.sh
-
-# 3. Write a short summary of what you changed and why into the file
-#    .agent_tasks/auto-improve/last-improvement.md (create or overwrite it).
-#    Include the date/time, files changed, and rationale.
-
-# Important constraints:
-# - Only make ONE improvement per run.
-# - Keep changes minimal and focused.
-# - Ensure all CI checks pass before finishing.
-# - Do NOT modify this prompt or the auto-improve script itself.'
-
-PROMPT='You are an Expert Extreme Programming (XP) Refactoring Agent. Your primary objective is to execute Continuous Refactoring on the provided codebase. You will improve the internal structure, readability, maintainability, and performance of the code without altering its external behavior or breaking existing functionality.
-
-Core XP Philosophy:
-
-    YAGNI (You Are not Gonna Need It): Remove dead code and do not add speculative features or abstractions.
-
-    Once and Only Once (DRY): Aggressively eliminate duplicated logic.
-
-    Simplicity: The design should be as simple as possible to pass the current tests.
-
-    Intention-Revealing Code: Rename variables, functions, and classes to perfectly describe their purpose.
-
-Tech-Stack Specific Guidelines:
-
-    Python: Enforce PEP 8 standards. Use type hinting consistently. Prefer list comprehensions and generator expressions where they enhance readability, but extract complex lambda functions into named def functions.
-
-Execution Steps:
-
-    Code Smell Analysis: Read the smell report section for the TARGET FILE below. Address ALL smells listed for that file.
-
-    Determine the Refactoring Pattern: Select the appropriate Martin Fowler refactoring technique (e.g., Extract Method, Replace Conditional with Polymorphism, Introduce Parameter Object, Rename Method).
-
-    Safety Check: Ensure the refactoring relies on standard testing paradigms. Do not change public API signatures unless explicitly instructed, as this breaks downstream contracts.
-
-    Execution: Rewrite the code. Address EVERY smell listed in the report for this file, not just one.
-
-Output Format:
-Whenever you are provided with a code snippet to refactor, you must respond strictly in the following format:
-
-    Identified Smells: (A brief bulleted list of the code smells found)
-
-    Refactoring Strategy: (The specific patterns applied, e.g., "Extracted nested conditional logic into _calculate_monthly_aggregates()")
-
-    Refactored Code: (The complete, refactored code block)
-
-    Testing Implications: (A 1-2 sentence note on what existing unit tests might need updating, or what new edge cases should be tested based on the structural change)
-
-TARGET FILE: __TARGET_FILE__
-
-Your job is to refactor the TARGET FILE completely — address ALL code smells listed in the smell report for this file. Do not pick a different file. Do not skip smells. Work through every smell systematically.
-
-Write your changes to .agent_tasks/auto-improve/last-improvement.md with a brief summary of what you changed and why, including the date/time, files changed, and rationale.
-
-ALL TESTS. EVEN IF YOU THINK THE FAILURE IS UNRELATED TO YOUR CHANGE, FIX IT. DO NOT LEAVE THE CODE IN A BROKEN STATE!'
+echo "[$TIMESTAMP] Starting Four Lenses bug-hunt run..." | tee "$LOGFILE"
 
 # ---------------------------------------------------------------------------
-# Run code smell detector — output feeds into agent prompt via @file reference
+# Run code smell detector — feeds context to the agent
 # ---------------------------------------------------------------------------
 SMELL_REPORT="$WORKDIR/.agent_tasks/auto-improve/smell-report.md"
 echo "Running code smell detector..." | tee -a "$LOGFILE"
@@ -119,16 +42,122 @@ TARGET_FILE=$(grep -E '^\| *1 \|' "$SMELL_REPORT" | head -1 | awk -F'|' '{gsub(/
 
 if [ -z "$TARGET_FILE" ]; then
   echo "[$TIMESTAMP] Could not extract target file from smell report. Falling back to full report." | tee -a "$LOGFILE"
-  PROMPT=$(echo "$PROMPT" | sed "s|__TARGET_FILE__|<unknown — read the smell report and pick the lowest-scored file>|g")
+  TARGET_FILE_DISPLAY="<unknown — read the smell report and pick the lowest-scored file>"
 else
-  echo "[$TIMESTAMP] Targeting lowest-graded file: $TARGET_FILE" | tee -a "$LOGFILE"
-  PROMPT=$(echo "$PROMPT" | sed "s|__TARGET_FILE__|src/henchman/$TARGET_FILE|g")
+  TARGET_FILE_DISPLAY="src/henchman/$TARGET_FILE"
+  echo "[$TIMESTAMP] Targeting lowest-graded file: $TARGET_FILE_DISPLAY" | tee -a "$LOGFILE"
 fi
 
-# Append the smell report reference to the prompt.
-PROMPT="$PROMPT"$'\n\nRefer to the code smell report for the full list of smells in the target file: @'"$SMELL_REPORT"
+# ---------------------------------------------------------------------------
+# Generate a slug for the .agent_tasks/ stub from the target file
+# e.g. "agents/orchestrator.py" → "four-lenses-agents-orchestrator"
+# ---------------------------------------------------------------------------
+if [ -n "$TARGET_FILE" ]; then
+  TASK_SLUG="four-lenses-$(echo "$TARGET_FILE" | sed 's|/|-|g; s|\.py$||')"
+else
+  TASK_SLUG="four-lenses-$(date +%Y%m%d-%H%M%S)"
+fi
+TASK_DIR="$WORKDIR/.agent_tasks/$TASK_SLUG"
+mkdir -p "$TASK_DIR"
 
+# ---------------------------------------------------------------------------
+# The Prompt — Four Lenses of Failure, TDD, single bug focus
+# ---------------------------------------------------------------------------
+read -r -d '' PROMPT <<'PROMPT_EOF' || true
+You are "The Bug Whisperer," a Principal Software Engineer known for fixing
+systems that everyone else gave up on. You don't just look for syntax errors —
+you look for logical inconsistencies, state leakage, and architectural fragility.
+
+## TARGET FILE
+__TARGET_FILE__
+
+Read the smell report at .agent_tasks/auto-improve/smell-report.md for context,
+then read the TARGET FILE and its tests.
+
+## Your Objective
+Deconstruct the TARGET FILE using the **Four Lenses of Failure**, identify
+exactly **ONE real bug** in core functionality, and fix it using strict TDD.
+
+### Phase 1: The Intent vs. Reality Check
+- **Logic Gaps**: Where does the code assume a "happy path"? Identify silent
+  failures (e.g., try/except that swallows errors without logging).
+- **Type Safety**: Where could an unexpected `None`, `list`, or `dict` crash
+  a downstream function?
+
+### Phase 2: State & Side Effects (The Entropy Audit)
+- **Shared State**: Identify mutable variables that could be modified elsewhere.
+- **Immutability**: Check if the code accidentally mutates inputs (e.g.,
+  modifying a list argument) which could break callers.
+- **Scope Creep**: Functions doing too many things, making them impossible to
+  unit test properly.
+
+### Phase 3: Performance & Resource Management
+- **Algorithmic Efficiency**: O(n²) that could be O(n) with better structures.
+- **Resource Leaks**: Unclosed handles, large copies in memory.
+
+### Phase 4: The Forensic Refactor
+- **The Fix**: Provide a minimal, surgical fix for the ONE bug you found.
+- **The "Unit of Doom"**: Write a pytest test that FAILS on the original code
+  and PASSES after your fix.
+
+## Strict Workflow (TDD — you MUST follow this order)
+
+1. **Analyze**: Read the target file through all four lenses. Pick the single
+   highest-priority bug — something that affects core functionality, not style.
+
+2. **Document the stub**: Create/update the file:
+   `.agent_tasks/__TASK_SLUG__/README.md`
+   with this structure:
+   ```markdown
+   # Four Lenses Bug Report: __TARGET_FILE__
+   ## Date: <ISO timestamp>
+   ## Bug Summary
+   <1-2 sentence description of the bug>
+   ## Lens
+   <Which of the 4 lenses revealed it>
+   ## Expected vs. Observed
+   | Expected Behavior | Observed Risk |
+   |---|---|
+   | ... | ... |
+   ## Root Cause
+   <Technical explanation>
+   ## Fix Plan
+   <What you will change and where>
+   ## Status: IN PROGRESS
+   ```
+
+3. **Write the failing test FIRST** (Unit of Doom):
+   - Add a new test to the appropriate `tests/` file (or create one).
+   - The test MUST demonstrate the bug — it should FAIL before your fix.
+   - Run: `python -m pytest tests/<test_file> -x -q --tb=short` to confirm it fails.
+
+4. **Implement the minimal fix**:
+   - Change ONLY what is necessary to fix the bug.
+   - Do NOT refactor surrounding code, add features, or "improve" unrelated things.
+
+5. **Verify ALL tests pass**:
+   - Run: `python -m pytest tests/ -x -q --tb=short`
+   - If anything fails, fix it. Do NOT leave the codebase broken.
+
+6. **Update the stub**: Change `## Status: IN PROGRESS` to `## Status: FIXED`
+   and add a `## Files Changed` section listing every file you modified.
+
+## Critical Rules
+- Fix exactly ONE bug. Not zero. Not two.
+- The bug must be in core functionality (not docs, not style, not naming).
+- TDD is mandatory: failing test FIRST, then fix, then green suite.
+- Keep changes minimal and surgical.
+- Do NOT modify this script or the auto-improve infrastructure.
+- ALL tests must pass before you finish. Fix forward if anything breaks.
+PROMPT_EOF
+
+# Substitute placeholders
+PROMPT="${PROMPT//__TARGET_FILE__/$TARGET_FILE_DISPLAY}"
+PROMPT="${PROMPT//__TASK_SLUG__/$TASK_SLUG}"
+
+# ---------------------------------------------------------------------------
 # Run Henchman in headless mode with auto-approve
+# ---------------------------------------------------------------------------
 echo "Running Henchman..." | tee -a "$LOGFILE"
 henchman chat --yes -p "$PROMPT" 2>&1 | tee -a "$LOGFILE"
 
@@ -145,7 +174,7 @@ if [ "$HENCHMAN_EXIT" -ne 0 ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Early exit if no files were changed (avoids unnecessary test runs)
+# Early exit if no files were changed
 # ---------------------------------------------------------------------------
 if git diff --quiet HEAD 2>/dev/null; then
   echo "[$TIMESTAMP] No file changes detected after agent run. Nothing to commit." | tee -a "$LOGFILE"
@@ -153,7 +182,7 @@ if git diff --quiet HEAD 2>/dev/null; then
 fi
 
 # ---------------------------------------------------------------------------
-# Post-improvement test gate: run pytest and let the agent fix failures
+# Post-fix test gate: run pytest and let the agent fix failures
 # ---------------------------------------------------------------------------
 MAX_FIX_ATTEMPTS=3
 ATTEMPT=0
@@ -175,7 +204,7 @@ while true; do
 
   echo "[$TIMESTAMP] Tests failed. Asking Henchman to fix (attempt $ATTEMPT/$MAX_FIX_ATTEMPTS)..." | tee -a "$LOGFILE"
 
-  FIX_PROMPT='Tests are failing after your last auto-improve change.
+  FIX_PROMPT='Tests are failing after your bug fix.
 
 Your task:
 1. Run: python -m pytest tests/ -x -q --tb=short
@@ -186,36 +215,38 @@ Your task:
 
 Important constraints:
 - Fix the minimum necessary to make tests pass.
-- Do NOT revert the improvement — fix forward.
-- If the improvement itself is fundamentally broken, revert ONLY that change.'
+- Do NOT revert the bug fix — fix forward.
+- If the fix itself is fundamentally broken, revert ONLY that change.'
 
-  /home/matthew/anaconda3/bin/gemini --yolo -p "$FIX_PROMPT" 2>&1 | tee -a "$LOGFILE"
+  henchman chat --yes -p "$FIX_PROMPT" 2>&1 | tee -a "$LOGFILE"
   FIX_EXIT=${PIPESTATUS[0]}
 
   if [ "$FIX_EXIT" -ne 0 ]; then
     echo "[$TIMESTAMP] Henchman fix attempt exited with code $FIX_EXIT" | tee -a "$LOGFILE"
-    # Continue to next iteration — the pytest check at top of loop will re-evaluate
   fi
 done
 
-# Check if there are any changes to commit
+# ---------------------------------------------------------------------------
+# Stage all changes and commit
+# ---------------------------------------------------------------------------
 if git diff --quiet HEAD 2>/dev/null; then
   echo "[$TIMESTAMP] No changes were made. Nothing to commit." | tee -a "$LOGFILE"
   exit 0
 fi
 
-# Stage all changes and commit
 echo "Committing changes..." | tee -a "$LOGFILE"
 git add -A
+
 SUMMARY=""
-if [ -f "$WORKDIR/.agent_tasks/auto-improve/last-improvement.md" ]; then
-  SUMMARY=$(head -5 "$WORKDIR/.agent_tasks/auto-improve/last-improvement.md" | tail -4)
+if [ -f "$TASK_DIR/README.md" ]; then
+  SUMMARY=$(grep -A2 '## Bug Summary' "$TASK_DIR/README.md" | tail -1 || true)
 fi
 
-COMMIT_MSG="chore(auto-improve): automated codebase improvement
+COMMIT_MSG="fix(four-lenses): $TASK_SLUG
 
-${SUMMARY}
+${SUMMARY:-Automated bug fix via Four Lenses of Failure analysis}
 
+Target: $TARGET_FILE_DISPLAY
 Automated by scripts/auto-improve.sh at $TIMESTAMP"
 
 git commit -m "$COMMIT_MSG" | tee -a "$LOGFILE"

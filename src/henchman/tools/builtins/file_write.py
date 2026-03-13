@@ -1,16 +1,39 @@
 """Write file tool implementation."""
 
 from __future__ import annotations
-from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
+from henchman.tools.security import (
+    PathTraversalError,
+    sanitize_error_message,
+    validate_path,
+)
+
+
+def _write_content_to_path(path: str, content: str) -> ToolResult:
+    """Validate path and write content to file.
+
+    Args:
+        path: Destination file path.
+        content: Text content to write.
+
+    Returns:
+        ToolResult with success status (raises on security/permission error).
+    """
+    file_path = validate_path(path)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_text(content)
+    return ToolResult(
+        content=f"Successfully wrote {len(content)} bytes to {path}",
+        success=True,
+    )
 
 
 class WriteFileTool(Tool):
-    """Write content to a file, creating it if it doesn't exist.
+    """Write content to a file, creating it if it does not exist.
 
     This tool writes the provided content to a file. It will create
-    parent directories if they don't exist and overwrite existing files.
+    parent directories if they do not exist and overwrite existing files.
     """
 
     @property
@@ -63,27 +86,24 @@ class WriteFileTool(Tool):
             ToolResult with success status or error.
         """
         try:
-            file_path = Path(path)
-
-            # Create parent directories if needed
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Write content
-            file_path.write_text(content)
-
+            return _write_content_to_path(path, content)
+        except (PathTraversalError, ValueError) as e:
             return ToolResult(
-                content=f"Successfully wrote {len(content)} bytes to {path}",
-                success=True,
+                content=f"Security validation failed: {e}",
+                success=False,
+                error="Path validation failed",
             )
         except PermissionError:
+            sanitized_error = sanitize_error_message("Permission denied")
             return ToolResult(
-                content=f"Error: Permission denied: {path}",
+                content=f"Error: {sanitized_error}",
                 success=False,
-                error=f"Permission denied: {path}",
+                error=sanitized_error,
             )
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
+            sanitized_error = sanitize_error_message(e)
             return ToolResult(
-                content=f"Error writing file: {e}",
+                content=f"Error writing file: {sanitized_error}",
                 success=False,
-                error=str(e),
+                error=sanitized_error,
             )

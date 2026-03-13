@@ -120,6 +120,9 @@ def merge_sessions(
 
     Raises:
         ValueError: If fewer than 2 sessions or invalid strategy.
+
+    Returns:
+        None
     """
     if len(session_ids) < _MIN_SESSIONS_FOR_MERGE:
         msg = "At least 2 sessions required for merging"

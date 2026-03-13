@@ -27,6 +27,9 @@ def prepare_run(orch: Any, user_input: str) -> None:
     Args:
         orch: The orchestrator instance.
         user_input: The user's input text.
+
+    Returns:
+        None: This function initializes orchestrator state but returns nothing.
     """
     orch.ledger = TaskLedger(goal=user_input[:MAX_USER_INPUT_LENGTH])
     orch.delegation_runner.ledger = orch.ledger
@@ -55,14 +58,18 @@ def finalize_run(
     orch.last_completion_status = status
     events: list[AgentEvent] = []
     if status == CompletionStatus.NO_WORK_DONE:
-        events.append(AgentEvent(
-            type=EventType.ERROR,
-            data="Agent completed without performing any actions.",
+        events.append(
+            AgentEvent(
+                type=EventType.ERROR,
+                data="Agent completed without performing any actions.",
+                source_agent="orchestrator",
+            )
+        )
+    events.append(
+        AgentEvent(
+            type=EventType.AGENT_COMPLETED,
+            data={"agent": role_label, "status": status.value},
             source_agent="orchestrator",
-        ))
-    events.append(AgentEvent(
-        type=EventType.AGENT_COMPLETED,
-        data={"agent": role_label, "status": status.value},
-        source_agent="orchestrator",
-    ))
+        )
+    )
     return events

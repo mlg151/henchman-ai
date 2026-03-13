@@ -147,12 +147,7 @@ class TestPythonAstTool:
         tool = PythonAstTool()
         with tempfile.TemporaryDirectory() as tmpdir:
             f = Path(tmpdir) / "nodocs.py"
-            f.write_text(
-                '"""Module docstring."""\n\n'
-                "def greet():\n"
-                '    """Hello."""\n'
-                "    pass\n"
-            )
+            f.write_text('"""Module docstring."""\n\ndef greet():\n    """Hello."""\n    pass\n')
             result = await tool.execute(path=str(f), include_docstrings=False)
             assert result.success is True
             assert "greet" in result.content
@@ -201,3 +196,16 @@ class TestPythonAstTool:
         tool = PythonAstTool()
         params = tool.parameters
         assert "include_docstrings" in params["properties"]
+
+    async def test_permission_error(self) -> None:
+        """Handle PermissionError when reading file."""
+        import unittest.mock as mock
+
+        tool = PythonAstTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f = Path(tmpdir) / "test.py"
+            f.write_text("def foo(): pass\n")
+            with mock.patch("pathlib.Path.read_text", side_effect=PermissionError("denied")):
+                result = await tool.execute(path=str(f))
+                assert result.success is False
+                assert "Permission" in result.content or "permission" in result.content.lower()

@@ -27,8 +27,11 @@ class ToolMetricsController(OrchestratorComponent):
             tool_name: Name of the tool that was called
             arguments: Dictionary of arguments passed to the tool
             success: Whether the tool call was successful
+
+        Returns:
+            None
         """
-        self.metrics.update_tool_metrics(tool_name, arguments, success)
+        self.metrics.update_tool_metrics(tool_name, arguments, success=success)
 
     def track_tool_error(
         self: ToolMetricsController,
@@ -42,6 +45,9 @@ class ToolMetricsController(OrchestratorComponent):
             tool_errors: List to append the formatted error message to
             tool_name: Name of the tool that failed
             result_content: Error content from the tool result, or None if no content
+
+        Returns:
+            None
         """
         error_message = result_content or "unknown error"
         tool_errors.append(
@@ -56,6 +62,9 @@ class ToolMetricsController(OrchestratorComponent):
 
         Args:
             target: Type of agent the task was delegated to (e.g., 'planner', 'engineer')
+
+        Returns:
+            None
         """
         self.metrics.delegation_count += 1
         if target in self.metrics.delegation_by_type:

@@ -1,6 +1,5 @@
 """Tests for bugs in textual_bridge.py."""
 
-
 from henchman.cli.textual_bridge import _format_error_text, _format_turn_status
 
 
@@ -23,7 +22,9 @@ def test_bug9_format_error_text_case_sensitivity():
 
     for error_input, expected in test_cases:
         result = _format_error_text(error_input)
-        assert result == expected, f"Failed for '{error_input}': got '{result}', expected '{expected}'"
+        assert result == expected, (
+            f"Failed for '{error_input}': got '{result}', expected '{expected}'"
+        )
 
     # The bug might be that "authentication" is already lowercase in _AUTH_ERROR_KEYWORDS
     # but we call .lower() on it anyway, which is redundant but not wrong
@@ -83,15 +84,15 @@ def test_bug12_event_handlers_missing_null_checks():
     from henchman.core.events import AgentEvent, EventType
 
     bridge = EventBridge(MagicMock())
-    bridge._post = MagicMock()
+    bridge._message_poster.post = MagicMock()
 
     # Test _on_finished with None source_agent
     event = AgentEvent(type=EventType.FINISHED, data=None, source_agent=None)
     bridge._on_finished(event)
-    bridge._post.assert_called_once()
+    bridge._message_poster.post.assert_called_once()
 
     # The handler should handle None source_agent gracefully
-    call_args = bridge._post.call_args[0][0]
+    call_args = bridge._message_poster.post.call_args[0][0]
     assert call_args.source_agent is None  # Should be accepted
 
 
@@ -120,5 +121,6 @@ def test_bug13_tui_console_adapter_buffer_overflow():
 
     # Check the implementation
     import inspect
+
     source = inspect.getsource(adapter.print)
     assert "self.flush_to_chat()" in source, "print() should flush buffer"

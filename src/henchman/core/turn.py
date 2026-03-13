@@ -82,6 +82,7 @@ class TurnState:
     recent_result_hashes: list[str] = field(default_factory=list)
     _consecutive_duplicates: int = 0
     _last_call_signature: str = ""
+    _last_call_is_read_only: bool = False
 
     def record_tool_call(
         self: TurnState,
@@ -97,6 +98,9 @@ class TurnState:
             tool_name: Name of the tool called.
             arguments: Arguments passed to the tool.
             result: Optional result from tool execution.
+
+        Returns:
+            None
         """
         self.tool_call_ids.add(tool_call_id)
         self.tool_count += 1
@@ -112,15 +116,22 @@ class TurnState:
         tool_name: str,
         arguments: dict[str, object],
     ) -> None:
-        """Track consecutive duplicate tool calls."""
+        """Track consecutive duplicate tool calls.
+
+        The counter always increments on a repeated call so that
+        ``is_spinning()`` can apply a tool-type-aware threshold.  The previous
+        logic only incremented for read-only tools when the counter was already
+        at ``READ_ONLY_DUPLICATE_THRESHOLD``, making it impossible to ever
+        reach that threshold — read-only tool loops were never detected.
+        """
         is_read_only = tool_name in READ_ONLY_TOOLS
         call_sig = f"{tool_name}:{_hash_content(str(sorted(arguments.items())))}"
         if call_sig == self._last_call_signature:
-            if not is_read_only or self._consecutive_duplicates >= READ_ONLY_DUPLICATE_THRESHOLD:
-                self._consecutive_duplicates += 1
+            self._consecutive_duplicates += 1
         else:
             self._consecutive_duplicates = 0
             self._last_call_signature = call_sig
+            self._last_call_is_read_only = is_read_only
 
     def _track_result_hash(self: TurnState, result: ToolResult | None) -> None:
         """Track result hash for spinning detection."""
@@ -130,7 +141,11 @@ class TurnState:
                 self.recent_result_hashes.pop(0)
 
     def increment_iteration(self: TurnState) -> None:
-        """Increment iteration counter (called after each tool batch)."""
+        """Increment iteration counter (called after each tool batch).
+
+        Returns:
+            None
+        """
         self.iteration += 1
 
     def is_making_progress(self: TurnState) -> bool:
@@ -150,10 +165,20 @@ class TurnState:
     def is_spinning(self: TurnState) -> bool:
         """Check if the turn appears to be stuck in a loop.
 
+        Read-only tools (grep, read_file, ls, etc.) use a higher duplicate
+        threshold (``READ_ONLY_DUPLICATE_THRESHOLD``) than write/execute tools
+        (``CONSECUTIVE_DUPLICATE_THRESHOLD``) because repeated reads are
+        common during exploration and are less alarming than repeated writes.
+
         Returns:
             True if loop indicators are detected.
         """
-        if self._consecutive_duplicates >= CONSECUTIVE_DUPLICATE_THRESHOLD:
+        dup_threshold = (
+            READ_ONLY_DUPLICATE_THRESHOLD
+            if self._last_call_is_read_only
+            else CONSECUTIVE_DUPLICATE_THRESHOLD
+        )
+        if self._consecutive_duplicates >= dup_threshold:
             return True
         if len(self.recent_result_hashes) >= MIN_HASHES_FOR_SPIN_CHECK:
             recent = self.recent_result_hashes[-SPIN_HASH_WINDOW:]
@@ -245,6 +270,9 @@ class TurnState:
 
         Args:
             new_start_index: Starting message index for the new turn.
+
+        Returns:
+            None
         """
         self.start_index = new_start_index
         self.tool_call_ids = set()
@@ -256,6 +284,7 @@ class TurnState:
         self.recent_result_hashes = []
         self._consecutive_duplicates = 0
         self._last_call_signature = ""
+        self._last_call_is_read_only = False
 
 
 @dataclass

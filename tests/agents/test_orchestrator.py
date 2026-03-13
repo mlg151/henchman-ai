@@ -249,7 +249,7 @@ async def test_agent_stall_detection_colon_ending():
     from henchman.core.agent import Agent
 
     agent = Agent(provider=MagicMock(spec=ModelProvider))
-    result = await agent._check_for_stalling("Now let me create the script:", False)
+    result = await agent._check_for_stalling("Now let me create the script:", had_tool_calls=False)
     assert result is not None
     assert "tool" in result.lower()
 
@@ -262,12 +262,14 @@ async def test_agent_stall_failure_flag_after_max_nudges():
     agent = Agent(provider=MagicMock(spec=ModelProvider))
     agent._max_stall_nudges = 2
     # First two nudges return a message
-    r1 = await agent._check_for_stalling("Let me create the validation script:", False)
+    r1 = await agent._check_for_stalling(
+        "Let me create the validation script:", had_tool_calls=False
+    )
     assert r1 is not None
-    r2 = await agent._check_for_stalling("Now I'll write the test file:", False)
+    r2 = await agent._check_for_stalling("Now I'll write the test file:", had_tool_calls=False)
     assert r2 is not None
     # Third time: returns None and sets failure flag
-    r3 = await agent._check_for_stalling("Here we go, starting now:", False)
+    r3 = await agent._check_for_stalling("Here we go, starting now:", had_tool_calls=False)
     assert r3 is None
     assert agent._stall_failure is True
 
@@ -278,10 +280,10 @@ async def test_agent_stall_resets_on_tool_calls():
     from henchman.core.agent import Agent
 
     agent = Agent(provider=MagicMock(spec=ModelProvider))
-    await agent._check_for_stalling("Let me write the entire module:", False)
+    await agent._check_for_stalling("Let me write the entire module:", had_tool_calls=False)
     assert agent._stall_nudge_count == 1
     # Tool call resets the count
-    await agent._check_for_stalling("anything", True)
+    await agent._check_for_stalling("anything", had_tool_calls=True)
     assert agent._stall_nudge_count == 0
 
 
@@ -292,7 +294,7 @@ async def test_agent_stall_detection_disabled_flag():
 
     agent = Agent(provider=MagicMock(spec=ModelProvider))
     agent.stall_detection_enabled = False
-    result = await agent._check_for_stalling("Now let me create the script:", False)
+    result = await agent._check_for_stalling("Now let me create the script:", had_tool_calls=False)
     assert result is None
     assert agent._stall_nudge_count == 0
 
@@ -306,7 +308,7 @@ async def test_agent_no_stall_on_genuine_content():
     result = await agent._check_for_stalling(
         "I've updated the file and added tests. All 42 tests pass. "
         "The coverage is now 95%. Here's a summary of the changes I made.",
-        False,
+        had_tool_calls=False,
     )
     assert result is None
 
@@ -513,7 +515,7 @@ async def test_delegation_turn_limit(mock_provider):
 
     mock_provider.chat_completion_stream.side_effect = side_effect
 
-    settings = Settings(agents=AgentSettings(max_delegation_turns=2))
+    settings = Settings(agents=AgentSettings(max_delegation_turns=2, max_delegation_retries=0))
     orchestrator = Orchestrator(default_provider=mock_provider, settings=settings)
 
     events = []
@@ -534,9 +536,8 @@ async def test_delegation_turn_limit(mock_provider):
 
 def test_build_timeout_summary_with_tools():
     """_build_timeout_summary captures tool calls and files."""
-    from henchman.core.agent import Agent
-
     from henchman.agents.orchestrator import TimeoutSummaryBuilder
+    from henchman.core.agent import Agent
 
     agent = Agent(provider=MagicMock(spec=ModelProvider))
     msg_start = len(agent.messages)
@@ -571,8 +572,8 @@ def test_build_timeout_summary_with_tools():
 
 def test_build_timeout_summary_empty():
     """_build_timeout_summary handles no progress."""
-    from henchman.core.agent import Agent
     from henchman.agents.orchestrator import TimeoutSummaryBuilder
+    from henchman.core.agent import Agent
 
     agent = Agent(provider=MagicMock(spec=ModelProvider))
     msg_start = len(agent.messages)
@@ -780,9 +781,7 @@ def test_assemble_delegation_input_mission_no_brief():
 def test_parse_completion_report_blockers():
     """Parses BLOCKERS field from specialist report (#11)."""
     summary = (
-        "STATUS: BLOCKED\n"
-        "BLOCKERS: Missing pytest-mock dependency\n"
-        "SUMMARY: Could not run tests"
+        "STATUS: BLOCKED\nBLOCKERS: Missing pytest-mock dependency\nSUMMARY: Could not run tests"
     )
     parsed = Orchestrator._parse_completion_report(summary)
     assert parsed["status"] == "BLOCKED"
@@ -858,7 +857,11 @@ def test_orchestrator_metrics_initialization(mock_provider):
     assert orchestrator.metrics.performance.task_start_time == 0.0
     assert orchestrator.metrics.performance.files_accessed == {}
     assert orchestrator.metrics.performance.tool_usage_by_type == {}
-    assert orchestrator.metrics.quality.test_results == {"passing": 0, "total": 0, "percentage": 0.0}
+    assert orchestrator.metrics.quality.test_results == {
+        "passing": 0,
+        "total": 0,
+        "percentage": 0.0,
+    }
     assert orchestrator.metrics.performance.file_re_reads == 0
     assert orchestrator.metrics.tools.total_tool_calls == 0
 
@@ -953,7 +956,11 @@ def test_get_metrics_report():
     orchestrator.metrics.tools.failed_tool_calls = 1
     orchestrator.metrics.tools.read_file_calls = 3
     orchestrator.metrics.tools.write_file_calls = 2
-    orchestrator.metrics.performance.tool_usage_by_type = {"read_file": 3, "write_file": 2, "shell": 1}
+    orchestrator.metrics.performance.tool_usage_by_type = {
+        "read_file": 3,
+        "write_file": 2,
+        "shell": 1,
+    }
     orchestrator.metrics.performance.files_accessed = {"file1.py": 2, "file2.py": 1}
     orchestrator.metrics.quality.test_results = {"passing": 45, "total": 50, "percentage": 90.0}
     orchestrator.metrics.quality.linting_status = {"errors": 2, "warnings": 5}
@@ -1013,7 +1020,11 @@ def test_reset_metrics_for_run():
     assert orchestrator.metrics.delegation_by_type == {"planner": 0, "explorer": 0, "engineer": 0}
     assert orchestrator.metrics.performance.files_accessed == {}
     assert orchestrator.metrics.tools.total_tool_calls == 0
-    assert orchestrator.metrics.quality.test_results == {"passing": 0, "total": 0, "percentage": 0.0}
+    assert orchestrator.metrics.quality.test_results == {
+        "passing": 0,
+        "total": 0,
+        "percentage": 0.0,
+    }
     assert orchestrator.metrics.quality.linting_status == {"errors": 0, "warnings": 0}
 
 
@@ -1092,12 +1103,11 @@ async def test_colon_stall_guard_nudges_agent():
 
     # The stall nudge message should have been injected into tech_lead messages
     nudge_messages = [
-        m for m in orchestrator.tech_lead.messages
+        m
+        for m in orchestrator.tech_lead.messages
         if m.role == "user" and m.content == _COLON_STALL_NUDGE
     ]
-    assert len(nudge_messages) >= 1, (
-        "Colon-stall nudge was not injected into tech_lead messages"
-    )
+    assert len(nudge_messages) >= 1, "Colon-stall nudge was not injected into tech_lead messages"
     # The agent was called more than once (retried after stall)
     assert call_count >= 2
 
@@ -1126,7 +1136,8 @@ async def test_colon_stall_guard_skips_short_responses():
     from henchman.agents.orchestrator import _COLON_STALL_NUDGE
 
     nudge_messages = [
-        m for m in orchestrator.tech_lead.messages
+        m
+        for m in orchestrator.tech_lead.messages
         if m.role == "user" and m.content == _COLON_STALL_NUDGE
     ]
     assert len(nudge_messages) == 0
@@ -1236,9 +1247,7 @@ async def test_regular_tool_calls_are_executed_before_continue(mock_provider):
         events.append(event)
 
     # The tool call should have been executed (not silently dropped)
-    tool_result_events = [
-        e for e in events if e.type == EventType.TOOL_CALL_RESULT
-    ]
+    tool_result_events = [e for e in events if e.type == EventType.TOOL_CALL_RESULT]
     assert len(tool_result_events) == 1, (
         "Expected exactly one TOOL_CALL_RESULT event — tool calls must be "
         "executed before continue_with_tool_results()"
@@ -1260,9 +1269,7 @@ async def test_multiple_tool_calls_all_executed(mock_provider):
     """All tool calls in a single response are executed before continuing."""
     tc1 = ToolCall(id="call_1", name="read_file", arguments={"path": "a.py"})
     tc2 = ToolCall(id="call_2", name="read_file", arguments={"path": "b.py"})
-    chunk_tools = StreamChunk(
-        tool_calls=[tc1, tc2], finish_reason=FinishReason.TOOL_CALLS
-    )
+    chunk_tools = StreamChunk(tool_calls=[tc1, tc2], finish_reason=FinishReason.TOOL_CALLS)
     chunk_done = StreamChunk(content="Both read.", finish_reason=FinishReason.STOP)
 
     call_count = 0
@@ -1289,3 +1296,208 @@ async def test_multiple_tool_calls_all_executed(mock_provider):
     )
     assert call_count == 2
 
+
+def test_prepare_delegation_context_type_safety():
+    """Test _prepare_delegation_context handles None values and edge cases properly."""
+    from henchman.agents.delegation import DelegationRunner
+    from henchman.agents.ledger import TaskLedger
+
+    # Create a real DelegationRunner instance
+    runner = DelegationRunner.__new__(DelegationRunner)
+    runner.shared_context = []
+    runner.ledger = TaskLedger(goal="Test goal")
+
+    # Add a failed delegation to the ledger
+    # Note: add_delegation only takes agent and task, status is set separately
+    record = runner.ledger.add_delegation(agent="engineer", task="Fix bug")
+    record.status = "FAILED"
+    record.summary = "Failed to fix"
+    record.turns = 3
+    record.tool_calls = 2
+    record.files_modified = []
+
+    # Test 1: brief is None
+    result = runner._prepare_delegation_context("engineer", None)
+    assert isinstance(result, dict)
+    assert "background" in result
+    assert "### Prior Attempt Failed" in result["background"]
+
+    # Test 2: brief is empty dict
+    result = runner._prepare_delegation_context("engineer", {})
+    assert isinstance(result, dict)
+    assert "background" in result
+    assert "### Prior Attempt Failed" in result["background"]
+
+
+@pytest.mark.asyncio
+async def test_race_condition_on_agent_errors():
+    """Test that agent error tracking is thread-safe and uses proper API methods."""
+    import threading
+    from unittest.mock import MagicMock
+
+    from henchman.core.agent import Agent
+
+    # Create a mock provider
+    mock_provider = MagicMock(spec=ModelProvider)
+
+    # Create an agent
+    agent = Agent(provider=mock_provider)
+
+    # Test the new API methods exist
+    assert hasattr(agent, "record_delegation_errors")
+    assert hasattr(agent, "get_delegation_errors")
+
+    # Test basic error recording
+    errors = ["Error 1: File not found", "Error 2: Permission denied"]
+    agent.record_delegation_errors(errors)
+
+    # Verify errors were recorded
+    recorded_errors = agent.get_delegation_errors()
+    assert len(recorded_errors) == 2
+    assert "Error 1" in recorded_errors[0]
+    assert "Error 2" in recorded_errors[1]
+
+    # Test thread-safety by simulating concurrent access
+    errors_list = []
+    lock = threading.Lock()
+
+    def record_errors_thread(thread_id):
+        thread_errors = [f"Thread {thread_id} error {i}" for i in range(5)]
+        agent.record_delegation_errors(thread_errors)
+        with lock:
+            errors_list.extend(thread_errors)
+
+    # Create and start multiple threads
+    threads = []
+    for i in range(3):
+        thread = threading.Thread(target=record_errors_thread, args=(i,))
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
+
+    # Verify all errors were recorded (should be 2 original + 15 new = 17 total)
+    all_recorded = agent.get_delegation_errors()
+    assert len(all_recorded) == 17  # 2 original + (3 threads * 5 errors each)
+
+    # Verify no data corruption by checking all expected errors are present
+    for i in range(3):
+        for j in range(5):
+            expected_error = f"Thread {i} error {j}"
+            assert any(expected_error in err for err in all_recorded), (
+                f"Missing expected error: {expected_error}"
+            )
+
+    # Test backward compatibility fallback
+    # Create a mock agent without the new API methods
+    class LegacyAgent:
+        def __init__(self):
+            self._delegation_tool_errors = []
+
+    legacy_agent = LegacyAgent()
+
+    # Test that finalize_loop handles legacy agents with warning
+    from unittest.mock import MagicMock
+
+    from henchman.agents.orchestrator_loop import finalize_loop
+
+    orchestrator_mock = MagicMock()
+    orchestrator_mock._last_loop_tool_call_count = 0
+
+    state_mock = MagicMock()
+    state_mock.tool_errors = ["Test error 1", "Test error 2"]
+    state_mock.tool_call_count = 5
+
+    # Capture warnings
+    import warnings
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+
+        # This should trigger a deprecation warning for legacy agent
+        finalize_loop(orchestrator_mock, legacy_agent, state_mock)
+
+        # Check warning was issued
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "does not have record_delegation_errors() method" in str(w[0].message)
+
+    # Verify legacy agent got errors via dynamic attribute
+    assert hasattr(legacy_agent, "_delegation_tool_errors")
+    assert legacy_agent._delegation_tool_errors == ["Test error 1", "Test error 2"]
+
+    # Test that delegation.py handles legacy agents
+
+    # Mock target_agent without get_delegation_errors method
+    class MockTargetAgent:
+        _delegation_tool_errors = ["Legacy error 1", "Legacy error 2"]
+
+    mock_target = MockTargetAgent()
+
+    # This should use the fallback getattr approach
+    tool_errors = getattr(mock_target, "_delegation_tool_errors", [])
+    assert tool_errors == ["Legacy error 1", "Legacy error 2"]
+
+    # Test with agent that has get_delegation_errors method
+    class ModernAgent:
+        def get_delegation_errors(self):
+            return ["Modern error 1", "Modern error 2"]
+
+    modern_agent = ModernAgent()
+
+    # This should use the new API method
+    if hasattr(modern_agent, "get_delegation_errors"):
+        tool_errors = modern_agent.get_delegation_errors()
+        assert tool_errors == ["Modern error 1", "Modern error 2"]
+
+
+def test_silent_failure_when_validator_missing():
+    """Test that missing validator attribute raises RuntimeError instead of silent failure."""
+    from unittest.mock import MagicMock
+
+    from henchman.agents.orchestrator_execution import ExecutionController
+    from henchman.core.agent import Agent
+
+    # Create a mock orchestrator without validator attribute
+    mock_orchestrator = MagicMock()
+    mock_orchestrator.validator = None  # This will cause RuntimeError when accessed
+
+    # Create ExecutionController with the mock orchestrator
+    controller = ExecutionController(mock_orchestrator)
+
+    # Create a mock agent
+    mock_agent = MagicMock(spec=Agent)
+    mock_agent.messages = []
+
+    # Create a mock state
+    from henchman.agents.orchestrator_types import LoopState
+    state = LoopState()
+
+    # Call _process_no_pending - should raise RuntimeError when validator is None
+    import pytest
+    with pytest.raises(RuntimeError) as exc_info:
+        controller._process_no_pending(mock_agent, state)
+
+    # Verify the error message
+    error_msg = str(exc_info.value)
+    assert "Orchestrator validator is None" in error_msg
+    assert "thinking pattern validation" in error_msg
+    assert "stall detection" in error_msg
+    assert "Ensure the orchestrator is properly initialized" in error_msg
+
+
+def test_assemble_delegation_input_files_as_string():
+    """Branch [907->908]: brief['files'] is a string instead of list — converts to list."""
+    from henchman.agents.delegation import DelegationRunner
+
+    result = DelegationRunner._assemble_delegation_input(
+        "Fix bug",
+        {
+            "agent": "engineer",
+            "task": "Fix bug",
+            "files": "src/main.py",  # String, not list — exercises isinstance(files, str)
+        },
+    )
+    assert "src/main.py" in result
+    assert "- `src/main.py`" in result

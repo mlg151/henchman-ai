@@ -1,5 +1,12 @@
 # Getting Started
 
+## Prerequisites
+
+- **Python 3.10 or higher**: Henchman-AI requires Python 3.10+
+- **API Key**: For your chosen LLM provider (DeepSeek, OpenAI, Anthropic, etc.)
+- **Git** (optional): For installing from source
+- **uv** (optional): For faster dependency management
+
 ## Installation
 
 ### From PyPI (Recommended)
@@ -16,6 +23,12 @@ cd henchman-ai
 pip install -e ".[dev]"
 ```
 
+### With uv (Fastest)
+
+```bash
+uv pip install henchman-ai
+```
+
 ## API Key Setup
 
 Henchman-AI requires an API key for your chosen LLM provider.
@@ -26,17 +39,50 @@ Henchman-AI requires an API key for your chosen LLM provider.
 export DEEPSEEK_API_KEY="your-deepseek-api-key"
 ```
 
-### OpenAI
+### OpenAI-Compatible Providers
 
+Henchman-AI supports multiple OpenAI-compatible providers. Each has its own API key environment variable:
+
+#### OpenAI
 ```bash
 export OPENAI_API_KEY="your-openai-api-key"
 ```
+
+#### Together AI
+```bash
+export TOGETHER_API_KEY="your-together-api-key"
+```
+
+#### Groq
+```bash
+export GROQ_API_KEY="your-groq-api-key"
+```
+
+#### Fireworks AI
+```bash
+export FIREWORKS_API_KEY="your-fireworks-api-key"
+```
+
+**Note**: For OpenAI specifically, use `openai_compat` provider with `base_url: https://api.openai.com/v1`. For other providers, use their specific provider names (`together`, `groq`, `fireworks`).
 
 ### Anthropic
 
 ```bash
 export ANTHROPIC_API_KEY="your-anthropic-api-key"
 ```
+
+### Ollama (Local Models)
+
+Ollama allows you to run models locally without an API key:
+
+1. Install Ollama from [ollama.ai](https://ollama.ai/)
+2. Pull a model: `ollama pull llama3.2`
+3. Start the server: `ollama serve`
+4. No API key needed - Henchman-AI will connect to `http://localhost:11434` by default
+
+### Other Providers
+
+Henchman-AI also supports OpenRouter, Together AI, Groq, Fireworks AI, and other OpenAI-compatible services. See [Providers](providers.md) for complete setup instructions for these services.
 
 ## First Run
 

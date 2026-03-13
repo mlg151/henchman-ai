@@ -469,6 +469,6 @@ For issues with Intelligent Context Management:
 ## Related Documentation
 
 - [Configuration Guide](configuration.md) - General configuration settings
-- [CLI Reference](api.md) - Complete CLI command reference
-- [Agent API](api.md#agent) - Programmatic agent usage
+- [CLI Reference](api.md#cli) - Complete CLI command reference
+- [Agent API](api.md#agent) - Programmatic agent usage (Agent class)
 - [Performance Tuning](#performance-tuning) - Performance optimization for intelligent context management

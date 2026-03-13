@@ -29,8 +29,10 @@ def mock_stream_chunk():
 @pytest.fixture
 def mock_async_generator(mock_stream_chunk):
     """Create an async generator for testing."""
+
     async def async_gen(*args: object, **kwargs: object) -> object:  # noqa: ARG001
         yield mock_stream_chunk
+
     return async_gen
 
 
@@ -46,11 +48,7 @@ def agent_identity():
 
 @pytest.fixture
 def sample_tool_call():
-    return ToolCall(
-        id="test-tool-call-123",
-        name="test_tool",
-        arguments={"param": "value"}
-    )
+    return ToolCall(id="test-tool-call-123", name="test_tool", arguments={"param": "value"})
 
 
 def test_agent_auto_detects_model_from_provider():
@@ -199,11 +197,11 @@ def test_agent_stall_detection_skip_short_response(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # Short response should skip
-    assert agent._stall.should_skip("Hi", False) is True
+    assert agent._stall.should_skip("Hi", had_tool_calls=False) is True
 
     # Longer response should not skip
     long_response = "This is a longer response that should be checked for stalling."
-    assert agent._stall.should_skip(long_response, False) is False
+    assert agent._stall.should_skip(long_response, had_tool_calls=False) is False
 
 
 def test_agent_stall_detection_skip_with_tool_calls(mock_provider):
@@ -211,11 +209,11 @@ def test_agent_stall_detection_skip_with_tool_calls(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # With tool calls should skip
-    assert agent._stall.should_skip("Any response", True) is True
+    assert agent._stall.should_skip("Any response", had_tool_calls=True) is True
 
     # Should reset stall count
     agent._stall.nudge_count = 3
-    agent._stall.should_skip("Any response", True)
+    agent._stall.should_skip("Any response", had_tool_calls=True)
     assert agent._stall.nudge_count == 0
 
 
@@ -224,7 +222,7 @@ def test_agent_stall_detection_disabled(mock_provider):
     agent = Agent(provider=mock_provider)
     agent._stall.enabled = False
 
-    assert agent._stall.should_skip("Any response", False) is True
+    assert agent._stall.should_skip("Any response", had_tool_calls=False) is True
 
 
 def test_agent_detect_stalling_patterns_colon_ending(mock_provider):
@@ -267,12 +265,14 @@ async def test_agent_check_for_stalling_no_stall(mock_provider):
     agent = Agent(provider=mock_provider)
 
     # Normal response with tool calls
-    result = await agent._stall.check("Created the file", True)
+    result = await agent._stall.check("Created the file", had_tool_calls=True)
     assert result is None
     assert agent._stall.nudge_count == 0
 
     # Normal response without tool calls but not stalling
-    result = await agent._stall.check("The file has been created successfully", False)
+    result = await agent._stall.check(
+        "The file has been created successfully", had_tool_calls=False
+    )
     assert result is None
 
 
@@ -283,7 +283,7 @@ async def test_agent_check_for_stalling_with_nudge(mock_provider):
 
     # Stalling response
     stalling_response = "Let me start by creating the file:"
-    result = await agent._stall.check(stalling_response, False)
+    result = await agent._stall.check(stalling_response, had_tool_calls=False)
 
     assert result == STALL_NUDGE_MESSAGE
     assert agent._stall.nudge_count == 1
@@ -297,7 +297,7 @@ async def test_agent_check_for_stalling_max_nudges(mock_provider):
 
     # Stalling response at max nudges
     stalling_response = "Let me start by creating the file:"
-    result = await agent._stall.check(stalling_response, False)
+    result = await agent._stall.check(stalling_response, had_tool_calls=False)
 
     assert result is None  # Should stop nudging
     assert agent._stall.failure is True  # Should set failure flag
@@ -310,8 +310,7 @@ async def test_agent_run_with_stalling_nudge(mock_provider):
 
     # Mock provider to return a stalling response
     chunk = StreamChunk(
-        content="Let me start by creating the file:",
-        finish_reason=FinishReason.STOP
+        content="Let me start by creating the file:", finish_reason=FinishReason.STOP
     )
 
     async def async_gen(*_args, **_kwargs):
@@ -335,20 +334,13 @@ async def test_agent_continue_with_tool_results(mock_provider, sample_tool_call)
     agent = Agent(provider=mock_provider)
 
     # Create a proper conversation history with assistant tool call
-    agent.messages.append(Message(
-        role="assistant",
-        content="",
-        tool_calls=[sample_tool_call]
-    ))
+    agent.messages.append(Message(role="assistant", content="", tool_calls=[sample_tool_call]))
 
     # Add a tool result to continue from
     agent.submit_tool_result(sample_tool_call.id, "Tool executed successfully")
 
     # Mock provider response
-    chunk = StreamChunk(
-        content="Thanks for the tool result",
-        finish_reason=FinishReason.STOP
-    )
+    chunk = StreamChunk(content="Thanks for the tool result", finish_reason=FinishReason.STOP)
 
     async def async_gen(*_args, **_kwargs):
         yield chunk
@@ -362,6 +354,7 @@ async def test_agent_continue_with_tool_results(mock_provider, sample_tool_call)
     assert len(events) > 0
     # Should have content event
     from henchman.core.events import EventType
+
     assert any(event.type == EventType.CONTENT for event in events)
 
 
@@ -369,9 +362,7 @@ async def test_agent_continue_with_tool_results(mock_provider, sample_tool_call)
 async def test_continue_with_tool_results_stall_detection(mock_provider, sample_tool_call):
     """continue_with_tool_results() should nudge when agent stalls on a colon."""
     agent = Agent(provider=mock_provider)
-    agent.messages.append(
-        Message(role="assistant", content="", tool_calls=[sample_tool_call])
-    )
+    agent.messages.append(Message(role="assistant", content="", tool_calls=[sample_tool_call]))
     agent.submit_tool_result(sample_tool_call.id, "Tool executed successfully")
 
     # First call: agent stalls (ends with colon, no tool calls)
@@ -404,7 +395,9 @@ async def test_continue_with_tool_results_stall_detection(mock_provider, sample_
     # Provider should have been called twice (initial stall + retry after nudge)
     assert call_count == 2
     # A nudge message should be in the conversation history
-    nudge_messages = [m for m in agent.messages if m.role == "user" and "stopped without" in (m.content or "")]
+    nudge_messages = [
+        m for m in agent.messages if m.role == "user" and "stopped without" in (m.content or "")
+    ]
     assert len(nudge_messages) == 1
     assert agent._stall.nudge_count == 1
 
@@ -413,9 +406,7 @@ async def test_continue_with_tool_results_stall_detection(mock_provider, sample_
 async def test_continue_with_tool_results_stall_failure(mock_provider, sample_tool_call):
     """continue_with_tool_results() sets _stall.failure after max nudges."""
     agent = Agent(provider=mock_provider)
-    agent.messages.append(
-        Message(role="assistant", content="", tool_calls=[sample_tool_call])
-    )
+    agent.messages.append(Message(role="assistant", content="", tool_calls=[sample_tool_call]))
     agent.submit_tool_result(sample_tool_call.id, "Tool executed successfully")
 
     # Agent keeps stalling on every attempt
@@ -444,9 +435,7 @@ async def test_continue_with_tool_results_no_stall_on_normal_response(
 ):
     """continue_with_tool_results() does not nudge for normal responses."""
     agent = Agent(provider=mock_provider)
-    agent.messages.append(
-        Message(role="assistant", content="", tool_calls=[sample_tool_call])
-    )
+    agent.messages.append(Message(role="assistant", content="", tool_calls=[sample_tool_call]))
     agent.submit_tool_result(sample_tool_call.id, "Tool executed successfully")
 
     ok_chunk = StreamChunk(
@@ -524,3 +513,16 @@ async def test_agent_emit_without_identity(mock_provider):
     assert event.type == EventType.CONTENT
     assert event.data == {"key": "value"}
     assert event.source_agent is None
+
+
+def test_apply_pending_config_no_config_object():
+    """Branch [301->exit]: _pending_config exists but _config is None/absent."""
+    from henchman.core.agent import Agent
+
+    agent = Agent.__new__(Agent)
+    # Set _pending_config but NOT _config (so hasattr(_config) is False)
+    agent._pending_config = {"model": "gpt-4"}
+    # _apply_pending_config should safely skip when _config not present
+    agent._transfer_pending_config()
+    # pending_config should remain (not deleted since we couldn't apply)
+    assert hasattr(agent, "_pending_config")

@@ -44,6 +44,7 @@ class ContextLoader:
         self,
         filename: str | None = None,
         filenames: Sequence[str] | None = None,
+        *,
         include_subdirs: bool = False,
     ) -> None:
         """Initialize the context loader.
@@ -99,7 +100,7 @@ class ContextLoader:
 
         patterns = []
         for line in gitignore.read_text().splitlines():
-            line = line.strip()
+            line = line.strip()  # noqa: PLW2901
             if line and not line.startswith("#"):
                 # Remove trailing slashes for directory patterns
                 patterns.append(line.rstrip("/"))

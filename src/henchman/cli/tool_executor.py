@@ -182,6 +182,9 @@ class ToolExecutor:
             agent: The agent for turn tracking and result submission.
             content_collector: Optional list to collect content for session.
             status_obj: Accepted for API compatibility; spinner was removed.
+
+        Returns:
+            None
         """
         if self._should_stop_due_to_limits(agent):
             return
@@ -232,6 +235,9 @@ class ToolExecutor:
             tool_calls: List of tool calls to execute.
             agent: The agent for turn tracking and result submission.
             content_collector: Optional list to collect content for session.
+
+        Returns:
+            None
         """
         valid_tool_calls = [tc for tc in tool_calls if isinstance(tc, ToolCall)]
         if not valid_tool_calls:
@@ -244,23 +250,31 @@ class ToolExecutor:
         )
         try:
             if to_parallel:
-                await asyncio.gather(*[
-                    self._execute_and_record_tool_call(tc, agent, responded_ids)
-                    for tc in to_parallel
-                ])
+                await asyncio.gather(
+                    *[
+                        self._execute_and_record_tool_call(tc, agent, responded_ids)
+                        for tc in to_parallel
+                    ]
+                )
             if to_sequential:
                 await self._run_sequential_tool_calls(
-                    to_sequential, agent, responded_ids,
+                    to_sequential,
+                    agent,
+                    responded_ids,
                 )
         finally:
             self._ensure_all_tool_calls_have_response(
-                valid_tool_calls, responded_ids, agent,
+                valid_tool_calls,
+                responded_ids,
+                agent,
             )
 
         self.output_handler.show_turn_status(agent, self.base_tool_iterations)
         self.output_handler.print_newline()
         await self.process_agent_stream(
-            agent.continue_with_tool_results(), agent, content_collector,
+            agent.continue_with_tool_results(),
+            agent,
+            content_collector,
         )
 
     async def handle_confirmation(

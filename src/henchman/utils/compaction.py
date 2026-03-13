@@ -7,7 +7,7 @@ older messages, with optional summarization of dropped content.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 from henchman.providers.base import Message
 from henchman.utils.tokens import TokenCounter
@@ -17,6 +17,10 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from henchman.providers.base import ModelProvider
+
+TokenLimit: TypeAlias = int
+ProtectionIndex: TypeAlias = int
+ProtectedRatio: TypeAlias = float
 
 
 @dataclass
@@ -69,15 +73,18 @@ MIN_TRUNCATED_CONTENT: int = 200
 CHARS_PER_TOKEN_ESTIMATE: int = 4
 DEFAULT_MAX_TOKENS: int = 8000
 DEFAULT_MAX_PROTECTED_RATIO: float = 0.3
+SUMMARY_TOOL_RESULT_MAX_CHARS: int = 200
+SUMMARY_MSG_MAX_CHARS: int = 500
 
 
 @dataclass
 class SummarizationConfig:
     """Configuration for message summarization during compaction."""
+
     provider: ModelProvider | None = None
     summarize: bool = True
     protect_from_index: int = -1
-    max_protected_ratio: float = 0.3
+    max_protected_ratio: float = DEFAULT_MAX_PROTECTED_RATIO
 
 
 class MessageSequenceGrouper:
@@ -109,11 +116,15 @@ class MessageSequenceGrouper:
         i = 0
         while i < len(messages):
             i = MessageSequenceGrouper._process_next_message(
-                messages, i, current_sequence, sequences, consumed_indices,
+                messages,
+                i,
+                current_sequence,
+                sequences,
+                consumed_indices,
             )
 
         # Add the last sequence
-        if current_sequence:
+        if current_sequence:  # pragma: no branch
             sequences.append(MessageSequence(list(current_sequence)))
 
         return sequences
@@ -147,7 +158,10 @@ class MessageSequenceGrouper:
         # Handle tool call sequences
         if msg.role == "assistant" and msg.tool_calls:
             MessageSequenceGrouper._handle_tool_call_sequence(
-                messages, current_index, current_sequence, consumed_indices,
+                messages,
+                current_index,
+                current_sequence,
+                consumed_indices,
             )
 
         next_index = current_index + 1
@@ -186,14 +200,16 @@ class MessageSequenceGrouper:
             if messages[j].role == "tool" and tool_call_id in tool_call_ids:
                 current_sequence.append(messages[j])
                 consumed_indices.add(j)
-                if tool_call_id is not None:
+                if tool_call_id is not None:  # pragma: no branch
                     tool_call_ids.discard(tool_call_id)
                 if not tool_call_ids:
                     break  # All tool calls have responses
 
     @staticmethod
     def _should_start_new_sequence(
-        current_message: Message, current_index: int, total_messages: int,
+        current_message: Message,
+        current_index: int,
+        total_messages: int,
     ) -> bool:
         """Determine if a new sequence should start.
 
@@ -220,7 +236,9 @@ class ProtectedZoneManager:
         self.max_protected_tokens = max_protected_tokens
 
     def separate_protected_messages(
-        self: ProtectedZoneManager, messages: list[Message], protect_from_index: int,
+        self: ProtectedZoneManager,
+        messages: list[Message],
+        protect_from_index: int,
     ) -> tuple[list[Message], list[Message]]:
         """Separate protected and unprotected messages based on protection index.
 
@@ -240,7 +258,10 @@ class ProtectedZoneManager:
 
         return protected_msgs, unprotected_msgs
 
-    def truncate_if_needed(self: ProtectedZoneManager, messages: list[Message]) -> tuple[list[Message], int]:  # noqa: E501
+    def truncate_if_needed(
+        self: ProtectedZoneManager,
+        messages: list[Message],
+    ) -> tuple[list[Message], int]:
         """Truncate protected zone if it exceeds budget.
 
         Args:
@@ -252,52 +273,10 @@ class ProtectedZoneManager:
         protected_tokens = TokenCounter.count_messages(messages) if messages else 0
 
         if protected_tokens > self.max_protected_tokens and messages:
-            messages = self._truncate_protected_zone(messages, self.max_protected_tokens)
+            messages = _truncate_protected_zone_messages(messages, self.max_protected_tokens)
             protected_tokens = TokenCounter.count_messages(messages)
 
         return messages, protected_tokens
-
-    def _truncate_protected_zone(
-        self: ProtectedZoneManager,
-        messages: list[Message],
-        max_tokens: int,
-    ) -> list[Message]:
-        """Truncate protected zone to fit within budget.
-
-        Truncates tool result content (oldest first) while preserving
-        structure. Never drops messages entirely, just truncates content.
-
-        Args:
-            messages: Protected zone messages.
-            max_tokens: Maximum tokens allowed for protected zone.
-
-        Returns:
-            Messages with truncated content to fit budget.
-        """
-        current_tokens = TokenCounter.count_messages(messages)
-        if current_tokens <= max_tokens:
-            return messages
-
-        result = []
-        tokens_to_trim = current_tokens - max_tokens
-
-        for msg in messages:
-            if tokens_to_trim <= 0 or msg.role != "tool":
-                result.append(msg)
-                continue
-
-            # Truncate tool message content
-            content = msg.content
-            if content and len(content) > TRUNCATION_CHAR_THRESHOLD:
-                truncated_msg = _truncate_tool_message_content(msg, tokens_to_trim)
-                # truncated_msg.content is guaranteed to be non-None since we checked content
-                trimmed_tokens = (len(content) - len(truncated_msg.content or "")) // CHARS_PER_TOKEN_ESTIMATE  # noqa: E501
-                tokens_to_trim -= trimmed_tokens
-                result.append(truncated_msg)
-            else:
-                result.append(msg)
-
-        return result
 
 
 def _truncate_tool_message_content(message: Message, tokens_to_trim: int) -> Message:
@@ -326,6 +305,48 @@ def _truncate_tool_message_content(message: Message, tokens_to_trim: int) -> Mes
         tool_calls=message.tool_calls,
         tool_call_id=message.tool_call_id,
     )
+
+
+def _truncate_protected_zone_messages(
+    messages: list[Message],
+    max_tokens: int,
+) -> list[Message]:
+    """Truncate protected zone to fit within budget.
+
+    Truncates tool result content (oldest first) while preserving
+    structure. Never drops messages entirely, just truncates content.
+
+    Args:
+        messages: Protected zone messages.
+        max_tokens: Maximum tokens allowed for protected zone.
+
+    Returns:
+        Messages with truncated content to fit budget.
+    """
+    current_tokens = TokenCounter.count_messages(messages)
+    if current_tokens <= max_tokens:
+        return messages
+
+    result = []
+    tokens_to_trim = current_tokens - max_tokens
+
+    for msg in messages:
+        if tokens_to_trim <= 0 or msg.role != "tool":
+            result.append(msg)
+            continue
+
+        content = msg.content
+        if content and len(content) > TRUNCATION_CHAR_THRESHOLD:
+            truncated_msg = _truncate_tool_message_content(msg, tokens_to_trim)
+            trimmed_tokens = (
+                len(content) - len(truncated_msg.content or "")
+            ) // CHARS_PER_TOKEN_ESTIMATE
+            tokens_to_trim -= trimmed_tokens
+            result.append(truncated_msg)
+        else:
+            result.append(msg)
+
+    return result
 
 
 class CompactionBudgetCalculator:
@@ -391,6 +412,57 @@ class CompactionBudgetCalculator:
         return None
 
 
+def _is_valid_tool_message(
+    messages: list[Message],
+    index: int,
+    tool_message: Message,
+) -> bool:
+    """Validate a single tool message.
+
+    Tool messages must immediately follow an assistant message with tool_calls,
+    and the tool_call_id must match one of the assistant's tool call IDs.
+
+    Args:
+        messages: All messages in the sequence.
+        index: Index of the tool message.
+        tool_message: The tool message to validate.
+
+    Returns:
+        True if the tool message is valid, False otherwise.
+    """
+    if index == 0:
+        return False
+    prev_msg = messages[index - 1]
+    if prev_msg.role != "assistant" or not prev_msg.tool_calls:
+        return False
+    tool_call_ids = {tc.id for tc in prev_msg.tool_calls}
+    return tool_message.tool_call_id in tool_call_ids
+
+
+def _all_tool_calls_have_responses(messages: list[Message]) -> bool:
+    """Check that all tool calls have corresponding responses.
+
+    Args:
+        messages: All messages in the sequence.
+
+    Returns:
+        True if all tool calls have responses, False otherwise.
+    """
+    for i, msg in enumerate(messages):
+        if msg.role != "assistant" or not msg.tool_calls:
+            continue
+        tool_call_ids = {tc.id for tc in msg.tool_calls}
+        j = i + 1
+        while j < len(messages) and messages[j].role == "tool":
+            tool_call_id = messages[j].tool_call_id
+            if tool_call_id is not None and tool_call_id in tool_call_ids:
+                tool_call_ids.discard(tool_call_id)
+            j += 1
+        if tool_call_ids:
+            return False
+    return True
+
+
 class MessageSequenceValidator:
     """Validates message sequences follow OpenAI API rules."""
 
@@ -405,63 +477,14 @@ class MessageSequenceValidator:
             True if the sequence is valid, False otherwise.
         """
         for i, msg in enumerate(messages):
-            if msg.role == "tool" and not MessageSequenceValidator._is_valid_tool_message(messages, i, msg):  # noqa: E501
+            if msg.role == "tool" and not _is_valid_tool_message(
+                messages,
+                i,
+                msg,
+            ):
                 return False
 
-        # Check that all tool calls have responses
-        return MessageSequenceValidator._all_tool_calls_have_responses(messages)
-
-    @staticmethod
-    def _is_valid_tool_message(
-        messages: list[Message], index: int, tool_message: Message,
-    ) -> bool:
-        """Validate a single tool message.
-
-        Args:
-            messages: All messages in the sequence.
-            index: Index of the tool message.
-            tool_message: The tool message to validate.
-
-        Returns:
-            True if the tool message is valid, False otherwise.
-        """
-        # Tool messages must follow assistant with tool_calls
-        if index == 0:
-            return False
-
-        prev_msg = messages[index - 1]
-        if prev_msg.role != "assistant" or not prev_msg.tool_calls:
-            return False
-
-        # Tool call ID must match one of the assistant's tool calls
-        tool_call_ids = {tc.id for tc in prev_msg.tool_calls}
-        return tool_message.tool_call_id in tool_call_ids
-
-    @staticmethod
-    def _all_tool_calls_have_responses(messages: list[Message]) -> bool:
-        """Check that all tool calls have corresponding responses.
-
-        Args:
-            messages: All messages in the sequence.
-
-        Returns:
-            True if all tool calls have responses, False otherwise.
-        """
-        for i, msg in enumerate(messages):
-            if msg.role == "assistant" and msg.tool_calls:
-                tool_call_ids = {tc.id for tc in msg.tool_calls}
-                j = i + 1
-                while j < len(messages) and messages[j].role == "tool":
-                    tool_call_id = messages[j].tool_call_id
-                    if tool_call_id is not None and tool_call_id in tool_call_ids:
-                        tool_call_ids.discard(tool_call_id)
-                    j += 1
-
-                # If there are still tool calls without responses, it's invalid
-                if tool_call_ids:
-                    return False
-
-        return True
+        return _all_tool_calls_have_responses(messages)
 
 
 def _enforce_message_content_safety(message: Message, limit: int) -> Message:
@@ -484,9 +507,7 @@ def _enforce_message_content_safety(message: Message, limit: int) -> Message:
     # Check token count
     if TokenCounter.count_text(message.content) > limit:
         truncated_content = TokenCounter.truncate_text(message.content, limit)
-        new_content = (
-            truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
-        )
+        new_content = truncated_content + f"\n... (truncated by safety limit: > {limit} tokens)"
         return Message(
             role=message.role,
             content=new_content,
@@ -497,7 +518,115 @@ def _enforce_message_content_safety(message: Message, limit: int) -> Message:
     return message
 
 
-class ContextCompactor:
+class _ContextCompactorHelpersMixin:
+    """Mixin providing helper methods for ContextCompactor."""
+
+    def _extract_system_messages(
+        self: _ContextCompactorHelpersMixin,
+        unprotected_msgs: list[Message],
+    ) -> tuple[list[Message], int]:
+        """Extract system messages from unprotected messages.
+
+        Args:
+            unprotected_msgs: Unprotected messages to extract from.
+
+        Returns:
+            Tuple of (system_messages, system_token_count).
+        """
+        system_msgs = [msg for msg in unprotected_msgs if msg.role == "system"]
+        system_tokens = TokenCounter.count_messages(system_msgs)
+        return system_msgs, system_tokens
+
+    def _group_non_system_sequences(
+        self: _ContextCompactorHelpersMixin,
+        unprotected_msgs: list[Message],
+    ) -> list[MessageSequence]:
+        """Group non-system unprotected messages into atomic sequences.
+
+        Args:
+            unprotected_msgs: Unprotected messages to group.
+
+        Returns:
+            List of message sequences.
+        """
+        non_system_unprotected = [msg for msg in unprotected_msgs if msg.role != "system"]
+        return self.sequence_grouper.group_into_sequences(non_system_unprotected)  # type: ignore[attr-defined]
+
+    def _select_sequences_to_keep(
+        self: _ContextCompactorHelpersMixin,
+        sequences: list[MessageSequence],
+        protected_msgs: list[Message],
+        system_tokens: int,
+        protected_tokens: int,
+    ) -> tuple[list[MessageSequence], MessageSequence, bool]:
+        """Select which sequences to keep based on budget.
+
+        Args:
+            sequences: All message sequences.
+            protected_msgs: Protected messages.
+            system_tokens: Token count of system messages.
+            protected_tokens: Token count of protected messages.
+
+        Returns:
+            Tuple of (kept_sequences, last_sequence, last_sequence_is_user).
+        """
+        last_sequence = sequences[-1]
+        last_sequence_is_user = (
+            bool(last_sequence.messages) and last_sequence.messages[-1].role == "user"
+        )
+
+        budget = self.budget_calculator.calculate_budget(system_tokens, protected_tokens)  # type: ignore[attr-defined]
+
+        if last_sequence_is_user and not protected_msgs:
+            budget -= last_sequence.token_count
+            sequences_to_consider = sequences[:-1]
+        else:
+            sequences_to_consider = sequences
+
+        kept_sequences: list[MessageSequence] = []
+        used_tokens = 0
+
+        for seq in reversed(sequences_to_consider):
+            if used_tokens + seq.token_count <= budget:
+                kept_sequences.append(seq)
+                used_tokens += seq.token_count
+            else:
+                break
+
+        return kept_sequences, last_sequence, last_sequence_is_user
+
+    def _reconstruct_result(
+        self: _ContextCompactorHelpersMixin,
+        system_msgs: list[Message],
+        kept_sequences: list[MessageSequence],
+        last_sequence: MessageSequence,
+        *,
+        last_sequence_is_user: bool,
+        protected_msgs: list[Message],
+    ) -> list[Message]:
+        """Reconstruct final message list from components.
+
+        Args:
+            system_msgs: System messages.
+            kept_sequences: Sequences to keep.
+            last_sequence: Last unprotected sequence.
+            last_sequence_is_user: Whether last sequence is user-initiated.
+            protected_msgs: Protected messages.
+
+        Returns:
+            Final compacted message list.
+        """
+        result: list[Message] = []
+        result.extend(system_msgs)
+        for seq in reversed(kept_sequences):
+            result.extend(seq.messages)
+        if last_sequence_is_user and not protected_msgs:
+            result.extend(last_sequence.messages)
+        result.extend(protected_msgs)
+        return result
+
+
+class ContextCompactor(_ContextCompactorHelpersMixin):
     """Manages context size by pruning older messages.
 
     Preserves atomic sequences, especially tool call sequences.
@@ -537,30 +666,7 @@ class ContextCompactor:
             List of messages with content limits enforced.
         """
         limit = int(self.max_tokens * SAFETY_LIMIT_RATIO)
-        return [self._enforce_message_safety(msg, limit) for msg in messages]
-
-    def _enforce_message_safety(self: ContextCompactor, message: Message, limit: int) -> Message:
-        """Enforce safety limit on a single message.
-
-        Args:
-            message: Message to check.
-            limit: Maximum token limit.
-
-        Returns:
-            Safe message (possibly truncated).
-        """
-        return _enforce_message_content_safety(message, limit)
-
-    def _group_into_sequences(self: ContextCompactor, messages: list[Message]) -> list[MessageSequence]:  # noqa: E501
-        """Group messages into atomic sequences that must be kept together.
-
-        Args:
-            messages: The messages to group.
-
-        Returns:
-            List of MessageSequence objects.
-        """
-        return self.sequence_grouper.group_into_sequences(messages)
+        return [_enforce_message_content_safety(msg, limit) for msg in messages]
 
     def compact(
         self: ContextCompactor,
@@ -585,164 +691,58 @@ class ContextCompactor:
         """
         if not messages:  # pragma: no cover
             return []
-
-        # First, enforce safety limits on individual messages
-        # This prevents massive messages from breaking the token counter or API
         messages = self.enforce_safety_limits(messages)
-
-        current_tokens = TokenCounter.count_messages(messages)
-        if current_tokens <= self.max_tokens:
+        if TokenCounter.count_messages(messages) <= self.max_tokens:
             return messages
+        return self._perform_compaction(messages, protect_from_index)
 
-        # Separate protected and unprotected messages
-        protected_msgs, unprotected_msgs = self.protected_zone_manager.separate_protected_messages(
-            messages, protect_from_index,
+    def _perform_compaction(
+        self: ContextCompactor,
+        messages: list[Message],
+        protect_from_index: int,
+    ) -> list[Message]:
+        """Execute compaction after safety checks pass.
+
+        Args:
+            messages: Messages to compact (already safety-checked).
+            protect_from_index: Index from which messages are protected.
+
+        Returns:
+            Compacted messages that fit within max_tokens.
+        """
+        protected_msgs, unprotected_msgs = (
+            self.protected_zone_manager.separate_protected_messages(
+                messages,
+                protect_from_index,
+            )
         )
-
-        # Handle protected zone truncation if needed
-        protected_msgs, protected_tokens = self.protected_zone_manager.truncate_if_needed(protected_msgs)  # noqa: E501
-
-        # Extract system messages and group non-system messages into sequences
+        protected_msgs, protected_tokens = self.protected_zone_manager.truncate_if_needed(
+            protected_msgs,
+        )
         system_msgs, system_tokens = self._extract_system_messages(unprotected_msgs)
         sequences = self._group_non_system_sequences(unprotected_msgs)
-
-        # Calculate budget and handle edge cases
         budget_result = self.budget_calculator.handle_edge_cases(
-            system_msgs, system_tokens, protected_msgs, protected_tokens, sequences,
+            system_msgs,
+            system_tokens,
+            protected_msgs,
+            protected_tokens,
+            sequences,
         )
         if budget_result is not None:
             return budget_result
-
-        # Select which sequences to keep based on budget
         kept_sequences, last_sequence, last_sequence_is_user = self._select_sequences_to_keep(
-            sequences, protected_msgs, system_tokens, protected_tokens,
+            sequences,
+            protected_msgs,
+            system_tokens,
+            protected_tokens,
         )
-
-        # Reconstruct final message list
         return self._reconstruct_result(
-            system_msgs, kept_sequences, last_sequence, last_sequence_is_user, protected_msgs,
+            system_msgs,
+            kept_sequences,
+            last_sequence,
+            last_sequence_is_user=last_sequence_is_user,
+            protected_msgs=protected_msgs,
         )
-
-
-
-
-
-    def _extract_system_messages(
-        self: ContextCompactor, unprotected_msgs: list[Message],
-    ) -> tuple[list[Message], int]:
-        """Extract system messages from unprotected messages.
-
-        Args:
-            unprotected_msgs: Unprotected messages to extract from.
-
-        Returns:
-            Tuple of (system_messages, system_token_count).
-        """
-        system_msgs = [msg for msg in unprotected_msgs if msg.role == "system"]
-        system_tokens = TokenCounter.count_messages(system_msgs)
-        return system_msgs, system_tokens
-
-    def _group_non_system_sequences(self: ContextCompactor, unprotected_msgs: list[Message]) -> list[MessageSequence]:  # noqa: E501
-        """Group non-system unprotected messages into atomic sequences.
-
-        Args:
-            unprotected_msgs: Unprotected messages to group.
-
-        Returns:
-            List of message sequences.
-        """
-        non_system_unprotected = [msg for msg in unprotected_msgs if msg.role != "system"]
-        return self._group_into_sequences(non_system_unprotected)
-
-
-
-    def _select_sequences_to_keep(
-        self: ContextCompactor,
-        sequences: list[MessageSequence],
-        protected_msgs: list[Message],
-        system_tokens: int,
-        protected_tokens: int,
-    ) -> tuple[list[MessageSequence], MessageSequence, bool]:
-        """Select which sequences to keep based on budget.
-
-        Args:
-            sequences: All message sequences.
-            protected_msgs: Protected messages.
-            system_tokens: Token count of system messages.
-            protected_tokens: Token count of protected messages.
-
-        Returns:
-            Tuple of (kept_sequences, last_sequence, last_sequence_is_user).
-        """
-        # Identify the last unprotected sequence
-        last_sequence = sequences[-1]
-        last_sequence_is_user = bool(last_sequence.messages) and last_sequence.messages[-1].role == "user"  # noqa: E501
-
-        # Calculate budget
-        budget = self.budget_calculator.calculate_budget(system_tokens, protected_tokens)
-
-        # If last unprotected sequence is user-initiated and we have no protected msgs,
-        # treat it as fixed (original behavior)
-        if last_sequence_is_user and not protected_msgs:
-            budget -= last_sequence.token_count
-            sequences_to_consider = sequences[:-1]
-        else:
-            sequences_to_consider = sequences
-
-        # Keep sequences from the end until budget is full
-        kept_sequences: list[MessageSequence] = []
-        used_tokens = 0
-
-        for seq in reversed(sequences_to_consider):
-            if used_tokens + seq.token_count <= budget:
-                kept_sequences.append(seq)
-                used_tokens += seq.token_count
-            else:
-                # Can't fit this entire sequence, stop here
-                # We don't split sequences
-                break
-
-        return kept_sequences, last_sequence, last_sequence_is_user
-
-    def _reconstruct_result(
-        self: ContextCompactor,
-        system_msgs: list[Message],
-        kept_sequences: list[MessageSequence],
-        last_sequence: MessageSequence,
-        last_sequence_is_user: bool,
-        protected_msgs: list[Message],
-    ) -> list[Message]:
-        """Reconstruct final message list from components.
-
-        Args:
-            system_msgs: System messages.
-            kept_sequences: Sequences to keep.
-            last_sequence: Last unprotected sequence.
-            last_sequence_is_user: Whether last sequence is user-initiated.
-            protected_msgs: Protected messages.
-
-        Returns:
-            Final compacted message list.
-        """
-        result: list[Message] = []
-
-        # Add system messages first
-        result.extend(system_msgs)
-
-        # Add kept sequences in chronological order
-        for seq in reversed(kept_sequences):
-            result.extend(seq.messages)
-
-        # Add the last unprotected sequence if it was user-initiated and no protected msgs
-        if last_sequence_is_user and not protected_msgs:
-            result.extend(last_sequence.messages)
-
-        # Add protected messages last (current turn)
-        result.extend(protected_msgs)
-
-        return result
-
-
 
     def validate_compacted_sequence(self: ContextCompactor, messages: list[Message]) -> bool:
         """Validate that a message sequence follows OpenAI API rules.
@@ -776,7 +776,6 @@ class ContextCompactor:
         if current_tokens <= self.max_tokens:
             return CompactionResult(messages=messages, was_compacted=False)
 
-        # Perform compaction
         compacted = self.compact(messages, protect_from_index=protect_from_index)
         dropped_count = len(messages) - len(compacted)
 
@@ -806,8 +805,8 @@ def _format_messages_for_summary_content(messages: list[Message]) -> str:
             tool_names = [tc.name for tc in msg.tool_calls]
             content += f" [Called tools: {', '.join(tool_names)}]"
         if msg.tool_call_id:
-            content = f"[Tool result] {content[:200]}..."
-        lines.append(f"{prefix}: {content[:500]}")
+            content = f"[Tool result] {content[:SUMMARY_TOOL_RESULT_MAX_CHARS]}..."
+        lines.append(f"{prefix}: {content[:SUMMARY_MSG_MAX_CHARS]}")
     return "\n".join(lines)
 
 
@@ -843,7 +842,7 @@ async def _generate_summary_with_provider(
         summary = "".join(summary_parts).strip()
         if summary:
             return summary
-    except Exception:
+    except Exception:  # noqa: BLE001
         # Summarization failed, return None to fall back to simple dropping
         pass
 
@@ -905,7 +904,9 @@ Summary:"""
             return None
 
         summary = await _generate_summary_with_provider(
-            self.provider, msgs_to_summarize, self._format_messages_for_summary,
+            self.provider,
+            msgs_to_summarize,
+            self._format_messages_for_summary,
         )
         self._cached_summary = summary
         return summary
@@ -925,14 +926,28 @@ Summary:"""
         )
 
 
-async def compact_with_summarization(
-    messages: list[Message],
-    max_tokens: int,
-    provider: ModelProvider | None = None,
-    summarize: bool = True,
-    protect_from_index: int = -1,
-    max_protected_ratio: float = 0.3,
-) -> CompactionResult:
+@dataclass
+class CompactionParams:
+    """Parameters for context compaction.
+
+    Attributes:
+        messages: The messages to compact.
+        max_tokens: Maximum tokens allowed.
+        provider: Optional model provider for summarization.
+        summarize: Whether to summarize dropped content.
+        protect_from_index: Index from which messages are protected.
+        max_protected_ratio: Maximum ratio of context that can be protected.
+    """
+
+    messages: list[Message]
+    max_tokens: TokenLimit
+    provider: ModelProvider | None = None
+    summarize: bool = True
+    protect_from_index: ProtectionIndex = -1
+    max_protected_ratio: ProtectedRatio = DEFAULT_MAX_PROTECTED_RATIO
+
+
+async def compact_messages(params: CompactionParams) -> CompactionResult:
     """Compact messages with optional summarization of dropped content.
 
     This function performs compaction and optionally summarizes the
@@ -940,23 +955,39 @@ async def compact_with_summarization(
     it falls back to simple dropping.
 
     Args:
-        messages: Messages to compact.
-        max_tokens: Maximum tokens to keep.
-        provider: Model provider for summarization (optional).
-        summarize: Whether to attempt summarization.
-        protect_from_index: Index from which messages are protected from dropping.
-        max_protected_ratio: Maximum ratio of context that can be protected.
+        params: The compaction parameters.
 
     Returns:
         CompactionResult with compacted messages and metadata.
     """
     config = SummarizationConfig(
+        provider=params.provider,
+        summarize=params.summarize,
+        protect_from_index=params.protect_from_index,
+        max_protected_ratio=params.max_protected_ratio,
+    )
+    return await _compact_with_summarization_impl(params.messages, params.max_tokens, config)
+
+
+async def compact_with_summarization(
+    messages: list[Message],
+    max_tokens: TokenLimit,
+    provider: ModelProvider | None = None,
+    *,
+    summarize: bool = True,
+    protect_from_index: ProtectionIndex = -1,
+    **kwargs: Any,
+) -> CompactionResult:
+    """Alias for compact_messages (deprecated)."""
+    params = CompactionParams(
+        messages=messages,
+        max_tokens=max_tokens,
         provider=provider,
         summarize=summarize,
         protect_from_index=protect_from_index,
-        max_protected_ratio=max_protected_ratio,
+        max_protected_ratio=kwargs.get("max_protected_ratio", DEFAULT_MAX_PROTECTED_RATIO),
     )
-    return await _compact_with_summarization_impl(messages, max_tokens, config)
+    return await compact_messages(params)
 
 
 async def _compact_with_summarization_impl(
@@ -1030,7 +1061,7 @@ async def _attempt_summarization(
 
             result.messages = [*system_msgs, summary_msg, *non_system]
             result.summary = summary
-    except Exception:
+    except Exception:  # noqa: BLE001
         # Summarization failed, continue with simple dropping
         pass
 

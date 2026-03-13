@@ -7,6 +7,7 @@ discovery, installation, and management capabilities.
 from __future__ import annotations
 
 import logging
+import warnings
 from pathlib import Path
 
 from henchman.extensions.constants import PluginConstants
@@ -23,6 +24,8 @@ from henchman.extensions.plugin_compatibility import PluginCompatibilityChecker
 from henchman.extensions.plugin_database import PluginDatabase
 from henchman.extensions.plugin_installer import PluginInstaller
 from henchman.extensions.plugin_registry_client import PluginRegistryClient
+from henchman.extensions.plugin_security_scanner import PluginSecurityScanner
+from henchman.utils.registry import _set_dict_item
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +48,7 @@ class PluginManager(ExtensionManager):
     """
 
     def __init__(
-        self,
+        self: PluginManager,
         registry_url: str = "https://registry.henchman.ai",
         data_dir: Path | None = None,
     ) -> None:
@@ -62,14 +65,18 @@ class PluginManager(ExtensionManager):
         self.database = PluginDatabase(self.db_path)
         self.registry_client: PluginRegistryClient | None = None
         self.installer: PluginInstaller | None = None
+        self.security_scanner: PluginSecurityScanner = PluginSecurityScanner()
         self.installed_plugins: dict[str, PluginInstallation] = {}
         self._initialized = False
 
-    async def initialize(self) -> None:
+    async def initialize(self: PluginManager) -> None:
         """Initialize plugin manager.
 
         Creates necessary directories, initializes database,
         and loads installed plugins.
+
+        Returns:
+            None
         """
         if self._initialized:
             return
@@ -101,8 +108,12 @@ class PluginManager(ExtensionManager):
         self._initialized = True
         logger.info("Plugin manager initialized")
 
-    async def close(self) -> None:
-        """Close plugin manager and release resources."""
+    async def close(self: PluginManager) -> None:
+        """Close plugin manager and release resources.
+
+        Returns:
+            None
+        """
         if self.registry_client:
             await self.registry_client.close()
             self.registry_client = None
@@ -111,19 +122,26 @@ class PluginManager(ExtensionManager):
         self._initialized = False
 
     async def search_plugins(
-        self,
+        self: PluginManager,
         query: str | None = None,
         page: int = 1,
-        page_size: int = 20,
+        page_size: int = PluginConstants.DEFAULT_PAGE_SIZE,
         category: str | None = None,
+        *,
+        search_params: PluginSearchParams | None = None,
     ) -> PluginSearchResult:
         """Search for plugins in the registry.
 
         Args:
-            query: Search query string.
-            page: Page number (1-indexed).
-            page_size: Results per page.
-            category: Filter by category.
+            query: Search query string. Use `search_params` parameter for more control.
+                Deprecated: Prefer using `search_params` parameter.
+            page: Page number (1-indexed). Use `search_params` parameter for more control.
+                Deprecated: Prefer using `search_params` parameter.
+            page_size: Results per page. Use `search_params` parameter for more control.
+                Deprecated: Prefer using `search_params` parameter.
+            category: Filter by category. Deprecated: Include category in `search_params`.
+            search_params: Complete search parameters object. If provided, individual
+                query/page/page_size/category parameters are ignored.
 
         Returns:
             PluginSearchResult with matching plugins.
@@ -136,15 +154,35 @@ class PluginManager(ExtensionManager):
             msg = "Plugin manager not initialized"
             raise RuntimeError(msg)
 
-        search_params = PluginSearchParams(
-            query=query,
-            page=page,
-            page_size=page_size,
-        )
-        return await self.registry_client.search_plugins(search_params, category)
+        # Emit deprecation warning if primitive parameters are used
+        if search_params is None and any(
+            [
+                query is not None,
+                page != 1,
+                page_size != PluginConstants.DEFAULT_PAGE_SIZE,
+                category is not None,
+            ]
+        ):
+            warnings.warn(
+                "Using individual query/page/page_size/category parameters is deprecated. "
+                "Use the search_params parameter instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        if search_params is None:
+            search_params = PluginSearchParams(
+                query=query,
+                page=page,
+                page_size=page_size,
+                category=category,
+            )
+
+        # search_params already has category, so we don't pass the separate category parameter
+        return await self.registry_client.search_plugins(search_params)
 
     async def get_plugin_info(
-        self,
+        self: PluginManager,
         plugin_name: str,
         version: str | None = None,
     ) -> PluginMetadata | None:
@@ -168,9 +206,10 @@ class PluginManager(ExtensionManager):
         return await self.registry_client.get_plugin_info(plugin_name, version)
 
     async def install_plugin(
-        self,
+        self: PluginManager,
         plugin_name: str,
         version: str | None = None,
+        *,
         confirm_permissions: bool = True,
     ) -> PluginInstallation:
         """Install a plugin from the registry.
@@ -187,26 +226,65 @@ class PluginManager(ExtensionManager):
             ValueError: If plugin is already installed.
             RuntimeError: If plugin installation fails.
         """
+        self._validate_initialization()
+        self._check_already_installed(plugin_name)
+
+        metadata = await self._get_plugin_metadata(plugin_name, version)
+        await self._validate_compatibility(plugin_name, metadata)
+        await self._handle_permissions(plugin_name, metadata, confirm_permissions)
+        await self._install_dependencies(metadata)
+
+        installation_path = await self._install_plugin_package(plugin_name, metadata)
+        installation = self._create_installation_record(metadata, installation_path)
+
+        await self._save_installation(installation)
+        await self._load_plugin_extension(installation)
+        self._update_installation_cache(plugin_name, installation)
+
+        logger.info("Installed plugin '%s' v%s", plugin_name, metadata.version)
+        return installation
+
+    def _validate_initialization(self: PluginManager) -> None:
+        """Validate that plugin manager is initialized."""
         if not self._initialized or not self.registry_client or not self.installer:
             msg = "Plugin manager not initialized"
             raise RuntimeError(msg)
 
+    def _check_already_installed(self: PluginManager, plugin_name: str) -> None:
+        """Check if plugin is already installed."""
         if plugin_name in self.installed_plugins:
             msg = f"Plugin '{plugin_name}' is already installed"
             raise ValueError(msg)
 
-        # Get plugin metadata for the specified version (or latest if None)
+    async def _get_plugin_metadata(
+        self: PluginManager,
+        plugin_name: str,
+        version: str | None,
+    ) -> PluginMetadata:
+        """Get plugin metadata from registry."""
         metadata = await self.get_plugin_info(plugin_name, version)
         if not metadata:
             msg = f"Plugin '{plugin_name}' not found in registry"
             raise ValueError(msg)
+        return metadata
 
-        # Check compatibility
+    async def _validate_compatibility(
+        self: PluginManager,
+        plugin_name: str,
+        metadata: PluginMetadata,
+    ) -> None:
+        """Validate plugin compatibility with the system."""
         if not await PluginCompatibilityChecker.check_compatibility(metadata):
             msg = f"Plugin '{plugin_name}' is not compatible with this system"
             raise RuntimeError(msg)
 
-        # Check permissions
+    async def _handle_permissions(
+        self: PluginManager,
+        plugin_name: str,
+        metadata: PluginMetadata,
+        confirm_permissions: bool,
+    ) -> None:
+        """Handle plugin permissions confirmation."""
         if confirm_permissions and metadata.security.permissions:
             # TODO: Implement permission confirmation UI
             logger.info(
@@ -215,41 +293,59 @@ class PluginManager(ExtensionManager):
                 ", ".join(metadata.security.permissions),
             )
 
-        # Install dependencies first
+    async def _install_dependencies(self: PluginManager, metadata: PluginMetadata) -> None:
+        """Install plugin dependencies."""
         if metadata.dependencies and self.installer:
             await self.installer.install_dependencies(metadata.dependencies)
 
-        # Install plugin
+    async def _install_plugin_package(
+        self: PluginManager,
+        plugin_name: str,
+        metadata: PluginMetadata,
+    ) -> Path:
+        """Install plugin package."""
+        if not self.installer:
+            msg = "Plugin installer not available"
+            raise RuntimeError(msg)
+
         try:
-            installation_path = await self.installer.install_plugin_package(metadata)
+            return await self.installer.install_plugin_package(metadata)
         except Exception as e:
             msg = f"Failed to install plugin '{plugin_name}': {e}"
             raise RuntimeError(msg) from e
 
-        # Create installation record
-        installation = PluginInstallation(
+    def _create_installation_record(
+        self: PluginManager,
+        metadata: PluginMetadata,
+        installation_path: Path,
+    ) -> PluginInstallation:
+        """Create installation record for the plugin."""
+        return PluginInstallation(
             metadata=metadata,
             installed_version=metadata.version,
             installation_path=str(installation_path),
         )
 
-        # Save to database
+    async def _save_installation(self: PluginManager, installation: PluginInstallation) -> None:
+        """Save installation to database."""
         await self.database.save_installation(installation)
 
-        # Load extension
-        await self._load_plugin_extension(installation)
+    def _update_installation_cache(
+        self: PluginManager,
+        plugin_name: str,
+        installation: PluginInstallation,
+    ) -> None:
+        """Update installation cache."""
+        _set_dict_item(self.installed_plugins, plugin_name, installation)
 
-        # Update cache
-        self.installed_plugins[plugin_name] = installation
-
-        logger.info("Installed plugin '%s' v%s", plugin_name, metadata.version)
-        return installation
-
-    async def uninstall_plugin(self, plugin_name: str) -> None:
+    async def uninstall_plugin(self: PluginManager, plugin_name: str) -> None:
         """Uninstall a plugin.
 
         Args:
             plugin_name: Name of the plugin to uninstall.
+
+        Returns:
+            None
 
         Raises:
             ValueError: If plugin is not installed.
@@ -266,10 +362,10 @@ class PluginManager(ExtensionManager):
         # Remove from filesystem
         if installation.installation_path:
             try:
-                import shutil
+                import shutil  # noqa: PLC0415
 
                 shutil.rmtree(installation.installation_path, ignore_errors=True)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("Failed to remove plugin files: %s", e)
 
         # Remove from database
@@ -280,7 +376,7 @@ class PluginManager(ExtensionManager):
 
         logger.info("Uninstalled plugin '%s'", plugin_name)
 
-    async def update_plugin(self, plugin_name: str) -> PluginInstallation | None:
+    async def update_plugin(self: PluginManager, plugin_name: str) -> PluginInstallation | None:
         """Update a plugin to the latest version.
 
         Args:
@@ -315,11 +411,11 @@ class PluginManager(ExtensionManager):
             return await self.install_plugin(plugin_name, confirm_permissions=False)
         except Exception as e:
             # Try to reinstall old version on failure
-            logger.exception("Failed to update plugin '%s': %s", plugin_name, e)
+            logger.exception("Failed to update plugin '%s': %s", plugin_name, e)  # noqa: TRY401
             # TODO: Implement rollback to previous version
             raise
 
-    async def check_updates(self) -> dict[str, PluginUpdateInfo]:
+    async def check_updates(self: PluginManager) -> dict[str, PluginUpdateInfo]:
         """Check for available plugin updates.
 
         Returns:
@@ -341,7 +437,7 @@ class PluginManager(ExtensionManager):
 
         return updates
 
-    async def scan_security(self, plugin_name: str) -> SecurityReport:
+    async def scan_security(self: PluginManager, plugin_name: str) -> SecurityReport:
         """Run security scan on a plugin.
 
         Args:
@@ -353,39 +449,19 @@ class PluginManager(ExtensionManager):
         Raises:
             ValueError: If plugin is not installed.
         """
+        installation = self._get_installation_or_raise(plugin_name)
+        return self.security_scanner.scan(installation)
+
+    def _get_installation_or_raise(self: PluginManager, plugin_name: str) -> PluginInstallation:
+        """Get installation or raise ValueError if not installed."""
         if plugin_name not in self.installed_plugins:
             msg = f"Plugin '{plugin_name}' is not installed"
             raise ValueError(msg)
-
-        installation = self.installed_plugins[plugin_name]
-
-        # TODO: Implement actual security scanning
-        # This is a placeholder implementation
-        warnings: list[str] = []
-        errors: list[str] = []
-
-        # Check permissions vs declared
-        declared_permissions = installation.metadata.security.permissions
-        # TODO: Analyze code for actual permission usage
-
-        # Simple checks
-        if installation.metadata.security.requires_sandbox:
-            warnings.append("Plugin requires sandboxed execution")
-
-        risk_level = PluginConstants.DEFAULT_RISK_LEVEL if warnings else PluginConstants.LOW_RISK_LEVEL  # noqa: E501
-
-        return SecurityReport(
-            plugin_name=plugin_name,
-            passed=len(errors) == 0,
-            warnings=warnings,
-            errors=errors,
-            permissions_used=declared_permissions,
-            risk_level=risk_level,
-        )
+        return self.installed_plugins[plugin_name]
 
     # Private methods
 
-    async def _load_plugin_extension(self, installation: PluginInstallation) -> None:
+    async def _load_plugin_extension(self: PluginManager, installation: PluginInstallation) -> None:
         """Load extension from installed plugin.
 
         Args:
@@ -400,7 +476,7 @@ class PluginManager(ExtensionManager):
         if ext_file.exists():
             try:
                 self._load_extension_from_file(ext_file, installation.metadata.name)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(
                     "Failed to load extension for plugin '%s': %s",
                     installation.metadata.name,

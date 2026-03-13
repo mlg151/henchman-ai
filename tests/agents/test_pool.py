@@ -109,7 +109,9 @@ def test_create_scoped_registry_with_extra_tools():
     # t1 is both in allowed_tools AND extra_tools → should be unregistered first then re-added
     extra_t1 = MockTool("t1", ToolKind.WRITE)
     extra_t3 = MockTool("t3")
-    scoped = create_scoped_registry(parent, allowed_tools=["t1", "t2"], extra_tools=[extra_t1, extra_t3])
+    scoped = create_scoped_registry(
+        parent, allowed_tools=["t1", "t2"], extra_tools=[extra_t1, extra_t3]
+    )
 
     assert "t1" in scoped.list_tools()
     assert "t2" in scoped.list_tools()
@@ -131,7 +133,11 @@ def test_create_scoped_registry_copies_confirmation_handler():
 
 def test_agent_pool_get_identity():
     """Test get_identity returns correct identity and raises for unknown roles."""
-    configs = {"explorer": AgentConfig(name="Explorer", role="explorer", description="An explorer", tools=["t"])}
+    configs = {
+        "explorer": AgentConfig(
+            name="Explorer", role="explorer", description="An explorer", tools=["t"]
+        )
+    }
     pool = AgentPool(configs, MagicMock(), None, ToolRegistry(), EventBus())
 
     identity = pool.get_identity("explorer")
@@ -139,6 +145,7 @@ def test_agent_pool_get_identity():
     assert identity.name == "Explorer"
 
     import pytest
+
     with pytest.raises(ValueError, match="not configured"):
         pool.get_identity("unknown_role")
 
@@ -164,6 +171,7 @@ def test_agent_pool_list_active_agents():
 def test_agent_pool_reset_all():
     """Test reset_all clears history for all agents."""
     from unittest.mock import MagicMock as MM
+
     configs = {
         "explorer": AgentConfig(name="E", role="explorer", description="d", tools=["t"]),
         "planner": AgentConfig(name="P", role="planner", description="d", tools=["t"]),

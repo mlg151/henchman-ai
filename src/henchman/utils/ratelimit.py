@@ -38,6 +38,9 @@ class AsyncRateLimiter:
 
         Args:
             tokens: The number of tokens to be used.
+
+        Returns:
+            None
         """
         tokens = min(tokens, self.tokens_per_minute)
 
@@ -63,6 +66,9 @@ class AsyncRateLimiter:
 
         Args:
             tokens: The number of tokens used.
+
+        Returns:
+            None
         """
         async with self._lock:
             self.usage.append((time.time(), tokens))

@@ -79,6 +79,16 @@ class TestLsTool:
             result = await tool.execute(path=tmpdir, show_hidden=True)
             assert ".hidden" in result.content
 
+    async def test_truncation_at_max_items(self) -> None:
+        """Large directories are truncated at MAX_ITEMS."""
+        tool = LsTool()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for i in range(tool.MAX_ITEMS + 2):
+                (Path(tmpdir) / f"file_{i:04d}.txt").write_text("x")
+            result = await tool.execute(path=tmpdir)
+            assert result.success is True
+            assert "truncated" in result.content.lower()
+
 
 class TestGlobTool:
     """Tests for GlobTool."""

@@ -40,7 +40,7 @@ class InputHandler:
     """
 
     def __init__(
-        self: Self,
+        self: Self,  # noqa: F821
         config: ReplConfig,
         renderer: object,
         history_file: Path | None = None,
@@ -64,12 +64,16 @@ class InputHandler:
         self.prompt_session: PromptSession[str] | None = None
 
     def initialize_prompt_session(
-        self, bottom_toolbar: Callable[[], list[tuple[str, str]]] | None = None,
+        self,
+        bottom_toolbar: Callable[[], list[tuple[str, str]]] | None = None,
     ) -> None:
         """Initialize the prompt session.
 
         Args:
             bottom_toolbar: Function to generate bottom toolbar content.
+
+        Returns:
+            None
         """
         # Create completer for commands and tools
         commands = [f"/{cmd.name}" for cmd in get_builtin_commands()]
@@ -88,7 +92,7 @@ class InputHandler:
             completer=completer,
         )
 
-    async def get_input(self: Self) -> str:
+    async def get_input(self: Self) -> str:  # noqa: F821
         """Get input from the user.
 
         Returns:
@@ -113,7 +117,7 @@ class InputHandler:
             self.renderer.print_newline()
         return await self.prompt_session.prompt_async(self.config.prompt)
 
-    def is_slash_command(self: Self, input_text: str) -> bool:
+    def is_slash_command(self: Self, input_text: str) -> bool:  # noqa: F821
         """Check if input is a slash command.
 
         Args:
@@ -124,7 +128,7 @@ class InputHandler:
         """
         return is_slash_command(input_text)
 
-    async def expand_at_references(self: Self, input_text: str) -> str:
+    async def expand_at_references(self: Self, input_text: str) -> str:  # noqa: F821
         """Expand @file references in input.
 
         Args:
@@ -135,7 +139,7 @@ class InputHandler:
         """
         return await expand_at_references(input_text)
 
-    async def process_input(self: Self, user_input: str) -> tuple[str, bool, bool]:
+    async def process_input(self: Self, user_input: str) -> tuple[str, bool, bool]:  # noqa: F821
         """Process user input to determine if it's a command or regular input.
 
         Args:

@@ -242,3 +242,69 @@ def test_tool_properties() -> None:
     assert t.name == "kg_update"
     assert t.kind.name == "WRITE"
     assert "action" in t.parameters["properties"]  # type: ignore[index]
+
+
+async def test_no_git_repo_update() -> None:
+    """Update without git repo returns error."""
+    import unittest.mock as mock
+
+    t = KgUpdateTool(store=None)
+    t._initialised = False
+    with mock.patch("henchman.tools.builtins.kg_update._find_git_root", return_value=None):
+        result = await t.execute(action="add_entity", entity_id="foo", entity_type="module")
+        assert "Not in a git repository" in result.content
+
+
+async def test_add_entity_name_defaults_to_id(tool: KgUpdateTool, store: KnowledgeStore) -> None:
+    """add_entity uses entity_id as name when name is empty string (line 226)."""
+    result = await tool.execute(
+        action="add_entity",
+        entity_id="my-thing",
+        entity_type="decision",
+        description="A decision",
+        name="",  # empty string → fallback to entity_id
+    )
+    assert result.success is True
+    entity = store.get_entity("my-thing")
+    assert entity is not None
+    assert entity.name == "my-thing"
+
+
+async def test_add_relation_missing_entity(tool: KgUpdateTool) -> None:
+    """add_relation fails when entity not found."""
+    result = await tool.execute(
+        action="add_relation",
+        entity_id="nonexistent",
+        target_id="also-nonexistent",
+        relation_type="depends_on",
+    )
+    assert "not found" in result.content
+
+
+def test_kg_update_description() -> None:
+    """KgUpdateTool.description property returns non-empty string."""
+    from henchman.tools.builtins.kg_update import KgUpdateTool
+    tool = KgUpdateTool()
+    assert len(tool.description) > 10
+    assert "update" in tool.description.lower() or "entity" in tool.description.lower()
+
+
+async def test_lazy_init_with_real_git_root(tmp_path: Path) -> None:
+    """_ensure_initialised creates store when git root is found."""
+    import unittest.mock as mock
+
+    from henchman.knowledge.store import KnowledgeStore
+    from henchman.tools.builtins.kg_update import KgUpdateTool
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+
+    tool = KgUpdateTool(store=None)
+    tool._initialised = False
+
+    with mock.patch("henchman.tools.builtins.kg_update._find_git_root", return_value=repo):
+        with mock.patch.object(KnowledgeStore, "load", return_value=None):
+            store = tool._ensure_initialised()
+            assert store is not None
+            assert tool._initialised is True

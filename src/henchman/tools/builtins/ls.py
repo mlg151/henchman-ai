@@ -1,6 +1,7 @@
 """List directory tool implementation."""
 
 from __future__ import annotations
+
 from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
@@ -53,6 +54,7 @@ class LsTool(Tool):
     async def execute(  # type: ignore[override]  # noqa: C901
         self: LsTool,
         path: str = ".",
+        *,
         show_hidden: bool = False,
         **kwargs: object,  # noqa: ARG002
     ) -> ToolResult:
@@ -69,7 +71,7 @@ class LsTool(Tool):
         try:
             target = Path(path)
 
-            if not target.exists():
+            if not target.exists():  # noqa: ASYNC240
                 return ToolResult(
                     content=f"Error: Path not found: {path}",
                     success=False,
@@ -77,7 +79,7 @@ class LsTool(Tool):
                 )
 
             # If it's a file, just show the file
-            if target.is_file():
+            if target.is_file():  # noqa: ASYNC240
                 return ToolResult(
                     content=target.name,
                     success=True,
@@ -88,7 +90,7 @@ class LsTool(Tool):
             truncated = False
 
             # Use iterdir() which returns an iterator
-            iterator = target.iterdir()
+            iterator = target.iterdir()  # noqa: ASYNC240
             # We can't sort immediately if we want to limit processing,
             # but for consistent output on small dirs, sorting is better.
             # So we collect up to limit + 1
@@ -131,7 +133,7 @@ class LsTool(Tool):
                 success=False,
                 error=f"Permission denied: {path}",
             )
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # noqa: BLE001
             return ToolResult(
                 content=f"Error listing directory: {e}",
                 success=False,

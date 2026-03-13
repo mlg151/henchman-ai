@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
+
+from henchman.utils.registry import Registry
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -73,7 +75,7 @@ class Command(ABC):
 
     @property
     @abstractmethod
-    def name(self) -> str:
+    def name(self: Command) -> str:
         """Command name (without slash).
 
         Returns:
@@ -82,7 +84,7 @@ class Command(ABC):
 
     @property
     @abstractmethod
-    def description(self) -> str:
+    def description(self: Command) -> str:
         """Short description of the command.
 
         Returns:
@@ -91,7 +93,7 @@ class Command(ABC):
 
     @property
     @abstractmethod
-    def usage(self) -> str:
+    def usage(self: Command) -> str:
         """Usage string showing command syntax.
 
         Returns:
@@ -99,11 +101,14 @@ class Command(ABC):
         """
 
     @abstractmethod
-    async def execute(self, ctx: CommandContext) -> None:
+    async def execute(self: Command, ctx: CommandContext) -> None:
         """Execute the command.
 
         Args:
             ctx: Command context with console and arguments.
+
+        Returns:
+            None
         """
 
 
@@ -116,9 +121,9 @@ class BaseCommand(Command):
 
     # Subclasses must override these
     _help_command_name: str = ""
-    _help_lines: list[str] = []
+    _help_lines: ClassVar[list[str]] = []
 
-    async def _show_help(self, ctx: CommandContext) -> None:
+    async def _show_help(self: BaseCommand, ctx: CommandContext) -> None:
         """Show help for this command.
 
         Args:
@@ -132,49 +137,44 @@ class BaseCommand(Command):
         show_command_help(ctx, self._help_command_name, self._help_lines)
 
 
-class CommandRegistry:
+class CommandRegistry(Registry["Command"]):
     """Registry for slash commands."""
 
-    def __init__(self) -> None:
-        """Initialize an empty command registry."""
-        self._commands: dict[str, Command] = {}
+    def __init__(self: CommandRegistry) -> None:
+        """Initialize a command registry with duplicate prevention enabled."""
+        super().__init__(prevent_duplicates=True)
 
-    def register(self, command: Command) -> None:
+    def register(self: CommandRegistry, command: Command) -> None:  # type: ignore[override]
         """Register a command.
 
         Args:
             command: Command to register.
-        """
-        self._commands[command.name] = command
 
-    def get(self, name: str) -> Command | None:
-        """Get a command by name.
-
-        Args:
-            name: Command name.
+        Raises:
+            ValueError: If a command with the same name is already registered.
 
         Returns:
-            Command or None if not found.
+            None
         """
-        return self._commands.get(name)
+        try:
+            # Duplicate checking is now handled by the base class
+            super().register(command.name, command)
+        except ValueError as e:
+            # Convert generic "Item" error to "Command" error for backward compatibility
+            if "Item" in str(e) and "already registered" in str(e):
+                name = command.name
+                raise ValueError(f"Command '{name}' is already registered") from e
+            raise
 
-    def get_commands(self) -> list[Command]:
-        """Get all registered commands.
+    def get_commands(self: CommandRegistry) -> list[Command]:
+        """Get all registered commands sorted alphabetically by name.
 
         Returns:
-            List of registered command objects.
+            List of registered command objects, sorted by command name.
         """
-        return list(self._commands.values())
+        return self.get_sorted_items(key=lambda cmd: cmd.name)
 
-    def list_commands(self) -> list[str]:
-        """List all registered command names.
-
-        Returns:
-            List of command names.
-        """
-        return list(self._commands.keys())
-
-    async def execute(self, name: str, ctx: CommandContext) -> None:
+    async def execute(self: CommandRegistry, name: str, ctx: CommandContext) -> None:
         """Execute a command by name.
 
         Args:
@@ -183,6 +183,9 @@ class CommandRegistry:
 
         Raises:
             KeyError: If command not found.
+
+        Returns:
+            None
         """
         cmd = self.get(name)
         if cmd is None:
@@ -191,7 +194,11 @@ class CommandRegistry:
         await cmd.execute(ctx)
 
 
-def show_command_help(ctx: CommandContext, command_name: str, help_lines: list[str]) -> None:
+def show_command_help(
+    ctx: CommandContext,
+    command_name: str,
+    help_lines: list[str],
+) -> None:
     """Display formatted help for a command.
 
     This helper function standardizes the display of command help
@@ -201,6 +208,9 @@ def show_command_help(ctx: CommandContext, command_name: str, help_lines: list[s
         ctx: Command context with console.
         command_name: Name of the command for the header.
         help_lines: List of help lines to display.
+
+    Returns:
+        None
     """
     ctx.console.print(f"\n[bold blue]{command_name} Commands[/]\n")
     for line in help_lines:

@@ -6,7 +6,6 @@ from unittest.mock import MagicMock
 import pytest
 from rich.console import Console
 
-from henchman.cli.output_handler import OutputHandler
 from henchman.cli.session_manager import ReplSessionManager
 from henchman.cli.tool_executor import ToolExecutor
 from henchman.cli.tool_manager import ToolManager
@@ -20,7 +19,9 @@ class MockProvider(ModelProvider):
     def name(self) -> str:
         return "mock"
 
-    async def chat_completion_stream(self, messages: list[Message], tools: list[Any] | None = None, **kwargs: Any):
+    async def chat_completion_stream(
+        self, messages: list[Message], tools: list[Any] | None = None, **kwargs: Any
+    ):
         yield None
 
 
@@ -33,24 +34,20 @@ async def test_sub_agent_event_filtering() -> None:
     tool_manager = MagicMock(spec=ToolManager)
     tool_manager.registry = MagicMock()
 
-    output_handler = MagicMock(spec=OutputHandler)
+    output_handler = MagicMock()
     session_manager = MagicMock(spec=ReplSessionManager)
     output_handler.session_manager = session_manager
 
     executor = ToolExecutor(
-        output_handler=output_handler,
-        tool_manager=tool_manager,
-        provider=provider
+        output_handler=output_handler, tool_manager=tool_manager, provider=provider
     )
 
     # Setup agent with identity
     from henchman.agents.identity import AgentIdentity
     from henchman.core.turn import TurnState
+
     identity = AgentIdentity(
-        id="tech_lead",
-        name="Leader",
-        role="tech_lead",
-        description="Architect and coordinator"
+        id="tech_lead", name="Leader", role="tech_lead", description="Architect and coordinator"
     )
     agent = MagicMock(spec=Agent)
     agent.identity = identity
@@ -62,47 +59,73 @@ async def test_sub_agent_event_filtering() -> None:
     # Define an event stream with interleaved events
     async def event_generator():
         # 1. Tech Lead starts a response
-        yield AgentEvent(type=EventType.CONTENT, data="I will delegate this. ", source_agent="tech_lead")
+        yield AgentEvent(
+            type=EventType.CONTENT, data="I will delegate this. ", source_agent="tech_lead"
+        )
 
         # 2. Tech Lead makes a delegation call
         yield AgentEvent(
             type=EventType.TOOL_CALL_REQUEST,
-            data=ToolCall(id="call_tl_1", name="delegate_task", arguments={"agent": "engineer", "task": "fix bug"}),
-            source_agent="tech_lead"
+            data=ToolCall(
+                id="call_tl_1",
+                name="delegate_task",
+                arguments={"agent": "engineer", "task": "fix bug"},
+            ),
+            source_agent="tech_lead",
         )
 
         # 3. Specialist starts work (should be displayed but not recorded in TL session)
-        yield AgentEvent(type=EventType.AGENT_STARTED, data={"agent": "engineer"}, source_agent="orchestrator")
+        yield AgentEvent(
+            type=EventType.AGENT_STARTED, data={"agent": "engineer"}, source_agent="orchestrator"
+        )
 
         # 4. Specialist produces content (should be displayed but not accumulated in TL response)
-        yield AgentEvent(type=EventType.CONTENT, data="Engineer is working... ", source_agent="engineer")
+        yield AgentEvent(
+            type=EventType.CONTENT, data="Engineer is working... ", source_agent="engineer"
+        )
 
         # 5. Specialist makes an internal tool call (should be displayed but not recorded for TL)
         yield AgentEvent(
             type=EventType.TOOL_CALL_REQUEST,
             data=ToolCall(id="call_eng_1", name="ls", arguments={"path": "."}),
-            source_agent="engineer"
+            source_agent="engineer",
         )
 
         # 6. Specialist tool result (should be displayed but not flush TL's session message)
         yield AgentEvent(
             type=EventType.TOOL_CALL_RESULT,
-            data={"tool_call_id": "call_eng_1", "tool_name": "ls", "result": "file.txt", "success": True},
-            source_agent="engineer"
+            data={
+                "tool_call_id": "call_eng_1",
+                "tool_name": "ls",
+                "result": "file.txt",
+                "success": True,
+            },
+            source_agent="engineer",
         )
 
         # 7. Specialist completes
-        yield AgentEvent(type=EventType.AGENT_COMPLETED, data={"agent": "engineer", "summary": "Fixed."}, source_agent="engineer")
+        yield AgentEvent(
+            type=EventType.AGENT_COMPLETED,
+            data={"agent": "engineer", "summary": "Fixed."},
+            source_agent="engineer",
+        )
 
         # 8. Tech Lead's delegation tool finishes (yielded by orchestrator)
         yield AgentEvent(
             type=EventType.TOOL_CALL_RESULT,
-            data={"tool_call_id": "call_tl_1", "tool_name": "delegate_task", "result": "Specialist finished: Fixed.", "success": True},
-            source_agent="tech_lead"
+            data={
+                "tool_call_id": "call_tl_1",
+                "tool_name": "delegate_task",
+                "result": "Specialist finished: Fixed.",
+                "success": True,
+            },
+            source_agent="tech_lead",
         )
 
         # 9. Tech Lead finishes with some final text
-        yield AgentEvent(type=EventType.CONTENT, data="Delegation complete.", source_agent="tech_lead")
+        yield AgentEvent(
+            type=EventType.CONTENT, data="Delegation complete.", source_agent="tech_lead"
+        )
         yield AgentEvent(type=EventType.FINISHED, source_agent="tech_lead")
 
     # Run the stream processing

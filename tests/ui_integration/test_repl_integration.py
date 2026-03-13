@@ -114,7 +114,7 @@ class TestREPLComponentCommunication:
         repl.tool_registry = Mock(spec=ToolRegistry)
         repl.agent = Mock(spec=Agent)
         repl.command_processor.command_registry = Mock(spec=CommandRegistry)
-        repl.renderer = Mock(spec=UIRenderer)
+        repl.renderer = Mock()
 
         return repl
 
@@ -133,7 +133,9 @@ class TestREPLComponentCommunication:
         mock_command = Mock()
         mock_command.execute = AsyncMock()
 
-        repl_with_mocked_components.command_processor.command_registry.get.return_value = mock_command
+        repl_with_mocked_components.command_processor.command_registry.get.return_value = (
+            mock_command
+        )
 
         # Execute command through command_processor
         await repl_with_mocked_components.command_processor.handle_command(
@@ -144,7 +146,9 @@ class TestREPLComponentCommunication:
 
         # Verify communication flow:
         # 1. Command registry.get was called to retrieve the command
-        repl_with_mocked_components.command_processor.command_registry.get.assert_called_once_with("test")
+        repl_with_mocked_components.command_processor.command_registry.get.assert_called_once_with(
+            "test"
+        )
 
         # 2. The command's execute method was called
         mock_command.execute.assert_called_once()
