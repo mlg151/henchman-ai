@@ -2,7 +2,8 @@
 
 import pytest
 from unittest.mock import Mock, patch
-from henchman.utils.intelligent_context import IntelligentTruncator, TruncationParams
+from henchman.utils.intelligent_context import IntelligentTruncator
+from henchman.utils.intelligent_context_types import TruncationParams
 
 
 class TestTruncationRefactor:

@@ -1,7 +1,7 @@
 # Four Lenses Bug Report: src/henchman/utils/intelligent_context.py
 ## Date: 2025-03-13T14:30:00+00:00
 ## Bug Summary
-The `IntelligentTruncator._truncate_with_marker` method has a logic error where it calculates `available_for_content = self.safety_limit - marker_tokens` but then uses `params.min_content_tokens` instead of `available_for_content` when determining the truncation limit, potentially causing content truncation to exceed the safety limit.
+The `_apply_intelligent_truncation_with_semantic_preservation` method creates a new `Message` object without preserving the `reasoning_content` field, causing loss of important reasoning content from models like DeepSeek Reasoner when messages are truncated.
 
 ## Lens
 **Phase 1: The Intent vs. Reality Check** - Logic Gaps
@@ -9,21 +9,19 @@ The `IntelligentTruncator._truncate_with_marker` method has a logic error where 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| When truncating content with a marker, the method should ensure total tokens (content + marker) ≤ safety_limit | The method uses `min(params.min_content_tokens, available_for_content)` but if `params.min_content_tokens > available_for_content`, it will use `available_for_content` which is correct. However, there's a deeper issue: the method doesn't properly handle the case where `available_for_content <= 0` before checking `params.min_content_tokens`. |
-| Content should be truncated to fit within remaining space after reserving tokens for marker | The logic calculates `available_for_content` but then uses `min(params.min_content_tokens, available_for_content)` which could still be > 0 even when `available_for_content <= 0` if the check happens in wrong order |
+| When truncating a message, all message fields should be preserved in the new Message object | The `reasoning_content` field is not copied to the new Message, causing data loss |
+| Truncation should handle all message content, including reasoning content if present | Only the main `content` field is truncated; `reasoning_content` is ignored entirely |
 
 ## Root Cause
-The bug is in the `_truncate_with_marker` method at lines ~403-420. The method has this logic flow:
-1. Calculate `marker_tokens = TokenCounter.count_text(params.marker)`
-2. Calculate `available_for_content = self.safety_limit - marker_tokens`
-3. If `available_for_content <= 0`: handle marker-only case
-4. Else: use `limit = min(params.min_content_tokens, available_for_content)`
-
-The issue is that `params.min_content_tokens` has a default value (from `TruncationParams` dataclass), and if `available_for_content` is negative or zero, the method should handle it in step 3. However, there's a risk that the check order or default values could cause incorrect behavior.
+The bug is in the `_apply_intelligent_truncation_with_semantic_preservation` method at lines ~150-170. When creating a new `Message` object after truncation, the method only copies `role`, `content`, `tool_calls`, and `tool_call_id` fields, but misses `reasoning_content`. The `Message` class definition shows it has a `reasoning_content: str | None = None` field that should be preserved.
 
 ## Fix Plan
-1. Add explicit check for `available_for_content <= 0` before using `params.min_content_tokens`
-2. Ensure the method always respects `self.safety_limit` as the absolute maximum
-3. Write a test that demonstrates the bug with edge cases (marker tokens ≥ safety_limit)
+1. Update `_apply_intelligent_truncation_with_semantic_preservation` to preserve `reasoning_content` when creating the new Message
+2. Consider whether `reasoning_content` should also be truncated if it exists and is too long
+3. Write a test that demonstrates the bug with a Message containing `reasoning_content`
 
-## Status: IN PROGRESS
+## Status: FIXED
+
+## Files Changed
+1. `src/henchman/utils/intelligent_context.py` - Added `reasoning_content=message.reasoning_content` to the `Message` constructor in `_apply_intelligent_truncation_with_semantic_preservation` method
+2. `tests/utils/test_intelligent_context_reasoning_bug.py` - Created new test file with 3 tests to verify the bug and fix

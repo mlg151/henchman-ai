@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
-from henchman.providers.base import Message
 from henchman.utils.intelligent_context_types import IntelligentContextConstants
+
+if TYPE_CHECKING:
+    from henchman.providers.base import Message
 
 
 class ConversationTypeDetector:

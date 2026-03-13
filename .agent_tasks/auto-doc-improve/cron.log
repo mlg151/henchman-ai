@@ -159780,3 +159780,22 @@ INFO    -  Documentation built in 2.20 seconds
 }
 [2026-03-13T14:00:02Z] Verification passed.
 Committing changes...
+[main 04f4323] docs(auto-improve): automated documentation improvement
+ 53 files changed, 15072 insertions(+), 4271 deletions(-)
+ create mode 100644 after_extractor_smells.json
+ create mode 100644 after_summarizer_refactor_smells.json
+ create mode 100644 after_summarizer_smells.json
+ create mode 100644 final_extractor_smells.json
+ create mode 100644 fix_tests.py
+ create mode 100644 fix_tests_ic.py
+ create mode 100644 focused_smells.json
+ create mode 100644 initial_smells.json
+ create mode 100644 refactor_cleanup.py
+ create mode 100644 refactor_ic_2.py
+ create mode 100644 smells.json
+ create mode 100644 src/henchman/utils/intelligent_context_detector.py
+ create mode 100644 src/henchman/utils/intelligent_context_extractor.py
+ create mode 100644 src/henchman/utils/intelligent_context_summarizer.py
+ create mode 100644 src/henchman/utils/intelligent_context_topic_extractor.py
+ create mode 100644 target_smells.json
+[2026-03-13T14:00:02Z] Done.

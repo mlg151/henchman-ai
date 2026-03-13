@@ -261,8 +261,10 @@ class TestWorkingMemory:
         memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
         should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
         
-        assert should_read is True
-        assert "different lines than previously read" in reason.lower()
+        # BUG: This should be False! If file was read fully, any line range should be considered already read
+        # Current implementation returns True because LineRange.from_str("full") returns None
+        assert should_read is False, "File read fully should return False for any line range"
+        assert "already read" in reason.lower()
 
     def test_memory_should_read_file_invalid_lines_read(self):
         """Test should_read_file when lines_read is not a valid range."""

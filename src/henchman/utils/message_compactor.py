@@ -78,7 +78,7 @@ class MessageCompactor:
         )
 
         # Calculate cluster importance
-        cluster_importance = self._calculate_cluster_importance(clusters, importance_scores)
+        cluster_importance = self.calculate_cluster_importance(clusters, importance_scores)
 
         # Sort clusters by importance (descending)
         cluster_indices = sorted(
@@ -166,7 +166,7 @@ class MessageCompactor:
 
         return messages_to_keep, tokens_used
 
-    def _calculate_cluster_importance(
+    def calculate_cluster_importance(
         self, clusters: list[list[int]], importance_scores: dict[int, float]
     ) -> dict[int, float]:
         """Calculate importance score for each cluster.

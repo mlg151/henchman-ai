@@ -199,23 +199,21 @@ class TestIntelligentContextManagerMissingLines:
 
     def test_create_truncated_message(self) -> None:
         """Lines 411-418: _create_truncated_message creates truncated version."""
-        from henchman.utils.intelligent_context import MessageSafetyEnforcer
-        enforcer = MessageSafetyEnforcer(safety_limit_ratio=0.1, max_tokens=100)  # limit = 10
+        from henchman.utils.intelligent_context_formatter import _create_truncated_message
         long_content = "word " * 2000
         msg = Message(role="user", content=long_content)
-        # Call the private method directly for coverage
-        result = enforcer._create_truncated_message(msg)
+        # Call the function directly for coverage
+        result = _create_truncated_message(msg, limit=10, safety_ratio=0.1)
         assert result.role == "user"
         assert result.content is not None
         assert "truncated" in result.content
 
     def test_create_truncated_message_no_content(self) -> None:
         """_create_truncated_message with no content returns original."""
-        from henchman.utils.intelligent_context import MessageSafetyEnforcer
-        enforcer = MessageSafetyEnforcer(safety_limit_ratio=0.1, max_tokens=100)
+        from henchman.utils.intelligent_context_formatter import _create_truncated_message
         msg = Message(role="user", content=None)
-        # Call the private method directly for coverage
-        result = enforcer._create_truncated_message(msg)
+        # Call the function directly for coverage
+        result = _create_truncated_message(msg, limit=10, safety_ratio=0.1)
         assert result is msg
 
     def test_compact_with_result_returns_result(self) -> None:
@@ -269,7 +267,7 @@ class TestIntelligentContextManagerMissingLines:
         manager = IntelligentContextManager(params=IntelligentContextParams())
         clusters = [[], [0]]  # First cluster is empty
         importance_scores = {0: 0.8}
-        result = manager.message_compactor._calculate_cluster_importance(clusters, importance_scores)
+        result = manager.message_compactor.calculate_cluster_importance(clusters, importance_scores)
         assert result[0] == 0.0
         assert result[1] > 0.0
 
@@ -278,7 +276,7 @@ class TestIntelligentContextManagerMissingLines:
         manager = IntelligentContextManager(params=IntelligentContextParams())
         clusters = [[0, 1]]
         importance_scores = {0: 0.8, 1: 0.6}
-        result = manager.message_compactor._calculate_cluster_importance(clusters, importance_scores)
+        result = manager.message_compactor.calculate_cluster_importance(clusters, importance_scores)
         assert result[0] > 0.0
 
     def test_generate_intelligent_summary_returns_none(self) -> None:
@@ -1033,7 +1031,7 @@ class TestIntelligentContextMissingLines2:
         manager = IntelligentContextManager(params=IntelligentContextParams())
         clusters = [[0, 1, 2]]  # Cluster with 3 indices
         importance_scores = {0: 0.8}  # Only index 0 has a score; 1, 2 missing
-        result = manager.message_compactor._calculate_cluster_importance(clusters, importance_scores)
+        result = manager.message_compactor.calculate_cluster_importance(clusters, importance_scores)
         # Only index 0 contributes (1 and 2 are missing → False branch at 614)
         assert result[0] == pytest.approx(0.8, abs=0.5)
 

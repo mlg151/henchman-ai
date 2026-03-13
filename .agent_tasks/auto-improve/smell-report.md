@@ -1,18 +1,18 @@
-# Code Smell Report — ⚠️ C (Score: 77.7/100)
+# Code Smell Report — ⚠️ C (Score: 79.0/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-13T14:00:52.700110+00:00_
+_Generated: 2026-03-13T15:00:32.997141+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ⚠️ C |
-| **Overall Score** | 77.7/100 |
-| **Files Scanned** | 212 |
-| **Total Lines (non-blank)** | 43,963 |
-| **Total Smells** | 600 |
+| **Overall Score** | 79.0/100 |
+| **Files Scanned** | 215 |
+| **Total Lines (non-blank)** | 44,048 |
+| **Total Smells** | 575 |
 | **Avg Maintainability Index** | 70.0 |
 | **Avg Cyclomatic Complexity** | 13.1 |
 
@@ -20,22 +20,22 @@ _Generated: 2026-03-13T14:00:52.700110+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 417 |
-| medium | 183 |
+| low | 391 |
+| medium | 184 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 156 |
-| Duplicate Code | 110 |
-| Feature Envy | 85 |
-| Long Method | 77 |
-| Magic Number | 45 |
+| Missing Type Hint | 142 |
+| Duplicate Code | 112 |
+| Feature Envy | 78 |
+| Long Method | 73 |
+| Magic Number | 44 |
 | Primitive Obsession | 43 |
 | Deep Nesting | 42 |
 | Complex Function | 27 |
-| Large Class | 15 |
+| Large Class | 14 |
 
 ## 🎯 Prioritised Refactoring Queue
 
@@ -106,48 +106,24 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | utils/intelligent_context.py | ❌ F | 34.6 | 22 | 1244 | 20 | 0.0 |
-| 2 | agents/working_memory.py | ❌ F | 51.0 | 12 | 258 | 56 | 0.0 |
-| 3 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
-| 4 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
-| 5 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
-| 6 | mcp/manager.py | 🔶 D | 63.0 | 13 | 173 | 65 | 11.0 |
-| 7 | tools/builtins/file_overview.py | 🔶 D | 63.5 | 11 | 295 | 51 | 11.0 |
-| 8 | utils/intelligent_context_summarizer.py | 🔶 D | 63.7 | 17 | 269 | 58 | 0.0 |
-| 9 | tools/builtins/pattern_search.py | 🔶 D | 64.1 | 10 | 312 | 55 | 12.0 |
-| 10 | utils/message_compactor.py | 🔶 D | 65.1 | 15 | 235 | 61 | 12.0 |
+| 1 | agents/working_memory.py | ❌ F | 50.8 | 12 | 273 | 55 | 0.0 |
+| 2 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
+| 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
+| 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
+| 5 | mcp/manager.py | 🔶 D | 63.0 | 13 | 173 | 65 | 11.0 |
+| 6 | tools/builtins/file_overview.py | 🔶 D | 63.5 | 11 | 295 | 51 | 11.0 |
+| 7 | tools/builtins/pattern_search.py | 🔶 D | 64.1 | 10 | 312 | 55 | 12.0 |
+| 8 | utils/compaction.py | 🔶 D | 64.3 | 6 | 838 | 30 | 11.0 |
+| 9 | utils/message_compactor.py | 🔶 D | 65.1 | 15 | 235 | 61 | 12.0 |
+| 10 | knowledge/store.py | 🔶 D | 65.2 | 6 | 462 | 47 | 0.0 |
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 192 additional files omitted._
+_Showing 20 worst files. 195 additional files omitted._
 
-### utils/intelligent_context.py — ❌ F (34.6/100)
+### agents/working_memory.py — ❌ F (50.8/100)
 
-LOC: 1244 | Classes: 12 | Functions: 0 | MI: 20 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 55 | 🟡 MEDIUM | Duplicate Code | Function 'from_sections' is 97% similar to 'from_sections' at utils/intelligent_context_types.py:29 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 403 | 🟡 MEDIUM | Feature Envy | Method 'IntelligentTruncator._truncate_with_marker' accesses 'params' 6 times but 'self' only 3 times | Move Method — consider moving '_truncate_with_marker' to the class that owns 'params'. |
-| 667 | 🟡 MEDIUM | Feature Envy | Method 'SequenceValidator.validate_compacted_sequence' accesses 'cls' 5 times but 'self' only 0 times | Move Method — consider moving 'validate_compacted_sequence' to the class that owns 'cls'. |
-| 1359 | 🟡 MEDIUM | Feature Envy | Method 'IntelligentContextManager._apply_intelligent_truncation_with_semantic_preservation' accesses 'message' 5 times but 'self' only 2 times | Move Method — consider moving '_apply_intelligent_truncation_with_semantic_preservation' to the class that owns 'message'. |
-| 1395 | 🟡 MEDIUM | Duplicate Code | Function '_count_tokens' is 100% similar to 'validate_compacted_sequence' at utils/intelligent_context.py:1615 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 55 | 🟢 LOW | Missing Type Hint | Function 'from_sections' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 126 | 🟢 LOW | Feature Envy | Method 'MessageSafetyEnforcer._enforce_message_safety_limit' accesses 'message' 4 times but 'self' only 3 times | Move Method — consider moving '_enforce_message_safety_limit' to the class that owns 'message'. |
-| 157 | 🟢 LOW | Feature Envy | Method 'MessageSafetyEnforcer._create_truncated_message' accesses 'message' 4 times but 'self' only 2 times | Move Method — consider moving '_create_truncated_message' to the class that owns 'message'. |
-| 188 | 🟢 LOW | Feature Envy | Method 'TokenCounterWrapper.count_messages_tokens' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving 'count_messages_tokens' to the class that owns 'msg'. |
-| 312 | 🟢 LOW | Long Method | Function '_add_context_with_truncation' has 34 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 312 | 🟢 LOW | Feature Envy | Method 'IntelligentTruncator._add_context_with_truncation' accesses 'TokenCounter' 3 times but 'self' only 1 times | Move Method — consider moving '_add_context_with_truncation' to the class that owns 'TokenCounter'. |
-| 726 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._is_duplicate_assistant_message' accesses 'current_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_is_duplicate_assistant_message' to the class that owns 'current_msg'. |
-| 726 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._is_duplicate_assistant_message' accesses 'prev_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_is_duplicate_assistant_message' to the class that owns 'prev_msg'. |
-| 758 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._validate_conversation_flow' accesses 'prev' 3 times but 'self' only 0 times | Move Method — consider moving '_validate_conversation_flow' to the class that owns 'prev'. |
-| 828 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._validate_no_duplicate_consecutive_messages' accesses 'curr' 4 times but 'self' only 0 times | Move Method — consider moving '_validate_no_duplicate_consecutive_messages' to the class that owns 'curr'. |
-
-_... and 7 more smells._
-
-### agents/working_memory.py — ❌ F (51.0/100)
-
-LOC: 258 | Classes: 7 | Functions: 0 | MI: 56 | Avg CC: 0.0
+LOC: 273 | Classes: 7 | Functions: 0 | MI: 55 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
@@ -261,30 +237,6 @@ LOC: 295 | Classes: 1 | Functions: 10 | MI: 51 | Avg CC: 11.0
 | 255 | 🟢 LOW | Magic Number | Magic number 15 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 259 | 🟢 LOW | Long Method | Function '_execute_file_overview' has 35 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 
-### utils/intelligent_context_summarizer.py — 🔶 D (63.7/100)
-
-LOC: 269 | Classes: 1 | Functions: 0 | MI: 58 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 10 | 🟢 LOW | Large Class | Class 'SummaryGenerator' spans 357 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 17 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 26 | 🟢 LOW | Missing Type Hint | Function 'generate_intelligent_summary' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 68 | 🟢 LOW | Missing Type Hint | Function '_identify_low_importance_messages' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 89 | 🟢 LOW | Long Method | Function '_analyze_dropped_content' has 35 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 89 | 🟢 LOW | Missing Type Hint | Function '_analyze_dropped_content' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 138 | 🟢 LOW | Missing Type Hint | Function '_build_summary_parts' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
-| 176 | 🟢 LOW | Missing Type Hint | Function '_add_overview_part' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 197 | 🟢 LOW | Magic Number | Magic number 100 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 205 | 🟢 LOW | Missing Type Hint | Function '_add_content_analysis_parts' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 205 | 🟢 LOW | Feature Envy | Method 'SummaryGenerator._add_content_analysis_parts' accesses 'summary_parts' 4 times but 'self' only 0 times | Move Method — consider moving '_add_content_analysis_parts' to the class that owns 'summary_parts'. |
-| 226 | 🟢 LOW | Missing Type Hint | Function '_add_cluster_topics_part' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 250 | 🟢 LOW | Missing Type Hint | Function '_extract_cluster_topics' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 273 | 🟢 LOW | Missing Type Hint | Function '_extract_topics_from_cluster' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 302 | 🟢 LOW | Missing Type Hint | Function '_extract_combined_cluster_content' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-
-_... and 2 more smells._
-
 ### tools/builtins/pattern_search.py — 🔶 D (64.1/100)
 
 LOC: 312 | Classes: 3 | Functions: 7 | MI: 55 | Avg CC: 12.0
@@ -302,6 +254,19 @@ LOC: 312 | Classes: 3 | Functions: 7 | MI: 55 | Avg CC: 12.0
 | 226 | 🟢 LOW | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 328 | 🟢 LOW | Magic Number | Magic number 10 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
+### utils/compaction.py — 🔶 D (64.3/100)
+
+LOC: 838 | Classes: 11 | Functions: 11 | MI: 30 | Avg CC: 11.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 55 | 🟡 MEDIUM | Duplicate Code | Function 'token_count' is 94% similar to '_truncate_with_marker' at utils/intelligent_context_formatter.py:379 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 747 | 🟡 MEDIUM | Duplicate Code | Function 'validate_compacted_sequence' is 100% similar to '_detect_conversation_type' at utils/message_analyzer.py:95 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1031 | 🟡 MEDIUM | Complex Function | Function '_attempt_summarization' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 555 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._select_sequences_to_keep' accesses 'last_sequence' 3 times but 'self' only 1 times | Move Method — consider moving '_select_sequences_to_keep' to the class that owns 'last_sequence'. |
+| 598 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._reconstruct_result' accesses 'result' 4 times but 'self' only 0 times | Move Method — consider moving '_reconstruct_result' to the class that owns 'result'. |
+| 699 | 🟢 LOW | Long Method | Function '_perform_compaction' has 33 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+
 ### utils/message_compactor.py — 🔶 D (65.1/100)
 
 LOC: 235 | Classes: 1 | Functions: 0 | MI: 61 | Avg CC: 12.0
@@ -316,7 +281,7 @@ LOC: 235 | Classes: 1 | Functions: 0 | MI: 61 | Avg CC: 12.0
 | 103 | 🟢 LOW | Missing Type Hint | Function '_count_tokens' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
 | 117 | 🟢 LOW | Missing Type Hint | Function '_sort_by_importance' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 131 | 🟢 LOW | Missing Type Hint | Function '_add_protected_messages' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
-| 169 | 🟢 LOW | Missing Type Hint | Function '_calculate_cluster_importance' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 169 | 🟢 LOW | Missing Type Hint | Function 'calculate_cluster_importance' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 | 183 | 🟢 LOW | Missing Type Hint | Function '_add_complete_clusters' has incomplete type hints: 1/6 params untyped | Add Type Annotations for all parameters and return type. |
 | 222 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_add_complete_clusters' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 | 230 | 🟢 LOW | Missing Type Hint | Function '_add_individual_messages' has incomplete type hints: 1/5 params untyped | Add Type Annotations for all parameters and return type. |
@@ -334,7 +299,7 @@ LOC: 462 | Classes: 2 | Functions: 9 | MI: 47 | Avg CC: 0.0
 | 107 | 🟡 MEDIUM | Duplicate Code | Function '_relation_to_edge_attrs' is 100% similar to 'to_metadata' at rag/chunker.py:42 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 407 | 🟡 MEDIUM | Duplicate Code | Function 'add_entity' is 100% similar to 'add_relation' at knowledge/store.py:499 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 518 | 🟡 MEDIUM | Duplicate Code | Function 'get_relations' is 94% similar to 'extract_imports' at tools/builtins/import_graph.py:267 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 518 | 🟡 MEDIUM | Duplicate Code | Function 'get_relations' is 94% similar to 'extract_critical_sections' at utils/message_analyzer.py:108 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 518 | 🟡 MEDIUM | Duplicate Code | Function 'get_relations' is 94% similar to 'extract_critical_sections' at utils/message_analyzer.py:106 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 257 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'get_neighbors' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 
 ### utils/compression_strategy.py — 🔶 D (65.5/100)
@@ -391,18 +356,6 @@ LOC: 199 | Classes: 4 | Functions: 0 | MI: 62 | Avg CC: 13.0
 | 231 | 🟢 LOW | Missing Type Hint | Function 'get_tools' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 239 | 🟢 LOW | Missing Type Hint | Function 'call_tool' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
 
-### utils/compaction.py — 🔶 D (67.8/100)
-
-LOC: 838 | Classes: 11 | Functions: 11 | MI: 30 | Avg CC: 11.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 747 | 🟡 MEDIUM | Duplicate Code | Function 'validate_compacted_sequence' is 100% similar to '_detect_conversation_type' at utils/message_analyzer.py:97 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1031 | 🟡 MEDIUM | Complex Function | Function '_attempt_summarization' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 555 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._select_sequences_to_keep' accesses 'last_sequence' 3 times but 'self' only 1 times | Move Method — consider moving '_select_sequences_to_keep' to the class that owns 'last_sequence'. |
-| 598 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._reconstruct_result' accesses 'result' 4 times but 'self' only 0 times | Move Method — consider moving '_reconstruct_result' to the class that owns 'result'. |
-| 699 | 🟢 LOW | Long Method | Function '_perform_compaction' has 33 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-
 ### config/context.py — 🔶 D (69.0/100)
 
 LOC: 160 | Classes: 1 | Functions: 0 | MI: 62 | Avg CC: 19.0
@@ -420,6 +373,21 @@ LOC: 160 | Classes: 1 | Functions: 0 | MI: 62 | Avg CC: 19.0
 | 132 | 🟢 LOW | Missing Type Hint | Function 'discover_files' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 185 | 🟢 LOW | Deep Nesting | Nesting depth 4 in 'discover_files' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 | 190 | 🟢 LOW | Missing Type Hint | Function 'load' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+### utils/intelligent_context_aggregator.py — 🔶 D (69.2/100)
+
+LOC: 418 | Classes: 4 | Functions: 0 | MI: 42 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 209 | 🟡 MEDIUM | Feature Envy | Method 'SequenceValidator.validate_compacted_sequence' accesses 'SequenceValidator' 5 times but 'self' only 0 times | Move Method — consider moving 'validate_compacted_sequence' to the class that owns 'SequenceValidator'. |
+| 261 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._is_duplicate_assistant_message' accesses 'current_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_is_duplicate_assistant_message' to the class that owns 'current_msg'. |
+| 261 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._is_duplicate_assistant_message' accesses 'prev_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_is_duplicate_assistant_message' to the class that owns 'prev_msg'. |
+| 293 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._validate_conversation_flow' accesses 'prev' 3 times but 'self' only 0 times | Move Method — consider moving '_validate_conversation_flow' to the class that owns 'prev'. |
+| 354 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._validate_no_duplicate_consecutive_messages' accesses 'curr' 4 times but 'self' only 0 times | Move Method — consider moving '_validate_no_duplicate_consecutive_messages' to the class that owns 'curr'. |
+| 354 | 🟢 LOW | Feature Envy | Method 'SequenceValidator._validate_no_duplicate_consecutive_messages' accesses 'prev' 4 times but 'self' only 0 times | Move Method — consider moving '_validate_no_duplicate_consecutive_messages' to the class that owns 'prev'. |
+| 510 | 🟢 LOW | Feature Envy | Method 'MessagePreserver._preserve_tool_call_sequences' accesses 'curr_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_preserve_tool_call_sequences' to the class that owns 'curr_msg'. |
+| 510 | 🟢 LOW | Feature Envy | Method 'MessagePreserver._preserve_tool_call_sequences' accesses 'next_msg' 3 times but 'self' only 0 times | Move Method — consider moving '_preserve_tool_call_sequences' to the class that owns 'next_msg'. |
 
 ### utils/validation.py — 🔶 D (69.7/100)
 
@@ -479,7 +447,25 @@ LOC: 125 | Classes: 1 | Functions: 1 | MI: 70 | Avg CC: 0.0
 | 181 | 🟢 LOW | Magic Number | Magic number 10 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 188 | 🟢 LOW | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-## ✨ Clean Files (75 files with no smells)
+### agents/pool.py — ⚠️ C (70.8/100)
+
+LOC: 197 | Classes: 1 | Functions: 1 | MI: 68 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 65 | 🟡 MEDIUM | Primitive Obsession | Function '__init__' has 5 primitive-typed parameters: environment_context: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), intelligent_context: Name(id='bool', ctx=Load()), importance_threshold: Name(id='float', ctx=Load()), cluster_similarity_threshold: Name(id='float', ctx=Load()), adaptive_compression: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 105 | 🟡 MEDIUM | Long Method | Function 'get_agent' has 62 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 65 | 🟢 LOW | Missing Type Hint | Function '__init__' has incomplete type hints: 1/11 params untyped | Add Type Annotations for all parameters and return type. |
+| 105 | 🟢 LOW | Missing Type Hint | Function 'get_agent' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 180 | 🟢 LOW | Missing Type Hint | Function 'get_identity' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 201 | 🟢 LOW | Missing Type Hint | Function 'list_agents' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 201 | 🟢 LOW | Feature Envy | Method 'AgentPool.list_agents' accesses 'config' 3 times but 'self' only 1 times | Move Method — consider moving 'list_agents' to the class that owns 'config'. |
+| 218 | 🟢 LOW | Missing Type Hint | Function 'list_active_agents' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 226 | 🟢 LOW | Missing Type Hint | Function 'reset_agent' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
+| 238 | 🟢 LOW | Missing Type Hint | Function 'reset_all' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 247 | 🟢 LOW | Missing Type Hint | Function 'shutdown' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+
+## ✨ Clean Files (77 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -553,7 +539,9 @@ LOC: 125 | Classes: 1 | Functions: 1 | MI: 70 | Avg CC: 0.0
 - utils/intelligent_context_detector.py — ✅ A
 - utils/intelligent_context_extractor.py — 👍 B
 - utils/intelligent_context_parser.py — ⚠️ C
-- utils/intelligent_context_types.py — ✅ A
+- utils/intelligent_context_summarizer.py — ✅ A
+- utils/intelligent_context_topic_extractor.py — ✅ A
+- utils/intelligent_context_types.py — 👍 B
 - utils/lazy_import.py — ✅ A
 - utils/message_analyzer.py — ✅ A
 - utils/sorting_utils.py — ✅ A
