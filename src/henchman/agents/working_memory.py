@@ -248,7 +248,7 @@ class WorkingMemory(SerializableDataclass):
             - bool: True if the file should be read, False otherwise.
             - str: The reason for the decision.
         """
-        match = next((e for e in self.recent_files if e.path == path), None)
+        match = next((e for e in reversed(self.recent_files) if e.path == path), None)
         if not match:
             return True, "File not in recent files"
         

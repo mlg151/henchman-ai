@@ -1,37 +1,26 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2026-03-13T18:30:00+00:00
+## Date: 2025-03-13T19:00:00Z
 ## Bug Summary
-The `LineRange` class allows invalid ranges where `start > end`, and the `overlaps` method gives incorrect results for such invalid ranges. This can lead to incorrect logic in `should_read_file` when comparing line ranges.
+When the same file appears multiple times in `recent_files` (e.g., read at different times with different line ranges), the `should_read_file` method finds the FIRST (oldest) matching entry instead of the MOST RECENT, causing incorrect decisions about whether to re-read the file.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - Logic Gaps
+The Intent vs. Reality Check - Logic Gaps
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| `LineRange` should represent a valid line range where `start <= end`. | `LineRange` allows `start > end`, creating invalid ranges. |
-| `LineRange.overlaps()` should correctly determine if two valid ranges overlap. | `overlaps()` gives incorrect results when either range has `start > end`. |
-| `should_read_file` should work correctly with valid line ranges. | `should_read_file` can produce incorrect results when given or comparing against invalid ranges. |
+| When checking if a file should be read, the system should consider the MOST RECENT read of that file (what was most recently cached) | The system finds the FIRST matching entry (oldest), which may have been pruned or contain outdated line range information |
+| If a file was read lines 60-100 most recently, and we ask for lines 70-90, should return `False` (already read) | Returns `True` because it finds older entry for lines 1-50 and checks against that |
+| Working memory should track current state, not historical state | System makes decisions based on stale data |
 
 ## Root Cause
-The `LineRange` dataclass doesn't validate that `start <= end` in its constructor. The `overlaps` method assumes `self.start <= self.end` and `other.start <= other.end`, but this assumption is not enforced. When `start > end`, the logic `self.start <= other.end and self.end >= other.start` can produce incorrect results.
+In `should_read_file` method (line 247), the code uses `next((e for e in self.recent_files if e.path == path), None)` which finds the first matching entry from the beginning of the list. Since `recent_files` is appended to (new entries at end), the first match is the OLDEST entry for that file.
+
+The `update_after_read` method always adds new entries instead of updating existing ones, allowing multiple entries for the same file.
 
 ## Fix Plan
-Add validation to `LineRange` to ensure `start <= end`. Options:
-1. Add `__post_init__` method to validate `start <= end` and raise `ValueError` if invalid.
-2. Or fix `overlaps` method to handle invalid ranges (but this doesn't fix the root issue).
-3. Or fix `should_read_file` to validate `start <= end` before creating `LineRange`.
+Change `should_read_file` to search from the end: `next((e for e in reversed(self.recent_files) if e.path == path), None)` to find the most recent entry.
 
-The cleanest fix is option 1: validate in `LineRange.__post_init__`.
+Alternatively (better), change `update_after_read` to update existing entry instead of adding new one, but that's a larger change. The minimal fix is to search from end.
 
-## Status: FIXED
-
-## Files Changed
-1. `src/henchman/agents/working_memory.py`:
-   - Added `__post_init__` method to `LineRange` class to validate `start <= end`
-   - Updated `from_str` method to catch `ValueError` from `__post_init__` validation
-   - Added validation in `should_read_file` to check `start <= end` before creating `LineRange`
-2. `tests/agents/test_working_memory.py`:
-   - Added `test_line_range_invalid_start_gt_end` test to verify validation
-   - Test expects `ValueError` when creating `LineRange` with `start > end`
-   - Test expects `from_str("50-10")` to return `None` for invalid range
+## Status: IN PROGRESS

@@ -447,12 +447,52 @@ class TestWorkingMemory:
             assert loaded.task_objectives == ["Goal 1"]
             assert len(loaded.recent_files) == 1
             assert loaded.recent_files[0].path == "/test/file.py"
+    def test_memory_should_read_file_multiple_entries_same_file(self):
+        """Test should_read_file when same file appears multiple times (should use most recent)."""
+        memory = WorkingMemory(current_task="Test")
+        
+        # Add two entries for same file (simulating file read at different times)
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "First read", "1-50"))
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Second read", "60-100"))
+        
+        # Ask for lines that are in SECOND (more recent) read
+        should_read, reason = memory.should_read_file("/test/file.py", 70, 90)
+        
+        # BUG: Currently finds FIRST entry (1-50), checks 70-90 against 1-50
+        # Should find SECOND (most recent) entry (60-100) and return False
+        assert should_read is False, (
+            "Lines 70-90 are in most recent read (60-100), should return False. "
+            "Bug: should_read_file finds FIRST entry, not MOST RECENT."
+        )
+        assert "already read" in reason.lower() or "contained" in reason.lower()
+        
+        # Another test case: most recent read is subset of earlier read
+        memory2 = WorkingMemory(current_task="Test")
+        memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "First read", "1-100"))
+        memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Second read", "10-50"))
+        
+        # Ask for lines that were in first read but NOT in second (more recent) read
+        should_read2, reason2 = memory2.should_read_file("/test/file2.py", 60, 80)
+        
+        # Most recent read was 10-50, so lines 60-80 were NOT read recently
+        # Should return True (need to read)
+        assert should_read2 is True, (
+            "Lines 60-80 are NOT in most recent read (10-50), should return True. "
+            "Bug: should_read_file finds FIRST entry (1-100), not MOST RECENT (10-50)."
+        )
+        assert "need to be read" in reason2.lower()
+
+        assert "need to be read" in reason2.lower()
 
 
 class TestWorkingMemorySystem:
     """Test WorkingMemorySystem class."""
 
     def test_system_creation(self):
+        """Test creating working memory system."""
+        system = WorkingMemorySystem()
+        assert system.get_current_memory() is None
+        assert system.memories == {}
         """Test creating working memory system."""
         system = WorkingMemorySystem()
         assert system.get_current_memory() is None
