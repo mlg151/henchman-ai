@@ -10,7 +10,7 @@ def test_intelligent_truncation_empty_message():
     """Test truncation with empty message."""
     manager = IntelligentContextManager(params=IntelligentContextParams(max_tokens=1000))
     message = Message(role="user", content="")
-    result = manager._apply_intelligent_truncation_with_semantic_preservation(message)
+    result = manager.message_safety_enforcer._apply_intelligent_truncation(message)
     assert result.content == ""
     assert result.role == "user"
 
@@ -20,7 +20,7 @@ def test_intelligent_truncation_within_limit():
     manager = IntelligentContextManager(params=IntelligentContextParams(max_tokens=10000))
     content = "This is a short message that should not be truncated."
     message = Message(role="user", content=content)
-    result = manager._apply_intelligent_truncation_with_semantic_preservation(message)
+    result = manager.message_safety_enforcer._apply_intelligent_truncation(message)
     # The method might add a truncation marker even for short messages
     # as a safety measure. Let's just check it contains the original content.
     # Note: Token truncation might remove trailing punctuation, so we check
@@ -44,7 +44,7 @@ def critical_function():
 Some other text that can be truncated because it's not as important."""
     
     message = Message(role="assistant", content=content)
-    result = manager._apply_intelligent_truncation_with_semantic_preservation(message)
+    result = manager.message_safety_enforcer._apply_intelligent_truncation(message)
     
     assert result is not None
     assert result.role == "assistant"
@@ -70,7 +70,7 @@ ZeroDivisionError: division by zero
 Some other debugging information that can be truncated."""
     
     message = Message(role="tool", content=content)
-    result = manager._apply_intelligent_truncation_with_semantic_preservation(message)
+    result = manager.message_safety_enforcer._apply_intelligent_truncation(message)
     
     assert result is not None
     # Should preserve error traceback (might simplify "ZeroDivisionError" to "Error")
@@ -87,7 +87,7 @@ def test_intelligent_truncation_no_critical_sections():
     content = "This is a long message without any code blocks or error messages. " * 10
     
     message = Message(role="user", content=content)
-    result = manager._apply_intelligent_truncation_with_semantic_preservation(message)
+    result = manager.message_safety_enforcer._apply_intelligent_truncation(message)
     
     assert result is not None
     # Should be truncated
@@ -102,12 +102,12 @@ def test_intelligent_truncation_edge_cases():
     
     # Test with None content (shouldn't happen but good to handle)
     message = Message(role="user", content=None)
-    result = manager._apply_intelligent_truncation_with_semantic_preservation(message)
+    result = manager.message_safety_enforcer._apply_intelligent_truncation(message)
     assert result.content is None
     
     # Test with very short content
     message = Message(role="user", content="Hi")
-    result = manager._apply_intelligent_truncation_with_semantic_preservation(message)
+    result = manager.message_safety_enforcer._apply_intelligent_truncation(message)
     assert "Hi" in result.content
 
 

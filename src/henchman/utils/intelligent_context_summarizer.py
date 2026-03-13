@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from henchman.utils.intelligent_context_topic_extractor import TopicExtractor
-from henchman.utils.intelligent_context_types import IntelligentContextConstants
+from henchman.utils.intelligent_context_types import ContentAnalysis, IntelligentContextConstants
 
 if TYPE_CHECKING:
     from henchman.providers.base import Message
@@ -19,7 +19,7 @@ class SummaryGenerator:
     and complex function code smells.
     """
 
-    def __init__(self, config: IntelligentContextConfig) -> None:
+    def __init__(self: SummaryGenerator, config: IntelligentContextConfig) -> None:
         """Initialize summary generator.
 
         Args:
@@ -29,7 +29,7 @@ class SummaryGenerator:
         self.config = config
 
     def generate_intelligent_summary(
-        self,
+        self: SummaryGenerator,
         messages: list[Message],
         importance_scores: dict[int, float],
         clusters: list[list[int]] | None,
@@ -71,7 +71,7 @@ class SummaryGenerator:
         return "\n".join(summary_parts)
 
     def _identify_low_importance_messages(
-        self,
+        self: SummaryGenerator,
         messages: list[Message],
         importance_scores: dict[int, float],
     ) -> list[tuple[int, Message, float]]:
@@ -93,60 +93,31 @@ class SummaryGenerator:
         return low_importance_messages
 
     def _analyze_dropped_content(
-        self,
+        self: SummaryGenerator,
         low_importance_messages: list[tuple[int, Message, float]],
-    ) -> dict[str, bool]:
+    ) -> ContentAnalysis:
         """Analyze content types in messages likely to be dropped.
 
         Args:
             low_importance_messages: List of (index, message, importance_score) tuples.
 
         Returns:
-            Dictionary with analysis results.
+            ContentAnalysis instance with results.
 
         """
-        analysis = {
-            "has_code": False,
-            "has_errors": False,
-            "has_decisions": False,
-            "has_tools": False,
-        }
+        analysis = ContentAnalysis()
 
         for _, msg, _ in low_importance_messages:
-            if not msg.content:
-                continue
-
-            content = msg.content.lower()
-            self._check_content_type(content, analysis)
+            if content := msg.content:
+                analysis.update_from_content(content)
 
         return analysis
 
-    def _check_content_type(self, content: str, analysis: dict[str, bool]) -> None:
-        """Helper to check content type based on keywords.
-
-        Args:
-            content: Content string to check.
-            analysis: Analysis dictionary to update.
-
-        """
-        constants = IntelligentContextConstants
-        if "```" in content:
-            analysis["has_code"] = True
-
-        if any(kw in content for kw in constants.ERROR_KEYWORDS):
-            analysis["has_errors"] = True
-
-        if any(kw in content for kw in constants.DECISION_KEYWORDS):
-            analysis["has_decisions"] = True
-
-        if any(kw in content for kw in constants.TOOL_KEYWORDS):
-            analysis["has_tools"] = True
-
     def _build_summary_parts(
-        self,
+        self: SummaryGenerator,
         messages: list[Message],
         low_importance_messages: list[tuple[int, Message, float]],
-        content_analysis: dict[str, bool],
+        content_analysis: ContentAnalysis,
         clusters: list[list[int]] | None,
     ) -> list[str]:
         """Build summary parts from analysis.
@@ -161,17 +132,14 @@ class SummaryGenerator:
             List of summary parts.
 
         """
-        summary_parts: list[str] = []
-
-        # Add overview
-        summary_parts.append(self._get_overview_part(messages, low_importance_messages))
-
-        # Add content type analysis
-        summary_parts.extend(self._get_content_analysis_parts(content_analysis))
+        # Start with overview and analysis
+        summary_parts = [
+            self._get_overview_part(messages, low_importance_messages),
+            *content_analysis.get_summary_parts(),
+        ]
 
         # Add topic summary if we can identify clusters
-        topic_part = self._get_cluster_topics_part(messages, clusters)
-        if topic_part:
+        if topic_part := self._get_cluster_topics_part(messages, clusters):
             summary_parts.append(topic_part)
 
         # Add preservation note
@@ -183,7 +151,7 @@ class SummaryGenerator:
         return summary_parts
 
     def _get_overview_part(
-        self,
+        self: SummaryGenerator,
         messages: list[Message],
         low_importance_messages: list[tuple[int, Message, float]],
     ) -> str:
@@ -213,32 +181,8 @@ class SummaryGenerator:
             f"{self.config.importance_threshold:.2f}."
         )
 
-    def _get_content_analysis_parts(
-        self,
-        content_analysis: dict[str, bool],
-    ) -> list[str]:
-        """Generate content analysis parts to summary.
-
-        Args:
-            content_analysis: Analysis of content types.
-
-        Returns:
-            List of strings.
-
-        """
-        parts: list[str] = []
-        if content_analysis["has_code"]:
-            parts.append("• Contains code blocks or technical details")
-        if content_analysis["has_errors"]:
-            parts.append("• Includes error messages or warnings")
-        if content_analysis["has_decisions"]:
-            parts.append("• Documents decisions or conclusions")
-        if content_analysis["has_tools"]:
-            parts.append("• Includes tool call sequences")
-        return parts
-
     def _get_cluster_topics_part(
-        self,
+        self: SummaryGenerator,
         messages: list[Message],
         clusters: list[list[int]] | None,
     ) -> str | None:

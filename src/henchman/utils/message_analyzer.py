@@ -12,11 +12,9 @@ if TYPE_CHECKING:
     from henchman.providers.base import Message
 
 from .importance_scorer import ImportanceScorer
-from .intelligent_context import (
-    ContentExtractor,
-    ConversationTypeDetector,
-)
 from .intelligent_context_config import IntelligentContextConfig
+from .intelligent_context_detector import ConversationTypeDetector
+from .intelligent_context_extractor import ContentExtractor
 from .message_clusterer import MessageClusterer
 
 

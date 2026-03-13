@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar, TypeVar
+from typing import TYPE_CHECKING, ClassVar, TypeVar
 
 from henchman.utils.tokens import TokenCounter
+
+if TYPE_CHECKING:
+    from henchman.providers.base import Message
+    from henchman.utils.intelligent_context import IntelligentContextManager
 
 V = TypeVar("V")  # Generic type variable for values
 
@@ -98,9 +102,22 @@ class IntelligentContextConstants:
 
     # Keyword analysis categories
     ERROR_KEYWORDS: ClassVar[list[str]] = ["error", "exception", "fail", "warning", "traceback"]
-    DECISION_KEYWORDS: ClassVar[list[str]] = ["decision", "conclusion", "recommend", "suggest", "choose"]
+    DECISION_KEYWORDS: ClassVar[list[str]] = [
+        "decision",
+        "conclusion",
+        "recommend",
+        "suggest",
+        "choose",
+    ]
     TOOL_KEYWORDS: ClassVar[list[str]] = ["tool", "function", "call", "execute", "run"]
-    PYTHON_CODE_MARKERS: ClassVar[list[str]] = ["def ", "class ", "import ", "from ", "async ", "await "]
+    PYTHON_CODE_MARKERS: ClassVar[list[str]] = [
+        "def ",
+        "class ",
+        "import ",
+        "from ",
+        "async ",
+        "await ",
+    ]
 
     # Critical keywords for preservation and analysis
     CRITICAL_KEYWORDS: ClassVar[list[str]] = [
@@ -192,6 +209,112 @@ class TruncationParams:
     marker: str
     min_content_tokens: int = IntelligentContextConstants.MIN_CONTENT_TOKENS_DEFAULT
 
+    def apply(self: TruncationParams, limit: int) -> str:
+        """Apply truncation with the given limit.
+
+        Args:
+            limit: Maximum tokens allowed.
+
+        Returns:
+            Truncated content with marker.
+
+        """
+        marker_tokens = TokenCounter.count_text(self.marker)
+        available_for_content = limit - marker_tokens
+
+        if available_for_content <= 0:
+            return MarkerParams(self.marker, marker_tokens).handle_overflow(limit)
+
+        # We have some space for content
+        content_limit = min(self.min_content_tokens, available_for_content)
+        final_content = TokenCounter.truncate_text(self.content, content_limit)
+        return final_content + self.marker
+
+
+@dataclass
+class MarkerParams:
+    """Parameters for truncation markers.
+
+    Attributes:
+        text: The marker text.
+        tokens: The token count of the marker.
+
+    """
+
+    text: str
+    tokens: int
+
+    def handle_overflow(self: MarkerParams, limit: int) -> str:
+        """Handle case where marker doesn't fit in limit.
+
+        Args:
+            limit: Maximum tokens allowed.
+
+        Returns:
+            Truncated marker text.
+
+        """
+        if self.tokens > limit:
+            return TokenCounter.truncate_text(self.text, limit)
+        return self.text
+
+
+@dataclass
+class ContentAnalysis:
+    """Analysis of content types in messages.
+
+    Attributes:
+        has_code: Whether content has code blocks.
+        has_errors: Whether content has error messages.
+        has_decisions: Whether content has decisions.
+        has_tools: Whether content has tool calls.
+
+    """
+
+    has_code: bool = False
+    has_errors: bool = False
+    has_decisions: bool = False
+    has_tools: bool = False
+
+    def update_from_content(self: ContentAnalysis, content: str) -> None:
+        """Update analysis based on content.
+
+        Args:
+            content: The text content to analyze.
+
+        """
+        lower_content = content.lower()
+        if "```" in content:
+            self.has_code = True
+
+        constants = IntelligentContextConstants
+        if any(kw in lower_content for kw in constants.ERROR_KEYWORDS):
+            self.has_errors = True
+
+        if any(kw in lower_content for kw in constants.DECISION_KEYWORDS):
+            self.has_decisions = True
+
+        if any(kw in lower_content for kw in constants.TOOL_KEYWORDS):
+            self.has_tools = True
+
+    def get_summary_parts(self: ContentAnalysis) -> list[str]:
+        """Get summary parts based on analysis.
+
+        Returns:
+            List of summary strings.
+
+        """
+        parts: list[str] = []
+        if self.has_code:
+            parts.append("• Contains code blocks or technical details")
+        if self.has_errors:
+            parts.append("• Includes error messages or warnings")
+        if self.has_decisions:
+            parts.append("• Documents decisions or conclusions")
+        if self.has_tools:
+            parts.append("• Includes tool call sequences")
+        return parts
+
 
 @dataclass
 class FenceResult:
@@ -220,3 +343,162 @@ class FenceResult:
 
         """
         return cls(code_end=-1, next_pos=next_pos, found=False)
+
+
+@dataclass
+class CompressionConfig:
+    """Configuration for compression strategies.
+
+    Attributes:
+        high_threshold: Threshold for high-importance clusters.
+        medium_threshold: Threshold for medium-importance clusters.
+        preserve_tool_sequences: Whether to preserve tool call sequences.
+        preserve_code_blocks: Whether to preserve code blocks.
+
+    """
+
+    high_threshold: float
+    medium_threshold: float
+    preserve_tool_sequences: bool
+    preserve_code_blocks: bool
+
+
+@dataclass
+class IntelligentCompactionResult:
+    """Result of an intelligent compaction operation.
+
+    Attributes:
+        messages: The compacted messages.
+        was_compacted: Whether compaction actually occurred.
+        dropped_count: Number of messages/sequences dropped.
+        summary: Optional summary of dropped content.
+        importance_scores: Mapping of message indices to importance scores.
+        clusters: Detected conversation clusters.
+        compression_ratio: Achieved compression ratio.
+
+    """
+
+    messages: list[Message]
+    was_compacted: bool = False
+    dropped_count: int = 0
+    summary: str | None = None
+    importance_scores: dict[int, float] | None = None
+    clusters: list[list[int]] | None = None
+    compression_ratio: float | None = None
+
+
+@dataclass
+class ResultCreationParams:
+    """Parameters for creating compaction results.
+
+    Groups common parameters used by _create_result_without_truncation
+    and _create_result_with_truncation to address primitive obsession.
+
+    Attributes:
+        original_messages: Original messages before compaction.
+        safe_messages: Messages after compression but before truncation.
+        importance_scores: Importance scores for each message.
+        clusters: Detected conversation clusters.
+        original_tokens: Original token count.
+        was_compacted: Whether compaction occurred.
+
+    """
+
+    original_messages: list[Message]
+    safe_messages: list[Message]
+    importance_scores: dict[int, float]
+    clusters: list[list[int]]
+    original_tokens: int
+    was_compacted: bool
+
+    def get_dropped_count(self: ResultCreationParams) -> int:
+        """Get the number of messages dropped during compaction.
+
+        Returns:
+            Number of messages dropped (original count minus safe count).
+
+        """
+        return len(self.original_messages) - len(self.safe_messages)
+
+    def get_compression_ratio(self: ResultCreationParams, current_tokens: int) -> float:
+        """Get compression ratio based on current token count.
+
+        Args:
+            current_tokens: Current token count after compression/truncation.
+
+        Returns:
+            Compression ratio (0.0 to 1.0).
+
+        """
+        if self.original_tokens > 0:
+            return (self.original_tokens - current_tokens) / self.original_tokens
+        return 0.0
+
+    def create_result_without_truncation(
+        self: ResultCreationParams,
+        context_manager: IntelligentContextManager,
+        current_tokens: int,
+    ) -> IntelligentCompactionResult:
+        """Create compaction result when no truncation is needed.
+
+        Args:
+            context_manager: The intelligent context manager for generating summaries.
+            current_tokens: Current token count after compression.
+
+        Returns:
+            IntelligentCompactionResult without truncation.
+
+        """
+        compression_ratio = self.get_compression_ratio(current_tokens)
+
+        return IntelligentCompactionResult(
+            messages=self.safe_messages,
+            was_compacted=self.was_compacted,
+            dropped_count=self.get_dropped_count(),
+            summary=context_manager.summary_generator.generate_intelligent_summary(
+                self.original_messages,
+                self.importance_scores,
+                self.clusters,
+            ),
+            importance_scores=self.importance_scores,
+            clusters=self.clusters,
+            compression_ratio=compression_ratio,
+        )
+
+    def create_result_with_truncation(
+        self: ResultCreationParams,
+        context_manager: IntelligentContextManager,
+        protect_from_index: int,
+    ) -> IntelligentCompactionResult:
+        """Create compaction result when truncation is needed.
+
+        Args:
+            context_manager: The intelligent context manager for truncation.
+            protect_from_index: Protected message index.
+
+        Returns:
+            IntelligentCompactionResult with truncation.
+
+        """
+        truncated_messages = context_manager.apply_intelligent_truncation(
+            self.safe_messages,
+            self.importance_scores,
+            self.clusters,
+            protect_from_index,
+        )
+        truncated_tokens = TokenCounter.count_messages(truncated_messages)
+        final_compression_ratio = self.get_compression_ratio(truncated_tokens)
+
+        return IntelligentCompactionResult(
+            messages=truncated_messages,
+            was_compacted=True,
+            dropped_count=len(self.original_messages) - len(truncated_messages),
+            summary=context_manager.summary_generator.generate_intelligent_summary(
+                self.original_messages,
+                self.importance_scores,
+                self.clusters,
+            ),
+            importance_scores=self.importance_scores,
+            clusters=self.clusters,
+            compression_ratio=final_compression_ratio,
+        )
