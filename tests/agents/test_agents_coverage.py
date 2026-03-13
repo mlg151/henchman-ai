@@ -152,6 +152,8 @@ class TestAssessAgentCompletion:
 
         orchestrator = MagicMock()
         orchestrator._last_loop_tool_call_count = 5
+        orchestrator._last_loop_success_count = 3  # Some successful tool calls
+        orchestrator._last_loop_timed_out = False  # Not timed out
         agent = MagicMock(spec=["_stall"])
         agent._stall = StallDetector()  # failure=False by default
 
@@ -162,6 +164,8 @@ class TestAssessAgentCompletion:
         """assess_agent_completion returns NO_WORK_DONE when no tool calls."""
         orchestrator = MagicMock()
         orchestrator._last_loop_tool_call_count = 0
+        orchestrator._last_loop_success_count = 0  # No successful tool calls
+        orchestrator._last_loop_timed_out = False  # Not timed out
         agent = MagicMock(spec=[])  # No _stall attribute
 
         result = assess_agent_completion(orchestrator, agent)
@@ -173,6 +177,8 @@ class TestAssessAgentCompletion:
 
         orchestrator = MagicMock()
         orchestrator._last_loop_tool_call_count = 3
+        orchestrator._last_loop_success_count = 2  # Some successful tool calls
+        orchestrator._last_loop_timed_out = False  # Not timed out
         agent = MagicMock(spec=["_stall"])
         stall = StallDetector()
         stall.failure = True
@@ -185,6 +191,8 @@ class TestAssessAgentCompletion:
         """assess_agent_completion checks legacy _stall_failure attribute."""
         orchestrator = MagicMock()
         orchestrator._last_loop_tool_call_count = 2
+        orchestrator._last_loop_success_count = 1  # Some successful tool calls
+        orchestrator._last_loop_timed_out = False  # Not timed out
         agent = MagicMock(spec=["_stall_failure"])  # No _stall, has _stall_failure
         agent._stall_failure = True
 
