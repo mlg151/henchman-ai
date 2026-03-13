@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-13T20:00:40.543246+00:00_
+_Generated: 2026-03-13T21:00:26.187616+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-13T20:00:40.543246+00:00_
 | **Overall Grade** | ⚠️ C |
 | **Overall Score** | 78.9/100 |
 | **Files Scanned** | 215 |
-| **Total Lines (non-blank)** | 44,124 |
+| **Total Lines (non-blank)** | 44,142 |
 | **Total Smells** | 579 |
 | **Avg Maintainability Index** | 70.0 |
 | **Avg Cyclomatic Complexity** | 13.3 |
@@ -106,14 +106,14 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/working_memory.py | ❌ F | 44.9 | 14 | 311 | 52 | 11.0 |
+| 1 | agents/working_memory.py | ❌ F | 44.9 | 14 | 312 | 52 | 11.0 |
 | 2 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
 | 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
 | 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
 | 5 | mcp/manager.py | 🔶 D | 63.0 | 13 | 173 | 65 | 11.0 |
 | 6 | tools/builtins/file_overview.py | 🔶 D | 63.5 | 11 | 295 | 51 | 11.0 |
 | 7 | tools/builtins/pattern_search.py | 🔶 D | 64.1 | 10 | 312 | 55 | 12.0 |
-| 8 | utils/compaction.py | 🔶 D | 64.3 | 6 | 838 | 30 | 11.0 |
+| 8 | utils/compaction.py | 🔶 D | 64.2 | 6 | 855 | 30 | 11.0 |
 | 9 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
 | 10 | utils/message_compactor.py | 🔶 D | 65.1 | 15 | 235 | 61 | 12.0 |
 
@@ -123,7 +123,7 @@ _Showing 20 worst files. 195 additional files omitted._
 
 ### agents/working_memory.py — ❌ F (44.9/100)
 
-LOC: 311 | Classes: 7 | Functions: 0 | MI: 52 | Avg CC: 11.0
+LOC: 312 | Classes: 7 | Functions: 0 | MI: 52 | Avg CC: 11.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
@@ -256,15 +256,15 @@ LOC: 312 | Classes: 3 | Functions: 7 | MI: 55 | Avg CC: 12.0
 | 226 | 🟢 LOW | Magic Number | Magic number 5 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 328 | 🟢 LOW | Magic Number | Magic number 10 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-### utils/compaction.py — 🔶 D (64.3/100)
+### utils/compaction.py — 🔶 D (64.2/100)
 
-LOC: 838 | Classes: 11 | Functions: 11 | MI: 30 | Avg CC: 11.0
+LOC: 855 | Classes: 11 | Functions: 11 | MI: 30 | Avg CC: 11.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 55 | 🟡 MEDIUM | Duplicate Code | Function 'token_count' is 94% similar to '_truncate_with_marker' at utils/intelligent_context_formatter.py:379 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 747 | 🟡 MEDIUM | Duplicate Code | Function 'validate_compacted_sequence' is 100% similar to '_detect_conversation_type' at utils/message_analyzer.py:95 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1031 | 🟡 MEDIUM | Complex Function | Function '_attempt_summarization' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 1049 | 🟡 MEDIUM | Complex Function | Function '_attempt_summarization' has cyclomatic complexity 11 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
 | 555 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._select_sequences_to_keep' accesses 'last_sequence' 3 times but 'self' only 1 times | Move Method — consider moving '_select_sequences_to_keep' to the class that owns 'last_sequence'. |
 | 598 | 🟢 LOW | Feature Envy | Method '_ContextCompactorHelpersMixin._reconstruct_result' accesses 'result' 4 times but 'self' only 0 times | Move Method — consider moving '_reconstruct_result' to the class that owns 'result'. |
 | 699 | 🟢 LOW | Long Method | Function '_perform_compaction' has 33 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |

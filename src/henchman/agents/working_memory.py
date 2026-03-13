@@ -259,7 +259,6 @@ class WorkingMemory(SerializableDataclass):
         if start is None or end is None:
             # No line range specified but file wasn't read fully
             return True, "File not fully read - partial read recorded"
-            return True, "File not fully read - partial read recorded"
 
         # Validate line range
         if start > end:
