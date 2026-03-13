@@ -248,10 +248,16 @@ class WorkingMemory(SerializableDataclass):
             return False, "File already read (full)"
 
         rng = LineRange.from_str(match.lines_read)
-        if rng and rng.overlaps(LineRange(start, end)):
-            return False, "File already read (overlapping lines)"
-
-        return True, "New lines - different lines than previously read"
+        if rng:
+            requested = LineRange(start, end)
+            # Check if requested range is fully contained within previously read range
+            if requested.start >= rng.start and requested.end <= rng.end:
+                return False, "File already read (contained within previously read lines)"
+            # Otherwise, we need to read it (either no overlap or partial overlap)
+            return True, "New or partially overlapping lines need to be read"
+        
+        # If lines_read format is invalid (not "full" and not valid range)
+        return True, "Cannot determine overlap - invalid lines_read format"
 
     def get_file_insights(self: WorkingMemory, path: str) -> list[str]:
         """Return cached insights for a file.
