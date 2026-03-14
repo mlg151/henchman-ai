@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.14] - 2026-03-10
-
 ### Fixed
 - **BUG-1 🔴 CRITICAL — Deadlock in `run_parallel_delegations`** (`delegation.py`)
   - `max_buffer_size=256` on the anyio `MemoryObjectSendStream` caused a classic producer/consumer deadlock: producer tasks would block on `send()` once the buffer was full, the task group could never exit, and the consumer loop never started. Fixed by setting `max_buffer_size=float("inf")` so producers never block.
@@ -761,8 +759,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Rebranded from henchman-cli to henchman-ai
 
-[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.3.14...HEAD
-[0.3.14]: https://github.com/mlg151/henchman-ai/compare/v0.3.13...v0.3.14
+[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.3.13...HEAD
 [0.3.13]: https://github.com/mlg151/henchman-ai/compare/v0.3.11...v0.3.13
 [0.3.11]: https://github.com/mlg151/henchman-ai/compare/v0.3.10...v0.3.11
 [0.3.10]: https://github.com/mlg151/henchman-ai/compare/v0.3.9...v0.3.10

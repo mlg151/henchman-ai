@@ -699944,3 +699944,457 @@ TOTAL                                                       18901    255   5040 
 =========== 5697 passed, 6 skipped, 45 warnings in 189.30s (0:03:09) ===========
 [2026-03-14T19:00:02Z] All tests passed.
 Committing changes...
+[main f5cf3c1] fix(four-lenses): four-lenses-agents-working_memory
+ 6 files changed, 2623 insertions(+), 2466 deletions(-)
+[2026-03-14T19:00:02Z] Auto-improve complete.
+[2026-03-14T20:00:02Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-14T20:00:02Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.7/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-14T20:00:32.280120+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py...
+Let me read the test file:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now I need to analyze the code through the Four Lenses of Failure. Let me first create the documentation stub as required:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/agents/working_memory.py\n## Date: 
+2024-03-14T20:15:00Z\n## Bug Summary\nThe `should_read_file` method incorrectly 
+handles the case when a file was read fully (`lines_read="full"`) followed by a 
+partial read. It returns `False` for any line range when the most recent entry 
+is "full", but returns `True` for lines outside the partial read when the most 
+recent entry is partial (even if an older entry was "full").\n\n## Lens\n**Phase
+1: The Intent vs. Reality Check** - Logic Gaps\n\n## Expected vs. Observed\n| 
+Expected Behavior | Observed Risk |\n|---|---|\n| When a file was read fully in 
+the past but partially more recently, the system should only consider lines that
+were read in the most recent partial read as "already read". | The system 
+incorrectly returns `False` for any line range when checking against a "full" 
+entry, even if that "full" entry is older than a more recent partial entry. |\n|
+The `should_read_file` method should check ALL entries for a file (not just the 
+most recent) to determine if requested lines are covered. | The method only 
+checks the most recent entry when it\'s "full", but should check all entries 
+when it\'s partial to see if requested lines are covered by any combination of 
+entries. |\n| Case-insensitive "full" detection should handle whitespace 
+variations. | The method uses `strip().lower()` which handles whitespace, but 
+there\'s a bug in the logic flow. |\n\n## Root Cause\nThe bug is in the 
+`should_read_file` method at lines 245-329. The logic flow is:\n\n1. Find all 
+entries for the file (most recent first)\n2. If no entries, return `True` 
+(read)\n3. Check if most recent entry has `lines_read.strip().lower() == "full"`
+- if yes, return `False` (skip)\n4. If no line range specified but file wasn\'t 
+read fully, return `True` (read)\n5. Validate line range\n6. Collect all valid 
+line ranges from all entries\n7. Check if requested range is fully covered by 
+any single entry\n8. Merge overlapping ranges\n9. Check if requested range is 
+fully covered by merged ranges\n\nThe bug is in step 3: it returns `False` 
+immediately if the most recent entry is "full", without considering that there 
+might be more recent partial entries (which there aren\'t since we\'re checking 
+most recent first, but the logic should be: if most recent is "full", file is 
+fully read, return False).\n\nActually, looking more carefully: the test 
+`test_memory_should_read_file_full_then_partial_bug` reveals the real issue. The
+test adds a "full" entry, then a "partial" entry (10-50). When checking lines 
+1-100, it should return `True` because the most recent read was partial (10-50),
+not full. But the current code would find the most recent entry (which is 
+partial, 10-50), check if it\'s "full" (it\'s not), then proceed to check line 
+ranges. However, there\'s another issue: when checking if lines are covered, it 
+only checks if they\'re contained within a single entry, not if they\'re covered
+by multiple entries together.\n\nActually wait, let me trace through the actual 
+bug. Looking at the test failures in the test file, I see multiple tests marked 
+as "BUG" with comments. Let me examine the actual implementation more 
+carefully.\n\n## Fix Plan\nI need to:\n1. Read the actual implementation 
+carefully\n2. Identify the exact bug (there are multiple test failures marked as
+BUG)\n3. Write a failing test that demonstrates the bug\n4. Fix the bug\n5. 
+Verify all tests pass\n\nThe main issues appear to be:\n1. Case-insensitive 
+"full" detection (handles whitespace with `strip().lower()`)\n2. Checking all 
+entries, not just most recent, when determining if lines are covered\n3. 
+Properly merging ranges from multiple entries to determine coverage\n\n## 
+Status: IN PROGRESS'})
+[result] Successfully wrote 3689 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/README.md...
+Now let me run the existing tests to see what's currently failing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py -x -q --tb=short'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Good, all tests pass. Now I need to analyze the code through the Four Lenses to find a real bug. Let me examine the `should_read_file` method more carefully since it's the most complex function and has the most test coverage:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+245, 'end_line': 329})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+300, 'end_line': 329})
+[result]                 return False, "File already read (contained within 
+previously read lines)"
+
+        # Sort ranges by start line for merging
+        valid_ranges.sort(key=lambda r: r.start)
+
+        # ...
+I need to examine the rest of the `should_read_file` method. Let me see the complete implementation:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+315, 'end_line': 340})
+[result]                     merged_ranges[-1] = LineRange(last.start, 
+max(last.end, rng.end))
+                else:
+                    # No overlap, add as new range
+                    merged_ranges.append(...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+330, 'end_line': 340})
+[result]         # is fully covered by walking through merged ranges
+        current_line = requested.start
+        for rng in merged_ranges:
+            if current_line < rng.start:
+                # Found a ...
+Let me see the complete method:
+[tool] python_exec({'code': 'import ast\nimport inspect\nfrom pathlib import 
+Path\n\ncode = 
+Path("/home/matthew/mlg-cli/src/henchman/agents/working_memory.py").read_text()\
+ntree = ast.parse(code)\n\n# Find the should_read_file method\nfor node in 
+ast.walk(tree):\n    if isinstance(node, ast.FunctionDef) and node.name == 
+"should_read_file":\n        print(f"Method {node.name} starts at line 
+{node.lineno}")\n        # Get the end line\n        last_node = node.body[-1]\n
+end_line = last_node.lineno\n        # Find the actual end by looking for the 
+last line with content\n        lines = code.split(\'\\n\')\n        # Find the 
+line after the last return statement\n        for i in range(last_node.lineno, 
+len(lines)):\n            if lines[i].strip() == \'\' or lines[i].startswith(\' 
+def \') or lines[i].startswith(\'class \'):\n                end_line = i\n     
+break\n        print(f"Method {node.name} ends around line {end_line}")\n       
+break'})
+[result] Method should_read_file starts at line 245
+Method should_read_file ends around line 344
+...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+335, 'end_line': 344})
+[result]                 return True, "New or partially overlapping lines need 
+to be read"
+            if current_line <= rng.end:
+                # This range covers from current_line up to rng.end
+          ...
+Now I need to analyze this code through the Four Lenses. Let me think about the logic:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `should_read_file` method:
+
+1. **Logic Gaps**: 
+   - Line 263: `if matches[0].lines_read.strip().lower() == "full": return False, "File already read (full)"`
+   - This checks if the MOST RECENT entry is "full". But what if there are multiple entries and the most recent is partial but an older entry is "full"? The file was fully read in the past, but we're checking a more recent partial read. Should we consider the file fully read? Probably not - the partial read is more recent and might reflect a changed file or different focus.
+
+2. **Type Safety**:
+   - The method accepts `start: int | None = None` and `end: int | None = None`
+   - At line 267: `if start is None or end is None:` returns `True` with message "File not fully read - partial read recorded"
+   - But what if `start` is provided but `end` is `None`, or vice versa? The check assumes both are `None` or both are provided.
+
+## Phase 2: State & Side Effects
+
+The method doesn't modify any state - it's a pure function that examines `self.recent_files`.
+
+## Phase 3: Performance & Resource Management
+
+- The method has O(n) complexity where n is number of recent files for the given path
+- It creates multiple lists: `matches`, `valid_ranges`, `merged_ranges`
+- The merging algorithm is O(m log m) where m is number of valid ranges
+
+## Phase 4: The Forensic Refactor
+
+Looking at the test failures marked as "BUG" in the test file, I see several issues:
+
+1. **Test `test_memory_should_read_file_no_line_range`**: Tests when no line range is provided but file was partially read. The test expects `True` but comment says "Current buggy behavior returns False".
+
+2. **Test `test_memory_should_read_file_full_read`**: Tests when file was read fully (`lines_read='full'`). Comment says "BUG: This should be False! If file was read fully, any line range should be considered already read. Current implementation returns True because LineRange.from_str("full") returns None".
+
+3. **Test `test_memory_should_read_file_multiple_entries_same_file`**: Tests when same file appears multiple times. Comment says "BUG: Currently finds FIRST entry (1-50), checks 70-90 against 1-50. Should find SECOND (most recent) entry (60-100) and return False."
+
+Wait, let me re-examine the logic. The code at line 256: `matches = [e for e in reversed(self.recent_files) if e.path == path]` gets entries in reverse order (most recent first). So `matches[0]` is the most recent entry. That seems correct.
+
+But looking at test `test_memory_should_read_file_full_then_partial_bug`: It adds a "full" entry, then a "partial" entry (10-50). When checking lines 1-100, it should return `True` because the most recent read was partial (10-50), not full. The test comment says this is a bug.
+
+Actually, I think I found the real bug! Let me trace through the logic:
+
+1. File has entries: ["full" (older), "10-50" (newer)]
+2. `matches` will be: ["10-50", "full"] (most recent first)
+3. Line 263: `if matches[0].lines_read.strip().lower() == "full":` checks if most recent is "full"
+   - `matches[0]` is "10-50", not "full", so this is `False`
+4. Continues to line 267: `if start is None or end is None:` - start=1, end=100, so continues
+5. Creates `requested = LineRange(1, 100)`
+6. Collects valid ranges: `LineRange.from_str("10-50")` returns `LineRange(10, 50)`, `LineRange.from_str("full")` returns `None`
+7. `valid_ranges` = `[LineRange(10, 50)]`
+8. Checks if requested range (1-100) is contained in any single entry: 1-100 is NOT contained in 10-50
+9. Merges ranges (only one range)
+10. Walks through merged ranges: `current_line = 1`, first range is `LineRange(10, 50)`
+11. Line 332: `if current_line < rng.start:` (1 < 10) is `True`, returns `True` with "New or partially overlapping lines need to be read"
+
+So the method returns `True` (should read), which is correct! The test expects `True`. But the test comment says it's a bug? Let me re-read the test:
+
+```python
+def test_memory_should_read_file_full_then_partial_bug(self):
+    """Test that should_read_file correctly handles full read followed by partial read.
+    
+    BUG: Currently returns False when file was fully read in the past but partially read
+    more recently. Should only return False if MOST RECENT entry is "full".
+    """
+    memory = WorkingMemory(current_task="Test")
+    
+    # Add old full read
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Old full read", "full"))
+    
+    # Add more recent partial read (this is the most recent entry)
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Recent partial read", "10-50"))
+    
+    # Request lines 1-100
+    # The most recent read was partial (10-50), not full
+    # So we should return True (should read) because we haven't read lines 1-9 or 51-100 recently
+    should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
+    
+    assert should_read is True, (
+        f"File was partially read most recently (10-50), not fully. "
+        f"Should return True for lines 1-100. Got: {should_read}, reason: {reason}"
+    )
+    assert "already read" not in reason.lower()
+```
+
+The test says "BUG: Currently returns False" but the assertion expects `True`. And the test passes (all tests pass). So maybe this bug was already fixed?
+
+Let me look for a real bug. Let me check the `update_problem` method which has some error handling issues:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+224, 'end_line': 242})
+[result]     def update_problem(self: WorkingMemory, updated: ProblemEntry) -> 
+None:
+        """Update an existing problem entry.
+        Args:
+            updated: The updated problem entry containing new sta...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+240, 'end_line': 244})
+[result]                 e.resolution = updated.resolution
+                break
+        else:
+            raise ValueError(f"Problem '{updated.problem}' not found")
+
+...
+The `update_problem` method has a bug! Look at line 233: `if not isinstance(updated, ProblemEntry):` raises `TypeError`. But what if `updated` is `None`? The `isinstance(None, ProblemEntry)` returns `False`, so it raises `TypeError: updated must be a ProblemEntry, got NoneType`. That's probably fine.
+
+But wait, there's another issue. Look at the test `test_memory_update_problem_invalid_input`:
+
+```python
+def test_memory_update_problem_invalid_input(self):
+    """Test update_problem with invalid input (should raise error like add_problem)."""
+    memory = WorkingMemory(current_task="Test")
+    memory.add_problem(ProblemEntry("Test problem", "open", ""))
+    
+    # Test 1: None value - should raise TypeError (currently raises AttributeError)
+    with pytest.raises(TypeError, match="updated must be a ProblemEntry"):
+        memory.update_problem(None)  # type: ignore
+```
+
+The test comment says "currently raises AttributeError" but expects `TypeError`. Let me check what actually happens:
+[tool] python_exec({'code': 'from henchman.agents.working_memory import 
+WorkingMemory, ProblemEntry\n\nmemory = 
+WorkingMemory(current_task="Test")\nmemory.add_problem(ProblemEntry("Test 
+problem", "open", ""))\n\ntry:\n    memory.update_problem(None)  # type: 
+ignore\nexcept Exception as e:\n    print(f"Exception type: 
+{type(e).__name__}")\n    print(f"Exception message: {e}")'})
+[result] Exception type: TypeError
+Exception message: updated must be a ProblemEntry, got NoneType
+...
+Good, it raises `TypeError` as expected. The test passes. But let me check the `add_problem` method which has similar validation:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+200, 'end_line': 210})
+[result]             insight: A string describing the insight gained during the 
+task.
+        
+        Returns:
+            None
+        """
+        # Add timestamp check to avoid "Exact Duplicate" smell
+     ...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+210, 'end_line': 222})
+[result]         """Record a problem encountered during the task.
+        
+        Args:
+            entry: A ProblemEntry object containing the problem description,
+                   status, and optional res...
+Good, `add_problem` also has the same validation. Both methods check `isinstance`. 
+
+Wait, I need to look more carefully. Let me check test `test_memory_add_problem_invalid_input`:
+
+```python
+def test_memory_add_problem_invalid_input(self):
+    """Test add_problem with invalid input (should raise error)."""
+    memory = WorkingMemory(current_task="Test")
+    
+    # Test 1: Object with problem attribute but missing status/resolution
+    class PartialProblem:
+        def __init__(self):
+            self.problem = "Partial problem"
+    
+    # Should raise TypeError
+    with pytest.raises(TypeError, match="entry must be a ProblemEntry"):
+        memory.add_problem(PartialProblem())  # type: ignore
+    
+    # Test 2: Object without problem attribute
+    class NoProblem:
+        def __init__(self):
+            self.status = "open"
+            self.resolution = ""
+    
+    with pytest.raises(TypeError, match="entry must be a ProblemEntry"):
+        memory.add_problem(NoProblem())  # type: ignore
+    
+    # Test 3: None value
+    with pytest.raises(TypeError, match="entry must be a ProblemEntry"):
+        memory.add_problem(None)  # type: ignore
+    
+    # Test 4: Empty string as problem
+    empty_problem = ProblemEntry(problem="", status="open", resolution="")
+    memory.add_problem(empty_problem)
+    # This is actually valid - empty string is a valid problem description
+    assert len(memory.problems_encountered) == 1
+    
+    # Test 4: Empty string as problem
+    empty_problem = ProblemEntry(problem="", status="open", resolution="")
+    memory.add_problem(empty_problem)
+    # This is actually valid - empty string is a valid problem description
+    # But maybe it shouldn't be? Let's check current behavior
+    # Current behavior: adds it (because hasattr returns True for empty string)
+    # This test documents the behavior
+```
+
+The test has duplicate "Test 4" sections. That's a test issue, not a code issue. But let me run this specific test to see if it passes:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_add_problem_
+invalid_input -xvs'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+The test passes. Let me look for a real bug. Let me examine the `LineRange` class more carefully:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+78, 'end_line': 120})
+[result]     def __post_init__(self) -> None:
+        """Validate that start <= end and line numbers are positive 
+(1-indexed)."""
+        if self.start < 1 or self.end < 1:
+            raise ValueError(f"Line ...
+The `LineRange` class looks fine. Let me think about edge cases in `should_read_file`. Actually, I think I found a bug! Look at line 267 in `should_read_file`:
+
+```python
+if start is None or end is None:
+    # No line range specified but file wasn't read fully
+    return True, "File not fully read - partial read recorded"
+```
+
+What if `start` is provided but `end` is `None`? Or `end` is provided but `start` is `None`? The method signature is `should_read_file(self: WorkingMemory, path: str, start: int | None = None, end: int | None = None)`. So it's possible to call it with `should_read_file("/path", start=10)` or `should_read_file("/path", end=50)`.
+
+The check `if start is None or end is None:` treats both cases the same: returns `True`. But that might not be correct! If we have `start=10, end=None`, we're asking "should I read from line 10 to the end of the file?" We should check if lines from 10 to end of file are already covered.
+
+Similarly, if `start=None, end=50`, we're asking "should I read from beginning to line 50?"
+
+Actually, looking at the test `test_memory_should_read_file_no_line_range`, it tests the case where both are `None`. But what about the asymmetric cases?
+
+Let me write a test to check this:
+[tool] python_exec({'code': 'from henchman.agents.working_memory import 
+WorkingMemory, WorkingMemoryEntry\n\n# Test case: start provided, 
+end=None\nmemory = 
+WorkingMemory(current_task="Test")\nmemory.add_recent_file(WorkingMemoryEntry("/
+test/file.py", "Test", "1-100"))\n\n# Should read lines 50 to end? File was read
+1-100, so lines 50-end (50-100) are covered\n# Current behavior: start=50, 
+end=None -> start is None or end is None? end is None, so returns 
+True\nshould_read, reason = memory.should_read_file("/test/file.py", 
+start=50)\nprint(f"start=50, end=None: should_read={should_read}, 
+reason={reason}")\n# Expected: False (lines 50-100 are covered by 1-100)\n# 
+Actual: True (because end is None)\n\n# Test case: start=None, end=50\n# Should 
+read lines beginning to 50? File was read 1-100, so lines 1-50 are 
+covered\nshould_read2, reason2 = memory.should_read_file("/test/file.py", 
+end=50)\nprint(f"start=None, end=50: should_read={should_read2}, 
+reason={reason2}")\n# Expected: False (lines 1-50 are covered by 1-100)\n# 
+Actual: True (because start is None)'})
+[result] start=50, end=None: should_read=True, reason=File not fully read - 
+partial read recorded
+start=None, end=50: should_read=True, reason=File not fully read - partial read 
+recorded
+...
+This is a bug! When `start` is provided but `end` is `None`, we should check if lines from `start` to the end of the file are covered. Similarly when `end` is provided but `start` is `None`.
+
+But wait, we don't know the end of the file. The `should_read_file` method doesn't have access to file size. So maybe the current behavior is correct: if we don't know what lines we want to read (missing start or end), we should read the file.
+
+Actually, let me think about this more carefully. The method is called `should_read_file`. If caller doesn't specify a complete line range, they're asking "should I read (part of) this file?" Without knowing which part, we can't determine if it's already been read.
+
+But there's still an issue: what if the file was read fully (`lines_read="full"`)? Then any partial read should return `False`. Let me test:
+[tool] python_exec({'code': 'from henchman.agents.working_memory import 
+WorkingMemory, WorkingMemoryEntry\n\n# Test case: file read fully, start=50, 
+end=None\nmemory = 
+WorkingMemory(current_task="Test")\nmemory.add_recent_file(WorkingMemoryEntry("/
+test/file.py", "Test", "full"))\n\n# File was read fully, so any partial read 
+(lines 50 to end) should be covered\nshould_read, reason = 
+memory.should_read_file("/test/file.py", start=50)\nprint(f"File full, start=50,
+end=None: should_read={should_read}, reason={reason}")\n# Expected: False (file 
+was read fully)\n# Actual: ??? Let\'s see\n\n# Actually, line 263 checks if most
+recent entry is "full"\n# matches[0].lines_read.strip().lower() == "full" 
+returns True\n# So it should return False\n# But wait, matches is 
+reversed(self.recent_files), most recent first\n# We have one entry "full", so 
+matches[0] is "full"\n# Line 263: if matches[0].lines_read.strip().lower() == 
+"full": return False\n# So it should return False!\n\n# Let me trace through the
+code\nprint("\\nTracing through should_read_file logic:")\nprint("1. matches = 
+[e for e in reversed(self.recent_files) if e.path == path]")\nprint("   
+recent_files has one entry: WorkingMemoryEntry(path=\'/test/file.py\', ..., 
+lines_read=\'full\')")\nprint("   reversed gives same list (one 
+element)")\nprint("   matches[0].lines_read = \'full\'")\nprint("2. 
+matches[0].lines_read.strip().lower() == \'full\' -> True")\nprint("3. return 
+False, \'File already read (full)\'")\nprint(f"Result: 
+should_read={should_read}, reason={reason}")'})
+[result] File full, start=50, end=None: should_read=False, reason=File already 
+read (full)
+
+Tracing through should_read_file logic:
+1. matches = [e for e in reversed(self.recent_files) if e.path == path]
+   re...
+Good
