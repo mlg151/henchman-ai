@@ -661,6 +661,49 @@ class TestWorkingMemory:
         assert should_read is True
         assert "invalid" in reason.lower() or "positive" in reason.lower()
 
+    def test_memory_should_read_file_invalid_line_numbers_partial_range(self):
+        """Test should_read_file with invalid line numbers when only one of start/end is provided.
+        
+        BUG: Currently doesn't validate line numbers when only start or end is provided.
+        Should validate start if provided (even if end is None) and end if provided (even if start is None).
+        """
+        memory = WorkingMemory(current_task="Test")
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "10-50"))
+        
+        # Test with start=0, end=None (invalid start, end is None)
+        should_read, reason = memory.should_read_file("/test/file.py", start=0)
+        assert should_read is True
+        # BUG: Currently returns "File not fully read - partial read recorded"
+        # Should return error about invalid line numbers
+        assert "invalid" in reason.lower() or "positive" in reason.lower(), (
+            f"Expected error about invalid line numbers, got: {reason}"
+        )
+        
+        # Test with start=-5, end=None (invalid negative start)
+        should_read, reason = memory.should_read_file("/test/file.py", start=-5)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+        
+        # Test with start=None, end=0 (invalid end)
+        should_read, reason = memory.should_read_file("/test/file.py", end=0)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+        
+        # Test with start=None, end=-10 (invalid negative end)
+        should_read, reason = memory.should_read_file("/test/file.py", end=-10)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+        
+        # Test with valid start=10, end=None (should return True because file not fully read)
+        should_read, reason = memory.should_read_file("/test/file.py", start=10)
+        assert should_read is True
+        assert "not fully read" in reason.lower() or "partial" in reason.lower()
+        
+        # Test with valid start=None, end=50 (should return True because file not fully read)
+        should_read, reason = memory.should_read_file("/test/file.py", end=50)
+        assert should_read is True
+        assert "not fully read" in reason.lower() or "partial" in reason.lower()
+
     def test_memory_should_read_file_full_with_whitespace(self):
         """Test should_read_file handles 'full' with surrounding whitespace."""
         # Test with trailing space

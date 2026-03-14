@@ -269,17 +269,19 @@ class WorkingMemory(SerializableDataclass):
         if matches[0].lines_read.strip().lower() == "full":
             return False, "File already read (full)"
 
+        # Validate line numbers if provided (1-indexed)
+        if start is not None and start < 1:
+            return True, f"Invalid line number: start must be positive (1-indexed), got start={start}"
+        if end is not None and end < 1:
+            return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
+        
         if start is None or end is None:
             # No line range specified but file wasn't read fully
             return True, "File not fully read - partial read recorded"
 
-        # Validate line range
+        # Validate line range (both are not None at this point)
         if start > end:
             return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"
-
-        # Validate line numbers are positive (1-indexed)
-        if start < 1 or end < 1:
-            return True, f"Invalid line numbers: must be positive (1-indexed), got start={start}, end={end}"
 
         requested = LineRange(start, end)
 
