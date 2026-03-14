@@ -239,7 +239,34 @@ def extract_keyword_sections(
     content: str | None,
     keywords: list[str] | None = None,
 ) -> list[str]:
-    """Extract sections with important keywords."""
+    """Extract sections containing important keywords with surrounding context.
+    
+    Scans the content for lines containing important keywords and extracts
+    the keyword line along with CONTEXT_LINES_BEFORE (2) lines before and
+    CONTEXT_LINES_AFTER (2) lines after for context.
+    
+    Args:
+        content: The text content to scan for keywords. If None, returns empty list.
+        keywords: Optional list of keywords to search for. If None, uses default
+            keywords: ["important", "critical", "note", "warning", "error",
+            "exception", "decision", "conclusion", "summary", "key", "essential",
+            "must", "should", "required"].
+    
+    Returns:
+        list[str]: List of context sections, each containing a keyword line with
+        surrounding context. Returns empty list if content is None or no keywords
+        are found.
+    
+    Examples:
+        >>> extract_keyword_sections("Normal text\\nIMPORTANT: This is critical")
+        ['Normal text\\nIMPORTANT: This is critical']
+        
+        >>> extract_keyword_sections("Line 1\\nLine 2", ["custom"])
+        []
+        
+        >>> extract_keyword_sections(None)
+        []
+    """
     if content is None:
         return []
     target_keywords = keywords if keywords is not None else _get_default_keywords()
@@ -286,7 +313,35 @@ def _get_context_around_line(lines: list[str], line_index: int) -> str | None:
 
 
 def extract_critical_sections(content: str | None) -> list[str]:
-    """Extract critical sections from content for preservation."""
+    """Extract critical sections from content for preservation.
+    
+    Combines multiple extraction methods to find the most important sections
+    that should be preserved during context compression. Extracts:
+    1. Code blocks (triple backtick sections)
+    2. Error sections (tracebacks, exceptions, warnings, failures)
+    3. Tool sections (tool calls, executions, function calls)
+    
+    Then removes duplicates and substrings, keeping only the longest unique
+    sections to avoid redundancy.
+    
+    Args:
+        content: The text content to extract critical sections from.
+            If None, returns empty list.
+    
+    Returns:
+        list[str]: List of unique critical sections, each as a string.
+        Returns empty list if content is None or no critical sections found.
+    
+    Examples:
+        >>> extract_critical_sections("```python\\nprint('hello')\\n```")
+        ["```python\\nprint('hello')\\n```"]
+        
+        >>> extract_critical_sections("Error: something went wrong")
+        ['Error: something went wrong']
+        
+        >>> extract_critical_sections(None)
+        []
+    """
     if content is None:
         return []
 
