@@ -164,7 +164,28 @@ def extract_error_sections(content: str | None) -> list[str]:
 
 
 def extract_tool_sections(content: str | None) -> list[str]:
-    """Extract tool call sections from content."""
+    """Extract tool call sections from content.
+    
+    Extracts sections containing tool-related patterns such as "Tool call:",
+    "Calling tool", "Executing:", and "Function:" from the given content.
+    
+    Args:
+        content: The text content to search for tool sections. If None,
+            returns an empty list.
+    
+    Returns:
+        A list of strings containing tool-related sections found in the content.
+        Each string is a matched section. Returns an empty list if no tool
+        sections are found or if content is None.
+    
+    Examples:
+        >>> extract_tool_sections("Tool call: read_file\\nSome other text")
+        ['Tool call: read_file']
+        >>> extract_tool_sections("No tool sections here")
+        []
+        >>> extract_tool_sections(None)
+        []
+    """
     sections = _extract_sections_by_type(content, "tool")
     return list(sections)
 

@@ -1,7 +1,7 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-14T00:00:00Z
+## Date: 2025-03-14T02:00:00Z
 ## Bug Summary
-The `should_read_file` method fails to recognize "full" file reads when the `lines_read` field has surrounding whitespace (e.g., "FULL ", " full", " full "), causing unnecessary re-reads of files that were already fully read.
+The `should_read_file` method incorrectly handles case-insensitive "full" values and whitespace in the `lines_read` field, causing files marked as fully read (e.g., "FULL", "Full", " full ") to be re-read unnecessarily.
 
 ## Lens
 **Phase 1: The Intent vs. Reality Check** - Logic Gaps
@@ -9,44 +9,22 @@ The `should_read_file` method fails to recognize "full" file reads when the `lin
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| When `lines_read` is "full" (case-insensitive, with optional surrounding whitespace), any subsequent read should return `False` (no need to read) | The method only checks exact match after `.lower()`, so "FULL " (with trailing space) is not recognized as "full" |
-| The method should be robust to minor data formatting variations | Files marked as fully read but with whitespace in `lines_read` are unnecessarily re-read |
-| User/agent convenience: forgiving of whitespace in stored data | Strict matching causes functional bugs |
+| Files marked as "full" (case-insensitive, with whitespace) should be considered fully read and return `False` for any line range | Files with "FULL", "Full", " full " etc. return `True` and get re-read, wasting context window and API calls |
+| The method should normalize and compare `lines_read.strip().lower() == "full"` | Current code does exact string match: `match.lines_read.strip().lower() == "full"` but only checks once, missing case variations |
+| Line range parsing should handle edge cases consistently | Inconsistent handling leads to different behavior for same semantic meaning |
 
 ## Root Cause
-Line 257 in `should_read_file`: `if match.lines_read.lower() == "full":`
-- Uses `.lower()` for case-insensitivity (good)
-- Does `.strip()` for whitespace (missing!)
-- Result: `"FULL ".lower()` gives `"full "` which does not equal `"full"`
+The bug is in the `should_read_file` method at line 238. The code checks `if match.lines_read.strip().lower() == "full":` but this check is only performed when `match` is found. However, the real issue is that when `LineRange.from_str(match.lines_read)` is called with "FULL" or "Full", it returns `None` (because "FULL" doesn't match "start-end" format), and the method falls through to return `True` with reason "Cannot determine overlap - invalid lines_read format".
 
-This causes the method to proceed to `LineRange.from_str()` which fails to parse `"FULL "` as a valid range, returning `None`, which then triggers the "invalid lines_read format" path, returning `True` (need to read).
+Additionally, the test suite reveals multiple related issues:
+1. Case-insensitive "full" not handled
+2. Whitespace around "full" not properly normalized
+3. Multiple entries for same file - should use most recent entry, not first found
 
 ## Fix Plan
-1. Change line 257 to: `if match.lines_read.strip().lower() == "full":`
-2. Add `.strip()` to remove leading/trailing whitespace before comparison
-3. This maintains case-insensitivity while being forgiving of whitespace
+1. Fix the `should_read_file` method to properly handle case-insensitive "full" values by checking `match.lines_read.strip().lower() == "full"` before attempting to parse as a line range.
+2. Ensure the check happens in the right place in the logic flow (before attempting `LineRange.from_str`).
+3. Add proper normalization for whitespace and case variations.
+4. The fix should be minimal and surgical - only change what's necessary to fix the bug.
 
-## Status: FIXED
-
-## Files Changed
-1. **src/henchman/agents/working_memory.py** (line 257):
-   - Changed: `if match.lines_read.lower() == "full":`
-   - To: `if match.lines_read.strip().lower() == "full":`
-   - Added `.strip()` to handle whitespace around "full"
-
-2. **tests/agents/test_working_memory.py**:
-   - Added new test method: `test_memory_should_read_file_full_with_whitespace()`
-   - Tests trailing space ("FULL "), leading space (" full"), both spaces (" full "), and tabs ("\\tfull\\t")
-   - Verifies all whitespace variations are correctly recognized as "full"
-
-## Verification
-- All existing tests pass (46 tests)
-- New test passes, confirming the fix works
-- Code coverage remains at 98% for working_memory.py
-- The fix is minimal and surgical, addressing exactly one bug without refactoring unrelated code
-
-## Impact
-- Prevents unnecessary file re-reads when `lines_read` contains whitespace
-- Maintains backward compatibility with existing data
-- Improves robustness of the working memory system
-- Follows TDD methodology: failing test first, then fix, then all tests pass
+## Status: IN PROGRESS
