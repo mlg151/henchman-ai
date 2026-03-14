@@ -253,11 +253,11 @@ class WorkingMemory(SerializableDataclass):
         match = next((e for e in reversed(self.recent_files) if e.path == path), None)
         if not match:
             return True, "File not in recent files"
-        
+
         # Special case: file was read fully
         if match.lines_read.lower() == "full":
             return False, "File already read (full)"
-        
+
         if start is None or end is None:
             # No line range specified but file wasn't read fully
             return True, "File not fully read - partial read recorded"
@@ -265,7 +265,7 @@ class WorkingMemory(SerializableDataclass):
         # Validate line range
         if start > end:
             return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"
-        
+
         # Validate line numbers are positive (1-indexed)
         if start < 1 or end < 1:
             return True, f"Invalid line numbers: must be positive (1-indexed), got start={start}, end={end}"
@@ -278,7 +278,7 @@ class WorkingMemory(SerializableDataclass):
                 return False, "File already read (contained within previously read lines)"
             # Otherwise, we need to read it (either no overlap or partial overlap)
             return True, "New or partially overlapping lines need to be read"
-        
+
         # If lines_read format is invalid (not "full" and not valid range)
         return True, "Cannot determine overlap - invalid lines_read format"
 
@@ -291,7 +291,7 @@ class WorkingMemory(SerializableDataclass):
         Returns:
             A list of string insights previously recorded for the file.
         """
-        return next((e.key_insights for e in self.recent_files if e.path == path), [])
+        return next((e.key_insights for e in reversed(self.recent_files) if e.path == path), [])
 
     def update_after_read(
         self: WorkingMemory,

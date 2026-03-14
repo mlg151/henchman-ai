@@ -319,6 +319,36 @@ class TestWorkingMemory:
         insights = memory.get_file_insights("/unknown/file.py")
         assert insights == []
 
+    def test_memory_get_file_insights_multiple_entries(self):
+        """Test getting insights for a file with multiple entries (should return most recent)."""
+        memory = WorkingMemory(current_task="Test")
+        # Add two entries for same file (older first, then newer)
+        memory.add_recent_file(
+            WorkingMemoryEntry(
+                "/test/file.py",
+                "First read",
+                "1-50",
+                ["Old insight 1", "Old insight 2"]
+            )
+        )
+        memory.add_recent_file(
+            WorkingMemoryEntry(
+                "/test/file.py",
+                "Second read", 
+                "60-100",
+                ["New insight 1", "New insight 2", "New insight 3"]
+            )
+        )
+        
+        # get_file_insights should return insights from MOST RECENT entry
+        insights = memory.get_file_insights("/test/file.py")
+        # BUG: Currently returns ["Old insight 1", "Old insight 2"] from first entry
+        # Should return ["New insight 1", "New insight 2", "New insight 3"] from most recent
+        assert insights == ["New insight 1", "New insight 2", "New insight 3"], (
+            f"Bug: get_file_insights returns {insights}, expected insights from most recent entry. "
+            "Should use reversed(self.recent_files) like should_read_file does."
+        )
+
     def test_memory_update_after_read(self):
         """Test update_after_read convenience method."""
         memory = WorkingMemory(current_task="Test")
