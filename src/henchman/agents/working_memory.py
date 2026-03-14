@@ -7,6 +7,7 @@ a task.
 
 from __future__ import annotations
 
+import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -16,6 +17,21 @@ from typing import Any, TypeVar, Union
 import yaml
 
 from henchman.utils.serialization import SerializableDataclass
+
+
+def _normalize_path(path: str) -> str:
+    """Normalize a file path for consistent comparison.
+    
+    Args:
+        path: The file path to normalize.
+        
+    Returns:
+        Normalized path string.
+    """
+    # Use os.path.normpath to normalize path separators and remove . and ..
+    # Also expand user home directory (~) if present
+    return os.path.normpath(os.path.expanduser(path))
+
 
 # Constants to avoid magic values
 DEFAULT_IMPACT = "medium"
@@ -152,6 +168,8 @@ class WorkingMemory(SerializableDataclass):
         Returns:
             None
         """
+        # Normalize the path before storing
+        entry.path = _normalize_path(entry.path)
         self.recent_files.append(entry)
 
     def add_decision(self: WorkingMemory, entry: DecisionEntry) -> None:
@@ -257,8 +275,11 @@ class WorkingMemory(SerializableDataclass):
             whether the file should be read (True = read, False = skip), and the second
             element is a string explaining the reason for the decision.
         """
+        # Normalize the path for consistent comparison
+        normalized_path = _normalize_path(path)
+
         # Find ALL entries for this file (most recent first)
-        matches = [e for e in reversed(self.recent_files) if e.path == path]
+        matches = [e for e in reversed(self.recent_files) if e.path == normalized_path]
         if not matches:
             return True, "File not in recent files"
 
@@ -274,7 +295,7 @@ class WorkingMemory(SerializableDataclass):
             return True, f"Invalid line number: start must be positive (1-indexed), got start={start}"
         if end is not None and end < 1:
             return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
-        
+
         if start is None or end is None:
             # No line range specified but file wasn't read fully
             return True, "File not fully read - partial read recorded"
@@ -354,9 +375,10 @@ class WorkingMemory(SerializableDataclass):
         Returns:
             A list of string insights previously recorded for the file.
         """
+        normalized_path = _normalize_path(path)
         insights: list[str] = []
         for entry in self.recent_files:  # Iterate in chronological order (oldest first)
-            if entry.path == path:
+            if entry.path == normalized_path:
                 insights.extend(entry.key_insights)
         return insights
 
