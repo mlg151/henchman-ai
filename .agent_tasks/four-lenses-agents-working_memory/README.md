@@ -1,55 +1,57 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-14T06:15:00Z
+## Date: 2025-03-14T15:00:00Z
 ## Bug Summary
-The `should_read_file` method incorrectly returns `False` (already read) when a file has an older entry with `lines_read='full'` and a newer entry with a partial line range. The method should only consider the MOST RECENT entry when determining if a file was read "fully", but it checks ALL entries and returns `False` if ANY entry has `lines_read='full'`.
+The `should_read_file` method incorrectly handles the case where a file was read fully earlier but has a more recent partial read entry. It only checks the most recent entry for "full", causing unnecessary re-reads of lines that were already read in a full read.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - Logic Gap
+**Phase 1: The Intent vs. Reality Check** - Logic Gaps
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| When a file has multiple entries, `should_read_file` should only consider the MOST RECENT entry for "full" status. If the most recent entry is not "full", proceed to line range logic. | The method checks ALL entries for "full" status. If ANY entry (even older ones) has `lines_read='full'`, it returns `False` (already read). |
-| If file was read fully in the past but more recently read partially, the most recent (partial) information should take precedence. | Older "full" entry overrides newer partial entry, causing the method to incorrectly claim lines outside the partial range are already read. |
+| If a file was read fully at any point (any entry has `lines_read="full"`), any line range should be considered already read | Only checks most recent entry for "full", ignoring older full reads |
+| Historical full reads should prevent re-reading of any lines in the file | Partial reads after full reads cause unnecessary re-reads of other lines |
+| File reading decisions should be accurate based on complete history | Inaccurate decisions waste context window and reduce performance |
 
 ## Root Cause
-In the `should_read_file` method:
-1. Line 251: `matches = [e for e in reversed(self.recent_files) if e.path == path]` creates list with newest entries first
-2. Lines 256-259: Loop checks EACH match for `lines_read == "full"`. If ANY match is "full", returns `False`
-3. The bug: It checks ALL matches, not just the first (most recent) one
-4. Result: Older "full" entry causes method to return `False` even when most recent entry is partial
+The bug is in the logic of `should_read_file` method at lines 254-256:
+```python
+# Check if MOST RECENT entry indicates file was read fully
+if matches[0].lines_read.strip().lower() == "full":
+    return False, "File already read (full)"
+```
 
-The fix: Only check the FIRST (most recent) match for "full" status. If first match is not "full", proceed to line range logic.
+The method only checks the most recent entry for "full". If a file was:
+1. Read fully at time T1 (entry: "full")
+2. Read partially at time T2 (entry: "10-50")
+3. We want to read lines 60-100 at time T3
+
+The method will check most recent entry ("10-50"), see it's not "full", and then check line ranges. Since `LineRange.from_str("full")` returns `None`, the full read entry won't be considered in the line range check either. Result: returns `True` (should read) even though lines 60-100 were already read in the full read.
 
 ## Fix Plan
-1. Modify `should_read_file` to only check the FIRST match (most recent entry) for `lines_read == "full"`
-2. Remove the loop that checks ALL matches for "full" status
-3. Update logic to prioritize most recent information over older information
+Modify the `should_read_file` method to check ALL entries for "full", not just the most recent one. If any entry has `lines_read="full"` (case-insensitive, with whitespace), the file was fully read at some point and any line range should be considered already read.
 
 ## Status: FIXED
 
 ## Files Changed
-1. `src/henchman/agents/working_memory.py`:
-   - Lines 256-259: Replaced loop checking ALL matches for "full" with single check of first match
-   - Lines 263-266: Removed redundant loop (was checking matches again after already checking first match)
+1. `src/henchman/agents/working_memory.py` - Modified `should_read_file` method to check ALL entries for "full" instead of just the most recent entry.
+2. `tests/agents/test_working_memory.py` - Added new test `test_memory_should_read_file_full_then_partial` to verify the fix.
 
-## Test Case That Demonstrates the Bug
+## Changes Made
+The bug was in lines 254-256 of `working_memory.py`. Changed from:
 ```python
-memory = WorkingMemory(current_task="Test")
-# Older entry: file read fully
-memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Old full read", "full"))
-# Newer entry: file read partially  
-memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "New partial read", "10-50"))
-
-# Ask for lines 60-80 (not in newer partial read)
-should_read, reason = memory.should_read_file("/test/file.py", 60, 80)
-# Before fix: Returns False (finds older "full" entry)
-# After fix: Returns True (most recent entry doesn't cover lines 60-80)
+# Check if MOST RECENT entry indicates file was read fully
+if matches[0].lines_read.strip().lower() == "full":
+    return False, "File already read (full)"
 ```
 
-## Verification
-- Created test `test_bug_verification.py` that demonstrates the bug
-- Modified `should_read_file` method to only check first (most recent) match for "full" status
-- Removed redundant loop checking all matches
-- Ran all tests: `pytest tests/agents/test_working_memory.py` - ALL TESTS PASS
-- Verified bug is fixed: `test_bug_verification.py` now passes
+To:
+```python
+# Check if ANY entry indicates file was read fully
+# If file was read fully at any point, we know all lines
+for match in matches:
+    if match.lines_read.strip().lower() == "full":
+        return False, "File already read (full)"
+```
+
+This ensures that if a file was read fully at any point (even if followed by partial reads), any line range will be considered already read, preventing unnecessary re-reads and improving performance.

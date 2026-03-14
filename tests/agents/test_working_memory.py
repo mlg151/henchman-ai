@@ -688,6 +688,43 @@ class TestWorkingMemory:
         should_read4, reason4 = memory4.should_read_file("/test/file4.py", 10, 50)
         assert should_read4 is False, f"File marked as '\\tfull\\t' should be considered fully read"
 
+    def test_memory_should_read_file_full_then_partial(self):
+        """Test should_read_file when file was read fully then partially (bug fix)."""
+        memory = WorkingMemory(current_task="Test")
+        
+        # Full read (older)
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Full read", "full"))
+        # Partial read (newer) 
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Partial read", "10-50"))
+        
+        # Test 1: Lines in partial read (10-50) - should be False
+        should_read, reason = memory.should_read_file("/test/file.py", 20, 40)
+        assert should_read is False, f"Lines 20-40 should be already read (in partial read). Got: {should_read}"
+        assert "already read" in reason.lower()
+        
+        # Test 2: Lines NOT in partial read but in full read (60-100) - BUG: currently returns True
+        should_read, reason = memory.should_read_file("/test/file.py", 60, 100)
+        # This should be False because file was read fully earlier
+        assert should_read is False, (
+            f"BUG: Lines 60-100 should be already read (in full read). Got: {should_read}, reason: {reason}. "
+            "File was read fully earlier, so any lines should be considered already read."
+        )
+        assert "already read" in reason.lower()
+        
+        # Test 3: Lines spanning both (1-100) - should be False
+        should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
+        assert should_read is False, f"Lines 1-100 should be already read (in full read). Got: {should_read}"
+        assert "already read" in reason.lower()
+        
+        # Test 4: Reverse order (partial then full) - should work correctly
+        memory2 = WorkingMemory(current_task="Test")
+        memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Partial read", "10-50"))
+        memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Full read", "full"))
+        
+        should_read2, reason2 = memory2.should_read_file("/test/file2.py", 60, 100)
+        assert should_read2 is False, f"Lines 60-100 should be already read (full read is most recent). Got: {should_read2}"
+        assert "already read" in reason2.lower()
+
 class TestWorkingMemorySystem:
     """Test WorkingMemorySystem class."""
 
