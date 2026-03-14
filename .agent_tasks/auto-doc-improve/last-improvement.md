@@ -1,46 +1,42 @@
 # Last Documentation Improvement
 
 ## Date/Time
-2026-03-14T20:15:00Z (approximate)
+2026-03-14T22:10:00Z (approximate)
 
 ## Files Changed
-- `CHANGELOG.md` (root file)
-- `docs/CHANGELOG.md` (already correct, verified)
+- `.github/copilot-instructions.md`
 
 ## Smell Category Addressed
-Consistency Error (HIGH severity)
+Completeness/Accuracy (MEDIUM severity)
 
 ## Rationale for Change
-Fixed a critical documentation inconsistency between the project's version tracking. The root `CHANGELOG.md` file incorrectly listed version `0.3.14` with a release date (2026-03-10) while:
-1. The source code `version.py` shows version `0.3.13`
-2. Git tags show `v0.3.13` as the latest tag
-3. According to Keep a Changelog format, released versions should have dates and unreleased changes should be under `[Unreleased]`
+The copilot instructions file (internal documentation for AI assistants) had an incomplete representation of the built-in tools in the Architecture Overview section. It listed only 4 tools as examples (`read_file, write_file, delegate_task, ask_user`) when the project actually has 34 built-in tools. While this wasn't technically incorrect (it was just giving examples), it could be misleading or give an incomplete picture of the tool system's capabilities.
 
-This inconsistency would confuse users about what version is actually released and what features are available in the current version.
+The actual tools documentation (`docs/tools.md`) correctly lists all 34 tools, but the copilot instructions should also accurately represent the scale and scope of the tool system for AI assistants that rely on this guidance.
 
 ## Changes Made
-1. **Root CHANGELOG.md**:
-   - Moved all `0.3.14` content from the `## [0.3.14] - 2026-03-10` section to the `## [Unreleased]` section
-   - Removed the `## [0.3.14] - 2026-03-10` header entirely
-   - Updated the comparison link at the bottom from `[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.3.14...HEAD` to `[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.3.13...HEAD`
-   - Removed the `[0.3.14]: https://github.com/mlg151/henchman-ai/compare/v0.3.13...v0.3.14` link
-
-2. **Verified docs/CHANGELOG.md**:
-   - Already had the correct structure with changes under `[Unreleased]`
-   - Already had the correct comparison link `[Unreleased]: https://github.com/mlg151/henchman-ai/compare/v0.3.13...HEAD`
-   - No changes needed to this file
+1. **Updated `.github/copilot-instructions.md`**:
+   - Changed line in Architecture Overview from:
+     ```
+     ├── tools/      # Built-in tools: read_file, write_file, delegate_task, ask_user
+     ```
+     to:
+     ```
+     ├── tools/      # Built-in tools (34 total): read_file, write_file, edit_file, shell, grep, etc.
+     ```
+   - Added the correct count "(34 total)" to provide accurate scale
+   - Updated the example tools to include more representative ones (`edit_file, shell, grep`) that better showcase the diversity of tools available
+   - Added "etc." to indicate this is not an exhaustive list
 
 ## What to Verify
-- The CHANGELOG now correctly follows Keep a Changelog format
-- All changes that were under `0.3.14` are now properly under `[Unreleased]`
-- The version in `src/henchman/version.py` (0.3.13) matches the latest released version in CHANGELOG
-- Git tags show `v0.3.13` as the latest tag
-- The comparison links at the bottom of CHANGELOG.md are correct
-- No breaking changes to source code functionality
-- Documentation accurately reflects the actual project state
+- The copilot instructions now accurately represent the scale of the tool system (34 tools)
+- The example tools shown are more representative of the tool diversity
+- The change doesn't break any formatting or links in the file
+- The actual tools documentation (`docs/tools.md`) remains the authoritative source with the complete list
+- No other documentation files need similar updates (they already correctly mention 34 tools)
 
 ## Next Priority
-All documentation smells have been addressed. The project now has a perfect documentation score of 100.0/100 with no remaining smells. Future documentation improvements should focus on:
-1. Keeping the CHANGELOG synchronized with actual releases
-2. Ensuring version numbers match between source code, git tags, and documentation
-3. Proactively updating documentation when new features are added
+All documentation smells have been addressed with a perfect score of 100.0/100. Future documentation improvements should focus on:
+1. Keeping the copilot instructions synchronized with actual project features
+2. Ensuring example lists in documentation are representative of the full capabilities
+3. Proactively updating internal guidance files when new tools are added
