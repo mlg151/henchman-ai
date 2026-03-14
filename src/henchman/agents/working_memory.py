@@ -247,20 +247,19 @@ class WorkingMemory(SerializableDataclass):
             start: Optional starting line number (1-indexed) for the read range.
             end: Optional ending line number (inclusive) for the read range.
 
-        Returns:
-            A tuple containing:
-            - bool: True if the file should be read, False otherwise.
-            - str: The reason for the decision.
         """
         # Find ALL entries for this file (most recent first)
         matches = [e for e in reversed(self.recent_files) if e.path == path]
         if not matches:
             return True, "File not in recent files"
 
-        # Check if ANY entry indicates file was read fully
-        for match in matches:
-            if match.lines_read.strip().lower() == "full":
-                return False, "File already read (full)"
+        # Check if MOST RECENT entry indicates file was read fully
+        # Check if MOST RECENT entry indicates file was read fully
+        # We only check the first (most recent) match because if a file was
+        # read fully in the past but more recently read partially, the most
+        # recent information (partial) takes precedence.
+        if matches[0].lines_read.strip().lower() == "full":
+            return False, "File already read (full)"
 
         if start is None or end is None:
             # No line range specified but file wasn't read fully
