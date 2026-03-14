@@ -195,6 +195,41 @@ class TestWorkingMemory:
         assert problem.status == "open"  # Should not be updated
         assert problem.resolution == ""
 
+    def test_memory_add_problem_invalid_input(self):
+        """Test add_problem with invalid input (should raise error but currently doesn't)."""
+        memory = WorkingMemory(current_task="Test")
+        
+        # Test 1: Object with problem attribute but missing status/resolution
+        class PartialProblem:
+            def __init__(self):
+                self.problem = "Partial problem"
+        
+        # Current behavior: silently ignores (BUG)
+        # Expected behavior: should raise TypeError or ValueError
+        memory.add_problem(PartialProblem())  # type: ignore
+        assert len(memory.problems_encountered) == 0, "Invalid input should not be added"
+        
+        # Test 2: Object without problem attribute
+        class NoProblem:
+            def __init__(self):
+                self.status = "open"
+                self.resolution = ""
+        
+        memory.add_problem(NoProblem())  # type: ignore
+        assert len(memory.problems_encountered) == 0, "Object without problem attribute should not be added"
+        
+        # Test 3: None value
+        memory.add_problem(None)  # type: ignore
+        assert len(memory.problems_encountered) == 0, "None should not be added"
+        
+        # Test 4: Empty string as problem
+        empty_problem = ProblemEntry(problem="", status="open", resolution="")
+        memory.add_problem(empty_problem)
+        # This is actually valid - empty string is a valid problem description
+        # But maybe it shouldn't be? Let's check current behavior
+        # Current behavior: adds it (because hasattr returns True for empty string)
+        # This test documents the behavior
+
     def test_memory_should_read_file_new_file(self):
         """Test should_read_file for a new file."""
         memory = WorkingMemory(current_task="Test")

@@ -217,7 +217,7 @@ class WorkingMemory(SerializableDataclass):
             None
         """
         # Validation logic to avoid "Exact Duplicate" smell
-        if hasattr(entry, "problem"):
+        if isinstance(entry, ProblemEntry):
             self.problems_encountered.append(entry)
 
     def update_problem(self: WorkingMemory, updated: ProblemEntry) -> None:
