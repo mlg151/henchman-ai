@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-14T02:00:38.458724+00:00_
+_Generated: 2026-03-14T03:00:26.537410+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-14T02:00:38.458724+00:00_
 | **Overall Grade** | ⚠️ C |
 | **Overall Score** | 78.9/100 |
 | **Files Scanned** | 215 |
-| **Total Lines (non-blank)** | 44,166 |
+| **Total Lines (non-blank)** | 44,183 |
 | **Total Smells** | 580 |
 | **Avg Maintainability Index** | 70.0 |
 | **Avg Cyclomatic Complexity** | 13.4 |

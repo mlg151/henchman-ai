@@ -1,46 +1,49 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-14T02:00:00Z
+## Date: 2025-03-14T03:00:00Z
 ## Bug Summary
-The `add_problem` method silently ignores invalid input instead of raising an error. When passed an object that doesn't have a `problem` attribute (or has a falsy `problem` attribute), the method does nothing without any indication of failure, which could hide programming errors.
+The `add_problem` method silently ignores invalid input instead of raising an exception, violating the principle of "fail fast" and making debugging difficult when invalid data is passed.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - Logic Gaps
+Phase 1: The Intent vs. Reality Check - Logic Gaps (Silent Failures)
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| `add_problem` should validate that `entry` is a valid `ProblemEntry` with all required attributes | Accepts any object with `problem` attribute, even if missing `status` or `resolution` |
-| Invalid input should raise a clear error (TypeError or ValueError) | Silently ignores invalid input, making debugging difficult |
-| Method should enforce the contract specified in its signature and docstring | Duck typing allows incompatible objects, violating the interface contract |
+| When non-ProblemEntry object is passed to `add_problem`, method should raise `TypeError` or `ValueError` to alert caller of invalid input. | Method silently ignores invalid input, making it difficult to debug when wrong data type is passed. |
+| Input validation should fail fast to catch bugs early in development. | Silent failure allows bugs to propagate through the system undetected. |
+| The test comment explicitly states "Current behavior: silently ignores (BUG)" and "Expected behavior: should raise TypeError or ValueError". | The code continues to silently ignore invalid input, contrary to documented expectations. |
 
 ## Root Cause
-The method uses duck typing (`if hasattr(entry, "problem"):`) instead of proper validation. This is insufficient because:
-1. A `ProblemEntry` requires `problem`, `status`, and `resolution` attributes
-2. The `problem` attribute should be non-empty (meaningful)
-3. The type hint `ProblemEntry` suggests stricter validation than implemented
+The `add_problem` method at line 222 only checks `isinstance(entry, ProblemEntry)` and silently returns without adding anything if the check fails:
+```python
+if isinstance(entry, ProblemEntry):
+    self.problems_encountered.append(entry)
+```
 
-The bug is at line 220: `if hasattr(entry, "problem"):`. This check passes for objects with any `problem` attribute, even if `problem` is `None`, empty string, or the object lacks other required attributes.
+This violates the principle of "fail fast" - when invalid input is provided, the method should raise an exception to alert the caller immediately, rather than silently ignoring the input and leaving the caller unaware that their operation failed.
+
+The test file (`test_memory_add_problem_invalid_input`) explicitly documents this as a bug with comment: "Current behavior: silently ignores (BUG)" and "Expected behavior: should raise TypeError or ValueError".
 
 ## Fix Plan
-1. Change the validation to check `isinstance(entry, ProblemEntry)` for strict type checking
-2. OR check all required attributes: `hasattr(entry, "problem") and hasattr(entry, "status") and hasattr(entry, "resolution")`
-3. OR raise `TypeError` with a clear message for invalid input
-4. Add a test that demonstrates the bug (fails before fix, passes after)
+1. Modify `add_problem` method to raise `TypeError` when non-ProblemEntry object is passed
+2. Update the test to expect the exception instead of checking that nothing was added
+3. The fix should be minimal - only add input validation with exception raising
 
 ## Status: FIXED
 
 ## Files Changed
-1. `src/henchman/agents/working_memory.py` - Line 220: Changed `if hasattr(entry, "problem"):` to `if isinstance(entry, ProblemEntry):`
-2. `tests/agents/test_working_memory.py` - Added new test method `test_memory_add_problem_invalid_input` to verify the fix
+1. `src/henchman/agents/working_memory.py` - Modified `add_problem` method to raise `TypeError` for invalid input instead of silently ignoring it.
+2. `tests/agents/test_working_memory.py` - Updated `test_memory_add_problem_invalid_input` to expect `TypeError` exception and added new test `test_memory_add_problem_invalid_input_raises` to verify the fix.
+
+## Changes Made
+1. **Bug Fix**: Changed `add_problem` method from silently ignoring non-ProblemEntry objects to raising `TypeError` with descriptive message.
+2. **Test Updates**: 
+   - Updated existing test `test_memory_add_problem_invalid_input` to expect `TypeError` exceptions
+   - Added new test `test_memory_add_problem_invalid_input_raises` to explicitly test the exception raising behavior
+3. **Minimal Change**: Only modified the validation logic in `add_problem` method - changed from `if isinstance(entry, ProblemEntry): self.problems_encountered.append(entry)` to `if not isinstance(entry, ProblemEntry): raise TypeError(...)`.
 
 ## Verification
-- The new test `test_memory_add_problem_invalid_input` fails before the fix and passes after
-- All 47 existing tests continue to pass
-- Coverage remains high (99% for working_memory.py)
-- The fix is minimal and surgical, changing only the validation logic without affecting other functionality
-
-## Impact
-- Prevents invalid objects from being added to `problems_encountered` list
-- Enforces type safety as indicated by the method signature
-- Makes debugging easier by catching programming errors early
-- Maintains backward compatibility for valid `ProblemEntry` objects
+- All 47 tests in `tests/agents/test_working_memory.py` pass
+- The fix follows the "fail fast" principle by raising exceptions immediately for invalid input
+- The test comments that documented the bug ("Current behavior: silently ignores (BUG)") are now resolved
+- The implementation now matches the documented expected behavior ("Expected behavior: should raise TypeError or ValueError")

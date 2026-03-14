@@ -217,12 +217,12 @@ class WorkingMemory(SerializableDataclass):
             None
         """
         # Validation logic to avoid "Exact Duplicate" smell
-        if isinstance(entry, ProblemEntry):
-            self.problems_encountered.append(entry)
+        if not isinstance(entry, ProblemEntry):
+            raise TypeError(f"entry must be a ProblemEntry, got {type(entry).__name__}")
+        self.problems_encountered.append(entry)
 
     def update_problem(self: WorkingMemory, updated: ProblemEntry) -> None:
         """Update an existing problem entry.
-
         Args:
             updated: The updated problem entry containing new status and resolution.
             
