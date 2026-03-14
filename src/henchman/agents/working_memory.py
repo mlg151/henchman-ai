@@ -300,7 +300,7 @@ class WorkingMemory(SerializableDataclass):
 
         # Sort ranges by start line for merging
         valid_ranges.sort(key=lambda r: r.start)
-        
+
         # Merge overlapping or adjacent ranges
         merged_ranges: list[LineRange] = []
         for rng in valid_ranges:
@@ -320,11 +320,11 @@ class WorkingMemory(SerializableDataclass):
         # We need to check if the requested range is contained within the union of merged ranges
         # This is more complex than checking a single range - we need to see if all parts of
         # the requested range are covered by one or more merged ranges
-        
+
         # Simple approach: Check if requested range starts at or after first merged range
         # and ends at or before last merged range, and there are no gaps between merged ranges
         # that would leave parts of requested range uncovered
-        
+
         # Actually, let's take a simpler approach: check if the requested range
         # is fully covered by walking through merged ranges
         current_line = requested.start
@@ -338,7 +338,7 @@ class WorkingMemory(SerializableDataclass):
                 if current_line > requested.end:
                     # We've covered the entire requested range
                     return False, "File already read (covered by multiple entries)"
-        
+
         # If we get here, we either didn't cover the end or there were gaps
         return True, "New or partially overlapping lines need to be read"
 
@@ -351,7 +351,11 @@ class WorkingMemory(SerializableDataclass):
         Returns:
             A list of string insights previously recorded for the file.
         """
-        return next((e.key_insights for e in reversed(self.recent_files) if e.path == path), [])
+        insights: list[str] = []
+        for entry in self.recent_files:  # Iterate in chronological order (oldest first)
+            if entry.path == path:
+                insights.extend(entry.key_insights)
+        return insights
 
     def update_after_read(
         self: WorkingMemory,
