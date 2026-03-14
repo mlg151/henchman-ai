@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-14T16:00:03.276415+00:00_
+_Generated: 2026-03-14T18:00:03.142985+00:00_
 
 ## Executive Summary
 
@@ -11,30 +11,26 @@ _Generated: 2026-03-14T16:00:03.276415+00:00_
 | **Overall Score** | 100.0/100 |
 | **Doc Files Scanned** | 55 |
 | **Source Files Checked** | 190 |
-| **Total Smells** | 2 |
+| **Total Smells** | 1 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 2 |
+| low | 1 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 2 |
+| Incomplete Docstring | 1 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/agents/working_memory.py:240** — 🟢 LOW — Incomplete Docstring  
-   'WorkingMemory.should_read_file' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'WorkingMemory.should_read_file'._
-
-2. **src/henchman/utils/intelligent_context_types.py:279** — 🟢 LOW — Incomplete Docstring  
+1. **src/henchman/utils/intelligent_context_types.py:279** — 🟢 LOW — Incomplete Docstring  
    'ContentAnalysis.update_from_content' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'ContentAnalysis.update_from_content'._
 
@@ -43,33 +39,25 @@ These are the highest-impact documentation smells to address first:
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | src/henchman/agents/working_memory.py | ✅ A | 98.0 | 1 | 2026-03-14 |
-| 2 | src/henchman/utils/intelligent_context_types.py | ✅ A | 98.0 | 1 | 2026-03-13 |
-| 3 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 4 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 5 | README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 6 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
-| 7 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 8 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 9 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 10 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 11 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 12 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 13 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 14 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 15 | docs/extensions.md | ✅ A | 100.0 | 0 | 2026-03-03 |
+| 1 | src/henchman/utils/intelligent_context_types.py | ✅ A | 98.0 | 1 | 2026-03-13 |
+| 2 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 3 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 4 | README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 5 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
+| 6 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 7 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 8 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 9 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 10 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 11 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 12 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 13 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 14 | docs/extensions.md | ✅ A | 100.0 | 0 | 2026-03-03 |
+| 15 | docs/getting-started.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 
 ## 📁 Per-File Details
 
 _Showing 25 worst files. 220 additional files omitted._
-
-### src/henchman/agents/working_memory.py — ✅ A (98.0/100) (last modified 2026-03-14)
-
-Public APIs: 26 | Documented: 26 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 240 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.should_read_file' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.should_read_file'. |
 
 ### src/henchman/utils/intelligent_context_types.py — ✅ A (98.0/100) (last modified 2026-03-13)
 
@@ -79,7 +67,7 @@ Public APIs: 20 | Documented: 20 | Coverage: 100.0%
 |-----:|:---------|:-----|:--------|:--------------|
 | 279 | 🟢 LOW | Incomplete Docstring | 'ContentAnalysis.update_from_content' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ContentAnalysis.update_from_content'. |
 
-## ✨ Clean Files (243 files with no smells)
+## ✨ Clean Files (244 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -163,6 +151,7 @@ Public APIs: 20 | Documented: 20 | Coverage: 100.0%
 - src/henchman/agents/pool.py — ✅ A
 - src/henchman/agents/presets.py — ✅ A
 - src/henchman/agents/prompts.py — ✅ A
+- src/henchman/agents/working_memory.py — ✅ A
 - src/henchman/api/auth.py — ✅ A
 - src/henchman/api/endpoints/chat.py — ✅ A
 - src/henchman/api/endpoints/health.py — ✅ A

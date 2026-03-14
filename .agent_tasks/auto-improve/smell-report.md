@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-14T17:00:24.106246+00:00_
+_Generated: 2026-03-14T18:00:31.522376+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-14T17:00:24.106246+00:00_
 | **Overall Grade** | ⚠️ C |
 | **Overall Score** | 78.7/100 |
 | **Files Scanned** | 215 |
-| **Total Lines (non-blank)** | 44,255 |
+| **Total Lines (non-blank)** | 44,259 |
 | **Total Smells** | 583 |
 | **Avg Maintainability Index** | 70.0 |
 | **Avg Cyclomatic Complexity** | 13.9 |
@@ -42,11 +42,11 @@ _Generated: 2026-03-14T17:00:24.106246+00:00_
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:240** — 🟠 HIGH — Complex Function  
+1. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:245** — 🟠 HIGH — Complex Function  
    Function 'should_read_file' has cyclomatic complexity 24 (rank D)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-2. **agents/working_memory.py:240** — 🟠 HIGH — Long Method  
+2. **agents/working_memory.py:245** — 🟠 HIGH — Long Method  
    Function 'should_read_file' has 83 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/working_memory.py | ❌ F | 26.6 | 18 | 345 | 47 | 24.0 |
+| 1 | agents/working_memory.py | ❌ F | 26.5 | 18 | 349 | 46 | 24.0 |
 | 2 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
 | 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
 | 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
@@ -122,14 +122,14 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 195 additional files omitted._
 
-### agents/working_memory.py — ❌ F (26.6/100)
+### agents/working_memory.py — ❌ F (26.5/100)
 
-LOC: 345 | Classes: 7 | Functions: 0 | MI: 47 | Avg CC: 24.0
+LOC: 349 | Classes: 7 | Functions: 0 | MI: 46 | Avg CC: 24.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 240 | 🟠 HIGH | Long Method | Function 'should_read_file' has 83 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 240 | 🟠 HIGH | Complex Function | Function 'should_read_file' has cyclomatic complexity 24 (rank D) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 245 | 🟠 HIGH | Long Method | Function 'should_read_file' has 83 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 245 | 🟠 HIGH | Complex Function | Function 'should_read_file' has cyclomatic complexity 24 (rank D) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
 | 145 | 🟡 MEDIUM | Duplicate Code | Function 'add_recent_file' is 100% similar to 'add_decision' at agents/working_memory.py:157 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 145 | 🟡 MEDIUM | Duplicate Code | Function 'add_recent_file' is 100% similar to 'set_session' at cli/repl.py:291 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 145 | 🟡 MEDIUM | Duplicate Code | Function 'add_recent_file' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -139,10 +139,10 @@ LOC: 345 | Classes: 7 | Functions: 0 | MI: 47 | Avg CC: 24.0
 | 157 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 157 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 157 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 240 | 🟡 MEDIUM | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'rng' 7 times but 'self' only 1 times | Move Method — consider moving 'should_read_file' to the class that owns 'rng'. |
+| 245 | 🟡 MEDIUM | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'rng' 7 times but 'self' only 1 times | Move Method — consider moving 'should_read_file' to the class that owns 'rng'. |
 | 78 | 🟢 LOW | Missing Type Hint | Function '__post_init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 224 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'e' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'e'. |
-| 224 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'updated' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'updated'. |
+| 224 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'updated' 4 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'updated'. |
 
 _... and 3 more smells._
 
