@@ -229,6 +229,8 @@ class WorkingMemory(SerializableDataclass):
         Returns:
             None
         """
+        if not isinstance(updated, ProblemEntry):
+            raise TypeError(f"updated must be a ProblemEntry, got {type(updated).__name__}")
         for e in self.problems_encountered:
             if e.problem == updated.problem:
                 e.status = updated.status
