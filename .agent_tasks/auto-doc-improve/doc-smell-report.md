@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-14T04:00:03.931136+00:00_
+_Generated: 2026-03-14T06:00:03.902964+00:00_
 
 ## Executive Summary
 
@@ -11,47 +11,30 @@ _Generated: 2026-03-14T04:00:03.931136+00:00_
 | **Overall Score** | 100.0/100 |
 | **Doc Files Scanned** | 55 |
 | **Source Files Checked** | 190 |
-| **Total Smells** | 6 |
+| **Total Smells** | 2 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 4 |
-| medium | 2 |
+| low | 2 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 6 |
+| Incomplete Docstring | 2 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/utils/intelligent_context_extractor.py:238** — 🟡 MEDIUM — Incomplete Docstring  
-   'extract_keyword_sections' has 2 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: content, keywords_
-
-2. **src/henchman/utils/intelligent_context_extractor.py:288** — 🟡 MEDIUM — Incomplete Docstring  
-   'extract_critical_sections' has 1 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: content_
-
-3. **src/henchman/agents/working_memory.py:384** — 🟢 LOW — Incomplete Docstring  
+1. **src/henchman/agents/working_memory.py:396** — 🟢 LOW — Incomplete Docstring  
    'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'._
 
-4. **src/henchman/utils/intelligent_context_extractor.py:238** — 🟢 LOW — Incomplete Docstring  
-   'extract_keyword_sections' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'extract_keyword_sections'._
-
-5. **src/henchman/utils/intelligent_context_extractor.py:288** — 🟢 LOW — Incomplete Docstring  
-   'extract_critical_sections' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'extract_critical_sections'._
-
-6. **src/henchman/utils/intelligent_context_types.py:279** — 🟢 LOW — Incomplete Docstring  
+2. **src/henchman/utils/intelligent_context_types.py:279** — 🟢 LOW — Incomplete Docstring  
    'ContentAnalysis.update_from_content' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'ContentAnalysis.update_from_content'._
 
@@ -60,36 +43,25 @@ These are the highest-impact documentation smells to address first:
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | src/henchman/utils/intelligent_context_extractor.py | 👍 B | 86.0 | 4 | 2026-03-14 |
-| 2 | src/henchman/agents/working_memory.py | ✅ A | 98.0 | 1 | 2026-03-14 |
-| 3 | src/henchman/utils/intelligent_context_types.py | ✅ A | 98.0 | 1 | 2026-03-13 |
-| 4 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 5 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 6 | README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 7 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
-| 8 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 9 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 10 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 11 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 12 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 13 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 14 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 15 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 1 | src/henchman/agents/working_memory.py | ✅ A | 98.0 | 1 | 2026-03-14 |
+| 2 | src/henchman/utils/intelligent_context_types.py | ✅ A | 98.0 | 1 | 2026-03-13 |
+| 3 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 4 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 5 | README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 6 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
+| 7 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 8 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 9 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 10 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 11 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 12 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 13 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 14 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 15 | docs/extensions.md | ✅ A | 100.0 | 0 | 2026-03-03 |
 
 ## 📁 Per-File Details
 
 _Showing 25 worst files. 220 additional files omitted._
-
-### src/henchman/utils/intelligent_context_extractor.py — 👍 B (86.0/100) (last modified 2026-03-14)
-
-Public APIs: 6 | Documented: 6 | Coverage: 100.0%
-
-| Line | Severity | Type | Message | Suggested Fix |
-|-----:|:---------|:-----|:--------|:--------------|
-| 238 | 🟡 MEDIUM | Incomplete Docstring | 'extract_keyword_sections' has 2 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content, keywords |
-| 288 | 🟡 MEDIUM | Incomplete Docstring | 'extract_critical_sections' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
-| 238 | 🟢 LOW | Incomplete Docstring | 'extract_keyword_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_keyword_sections'. |
-| 288 | 🟢 LOW | Incomplete Docstring | 'extract_critical_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_critical_sections'. |
 
 ### src/henchman/agents/working_memory.py — ✅ A (98.0/100) (last modified 2026-03-14)
 
@@ -97,7 +69,7 @@ Public APIs: 26 | Documented: 26 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 384 | 🟢 LOW | Incomplete Docstring | 'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'. |
+| 396 | 🟢 LOW | Incomplete Docstring | 'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'. |
 
 ### src/henchman/utils/intelligent_context_types.py — ✅ A (98.0/100) (last modified 2026-03-13)
 
@@ -107,7 +79,7 @@ Public APIs: 20 | Documented: 20 | Coverage: 100.0%
 |-----:|:---------|:-----|:--------|:--------------|
 | 279 | 🟢 LOW | Incomplete Docstring | 'ContentAnalysis.update_from_content' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'ContentAnalysis.update_from_content'. |
 
-## ✨ Clean Files (242 files with no smells)
+## ✨ Clean Files (243 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -338,6 +310,7 @@ Public APIs: 20 | Documented: 20 | Coverage: 100.0%
 - src/henchman/utils/intelligent_context_aggregator.py — ✅ A
 - src/henchman/utils/intelligent_context_config.py — ✅ A
 - src/henchman/utils/intelligent_context_detector.py — ✅ A
+- src/henchman/utils/intelligent_context_extractor.py — ✅ A
 - src/henchman/utils/intelligent_context_formatter.py — ✅ A
 - src/henchman/utils/intelligent_context_parser.py — ✅ A
 - src/henchman/utils/intelligent_context_summarizer.py — ✅ A

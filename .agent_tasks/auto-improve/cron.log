@@ -686417,3 +686417,59 @@ TOTAL                                                       18879    254   5022 
 =========== 5694 passed, 6 skipped, 45 warnings in 208.22s (0:03:28) ===========
 [2026-03-14T05:00:04Z] All tests passed.
 Committing changes...
+[main 3c03cb7] fix(four-lenses): four-lenses-agents-working_memory
+ 7 files changed, 3164 insertions(+), 856 deletions(-)
+ delete mode 100644 test_real_bug.py
+[2026-03-14T05:00:04Z] Auto-improve complete.
+[2026-03-14T06:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-14T06:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.9/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-14T06:00:37.969014+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py...
+Let me read the test file:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me run the existing tests to see what's currently passing and failing:
+[tool] pytest_run({'path': 'tests/agents/test_working_memory.py', 'verbose': 
+True})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good
