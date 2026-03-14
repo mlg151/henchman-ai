@@ -255,7 +255,7 @@ class WorkingMemory(SerializableDataclass):
             return True, "File not in recent files"
 
         # Special case: file was read fully
-        if match.lines_read.lower() == "full":
+        if match.lines_read.strip().lower() == "full":
             return False, "File already read (full)"
 
         if start is None or end is None:

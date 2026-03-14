@@ -567,6 +567,32 @@ class TestWorkingMemory:
         assert should_read is True
         assert "invalid" in reason.lower() or "positive" in reason.lower()
 
+    def test_memory_should_read_file_full_with_whitespace(self):
+        """Test should_read_file handles 'full' with surrounding whitespace."""
+        # Test with trailing space
+        memory = WorkingMemory(current_task="Test")
+        memory.add_recent_file(WorkingMemoryEntry("/test/file1.py", "Test", "FULL "))
+        should_read, reason = memory.should_read_file("/test/file1.py", 10, 50)
+        assert should_read is False, f"File marked as 'FULL ' should be considered fully read. Got: {should_read}, reason: {reason}"
+        
+        # Test with leading space
+        memory2 = WorkingMemory(current_task="Test")
+        memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Test", " full"))
+        should_read2, reason2 = memory2.should_read_file("/test/file2.py", 10, 50)
+        assert should_read2 is False, f"File marked as ' full' should be considered fully read"
+        
+        # Test with both spaces
+        memory3 = WorkingMemory(current_task="Test")
+        memory3.add_recent_file(WorkingMemoryEntry("/test/file3.py", "Test", " full "))
+        should_read3, reason3 = memory3.should_read_file("/test/file3.py", 10, 50)
+        assert should_read3 is False, f"File marked as ' full ' should be considered fully read"
+        
+        # Test with tabs
+        memory4 = WorkingMemory(current_task="Test")
+        memory4.add_recent_file(WorkingMemoryEntry("/test/file4.py", "Test", "\tfull\t"))
+        should_read4, reason4 = memory4.should_read_file("/test/file4.py", 10, 50)
+        assert should_read4 is False, f"File marked as '\\tfull\\t' should be considered fully read"
+
 class TestWorkingMemorySystem:
     """Test WorkingMemorySystem class."""
 
