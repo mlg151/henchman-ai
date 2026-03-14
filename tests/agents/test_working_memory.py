@@ -725,6 +725,49 @@ class TestWorkingMemory:
         assert should_read2 is False, f"Lines 60-100 should be already read (full read is most recent). Got: {should_read2}"
         assert "already read" in reason2.lower()
 
+    def test_memory_should_read_file_multiple_partials_cover_range(self):
+        """Test should_read_file when multiple partial reads collectively cover requested range."""
+        memory = WorkingMemory(current_task="Test")
+        
+        # Add two partial reads that together cover lines 1-100
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "First read", "1-50"))
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Second read", "51-100"))
+        
+        # Request lines 1-100 (covered by both entries together)
+        should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
+        
+        # BUG: Currently returns True because no single entry covers 1-100
+        # Should return False because entries 1-50 and 51-100 together cover 1-100
+        assert should_read is False, (
+            f"Lines 1-100 should be already read (covered by entries 1-50 and 51-100). Got: {should_read}, reason: {reason}"
+        )
+        assert "already read" in reason.lower()
+        
+        # Test with overlapping partial reads
+        memory2 = WorkingMemory(current_task="Test")
+        memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "First read", "1-60"))
+        memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Second read", "40-100"))
+        
+        # Request lines 1-100 (covered by overlapping entries)
+        should_read2, reason2 = memory2.should_read_file("/test/file2.py", 1, 100)
+        assert should_read2 is False, (
+            f"Lines 1-100 should be already read (covered by overlapping entries 1-60 and 40-100). Got: {should_read2}"
+        )
+        assert "already read" in reason2.lower()
+        
+        # Test with three partial reads
+        memory3 = WorkingMemory(current_task="Test")
+        memory3.add_recent_file(WorkingMemoryEntry("/test/file3.py", "First read", "1-30"))
+        memory3.add_recent_file(WorkingMemoryEntry("/test/file3.py", "Second read", "31-70"))
+        memory3.add_recent_file(WorkingMemoryEntry("/test/file3.py", "Third read", "71-100"))
+        
+        # Request lines 1-100 (covered by three entries)
+        should_read3, reason3 = memory3.should_read_file("/test/file3.py", 1, 100)
+        assert should_read3 is False, (
+            f"Lines 1-100 should be already read (covered by entries 1-30, 31-70, 71-100). Got: {should_read3}"
+        )
+        assert "already read" in reason3.lower()
+
 class TestWorkingMemorySystem:
     """Test WorkingMemorySystem class."""
 

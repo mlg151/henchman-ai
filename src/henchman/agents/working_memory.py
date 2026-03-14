@@ -277,23 +277,65 @@ class WorkingMemory(SerializableDataclass):
 
         requested = LineRange(start, end)
 
-        # Track if we found any valid line range entries
-        found_valid_range = False
-
-        # Check ALL entries for line range containment
+        # Collect all valid line ranges from all entries
+        valid_ranges: list[LineRange] = []
         for match in matches:
             rng = LineRange.from_str(match.lines_read)
             if rng:
-                found_valid_range = True
-                if requested.start >= rng.start and requested.end <= rng.end:
-                    return False, "File already read (contained within previously read lines)"
+                valid_ranges.append(rng)
 
-        # If we found valid ranges but none covered the requested range
-        if found_valid_range:
-            return True, "New or partially overlapping lines need to be read"
-        else:
+        if not valid_ranges:
             # No valid line range format in any entry
             return True, "Cannot determine overlap - invalid lines_read format"
+
+        # Check if requested range is fully covered by any single entry
+        for rng in valid_ranges:
+            if requested.start >= rng.start and requested.end <= rng.end:
+                return False, "File already read (contained within previously read lines)"
+
+        # Sort ranges by start line for merging
+        valid_ranges.sort(key=lambda r: r.start)
+        
+        # Merge overlapping or adjacent ranges
+        merged_ranges: list[LineRange] = []
+        for rng in valid_ranges:
+            if not merged_ranges:
+                merged_ranges.append(rng)
+            else:
+                last = merged_ranges[-1]
+                # Check if ranges overlap or are adjacent (end+1 >= start)
+                if rng.start <= last.end + 1:  # +1 for adjacent ranges
+                    # Merge: extend last range to cover both
+                    merged_ranges[-1] = LineRange(last.start, max(last.end, rng.end))
+                else:
+                    # No overlap, add as new range
+                    merged_ranges.append(rng)
+
+        # Check if requested range is fully covered by merged ranges
+        # We need to check if the requested range is contained within the union of merged ranges
+        # This is more complex than checking a single range - we need to see if all parts of
+        # the requested range are covered by one or more merged ranges
+        
+        # Simple approach: Check if requested range starts at or after first merged range
+        # and ends at or before last merged range, and there are no gaps between merged ranges
+        # that would leave parts of requested range uncovered
+        
+        # Actually, let's take a simpler approach: check if the requested range
+        # is fully covered by walking through merged ranges
+        current_line = requested.start
+        for rng in merged_ranges:
+            if current_line < rng.start:
+                # Found a gap before this range
+                return True, "New or partially overlapping lines need to be read"
+            if current_line <= rng.end:
+                # This range covers from current_line up to rng.end
+                current_line = rng.end + 1
+                if current_line > requested.end:
+                    # We've covered the entire requested range
+                    return False, "File already read (covered by multiple entries)"
+        
+        # If we get here, we either didn't cover the end or there were gaps
+        return True, "New or partially overlapping lines need to be read"
 
     def get_file_insights(self: WorkingMemory, path: str) -> list[str]:
         """Return cached insights for a file.

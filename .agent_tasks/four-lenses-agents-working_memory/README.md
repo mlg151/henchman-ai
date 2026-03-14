@@ -1,7 +1,7 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-14T15:00:00Z
+## Date: 2025-03-14T16:30:00Z
 ## Bug Summary
-The `should_read_file` method incorrectly handles the case where a file was read fully earlier but has a more recent partial read entry. It only checks the most recent entry for "full", causing unnecessary re-reads of lines that were already read in a full read.
+The `should_read_file` method doesn't consider that multiple partial reads might collectively cover a requested line range. It only checks if a single entry covers the entire requested range, causing unnecessary re-reads when lines are covered across multiple entries.
 
 ## Lens
 **Phase 1: The Intent vs. Reality Check** - Logic Gaps
@@ -9,49 +9,58 @@ The `should_read_file` method incorrectly handles the case where a file was read
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| If a file was read fully at any point (any entry has `lines_read="full"`), any line range should be considered already read | Only checks most recent entry for "full", ignoring older full reads |
-| Historical full reads should prevent re-reading of any lines in the file | Partial reads after full reads cause unnecessary re-reads of other lines |
-| File reading decisions should be accurate based on complete history | Inaccurate decisions waste context window and reduce performance |
+| If lines 1-50 were read in entry A and lines 51-100 in entry B, requesting lines 1-100 should return False (skip) | Returns True (should read) because no single entry covers 1-100 |
+| Multiple partial reads that collectively cover all requested lines should prevent re-reading | Only checks individual entries, not collective coverage |
+| File reading decisions should be accurate based on complete read history | Inaccurate decisions waste context window and reduce performance |
 
 ## Root Cause
-The bug is in the logic of `should_read_file` method at lines 254-256:
+The bug is in the logic of `should_read_file` method at lines 280-285:
 ```python
-# Check if MOST RECENT entry indicates file was read fully
-if matches[0].lines_read.strip().lower() == "full":
-    return False, "File already read (full)"
+# Check ALL entries for line range containment
+for match in matches:
+    rng = LineRange.from_str(match.lines_read)
+    if rng:
+        found_valid_range = True
+        if requested.start >= rng.start and requested.end <= rng.end:
+            return False, "File already read (contained within previously read lines)"
 ```
 
-The method only checks the most recent entry for "full". If a file was:
-1. Read fully at time T1 (entry: "full")
-2. Read partially at time T2 (entry: "10-50")
-3. We want to read lines 60-100 at time T3
+The method only checks if a SINGLE entry covers the ENTIRE requested range. It doesn't consider that multiple entries might collectively cover the range. For example:
+- Entry 1: lines 1-50
+- Entry 2: lines 51-100
+- Requested: lines 1-100
 
-The method will check most recent entry ("10-50"), see it's not "full", and then check line ranges. Since `LineRange.from_str("full")` returns `None`, the full read entry won't be considered in the line range check either. Result: returns `True` (should read) even though lines 60-100 were already read in the full read.
+Current logic: Checks entry 1 (1-100 not contained in 1-50) → NO, checks entry 2 (1-100 not contained in 51-100) → NO, returns True (should read).
+
+Expected logic: Should recognize that entries 1+2 collectively cover 1-100, return False (skip).
 
 ## Fix Plan
-Modify the `should_read_file` method to check ALL entries for "full", not just the most recent one. If any entry has `lines_read="full"` (case-insensitive, with whitespace), the file was fully read at some point and any line range should be considered already read.
+Modify the `should_read_file` method to track which lines have been read across ALL entries and check if the requested range is fully covered by the union of all read ranges.
 
 ## Status: FIXED
 
 ## Files Changed
-1. `src/henchman/agents/working_memory.py` - Modified `should_read_file` method to check ALL entries for "full" instead of just the most recent entry.
-2. `tests/agents/test_working_memory.py` - Added new test `test_memory_should_read_file_full_then_partial` to verify the fix.
+1. `src/henchman/agents/working_memory.py` - Modified `should_read_file` method to collect all valid line ranges, merge overlapping/adjacent ranges, and check if requested range is fully covered by the union of ranges.
+2. `tests/agents/test_working_memory.py` - Added new test `test_memory_should_read_file_multiple_partials_cover_range` to verify the fix.
 
 ## Changes Made
-The bug was in lines 254-256 of `working_memory.py`. Changed from:
-```python
-# Check if MOST RECENT entry indicates file was read fully
-if matches[0].lines_read.strip().lower() == "full":
-    return False, "File already read (full)"
-```
+The bug was in the logic of `should_read_file` method. Changed from checking if a SINGLE entry covers the entire requested range to:
 
-To:
-```python
-# Check if ANY entry indicates file was read fully
-# If file was read fully at any point, we know all lines
-for match in matches:
-    if match.lines_read.strip().lower() == "full":
-        return False, "File already read (full)"
-```
+1. Collecting all valid line ranges from all entries for the file
+2. Sorting ranges by start line
+3. Merging overlapping or adjacent ranges (ranges that touch or overlap are combined)
+4. Walking through merged ranges to check if the requested range is fully covered
 
-This ensures that if a file was read fully at any point (even if followed by partial reads), any line range will be considered already read, preventing unnecessary re-reads and improving performance.
+Key changes in the algorithm:
+- Old: Check each entry individually: `if requested.start >= rng.start and requested.end <= rng.end`
+- New: Merge ranges first, then check coverage: walk through merged ranges tracking which lines are covered
+
+Example fix for the bug case:
+- Entry 1: lines 1-50
+- Entry 2: lines 51-100  
+- Requested: lines 1-100
+
+Old logic: Checks entry 1 (1-100 not in 1-50) → NO, checks entry 2 (1-100 not in 51-100) → NO, returns True (should read)
+New logic: Merges 1-50 and 51-100 into 1-100, checks if requested 1-100 is covered → YES, returns False (skip)
+
+This prevents unnecessary re-reading when lines are covered across multiple partial reads, improving performance and reducing context window waste.
