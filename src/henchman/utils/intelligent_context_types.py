@@ -282,6 +282,8 @@ class ContentAnalysis:
         Args:
             content: The text content to analyze.
 
+        Returns:
+            None: This method modifies instance attributes in place.
         """
         lower_content = content.lower()
         if "```" in content:
