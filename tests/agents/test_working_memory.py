@@ -435,13 +435,11 @@ class TestWorkingMemory:
             )
         )
         
-        # get_file_insights should return insights from MOST RECENT entry
+        # get_file_insights should return ALL insights from ALL entries (accumulated)
         insights = memory.get_file_insights("/test/file.py")
-        # BUG: Currently returns ["Old insight 1", "Old insight 2"] from first entry
-        # Should return ["New insight 1", "New insight 2", "New insight 3"] from most recent
-        assert insights == ["New insight 1", "New insight 2", "New insight 3"], (
-            f"Bug: get_file_insights returns {insights}, expected insights from most recent entry. "
-            "Should use reversed(self.recent_files) like should_read_file does."
+        # Fixed: Returns ALL insights in chronological order
+        assert insights == ["Old insight 1", "Old insight 2", "New insight 1", "New insight 2", "New insight 3"], (
+            f"get_file_insights returns {insights}, expected ALL insights in chronological order."
         )
 
     def test_memory_update_after_read(self):
