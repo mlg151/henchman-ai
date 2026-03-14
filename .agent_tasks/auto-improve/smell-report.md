@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-14T03:00:26.537410+00:00_
+_Generated: 2026-03-14T04:00:42.190532+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-14T03:00:26.537410+00:00_
 | **Overall Grade** | ⚠️ C |
 | **Overall Score** | 78.9/100 |
 | **Files Scanned** | 215 |
-| **Total Lines (non-blank)** | 44,183 |
+| **Total Lines (non-blank)** | 44,184 |
 | **Total Smells** | 580 |
 | **Avg Maintainability Index** | 70.0 |
 | **Avg Cyclomatic Complexity** | 13.4 |
@@ -106,7 +106,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/working_memory.py | ❌ F | 43.1 | 15 | 315 | 50 | 13.0 |
+| 1 | agents/working_memory.py | ❌ F | 43.1 | 15 | 316 | 50 | 13.0 |
 | 2 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
 | 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
 | 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
@@ -123,7 +123,7 @@ _Showing 20 worst files. 195 additional files omitted._
 
 ### agents/working_memory.py — ❌ F (43.1/100)
 
-LOC: 315 | Classes: 7 | Functions: 0 | MI: 50 | Avg CC: 13.0
+LOC: 316 | Classes: 7 | Functions: 0 | MI: 50 | Avg CC: 13.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
@@ -138,8 +138,8 @@ LOC: 315 | Classes: 7 | Functions: 0 | MI: 50 | Avg CC: 13.0
 | 157 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 238 | 🟡 MEDIUM | Complex Function | Function 'should_read_file' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
 | 78 | 🟢 LOW | Missing Type Hint | Function '__post_init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 223 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'e' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'e'. |
-| 223 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'updated' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'updated'. |
+| 224 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'e' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'e'. |
+| 224 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'updated' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'updated'. |
 | 238 | 🟢 LOW | Long Method | Function 'should_read_file' has 31 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 238 | 🟢 LOW | Primitive Obsession | Function 'should_read_file' has 3 primitive-typed parameters: path: Name(id='str', ctx=Load()), start: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
