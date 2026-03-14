@@ -1,27 +1,28 @@
-# Code Smell Report — ⚠️ C (Score: 78.9/100)
+# Code Smell Report — ⚠️ C (Score: 78.7/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-14T16:00:32.248053+00:00_
+_Generated: 2026-03-14T17:00:24.106246+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ⚠️ C |
-| **Overall Score** | 78.9/100 |
+| **Overall Score** | 78.7/100 |
 | **Files Scanned** | 215 |
-| **Total Lines (non-blank)** | 44,232 |
-| **Total Smells** | 580 |
+| **Total Lines (non-blank)** | 44,255 |
+| **Total Smells** | 583 |
 | **Avg Maintainability Index** | 70.0 |
-| **Avg Cyclomatic Complexity** | 13.5 |
+| **Avg Cyclomatic Complexity** | 13.9 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 392 |
+| low | 393 |
 | medium | 188 |
+| high | 2 |
 
 ### Smells by Category
 
@@ -29,7 +30,7 @@ _Generated: 2026-03-14T16:00:32.248053+00:00_
 |:---------|------:|
 | Missing Type Hint | 143 |
 | Duplicate Code | 112 |
-| Feature Envy | 80 |
+| Feature Envy | 83 |
 | Long Method | 74 |
 | Magic Number | 44 |
 | Primitive Obsession | 43 |
@@ -41,64 +42,64 @@ _Generated: 2026-03-14T16:00:32.248053+00:00_
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/agents/delegation.py:284** — 🟡 MEDIUM — Complex Function  
+1. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:240** — 🟠 HIGH — Complex Function  
+   Function 'should_read_file' has cyclomatic complexity 24 (rank D)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+2. **agents/working_memory.py:240** — 🟠 HIGH — Long Method  
+   Function 'should_read_file' has 83 lines (threshold: 30)  
+   → _Extract Method — break this function into smaller, intention-revealing helper functions._
+
+3. **/home/matthew/mlg-cli/src/henchman/agents/delegation.py:284** — 🟡 MEDIUM — Complex Function  
    Function '_validate_messages_access' has cyclomatic complexity 12 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-2. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:122** — 🟡 MEDIUM — Complex Function  
+4. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:122** — 🟡 MEDIUM — Complex Function  
    Function '_run_delegation' has cyclomatic complexity 18 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-3. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:240** — 🟡 MEDIUM — Complex Function  
-   Function 'should_read_file' has cyclomatic complexity 16 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-4. **/home/matthew/mlg-cli/src/henchman/config/context.py:132** — 🟡 MEDIUM — Complex Function  
+5. **/home/matthew/mlg-cli/src/henchman/config/context.py:132** — 🟡 MEDIUM — Complex Function  
    Function 'discover_files' has cyclomatic complexity 19 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-5. **/home/matthew/mlg-cli/src/henchman/config/environment.py:133** — 🟡 MEDIUM — Complex Function  
+6. **/home/matthew/mlg-cli/src/henchman/config/environment.py:133** — 🟡 MEDIUM — Complex Function  
    Function '_detect_git_status' has cyclomatic complexity 17 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-6. **/home/matthew/mlg-cli/src/henchman/core/agent.py:198** — 🟡 MEDIUM — Complex Function  
+7. **/home/matthew/mlg-cli/src/henchman/core/agent.py:198** — 🟡 MEDIUM — Complex Function  
    Function '__getattr__' has cyclomatic complexity 12 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-7. **/home/matthew/mlg-cli/src/henchman/mcp/client.py:42** — 🟡 MEDIUM — Complex Function  
+8. **/home/matthew/mlg-cli/src/henchman/mcp/client.py:42** — 🟡 MEDIUM — Complex Function  
    Function 'write' has cyclomatic complexity 13 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-8. **/home/matthew/mlg-cli/src/henchman/mcp/manager.py:132** — 🟡 MEDIUM — Complex Function  
+9. **/home/matthew/mlg-cli/src/henchman/mcp/manager.py:132** — 🟡 MEDIUM — Complex Function  
    Function '_build_logging_env' has cyclomatic complexity 11 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-9. **/home/matthew/mlg-cli/src/henchman/rag/indexer.py:217** — 🟡 MEDIUM — Complex Function  
+10. **/home/matthew/mlg-cli/src/henchman/rag/indexer.py:217** — 🟡 MEDIUM — Complex Function  
    Function 'index' has cyclomatic complexity 13 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-10. **/home/matthew/mlg-cli/src/henchman/rag/system.py:250** — 🟡 MEDIUM — Complex Function  
+11. **/home/matthew/mlg-cli/src/henchman/rag/system.py:250** — 🟡 MEDIUM — Complex Function  
    Function 'initialize_rag' has cyclomatic complexity 19 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-11. **/home/matthew/mlg-cli/src/henchman/tools/builtins/env_inspect.py:82** — 🟡 MEDIUM — Complex Function  
+12. **/home/matthew/mlg-cli/src/henchman/tools/builtins/env_inspect.py:82** — 🟡 MEDIUM — Complex Function  
    Function 'execute' has cyclomatic complexity 14 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-12. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:35** — 🟡 MEDIUM — Complex Function  
+13. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:35** — 🟡 MEDIUM — Complex Function  
    Function '_format_function_sig' has cyclomatic complexity 11 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-13. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:136** — 🟡 MEDIUM — Complex Function  
+14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:136** — 🟡 MEDIUM — Complex Function  
    Function '_summarize_python' has cyclomatic complexity 11 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/ls.py:54** — 🟡 MEDIUM — Complex Function  
+15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/ls.py:54** — 🟡 MEDIUM — Complex Function  
    Function 'execute' has cyclomatic complexity 14 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pattern_search.py:73** — 🟡 MEDIUM — Complex Function  
-   Function '_extract_structural_patterns' has cyclomatic complexity 13 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 
@@ -106,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/working_memory.py | ❌ F | 42.9 | 15 | 322 | 50 | 16.0 |
+| 1 | agents/working_memory.py | ❌ F | 26.6 | 18 | 345 | 47 | 24.0 |
 | 2 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
 | 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
 | 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
@@ -121,12 +122,14 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 195 additional files omitted._
 
-### agents/working_memory.py — ❌ F (42.9/100)
+### agents/working_memory.py — ❌ F (26.6/100)
 
-LOC: 322 | Classes: 7 | Functions: 0 | MI: 50 | Avg CC: 16.0
+LOC: 345 | Classes: 7 | Functions: 0 | MI: 47 | Avg CC: 24.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
+| 240 | 🟠 HIGH | Long Method | Function 'should_read_file' has 83 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 240 | 🟠 HIGH | Complex Function | Function 'should_read_file' has cyclomatic complexity 24 (rank D) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
 | 145 | 🟡 MEDIUM | Duplicate Code | Function 'add_recent_file' is 100% similar to 'add_decision' at agents/working_memory.py:157 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 145 | 🟡 MEDIUM | Duplicate Code | Function 'add_recent_file' is 100% similar to 'set_session' at cli/repl.py:291 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 145 | 🟡 MEDIUM | Duplicate Code | Function 'add_recent_file' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
@@ -136,12 +139,12 @@ LOC: 322 | Classes: 7 | Functions: 0 | MI: 50 | Avg CC: 16.0
 | 157 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 157 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 157 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 240 | 🟡 MEDIUM | Complex Function | Function 'should_read_file' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 240 | 🟡 MEDIUM | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'rng' 7 times but 'self' only 1 times | Move Method — consider moving 'should_read_file' to the class that owns 'rng'. |
 | 78 | 🟢 LOW | Missing Type Hint | Function '__post_init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 | 224 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'e' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'e'. |
 | 224 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'updated' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'updated'. |
-| 240 | 🟢 LOW | Long Method | Function 'should_read_file' has 41 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 240 | 🟢 LOW | Primitive Obsession | Function 'should_read_file' has 3 primitive-typed parameters: path: Name(id='str', ctx=Load()), start: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+
+_... and 3 more smells._
 
 ### tools/builtins/symbol_trace.py — ❌ F (51.2/100)
 

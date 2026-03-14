@@ -182,11 +182,12 @@ class TestWorkingMemory:
         assert problem.resolution == "Fixed assertion"
 
     def test_memory_update_problem_not_found(self):
-        """Test updating a problem that doesn't exist (should do nothing)."""
+        """Test updating a problem that doesn't exist (should raise ValueError)."""
         memory = WorkingMemory(current_task="Test")
         memory.add_problem(ProblemEntry("Test failing", "open", ""))
-        # Try to update a non-existent problem
-        memory.update_problem(ProblemEntry("Non-existent problem", "resolved", "Fixed"))
+        # Try to update a non-existent problem - should raise ValueError
+        with pytest.raises(ValueError, match="Problem 'Non-existent problem' not found"):
+            memory.update_problem(ProblemEntry("Non-existent problem", "resolved", "Fixed"))
         
         # Should still have only the original problem
         assert len(memory.problems_encountered) == 1

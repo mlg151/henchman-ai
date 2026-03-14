@@ -228,6 +228,9 @@ class WorkingMemory(SerializableDataclass):
             
         Returns:
             None
+            
+        Raises:
+            ValueError: If no problem with matching description is found.
         """
         if not isinstance(updated, ProblemEntry):
             raise TypeError(f"updated must be a ProblemEntry, got {type(updated).__name__}")
@@ -236,6 +239,8 @@ class WorkingMemory(SerializableDataclass):
                 e.status = updated.status
                 e.resolution = updated.resolution
                 break
+        else:
+            raise ValueError(f"Problem '{updated.problem}' not found")
 
     def should_read_file(
         self: WorkingMemory, path: str, start: int | None = None, end: int | None = None,
