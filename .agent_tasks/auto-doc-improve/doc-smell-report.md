@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 99.9/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-13T22:00:03.412078+00:00_
+_Generated: 2026-03-14T00:00:03.536104+00:00_
 
 ## Executive Summary
 
@@ -11,71 +11,63 @@ _Generated: 2026-03-13T22:00:03.412078+00:00_
 | **Overall Score** | 99.9/100 |
 | **Doc Files Scanned** | 55 |
 | **Source Files Checked** | 190 |
-| **Total Smells** | 12 |
+| **Total Smells** | 10 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 7 |
-| medium | 5 |
+| low | 6 |
+| medium | 4 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 12 |
+| Incomplete Docstring | 10 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/utils/intelligent_context_extractor.py:47** — 🟡 MEDIUM — Incomplete Docstring  
-   'extract_code_blocks' has 1 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: content_
-
-2. **src/henchman/utils/intelligent_context_extractor.py:135** — 🟡 MEDIUM — Incomplete Docstring  
+1. **src/henchman/utils/intelligent_context_extractor.py:145** — 🟡 MEDIUM — Incomplete Docstring  
    'extract_error_sections' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: content_
 
-3. **src/henchman/utils/intelligent_context_extractor.py:140** — 🟡 MEDIUM — Incomplete Docstring  
+2. **src/henchman/utils/intelligent_context_extractor.py:150** — 🟡 MEDIUM — Incomplete Docstring  
    'extract_tool_sections' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: content_
 
-4. **src/henchman/utils/intelligent_context_extractor.py:191** — 🟡 MEDIUM — Incomplete Docstring  
+3. **src/henchman/utils/intelligent_context_extractor.py:201** — 🟡 MEDIUM — Incomplete Docstring  
    'extract_keyword_sections' has 2 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: content, keywords_
 
-5. **src/henchman/utils/intelligent_context_extractor.py:241** — 🟡 MEDIUM — Incomplete Docstring  
+4. **src/henchman/utils/intelligent_context_extractor.py:251** — 🟡 MEDIUM — Incomplete Docstring  
    'extract_critical_sections' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: content_
 
-6. **src/henchman/agents/working_memory.py:378** — 🟢 LOW — Incomplete Docstring  
+5. **src/henchman/agents/working_memory.py:384** — 🟢 LOW — Incomplete Docstring  
    'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'._
 
-7. **src/henchman/utils/intelligent_context_extractor.py:47** — 🟢 LOW — Incomplete Docstring  
-   'extract_code_blocks' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'extract_code_blocks'._
-
-8. **src/henchman/utils/intelligent_context_extractor.py:135** — 🟢 LOW — Incomplete Docstring  
+6. **src/henchman/utils/intelligent_context_extractor.py:145** — 🟢 LOW — Incomplete Docstring  
    'extract_error_sections' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'extract_error_sections'._
 
-9. **src/henchman/utils/intelligent_context_extractor.py:140** — 🟢 LOW — Incomplete Docstring  
+7. **src/henchman/utils/intelligent_context_extractor.py:150** — 🟢 LOW — Incomplete Docstring  
    'extract_tool_sections' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'extract_tool_sections'._
 
-10. **src/henchman/utils/intelligent_context_extractor.py:191** — 🟢 LOW — Incomplete Docstring  
+8. **src/henchman/utils/intelligent_context_extractor.py:201** — 🟢 LOW — Incomplete Docstring  
    'extract_keyword_sections' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'extract_keyword_sections'._
 
-11. **src/henchman/utils/intelligent_context_extractor.py:241** — 🟢 LOW — Incomplete Docstring  
+9. **src/henchman/utils/intelligent_context_extractor.py:251** — 🟢 LOW — Incomplete Docstring  
    'extract_critical_sections' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'extract_critical_sections'._
 
-12. **src/henchman/utils/intelligent_context_types.py:279** — 🟢 LOW — Incomplete Docstring  
+10. **src/henchman/utils/intelligent_context_types.py:279** — 🟢 LOW — Incomplete Docstring  
    'ContentAnalysis.update_from_content' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'ContentAnalysis.update_from_content'._
 
@@ -84,7 +76,7 @@ These are the highest-impact documentation smells to address first:
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | src/henchman/utils/intelligent_context_extractor.py | 🔶 D | 65.0 | 10 | 2026-03-13 |
+| 1 | src/henchman/utils/intelligent_context_extractor.py | ⚠️ C | 72.0 | 8 | 2026-03-13 |
 | 2 | src/henchman/agents/working_memory.py | ✅ A | 98.0 | 1 | 2026-03-13 |
 | 3 | src/henchman/utils/intelligent_context_types.py | ✅ A | 98.0 | 1 | 2026-03-13 |
 | 4 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
@@ -104,22 +96,20 @@ These are the highest-impact documentation smells to address first:
 
 _Showing 25 worst files. 220 additional files omitted._
 
-### src/henchman/utils/intelligent_context_extractor.py — 🔶 D (65.0/100) (last modified 2026-03-13)
+### src/henchman/utils/intelligent_context_extractor.py — ⚠️ C (72.0/100) (last modified 2026-03-13)
 
 Public APIs: 6 | Documented: 6 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 47 | 🟡 MEDIUM | Incomplete Docstring | 'extract_code_blocks' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
-| 135 | 🟡 MEDIUM | Incomplete Docstring | 'extract_error_sections' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
-| 140 | 🟡 MEDIUM | Incomplete Docstring | 'extract_tool_sections' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
-| 191 | 🟡 MEDIUM | Incomplete Docstring | 'extract_keyword_sections' has 2 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content, keywords |
-| 241 | 🟡 MEDIUM | Incomplete Docstring | 'extract_critical_sections' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
-| 47 | 🟢 LOW | Incomplete Docstring | 'extract_code_blocks' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_code_blocks'. |
-| 135 | 🟢 LOW | Incomplete Docstring | 'extract_error_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_error_sections'. |
-| 140 | 🟢 LOW | Incomplete Docstring | 'extract_tool_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_tool_sections'. |
-| 191 | 🟢 LOW | Incomplete Docstring | 'extract_keyword_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_keyword_sections'. |
-| 241 | 🟢 LOW | Incomplete Docstring | 'extract_critical_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_critical_sections'. |
+| 145 | 🟡 MEDIUM | Incomplete Docstring | 'extract_error_sections' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
+| 150 | 🟡 MEDIUM | Incomplete Docstring | 'extract_tool_sections' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
+| 201 | 🟡 MEDIUM | Incomplete Docstring | 'extract_keyword_sections' has 2 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content, keywords |
+| 251 | 🟡 MEDIUM | Incomplete Docstring | 'extract_critical_sections' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: content |
+| 145 | 🟢 LOW | Incomplete Docstring | 'extract_error_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_error_sections'. |
+| 150 | 🟢 LOW | Incomplete Docstring | 'extract_tool_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_tool_sections'. |
+| 201 | 🟢 LOW | Incomplete Docstring | 'extract_keyword_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_keyword_sections'. |
+| 251 | 🟢 LOW | Incomplete Docstring | 'extract_critical_sections' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'extract_critical_sections'. |
 
 ### src/henchman/agents/working_memory.py — ✅ A (98.0/100) (last modified 2026-03-13)
 
@@ -127,7 +117,7 @@ Public APIs: 26 | Documented: 26 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 378 | 🟢 LOW | Incomplete Docstring | 'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'. |
+| 384 | 🟢 LOW | Incomplete Docstring | 'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'. |
 
 ### src/henchman/utils/intelligent_context_types.py — ✅ A (98.0/100) (last modified 2026-03-13)
 

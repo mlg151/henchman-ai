@@ -143,7 +143,23 @@ def _parse_language(content: str, start_pos: int) -> tuple[str, int]:
 
 
 def extract_error_sections(content: str | None) -> list[str]:
-    """Extract error/exception sections from content."""
+    """Extract error/exception sections from content.
+    
+    Args:
+        content: The text content to search for error sections, or None.
+            If None, returns an empty list.
+    
+    Returns:
+        A list of strings containing error/exception sections found in the content.
+        Each section includes tracebacks, exceptions, warnings, or failure messages.
+        Returns an empty list if no error sections are found or if content is None.
+    
+    Examples:
+        >>> extract_error_sections("Traceback (most recent call last):\\n  File ...")
+        ['Traceback (most recent call last):\\n  File ...']
+        >>> extract_error_sections(None)
+        []
+    """
     return _extract_sections_by_type(content, "error")
 
 
