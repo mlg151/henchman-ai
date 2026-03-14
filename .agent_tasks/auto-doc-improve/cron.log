@@ -161526,3 +161526,157 @@ Committing changes...
 [main 76cf27f] docs(auto-improve): automated documentation improvement
  8 files changed, 349 insertions(+), 2471 deletions(-)
 [2026-03-14T06:00:02Z] Done.
+[2026-03-14T16:00:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by examining the first documentation smell: `WorkingMemory.should_read_file` missing a Returns section in its docstring. Let me first check what was last improved to avoid duplication.
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Last Documentation Improvement
+
+## Date/Time
+2026-03-14T06:00:15Z (approximate)
+
+## Files Changed
+- `src/henchman/agents/working_memory.py`
+
+## Smell Category Addressed
+Incomplete Docstring (LOW sev...
+Good! The last improvement was for a different method in the same file. Now I need to examine the current issue: `WorkingMemory.should_read_file` missing a Returns section. Let me first look at the file to understand the method signature and current docstring.
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+230, 'end_line': 250})
+[result]             None
+        """
+        if not isinstance(updated, ProblemEntry):
+            raise TypeError(f"updated must be a ProblemEntry, got 
+{type(updated).__name__}")
+        for e in self.proble...
+Now I can see the issue. The method `should_read_file` returns `tuple[bool, str]` but the docstring doesn't have a Returns section. Let me check a bit more of the method to understand what it returns:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+240, 'end_line': 280})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+Let me see more of the method to understand the full logic and what it returns:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+270, 'end_line': 310})
+[result]         # Validate line numbers are positive (1-indexed)
+        if start < 1 or end < 1:
+            return True, f"Invalid line numbers: must be positive (1-indexed), 
+got start={start}, end={end}"
+
+...
+Perfect! Now I understand the method. It returns a tuple `(bool, str)` where:
+- The boolean indicates whether the file should be read (`True` = read, `False` = skip)
+- The string provides a reason for the decision
+
+I need to add a Returns section to the docstring. Let me also check if there are any other methods in this file that might have similar issues by looking at the full method signature and surrounding code:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+235, 'end_line': 245})
+[result]             if e.problem == updated.problem:
+                e.status = updated.status
+                e.resolution = updated.resolution
+                break
+
+    def should_read_file(
+        self: ...
+Now I'll edit the file to add the missing Returns section. I need to be careful to maintain the Google-style docstring format:
+[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'old_str': ' 
+def should_read_file(\n        self: WorkingMemory, path: str, start: int | None
+= None, end: int | None = None,\n    ) -> tuple[bool, str]:\n        
+"""Determine whether a file needs to be read.\n\n        Args:\n            
+path: The file path to check.\n            start: Optional starting line number 
+(1-indexed) for the read range.\n            end: Optional ending line number 
+(inclusive) for the read range.\n\n        """', 'new_str': '    def 
+should_read_file(\n        self: WorkingMemory, path: str, start: int | None = 
+None, end: int | None = None,\n    ) -> tuple[bool, str]:\n        """Determine 
+whether a file needs to be read.\n\n        Args:\n            path: The file 
+path to check.\n            start: Optional starting line number (1-indexed) for
+the read range.\n            end: Optional ending line number (inclusive) for 
+the read range.\n\n        Returns:\n            tuple[bool, str]: A tuple where
+the first element is a boolean indicating\n            whether the file should 
+be read (True = read, False = skip), and the second\n            element is a 
+string explaining the reason for the decision.\n        """'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/agents/working_memory.py...
+Great! Now let me verify the change was applied correctly by reading the updated section:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+235, 'end_line': 255})
+[result]             if e.problem == updated.problem:
+                e.status = updated.status
+                e.resolution = updated.resolution
+                break
+
+    def should_read_file(
+        self: ...
+Perfect! The change looks good. Now I should update the `.agent_tasks/auto-doc-improve/last-improvement.md` file to document what I changed:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': "# Last Documentation Improvement\n\n## 
+Date/Time\n2026-03-14T16:10:45Z (approximate)\n\n## Files Changed\n- 
+`src/henchman/agents/working_memory.py`\n\n## Smell Category 
+Addressed\nIncomplete Docstring (LOW severity)\n\n## Rationale for Change\nFixed
+missing Returns section in `WorkingMemory.should_read_file` method. The method 
+has a return type hint of `tuple[bool, str]` but the docstring lacked a Returns 
+section. According to Google-style docstring conventions, all methods that 
+return values should have a Returns section that describes the return 
+value(s).\n\n## Changes Made\n1. **WorkingMemory.should_read_file method** (line
+240):\n   - Added `Returns:` section with description explaining the tuple 
+structure\n   - Documented that the first element is a boolean (True = read, 
+False = skip)\n   - Documented that the second element is a string explaining 
+the reason\n   - Maintained existing `Args:` section\n   - Preserved the 
+method's functionality and behavior\n   - Kept the Google-style docstring format
+consistent with the rest of the codebase\n\n## What to Verify\n- The docstring 
+now accurately documents the return type `tuple[bool, str]`\n- Documentation 
+matches the actual function signature and return values\n- No breaking changes 
+to source code functionality\n- Google-style docstring format is maintained with
+proper sections\n- The Returns section clearly explains both elements of the 
+tuple\n- The method still correctly determines whether files should be read 
+based on working memory\n\n## Next Priority\nThe next highest priority from the 
+smell report is `ContentAnalysis.update_from_content` in 
+`src/henchman/utils/intelligent_context_types.py` which returns a value but has 
+no Returns or Yields section."})
+[result] Successfully wrote 1702 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I have successfully addressed the first documentation smell. Let me provide a summary of what was accomplished:
+
+## Documentation Improvement Completed
+
+**Issue Fixed**: Missing Returns section in `WorkingMemory.should_read_file` method docstring
+
+**Location**: `src/henchman/agents/working_memory.py` line 240
+
+**Change Made**: Added a proper `Returns:` section to the Google-style docstring that describes:
+- Return type: `tuple[bool, str]`
+- First element: Boolean indicating whether file should be read (True = read, False = skip)
+- Second element: String explaining the reason for the decision
+
+**Verification**: 
+- ✅ Docstring now matches the actual function signature `-> tuple[bool, str]`
+- ✅ Returns section follows Google-style docstring conventions
+- ✅ No source code behavior was altered
+- ✅ Documentation accurately reflects the method's purpose and return values
+
+**Next Priority**: The next documentation smell to address is `ContentAnalysis.update_from_content` in `src/henchman/utils/intelligent_context_types.py` which also has a missing Returns section.
+
+The documentation improvement maintains the project's high quality standards (currently at 100.0/100 score) by ensuring all public APIs have complete and accurate documentation.[tech_lead] completed work
+[2026-03-14T16:00:02Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
+
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 1.12 seconds
+[2026-03-14T16:00:02Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-14T16:00:02Z] Verification passed.
+Committing changes...
