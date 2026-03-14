@@ -401,6 +401,9 @@ class WorkingMemorySystem:
             
         Raises:
             KeyError: If the task ID is not found in the memory registry.
+            
+        Returns:
+            None: This method does not return a value.
         """
         if t_id not in self.memories:
             raise KeyError(f"Task ID '{t_id}' not found")
