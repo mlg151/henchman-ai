@@ -731,12 +731,14 @@ class TestWorkingMemory:
         # Test with valid start=10, end=None (should return True because file not fully read)
         should_read, reason = memory.should_read_file("/test/file.py", start=10)
         assert should_read is True
-        assert "not fully read" in reason.lower() or "partial" in reason.lower()
+        # New behavior: returns "May need to read lines beyond 50" instead of "File not fully read"
+        assert "may need to read lines beyond" in reason.lower() or "beyond" in reason.lower()
         
         # Test with valid start=None, end=50 (should return True because file not fully read)
         should_read, reason = memory.should_read_file("/test/file.py", end=50)
         assert should_read is True
-        assert "not fully read" in reason.lower() or "partial" in reason.lower()
+        # New behavior: returns "May need to read lines before 10" instead of "File not fully read"
+        assert "may need to read lines before" in reason.lower() or "before" in reason.lower()
 
     def test_memory_should_read_file_full_with_whitespace(self):
         """Test should_read_file handles 'full' with surrounding whitespace."""
@@ -916,6 +918,58 @@ class TestWorkingMemory:
             f"Got: {should_read2}, reason: {reason2}"
         )
         assert "already read" in reason2.lower()
+
+    def test_memory_should_read_file_partial_range_specification_bug(self):
+        """Test should_read_file bug with partial range specifications.
+        
+        BUG: When only start OR end is provided (not both), the method returns
+        True immediately without checking if the requested partial range has
+        been read.
+        
+        FIXED: Now provides more accurate error messages:
+        - For start=X, end=None: "May need to read lines beyond {max_read_end}" or "Start line {start} beyond last read line {max_read_end}"
+        - For start=None, end=Y: "May need to read lines before {min_read_start}" or "End line {end} before first read line {min_read_start}"
+        """
+        memory = WorkingMemory(current_task="Test")
+        
+        # Case 1: File read lines 10-50, request start=30, end=None (read from line 30 to EOF)
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "10-50"))
+        should_read, reason = memory.should_read_file("/test/file.py", start=30)
+        # Lines 30-50 HAVE been read (within 10-50), but we don't know about lines beyond 50
+        # So should return True with "May need to read lines beyond 50"
+        assert should_read is True, (
+            f"Lines 30-EOF: we've read 30-50 but might need lines beyond 50. "
+            f"Got: {should_read}, reason: {reason}"
+        )
+        assert "may need to read lines beyond" in reason.lower() or "beyond" in reason.lower()
+        
+        # Case 2: File read lines 10-50, request start=None, end=40 (read from beginning to line 40)
+        should_read2, reason2 = memory.should_read_file("/test/file.py", end=40)
+        # Lines 1-40: we've read 10-40 but haven't read lines 1-9
+        # So should return True with "May need to read lines before 10"
+        assert should_read2 is True, (
+            f"Lines 1-40: we've read 10-40 but might need lines before 10. "
+            f"Got: {should_read2}, reason: {reason2}"
+        )
+        assert "may need to read lines before" in reason2.lower() or "before" in reason2.lower()
+        
+        # Case 3: File read lines 10-50, request start=60, end=None (read from line 60 to EOF)
+        should_read3, reason3 = memory.should_read_file("/test/file.py", start=60)
+        # Lines 60-EOF have NOT been read (file only read up to 50), so should return True
+        assert should_read3 is True, (
+            f"Lines 60-EOF have NOT been read (file only read up to 50). "
+            f"Got: {should_read3}, reason: {reason3}"
+        )
+        assert "start line 60 beyond last read line" in reason3.lower()
+        
+        # Case 4: File read lines 10-50, request start=None, end=5 (read from beginning to line 5)
+        should_read4, reason4 = memory.should_read_file("/test/file.py", end=5)
+        # Lines 1-5 have NOT been read (file read starts at 10), so should return True
+        assert should_read4 is True, (
+            f"Lines 1-5 have NOT been read (file read starts at 10). "
+            f"Got: {should_read4}, reason: {reason4}"
+        )
+        assert "end line 5 before first read line" in reason4.lower()
 
 class TestWorkingMemorySystem:
     """Test WorkingMemorySystem class."""

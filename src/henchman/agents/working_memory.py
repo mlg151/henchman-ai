@@ -290,6 +290,13 @@ class WorkingMemory(SerializableDataclass):
         # we should check if the requested range is covered by recent partial reads
         if matches[0].lines_read.strip().lower() == "full":
             return False, "File already read (full)"
+        
+        # Collect all valid line ranges from all entries (needed for partial range checks)
+        valid_ranges: list[LineRange] = []
+        for match in matches:
+            rng = LineRange.from_str(match.lines_read)
+            if rng:
+                valid_ranges.append(rng)
 
         # Validate line numbers if provided (1-indexed)
         if start is not None and start < 1:
@@ -298,21 +305,42 @@ class WorkingMemory(SerializableDataclass):
             return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
 
         if start is None or end is None:
-            # No line range specified but file wasn't read fully
-            return True, "File not fully read - partial read recorded"
+            # Handle partial range specifications
+            if start is None and end is None:
+                # Want to read entire file, but file wasn't read fully
+                return True, "File not fully read - partial read recorded"
+            elif start is not None:
+                # start=X, end=None: read from X to EOF
+                # Check if we've read from X to max(read_end)
+                if not valid_ranges:
+                    return True, "Cannot determine - invalid lines_read format"
+                max_read_end = max(r.end for r in valid_ranges)
+                if start <= max_read_end:
+                    # We've read at least from start to max_read_end
+                    # But might need to read beyond max_read_end
+                    return True, f"May need to read lines beyond {max_read_end}"
+                else:
+                    # start > max_read_end, definitely need to read
+                    return True, f"Start line {start} beyond last read line {max_read_end}"
+            else:  # end is not None, start is None
+                # start=None, end=Y: read from beginning to Y
+                # Check if we've read from min(read_start) to Y
+                if not valid_ranges:
+                    return True, "Cannot determine - invalid lines_read format"
+                min_read_start = min(r.start for r in valid_ranges)
+                if end >= min_read_start:
+                    # We've read at least from min(read_start) to end
+                    # But might need to read before min_read_start
+                    return True, f"May need to read lines before {min_read_start}"
+                else:
+                    # end < min_read_start, definitely need to read
+                    return True, f"End line {end} before first read line {min_read_start}"
 
         # Validate line range (both are not None at this point)
         if start > end:
             return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"
 
         requested = LineRange(start, end)
-
-        # Collect all valid line ranges from all entries
-        valid_ranges: list[LineRange] = []
-        for match in matches:
-            rng = LineRange.from_str(match.lines_read)
-            if rng:
-                valid_ranges.append(rng)
 
         if not valid_ranges:
             # No valid line range format in any entry
