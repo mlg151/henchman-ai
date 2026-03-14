@@ -597,13 +597,14 @@ class TestWorkingMemory:
         # Ask for lines that were in first read but NOT in second (more recent) read
         should_read2, reason2 = memory2.should_read_file("/test/file2.py", 60, 80)
         
-        # Most recent read was 10-50, so lines 60-80 were NOT read recently
-        # Should return True (need to read)
-        assert should_read2 is True, (
-            "Lines 60-80 are NOT in most recent read (10-50), should return True. "
-            "Bug: should_read_file finds FIRST entry (1-100), not MOST RECENT (10-50)."
+        # BUG: Lines 60-80 WERE read in first read (1-100), so should return False
+        # Current implementation only checks most recent (10-50) and returns True
+        # This causes unnecessary re-reading
+        assert should_read2 is False, (
+            "Lines 60-80 were read in first read (1-100), should return False. "
+            "Bug: should_read_file only checks most recent entry, not all entries."
         )
-        assert "need to be read" in reason2.lower()
+        assert "already read" in reason2.lower()
         
         # Test with uppercase "FULL"
         memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "FULL"))

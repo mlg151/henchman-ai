@@ -252,13 +252,15 @@ class WorkingMemory(SerializableDataclass):
             - bool: True if the file should be read, False otherwise.
             - str: The reason for the decision.
         """
-        match = next((e for e in reversed(self.recent_files) if e.path == path), None)
-        if not match:
+        # Find ALL entries for this file (most recent first)
+        matches = [e for e in reversed(self.recent_files) if e.path == path]
+        if not matches:
             return True, "File not in recent files"
 
-        # Special case: file was read fully
-        if match.lines_read.strip().lower() == "full":
-            return False, "File already read (full)"
+        # Check if ANY entry indicates file was read fully
+        for match in matches:
+            if match.lines_read.strip().lower() == "full":
+                return False, "File already read (full)"
 
         if start is None or end is None:
             # No line range specified but file wasn't read fully
@@ -272,17 +274,25 @@ class WorkingMemory(SerializableDataclass):
         if start < 1 or end < 1:
             return True, f"Invalid line numbers: must be positive (1-indexed), got start={start}, end={end}"
 
-        rng = LineRange.from_str(match.lines_read)
-        if rng:
-            requested = LineRange(start, end)
-            # Check if requested range is fully contained within previously read range
-            if requested.start >= rng.start and requested.end <= rng.end:
-                return False, "File already read (contained within previously read lines)"
-            # Otherwise, we need to read it (either no overlap or partial overlap)
-            return True, "New or partially overlapping lines need to be read"
+        requested = LineRange(start, end)
 
-        # If lines_read format is invalid (not "full" and not valid range)
-        return True, "Cannot determine overlap - invalid lines_read format"
+        # Track if we found any valid line range entries
+        found_valid_range = False
+
+        # Check ALL entries for line range containment
+        for match in matches:
+            rng = LineRange.from_str(match.lines_read)
+            if rng:
+                found_valid_range = True
+                if requested.start >= rng.start and requested.end <= rng.end:
+                    return False, "File already read (contained within previously read lines)"
+
+        # If we found valid ranges but none covered the requested range
+        if found_valid_range:
+            return True, "New or partially overlapping lines need to be read"
+        else:
+            # No valid line range format in any entry
+            return True, "Cannot determine overlap - invalid lines_read format"
 
     def get_file_insights(self: WorkingMemory, path: str) -> list[str]:
         """Return cached insights for a file.
