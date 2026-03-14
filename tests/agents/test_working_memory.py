@@ -105,6 +105,40 @@ class TestWorkingMemory:
         assert stored_entry.lines_read == "1-50"
         assert stored_entry.key_insights == ["Insight 1"]
 
+    def test_memory_add_file_does_not_modify_input(self):
+        """Test that add_recent_file does not modify the input object (BUG FIX)."""
+        memory = WorkingMemory(current_task="Test")
+        # Create entry with relative path
+        original_path = "./test/file.py"
+        entry = WorkingMemoryEntry(
+            path=original_path,
+            purpose="Read for understanding",
+            lines_read="1-50",
+            key_insights=["Insight 1"],
+        )
+        
+        # Store original values
+        original_entry_path = entry.path
+        
+        # Add to memory
+        memory.add_recent_file(entry)
+        
+        # BUG: entry.path should NOT be modified
+        # Currently it IS modified (normalized in place)
+        assert entry.path == original_path, (
+            f"add_recent_file should not modify input object. "
+            f"Expected path='{original_path}', got '{entry.path}'"
+        )
+        
+        # The stored entry should have normalized path
+        stored_entry = memory.recent_files[0]
+        assert stored_entry.path != original_path, (
+            f"Stored entry should have normalized path, not '{original_path}'"
+        )
+        # They should be different objects (or at least the path should be normalized in storage)
+        # Note: With the bug, entry IS stored_entry (same object), so this would fail
+        # With fix, they might be different objects or same object with copy-on-write semantics
+
     def test_memory_add_decision(self):
         """Test adding a decision to memory."""
         memory = WorkingMemory(current_task="Test")

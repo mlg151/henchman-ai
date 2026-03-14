@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypeVar, Union
@@ -169,8 +169,9 @@ class WorkingMemory(SerializableDataclass):
             None
         """
         # Normalize the path before storing
-        entry.path = _normalize_path(entry.path)
-        self.recent_files.append(entry)
+        # Create a copy with normalized path to avoid modifying input
+        normalized_entry = replace(entry, path=_normalize_path(entry.path))
+        self.recent_files.append(normalized_entry)
 
     def add_decision(self: WorkingMemory, entry: DecisionEntry) -> None:
         """Record a decision.

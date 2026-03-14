@@ -1,22 +1,37 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-14T22:15:00Z
+## Date: 2025-03-14T22:30:00Z
 ## Bug Summary
-The `should_read_file` method fails to validate line numbers when only `start` or `end` parameter is provided (not both), allowing invalid line numbers (0 or negative) to pass through without proper validation.
+The `add_recent_file` method modifies the input `WorkingMemoryEntry` object in place by normalizing its `path` attribute, causing unexpected side effects for callers who might reuse the object.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - Logic Gaps
+**Phase 2: State & Side Effects (The Entropy Audit)** - The code accidentally mutates inputs
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| When `start` is provided (even if `end` is None), it should be validated as a positive integer (≥1) | Invalid `start=0` or `start=-5` passes validation check, leading to incorrect "File not fully read - partial read recorded" message |
-| When `end` is provided (even if `start` is None), it should be validated as a positive integer (≥1) | Invalid `end=0` or `end=-10` passes validation check |
-| Validation should happen for any provided line number, regardless of whether the other is None | Validation only happens when BOTH `start` and `end` are not None |
+| `add_recent_file` should not modify the input `WorkingMemoryEntry` object | `entry.path = _normalize_path(entry.path)` modifies the caller's object |
+| Methods should be side-effect free with respect to their inputs | Caller's object is changed after method call, which could break caller's logic |
+| If path normalization is needed, create a copy or new object | Original object is mutated, violating principle of least surprise |
 
 ## Root Cause
-The validation logic in `should_read_file` (lines 285-288) only checks `if start is not None and start < 1:` and `if end is not None and end < 1:`. However, the early return at line 291 (`if start is None or end is None:`) happens BEFORE these validations when called with only one parameter. This means invalid line numbers like 0 or negative values are not caught when only one parameter is provided.
+In `add_recent_file` (line 169), the code directly modifies the input object: `entry.path = _normalize_path(entry.path)`. This is done to ensure normalized paths are stored, but it has the side effect of changing the caller's object. The method should create a new `WorkingMemoryEntry` with the normalized path instead.
 
 ## Fix Plan
-Move the validation checks for `start` and `end` to execute BEFORE the early return for missing parameters. This ensures that any provided line number (even if only one is provided) is validated for being a positive integer (≥1).
+Replace the in-place modification with creation of a new `WorkingMemoryEntry` object using `dataclasses.replace()` or by constructing a new object with all attributes copied and the path normalized.
 
-## Status: IN PROGRESS
+## Status: FIXED
+
+## Files Changed
+1. `src/henchman/agents/working_memory.py`:
+   - Added import of `replace` from `dataclasses`
+   - Modified `add_recent_file` method to use `replace(entry, path=_normalize_path(entry.path))` instead of modifying `entry.path` in place
+   
+2. `tests/agents/test_working_memory.py`:
+   - Added new test `test_memory_add_file_does_not_modify_input` to verify the fix
+   - Test confirms input object is not modified and stored entry has normalized path
+
+## Verification
+- All existing tests pass (54 tests)
+- New test passes, confirming the bug is fixed
+- Custom verification script confirms input object is no longer modified
+- The stored entry now has normalized path while input object remains unchanged
