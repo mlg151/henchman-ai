@@ -30,7 +30,7 @@ src/henchman/
 ├── metrics/    # Performance metrics collection, storage, and reporting
 ├── providers/  # Model providers: OpenAICompatible base, DeepSeek, Anthropic, Ollama, OpenRouter
 ├── rag/        # Retrieval-Augmented Generation for semantic code search
-├── tools/      # Built-in tools: read_file, write_file, delegate_task, ask_user
+├── tools/      # Built-in tools (34 total): read_file, write_file, edit_file, shell, grep, etc.
 └── utils/      # Utility functions and helpers
 ```
 **Key insight**: The `OpenAICompatibleProvider` handles any OpenAI-compatible API including DeepSeek, OpenAI, OpenRouter, Together, Groq, Fireworks AI, and similar services. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs.

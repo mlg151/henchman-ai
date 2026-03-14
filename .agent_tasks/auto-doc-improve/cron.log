@@ -162343,3 +162343,269 @@ Committing changes...
 [main d317861] docs(auto-improve): automated documentation improvement
  9 files changed, 1779 insertions(+), 1909 deletions(-)
 [2026-03-14T20:00:02Z] Done.
+[2026-03-14T22:00:01Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by examining the current state of the documentation to understand what needs improvement. Let me first check the last improvement made to avoid repeating work.
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Last Documentation Improvement
+
+## Date/Time
+2026-03-14T20:15:00Z (approximate)
+
+## Files Changed
+- `CHANGELOG.md` (root file)
+- `docs/CHANGELOG.md` (already correct, verified)
+
+## Smell Category Ad...
+Excellent! The documentation is in perfect shape with a score of 100.0/100 and no remaining smells. According to the report, all 245 files have no smells and all docstring coverage is at 100%. 
+
+However, I should verify if there are any subtle issues that might not be caught by the automated smell detector. Let me check a few key documentation files to ensure they're up-to-date with the current project state.
+
+First, let me check the main README.md to see if it accurately reflects the current project status:
+[tool] read_file({'path': 'README.md', 'start_line': 1, 'end_line': 50})
+[result] # Henchman-AI
+
+> Your AI Henchman for the Terminal - A Model-Agnostic AI Agent CLI
+
+[![PyPI 
+version](https://img.shields.io/pypi/v/henchman-ai.svg)](https://pypi.org/projec
+t/henchman-ai/)
+[![Python ve...
+Let me check the version information in the README to ensure it matches the current version:
+[tool] read_file({'path': 'src/henchman/version.py'})
+[result] """Version information for Henchman-AI."""
+
+VERSION_TUPLE = (0, 3, 13)
+VERSION = ".".join(str(v) for v in VERSION_TUPLE)
+
+__all__ = ["VERSION", "VERSION_TUPLE"]
+...
+Good, the version is 0.3.13. Now let me check if the README mentions the correct version. Let me search for version references:
+[tool] grep({'pattern': '0\\.3\\.', 'path': 'README.md', 'line_numbers': True})
+[result] No matches found...
+Good, the README doesn't have hardcoded version numbers that could become stale. Let me check the PyPI badge to see if it's correct:
+[tool] grep({'pattern': 'pypi.*henchman-ai', 'path': 'README.md'})
+[result] [![PyPI 
+version](https://img.shields.io/pypi/v/henchman-ai.svg)](https://pypi.org/projec
+t/henchman-ai/)
+[![Python 
+versions](https://img.shields.io/pypi/pyversions/henchman-ai.svg)](https://pypi.
+org/pr...
+The PyPI badge is dynamic, so it will always show the correct version. Let me check the documentation index page to ensure it's up-to-date:
+[tool] read_file({'path': 'docs/index.md', 'start_line': 1, 'end_line': 50})
+[result] # Henchman-AI
+
+**A Model-Agnostic AI Agent CLI in Python**
+
+Henchman-AI is a powerful terminal-based AI agent that supports multiple LLM 
+providers through a unified interface. Inspired by gemini-cli, ...
+The documentation looks good. Let me check one more thing - the copilot instructions file that was provided as context to see if it needs any updates:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 1, 
+'end_line': 50})
+[result] # Henchman-AI Copilot Instructions
+
+Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by 
+gemini-cli. It supports multiple LLM providers (DeepSeek, 
+OpenAI/OpenAI-compatible APIs, Ant...
+The copilot instructions look comprehensive and up-to-date. Let me check if there are any inconsistencies between the copilot instructions and the actual project structure. Let me look at the tools section to see if it mentions all 34 built-in tools:
+[tool] grep({'pattern': 'Built-in Tools', 'path': 
+'.github/copilot-instructions.md', 'context_before': 2, 'context_after': 10})
+[result] - **Phase 3**: Core Agent Loop ✅
+- **Phase 4**: Tool System ✅
+- **Phase 5**: Built-in Tools ✅ (including ask_user tool)
+- **Phase 6**: Configuration System ✅
+- **Phase 7**: Terminal UI ✅
+- **Phase 8**...
+I need to focus on my role as TECH_LEAD and make a targeted documentation improvement. Let me check the actual project structure to see if the copilot instructions accurately reflect it. First, let me examine the tools directory structure:
+[tool] ls({'path': 'src/henchman/tools/builtins'})
+[result] __init__.py
+__init__.py,cover
+__pycache__/
+ask_user.py
+ask_user.py,cover
+code_format.py
+code_format.py,cover
+coverage_map.py
+coverage_map.py,cover
+dead_code.py
+dead_code.py,cover
+deep_research.py
+deep...
+I can see there are 34 built-in tools (excluding the `__init__.py` and `__pycache__`). Now let me check if the copilot instructions mention the correct number of tools. Looking back at the copilot instructions, I see it mentions "Built-in tools: read_file, write_file, delegate_task, ask_user" but this is just a subset. The actual list in the copilot instructions shows 34 tools in the file structure section. Let me check if the tools documentation page is accurate:
+[tool] read_file({'path': 'docs/tools.md', 'start_line': 1, 'end_line': 100})
+[result] # Tools
+
+Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent 
+can use to interact with your system.
+
+## Quick Reference
+
+| Tool | Category | Kind | Description |
+|------|---...
+The tools documentation looks comprehensive and accurate. However, I notice there's a potential issue. Looking at the copilot instructions, in the "Architecture Overview" section, it shows:
+
+```
+├── tools/      # Built-in tools: read_file, write_file, delegate_task, ask_user
+```
+
+This only lists 4 tools as examples, but there are actually 34 built-in tools. While this isn't technically incorrect (it says "Built-in tools:" and gives examples), it could be misleading or incomplete. However, the actual tools documentation page (`docs/tools.md`) is complete and accurate.
+
+Let me check if there are any other documentation files that might have incomplete tool listings. Let me search for references to tool counts:
+[tool] grep({'pattern': '34.*tool', 'path': 'docs', 'ignore_case': True})
+[result] docs/index.md:Henchman-AI includes a comprehensive set of 34 tools for 
+code analysis, testing, file operations, and multi-agent coordination, 
+including:
+docs/index.md:*See [Tools](tools.md) for the co...
+Good! The documentation correctly states there are 34 tools. Let me check the README.md for tool references:
+[tool] grep({'pattern': 'tool', 'path': 'README.md', 'ignore_case': True, 
+'line_numbers': True})
+[result] 16:- 🔌 **Extensible**: Plugin system for tools, providers, and custom 
+commands
+18:- 🛠️ **Built-in Tools**: File operations, shell commands, web fetching, and 
+more
+19:- 🔗 **MCP Integration**: Connect t...
+The README mentions "Built-in Tools" but doesn't specify the count. This is fine as it's a high-level overview. Let me check if there are any other documentation inconsistencies. Let me look at the architecture documentation:
+[tool] read_file({'path': 'docs/architecture.md', 'start_line': 1, 'end_line': 
+50})
+[result] # System Architecture
+
+## Overview
+
+Henchman-AI is built with a modular, component-based architecture that separates
+concerns and promotes maintainability. The system is designed around the 
+principle ...
+The architecture documentation looks good. Now, let me check if there's a specific issue I should address. Since the documentation smell report shows a perfect score of 100.0/100, I should look for subtle issues that might not be caught by automated checks.
+
+One thing I notice is that the copilot instructions file (`.github/copilot-instructions.md`) is referenced in the context but isn't part of the official documentation. It's an internal file for guiding AI assistants. However, it should still be accurate. Let me check if it has the complete list of 34 tools in the file structure section:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 120, 
+'end_line': 180})
+[result]     elif event.type == EventType.TOOL_CALL_REQUEST:
+        # Handle tool call
+        tool_call = event.data
+        result = execute_tool(tool_call)
+        agent.submit_tool_result(tool_call.id, re...
+Let me look at the file structure section in the copilot instructions more carefully:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 80, 
+'end_line': 130})
+[result] | Ollama (`ollama`) | None required | llama3.2 | Local models, 
+OpenAI-compatible API |
+| OpenRouter (`openrouter`) | `OPENROUTER_API_KEY` | openai/gpt-4o | 
+OpenAI-compatible, access to hundreds of mod...
+I need to find the file structure section. Let me search for it:
+[tool] grep({'pattern': 'Architecture Overview', 'path': 
+'.github/copilot-instructions.md', 'context_before': 2, 'context_after': 20})
+[result] - **Phase 12**: Polish & Release ✅ (100% test coverage, all core 
+features implemented)
+- **Phase 13**: Multi-Agent Dev Team ✅ (Orchestrator, EventBus, Team 
+Delegation)
+## Architecture Overview
+```
+src...
+I found the issue! In the copilot instructions file (`.github/copilot-instructions.md`), the Architecture Overview section shows:
+
+```
+├── tools/      # Built-in tools: read_file, write_file, delegate_task, ask_user
+```
+
+This only lists 4 tools as examples, but there are actually 34 built-in tools. While this isn't technically wrong (it's just giving examples), it could be misleading or incomplete for someone reading the copilot instructions. The actual tools documentation (`docs/tools.md`) correctly lists all 34 tools.
+
+As TECH_LEAD, I should improve this to be more accurate and helpful. I'll update the copilot instructions to either:
+1. List all 34 tools (too verbose for an architecture overview)
+2. Mention the correct count of tools
+3. Provide a better representation
+
+Looking at the context, this is an internal file for guiding AI assistants, so it should be accurate but concise. I'll update it to mention the correct count and reference the complete documentation.
+
+Let me make this improvement:
+[tool] edit_file({'path': '.github/copilot-instructions.md', 'old_str': '├── 
+tools/      # Built-in tools: read_file, write_file, delegate_task, ask_user', 
+'new_str': '├── tools/      # Built-in tools (34 total): read_file, write_file, 
+edit_file, shell, grep, etc.'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/.github/copilot-instructions.md...
+Now let me verify the change was made correctly:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 25, 
+'end_line': 45})
+[result] ├── config/     # Pydantic settings, hierarchical YAML loading, 
+AgentConfig
+├── core/       # Agent layer: Agent, EventBus, events, session
+├── extensions/ # Plugin system: Extension ABC, ExtensionMan...
+Good! Now let me also check if there are any other references to tool counts in the copilot instructions that might need updating. Let me search for other mentions:
+[tool] grep({'pattern': 'tool.*34\\|34.*tool', 'path': 
+'.github/copilot-instructions.md', 'ignore_case': True})
+[result] No matches found...
+Good, there are no other references to tool counts that need updating. Now let me document this improvement in the last-improvement.md file:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Last Documentation Improvement\n\n## 
+Date/Time\n2026-03-14T22:10:00Z (approximate)\n\n## Files Changed\n- 
+`.github/copilot-instructions.md`\n\n## Smell Category 
+Addressed\nCompleteness/Accuracy (MEDIUM severity)\n\n## Rationale for 
+Change\nThe copilot instructions file (internal documentation for AI assistants)
+had an incomplete representation of the built-in tools in the Architecture 
+Overview section. It listed only 4 tools as examples (`read_file, write_file, 
+delegate_task, ask_user`) when the project actually has 34 built-in tools. While
+this wasn\'t technically incorrect (it was just giving examples), it could be 
+misleading or give an incomplete picture of the tool system\'s 
+capabilities.\n\nThe actual tools documentation (`docs/tools.md`) correctly 
+lists all 34 tools, but the copilot instructions should also accurately 
+represent the scale and scope of the tool system for AI assistants that rely on 
+this guidance.\n\n## Changes Made\n1. **Updated 
+`.github/copilot-instructions.md`**:\n   - Changed line in Architecture Overview
+from:\n     ```\n     ├── tools/      # Built-in tools: read_file, write_file, 
+delegate_task, ask_user\n     ```\n     to:\n     ```\n     ├── tools/      # 
+Built-in tools (34 total): read_file, write_file, edit_file, shell, grep, etc.\n
+```\n   - Added the correct count "(34 total)" to provide accurate scale\n   - 
+Updated the example tools to include more representative ones (`edit_file, 
+shell, grep`) that better showcase the diversity of tools available\n   - Added 
+"etc." to indicate this is not an exhaustive list\n\n## What to Verify\n- The 
+copilot instructions now accurately represent the scale of the tool system (34 
+tools)\n- The example tools shown are more representative of the tool 
+diversity\n- The change doesn\'t break any formatting or links in the file\n- 
+The actual tools documentation (`docs/tools.md`) remains the authoritative 
+source with the complete list\n- No other documentation files need similar 
+updates (they already correctly mention 34 tools)\n\n## Next Priority\nAll 
+documentation smells have been addressed with a perfect score of 100.0/100. 
+Future documentation improvements should focus on:\n1. Keeping the copilot 
+instructions synchronized with actual project features\n2. Ensuring example 
+lists in documentation are representative of the full capabilities\n3. 
+Proactively updating internal guidance files when new tools are added'})
+[result] Successfully wrote 2376 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! As TECH_LEAD, I've successfully completed a targeted documentation improvement. Let me summarize what was accomplished:
+
+## Summary
+
+**Improvement Made**: Updated the copilot instructions file (`.github/copilot-instructions.md`) to accurately represent the scale of the built-in tools system.
+
+**Problem Identified**: The Architecture Overview section only listed 4 tools as examples (`read_file, write_file, delegate_task, ask_user`) when the project actually has 34 built-in tools. This could give an incomplete picture of the tool system's capabilities to AI assistants relying on this guidance.
+
+**Solution Implemented**: 
+- Added the correct count "(34 total)" to provide accurate scale
+- Updated the example tools to include more representative ones (`edit_file, shell, grep`)
+- Added "etc." to indicate this is not an exhaustive list
+
+**Verification**:
+- The actual tools documentation (`docs/tools.md`) correctly lists all 34 tools and remains the authoritative source
+- Other documentation files already correctly mention the 34 tools
+- The project maintains its perfect documentation score of 100.0/100
+
+This improvement enhances the accuracy and completeness of internal guidance for AI assistants while maintaining the project's high documentation standards.[tech_lead] completed work
+[2026-03-14T22:00:01Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
+
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 0.99 seconds
+[2026-03-14T22:00:01Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-14T22:00:01Z] Verification passed.
+Committing changes...

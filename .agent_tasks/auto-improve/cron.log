@@ -704114,3 +704114,185 @@ TOTAL                                                       18909    256   5042 
 =========== 5699 passed, 6 skipped, 46 warnings in 184.84s (0:03:04) ===========
 [2026-03-14T21:00:02Z] All tests passed.
 Committing changes...
+[main 5209846] fix(four-lenses): four-lenses-agents-working_memory
+ 6 files changed, 3702 insertions(+), 923 deletions(-)
+[2026-03-14T21:00:02Z] Auto-improve complete.
+[2026-03-14T22:00:02Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-14T22:00:02Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
+I'll start by reading the smell report and the target file to understand the context and identify bugs.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.8/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-14T22:00:29.850674+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py...
+Let me read the test file to understand the existing test coverage:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me analyze the code through the Four Lenses of Failure:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the code, I can see several potential issues:
+
+1. **Logic Gaps**: The `should_read_file` method has complex logic for determining if a file should be read. Looking at the test file, I can see there are many tests marked as "BUG" that indicate the current implementation has issues.
+
+2. **Type Safety**: The `add_problem` and `update_problem` methods check `isinstance(entry, ProblemEntry)` but the error message says "entry must be a ProblemEntry" - this is correct type checking.
+
+Let me examine the `should_read_file` method more closely since it's marked as having high complexity (25 cyclomatic complexity) and is 89 lines long:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+263, 'end_line': 352})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+340, 'end_line': 366})
+[result]                     # No overlap, add as new range
+                    merged_ranges.append(rng)
+
+        # Check if requested range is fully covered by merged ranges
+        # We need to check if the...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+365, 'end_line': 370})
+[result] 
+        # If we get here, we either didn't cover the end or there were gaps
+        return True, "New or partially overlapping lines need to be read"
+
+    def get_file_insights(self: WorkingMemory, p...
+Now let me check the tests to see what bugs are documented:
+[tool] grep({'pattern': 'BUG:', 'path': 'tests/agents/test_working_memory.py', 
+'line_numbers': True})
+[result] 332:        # BUG: File was only partially read (lines 10-50), but 
+calling without line range
+364:        # BUG: This should be False! If file was read fully, any line range 
+should be considered alrea...
+I need to analyze this systematically. Let me create the documentation stub first as required:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/agents/working_memory.py\n## Date: 
+2025-03-14T22:15:00Z\n## Bug Summary\nThe `should_read_file` method fails to 
+validate line numbers when only `start` or `end` parameter is provided (not 
+both), allowing invalid line numbers (0 or negative) to pass through without 
+proper validation.\n\n## Lens\n**Phase 1: The Intent vs. Reality Check** - Logic
+Gaps\n\n## Expected vs. Observed\n| Expected Behavior | Observed Risk 
+|\n|---|---|\n| When `start` is provided (even if `end` is None), it should be 
+validated as a positive integer (≥1) | Invalid `start=0` or `start=-5` passes 
+validation check, leading to incorrect "File not fully read - partial read 
+recorded" message |\n| When `end` is provided (even if `start` is None), it 
+should be validated as a positive integer (≥1) | Invalid `end=0` or `end=-10` 
+passes validation check |\n| Validation should happen for any provided line 
+number, regardless of whether the other is None | Validation only happens when 
+BOTH `start` and `end` are not None |\n\n## Root Cause\nThe validation logic in 
+`should_read_file` (lines 285-288) only checks `if start is not None and start <
+1:` and `if end is not None and end < 1:`. However, the early return at line 291
+(`if start is None or end is None:`) happens BEFORE these validations when 
+called with only one parameter. This means invalid line numbers like 0 or 
+negative values are not caught when only one parameter is provided.\n\n## Fix 
+Plan\nMove the validation checks for `start` and `end` to execute BEFORE the 
+early return for missing parameters. This ensures that any provided line number 
+(even if only one is provided) is validated for being a positive integer 
+(≥1).\n\n## Status: IN PROGRESS'})
+[result] Successfully wrote 1705 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/README.md...
+Now let me write a failing test first (TDD). I need to add a test that demonstrates this bug:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+660, 'end_line': 700})
+[result]         should_read, reason = memory.should_read_file("/test/file.py", 
+-5, -1)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+
+    def te...
+Good! The test already exists and is marked as a bug. Let me run this specific test to confirm it fails:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_should_read_
+file_invalid_line_numbers_partial_range -xvs'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Interesting! The test passes. Let me check what the actual output is:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -c "\nfrom 
+henchman.agents.working_memory import WorkingMemory, 
+WorkingMemoryEntry\n\nmemory = 
+WorkingMemory(current_task=\'Test\')\nmemory.add_recent_file(WorkingMemoryEntry(
+\'/test/file.py\', \'Test\', \'10-50\'))\n\n# Test with start=0, end=None 
+(invalid start, end is None)\nshould_read, reason = 
+memory.should_read_file(\'/test/file.py\', start=0)\nprint(f\'start=0, end=None:
+should_read={should_read}, reason={reason}\')\n\n# Test with start=-5, end=None 
+(invalid negative start)\nshould_read, reason = 
+memory.should_read_file(\'/test/file.py\', start=-5)\nprint(f\'start=-5, 
+end=None: should_read={should_read}, reason={reason}\')\n\n# Test with 
+start=None, end=0 (invalid end)\nshould_read, reason = 
+memory.should_read_file(\'/test/file.py\', end=0)\nprint(f\'start=None, end=0: 
+should_read={should_read}, reason={reason}\')\n\n# Test with start=None, end=-10
+(invalid negative end)\nshould_read, reason = 
+memory.should_read_file(\'/test/file.py\', end=-10)\nprint(f\'start=None, 
+end=-10: should_read={should_read}, reason={reason}\')\n"'})
+[result] start=0, end=None: should_read=True, reason=Invalid line number: start 
+must be positive (1-indexed), got start=0
+start=-5, end=None: should_read=True, reason=Invalid line number: start must be 
+positiv...
+Wait, the test is passing! Let me look at the actual code again more carefully:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+280, 'end_line': 300})
+[result] 
+        # Find ALL entries for this file (most recent first)
+        matches = [e for e in reversed(self.recent_files) if e.path == 
+normalized_path]
+        if not matches:
+            return True, "...
+Ah! I see the issue now. The validation IS happening before the early return! Let me trace through the logic:
+
+1. Line 285-288: Validation happens for `start` and `end` if they are not None
+2. Line 291: Early return if `start is None or end is None`
+
+So actually, the validation DOES happen before the early return. The test is passing because the code is actually correct! Let me re-examine. Actually wait, let me trace through more carefully:
+
+- If `start=0` and `end=None`: 
+  - Line 285: `start is not None and start < 1` → `True` → returns error message
+  - So it never reaches line 291
+
+- If `start=None` and `end=0`:
+  - Line 288: `end is not None and end < 1` → `True` → returns error message  
+  - So it never reaches line 291
+
+So the bug I identified doesn't exist! The code is actually correct. Let me look for a different bug. Let me re-examine the tests to see what actual bugs are documented:
