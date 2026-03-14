@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-14T18:00:31.522376+00:00_
+_Generated: 2026-03-14T19:00:23.169305+00:00_
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ _Generated: 2026-03-14T18:00:31.522376+00:00_
 | **Overall Grade** | ⚠️ C |
 | **Overall Score** | 78.7/100 |
 | **Files Scanned** | 215 |
-| **Total Lines (non-blank)** | 44,259 |
+| **Total Lines (non-blank)** | 44,265 |
 | **Total Smells** | 583 |
 | **Avg Maintainability Index** | 70.0 |
 | **Avg Cyclomatic Complexity** | 13.9 |
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/working_memory.py | ❌ F | 26.5 | 18 | 349 | 46 | 24.0 |
+| 1 | agents/working_memory.py | ❌ F | 26.5 | 18 | 353 | 46 | 24.0 |
 | 2 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
 | 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
 | 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
@@ -124,7 +124,7 @@ _Showing 20 worst files. 195 additional files omitted._
 
 ### agents/working_memory.py — ❌ F (26.5/100)
 
-LOC: 349 | Classes: 7 | Functions: 0 | MI: 46 | Avg CC: 24.0
+LOC: 353 | Classes: 7 | Functions: 0 | MI: 46 | Avg CC: 24.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|

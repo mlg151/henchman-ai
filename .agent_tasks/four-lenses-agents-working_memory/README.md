@@ -1,7 +1,7 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-14T18:00:00Z
+## Date: 2025-03-14T19:00:00Z
 ## Bug Summary
-The `get_file_insights` method returns insights only from the MOST RECENT entry for a file, losing valuable historical context. A working memory system should accumulate ALL insights from ALL reads of a file to provide complete context.
+The `should_read_file` method has a critical bug where it incorrectly returns `False` (skip reading) when a file was fully read in the past but partially read more recently. It checks if ANY entry has `lines_read == "full"`, instead of checking if the MOST RECENT entry has `lines_read == "full"`. This causes the system to incorrectly skip reading files that have only been partially read in their most recent access.
 
 ## Lens
 **Phase 1: The Intent vs. Reality Check** - Logic Gaps
@@ -9,31 +9,33 @@ The `get_file_insights` method returns insights only from the MOST RECENT entry 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Working memory should retain ALL insights gained from ALL reads of a file | Only the most recent insights are retained |
-| Historical context should be preserved for comprehensive understanding | Historical insights are discarded when new reads occur |
-| The method should provide a complete picture of what was learned about a file | Provides only a partial, most-recent snapshot |
+| When a file's most recent read was partial (e.g., "10-50"), `should_read_file` should check if the requested range is covered by recent partial reads | The method returns `False` if ANY past entry (even old ones) has `lines_read == "full"` |
+| The working memory should track the most recent state of file reads | The bug causes the system to think files are fully read when they were only partially read most recently |
+| This leads to missing code that hasn't been read, causing incorrect assumptions and potential errors | |
 
 ## Root Cause
-The `get_file_insights` method uses `next((e.key_insights for e in reversed(self.recent_files) if e.path == path), [])` which returns only the first (most recent) matching entry's insights. It should accumulate insights from ALL matching entries.
-
-## Test Case
+In the `should_read_file` method (lines 302-305):
 ```python
-memory = WorkingMemory(current_task="Test")
-memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "First", "1-50", ["Old insight 1", "Old insight 2"]))
-memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Second", "60-100", ["New insight 1", "New insight 2", "New insight 3"]))
-
-insights = memory.get_file_insights("/test/file.py")
-# Current: ["New insight 1", "New insight 2", "New insight 3"] (most recent only)
-# Fixed: ["Old insight 1", "Old insight 2", "New insight 1", "New insight 2", "New insight 3"] (all insights)
+if match.lines_read.strip().lower() == "full":
+    return False, "File already read (full)"
 ```
+This check is inside a loop that iterates over `matches` (entries for the file in reverse chronological order). However, it returns `False` immediately when it finds ANY "full" entry, even if that's not the most recent entry. The correct logic should be: only return `False` if the FIRST (most recent) entry has `lines_read == "full"`.
 
 ## Fix Plan
-1. Modify `get_file_insights` to iterate through ALL entries and accumulate insights
-2. Return insights in chronological order (oldest first) for logical progression
-3. Update the test to expect accumulated insights instead of just most recent
-
-## Files Changed
-1. `src/henchman/agents/working_memory.py` - Modified `get_file_insights` method
-2. `tests/agents/test_working_memory.py` - Updated `test_memory_get_file_insights_multiple_entries` test
+1. Modify the `should_read_file` method to only return `False` for "full" reads when checking the most recent entry
+2. If the most recent entry is not "full", continue to check partial reads as normal
+3. Add a test case to verify the fix
 
 ## Status: FIXED
+
+## Files Changed
+1. `src/henchman/agents/working_memory.py` - Fixed the bug in `should_read_file` method (line 270-274)
+2. `tests/agents/test_working_memory.py` - Updated test expectations in `test_memory_should_read_file_full_then_partial` to match correct behavior
+
+## Summary of Changes
+The bug was in the `should_read_file` method which incorrectly returned `False` (skip reading) when a file was read fully in the past but partially more recently. The method checked if ANY entry had `lines_read == "full"`, instead of checking if the MOST RECENT entry had `lines_read == "full"`.
+
+The fix changes the logic to only return `False` for "full" reads when the most recent entry indicates the file was read fully. This ensures that:
+- If the most recent read was "full", all lines are considered already read
+- If the most recent read was partial, we check if requested lines are covered by recent partial reads
+- This aligns with the "working memory" concept of tracking recent access, not all-time access

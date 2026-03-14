@@ -262,11 +262,12 @@ class WorkingMemory(SerializableDataclass):
         if not matches:
             return True, "File not in recent files"
 
-        # Check if ANY entry indicates file was read fully
-        # If file was read fully at any point, we know all lines
-        for match in matches:
-            if match.lines_read.strip().lower() == "full":
-                return False, "File already read (full)"
+        # Check if the MOST RECENT entry indicates file was read fully
+        # Only skip reading if the most recent read was "full"
+        # If file was read fully in the past but partially more recently,
+        # we should check if the requested range is covered by recent partial reads
+        if matches[0].lines_read.strip().lower() == "full":
+            return False, "File already read (full)"
 
         if start is None or end is None:
             # No line range specified but file wasn't read fully
