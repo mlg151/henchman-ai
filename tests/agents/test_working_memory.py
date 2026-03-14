@@ -848,6 +848,41 @@ class TestWorkingMemory:
         )
         assert "already read" not in reason.lower()
 
+    def test_memory_should_read_file_path_normalization_bug(self):
+        """Test that should_read_file normalizes file paths.
+        
+        BUG: Currently does exact string comparison, so './file.py' != 'file.py'
+        even though they refer to the same file.
+        """
+        memory = WorkingMemory(current_task="Test")
+        
+        # Add entry with relative path './file.py'
+        memory.add_recent_file(WorkingMemoryEntry("./file.py", "Test", "full"))
+        
+        # Check with different path representation 'file.py' (should match)
+        should_read, reason = memory.should_read_file("file.py", 10, 50)
+        
+        # BUG: Returns True (should read) because paths don't match exactly
+        # Should return False (file was read fully)
+        assert should_read is False, (
+            f"File './file.py' was read fully. "
+            f"Checking 'file.py' should return False (same file). "
+            f"Got: {should_read}, reason: {reason}"
+        )
+        assert "already read" in reason.lower()
+        
+        # Also test the reverse
+        memory2 = WorkingMemory(current_task="Test")
+        memory2.add_recent_file(WorkingMemoryEntry("file.py", "Test", "full"))
+        
+        should_read2, reason2 = memory2.should_read_file("./file.py", 10, 50)
+        assert should_read2 is False, (
+            f"File 'file.py' was read fully. "
+            f"Checking './file.py' should return False (same file). "
+            f"Got: {should_read2}, reason: {reason2}"
+        )
+        assert "already read" in reason2.lower()
+
 class TestWorkingMemorySystem:
     """Test WorkingMemorySystem class."""
 

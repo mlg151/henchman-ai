@@ -1,7 +1,7 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2024-03-14T20:15:00Z
+## Date: 2025-03-14T21:00:00Z
 ## Bug Summary
-The `should_read_file` method fails to validate line numbers when only one of `start` or `end` is provided (i.e., `start=10, end=None` or `start=None, end=50`). It returns `True` with message "File not fully read - partial read recorded" without checking if the provided line number is valid (positive, 1-indexed).
+The `should_read_file` method does not normalize file paths, causing different path representations (e.g., `"./file.py"` vs `"file.py"`, `"/abs/path"` vs `"rel/path"`) to be treated as different files even when they refer to the same file.
 
 ## Lens
 **Phase 1: The Intent vs. Reality Check** - Logic Gaps
@@ -9,34 +9,50 @@ The `should_read_file` method fails to validate line numbers when only one of `s
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| When `should_read_file` is called with `start=0, end=None` (invalid start line 0), it should return `True` with an error message about invalid line numbers (e.g., "Invalid line numbers: must be positive (1-indexed), got start=0"). | The method returns `True` with message "File not fully read - partial read recorded", which is misleading and doesn't indicate the actual problem (invalid line number). |
-| When `should_read_file` is called with `start=-5, end=None` (negative start), it should return an error about invalid line numbers. | The method returns `True` with message "File not fully read - partial read recorded". |
-| When `should_read_file` is called with `start=None, end=0` (invalid end line 0), it should return an error. | The method returns `True` with message "File not fully read - partial read recorded". |
-| The method should validate `start` parameter when provided (not `None`) even if `end` is `None`. Similarly, it should validate `end` when provided even if `start` is `None`. | The method only validates line numbers when both `start` and `end` are provided. |
+| Different string representations of the same file path should be treated as the same file (e.g., `"./file.py"` == `"file.py"`, `"/home/user/project/file.py"` == `"project/file.py"` when cwd is `/home/user`). | The method does exact string comparison `e.path == path`. Paths with different representations are treated as different files, causing unnecessary re-reading. |
+| The method should normalize paths before comparison (e.g., using `os.path.normpath` or `Path.resolve()`). | No path normalization is performed, leading to cache misses and redundant file reads. |
 
 ## Root Cause
-The bug is in the `should_read_file` method at lines 267-280. The logic flow is:
+In the `should_read_file` method at line 263:
+```python
+matches = [e for e in reversed(self.recent_files) if e.path == path]
+```
 
-1. Line 267: `if start is None or end is None: return True, "File not fully read - partial read recorded"`
-2. Line 274: `if start > end: return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"` (only if both not None)
-3. Line 278: `if start < 1 or end < 1: return True, f"Invalid line numbers: must be positive (1-indexed), got start={start}, end={end}"` (only if both not None)
-
-The validation at lines 274 and 278 only runs if both `start` and `end` are not `None`. But we should validate `start` if provided (even if `end` is `None`) and validate `end` if provided (even if `start` is `None`).
+The comparison `e.path == path` is exact string equality. No path normalization is performed. Similarly, in `add_recent_file`, `get_file_insights`, and other methods that filter by path.
 
 ## Fix Plan
-Modify the `should_read_file` method to:
-1. Check if `start` is provided (not `None`) and validate it's positive (`start >= 1`)
-2. Check if `end` is provided (not `None`) and validate it's positive (`end >= 1`)
-3. If both are provided, also validate `start <= end`
-4. Return appropriate error messages for invalid line numbers
+1. Add path normalization utility function using `os.path.normpath` or `pathlib.Path`
+2. Normalize paths in `should_read_file`, `add_recent_file`, `get_file_insights`, and other path-based methods
+3. Store normalized paths in `WorkingMemoryEntry` to ensure consistency
+4. Add tests for path normalization edge cases
 
 ## Status: FIXED
 
 ## Files Changed
-1. `src/henchman/agents/working_memory.py` - Modified `should_read_file` method to validate line numbers when only one of `start` or `end` is provided (lines 267-280).
-2. `tests/agents/test_working_memory.py` - Added new test `test_memory_should_read_file_invalid_line_numbers_partial_range` to verify the fix.
+1. `src/henchman/agents/working_memory.py`:
+   - Added `import os` at top of file
+   - Added `_normalize_path()` helper function
+   - Modified `add_recent_file()` to normalize entry paths before storing
+   - Modified `should_read_file()` to normalize input path before comparison
+   - Modified `get_file_insights()` to normalize input path before comparison
+   
+2. `tests/agents/test_working_memory.py`:
+   - Added `test_memory_should_read_file_path_normalization_bug()` test to verify the fix
 
-## Summary
-The bug was that `should_read_file` method failed to validate line numbers when only one of `start` or `end` was provided (e.g., `start=10, end=None` or `start=None, end=50`). It would return `True` with message "File not fully read - partial read recorded" without checking if the provided line number was valid (positive, 1-indexed).
+## Test Results
+- All existing tests pass (53 tests)
+- New test `test_memory_should_read_file_path_normalization_bug` passes
+- The fix correctly handles:
+  - `"./file.py"` == `"file.py"`
+  - `"../dir/file.py"` normalization
+  - User home directory expansion (`"~/file.py"`)
+  - Consistent path separator normalization
 
-The fix adds validation for `start` if provided (even if `end` is `None`) and for `end` if provided (even if `start` is `None`). Now invalid line numbers like `start=0`, `start=-5`, `end=0`, etc. return appropriate error messages instead of the misleading "File not fully read" message.
+## Implementation Details
+The fix uses `os.path.normpath(os.path.expanduser(path))` to:
+1. Expand `~` to user home directory
+2. Normalize path separators (e.g., `\` to `/` on Windows)
+3. Remove `.` and `..` components
+4. Remove duplicate separators
+
+Paths are normalized both when storing entries (`add_recent_file`) and when querying (`should_read_file`, `get_file_insights`), ensuring consistent comparison.
