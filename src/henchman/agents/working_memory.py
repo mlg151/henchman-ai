@@ -247,6 +247,10 @@ class WorkingMemory(SerializableDataclass):
             start: Optional starting line number (1-indexed) for the read range.
             end: Optional ending line number (inclusive) for the read range.
 
+        Returns:
+            tuple[bool, str]: A tuple where the first element is a boolean indicating
+            whether the file should be read (True = read, False = skip), and the second
+            element is a string explaining the reason for the decision.
         """
         # Find ALL entries for this file (most recent first)
         matches = [e for e in reversed(self.recent_files) if e.path == path]

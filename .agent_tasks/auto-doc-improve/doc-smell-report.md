@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-14T06:00:03.902964+00:00_
+_Generated: 2026-03-14T16:00:03.276415+00:00_
 
 ## Executive Summary
 
@@ -30,9 +30,9 @@ _Generated: 2026-03-14T06:00:03.902964+00:00_
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/agents/working_memory.py:396** — 🟢 LOW — Incomplete Docstring  
-   'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'._
+1. **src/henchman/agents/working_memory.py:240** — 🟢 LOW — Incomplete Docstring  
+   'WorkingMemory.should_read_file' returns a value but has no Returns: or Yields: section  
+   → _Add a Returns: section describing the return value of 'WorkingMemory.should_read_file'._
 
 2. **src/henchman/utils/intelligent_context_types.py:279** — 🟢 LOW — Incomplete Docstring  
    'ContentAnalysis.update_from_content' returns a value but has no Returns: or Yields: section  
@@ -69,7 +69,7 @@ Public APIs: 26 | Documented: 26 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 396 | 🟢 LOW | Incomplete Docstring | 'WorkingMemorySystem.switch_memory' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemorySystem.switch_memory'. |
+| 240 | 🟢 LOW | Incomplete Docstring | 'WorkingMemory.should_read_file' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'WorkingMemory.should_read_file'. |
 
 ### src/henchman/utils/intelligent_context_types.py — ✅ A (98.0/100) (last modified 2026-03-13)
 
