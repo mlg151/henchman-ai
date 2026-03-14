@@ -192,6 +192,40 @@ class TestWorkingMemory:
         assert len(memory.problems_encountered) == 1
         problem = memory.problems_encountered[0]
         assert problem.problem == "Test failing"
+
+    def test_memory_update_problem_invalid_input(self):
+        """Test update_problem with invalid input (should raise error like add_problem)."""
+        memory = WorkingMemory(current_task="Test")
+        memory.add_problem(ProblemEntry("Test problem", "open", ""))
+        
+        # Test 1: None value - should raise TypeError (currently raises AttributeError)
+        with pytest.raises(TypeError, match="updated must be a ProblemEntry"):
+            memory.update_problem(None)  # type: ignore
+        
+        # Test 2: Object with problem attribute but missing status/resolution
+        class PartialProblem:
+            def __init__(self):
+                self.problem = "Partial problem"
+        
+        with pytest.raises(TypeError, match="updated must be a ProblemEntry"):
+            memory.update_problem(PartialProblem())  # type: ignore
+        
+        # Test 3: Object without problem attribute
+        class NoProblem:
+            def __init__(self):
+                self.status = "open"
+                self.resolution = ""
+        
+        with pytest.raises(TypeError, match="updated must be a ProblemEntry"):
+            memory.update_problem(NoProblem())  # type: ignore
+        
+        # Test 4: Valid ProblemEntry should work
+        memory.update_problem(ProblemEntry("Test problem", "resolved", "Fixed"))
+        assert len(memory.problems_encountered) == 1
+        problem = memory.problems_encountered[0]
+        assert problem.problem == "Test problem"
+        assert problem.status == "resolved"
+        assert problem.resolution == "Fixed"
     def test_memory_add_problem_invalid_input(self):
         """Test add_problem with invalid input (should raise error)."""
         memory = WorkingMemory(current_task="Test")
