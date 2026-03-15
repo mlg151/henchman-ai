@@ -411,6 +411,10 @@ class WorkingMemory(SerializableDataclass):
             # Handle partial range specifications
             if start is None and end is None:
                 # Want to read entire file, but file wasn't read fully
+                if not valid_ranges:
+                    # Invalid lines_read format (empty, None, malformed)
+                    return True, "Cannot determine - invalid lines_read format"
+                # Valid partial read recorded
                 return True, "File not fully read - partial read recorded"
             elif start is not None:
                 # start=X, end=None: read from X to EOF
