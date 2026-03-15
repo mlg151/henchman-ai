@@ -715565,3 +715565,117 @@ TOTAL                                                       18952    260   5076 
 =========== 5707 passed, 6 skipped, 46 warnings in 186.81s (0:03:06) ===========
 [2026-03-15T03:00:03Z] All tests passed.
 Committing changes...
+[main f5caeaf] fix(four-lenses): four-lenses-agents-working_memory
+ 8 files changed, 4260 insertions(+), 578 deletions(-)
+ create mode 100644 test_bug.py
+ create mode 100644 test_gap_bug.py
+[2026-03-15T03:00:03Z] Auto-improve complete.
+[2026-03-15T04:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-15T04:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10544[/]
+I'll start by reading the smell report and the target file to understand the context and code.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.5/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-15T04:00:32.462344+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and identify potential bugs:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test_working_memory.py'})
+[result] tests/agents/test_working_memory.py...
+Let me read the tests to understand the expected behavior:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me run the tests to see what's currently failing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py -x -q --tb=short'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Good! All tests are passing. Now let me analyze the code through the Four Lenses of Failure:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `should_read_file` method (which is the most complex method with 147 lines and cyclomatic complexity of 42), I can see several potential logic gaps:
+
+1. **Line 324**: `if isinstance(lines_read, str):` - This checks if `lines_read` is a string, but what if it's not a string? The code assumes it's always a string, but the type hint doesn't enforce this.
+
+2. **Line 359**: `if not valid_ranges:` - This check happens AFTER validating line numbers, but the validation happens later at lines 366-371. If `valid_ranges` is empty and line numbers are invalid, we should report the line number error first.
+
+3. **Line 377**: In the `start is not None and end is None` branch, there's an assertion `assert end is not None` which is contradictory since we're in the branch where `end is None`.
+
+4. **Line 390**: Similar issue in the `start is None and end is not None` branch.
+
+5. **Line 418-419**: The check `if start > end:` happens AFTER we've already done significant processing. This should be validated much earlier.
+
+Let me examine the actual bug more carefully. Looking at the test `test_memory_should_read_file_invalid_lines_read_and_start_gt_end`, it seems there's a bug where when `lines_read` is invalid AND `start > end`, the method reports the "invalid lines_read format" error instead of the "start > end" error.
+
+Let me trace through the logic:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+303, 'end_line': 450})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+Let me continue reading:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+450, 'end_line': 500})
+[result]         # Actually, let's take a simpler approach: check if the 
+requested range
+        # is fully covered by walking through merged ranges
+        current_line = requested.start
+        for rng in me...
+Now I need to create the bug report documentation. Let me first create the directory structure:
+[tool] shell({'command': 'mkdir -p 
+/home/matthew/mlg-cli/.agent_tasks/four-lenses-agents-working_memory'})
+[result] (no output)...
+Now I'll analyze the code through the Four Lenses and document the bug:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `should_read_file` method, I found a **real bug** in the error handling logic:
+
+**Bug**: When `start > end` (invalid line range) AND the file has invalid `lines_read` format (e.g., "invalid-format"), the method returns "Cannot determine - invalid lines_read format" instead of the more appropriate "Invalid line range: start ({start}) > end ({end}) - treating as new read".
+
+The bug is in the **order of validation checks**. The `start > end` validation happens at line 418, but by that point, we've already:
+1. Processed the file entries
+2. Collected valid ranges (which will be empty for invalid lines_read)
+3. Entered the `if start is None or end is None:` branch or the final branch
+4. Potentially returned early with "Cannot determine - invalid lines_read format"
+
+The `start > end` check should happen **much earlier**, before we do any complex processing with the ranges.
+
+Let me create the bug report:
