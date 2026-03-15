@@ -1,7 +1,7 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-15T10:15:00Z
+## Date: 2025-03-15T11:45:00Z
 ## Bug Summary
-When `lines_read` is `None` (e.g., from YAML `null`), `should_read_file` returns `True` with misleading reason "File not fully read - partial read recorded" instead of accurate "Cannot determine - invalid lines_read format". This inconsistency causes confusion and hides the root cause of invalid data.
+The `_parse_line_ranges` method uses regex `r'[-\u2013\u2014]'` to find dash characters, but misses mathematical minus sign `−` (U+2212) and figure dash `‒` (U+2012). When `lines_read` contains these characters (e.g., "10−20" copied from formatted text), the method fails to parse the range and returns empty list, causing `should_read_file` to report "Cannot determine - invalid lines_read format" even though the format is valid.
 
 ## Lens
 Phase 1: The Intent vs. Reality Check (Logic Gaps)
@@ -9,28 +9,47 @@ Phase 1: The Intent vs. Reality Check (Logic Gaps)
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Invalid `lines_read` values (None, empty string, malformed) should consistently return "Cannot determine - invalid lines_read format" as the reason. | When `start=None and end=None` and `lines_read` is invalid, returns misleading "File not fully read - partial read recorded". |
-| Error messages should accurately reflect the problem to aid debugging. | Misleading message hides the fact that `lines_read` is invalid (e.g., `None` from YAML corruption). |
-| Consistent error handling for all invalid `lines_read` cases. | Inconsistent: partial range requests get correct error, full file requests get misleading error. |
+| All common dash-like characters should be recognized: hyphen `-`, en dash `–`, em dash `—`, minus sign `−`, figure dash `‒`. | Only hyphen, en dash, and em dash are recognized. |
+| "10−20" (with mathematical minus) should parse as LineRange(10,20). | Returns empty list, treated as invalid format. |
+| Consistent parsing regardless of which dash character is used. | Inconsistent: depends on character choice. |
 
 ## Root Cause
-In `should_read_file`, when `start=None and end=None` (request to read entire file), the method checks if file was read "full" (lines 392-397). If not, it immediately returns `True, "File not fully read - partial read recorded"` (lines 410-412) without checking if `lines_read` is valid. This bypasses the `valid_ranges` check that would reveal invalid `lines_read` format.
+The regex pattern `r'[-\u2013\u2014]'` in `_parse_line_ranges` explicitly lists only three characters:
+- Hyphen `-` (ASCII 45)
+- En dash `–` (U+2013)  
+- Em dash `—` (U+2014)
 
-For partial range requests (`start=X, end=None` or `start=None, end=Y`), the code correctly checks `if not valid_ranges: return True, "Cannot determine - invalid lines_read format"` (lines 416, 450).
+Missing:
+- Figure dash `‒` (U+2012)
+- Minus sign `−` (U+2212)
+- Horizontal bar `―` (U+2015)
+- Other dash-like Unicode characters
+
+When the regex doesn't match, the code treats the part as a single line number, tries `int("10−20")` which raises `ValueError`, catches it, and continues (skipping the range).
 
 ## Fix Plan
-1. Move the `valid_ranges` collection and validation BEFORE the early return at line 410.
-2. Check `if not valid_ranges:` after collecting ranges but before deciding reason.
-3. For invalid `lines_read`, return consistent error message "Cannot determine - invalid lines_read format" regardless of `start`/`end` values.
-4. Maintain existing behavior for valid but non-full `lines_read` (still return `True` but with accurate reason).
+1. Expand regex to include common dash characters: `r'[-\u2012\u2013\u2014\u2015\u2212]'`
+   - `\u2012`: FIGURE DASH
+   - `\u2013`: EN DASH  
+   - `\u2014`: EM DASH
+   - `\u2015`: HORIZONTAL BAR
+   - `\u2212`: MINUS SIGN
+2. Alternatively, use Unicode property `\p{Pd}` (Dash_Punctuation) but Python's `re` doesn't support Unicode properties by default.
+3. Keep backward compatibility with existing dash characters.
 
 ## Status: FIXED
 
 ## Files Changed
-1. `src/henchman/agents/working_memory.py` - Modified `should_read_file` method to check `valid_ranges` before returning "File not fully read - partial read recorded" when `start=None and end=None`. Now returns "Cannot determine - invalid lines_read format" for invalid `lines_read` values (None, empty string, malformed), consistent with partial range requests.
+1. `src/henchman/agents/working_memory.py` - Updated regex in `_parse_line_ranges` method from `r'[-\u2013\u2014]'` to `r'[-\u2012\u2013\u2014\u2015\u2212]'` to include figure dash (U+2012), horizontal bar (U+2015), and minus sign (U+2212).
+2. `tests/agents/test_working_memory.py` - Added test cases for figure dash, minus sign, and horizontal bar in `test_memory_parse_line_ranges_unicode_dash_bug` test.
 
-## Verification
-- Added test cases demonstrating the bug (invalid `lines_read` with `start=None, end=None` returns misleading error)
-- Fixed code now returns consistent error message "Cannot determine - invalid lines_read format"
-- All existing tests pass (5711 tests)
-- No regression in functionality
+## Fix Details
+The regex pattern in `_parse_line_ranges` method now includes:
+- `-` (hyphen, ASCII 45)
+- `\u2012` (figure dash)
+- `\u2013` (en dash)  
+- `\u2014` (em dash)
+- `\u2015` (horizontal bar)
+- `\u2212` (minus sign)
+
+This ensures that common dash-like Unicode characters used in formatted text are properly recognized when parsing line range strings like "10−20" or "10‒20".

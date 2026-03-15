@@ -1387,3 +1387,19 @@ class TestHelperFunctions:
         assert len(result) == 2
         assert result[0].start == 10 and result[0].end == 20
         assert result[1].start == 30 and result[1].end == 40
+        
+        # Test with figure dash '‒' (U+2012) - BUG: should work but doesn't
+        result = WorkingMemory._parse_line_ranges("10‒20")  # figure dash U+2012
+        # Should return [LineRange(10, 20)]
+        assert len(result) == 1, f"Should handle figure dash U+2012 and return [LineRange(10, 20)], got {result}"
+        assert result[0].start == 10 and result[0].end == 20
+        
+        # Test with minus sign '−' (U+2212) - BUG: should work but doesn't
+        result = WorkingMemory._parse_line_ranges("10−20")  # minus sign U+2212
+        assert len(result) == 1, f"Should handle minus sign U+2212 and return [LineRange(10, 20)], got {result}"
+        assert result[0].start == 10 and result[0].end == 20
+        
+        # Test with horizontal bar '―' (U+2015) - BUG: should work but doesn't
+        result = WorkingMemory._parse_line_ranges("10―20")  # horizontal bar U+2015
+        assert len(result) == 1, f"Should handle horizontal bar U+2015 and return [LineRange(10, 20)], got {result}"
+        assert result[0].start == 10 and result[0].end == 20
