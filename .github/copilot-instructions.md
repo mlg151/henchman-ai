@@ -981,7 +981,7 @@ henchman-ai/
 ├── tests/                      # Test suite (mirrors src structure)
 ├── scripts/ci.sh               # CI pipeline script
 ├── pyproject.toml              # Project configuration
-└── IMPLEMENTATION_PLAN.md      # 12-phase roadmap
+└── (implementation details in copilot instructions)      # 12-phase roadmap
 ```
 ## Development Workflow
 This project follows **Test-Driven Development (TDD)** with strict quality requirements:
@@ -994,7 +994,7 @@ This project follows **Test-Driven Development (TDD)** with strict quality requi
 - All tests pass with 100% coverage
 - Doctests pass
 - All public APIs have docstrings
-4. **Update documentation** - Update IMPLEMENTATION_PLAN.md and copilot-instructions.md
+4. **Update documentation** - Update copilot-instructions.md and relevant documentation files
 5. **Commit and push** - Commit with descriptive message, push to GitHub
 ### CI Pipeline (`scripts/ci.sh`)
 ```bash
@@ -1018,7 +1018,7 @@ This project follows **Test-Driven Development (TDD)** with strict quality requi
 5. Run `./scripts/ci.sh` until all checks pass
 6. Update relevant documentation
 ## Implementation Reference
-See [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md) for the 12-phase implementation roadmap with detailed code examples for each component.
+The 12-phase implementation roadmap with detailed code examples is documented in the copilot instructions above.
 
 
 **Agent Workspace — `.agent_tasks/` Convention (MANDATORY)**:

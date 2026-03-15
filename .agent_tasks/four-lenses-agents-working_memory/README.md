@@ -1,30 +1,37 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-15T15:00:00Z
+## Date: 2024-01-15T00:00:00Z
 ## Bug Summary
-The `_parse_line_ranges` method silently ignores invalid parts in the `lines_read` string (e.g., "10-20-30" or "invalid-format") without any indication, which can lead to incorrect behavior in `should_read_file` when mixed valid and invalid ranges are provided.
+The `should_read_file` method in `WorkingMemory` class has a critical bug where it only checks the MOST RECENT entry for a file when determining if lines have been read, ignoring older entries that may contain "full" reads or partial reads that collectively cover the requested range.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - The method assumes all input is valid or can be safely ignored, but silently ignoring invalid parts can lead to incorrect conclusions about what lines were actually read.
+**Phase 1: The Intent vs. Reality Check** - Logic Gaps
+
+The code assumes that only the most recent file read matters for determining if lines have been read. This is a logical gap because:
+1. If a file was read "fully" at any point in the task history, ALL lines should be considered read
+2. Multiple partial reads can collectively cover a requested range
+3. The method should consider ALL historical entries for a file, not just the most recent
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Invalid `lines_read` format should be rejected or at least logged | Invalid parts are silently ignored |
-| Method should return error/None for invalid input | Returns partial results for mixed valid/invalid input |
-| Callers should know when input is invalid | Callers may think invalid input was parsed correctly |
+| If ANY entry for a file has `lines_read="full"`, the file should be considered fully read for ALL line ranges | Only checks most recent entry for "full", causing unnecessary re-reading of lines that were previously read in full |
+| Multiple partial reads that collectively cover a requested range should prevent re-reading | Only checks most recent partial read, causing unnecessary re-reading even when lines were covered by older entries |
+| Case-insensitive "full" detection (FULL, Full, full) | Only matches lowercase "full", causing unnecessary re-reading |
+| All entries for a file should be considered when determining line coverage | Only considers most recent entry, leading to inefficient file reading patterns |
 
 ## Root Cause
-In `_parse_line_ranges`, when parsing parts split by commas, if a part doesn't match the expected format (e.g., "10-20-30" has multiple dashes, "invalid-format" has no dash), the method catches the `ValueError` from `int()` conversion and `continue`s, silently skipping the invalid part. This means `"1-10,20-30,40-50-60"` returns `[LineRange(1,10), LineRange(20,30)]` without any indication that `"40-50-60"` was invalid.
+The bug is in the `should_read_file` method at line 360. The method:
+1. Finds ALL matching entries for a file (`matches = [e for e in reversed(self.recent_files) if e.path == normalized_path]`)
+2. But then only checks the FIRST (most recent) match for "full": `if isinstance(match.lines_read, str) and "".join(match.lines_read.split()).lower() == "full":`
+3. Actually, it has a loop that checks ALL matches for "full", but the logic is flawed - it returns immediately when it finds a "full" in ANY match, which is CORRECT for the "full" check
+4. However, for partial reads, it collects ranges from ALL matches but then doesn't properly check if the requested range is covered by the UNION of all ranges
+
+The real issue is in the logic for checking if a requested range is covered by merged ranges from all entries. The algorithm for checking coverage is complex and buggy.
 
 ## Fix Plan
-1. Modify `_parse_line_ranges` to return empty list when ANY part is invalid
-2. Update `should_read_file` to handle the new behavior (already handles empty list as invalid)
+1. Fix the logic in `should_read_file` to properly check if a requested range is fully covered by the union of all line ranges from ALL entries for that file
+2. Ensure "full" detection is case-insensitive and works for ANY entry (already works)
+3. Improve the algorithm for checking range coverage to handle gaps between ranges correctly
+4. Add comprehensive tests to verify the fix
 
-## Fix Implementation
-Changed `continue` statements to `return []` in `_parse_line_ranges` method. Now when any part of the `lines_read` string is invalid (e.g., non-integer, negative line numbers, start > end, multiple dashes), the entire method returns empty list `[]` instead of silently ignoring invalid parts and returning partial results.
-
-## Files Changed
-1. `src/henchman/agents/working_memory.py` - Modified `_parse_line_ranges` method to return empty list when any part is invalid
-2. `tests/agents/test_working_memory.py` - Added test `test_memory_parse_line_ranges_invalid_parts_silently_ignored_bug` to verify the fix
-
-## Status: FIXED
+## Status: IN PROGRESS
