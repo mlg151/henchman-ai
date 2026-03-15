@@ -177,7 +177,7 @@ class WorkingMemory(SerializableDataclass):
         normalized_entry = replace(
             entry,
             path=_normalize_path(entry.path),
-            key_insights=list(entry.key_insights),  # Create a copy of the list
+            key_insights=list(entry.key_insights) if entry.key_insights is not None else [],  # Create a copy of the list, handle None
         )
         self.recent_files.append(normalized_entry)
 
