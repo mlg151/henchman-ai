@@ -165663,3 +165663,269 @@ Committing changes...
  10 files changed, 2441 insertions(+), 2462 deletions(-)
  create mode 100644 test_bug.py
 [2026-03-15T08:00:02Z] Done.
+[2026-03-15T10:00:02Z] Starting auto-doc-improve run...
+Running documentation smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10552[/]
+I can see from the documentation smell report that the project has achieved a perfect score of 100.0/100 with no smells detected. This is excellent! However, as an Expert Technical Documentation Improvement Agent, I should still verify that the documentation is truly accurate and complete.
+
+Let me first check what was last improved to avoid repeating work:
+[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
+
+[result] # Last Documentation Improvement
+
+## Date/Time
+2026-03-15T08:10:00Z (approximate)
+
+## Files Changed
+1. `docs/providers.md` - Removed redundant "OpenAI (via `openai_compat`)" row 
+from providers table
+
+...
+Great! The last improvement was made to fix provider documentation consistency. Now let me check if there are any subtle issues that might not be caught by the automated smell detector. Let me examine the main README.md file to see if it's fully up-to-date with the current project status:
+[tool] read_file({'path': 'README.md'})
+[result] # Henchman-AI
+
+> Your AI Henchman for the Terminal - A Model-Agnostic AI Agent CLI
+
+[![PyPI 
+version](https://img.shields.io/pypi/v/henchman-ai.svg)](https://pypi.org/projec
+t/henchman-ai/)
+[![Python ve...
+The README.md looks comprehensive and up-to-date. Let me check the main documentation index to see if there are any subtle issues:
+[tool] read_file({'path': 'docs/index.md'})
+[result] # Henchman-AI
+
+**A Model-Agnostic AI Agent CLI in Python**
+
+Henchman-AI is a powerful terminal-based AI agent that supports multiple LLM 
+providers through a unified interface. Inspired by gemini-cli, ...
+The documentation looks excellent. However, I notice there's one subtle issue that might not be caught by automated checks. Let me check the tools documentation to see if it accurately reflects the current count of built-in tools:
+[tool] read_file({'path': 'docs/tools.md', 'start_line': 1, 'end_line': 50})
+[result] # Tools
+
+Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent 
+can use to interact with your system.
+
+## Quick Reference
+
+| Tool | Category | Kind | Description |
+|------|---...
+I notice the tools documentation says there are 34 built-in tools, and I can see the table lists exactly 34 tools. Let me verify this is accurate by checking what tools are actually available in the system. First, let me check the last improvement file to see if there's any pattern of tools being added or removed:
+[tool] ls({'path': 'src/henchman/tools/builtins'})
+[result] __init__.py
+__init__.py,cover
+__pycache__/
+ask_user.py
+ask_user.py,cover
+code_format.py
+code_format.py,cover
+coverage_map.py
+coverage_map.py,cover
+dead_code.py
+dead_code.py,cover
+deep_research.py
+deep...
+Let me count the actual tool files (excluding __init__.py, __pycache__, .cover files, and .backup files):
+
+1. ask_user.py
+2. code_format.py
+3. coverage_map.py
+4. dead_code.py
+5. deep_research.py
+6. delegate.py
+7. diff_view.py
+8. env_inspect.py
+9. file_edit.py
+10. file_overview.py
+11. file_read.py
+12. file_write.py
+13. git_ops.py
+14. glob_tool.py
+15. grep.py
+16. import_graph.py
+17. kg_query.py
+18. kg_update.py
+19. lint_check.py
+20. ls.py
+21. patch_apply.py
+22. pattern_search.py
+23. pip_inspect.py
+24. pytest_run.py
+25. python_ast.py
+26. python_exec.py
+27. rag_search.py
+28. research_notes.py
+29. shell.py
+30. symbol_trace.py
+31. test_gen.py
+32. traceback_parse.py
+33. web_fetch.py
+34. web_search.py
+
+That's 34 tools exactly! The documentation is accurate. However, I notice there's a subtle issue: the tools documentation mentions "kg_common.py" in the directory listing but it's not listed as a separate tool in the table. Let me check what kg_common.py is:
+[tool] read_file({'path': 'src/henchman/tools/builtins/kg_common.py', 
+'start_line': 1, 'end_line': 30})
+[result] """Shared utilities for knowledge graph tools.
+
+Extracted to eliminate the duplicate ``_find_git_root`` function and the
+identical ``__init__`` that previously existed in both ``kg_query.py``
+and ``kg...
+Good, `kg_common.py` is just a shared utility module, not a separate tool. So the count of 34 tools is correct. However, I notice there's a potential inconsistency: the tools table in `docs/index.md` mentions "34 tools" but only lists a few examples. Let me check if the tools.md documentation is properly linked and if there are any broken links:
+[tool] read_file({'path': 'docs/tools.md', 'start_line': 200, 'end_line': 250})
+[result] ```
+
+#### lint_check
+
+Run ruff and/or mypy on Python code.
+
+```json
+{
+  "name": "lint_check",
+  "kind": "READ",
+  "parameters": {
+    "path": "string (required) - Path to Python file or directory to l...
+The tools documentation looks comprehensive. Let me check the mkdocs.yml configuration to ensure all documentation pages are properly included in the navigation:
+[tool] read_file({'path': 'mkdocs.yml'})
+[result] site_name: Henchman-AI
+site_url: https://github.com/mlg151/henchman-ai
+site_description: A Model-Agnostic AI Agent CLI in Python
+site_author: Matthew
+
+repo_name: mlg151/henchman-ai
+repo_...
+I notice the mkdocs.yml configuration looks complete and all documentation pages are properly included in the navigation. However, I want to check one more thing - let me verify that the "Intelligent Context Management" documentation page exists and is properly linked:
+[tool] read_file({'path': 'docs/intelligent-context-management.md', 
+'start_line': 1, 'end_line': 50})
+[result] # Intelligent Context Management
+
+Intelligent Context Management is an advanced feature in Henchman-AI that 
+reduces token usage while preserving important context through sophisticated 
+techniques like...
+Good, the documentation exists and is properly linked. Now let me check one more thing - the copilot instructions file that's referenced in the README. This is a critical documentation file for AI agents working on the codebase:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 1, 
+'end_line': 50})
+[result] # Henchman-AI Copilot Instructions
+
+Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by 
+gemini-cli. It supports multiple LLM providers (DeepSeek, 
+OpenAI/OpenAI-compatible APIs, Ant...
+The copilot instructions look comprehensive and up-to-date. However, I notice something subtle: the copilot instructions mention "Phase 13: Multi-Agent Dev Team ✅" but the README and other documentation might not consistently reflect this as a completed feature. Let me check if the multi-agent documentation is properly highlighted as a key feature:
+[tool] read_file({'path': 'docs/agents.md', 'start_line': 1, 'end_line': 50})
+[result] # Multi-Agent Dev Team
+
+Henchman-AI features a powerful multi-agent orchestration system that simulates 
+a full software development team. Instead of a single general-purpose agent, 
+Henchman coordinate...
+The multi-agent documentation looks comprehensive. Now I need to identify ONE documentation improvement to make. Looking at the documentation smell report, everything shows a perfect score of 100.0/100 with no smells detected. However, as an Expert Technical Documentation Improvement Agent, I should look for subtle inconsistencies or opportunities for improvement that might not be caught by automated checks.
+
+Let me check the CHANGELOG.md to see if it's up-to-date with the latest releases:
+[tool] read_file({'path': 'CHANGELOG.md', 'start_line': 1, 'end_line': 50})
+[result] # Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semanti...
+The CHANGELOG.md looks comprehensive and up-to-date. However, I notice something: the documentation smell report shows a perfect score, but there might be a subtle issue with consistency. Let me check if there's any inconsistency between the README.md and docs/index.md regarding the tool count or feature descriptions.
+
+Actually, I found a subtle issue! Looking back at the README.md, I see it mentions "Built-in Tools: File operations, shell commands, web fetching, and more" but doesn't explicitly mention the count of 34 tools. The docs/index.md does mention "34 tools" explicitly. This is a minor consistency issue that could be improved.
+
+Let me make ONE documentation improvement to address this subtle inconsistency:
+[tool] edit_file({'path': 'README.md', 'old_str': '- 🛠️ **Built-in Tools**: File
+operations, shell commands, web fetching, and more', 'new_str': '- 🛠️ **Built-in
+Tools**: 34 tools for file operations, shell commands, web fetching, code 
+analysis, testing, and multi-agent coordination'})
+[result] Successfully edited /home/matthew/mlg-cli/README.md...
+Now let me also update the feature description in the README to be more consistent with the detailed tools documentation:
+[tool] read_file({'path': 'README.md', 'start_line': 15, 'end_line': 25})
+[result] - 🐍 **Pythonic**: Leverages Python's async ecosystem and rich 
+libraries for optimal performance
+- 🔌 **Extensible**: Plugin system for tools, providers, and custom commands
+- 🚀 **Production-Ready**: Pr...
+Good! Now let me create the improvement summary:
+[tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
+'content': '# Last Documentation Improvement\n\n## 
+Date/Time\n2026-03-15T10:15:00Z (approximate)\n\n## Files Changed\n1. 
+`README.md` - Updated feature description to explicitly mention "34 tools" for 
+consistency with docs/index.md\n\n## Smell Category Addressed\nConsistency 
+(Subtle feature description inconsistency)\n\n## Rationale for Change\nThe 
+README.md documentation had a subtle inconsistency with the docs/index.md 
+regarding tool count description:\n\n**Before (inconsistent)**:\n- README.md: 
+"Built-in Tools: File operations, shell commands, web fetching, and more"\n- 
+docs/index.md: "Built-in Tools: 34 tools for code analysis, testing, file 
+operations, and multi-agent coordination"\n\n**After (consistent)**:\n- 
+README.md: "Built-in Tools: 34 tools for file operations, shell commands, web 
+fetching, code analysis, testing, and multi-agent coordination"\n- 
+docs/index.md: "Built-in Tools: 34 tools for code analysis, testing, file 
+operations, and multi-agent coordination"\n\n**Why this matters**:\n1. 
+**Accuracy**: The project actually has exactly 34 built-in tools (verified by 
+counting files in `src/henchman/tools/builtins/`)\n2. **Consistency**: Both main
+documentation files should mention the same tool count\n3. **Completeness**: The
+README.md feature list was missing the "code analysis" and "testing" categories 
+that are prominent in the tools\n4. **Clarity**: Explicitly stating "34 tools" 
+gives users a better sense of the tooling richness\n\n## Verification 
+Performed\n1. ✅ **Tool count verification**: Counted actual tool files in 
+`src/henchman/tools/builtins/` - exactly 34 tools (excluding utility files like 
+kg_common.py)\n2. ✅ **Cross-reference check**: Verified docs/index.md mentions 
+"34 tools" explicitly\n3. ✅ **Tools documentation**: Verified docs/tools.md has
+a table with exactly 34 tools listed\n4. ✅ **Feature completeness**: The 
+updated description now includes all major tool categories mentioned in 
+docs/index.md\n5. ✅ **Consistency check**: Both README.md and docs/index.md now
+consistently mention the tool count\n\n## What to Verify\n1. ✅ **Tool count 
+accuracy**: The project has exactly 34 built-in tools\n2. ✅ **Documentation 
+consistency**: Both main documentation files mention the same tool count\n3. ✅ 
+**Category completeness**: All major tool categories are represented in the 
+description\n4. ✅ **User clarity**: Users get a clear understanding of the 
+tooling richness from the README\n\n## Impact\n- **Low risk**: Documentation 
+change only, no code changes\n- **High value**: Improves consistency between 
+documentation files\n- **Accuracy**: Reflects the actual tool count in the 
+project\n- **Completeness**: Better represents the full range of tool 
+capabilities\n\n## Next Priority\nWhile the documentation smell report shows a 
+perfect score (100.0/100), subtle inconsistencies like this one may not be 
+caught by automated checks. Future documentation reviews should:\n1. Check for 
+consistency between different documentation files (README.md, docs/index.md, 
+feature lists)\n2. Verify numerical claims (like tool counts) match actual 
+implementation\n3. Look for missing categories or features in high-level 
+descriptions\n4. Ensure feature lists are comprehensive and accurate\n5. Check 
+that all registered providers/tools are documented consistently across files'})
+[result] Successfully wrote 3251 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I've successfully made ONE documentation improvement to address a subtle consistency issue between the README.md and docs/index.md files. 
+
+## Summary of Documentation Improvement
+
+**Issue Addressed**: Subtle inconsistency in tool count description between README.md and docs/index.md
+
+**Change Made**: Updated README.md feature description from "Built-in Tools: File operations, shell commands, web fetching, and more" to "Built-in Tools: 34 tools for file operations, shell commands, web fetching, code analysis, testing, and multi-agent coordination"
+
+**Why This Matters**:
+1. **Accuracy**: The project actually has exactly 34 built-in tools (verified by file count)
+2. **Consistency**: Both main documentation files now mention the same tool count
+3. **Completeness**: The README now includes all major tool categories mentioned in docs/index.md
+4. **Clarity**: Users get a better understanding of the tooling richness
+
+**Verification**:
+- ✅ Tool count verified: 34 actual tool files in `src/henchman/tools/builtins/`
+- ✅ Cross-reference check: docs/index.md already mentioned "34 tools"
+- ✅ Tools documentation: docs/tools.md has table with exactly 34 tools
+- ✅ Feature completeness: Updated description includes all major categories
+- ✅ Consistency: Both files now consistently mention tool count
+
+This improvement enhances documentation consistency without altering any source code behavior, maintaining the project's perfect documentation quality score while addressing a subtle inconsistency that automated checks might miss.[tech_lead] completed work
+[2026-03-15T10:00:02Z] Running mkdocs build to verify documentation...
+INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
+    from pytz.tzinfo import unpickler, BaseTzInfo
+  File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/tzinfo.py", line 27, in <module>
+    _epoch = datetime.utcfromtimestamp(0)
+
+INFO    -  Cleaning site directory
+INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
+INFO    -  Documentation built in 1.07 seconds
+[2026-03-15T10:00:02Z] Re-running doc smell detector to verify improvement...
+}
+[2026-03-15T10:00:02Z] Verification passed.
+Committing changes...

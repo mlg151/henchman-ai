@@ -1,54 +1,54 @@
 # Last Documentation Improvement
 
 ## Date/Time
-2026-03-15T08:10:00Z (approximate)
+2026-03-15T10:15:00Z (approximate)
 
 ## Files Changed
-1. `docs/providers.md` - Removed redundant "OpenAI (via `openai_compat`)" row from providers table
+1. `README.md` - Updated feature description to explicitly mention "34 tools" for consistency with docs/index.md
 
 ## Smell Category Addressed
-Accuracy (Inconsistent provider documentation)
+Consistency (Subtle feature description inconsistency)
 
 ## Rationale for Change
-The providers.md documentation table contained a redundant row for "OpenAI (via `openai_compat`)" that was inconsistent with:
-1. The actual provider registry implementation (which doesn't have a separate `openai` provider)
-2. The index.md documentation (which doesn't list OpenAI as a separate provider)
-3. The getting-started.md documentation (which correctly explains OpenAI is used via `openai_compat` with specific base URL)
+The README.md documentation had a subtle inconsistency with the docs/index.md regarding tool count description:
 
 **Before (inconsistent)**:
-- Table had "OpenAI (via `openai_compat`)" as a separate row, suggesting it's a distinct provider
-- This created confusion because `openai_compat` is the actual provider name, and OpenAI is just one configuration of it
-- Inconsistent with index.md which doesn't have this separate row
+- README.md: "Built-in Tools: File operations, shell commands, web fetching, and more"
+- docs/index.md: "Built-in Tools: 34 tools for code analysis, testing, file operations, and multi-agent coordination"
 
 **After (consistent)**:
-- Table now only lists actual registered providers: `deepseek`, `anthropic`, `ollama`, `openrouter`, `openai_compat`, `together`, `groq`, `fireworks`
-- The note already explains: "For OpenAI specifically, use `openai_compat` with `base_url: https://api.openai.com/v1` and `api_key: ${OPENAI_API_KEY}`."
-- Consistent with index.md and getting-started.md documentation
-- Matches the actual provider registry implementation
+- README.md: "Built-in Tools: 34 tools for file operations, shell commands, web fetching, code analysis, testing, and multi-agent coordination"
+- docs/index.md: "Built-in Tools: 34 tools for code analysis, testing, file operations, and multi-agent coordination"
+
+**Why this matters**:
+1. **Accuracy**: The project actually has exactly 34 built-in tools (verified by counting files in `src/henchman/tools/builtins/`)
+2. **Consistency**: Both main documentation files should mention the same tool count
+3. **Completeness**: The README.md feature list was missing the "code analysis" and "testing" categories that are prominent in the tools
+4. **Clarity**: Explicitly stating "34 tools" gives users a better sense of the tooling richness
 
 ## Verification Performed
-1. ✅ **Registry check**: Verified that `src/henchman/providers/registry.py` only registers `deepseek`, `anthropic`, `ollama`, `openrouter`, `openai_compat`, `together`, `groq`, `fireworks` (no separate `openai` provider)
-2. ✅ **Consistency check**: Verified index.md doesn't have separate OpenAI row, only lists `openai_compat` as generic provider
-3. ✅ **Getting-started check**: Verified getting-started.md correctly explains OpenAI is used via `openai_compat` with specific base URL
-4. ✅ **Note clarity**: The note in providers.md already clearly explains how to use OpenAI with `openai_compat`
-5. ✅ **Cross-reference check**: No other documentation files reference "OpenAI (via `openai_compat`)" as a separate provider
+1. ✅ **Tool count verification**: Counted actual tool files in `src/henchman/tools/builtins/` - exactly 34 tools (excluding utility files like kg_common.py)
+2. ✅ **Cross-reference check**: Verified docs/index.md mentions "34 tools" explicitly
+3. ✅ **Tools documentation**: Verified docs/tools.md has a table with exactly 34 tools listed
+4. ✅ **Feature completeness**: The updated description now includes all major tool categories mentioned in docs/index.md
+5. ✅ **Consistency check**: Both README.md and docs/index.md now consistently mention the tool count
 
 ## What to Verify
-1. ✅ **Provider registry**: Only the 8 providers listed are actually registered
-2. ✅ **Documentation consistency**: All documentation files now have consistent messaging about OpenAI usage
-3. ✅ **User clarity**: Users won't be confused into looking for a separate `openai` provider
-4. ✅ **Configuration examples**: The examples in providers.md show how to configure `openai_compat` for different services including OpenAI
+1. ✅ **Tool count accuracy**: The project has exactly 34 built-in tools
+2. ✅ **Documentation consistency**: Both main documentation files mention the same tool count
+3. ✅ **Category completeness**: All major tool categories are represented in the description
+4. ✅ **User clarity**: Users get a clear understanding of the tooling richness from the README
 
 ## Impact
 - **Low risk**: Documentation change only, no code changes
-- **High value**: Eliminates potential user confusion about provider naming
-- **Consistency**: Aligns documentation with actual implementation and across all documentation files
-- **Clarity**: Makes it clear that `openai_compat` is the provider name, and OpenAI is one of many services that can be used with it
+- **High value**: Improves consistency between documentation files
+- **Accuracy**: Reflects the actual tool count in the project
+- **Completeness**: Better represents the full range of tool capabilities
 
 ## Next Priority
 While the documentation smell report shows a perfect score (100.0/100), subtle inconsistencies like this one may not be caught by automated checks. Future documentation reviews should:
-1. Check for consistency between different documentation files (index.md, providers.md, getting-started.md)
-2. Verify documentation matches actual code implementation (provider registry)
-3. Look for redundant or misleading information in tables
-4. Ensure examples in documentation match the described behavior
-5. Check that all registered providers are documented, and no non-existent providers are documented
+1. Check for consistency between different documentation files (README.md, docs/index.md, feature lists)
+2. Verify numerical claims (like tool counts) match actual implementation
+3. Look for missing categories or features in high-level descriptions
+4. Ensure feature lists are comprehensive and accurate
+5. Check that all registered providers/tools are documented consistently across files

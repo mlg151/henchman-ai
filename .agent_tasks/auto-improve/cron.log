@@ -729673,3 +729673,212 @@ TOTAL                                                       18980    269   5084 
 =========== 5711 passed, 6 skipped, 45 warnings in 187.24s (0:03:07) ===========
 [2026-03-15T09:00:03Z] All tests passed.
 Committing changes...
+[main fd2372f] fix(four-lenses): four-lenses-agents-working_memory
+ 6 files changed, 3716 insertions(+), 2401 deletions(-)
+[2026-03-15T09:00:03Z] Auto-improve complete.
+[2026-03-15T10:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-15T10:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10552[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.4/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-15T10:00:33.985381+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py
+tests/agents/test_working_memory_bug.py
+tests/agents/test_working_memory_real_bug.py...
+Let me read the test files to understand what tests exist:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me check the other test files to see if they contain specific bug tests:
+[tool] read_file({'path': 'tests/agents/test_working_memory_bug.py'})
+[result] """Test for a bug in working_memory.py."""
+
+import pytest
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+
+def test_memory_should_read_file_empty_lines_read():
+    """Test...
+
+[tool] read_file({'path': 'tests/agents/test_working_memory_real_bug.py'})
+[result] """Test for a real bug in working_memory.py."""
+
+import pytest
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+
+def test_memory_should_read_file_with_whitespace_only_lines...
+Now let me run the existing tests to see what passes and fails:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py -x -q --tb=short'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Good! All tests pass. Now let me analyze the code through the Four Lenses of Failure:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the code, I can see several potential issues:
+
+1. **Logic Gaps**: The `should_read_file` method has complex logic with many edge cases. The smell report mentions it's a 139-line method with high cyclomatic complexity (39).
+
+2. **Type Safety**: Looking at the code, I see potential issues with type handling:
+   - Line 127: `def _normalize_path(path: str) -> str:` - What if `path` is not a string?
+   - Line 360: `def should_read_file(...)` - The method handles `None` for `start` and `end`, but the validation logic might have issues.
+
+Let me examine the code more carefully for actual bugs:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+360, 'end_line': 500})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+I need to analyze this code through the Four Lenses. Let me continue reading the rest of the `should_read_file` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+500, 'end_line': 550})
+[result]         # is fully covered by walking through merged ranges
+        current_line = requested.start
+        for rng in merged_ranges:
+            if current_line < rng.start:
+                # Found a ...
+Now let me check the `_normalize_path` function and other helper functions:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+1, 'end_line': 50})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check the `add_recent_file` method to see if there's a bug there:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+180, 'end_line': 210})
+[result]             key_insights=list(entry.key_insights),  # Create a copy of 
+the list
+        )
+        self.recent_files.append(normalized_entry)
+
+    def add_decision(self: WorkingMemory, entry: DecisionE...
+Let me look at the `add_recent_file` method more carefully:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+160, 'end_line': 190})
+[result]     next_actions: list[ActionEntry] = field(default_factory=list)
+    insights_gained: list[str] = field(default_factory=list)
+    problems_encountered: list[ProblemEntry] = field(default_factory=list...
+Now I need to analyze this code through the Four Lenses:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `_normalize_path` function (line 127), I see a potential bug:
+
+```python
+def _normalize_path(path: str) -> str:
+    """Normalize a file path for consistent comparison.
+    
+    Args:
+        path: The file path to normalize.
+        
+    Returns:
+        Normalized path string.
+    """
+    # Use os.path.normpath to normalize path separators and remove . and ..
+    # Also expand user home directory (~) if present
+    return os.path.normpath(os.path.expanduser(path))
+```
+
+**Bug**: This function assumes `path` is always a string, but what if it's not? The type hint says `str`, but Python doesn't enforce this at runtime. If someone passes `None` or another non-string type, `os.path.expanduser(path)` will raise an exception.
+
+Let me check where this function is called:
+
+1. In `add_recent_file`: `path=_normalize_path(entry.path)` - `entry.path` should be a string from the `WorkingMemoryEntry` dataclass
+2. In `should_read_file`: `normalized_path = _normalize_path(path)` - `path` parameter is typed as `str`
+3. In `get_file_insights`: `normalized_path = _normalize_path(path)` - `path` parameter is typed as `str`
+
+The type hints provide some protection, but Python is dynamically typed. However, looking at the tests, I see there's already a test for this: `test_memory_add_file_does_not_modify_input` which checks that `add_recent_file` doesn't modify the input object.
+
+Wait, let me look more carefully at the `add_recent_file` method. There's a subtle bug here:
+
+```python
+normalized_entry = replace(
+    entry,
+    path=_normalize_path(entry.path),
+    key_insights=list(entry.key_insights),  # Create a copy of the list
+)
+self.recent_files.append(normalized_entry)
+```
+
+The `replace` function from `dataclasses` creates a new dataclass instance with the specified fields replaced. However, **it doesn't create deep copies of mutable objects within the dataclass**. The `key_insights=list(entry.key_insights)` creates a shallow copy of the list, but what if the list contains mutable objects?
+
+Actually, looking at the code, `key_insights` is a `list[str]`, so strings are immutable. So this is probably fine.
+
+But wait, let me check the `_normalize_path` function more carefully. Actually, I think I found a more serious bug!
+
+## Phase 2: State & Side Effects (The Entropy Audit)
+
+Look at the `add_recent_file` method again:
+
+```python
+def add_recent_file(self: WorkingMemory, entry: WorkingMemoryEntry) -> None:
+    """Record a file that has been read.
+    
+    Args:
+        entry: A WorkingMemoryEntry object containing file read information,
+            including path, purpose, lines read, key insights, and timestamp.
+            
+    Returns:
+        None
+    """
+    # Normalize the path before storing
+    # Create a copy with normalized path and copied mutable fields to avoid
+    # sharing mutable state with the caller
+    normalized_entry = replace(
+        entry,
+        path=_normalize_path(entry.path),
+        key_insights=list(entry.key_insights),  # Create a copy of the list
+    )
+    self.recent_files.append(normalized_entry)
+```
+
+The comment says "Create a copy with normalized path and copied mutable fields to avoid sharing mutable state with the caller". But `replace` creates a **new** dataclass instance, so the caller's `entry` object is not modified. That's good.
+
+However, there's a test that suggests there might be a bug: `test_memory_add_file_does_not_modify_input`. Let me read that test again from the test file:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+80, 'end_line': 110})
+[result]         assert memory.current_task == "Test task"
+        assert memory.task_objectives == ["Objective 1", "Objective 2"]
+        assert memory.recent_files == []
+        assert memory.active_context ...
