@@ -107,6 +107,66 @@ def test_memory_should_read_file_partial_range_invalid_line_numbers():
     assert "invalid" in reason2.lower() or "positive" in reason2.lower() or "1-indexed" in reason2.lower()
 
 
+def test_memory_should_read_file_boolean_line_numbers():
+    """Test should_read_file bug: boolean values accepted as line numbers.
+    
+    BUG: When start=True or end=True is passed, they are treated as line 1
+    because bool is a subclass of int in Python (True == 1, False == 0).
+    
+    This is incorrect because:
+    1. Boolean values are not valid line numbers
+    2. True being treated as line 1 can lead to incorrect logic
+    3. False being treated as line 0 fails validation (0 is invalid), but True passes
+    """
+    memory = WorkingMemory(current_task="Test")
+    
+    # Add entry with file partially read (lines 1-50)
+    memory.add_recent_file(WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="1-50",
+        key_insights=["Partial read"]
+    ))
+    
+    # Test 1: start=True (should be rejected as invalid type)
+    should_read, reason = memory.should_read_file("/test/file.py", True, 10)
+    
+    # BUG: Currently returns False, "File already read (covered)" because True == 1
+    # Should return True with error about invalid type
+    assert should_read is True, (
+        f"start=True should return True with error about invalid type, not False. "
+        f"Got: should_read={should_read}, reason={reason}"
+    )
+    assert "invalid" in reason.lower() or "type" in reason.lower() or "int" in reason.lower(), (
+        f"Should report invalid type error for boolean, not 'File already read'. "
+        f"Got reason: {reason}"
+    )
+    
+    # Test 2: start=False (should be rejected as invalid line number 0)
+    should_read2, reason2 = memory.should_read_file("/test/file.py", False, 10)
+    assert should_read2 is True, (
+        f"start=False should return True with error about invalid line number. "
+        f"Got: should_read={should_read2}, reason={reason2}"
+    )
+    assert "invalid" in reason2.lower() or "positive" in reason2.lower() or "1-indexed" in reason2.lower()
+    
+    # Test 3: end=True (should be rejected as invalid type)
+    should_read3, reason3 = memory.should_read_file("/test/file.py", 5, True)
+    assert should_read3 is True, (
+        f"end=True should return True with error about invalid type. "
+        f"Got: should_read={should_read3}, reason={reason3}"
+    )
+    assert "invalid" in reason3.lower() or "type" in reason3.lower() or "int" in reason3.lower()
+    
+    # Test 4: end=False (should be rejected as invalid line number 0)
+    should_read4, reason4 = memory.should_read_file("/test/file.py", 5, False)
+    assert should_read4 is True, (
+        f"end=False should return True with error about invalid line number. "
+        f"Got: should_read={should_read4}, reason={reason4}"
+    )
+    assert "invalid" in reason4.lower() or "positive" in reason4.lower() or "1-indexed" in reason4.lower()
+
+
 if __name__ == "__main__":
     # Run tests to demonstrate the bug
     import sys
@@ -117,6 +177,7 @@ if __name__ == "__main__":
     tests = [
         test_memory_should_read_file_full_with_invalid_line_numbers,
         test_memory_should_read_file_partial_range_invalid_line_numbers,
+        test_memory_should_read_file_boolean_line_numbers,
     ]
     
     failures = 0

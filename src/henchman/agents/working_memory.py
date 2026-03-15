@@ -385,12 +385,12 @@ class WorkingMemory(SerializableDataclass):
 
         # Validate line numbers if provided (1-indexed)
         if start is not None:
-            if not isinstance(start, int):
+            if type(start) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
                 return True, f"Invalid line number: start must be an integer, got {type(start).__name__}={start}"
             if start < 1:
                 return True, f"Invalid line number: start must be positive (1-indexed), got start={start}"
         if end is not None:
-            if not isinstance(end, int):
+            if type(end) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
                 return True, f"Invalid line number: end must be an integer, got {type(end).__name__}={end}"
             if end < 1:
                 return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
