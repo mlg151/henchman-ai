@@ -122,6 +122,8 @@ class LineRange:
             LineRange object if parsing succeeds, None if the format is invalid
             or contains non-integer values.
         """
+        if not isinstance(s, str):
+            return None
         parts = s.split("-")
         if len(parts) == EXPECTED_RANGE_PARTS:
             try:
@@ -288,9 +290,10 @@ class WorkingMemory(SerializableDataclass):
         # Only skip reading if the most recent read was "full"
         # If file was read fully in the past but partially more recently,
         # we should check if the requested range is covered by recent partial reads
-        if matches[0].lines_read.strip().lower() == "full":
+        lines_read = matches[0].lines_read
+        if isinstance(lines_read, str) and lines_read.strip().lower() == "full":
             return False, "File already read (full)"
-        
+
         # Collect all valid line ranges from all entries (needed for partial range checks)
         valid_ranges: list[LineRange] = []
         for match in matches:
@@ -315,6 +318,8 @@ class WorkingMemory(SerializableDataclass):
                 if not valid_ranges:
                     return True, "Cannot determine - invalid lines_read format"
                 max_read_end = max(r.end for r in valid_ranges)
+                # Type narrowing for mypy
+                assert start is not None, "start should not be None in this branch"
                 if start <= max_read_end:
                     # We've read at least from start to max_read_end
                     # But might need to read beyond max_read_end
@@ -328,6 +333,8 @@ class WorkingMemory(SerializableDataclass):
                 if not valid_ranges:
                     return True, "Cannot determine - invalid lines_read format"
                 min_read_start = min(r.start for r in valid_ranges)
+                # Type narrowing for mypy
+                assert end is not None, "end should not be None in this branch"
                 if end >= min_read_start:
                     # We've read at least from min(read_start) to end
                     # But might need to read before min_read_start
@@ -337,6 +344,8 @@ class WorkingMemory(SerializableDataclass):
                     return True, f"End line {end} before first read line {min_read_start}"
 
         # Validate line range (both are not None at this point)
+        # Type narrowing for mypy
+        assert start is not None and end is not None, "start and end should not be None at this point"
         if start > end:
             return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"
 
