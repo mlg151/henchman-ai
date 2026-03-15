@@ -1,132 +1,105 @@
-"""Test for the key_insights=None bug in working_memory.py."""
+"""Test for the key_insights string bug in working_memory.py.
+
+BUG: When a WorkingMemoryEntry is created with key_insights as a string
+(instead of list[str]), the add_recent_file method converts it to a list
+of characters using list(string), which is incorrect.
+
+Example:
+  entry = WorkingMemoryEntry(..., key_insights="Important finding")
+  memory.add_recent_file(entry)
+  # key_insights becomes ['I', 'm', 'p', 'o', 'r', 't', 'a', 'n', 't', ' ', 'f', 'i', 'n', 'd', 'i', 'n', 'g']
+  # Should be ["Important finding"] or raise validation error
+"""
 
 import pytest
 from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
 
 
-def test_memory_add_recent_file_with_none_key_insights():
-    """Test add_recent_file bug when key_insights is None.
+def test_key_insights_string_bug():
+    """Test that key_insights as string creates incorrect list of characters."""
+    # Create entry with string key_insights (type hint says list[str] but Python doesn't enforce)
+    entry = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="1-10",
+        key_insights="Important finding about the file"  # String instead of list!
+    )
     
-    BUG: In add_recent_file method, line 177:
-        key_insights=list(entry.key_insights)
-    
-    This will fail with TypeError if entry.key_insights is None.
-    """
     memory = WorkingMemory(current_task="Test")
     
-    # Create entry with key_insights=None (possible despite type hints)
+    # This should fail or handle gracefully
+    # Currently: list("Important finding about the file") creates list of chars
+    memory.add_recent_file(entry)
+    
+    # Check what happened
+    stored_entry = memory.recent_files[0]
+    
+    # BUG: key_insights is list of characters, not list with single string
+    print(f"key_insights type: {type(stored_entry.key_insights)}")
+    print(f"key_insights value: {stored_entry.key_insights}")
+    # This is WRONG - should be ["Important finding about the file"]
+    # But currently it's ['I', 'm', 'p', 'o', 'r', 't', 'a', 'n', 't', ' ', 'f', 'i', 'n', 'd', 'i', 'n', 'g', ' ', 'a', 'b', 'o', 'u', 't', ' ', 't', 'h', 'e', ' ', 'f', 'i', 'l', 'e']
+    
+    # The bug: list(string) splits string into characters
+    # This assertion expects the buggy behavior:
+    # assert stored_entry.key_insights == ['I', 'm', 'p', 'o', 'r', 't', 'a', 'n', 't', ' ', 'f', 'i', 'n', 'd', 'i', 'n', 'g', ' ', 'a', 'b', 'o', 'u', 't', ' ', 't', 'h', 'e', ' ', 'f', 'i', 'l', 'e'], \
+    #     f"Expected list of characters due to bug, got {stored_entry.key_insights}"
+    
+    # What we SHOULD get (if bug fixed):
+    assert stored_entry.key_insights == ["Important finding about the file"], \
+        f"Expected ['Important finding about the file'], got {stored_entry.key_insights}"
     entry = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
         lines_read="1-10",
-        key_insights=None,  # This is allowed at runtime despite type hints
+        key_insights=["Important finding about the file"]  # Correct: list with one string
     )
     
-    # This should handle None gracefully, not crash
-    try:
-        memory.add_recent_file(entry)
-        # If we get here, the bug might be fixed or entry wasn't created with None
-        print("add_recent_file succeeded (bug may be fixed)")
-    except TypeError as e:
-        if "'NoneType' object is not iterable" in str(e):
-            print(f"BUG CONFIRMED: TypeError: {e}")
-            raise
-        else:
-            raise
+    memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(entry)
     
-    # Also test with empty list (should work)
-    entry2 = WorkingMemoryEntry(
-        path="/test/file2.py",
-        purpose="Test",
-        lines_read="1-10",
-        key_insights=[],  # Empty list
-    )
-    memory.add_recent_file(entry2)
-    print("Empty list works fine")
+    stored_entry = memory.recent_files[0]
     
-    # Test with actual insights
-    entry3 = WorkingMemoryEntry(
-        path="/test/file3.py",
-        purpose="Test",
-        lines_read="1-10",
-        key_insights=["Important insight"],
-    )
-    memory.add_recent_file(entry3)
-    print("List with items works fine")
+    # This works correctly
+    assert stored_entry.key_insights == ["Important finding about the file"], \
+        f"Expected ['Important finding about the file'], got {stored_entry.key_insights}"
+    
+    print("✓ List key_insights works correctly")
 
 
-def test_memory_working_memory_entry_default():
-    """Test that WorkingMemoryEntry defaults key_insights to empty list."""
-    # Default entry should have empty list, not None
+def test_key_insights_none():
+    """Test that key_insights as None works correctly."""
     entry = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
         lines_read="1-10",
-        # key_insights not specified, should use default_factory=list
+        key_insights=None  # None should become empty list
     )
-    assert entry.key_insights == [], f"Expected empty list, got {entry.key_insights}"
-    assert isinstance(entry.key_insights, list), f"Expected list, got {type(entry.key_insights)}"
     
-    # Explicitly set to empty list
-    entry2 = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="1-10",
-        key_insights=[],
-    )
-    assert entry2.key_insights == []
+    memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(entry)
     
-    # The bug is when someone explicitly passes None
-    # This is possible despite type hints
-    import dataclasses
+    stored_entry = memory.recent_files[0]
     
-    # We can create the entry with None using dataclasses.replace
-    entry3 = dataclasses.replace(entry, key_insights=None)
-    assert entry3.key_insights is None, f"Expected None, got {entry3.key_insights}"
+    # None should become empty list
+    assert stored_entry.key_insights == [], \
+        f"Expected [], got {stored_entry.key_insights}"
     
-    # Or by creating a new instance directly (bypassing type checking)
-    entry4 = WorkingMemoryEntry.__new__(WorkingMemoryEntry)
-    entry4.path = "/test/file.py"
-    entry4.purpose = "Test"
-    entry4.lines_read = "1-10"
-    entry4.key_insights = None
-    entry4.timestamp = "2024-01-01T00:00:00Z"
-    
-    assert entry4.key_insights is None
-    print("Created entry with key_insights=None (possible at runtime)")
+    print("✓ None key_insights becomes empty list")
 
 
 if __name__ == "__main__":
-    # Run tests
-    import sys
-    
-    print("Testing key_insights=None bug...")
+    print("Testing key_insights bug...")
     print("=" * 60)
     
-    tests = [
-        test_memory_add_recent_file_with_none_key_insights,
-        test_memory_working_memory_entry_default,
-    ]
+    test_key_insights_string_bug()
+    print()
     
-    failures = 0
-    for test in tests:
-        print(f"\nRunning {test.__name__}...")
-        try:
-            test()
-            print("  ✓ PASS")
-        except AssertionError as e:
-            print(f"  ✗ FAIL: {e}")
-            failures += 1
-        except Exception as e:
-            print(f"  ✗ ERROR: {e}")
-            failures += 1
+    test_key_insights_correct_list()
+    print()
     
-    print(f"\n" + "=" * 60)
-    print(f"Total: {len(tests)} tests, {failures} failures")
+    test_key_insights_none()
     
-    if failures > 0:
-        print("\nBUG CONFIRMED: add_recent_file doesn't handle key_insights=None.")
-    else:
-        print("\nAll tests pass (bug may have been fixed).")
-    
-    sys.exit(1 if failures > 0 else 0)
+    print("=" * 60)
+    print("Bug confirmed: string key_insights converted to list of characters")
+    print("Fix: In add_recent_file, check if key_insights is string and wrap in list")

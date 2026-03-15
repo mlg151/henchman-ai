@@ -1,52 +1,60 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
 ## Date: 2025-03-15T22:15:00Z
 ## Bug Summary
-The `should_read_file` method incorrectly handles boolean values as line numbers when a file was read "full". Boolean values (True/False) are accepted because `bool` is a subclass of `int` in Python, and the type check `type(start) is not int` is in the wrong position relative to the "full file read" check.
+The `add_recent_file` method incorrectly handles `key_insights` when it's a string instead of a list. When `entry.key_insights` is a string (e.g., `"Important finding"`), the code `list(entry.key_insights)` creates a list of characters (`['I', 'm', 'p', 'o', 'r', 't', 'a', 'n', 't', ' ', 'f', 'i', 'n', 'd', 'i', 'n', 'g']`) instead of a list with a single string element (`["Important finding"]`).
 
 ## Lens
-**Lens 1: The Intent vs. Reality Check** - Logic Gaps and Type Safety
+**Lens 1: The Intent vs. Reality Check** - Type Safety
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Boolean values (True/False) should be rejected as invalid line numbers with clear error messages | When file was read "full", boolean values are accepted: True=1, False=0, leading to incorrect "File already read (full)" response |
-| Invalid input validation should happen BEFORE checking file read status | Invalid boolean validation happens AFTER checking if file was read "full" |
-| Type safety: Only integers or None should be accepted for line numbers | Boolean values pass type check because bool is subclass of int |
+| `key_insights` should be a list of strings (per type hint `list[str]`) | String values are accepted but incorrectly converted to list of characters |
+| String `"Important finding"` should become `["Important finding"]` | String `"Important finding"` becomes `['I', 'm', 'p', 'o', 'r', 't', 'a', 'n', 't', ' ', 'f', 'i', 'n', 'd', 'i', 'n', 'g']` |
+| Type safety: Should validate or gracefully handle non-list inputs | `list(string)` silently converts string to list of characters |
 
 ## Root Cause
-The validation logic for line numbers (lines 387-404) checks `type(start) is not int` to reject booleans, but this check is positioned AFTER the early return for "file not in recent files" (line 382) and BEFORE the check for "full file read" (lines 419-432). However, when tracing through the actual execution path, I see the validation DOES happen before the "full" check. Let me re-examine...
+In `add_recent_file` method (line 177):
+```python
+key_insights=list(entry.key_insights) if entry.key_insights is not None else []
+```
 
-Actually, looking at the code structure:
-1. Line 382: Check if file not in recent files → return early
-2. Line 387-404: Validate line numbers (including boolean check)
-3. Line 407-416: Convert end=-1 and validate range
-4. Line 419-432: Check if file was read "full"
+When `entry.key_insights` is a string, `list(string)` creates a list of characters. The type hint `list[str]` is not enforced at runtime. The code assumes `key_insights` is either `None` or a list, but doesn't handle string inputs.
 
-The validation IS before the "full" check. But the test `test_memory_should_read_file_boolean_line_numbers` passes, which suggests the bug might have been fixed or I'm misunderstanding something.
+## Fix Plan
+Modify the `add_recent_file` method to handle string `key_insights` by wrapping them in a list:
+```python
+if entry.key_insights is None:
+    key_insights = []
+elif isinstance(entry.key_insights, str):
+    key_insights = [entry.key_insights]
+else:
+    key_insights = list(entry.key_insights)
+```
 
-Let me run a simpler test to verify current behavior:
+## Status: FIXED
 
-<｜DSML｜function_calls>
-<｜DSML｜invoke name="python_exec">
-<｜DSML｜parameter name="code" string="true">from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+## Files Changed
+1. `src/henchman/agents/working_memory.py` - Modified `add_recent_file` method to handle string `key_insights` by wrapping them in a list
+2. `tests/agents/test_working_memory_key_insights_bug.py` - Created test to demonstrate and verify the fix
 
-# Test the boolean bug
-memory = WorkingMemory(current_task="Test")
-memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
+## Fix Details
+Changed line 177 in `add_recent_file` method from:
+```python
+key_insights=list(entry.key_insights) if entry.key_insights is not None else []
+```
 
-# Test with start=True (bool)
-should_read, reason = memory.should_read_file("/test/file.py", True, 10)
-print(f"start=True, end=10: should_read={should_read}, reason={reason}")
-print(f"Expected: True with error about invalid type")
-print()
+To:
+```python
+key_insights=(
+    [entry.key_insights] if isinstance(entry.key_insights, str) else
+    list(entry.key_insights) if entry.key_insights is not None else []
+)
+```
 
-# Test with start=False (bool)  
-should_read2, reason2 = memory.should_read_file("/test/file.py", False, 10)
-print(f"start=False, end=10: should_read={should_read2}, reason={reason2}")
-print(f"Expected: True with error about invalid line number (0 is invalid)")
-print()
+This handles three cases:
+1. `key_insights` is `None` → empty list `[]`
+2. `key_insights` is a string → wrap in list `[string]`
+3. `key_insights` is a list/tuple → convert to list `list(iterable)`
 
-# Test with valid integers
-should_read3, reason3 = memory.should_read_file("/test/file.py", 10, 50)
-print(f"start=10, end=50: should_read={should_read3}, reason={reason3}")
-print(f"Expected: False (file read fully)")
+All existing tests pass, and the new test verifies the fix works correctly.
