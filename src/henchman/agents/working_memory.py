@@ -373,6 +373,24 @@ class WorkingMemory(SerializableDataclass):
         if not matches:
             return True, "File not in recent files"
 
+        # Normalize the path for consistent comparison
+        normalized_path = _normalize_path(path)
+
+        # Validate line numbers if provided (1-indexed)
+        if start is not None and start < 1:
+            return True, f"Invalid line number: start must be positive (1-indexed), got start={start}"
+        if end is not None and end < 1:
+            return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
+        
+        # Validate line range if both are provided
+        if start is not None and end is not None and start > end:
+            return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"
+
+        # Find ALL entries for this file (most recent first)
+        matches = [e for e in reversed(self.recent_files) if e.path == normalized_path]
+        if not matches:
+            return True, "File not in recent files"
+
         # Check if the MOST RECENT entry indicates file was read fully
         # Only skip reading if the most recent read was "full"
         # If file was read fully in the past but partially more recently,
@@ -389,12 +407,6 @@ class WorkingMemory(SerializableDataclass):
         for match in matches:
             ranges = self._parse_line_ranges(match.lines_read)
             valid_ranges.extend(ranges)
-
-        # Validate line numbers if provided (1-indexed)
-        if start is not None and start < 1:
-            return True, f"Invalid line number: start must be positive (1-indexed), got start={start}"
-        if end is not None and end < 1:
-            return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
 
         if start is None or end is None:
             # Handle partial range specifications
@@ -465,22 +477,12 @@ class WorkingMemory(SerializableDataclass):
                 
                 # Line is after all ranges
                 last_rng = merged_ranges[-1]
-                return True, f"End line {end} beyond last read line {last_rng.end}"
-
-        # Validate line range (both are not None at this point)
-        # Type narrowing for mypy
-        assert start is not None and end is not None, "start and end should not be None at this point"
-        if start > end:
-            return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"
-
         requested = LineRange(start, end)
 
         if not valid_ranges:
             # No valid line range format in any entry
-            return True, "Cannot determine overlap - invalid lines_read format"
-
-        # Check if requested range is fully covered by any single entry
-        for rng in valid_ranges:
+            # This happens when lines_read is invalid, empty, or contains only invalid ranges
+            return True, "Cannot determine - invalid lines_read format"
             if requested.start >= rng.start and requested.end <= rng.end:
                 return False, "File already read (contained within previously read lines)"
 

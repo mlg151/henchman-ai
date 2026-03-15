@@ -742,6 +742,7 @@ class TestWorkingMemory:
         assert "invalid" in reason.lower() or "positive" in reason.lower()
         
         # Test with start=None, end=-10 (invalid negative end)
+        # Test with start=None, end=-10 (invalid negative end)
         should_read, reason = memory.should_read_file("/test/file.py", end=-10)
         assert should_read is True
         assert "invalid" in reason.lower() or "positive" in reason.lower()
@@ -757,6 +758,52 @@ class TestWorkingMemory:
         assert should_read is True
         # New behavior: returns "May need to read lines before 10" instead of "File not fully read"
         assert "may need to read lines before" in reason.lower() or "before" in reason.lower()
+
+    def test_memory_should_read_file_invalid_line_numbers_with_full_read(self):
+        """Test should_read_file with invalid line numbers when file was read fully.
+        
+        BUG: Invalid line number validation happens AFTER early return for "full" file.
+        When file was read fully and invalid line numbers are provided (e.g., start=0),
+        method should report invalid line number error, not "File already read (full)".
+        """
+        memory = WorkingMemory(current_task="Test")
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
+        
+        # Test with start=0, end=10 (invalid start, file read fully)
+        should_read, reason = memory.should_read_file("/test/file.py", 0, 10)
+        assert should_read is True, (
+            f"Invalid line number start=0 should return True with error, "
+            f"not False (file was read fully). Got: {should_read}, reason: {reason}"
+        )
+        assert "invalid" in reason.lower() or "positive" in reason.lower(), (
+            f"Should report invalid line number error, not 'File already read (full)'. "
+            f"Got reason: {reason}"
+        )
+        
+        # Test with start=1, end=0 (invalid end, file read fully)
+        should_read, reason = memory.should_read_file("/test/file.py", 1, 0)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+        
+        # Test with start=0, end=None (invalid start, partial range, file read fully)
+        should_read, reason = memory.should_read_file("/test/file.py", start=0)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+        
+        # Test with start=None, end=0 (invalid end, partial range, file read fully)
+        should_read, reason = memory.should_read_file("/test/file.py", end=0)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+        
+        # Test with start=10, end=5 (start > end, file read fully)
+        should_read, reason = memory.should_read_file("/test/file.py", 10, 5)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "start.*>.*end" in reason.lower()
+        
+        # Valid line numbers should still return False (file read fully)
+        should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
+        assert should_read is False
+        assert "already read" in reason.lower()
 
     def test_memory_should_read_file_full_with_whitespace(self):
         """Test should_read_file handles 'full' with surrounding whitespace."""

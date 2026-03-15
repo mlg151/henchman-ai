@@ -718518,3 +718518,2051 @@ TOTAL                                                       18980    277   5088 
 =========== 5704 passed, 6 skipped, 44 warnings in 188.69s (0:03:08) ===========
 [2026-03-15T04:00:03Z] All tests passed.
 Committing changes...
+[main 39438df] fix(four-lenses): four-lenses-agents-working_memory
+ 19 files changed, 7568 insertions(+), 169 deletions(-)
+ create mode 100644 add_parse_method.py
+ create mode 100644 debug_test.py
+ create mode 100644 fix_indentation.py
+ create mode 100644 fix_test_bug.py
+ create mode 100644 insert_test.py
+ create mode 100644 test_assertion_bug.py
+ create mode 100644 test_multiple_ranges_bug.py
+ create mode 100644 test_patch.py
+ create mode 100644 tests/agents/test_working_memory.py.backup2
+ create mode 100644 update_test.py
+ create mode 100644 update_test_final.py
+ create mode 100644 update_usage.py
+[2026-03-15T04:00:03Z] Auto-improve complete.
+[2026-03-15T05:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-15T05:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10544[/]
+I'll start by reading the smell report and the target file to understand the context and identify bugs using the Four Lenses of Failure.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.4/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-15T05:00:33.861969+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py...
+
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me analyze the file using the Four Lenses of Failure:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `should_read_file` method (lines 353-498), I can see several logic gaps:
+
+1. **Silent failures in `_parse_line_ranges`**: The method returns an empty list for invalid formats without logging or raising an error. This could mask data corruption.
+
+2. **Type safety issues**: The method accepts `lines_read` as a string but doesn't handle non-string inputs well. It returns an empty list for non-string inputs, which could hide bugs.
+
+3. **Logic gap in `should_read_file`**: When `lines_read` is "full" but with whitespace or different case (e.g., "FULL", " full "), the normalization in `_parse_line_ranges` handles it, but the early check at line 387-392 doesn't. It does `normalized = "".join(lines_read.split()).lower()` which should handle whitespace, but there's a bug.
+
+Let me examine the specific bug: At line 387-392:
+
+```python
+lines_read = matches[0].lines_read
+if isinstance(lines_read, str):
+    # Normalize whitespace: split on any whitespace (including Unicode) and join
+    normalized = "".join(lines_read.split()).lower()
+    if normalized == "full":
+        return False, "File already read (full)"
+```
+
+This looks correct for handling whitespace. But wait, let me check the test file. I see there's a test `test_memory_should_read_file_full_with_whitespace` that tests this. Let me run the tests to see if they pass:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_should_read
+_file_full_with_whitespace', 'verbose': True})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good, the test passes. Now let me look more carefully at the code. I need to find a real bug in core functionality. Let me examine the `should_read_file` method more carefully. Looking at the test file, I see there are many tests that are expecting certain behavior but might be testing bugs themselves. Let me look for a real bug by examining the logic.
+
+Looking at lines 387-392 again:
+
+```python
+lines_read = matches[0].lines_read
+if isinstance(lines_read, str):
+    # Normalize whitespace: split on any whitespace (including Unicode) and join
+    normalized = "".join(lines_read.split()).lower()
+    if normalized == "full":
+        return False, "File already read (full)"
+```
+
+The issue is that `matches[0]` gets the **first** match from `reversed(self.recent_files)`. Since `matches = [e for e in reversed(self.recent_files) if e.path == normalized_path]`, and `reversed(self.recent_files)` gives us entries in reverse chronological order (most recent first), `matches[0]` should be the most recent entry. That's correct.
+
+But wait, there's a bug! Look at line 383: `matches = [e for e in reversed(self.recent_files) if e.path == normalized_path]`. This gets ALL matches in reverse chronological order. Then at line 387, it checks `matches[0].lines_read`. That's the MOST RECENT entry. But the logic after that doesn't properly handle the case where the most recent entry is "full" but earlier entries might have partial reads that matter.
+
+Actually, looking at the logic again: if the most recent entry is "full", it returns `False` immediately. That seems correct - if we most recently read the file fully, we don't need to read it again regardless of what partial reads happened before.
+
+But there's another issue: what if `lines_read` is not a string? The code does `if isinstance(lines_read, str):` but what if it's not a string? It could be `None` or some other type. The `_parse_line_ranges` method handles non-strings by returning an empty list, but this early check doesn't.
+
+Actually, looking more carefully at the `WorkingMemoryEntry` class definition, `lines_read` is defined as `lines_read: str = "full"`. So it should always be a string. But what if someone creates an entry with `lines_read=None`? The type hint says `str` but Python doesn't enforce it.
+
+Let me look for a more concrete bug. Let me check the `_parse_line_ranges` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+304, 'end_line': 351})
+[result]     def _parse_line_ranges(lines_read: str) -> list[LineRange]:
+        """Parse a lines_read string into a list of LineRange objects.
+        
+        Supports formats:
+        - "full" (returns empt...
+I see a bug here! Look at line 307: `if not lines_read or not isinstance(lines_read, str):`. This returns an empty list if `lines_read` is falsy (empty string, None, etc.) OR if it's not a string. But `lines_read` could be an empty string `""`, which should probably be treated as "full" or invalid. Actually, an empty string for `lines_read` doesn't make sense - what lines were read? 
+
+But the real bug is in the logic flow. If `lines_read` is an empty string, it returns an empty list. Then in `should_read_file`, when it calls `_parse_line_ranges`, it gets an empty list. Then later logic might treat this as "no valid ranges" rather than "invalid format".
+
+Actually, wait. Let me trace through the logic in `should_read_file` more carefully. After the early check for "full", it calls `_parse_line_ranges` on each match's `lines_read` and collects all valid ranges. If `lines_read` is an empty string, `_parse_line_ranges` returns an empty list. That means `valid_ranges` stays empty. Then later logic checks `if not valid_ranges:` and returns `True` with reason "Cannot determine overlap - invalid lines_read format".
+
+That seems... okay? Actually, it's returning `True` (should read) which is probably correct for an invalid `lines_read` format. We don't know what was read, so we should read it.
+
+But here's a real bug: What if `lines_read` is `"10-5"` (start > end)? The `_parse_line_ranges` method checks `if start > end: continue` (line 329), so it skips invalid ranges. That's good. But what about `"10-10"`? That's valid (single line). What about `"10-9"`? That's invalid (start > end), gets skipped.
+
+Actually, I think I found a more serious bug. Let me look at the `LineRange` class's `__post_init__`:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+60, 'end_line': 85})
+[result] @dataclass
+class DecisionEntry(SerializableDataclass):
+    """A recorded decision made during a task."""
+
+    decision: str
+    rationale: str
+    impact: str = DEFAULT_IMPACT
+
+
+@dataclass
+class Actio...
+Let me find the `LineRange` class:
+[tool] grep({'pattern': 'class LineRange', 'path': 
+'src/henchman/agents/working_memory.py', 'line_numbers': True})
+[result] 88:class LineRange:...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+88, 'end_line': 135})
+[result] class LineRange:
+    """Represents a range of lines in a file."""
+
+    start: int
+    end: int
+
+    def __post_init__(self) -> None:
+        """Validate that start <= end and line numbers are positive...
+Now I need to think about the Four Lenses of Failure. Let me systematically analyze:
+
+## Phase 1: The Intent vs. Reality Check
+
+**Logic Gaps**: 
+1. In `_parse_line_ranges`, if `lines_read` is `"10-5"` (invalid: start > end), it gets skipped with `continue`. But what should happen? The method returns an empty list for that part. That means `valid_ranges` won't include it. So `should_read_file` will think no valid ranges exist and return `True` (should read). That's probably correct - we can't determine what was read from an invalid range.
+
+2. In `should_read_file`, when `start` or `end` is `None` (partial range specification), the validation for invalid line numbers happens AFTER checking if file is in recent files. Look at lines 399-403:
+```python
+if start is not None and start < 1:
+    return True, f"Invalid line number: start must be positive (1-indexed), got start={start}"
+if end is not None and end < 1:
+    return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
+```
+But this check happens AFTER the early return for "full" file. So if file was read fully and someone asks for `start=0`, it returns `False` (already read) instead of reporting the invalid line number. That's a bug! Invalid input should be caught early.
+
+**Type Safety**:
+1. `lines_read` is typed as `str` but could be `None` if someone creates a `WorkingMemoryEntry` with `lines_read=None`. The code has `isinstance(lines_read, str)` checks but they're not comprehensive.
+
+## Phase 2: State & Side Effects
+
+**Shared State**: The `add_recent_file` method modifies the input entry by normalizing its path. Look at line 193-206:
+```python
+def add_recent_file(self: WorkingMemory, entry: WorkingMemoryEntry) -> None:
+    """Record a file that has been read.
+    
+    Args:
+        entry: A WorkingMemoryEntry object containing file read information,
+            including path, purpose, lines read, key insights, and timestamp.
+            
+    Returns:
+        None
+    """
+    # Normalize the path before storing
+    # Create a copy with normalized path and copied mutable fields to avoid
+    # sharing mutable state with the caller
+    normalized_entry = replace(
+        entry,
+        path=_normalize_path(entry.path),
+        key_insights=list(entry.key_insights),  # Create a copy of the list
+    )
+    self.recent_files.append(normalized_entry)
+```
+
+Wait, it uses `replace` to create a new entry with normalized path. That's good - it doesn't modify the input. But there's a test `test_memory_add_file_does_not_modify_input` that expects the input NOT to be modified. The comment says "BUG: entry.path should NOT be modified. Currently it IS modified (normalized in place)". But the code uses `replace` which creates a new object. So either the test is wrong or there's a bug in `replace` or `_normalize_path`.
+
+Actually, let me check `_normalize_path`:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+20, 'end_line': 30})
+[result] 
+
+def _normalize_path(path: str) -> str:
+    """Normalize a file path for consistent comparison.
+    
+    Args:
+        path: The file path to normalize.
+        
+    Returns:
+        Normalized path ...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+20, 'end_line': 35})
+[result] 
+
+def _normalize_path(path: str) -> str:
+    """Normalize a file path for consistent comparison.
+    
+    Args:
+        path: The file path to normalize.
+        
+    Returns:
+        Normalized path ...
+So `_normalize_path` doesn't modify the input string (strings are immutable in Python). It returns a new string. And `replace` creates a new `WorkingMemoryEntry`. So the input shouldn't be modified. But the test says it is. Let me run that test:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_add_file_do
+es_not_modify_input', 'verbose': True})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+The test passes. So maybe the test comment is outdated or wrong. Let me look at the test more carefully:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+55, 'end_line': 85})
+[result]             "path": "/test/file.py",
+            "purpose": "Test",
+            "lines_read": "10-20",
+            "key_insights": ["Insight 1"],
+            "timestamp": "2024-01-01T00:00:00Z",
+     ...
+Let me find the specific test:
+[tool] grep({'pattern': 'test_memory_add_file_does_not_modify_input', 'path': 
+'tests/agents/test_working_memory.py', 'line_numbers': True, 'context_before': 
+5, 'context_after': 30})
+[result] 103-        assert stored_entry.path == "/test/file.py"
+104-        assert stored_entry.purpose == "Read for understanding"
+105-        assert stored_entry.lines_read == "1-50"
+106-        assert stor...
+The test says "BUG: entry.path should NOT be modified. Currently it IS modified (normalized in place)". But the test passes. So either the bug was already fixed, or the test is wrong. Looking at the code in `add_recent_file`, it uses `replace` which creates a new object. So the input shouldn't be modified. The test is checking that `entry.path == original_path` after calling `add_recent_file(entry)`. That should be true.
+
+But wait, the test comment says "BUG FIX" in the docstring. Maybe this test was added to document a bug that was already fixed. Or maybe there was a bug that got fixed.
+
+Actually, I think I found a real bug! Let me look at the `should_read_file` method again. The bug I mentioned earlier: **Invalid line number validation happens AFTER the early return for "full" file**. If a file was read fully and someone asks for `start=0` (invalid), it returns `False` (already read) instead of reporting the invalid line number.
+
+Let me trace through the logic:
+1. Line 383: `matches = [e for e in reversed(self.recent_files) if e.path == normalized_path]`
+2. Line 387-392: Check if most recent entry has `lines_read == "full"` (after normalization). If yes, return `False`.
+3. Line 399-403: Validate line numbers (check if `start < 1` or `end < 1`).
+
+So if file was read fully and `start=0`, it returns at line 392 before reaching the validation at line 399. That's a bug! Invalid input should be caught before checking if file was read.
+
+Actually, wait. Should invalid input (`start=0`) cause us to read the file? Or should it raise an error? The method returns `True` with an error message when it detects invalid line numbers. So if `start=0`, it should return `True` with error "Invalid line number: start must be positive...". But if file was read fully, it returns `False` at line 392 first.
+
+This is definitely a bug. Let me write a test to confirm:
+[tool] python_exec({'code': 'import sys\nsys.path.insert(0, \'src\')\n\nfrom 
+henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry\n\n# 
+Create memory with file read fully\nmemory = 
+WorkingMemory(current_task="Test")\nmemory.add_recent_file(WorkingMemoryEntry("/
+test/file.py", "Test", "full"))\n\n# Test with invalid start=0\nshould_read, 
+reason = memory.should_read_file("/test/file.py", start=0)\nprint(f"should_read:
+{should_read}, reason: {reason}")\nprint(f"Expected: True (invalid line number),
+Got: {should_read}")\nprint(f"Expected reason to contain \'invalid\' or 
+\'positive\', Got: {reason}")'})
+[result] should_read: False, reason: File already read (full)
+Expected: True (invalid line number), Got: False
+Expected reason to contain 'invalid' or 'positive', Got: File already read 
+(full)
+...
+Yes! That's the bug. When `start=0` (invalid) and file was read fully, it returns `False` instead of reporting the invalid line number. The invalid input should be caught first.
+
+But actually, thinking about it more: if the file was read fully, do we care about invalid line numbers? The user is asking "should I read lines 0-?" from a file that was already read fully. The answer is "no, you don't need to read it because it was already read fully." But the line numbers are invalid. Should we report the error or just say "already read"?
+
+I think we should report the error. Invalid input is invalid regardless of whether the file was read. The method's contract is: given a file path and optional line range, tell me if I should read it. If the line range is invalid, that's an error condition that should be reported.
+
+Actually, looking at the code again: when `start` is invalid (`< 1`), it returns `True` with error message. That suggests the design is: invalid input means "yes, you should read it" (because we can't determine if the invalid range was already read). So for consistency, if `start=0` and file was read fully, it should return `True` with error "Invalid line number...".
+
+But there's another issue: what if `start=None` and `end=0`? Or `start=0` and `end=None`? The validation at lines 399-403 only checks if `start is not None and start < 1` and `end is not None and end < 1`. So if `start=0` and `end=None`, it catches it. If `start=None` and `end=0`, it catches it. If `start=0` and `end=10`, it catches it.
+
+But the bug is: this validation happens AFTER the early return for "full". So we need to move the validation BEFORE the early return.
+
+Actually, let me check: the validation is at lines 399-403. The early return for "full" is at lines 387-392. So yes, validation happens after. We need to move it before.
+
+But wait, there's also validation at lines 415-417 for when both `start` and `end` are not None: `if start > end: return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"`. That also happens after the early return for "full".
+
+So the bug is: **Invalid line number validation happens too late in `should_read_file`**. It should happen immediately after parameter normalization, before any logic about whether the file was read.
+
+Let me create the documentation stub first:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/agents/working_memory.py\n## Date: 
+2026-03-15T05:15:00+00:00\n## Bug Summary\nInvalid line number validation in 
+`should_read_file` method happens AFTER early return for "full" file reads, 
+causing invalid input (e.g., start=0) to be silently accepted when file was read
+fully.\n\n## Lens\nPhase 1: The Intent vs. Reality Check - Logic Gaps\n\n## 
+Expected vs. Observed\n| Expected Behavior | Observed Risk |\n|---|---|\n| 
+Invalid line numbers (start < 1 or end < 1) should always be reported as errors,
+regardless of whether file was previously read. | When file was read fully and 
+invalid line numbers are provided (e.g., start=0), method returns False ("File 
+already read (full)") instead of reporting invalid line number error. |\n| Input
+validation should happen before business logic. | Input validation happens after
+checking if file was read fully, allowing invalid input to bypass validation. 
+|\n\n## Root Cause\nIn `should_read_file` method (lines 353-498), the validation
+for invalid line numbers (lines 399-403) occurs AFTER the early return for 
+"full" file reads (lines 387-392). When a file was marked as "full" in working 
+memory and the user requests to read with invalid line numbers (e.g., start=0, 
+end=-1), the method returns early with "File already read (full)" before 
+reaching the validation code that would report "Invalid line number: start must 
+be positive (1-indexed), got start=0".\n\n## Fix Plan\nMove line number 
+validation (lines 399-403 and 415-417) to immediately after parameter 
+normalization (line 378), before any logic checking file read status. This 
+ensures invalid input is always caught and reported, maintaining consistent 
+error handling regardless of file read history.\n\n## Status: IN PROGRESS'})
+[result] Successfully wrote 1751 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/README.md...
+Now I need to write a failing test first (TDD). Let me check if there's already a test for this:
+[tool] grep({'pattern': 'start=0.*full', 'path': 
+'tests/agents/test_working_memory.py', 'ignore_case': True})
+[result] No matches found...
+
+[tool] grep({'pattern': 'invalid.*line.*number', 'path': 
+'tests/agents/test_working_memory.py', 'ignore_case': True})
+[result]     def 
+test_memory_should_read_file_invalid_lines_read_and_invalid_line_numbers(self):
+        """Test should_read_file with invalid lines_read AND invalid line 
+numbers.
+        BUG: When lines_read ...
+There are tests for invalid line numbers but not specifically for the case where file was read fully. Let me add a new test to the test file:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+1, 'end_line': 50})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Let me find where to add the test. I'll add it in the `TestWorkingMemory` class. Let me look for a good place:
+[tool] grep({'pattern': 'def test_memory_should_read_file_invalid_line_numbers',
+'path': 'tests/agents/test_working_memory.py', 'line_numbers': True, 
+'context_after': 20})
+[result] 691:    def test_memory_should_read_file_invalid_line_numbers(self):
+692-        """Test should_read_file with invalid line numbers 
+(non-positive)."""
+693-        memory = WorkingMemory(current_task="...
+I'll add my test after the existing invalid line number tests. Let me edit the file:
+[tool] edit_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+745, 'end_line': 745, 'new_str': '        # Test with start=None, end=-10 
+(invalid negative end)\n        should_read, reason = 
+memory.should_read_file("/test/file.py", end=-10)\n        assert should_read is
+True\n        assert "invalid" in reason.lower() or "positive" in 
+reason.lower()\n        \n        # Test with valid start=10, end=None (should 
+return True because file not fully read)\n        should_read, reason = 
+memory.should_read_file("/test/file.py", start=10)\n        assert should_read 
+is True\n        # New behavior: returns "May need to read lines beyond 50" 
+instead of "File not fully read"\n        assert "may need to read lines beyond"
+in reason.lower() or "beyond" in reason.lower()\n        \n        # Test with 
+valid start=None, end=50 (should return True because file not fully read)\n     
+should_read, reason = memory.should_read_file("/test/file.py", end=50)\n        
+assert should_read is True\n        # New behavior: returns "May need to read 
+lines before 10" instead of "File not fully read"\n        assert "may need to 
+read lines before" in reason.lower() or "before" in reason.lower()\n\n    def 
+test_memory_should_read_file_invalid_line_numbers_with_full_read(self):\n       
+"""Test should_read_file with invalid line numbers when file was read fully.\n  
+\n        BUG: Invalid line number validation happens AFTER early return for 
+"full" file.\n        When file was read fully and invalid line numbers are 
+provided (e.g., start=0),\n        method should report invalid line number 
+error, not "File already read (full)".\n        """\n        memory = 
+WorkingMemory(current_task="Test")\n        
+memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))\n   
+\n        # Test with start=0, end=10 (invalid start, file read fully)\n        
+should_read, reason = memory.should_read_file("/test/file.py", 0, 10)\n        
+assert should_read is True, (\n            f"Invalid line number start=0 should 
+return True with error, "\n            f"not False (file was read fully). Got: 
+{should_read}, reason: {reason}"\n        )\n        assert "invalid" in 
+reason.lower() or "positive" in reason.lower(), (\n            f"Should report 
+invalid line number error, not \'File already read (full)\'. "\n            
+f"Got reason: {reason}"\n        )\n        \n        # Test with start=1, end=0
+(invalid end, file read fully)\n        should_read, reason = 
+memory.should_read_file("/test/file.py", 1, 0)\n        assert should_read is 
+True\n        assert "invalid" in reason.lower() or "positive" in 
+reason.lower()\n        \n        # Test with start=0, end=None (invalid start, 
+partial range, file read fully)\n        should_read, reason = 
+memory.should_read_file("/test/file.py", start=0)\n        assert should_read is
+True\n        assert "invalid" in reason.lower() or "positive" in 
+reason.lower()\n        \n        # Test with start=None, end=0 (invalid end, 
+partial range, file read fully)\n        should_read, reason = 
+memory.should_read_file("/test/file.py", end=0)\n        assert should_read is 
+True\n        assert "invalid" in reason.lower() or "positive" in 
+reason.lower()\n        \n        # Test with start=10, end=5 (start > end, file
+read fully)\n        should_read, reason = 
+memory.should_read_file("/test/file.py", 10, 5)\n        assert should_read is 
+True\n        assert "invalid" in reason.lower() or "start.*>.*end" in 
+reason.lower()\n        \n        # Valid line numbers should still return False
+(file read fully)\n        should_read, reason = 
+memory.should_read_file("/test/file.py", 10, 50)\n        assert should_read is 
+False\n        assert "already read" in reason.lower()'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/tests/agents/test_working_memory.py (replaced lines 
+745-745)...
+Now let me run this specific test to confirm it fails:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_should_read
+_file_invalid_line_numbers_with_full_read', 'verbose': True})
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Perfect! The test fails as expected. Now I need to fix the bug. I need to move the line number validation to happen before the early return for "full" file. Let me examine the `should_read_file` method more carefully:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+353, 'end_line': 420})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+I need to move the validation (lines 399-403 and 415-417) to before the early return for "full" (lines 387-392). Actually, looking at line 415-417, that's validation for `start > end`. But that's inside the `if start is None or end is None:` block? Let me check:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+410, 'end_line': 430})
+[result]                 # Merge ranges to check for gaps
+                merged_ranges = self._merge_ranges(valid_ranges)
+                
+                # Check if start line is within any merged range
+    ...
+Let me see the full method to understand the structure better:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+440, 'end_line': 498})
+[result]                 
+                # Merge ranges to check for gaps
+                merged_ranges = self._merge_ranges(valid_ranges)
+                
+                # Type narrowing for mypy
+          ...
+Now I need to understand the structure. The validation for `start > end` is at line 458, which is inside the `else` block (when both `start` and `end` are not None). But there's also validation for `start < 1` and `end < 1` at lines 399-403, which happens before the `if start is None or end is None:` block.
+
+The issue is that ALL validation should happen BEFORE any logic about whether the file was read. So I need to move lines 399-403 and the `start > end` validation (which is at line 458) to the beginning of the method, right after parameter normalization.
+
+Actually, looking more carefully: line 458 is inside the `else` block (when both `start` and `end` are not None). But `start > end` validation should happen regardless of whether we check if file was read. So I need to move it out of that block.
+
+Wait, but `start > end` only makes sense when both are not None. If `start` is None or `end` is None, we can't check `start > end`. So the `start > end` validation should stay where it is (after we know both are not None), but it should happen BEFORE checking if file was read fully.
+
+Actually, the structure is:
+1. Check if file in recent files (line 383-385)
+2. Check if most recent entry is "full" (lines 387-392) - EARLY RETURN HERE
+3. Collect valid ranges (lines 394-397)
+4. Validate `start < 1` and `end < 1` (lines 399-403)
+5. Handle `start is None or end is None` (line 405)
+6. Inside that block, handle various cases
+7. Else block (both not None): validate `start > end` (line 458)
+
+The bug is that steps 4 and 7 happen AFTER step 2. They should happen BEFORE step 2.
+
+But there's a complication: step 7 (`start > end` validation) is inside the `else` block (when both are not None). That block is only reached if we pass the `if start is None or end is None:` check. So we need to restructure.
+
+Actually, I think the cleanest fix is to move ALL validation to the beginning:
+1. Validate `start < 1` and `end < 1` (immediately)
+2. If both not None, validate `start > end` (immediately)
+3. Then check if file was read, etc.
+
+But `start > end` only makes sense when both are not None. So we need to check: if `start is not None and end is not None and start > end`.
+
+Let me implement the fix:
+[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+376, 'end_line': 410, 'new_str': '        # Normalize the path for consistent 
+comparison\n        normalized_path = _normalize_path(path)\n\n        # 
+Validate line numbers if provided (1-indexed)\n        if start is not None and 
+start < 1:\n            return True, f"Invalid line number: start must be 
+positive (1-indexed), got start={start}"\n        if end is not None and end < 
+1:\n            return True, f"Invalid line number: end must be positive 
+(1-indexed), got end={end}"\n        \n        # Validate line range if both are
+provided\n        if start is not None and end is not None and start > end:\n   
+return True, f"Invalid line range: start ({start}) > end ({end}) - treating as 
+new read"\n\n        # Find ALL entries for this file (most recent first)\n     
+matches = [e for e in reversed(self.recent_files) if e.path == 
+normalized_path]\n        if not matches:\n            return True, "File not in
+recent files"\n\n        # Check if the MOST RECENT entry indicates file was 
+read fully\n        # Only skip reading if the most recent read was "full"\n    
+# If file was read fully in the past but partially more recently,\n        # we 
+should check if the requested range is covered by recent partial reads\n        
+lines_read = matches[0].lines_read\n        if isinstance(lines_read, str):\n   
+# Normalize whitespace: split on any whitespace (including Unicode) and join\n  
+normalized = "".join(lines_read.split()).lower()\n            if normalized == 
+"full":\n                return False, "File already read (full)"\n\n        # 
+Collect all valid line ranges from all entries (needed for partial range 
+checks)\n        valid_ranges: list[LineRange] = []\n        for match in 
+matches:\n            ranges = self._parse_line_ranges(match.lines_read)\n      
+valid_ranges.extend(ranges)\n\n        if start is None or end is None:'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/agents/working_memory.py (replaced lines 
+376-410)...
+Now I need to remove the duplicate validation that's still in the code. Let me check where the old validation was (lines 399-403 and 458):
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+440, 'end_line': 470})
+[result]                     return True, "Cannot determine - invalid lines_read
+format"
+                
+                # Merge ranges to check for gaps
+                merged_ranges = self._merge_ranges(val...
+I need to find line 458 (the `start > end` validation). Let me search:
+[tool] grep({'pattern': 'start.*>.*end', 'path': 
+'src/henchman/agents/working_memory.py', 'line_numbers': True})
+[result] 98:        if self.start > self.end:
+99:            raise ValueError(f"Invalid LineRange: start ({self.start}) > end 
+({self.end})")
+336:                    if start > end:
+386:        if start is not ...
+Line 474-475 is the duplicate `start > end` validation that needs to be removed. Line 386-387 is my new validation. Let me remove the duplicate:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+470, 'end_line': 480})
+[result] 
+        # Validate line range (both are not None at this point)
+        # Type narrowing for mypy
+        assert start is not None and end is not None, "start and end should not 
+be None at this point...
+I need to remove lines 474-475 (the `if start > end:` check) since we already validated it at the beginning. But I need to keep the `assert` statement for mypy. Let me edit:
+[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+470, 'end_line': 480, 'new_str': '\n        # Validate line range (both are not 
+None at this point)\n        # Type narrowing for mypy\n        assert start is 
+not None and end is not None, "start and end should not be None at this point"\n
+# Note: start > end validation already happened at the beginning of the 
+method\n\n        requested = LineRange(start, end)\n\n        if not 
+valid_ranges:\n            # No valid line range format in any entry'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/agents/working_memory.py (replaced lines 
+470-480)...
+Now I also need to check if there are any other duplicate validations. The `start < 1` and `end < 1` validations at lines 399-403 should have been removed when I replaced lines 376-410. Let me verify the current state:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+395, 'end_line': 425})
+[result]         # Only skip reading if the most recent read was "full"
+        # If file was read fully in the past but partially more recently,
+        # we should check if the requested range is covered by ...
+Good, the duplicate validations are gone. Now let me run the failing test to see if it passes:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_should_read
+_file_invalid_line_numbers_with_full_read', 'verbose': True})
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+There's an indentation error. I need to check the code around line 436. My edit might have messed up the indentation. Let me look at the full method to see the structure:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+420, 'end_line': 460})
+[result]                 # Line is not within any read range - check if it's 
+before, between, or after ranges
+                # Find where start falls relative to merged ranges
+                for i, rng in en...
+I see the issue. The `else:` at line 436 should be at the same indentation level as the `elif start is not None:` above it. But my edit might have changed the indentation. Let me check the full structure of the `if start is None or end is None:` block. Actually, I think the issue is that when I replaced lines 376-410, I might have cut off part of the code. Let me look at the original code before my edit to understand the structure better.
+
+Actually, let me just run a quick syntax check:
+[tool] python_exec({'code': 'import ast\nwith 
+open(\'src/henchman/agents/working_memory.py\', \'r\') as f:\n    content = 
+f.read()\ntry:\n    ast.parse(content)\n    print("Syntax OK")\nexcept 
+SyntaxError as e:\n    print(f"Syntax error: {e}")\n    print(f"Line {e.lineno},
+column {e.offset}")'})
+[result] Syntax error: unindent does not match any outer indentation level 
+(<unknown>, line 436)
+Line 436, column 52
+...
+Line 436 is the `else:` statement. The issue is indentation. Let me look at the exact lines around it:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+430, 'end_line': 445})
+[result]                             prev_rng = merged_ranges[i-1]
+                            return True, f"Start line {start} in gap between 
+lines {prev_rng.end+1} and {rng.start-1}"
+                
+      ...
+The `else:` should be at the same level as `elif start is not None:`. Let me find where that `elif` is:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+410, 'end_line': 435})
+[result] 
+        if start is None or end is None:
+                merged_ranges = self._merge_ranges(valid_ranges)
+                
+                # Check if start line is within any merged range
+           ...
+I see! Line 411 is `if start is None or end is None:` but there's no code after it on that line. It should be:
+```python
+if start is None or end is None:
+    # Handle partial range specifications
+    if start is None and end is None:
+        # ...
+    elif start is not None:
+        # ...
+    else:  # end is not None, start is None
+        # ...
+```
+
+But it looks like the `if start is None and end is None:` block is missing! When I replaced lines 376-410, I might have removed it. Let me check what the original code had. Actually, looking at line 411, it seems like the `if start is None and end is None:` case might be missing entirely. The code jumps right into what looks like the `elif start is not None:` case.
+
+Wait, I think I see the issue. Look at line 411: `if start is None or end is None:` and then line 412 is indented but it's `merged_ranges = self._merge_ranges(valid_ranges)`. That's wrong! That should be inside the `elif start is not None:` block, not directly under `if start is None or end is None:`.
+
+Actually, looking more carefully at the original code (before my edit), the structure was:
+```python
+if start is None or end is None:
+    # Handle partial range specifications
+    if start is None and end is None:
+        # Want to read entire file, but file wasn't read fully
+        return True, "File not fully read - partial read recorded"
+    elif start is not None:
+        # start=X, end=None: read from X to EOF
+        # ...
+    else:  # end is not None, start is None
+        # ...
+```
+
+But my edit removed the `if start is None and end is None:` case! I need to restore it. Let me look at what I replaced. I replaced lines 376-410. Line 410 was `if start is None or end is None:`. So I removed everything from line 376 to line 410, which included the `if start is None and end is None:` case.
+
+I need to restore that case. Let me check what the original code had around there. Actually, let me look at a backup or git. But first, let me think: what should happen when `start is None and end is None`? That means "read entire file". If file wasn't read fully (we already checked for "full" earlier), then we should return `True`. The original code had `return True, "File not fully read - partial read recorded"`.
+
+So I need to add that back. Let me edit:
+[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+410, 'end_line': 415, 'new_str': '        if start is None or end is None:\n    
+# Handle partial range specifications\n            if start is None and end is 
+None:\n                # Want to read entire file, but file wasn\'t read fully\n
+return True, "File not fully read - partial read recorded"\n            elif 
+start is not None:'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/agents/working_memory.py (replaced lines 
+410-415)...
+Now I need to fix the indentation of the rest of the code. The code from line 416 onward should be inside the `elif start is not None:` block. Let me check how much code needs to be re-indented. Actually, let me look at the full method from line 416 to find where the `else:` block ends:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+415, 'end_line': 500})
+[result]             elif start is not None:
+                    if start >= rng.start and start <= rng.end:
+                        # Line is within a read range, but might need to read 
+beyond
+               ...
+I see the issue. The code from line 416 (`if start >= rng.start`) is at the wrong indentation level. It should be inside the `elif start is not None:` block. But there's missing code before it! There should be something like:
+```python
+elif start is not None:
+    # start=X, end=None: read from X to EOF
+    # Check if we've read line X
+    if not valid_ranges:
+        return True, "Cannot determine - invalid lines_read format"
+    
+    # Merge ranges to check for gaps
+    merged_ranges = self._merge_ranges(valid_ranges)
+    
+    # Check if start line is within any merged range
+    for rng in merged_ranges:
+        # ...
+```
+
+But line 416 starts with `if start >= rng.start`. That's inside a `for rng in merged_ranges:` loop, but the `for` loop and the `if not valid_ranges:` check are missing!
+
+I think my edit messed up the structure badly. Let me revert and try a different approach. Actually, let me check the git history or restore from a backup. But first, let me see if I can fix it manually.
+
+Actually, I think the easiest is to look at the original file before my changes. Let me check if there's a git diff:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git diff 
+src/henchman/agents/working_memory.py | head -100'})
+[result] diff --git a/src/henchman/agents/working_memory.py 
+b/src/henchman/agents/working_memory.py
+index 81ee46a..43c6809 100644
+--- a/src/henchman/agents/working_memory.py
++++ b/src/henchman/agents/working_m...
+I see the problem! My edit duplicated some code and removed important parts. Look at the diff:
+- Line 368-374: Original code had `normalized_path = _normalize_path(path)` and `matches = ...`
+- My edit added duplicate code (lines 368-384) AND kept the original (lines 386-392)
+- More importantly, lines 407-417 show that I removed the `if not valid_ranges:` check and the `merged_ranges = self._merge_ranges(valid_ranges)` and the `for rng in merged_ranges:` loop!
+
+The diff shows that from line 407 to 417, the original had:
+```python
+                # start=X, end=None: read from X to EOF
+                # Check if we've read line X
+                if not valid_ranges:
+                    return True, "Cannot determine - invalid lines_read format"
+                
+                # Merge ranges to check for gaps
+                merged_ranges = self._merge_ranges(valid_ranges)
+                
+                # Check if start line is within any merged range
+                for rng in merged_ranges:
+```
+
+But my edit removed all that and left just `if start >= rng.start`!
+
+I need to restore the missing code. Let me look at the full original file from git:
+[tool] shell({'command': "cd /home/matthew/mlg-cli && git show 
+HEAD:src/henchman/agents/working_memory.py | sed -n '407,430p'"})
+[result]                 if not valid_ranges:
+                    return True, "Cannot determine - invalid lines_read format"
+                
+                # Merge ranges to check for gaps
+                m...
+I need to restore the missing code. Let me get the exact lines I need to fix. Looking at the current file, I need to fix lines 416 onward. Actually, let me just restore the entire method from git and reapply my fix correctly:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && git checkout -- 
+src/henchman/agents/working_memory.py'})
+[result] (no output)...
+Now let me reapply my fix correctly. First, let me look at the method again:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+353, 'end_line': 420})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+Good, now I have the original code back. Now I need to apply my fix: move the validation (lines 399-403 and 458) to before the early return for "full" (lines 387-392). But I need to be careful not to break the structure.
+
+Actually, looking at the code, the validation at lines 399-403 is already AFTER the early return for "full" at lines 387-392. That's the bug! So I need to move lines 399-403 to before line 387.
+
+Also, the `start > end` validation is at line 458, which is inside the `else` block (when both `start` and `end` are not None). That also needs to be moved to the beginning.
+
+But wait, `start > end` only makes sense when both are not None. So I should add that validation at the beginning too: `if start is not None and end is not None and start > end:`.
+
+Let me make the fix:
+[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+376, 'end_line': 405, 'new_str': '        # Normalize the path for consistent 
+comparison\n        normalized_path = _normalize_path(path)\n\n        # 
+Validate line numbers if provided (1-indexed)\n        if start is not None and 
+start < 1:\n            return True, f"Invalid line number: start must be 
+positive (1-indexed), got start={start}"\n        if end is not None and end < 
+1:\n            return True, f"Invalid line number: end must be positive 
+(1-indexed), got end={end}"\n        \n        # Validate line range if both are
+provided\n        if start is not None and end is not None and start > end:\n   
+return True, f"Invalid line range: start ({start}) > end ({end}) - treating as 
+new read"\n\n        # Find ALL entries for this file (most recent first)\n     
+matches = [e for e in reversed(self.recent_files) if e.path == 
+normalized_path]\n        if not matches:\n            return True, "File not in
+recent files"\n\n        # Check if the MOST RECENT entry indicates file was 
+read fully\n        # Only skip reading if the most recent read was "full"\n    
+# If file was read fully in the past but partially more recently,\n        # we 
+should check if the requested range is covered by recent partial reads\n        
+lines_read = matches[0].lines_read\n        if isinstance(lines_read, str):\n   
+# Normalize whitespace: split on any whitespace (including Unicode) and join\n  
+normalized = "".join(lines_read.split()).lower()\n            if normalized == 
+"full":\n                return False, "File already read (full)"\n\n        # 
+Collect all valid line ranges from all entries (needed for partial range 
+checks)\n        valid_ranges: list[LineRange] = []\n        for match in 
+matches:\n            ranges = self._parse_line_ranges(match.lines_read)\n      
+valid_ranges.extend(ranges)'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/agents/working_memory.py (replaced lines 
+376-405)...
+Now I need to remove the duplicate validation. The `start < 1` and `end < 1` validation at lines 399-403 in the original is now gone (I replaced those lines). But I need to remove the `start > end` validation at line 458. Let me find it:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+470, 'end_line': 480})
+[result]                 # Line is after all ranges
+                last_rng = merged_ranges[-1]
+                return True, f"End line {end} beyond last read line 
+{last_rng.end}"
+
+        # Validate line ran...
+I need to remove lines 477-478 (the `if start > end:` check). Let me edit:
+[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+475, 'end_line': 485, 'new_str': '        # Validate line range (both are not 
+None at this point)\n        # Type narrowing for mypy\n        assert start is 
+not None and end is not None, "start and end should not be None at this point"\n
+# Note: start > end validation already happened at the beginning of the 
+method\n\n        requested = LineRange(start, end)'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/agents/working_memory.py (replaced lines 
+475-485)...
+Now let me run the test again:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_should_read
+_file_invalid_line_numbers_with_full_read', 'verbose': True})
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Indentation error at line 411. Let me check that line:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+405, 'end_line': 420})
+[result]         # Collect all valid line ranges from all entries (needed for 
+partial range checks)
+        valid_ranges: list[LineRange] = []
+        for match in matches:
+            ranges = self._parse_lin...
+I see! Line 411 `if not valid_ranges:` is incorrectly indented. It should be inside the `elif start is not None:` block. But looking at line 410, it's `valid_ranges.extend(ranges)` which is inside the `for match in matches:` loop. So the code after line 410 is at the wrong indentation level.
+
+Actually, I think my edit messed up the indentation. When I replaced lines 376-405, I might have removed the `if start is None or end is None:` block and what follows. Let me check what's at line 405 and before:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+400, 'end_line': 415})
+[result]             # Normalize whitespace: split on any whitespace (including 
+Unicode) and join
+            normalized = "".join(lines_read.split()).lower()
+            if normalized == "full":
+             ...
+I see the problem. The code from `# Check if we've read line X` onward is incorrectly indented. It should be after the `if start is None or end is None:` block, but it's inside the `for match in matches:` loop.
+
+When I replaced lines 376-405, I removed the `if start is None or end is None:` block and everything after it! I need to restore that. Let me look at the original file again to see what I should have. Actually, I think the issue is that my edit removed too much. I replaced from line 376 to line 405, but line 405 was `if start is None or end is None:`. So I removed that line and everything after it!
+
+I need to restore the code from line 405 onward. Let me get it from git:
+[tool] shell({'command': "cd /home/matthew/mlg-cli && git show 
+HEAD:src/henchman/agents/working_memory.py | sed -n '405,450p'"})
+[result]                 # start=X, end=None: read from X to EOF
+                # Check if we've read line X
+                if not valid_ranges:
+                    return True, "Cannot determine - invalid l...
+I need to restore from line 405 in the original. But actually, line 405 in the original was inside the `elif start is not None:` block. Let me get more context:
+[tool] shell({'command': "cd /home/matthew/mlg-cli && git show 
+HEAD:src/henchman/agents/working_memory.py | sed -n '395,415p'"})
+[result]             return True, f"Invalid line number: start must be positive 
+(1-indexed), got start={start}"
+        if end is not None and end < 1:
+            return True, f"Invalid line number: end must ...
+So the structure is:
+1. Line 395-398: `if start is None or end is None:`
+2. Line 399-401: `if start is None and end is None:`
+3. Line 402: `elif start is not None:`
+4. Line 403-415: code for `start is not None, end is None` case
+
+My edit removed lines 395-415 (and more). I need to restore them. But I also moved the validation earlier. So I need to keep my validation at the beginning AND restore the `if start is None or end is None:` block.
+
+Actually, looking at my current file, I have up to line 410 (which ends with `valid_ranges.extend(ranges)`). Then there's incorrectly indented code. I need to replace from line 411 onward with the correct code.
+
+Let me check what line 411 is in my current file:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+410, 'end_line': 425})
+[result]                 # Check if we've read line X
+                if not valid_ranges:
+                    return True, "Cannot determine - invalid lines_read format"
+                
+                # Mer...
+Line 411 is `# Check if we've read line X`. But that's a comment that should be inside the `elif start is not None:` block. The issue is that the `if start is None or end is None:` block is missing!
+
+I need to insert the missing block. After `valid_ranges.extend(ranges)` (line 410), I need:
+```python
+        if start is None or end is None:
+            # Handle partial range specifications
+            if start is None and end is None:
+                # Want to read entire file, but file wasn't read fully
+                return True, "File not fully read - partial read recorded"
+            elif start is not None:
+                # start=X, end=None: read from X to EOF
+                # Check if we've read line X
+                if not valid_ranges:
+                    return True, "Cannot determine - invalid lines_read format"
+                
+                # Merge ranges to check for gaps
+                merged_ranges = self._merge_ranges(valid_ranges)
+                
+                # Check if start line is within any merged range
+                for rng in merged_ranges:
+                    # ... existing code continues ...
+```
+
+But the existing code from line 411 onward is the code that should be inside the `elif start is not None:` block. So I need to:
+1. Insert the `if start is None or end is None:` block
+2. Keep the existing code (from line 411) but properly indented inside `elif start is not None:`
+
+Actually, let me just replace from line 411 onward with the correct code from git. But I need to be careful because I already made changes (moved validation earlier, removed duplicate `start > end` validation).
+
+Actually, the easiest is to restore the entire file from git and reapply my fix correctly. But I already made the fix (moved validation earlier). Let me just manually fix the indentation.
+
+Actually, looking at the code, line 410 is `valid_ranges.extend(ranges)` which is inside `for match in matches:`. After that loop ends, we should have the `if start is None or end is None:` block.
+
+So I need to:
+1. End the `for match in matches:` loop properly
+2. Add the `if start is None or end is None:` block
+3. Keep the existing code (from line 411) inside `elif start is not None:`
+
+Let me edit:
+[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+405, 'end_line': 425, 'new_str': '        # Collect all valid line ranges from 
+all entries (needed for partial range checks)\n        valid_ranges: 
+list[LineRange] = []\n        for match in matches:\n            ranges = 
+self._parse_line_ranges(match.lines_read)\n            
+valid_ranges.extend(ranges)\n\n        if start is None or end is None:\n       
+# Handle partial range specifications\n            if start is None and end is 
+None:\n                # Want to read entire file, but file wasn\'t read fully\n
+return True, "File not fully read - partial read recorded"\n            elif 
+start is not None:\n                # start=X, end=None: read from X to EOF\n   
+# Check if we\'ve read line X\n                if not valid_ranges:\n           
+return True, "Cannot determine - invalid lines_read format"\n                \n 
+# Merge ranges to check for gaps\n                merged_ranges = 
+self._merge_ranges(valid_ranges)\n                \n                # Check if 
+start line is within any merged range\n                for rng in 
+merged_ranges:\n                    if start >= rng.start and start <= 
+rng.end:\n                        # Line is within a read range, but might need 
+to read beyond\n                        return True, f"May need to read lines 
+beyond {rng.end}"\n                \n                # Line is not within any 
+read range - check if it\'s before, between, or after ranges\n                # 
+Find where start falls relative to merged ranges\n                for i, rng in 
+enumerate(merged_ranges):'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/agents/working_memory.py (replaced lines 
+405-425)...
+Now I need to check if the rest of the code is correctly indented. The code from line 426 onward should continue inside the `elif start is not None:` block, then there should be an `else:` block (for `end is not None, start is None`), then after the `if start is None or end is None:` block ends, there should be the `else` block (for when both `start` and `end` are not None).
+
+Actually, I think I need to restore the entire rest of the method correctly. Let me get the rest from git and paste it in, but I need to be careful to keep my changes (removed duplicate validation).
+
+Actually, let me just check the syntax first:
+[tool] python_exec({'code': 'import ast\nwith 
+open(\'src/henchman/agents/working_memory.py\', \'r\') as f:\n    content = 
+f.read()\ntry:\n    ast.parse(content)\n    print("Syntax OK")\nexcept 
+SyntaxError as e:\n    print(f"Syntax error: {e}")\n    print(f"Line {e.lineno},
+column {e.offset}")'})
+[result] Syntax OK
+...
+Good! Now let me run the test:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_should_read
+_file_invalid_line_numbers_with_full_read', 'verbose': True})
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+The test is still failing, but differently. It's failing at the last assertion: `assert should_read is True` for `start=10, end=5`. That's the `start > end` case. It's returning `False` (file already read) instead of reporting invalid line range.
+
+So my fix for `start > end` isn't working. Let me check if my validation is being reached. The test says it's failing at line 807, which is the `assert should_read is True` for `start=10, end=5`. So it's returning `False`.
+
+Wait, but `start=10, end=5` is invalid (`start > end`). My validation at the beginning should catch it: `if start is not None and end is not None and start > end:`. But it's not catching it. Why?
+
+Oh! Because when file was read fully, the method returns early at line 392: `return False, "File already read (full)"`. That happens BEFORE my validation! My validation is at lines 383-387, which is AFTER the early return for "full" at line 392!
+
+Wait, let me check the order. In my current code:
+1. Line 376: `normalized_path = _normalize_path(path)`
+2. Line 379-387: Validation (my fix)
+3. Line 390: `matches = [e for e in reversed(self.recent_files) if e.path == normalized_path]`
+4. Line 392: `if not matches: return True, "File not in recent files"`
+5. Line 400-407: Check if most recent entry is "full"
+6. Line 407-410: If "full", return False
+
+So my validation (lines 379-387) happens BEFORE the check for "full" (lines 400-410). That's correct! So why isn't it catching `start=10, end=5`?
+
+Let me trace through: `start=10, end=5`. Both not None, `start > end`. My validation at line 383-387: `if start is not None and end is not None and start > end:`. That should be `True`, so it should return `True` with error message.
+
+But the test shows it returns `False`. That means either:
+1. My validation isn't being executed (unlikely)
+2. The validation condition isn't met (maybe I have a bug)
+3. Something else is returning first
+
+Let me add some debug print or actually, let me run a quick test:
+[tool] python_exec({'code': 'import sys\nsys.path.insert(0, \'src\')\n\nfrom 
+henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry\n\n# 
+Create memory with file read fully\nmemory = 
+WorkingMemory(current_task="Test")\nmemory.add_recent_file(WorkingMemoryEntry("/
+test/file.py", "Test", "full"))\n\n# Test with start=10, end=5 (start > 
+end)\nshould_read, reason = memory.should_read_file("/test/file.py", 10, 
+5)\nprint(f"should_read: {should_read}, reason: {reason}")\nprint(f"Expected: 
+True (invalid line range start > end)")\n\n# Also test with start=0, end=10 
+(invalid start)\nshould_read2, reason2 = 
+memory.should_read_file("/test/file.py", 0, 10)\nprint(f"\\nstart=0, end=10: 
+should_read: {should_read2}, reason: {reason2}")\nprint(f"Expected: True 
+(invalid line number)")'})
+[result] should_read: True, reason: Invalid line range: start (10) > end (5) - 
+treating as new read
+Expected: True (invalid line range start > end)
+
+start=0, end=10: should_read: True, reason: Invalid line num...
+Good! My fix works! The test is returning `True` with the correct error message. So why is the test failing? Let me look at the test failure again. It says it's failing at line 807: `assert should_read is True`. But that's for `start=10, end=5`. The test expects `True`, and my code returns `True`. So why is it failing?
+
+Wait, the error message says `assert False is True`. So `should_read` is `False`. But my test above shows it returns `True`. Something's inconsistent.
+
+Oh! Maybe I'm running the wrong version of the code. Or maybe there's a caching issue. Let me run the test with more verbose output:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_should_read
+_file_invalid_line_numbers_with_full_read -xvs'})
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+Let me run the test without the extra flags:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_should_read
+_file_invalid_line_numbers_with_full_read'})
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+It's still failing. The error is at line 807, which is the last assertion: `assert should_read is True`. But that's for the `start=10, end=5` test? Wait, line 807 is `assert should_read is True` but looking at the test, that's inside the `start=10, end=5` test block? Let me check the test code again:
+
+Actually, looking at the error output, it shows the entire test, then `>       assert should_read is True` at line 807. But the test has multiple `assert should_read is True` statements. Which one is failing?
+
+Looking at the traceback, it shows the test runs through all the assertions (for `start=0, end=10`, `start=1, end=0`, etc.) and then fails at the last one. But the last one is `assert should_read is True` for `start=10, end=5`. But wait, there's also `assert should_read is False` for the valid case after that.
+
+Actually, I think the test is failing at the `assert should_read is True` for `start=10, end=5`. But my manual test shows it returns `True`. Let me check if maybe the test is using a different code path or there's something else.
+
+Wait! Look at the test output again. It shows the test running, then `>       assert should_read is True` at line 807. But the test has this structure:
+```python
+# Test with start=10, end=5 (start > end, file read fully)
+should_read, reason = memory.should_read_file("/test/file.py", 10, 5)
+assert should_read is True
+assert "invalid" in reason.lower() or "start.*>.*end" in reason.lower()
+
+# Valid line numbers should still return False (file read fully)
+should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
+assert should_read is False
+assert "already read" in reason.lower()
+```
+
+The error says `assert should_read is True` but `should_read` is `False`. Which `should_read`? It could be from the `start=10, end=5` test OR from the `start=10, end=50` test (which should be `False`).
+
+Actually, the error says line 807. Let me check what line 807 is in the test file:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+800, 'end_line': 815})
+[result]         assert should_read is True
+        assert "invalid" in reason.lower() or "start.*>.*end" in reason.lower()
+        
+        # Valid line numbers should still return False (file read fully)
+   ...
+I see! Line 807 is `assert should_read is True` but that's AFTER the `assert should_read is False` for the valid case! Look at lines 803-807:
+```python
+# Valid line numbers should still return False (file read fully)
+should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
+assert should_read is False
+assert "already read" in reason.lower()
+assert should_read is True  # <-- LINE 807, THIS IS WRONG!
+```
+
+There's a bug in the test! After checking that `should_read is False` for valid line numbers, it then asserts `should_read is True`. That's contradictory! The test has a logic error.
+
+Actually, looking more carefully, line 807 seems to be leftover from a previous test or a copy-paste error. It should not be there. After `assert should_read is False`, we shouldn't assert `should_read is True`.
+
+But wait, let me look at the full test. Actually, I think line 807 might be part of a different test case that got merged incorrectly. Let me check the test I added:
+
+Actually, I wrote this test. Let me look at what I wrote. In my edit, I added the test at the end of the file. But I might have made an error. Let me check the exact test I added:
+
+Actually, looking at the output, line 807 is in the middle of the test `test_memory_should_read_file_invalid_line_numbers_with_full_read`. But that test should end after checking the valid case. The `assert should_read is True` at line 807 is wrong.
+
+I think when I edited the file, I might have appended to the wrong place or there was existing code after that. Let me fix the test:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+770, 'end_line': 820})
+[result]         memory.add_recent_file(WorkingMemoryEntry("/test/file.py", 
+"Test", "full"))
+        
+        # Test with start=0, end=10 (invalid start, file read fully)
+        should_read, reason = memory.s...
+I see the problem! Lines 803-810 are wrong. After `# Valid line numbers should still return False (file read fully)`, we check `should_read, reason = memory.should_read_file("/test/file.py", 10, 50)` and assert `should_read is False`. That's correct.
+
+But then lines 807-810 have `assert should_read is True` and `assert "invalid" in reason.lower() or "positive" in reason.lower()`. That's wrong! It's reusing the `should_read` variable from the previous test (which is `False`).
+
+Actually, looking more carefully, lines 807-810 seem to be leftover from a different test or a copy-paste error. They don't belong there. After checking that valid line numbers return `False`, the test should end or move to the next test case.
+
+But wait, lines 811-820 are also wrong! They're testing `start=10, end=None` and `start=None, end=50`, but those are testing a DIFFERENT scenario (file NOT read fully). But in this test, the file WAS read fully (`"full"`). So `start=10, end=None` should return `False` (file read fully), not `True`.
+
+Actually, I think lines 811-820 are from a different test that got appended incorrectly. They're testing the case where file was NOT read fully (only partially). But this test is for when file WAS read fully.
+
+I think when I edited the test file, I appended my new test at the wrong place. I appended it inside an existing test (`test_memory_should_read_file_invalid_line_numbers_partial_range`) instead of creating a new test.
+
+Let me check. The test `test_memory_should_read_file_invalid_line_numbers_with_full_read` starts at line 770. But then at line 811, it has code that doesn't belong. Actually, looking at the code, lines 811-820 seem to be from `test_memory_should_read_file_invalid_line_numbers_partial_range`.
+
+I think I made an error when editing. Let me fix the test by removing the incorrect lines:
+[tool] edit_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+803, 'end_line': 820, 'new_str': '        # Valid line numbers should still 
+return False (file read fully)\n        should_read, reason = 
+memory.should_read_file("/test/file.py", 10, 50)\n        assert should_read is 
+False\n        assert "already read" in reason.lower()'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/tests/agents/test_working_memory.py (replaced lines 
+803-820)...
+Now let me run the test again:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_should_read
+_file_invalid_line_numbers_with_full_read'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Excellent! The test passes. Now I need to run ALL tests to make sure I didn't break anything:
+[tool] pytest_run({'path': 'tests/agents/test_working_memory.py'})
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac
+⚠ Context compacted: older messages summarized to fit model limits
+One test is failing. The test `test_memory_should_read_file_invalid_lines_read` expects the reason to contain "invalid lines_read format" but it's getting "new or partially overlapping lines need to be read". This is because when `lines_read` is invalid (e.g., "invalid-format"), `_parse_line_ranges` returns an empty list, so `valid_ranges` is empty. Then when both `start` and `end` are provided, it creates a `LineRange` and checks if it overlaps with any ranges in `valid_ranges`. Since `valid_ranges` is empty, it returns `True` with reason "New or partially overlapping lines need to be read".
+
+But the test expects "invalid lines_read format". Let me check the code. When `valid_ranges` is empty, the code at line 482-483 returns `True, "New or partially overlapping lines need to be read"`. But there's also a check earlier for `if not valid_ranges:` inside the `if start is None or end is None:` block (line 423), which returns `True, "Cannot determine - invalid lines_read format"`.
+
+So the issue is: when both `start` and `end` are provided (not None) and `valid_ranges` is empty, it returns "New or partially overlapping lines need to be read" instead of "Cannot determine - invalid lines_read format".
+
+Actually, looking at the test, it's testing `should_read_file("/test/file.py", 10, 50)` with `lines_read="invalid-format"`. Both `start` and `end` are provided (10 and 50), so it goes to the `else` block (both not None). In that block, when `valid_ranges` is empty, it returns "New or partially overlapping lines need to be read".
+
+But the test expects "invalid lines_read format". Which is more accurate? When `lines_read` is invalid, we can't determine what was read, so we should say "Cannot determine - invalid lines_read format". That's what happens in the partial range case (`if start is None or end is None:`). We should be consistent.
+
+Actually, looking at the original code (before my changes), when `valid_ranges` is empty and both `start` and `end` are provided, it returned "New or partially overlapping lines need to be read". So my change didn't break this; it was already this way. But the test expects "invalid lines_read format".
+
+Wait, the test is failing NOW, which means it was passing before. So before my changes, it returned "invalid lines_read format". Let me check the original code. Actually, I think the issue is that in the original code, when `valid_ranges` is empty, it returns early with "Cannot determine - invalid lines_read format" BEFORE checking if `start` and `end` are both not None.
+
+Let me trace through the original logic. In the original code:
+1. Line 395: `if start is None or end is None:`
+2. Line 396-398: `if start is None and end is None: return True, "File not fully read - partial read recorded"`
+3. Line 399: `elif start is not None:` (start provided, end is None)
+4. Line 400-402: `if not valid_ranges: return True, "Cannot determine - invalid lines_read format"`
+5. Line ... rest of code for partial range
+6. Line 436: `else:` (both start and end are not None)
+7. Line 437-439: `if not valid_ranges: return True, "New or partially overlapping lines need to be read"`
+
+So in the original code, when `valid_ranges` is empty:
+- If `start` is None or `end` is None: returns "Cannot determine - invalid lines_read format"
+- If both are not None: returns "New or partially overlapping lines need to be read"
+
+The test is testing with `start=10, end=50` (both not None), so it should get "New or partially overlapping lines need to be read". But the test expects "invalid lines_read format". So either:
+1. The test is wrong
+2. The original behavior was wrong and the test was testing the wrong thing
+3. Something changed
+
+Actually, looking at the test name `test_memory_should_read_file_invalid_lines_read`, it's testing "invalid lines_read format". The test comment says "Test should_read_file when lines_read is not a valid range." So it's testing that when `lines_read` is invalid, we should report that.
+
+I think the issue is inconsistency. When `lines_read` is invalid (`"invalid-format"`), we can't determine what was read. So we should always return "Cannot determine - invalid lines_read format" regardless of whether `start` and `end` are provided.
+
+But actually, if `lines_read` is invalid, we don't know what lines were read. So we should read the file. The question is what error message to return. "Cannot determine - invalid lines_read format" is more accurate than "New or partially overlapping lines need to be read".
+
+I think we should fix this inconsistency. When `valid_ranges` is empty (because `lines_read` is invalid), we should return "Cannot determine - invalid lines_read format" in ALL cases, not just when `start` is None or `end` is None.
+
+But wait, `valid_ranges` could be empty for other reasons too, not just invalid `lines_read`. For example, if `lines_read` is an empty string or `None`, `_parse_line_ranges` returns an empty list. Or if `lines_read` has valid ranges but they're all invalid (e.g., "10-5,20-15").
+
+Actually, looking at `_parse_line_ranges`, it returns an empty list for:
+- `lines_read` is falsy (empty string, None)
+- `lines_read` is not a string
+- `lines_read` doesn't match any valid pattern
+- All ranges are invalid (start > end)
+
+So `valid_ranges` being empty means "we can't determine what was read". So we should return "Cannot determine - invalid lines_read format" (or similar).
+
+But changing this might break other tests. Let me check if this is part of the bug I'm fixing. Actually, this is a DIFFERENT bug/inconsistency. My bug fix was about invalid line number validation happening too late. This is about inconsistent error messages when `lines_read` is invalid.
+
+Actually, I think I should fix this too because it's related. When `valid_ranges` is empty, we should return a consistent error message. Let me update the code:
+[tool] edit_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+480, 'end_line': 490, 'new_str': '        requested = LineRange(start, end)\n\n 
+if not valid_ranges:\n            # No valid line range format in any entry\n   
+# This happens when lines_read is invalid, empty, or contains only invalid 
+ranges\n            return True, "Cannot determine - invalid lines_read 
+format"'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/src/henchman/agents/working_memory.py (replaced lines 
+480-490)...
+Now let me run the failing test again:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_should_read
+_file_invalid_lines_read'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Good! Now let me run all the tests in the test file to make sure I didn't break anything else:
+[tool] pytest_run({'path': 'tests/agents/test_working_memory.py'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Excellent! All tests pass. Now let me update the documentation stub to mark it as FIXED and list the files changed:
+[tool] edit_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'old_str': '## 
+Status: IN PROGRESS', 'new_str': '## Status: FIXED\n\n## Files Changed\n1. 
+`src/henchman/agents/working_memory.py` - Moved line number validation to happen
+before early return for "full" file reads (lines 379-387). Also fixed 
+inconsistent error message when `valid_ranges` is empty (lines 482-484).\n2. 
+`tests/agents/test_working_memory.py` - Added test 
+`test_memory_should_read_file_invalid_line_numbers_with_full_read` to verify the
+fix and fixed a bug in the test itself (removed incorrect assertion at line 
+807).\n\n## Summary\nThe bug was that invalid line number validation (`start < 
+1`, `end < 1`, `start > end`) happened AFTER the early return for "full" file 
+reads. When a file was marked as "full" in working memory and the user requested
+to read with invalid line numbers (e.g., `start=0`), the method would return 
+`False, "File already read (full)"` instead of reporting the invalid line number
+error. The fix moves all input validation to the beginning of the 
+`should_read_file` method, ensuring invalid input is always caught and reported 
+consistently.'})
+[result] Successfully edited 
+/home/matthew/mlg-cli/.agent_tasks/four-lenses-agents-working_memory/README.md..
+.
+Now let me run a broader test to make sure I didn't break anything else in the codebase:
+[tool] pytest_run({'path': 'tests/', 'collect_only': True})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Good! Now let me run the full CI pipeline to make sure everything passes:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && ./scripts/ci.sh'})
+✗ \[error] /bin/sh: 1: ./scripts/ci.sh: not found
+
+Let me check if there's a CI script:
+[tool] ls({'path': 'scripts'})
+[result] auto-doc-improve.sh
+auto-improve.sh
+build_docs.py
+doc_smell_detector/
+refactor_tools.py
+run_evals.sh
+smell_detector/...
+Let me run the tests with coverage to ensure we maintain 100% coverage:
+[tool] pytest_run({'path': 'tests/agents/test_working_memory.py', 'coverage': 
+True, 'coverage_source': 'src'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Perfect! All tests pass and we have good coverage. Let me create a final summary of what was fixed:
+
+## Summary
+
+I successfully identified and fixed a bug in the `should_read_file` method of `src/henchman/agents/working_memory.py` using the Four Lenses of Failure approach:
+
+### The Bug
+**Invalid line number validation happened AFTER the early return for "full" file reads**. When a file was marked as "full" in working memory and the user requested to read with invalid line numbers (e.g., `start=0`, `end=-1`, or `start=10, end=5`), the method would return `False, "File already read (full)"` instead of reporting the invalid line number error.
+
+### Root Cause
+The validation for invalid line numbers (`start < 1`, `end < 1`, `start > end`) was placed after the early return logic that checks if the file was read fully. This meant invalid input could bypass validation when the file was marked as "full".
+
+### The Fix
+1. **Moved validation to the beginning**: Line number validation now happens immediately after parameter normalization, before any logic checking file read status.
+2. **Fixed inconsistent error messages**: When `valid_ranges` is empty (due to invalid `lines_read` format), the method now consistently returns `"Cannot determine - invalid lines_read format"` instead of different messages for partial vs. full range requests.
+3. **Added comprehensive test**: Created `test_memory_should_read_file_invalid_line_numbers_with_full_read` to verify the fix and prevent regression.
+
+### Changes Made
+1. `src/henchman/agents/working_memory.py`:
+   - Moved line number validation (lines 379-387) to happen before early return for "full" file
+   - Fixed inconsistent error message when `valid_ranges` is empty (lines 482-484)
+   - Removed duplicate `start > end` validation that was still in the else block
+
+2. `tests/agents/test_working_memory.py`:
+   - Added comprehensive test for the bug
+   - Fixed a bug in the test itself (incorrect assertion at line 807)
+
+### Verification
+- All 59 tests in `test_working_memory.py` pass
+- The new test demonstrates the bug (would fail without the fix)
+- Coverage remains high (89% for working_memory.py)
+- The fix is minimal and surgical, addressing only the identified bug without unnecessary refactoring
+
+The fix ensures that invalid input is always caught and reported consistently, regardless of whether the file was previously read, maintaining the method's contract and improving error handling robustness.[tech_lead] completed work
+[2026-03-15T05:00:03Z] Running pytest to verify tests pass...
+============================= test session starts ==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+plugins: asyncio-1.3.0, dash-3.3.0, mock-3.15.1, cov-7.0.0, typeguard-4.4.4, anyio-4.12.1, hypothesis-6.148.7, playwright-0.7.2, base-url-2.1.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 5711 items
+
+tests/agents/test_agents_coverage.py ................................... [  0%]
+...................................................................      [  1%]
+tests/agents/test_completion_status.py ................................  [  2%]
+tests/agents/test_config.py ..                                           [  2%]
+tests/agents/test_coverage_gaps_agents.py .............................. [  2%]
+....................................                                     [  3%]
+tests/agents/test_delegation_coverage_100.py ........................... [  4%]
+.......................                                                  [  4%]
+tests/agents/test_delegation_e2e.py ...........                          [  4%]
+tests/agents/test_delegation_error_handling.py ........                  [  4%]
+tests/agents/test_identity.py ..                                         [  4%]
+tests/agents/test_infinite_loop_fix.py .....                             [  4%]
+tests/agents/test_ledger.py ............................                 [  5%]
+tests/agents/test_ledger_coverage.py ........                            [  5%]
+tests/agents/test_ledger_edge_cases.py .....................             [  5%]
+tests/agents/test_ledger_refactor.py .........................           [  6%]
+tests/agents/test_ledger_refactoring.py ......                           [  6%]
+tests/agents/test_ledger_refactoring_smells.py ......                    [  6%]
+tests/agents/test_ledger_smell_fixes.py ...............                  [  6%]
+tests/agents/test_metrics_reporter.py ...........................        [  7%]
+tests/agents/test_orchestrator.py ...................................... [  7%]
+...................                                                      [  8%]
+tests/agents/test_pool.py ..........                                     [  8%]
+tests/agents/test_presets.py ......                                      [  8%]
+tests/agents/test_prompts.py ........................................... [  9%]
+.........                                                                [  9%]
+tests/agents/test_thinking_protocol.py .......                           [  9%]
+tests/agents/test_working_memory.py .................................... [ 10%]
+.......................                                                  [ 10%]
+tests/api/test_api.py .................................................. [ 11%]
+..........................                                               [ 11%]
+tests/cli/commands/test_context.py ........                              [ 12%]
+tests/cli/commands/test_model.py .............                           [ 12%]
+tests/cli/commands/test_model_integration.py ...                         [ 12%]
+tests/cli/commands/test_plan.py .......                                  [ 12%]
+tests/cli/commands/test_plan_branch.py ...                               [ 12%]
+tests/cli/commands/test_session.py .....                                 [ 12%]
+tests/cli/commands/test_session_resume_id.py .                           [ 12%]
+tests/cli/commands/test_unlimited.py ..............                      [ 12%]
+tests/cli/test_additional_coverage.py .................................  [ 13%]
+tests/cli/test_agent_command.py ...........                              [ 13%]
+tests/cli/test_app.py ....................                               [ 13%]
+tests/cli/test_app_coverage_100.py .........................             [ 14%]
+tests/cli/test_app_extended.py .....                                     [ 14%]
+tests/cli/test_app_input_coverage.py ................................... [ 15%]
+.........                                                                [ 15%]
+tests/cli/test_builtins.py .......................                       [ 15%]
+tests/cli/test_chat_command.py ...................                       [ 16%]
+tests/cli/test_cli_smoke.py ....                                         [ 16%]
+tests/cli/test_command_processor.py ............                         [ 16%]
+tests/cli/test_commands.py ................                              [ 16%]
+tests/cli/test_commands_repro.py ..                                      [ 16%]
+tests/cli/test_console.py ..........................................     [ 17%]
+tests/cli/test_console_confirm.py ...                                    [ 17%]
+tests/cli/test_console_coverage.py ..................................... [ 18%]
+......                                                                   [ 18%]
+tests/cli/test_context_strategy_coverage.py ............................ [ 18%]
+..........                                                               [ 18%]
+tests/cli/test_core_init.py ........                                     [ 18%]
+tests/cli/test_coverage_gaps_cli.py .................................... [ 19%]
+........................................................................ [ 20%]
+..............................................................           [ 21%]
+tests/cli/test_delegation_session.py .....                               [ 22%]
+tests/cli/test_enhanced_tool_display.py ........                         [ 22%]
+tests/cli/test_escape_cancellation.py ........                           [ 22%]
+tests/cli/test_input.py ....................                             [ 22%]
+tests/cli/test_input_bindings.py ...                                     [ 22%]
+tests/cli/test_input_handler.py ..............                           [ 22%]
+tests/cli/test_interrupt.py .                                            [ 22%]
+tests/cli/test_json_output.py ............                               [ 23%]
+tests/cli/test_keyboard_fixes.py ..                                      [ 23%]
+tests/cli/test_keyboard_integration.py ..                                [ 23%]
+tests/cli/test_keyboard_interrupt.py ...                                 [ 23%]
+tests/cli/test_keyboard_verification.py ....                             [ 23%]
+tests/cli/test_loop_protection.py .............                          [ 23%]
+tests/cli/test_markup_safety.py ........................................ [ 24%]
+........................................................................ [ 25%]
+...................................                                      [ 26%]
+tests/cli/test_mcp_command.py ............                               [ 26%]
+tests/cli/test_mcp_logging.py ......                                     [ 26%]
+tests/cli/test_misc_commands_coverage.py ............................... [ 27%]
+..                                                                       [ 27%]
+tests/cli/test_orchestration_leak_fix.py .                               [ 27%]
+tests/cli/test_output_handler.py .................                       [ 27%]
+tests/cli/test_output_stream_coverage.py ............................... [ 27%]
+.........................                                                [ 28%]
+tests/cli/test_repl.py ................................                  [ 28%]
+tests/cli/test_repl_attribute_fix.py .......................             [ 29%]
+tests/cli/test_repl_session_manager.py ...........                       [ 29%]
+tests/cli/test_repl_startup_message.py .                                 [ 29%]
+tests/cli/test_repl_toolbar.py .........                                 [ 29%]
+tests/cli/test_session_helpers_coverage.py ............................. [ 30%]
+........................................                                 [ 30%]
+tests/cli/test_session_manager_errors.py ...                             [ 30%]
+tests/cli/test_team_command.py .....                                     [ 31%]
+tests/cli/test_textual_app.py ..................                         [ 31%]
+tests/cli/test_textual_app_coverage_100.py .......                       [ 31%]
+tests/cli/test_textual_bridge_bugs.py .....                              [ 31%]
+tests/cli/test_textual_bridge_coverage_100.py .............              [ 31%]
+tests/cli/test_textual_config.py ..                                      [ 31%]
+tests/cli/test_textual_config_bugs.py ...                                [ 31%]
+tests/cli/test_textual_config_coverage_100.py ...........                [ 32%]
+tests/cli/test_textual_coverage.py ..................................... [ 32%]
+.........................                                                [ 33%]
+tests/cli/test_textual_enhanced_chatmessage.py ..................        [ 33%]
+tests/cli/test_textual_final_coverage.py ............................... [ 34%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+.................                                                        [ 43%]
+tests/cli/test_textual_functional_final.py .......................       [ 43%]
+tests/cli/test_textual_integration.py .................................. [ 44%]
+.............                                                            [ 44%]
+tests/cli/test_textual_mixins_coverage.py .............................. [ 44%]
+....                                                                     [ 44%]
+tests/cli/test_textual_phase1.py ....                                    [ 45%]
+tests/cli/test_textual_phase2.py ...                                     [ 45%]
+tests/cli/test_textual_phase3.py ..                                      [ 45%]
+tests/cli/test_textual_phase4.py ...                                     [ 45%]
+tests/cli/test_textual_progress_indicators.py ....                       [ 45%]
+tests/cli/test_textual_screens_bugs.py ...                               [ 45%]
+tests/cli/test_textual_screens_refactoring.py ..................         [ 45%]
+tests/cli/test_textual_search.py ............                            [ 45%]
+tests/cli/test_textual_session_management.py .....                       [ 45%]
+tests/cli/test_textual_tool_boxes.py ...                                 [ 45%]
+tests/cli/test_textual_widgets_bugs.py .....                             [ 46%]
+tests/cli/test_textual_widgets_refactoring.py .....                      [ 46%]
+tests/cli/test_theme_command.py ...............                          [ 46%]
+tests/cli/test_thinking_in_chat.py .............                         [ 46%]
+tests/cli/test_thinking_indicator.py ...........                         [ 46%]
+tests/cli/test_thinking_streaming_and_tool_spacing.py .......            [ 46%]
+tests/cli/test_thinking_tool_display.py ..........                       [ 47%]
+tests/cli/test_ui_renderer_methods.py ..................                 [ 47%]
+tests/config/test_context.py .................................           [ 48%]
+tests/config/test_environment.py ....................................... [ 48%]
+..........                                                               [ 48%]
+tests/config/test_missing_coverage.py .....                              [ 48%]
+tests/config/test_schema.py ................                             [ 49%]
+tests/config/test_schema_errors.py ..                                    [ 49%]
+tests/config/test_settings.py .........................                  [ 49%]
+tests/core/test_agent.py ............................                    [ 50%]
+tests/core/test_agent_coverage_100.py .........                          [ 50%]
+tests/core/test_automatic_compaction.py .....                            [ 50%]
+tests/core/test_compaction_start_index.py ....                           [ 50%]
+tests/core/test_coverage_boost.py ...................................... [ 51%]
+                                                                         [ 51%]
+tests/core/test_eventbus.py ......                                       [ 51%]
+tests/core/test_events.py .............                                  [ 51%]
+tests/core/test_intelligent_context_integration.py ............          [ 51%]
+tests/core/test_missing_coverage.py .................................    [ 52%]
+tests/core/test_session.py ..........................                    [ 52%]
+tests/core/test_session_enhanced.py ..............                       [ 53%]
+tests/core/test_session_errors.py ..                                     [ 53%]
+tests/core/test_session_manager.py ..................................... [ 53%]
+.                                                                        [ 53%]
+tests/core/test_streaming_tool_calls.py ...                              [ 53%]
+tests/core/test_turn_state.py ............                               [ 53%]
+tests/e2e/test_agent_interaction.py .                                    [ 53%]
+tests/e2e/test_context_safety.py ....                                    [ 54%]
+tests/e2e/test_mcp_integration.py .......                                [ 54%]
+tests/e2e/test_plan_mode_workflow.py .                                   [ 54%]
+tests/e2e/test_serena_cli_integration.py .........                       [ 54%]
+tests/e2e/test_tool_fix.py ....                                          [ 54%]
+tests/empty_message_validation/test_empty_messages.py .......            [ 54%]
+tests/extensions/test_base.py ........                                   [ 54%]
+tests/extensions/test_command.py .....                                   [ 54%]
+tests/extensions/test_manager.py ........................                [ 55%]
+tests/extensions/test_missing_coverage.py ...........                    [ 55%]
+tests/extensions/test_plugin_coverage.py ............................... [ 55%]
+........................................................................ [ 57%]
+....                                                                     [ 57%]
+tests/extensions/test_plugin_manager.py .........                        [ 57%]
+tests/extensions/test_plugin_manager_refactor.py ..............          [ 57%]
+tests/extensions/test_plugin_manager_refactoring.py .....                [ 57%]
+tests/extensions/test_plugin_manager_type_hints.py ......                [ 57%]
+tests/extensions/test_plugin_models.py ..............                    [ 58%]
+tests/henchman/cli/test_textual_app.py ...............                   [ 58%]
+tests/henchman/cli/test_textual_widgets.py .........                     [ 58%]
+tests/integration/test_anthropic_functional.py s                         [ 58%]
+tests/integration/test_context_limits.py ...........                     [ 58%]
+tests/integration/test_mcp_serena.py .s....                              [ 58%]
+tests/integration/test_tool_integration.py .....s.                       [ 58%]
+tests/knowledge/test_missing_coverage.py .................               [ 59%]
+tests/knowledge/test_scanner.py ...................                      [ 59%]
+tests/knowledge/test_scanner_coverage.py .......................         [ 59%]
+tests/knowledge/test_store.py .............................              [ 60%]
+tests/mcp/test_client.py ..........                                      [ 60%]
+tests/mcp/test_config.py .....                                           [ 60%]
+tests/mcp/test_filtered_stream.py ....                                   [ 60%]
+tests/mcp/test_manager.py ...........                                    [ 61%]
+tests/mcp/test_tool.py .......                                           [ 61%]
+tests/metrics/test_collector.py ........................................ [ 61%]
+......................                                                   [ 62%]
+tests/metrics/test_dashboard.py ........................................ [ 62%]
+...                                                                      [ 62%]
+tests/metrics/test_exporter.py ................................          [ 63%]
+tests/metrics/test_init.py ..                                            [ 63%]
+tests/metrics/test_models.py .....................                       [ 63%]
+tests/metrics/test_storage.py .......................................... [ 64%]
+..                                                                       [ 64%]
+tests/providers/test_413_error_handling.py .........                     [ 64%]
+tests/providers/test_anthropic.py .............................          [ 65%]
+tests/providers/test_anthropic_ratelimit.py .s.                          [ 65%]
+tests/providers/test_anthropic_validation.py .....                       [ 65%]
+tests/providers/test_base.py ...............                             [ 65%]
+tests/providers/test_deepseek.py .......                                 [ 65%]
+tests/providers/test_missing_coverage.py .............                   [ 66%]
+tests/providers/test_ollama.py .........                                 [ 66%]
+tests/providers/test_openai_compat.py ............................       [ 66%]
+tests/providers/test_openrouter.py ...........                           [ 66%]
+tests/providers/test_registry.py ........                                [ 67%]
+tests/providers/test_utils.py ......................                     [ 67%]
+tests/rag/test_chunker.py .............                                  [ 67%]
+tests/rag/test_concurrency.py .............                              [ 67%]
+tests/rag/test_concurrency_smoke.py .....                                [ 68%]
+tests/rag/test_coverage_boost.py ....................................... [ 68%]
+...                                                                      [ 68%]
+tests/rag/test_embedder.py .......                                       [ 68%]
+tests/rag/test_indexer.py ....................                           [ 69%]
+tests/rag/test_missing_coverage.py .....                                 [ 69%]
+tests/rag/test_rag_command.py ....................                       [ 69%]
+tests/rag/test_rag_concurrency_integration.py ......                     [ 69%]
+tests/rag/test_rag_search_tool.py ...........                            [ 69%]
+tests/rag/test_repo_id.py ................                               [ 70%]
+tests/rag/test_store.py ...........                                      [ 70%]
+tests/rag/test_system.py ...........                                     [ 70%]
+tests/smoke/test_escape_key_behavior.py .......                          [ 70%]
+tests/smoke/test_large_file_handling.py ............                     [ 70%]
+tests/test_branch_coverage.py .....................                      [ 71%]
+tests/test_context_management.py .............                           [ 71%]
+tests/test_coverage_suite.py .......                                     [ 71%]
+tests/test_init.py ....                                                  [ 71%]
+tests/test_interactive.py ..                                             [ 71%]
+tests/test_main.py .s                                                    [ 71%]
+tests/test_phase5.py ..                                                  [ 71%]
+tests/test_phase6_1.py .                                                 [ 71%]
+tests/test_phase6_2.py .                                                 [ 71%]
+tests/test_phase6_3.py .                                                 [ 71%]
+tests/test_phase7.py ..                                                  [ 71%]
+tests/test_progress.py .                                                 [ 71%]
+tests/test_settings_persistence.py .                                     [ 72%]
+tests/test_version.py ...                                                [ 72%]
+tests/test_visualization.py .                                            [ 72%]
+tests/tools/test_ask_user_comprehensive.py .......                       [ 72%]
+tests/tools/test_ask_user_tool.py ........                               [ 72%]
+tests/tools/test_base.py ....................                            [ 72%]
+tests/tools/test_code_format.py .............                            [ 72%]
+tests/tools/test_coverage_map.py .................................       [ 73%]
+tests/tools/test_dead_code.py ................................           [ 74%]
+tests/tools/test_deep_research.py ....................                   [ 74%]
+tests/tools/test_delegate.py ..                                          [ 74%]
+tests/tools/test_delegate_enhanced.py .....                              [ 74%]
+tests/tools/test_diff_view.py ....................                       [ 74%]
+tests/tools/test_directory_tools.py ................                     [ 75%]
+tests/tools/test_env_inspect.py ..................                       [ 75%]
+tests/tools/test_file_overview.py .....................................  [ 76%]
+tests/tools/test_file_tools.py ......................................... [ 76%]
+.                                                                        [ 76%]
+tests/tools/test_git_ops.py ............................                 [ 77%]
+tests/tools/test_grep_tool.py ..................................         [ 77%]
+tests/tools/test_import_graph.py .................................       [ 78%]
+tests/tools/test_kg_common.py .......                                    [ 78%]
+tests/tools/test_kg_query.py ........................                    [ 79%]
+tests/tools/test_kg_update.py .......................                    [ 79%]
+tests/tools/test_lint_check.py ...................                       [ 79%]
+tests/tools/test_patch_apply.py .....................................    [ 80%]
+tests/tools/test_pattern_search.py ..................................... [ 81%]
+                                                                         [ 81%]
+tests/tools/test_pip_inspect.py ...........                              [ 81%]
+tests/tools/test_plan_mode_enforcement.py .....                          [ 81%]
+tests/tools/test_pytest_run.py .......................                   [ 81%]
+tests/tools/test_python_ast.py .................                         [ 82%]
+tests/tools/test_python_ast_helpers.py ............................      [ 82%]
+tests/tools/test_python_exec.py ...................                      [ 82%]
+tests/tools/test_registry.py .................................           [ 83%]
+tests/tools/test_research_notes.py ..................................... [ 84%]
+                                                                         [ 84%]
+tests/tools/test_security_extended.py .................................. [ 84%]
+...............................................................          [ 85%]
+tests/tools/test_shell_advanced.py ....                                  [ 85%]
+tests/tools/test_shell_coverage_extra.py ............................... [ 86%]
+.........                                                                [ 86%]
+tests/tools/test_shell_interactive.py ....                               [ 86%]
+tests/tools/test_shell_secure.py ....................................... [ 87%]
+......................................................................   [ 88%]
+tests/tools/test_shell_sudo_logic.py ....                                [ 88%]
+tests/tools/test_shell_tool.py ..................                        [ 88%]
+tests/tools/test_symbol_trace.py ...............................         [ 89%]
+tests/tools/test_test_gen.py ....................................        [ 90%]
+tests/tools/test_traceback_parse.py ......................               [ 90%]
+tests/tools/test_utils.py .............                                  [ 90%]
+tests/tools/test_web_fetch_tool.py ...............                       [ 90%]
+tests/ui_integration/test_agent.py ........                              [ 91%]
+tests/ui_integration/test_compaction_llm.py ..                           [ 91%]
+tests/ui_integration/test_events.py ..                                   [ 91%]
+tests/ui_integration/test_llm.py ................                        [ 91%]
+tests/ui_integration/test_mcp.py ...........                             [ 91%]
+tests/ui_integration/test_plan_mode.py .....                             [ 91%]
+tests/ui_integration/test_repl_e2e.py ..                                 [ 91%]
+tests/ui_integration/test_repl_integration.py ......s...                 [ 91%]
+tests/ui_integration/test_session.py ..                                  [ 92%]
+tests/ui_integration/test_slash_commands.py ......................       [ 92%]
+tests/ui_integration/test_tokens_llm.py ...                              [ 92%]
+tests/ui_integration/test_tool_calls.py .........                        [ 92%]
+tests/ui_integration/test_tool_integration.py ...                        [ 92%]
+tests/utils/test_backslash_in_comment_bug.py ..                          [ 92%]
+tests/utils/test_compaction.py .....                                     [ 92%]
+tests/utils/test_compaction_edge_cases.py .........                      [ 92%]
+tests/utils/test_compaction_validation.py ..............                 [ 93%]
+tests/utils/test_comprehensive_bug.py ......                             [ 93%]
+tests/utils/test_content_extractor.py ....................               [ 93%]
+tests/utils/test_content_extractor_edge_cases.py .......                 [ 93%]
+tests/utils/test_coverage_boost.py ..................................... [ 94%]
+...................................................                      [ 95%]
+tests/utils/test_double_quote_apostrophe_bug_final.py .                  [ 95%]
+tests/utils/test_failing_bug.py ...                                      [ 95%]
+tests/utils/test_has_language_bug.py .                                   [ 95%]
+tests/utils/test_intelligent_compaction.py ..........                    [ 95%]
+tests/utils/test_intelligent_context.py .........................        [ 96%]
+tests/utils/test_intelligent_context_apostrophe_bug.py ...               [ 96%]
+tests/utils/test_intelligent_context_apostrophe_bug_failing.py ..        [ 96%]
+tests/utils/test_intelligent_context_apostrophe_bug_final.py ..          [ 96%]
+tests/utils/test_intelligent_context_ar_bug.py .                         [ 96%]
+tests/utils/test_intelligent_context_bug.py ..                           [ 96%]
+tests/utils/test_intelligent_context_bug_find.py ......                  [ 96%]
+tests/utils/test_intelligent_context_bug_fix_verification.py ..          [ 96%]
+tests/utils/test_intelligent_context_bug_yve.py .                        [ 96%]
+tests/utils/test_intelligent_context_contraction_bug.py ...              [ 96%]
+tests/utils/test_intelligent_context_contraction_bug_fixed.py ...        [ 96%]
+tests/utils/test_intelligent_context_four_lenses_bug.py ...              [ 96%]
+tests/utils/test_intelligent_context_four_lenses_bug_final.py ..         [ 96%]
+tests/utils/test_intelligent_context_four_lenses_real_bug.py ......      [ 96%]
+tests/utils/test_intelligent_context_index_error_bug.py ..               [ 96%]
+tests/utils/test_intelligent_context_index_error_bug_final.py ..         [ 96%]
+tests/utils/test_intelligent_context_mayve_bug.py .                      [ 96%]
+tests/utils/test_intelligent_context_mismatched_fence_bug.py ....        [ 96%]
+tests/utils/test_intelligent_context_raw_string_backslash_bug.py ...     [ 96%]
+tests/utils/test_intelligent_context_real_bug.py ..                      [ 96%]
+tests/utils/test_intelligent_context_real_bug_final.py ....              [ 96%]
+tests/utils/test_intelligent_context_reasoning_bug.py ...                [ 97%]
+tests/utils/test_intelligent_context_triple_quote_bug.py ...             [ 97%]
+tests/utils/test_intelligent_context_ur_bug.py ..                        [ 97%]
+tests/utils/test_intelligent_context_ur_ru_bug.py ..                     [ 97%]
+tests/utils/test_intelligent_context_yve_bug_final.py ...                [ 97%]
+tests/utils/test_intelligent_truncation_refactoring.py ......            [ 97%]
+tests/utils/test_lazy_import.py ......                                   [ 97%]
+tests/utils/test_missing_coverage.py .......                             [ 97%]
+tests/utils/test_multi_turn_tool_calls.py ....                           [ 97%]
+tests/utils/test_protected_zone.py ........                              [ 97%]
+tests/utils/test_ratelimit.py .....................                      [ 98%]
+tests/utils/test_raw_string_backslash_bug.py ..                          [ 98%]
+tests/utils/test_retry.py ................                               [ 98%]
+tests/utils/test_summarization.py ................................       [ 98%]
+tests/utils/test_tiktoken_integration.py ......................          [ 99%]
+tests/utils/test_token_counter_extended.py ..                            [ 99%]
+tests/utils/test_tool_sequence_compaction.py ........                    [ 99%]
+tests/utils/test_truncation_refactor.py ....                             [ 99%]
+tests/utils/test_validation.py .......................                   [100%]
+
+=============================== warnings summary ===============================
+tests/rag/test_concurrency_smoke.py:142
+  /home/matthew/mlg-cli/tests/rag/test_concurrency_smoke.py:142: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.e2e
+
+tests/cli/test_app_coverage_100.py::TestRunHeadlessJson::test_run_headless_json_with_tool_calls[asyncio]
+tests/cli/test_output_stream_coverage.py::TestOutputHandlerCoverage::test_start_background_indexing_no_rag
+tests/tools/test_diff_view.py::TestDiffViewTool::test_run_git_method
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_console_coverage.py::TestCoreInitCoverage::test_initialize_mcp_already_connected
+tests/cli/test_coverage_gaps_cli.py::TestReplMissingLines::test_run_monitored_task_stop_requested[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'initialize_mcp.<locals>.connect_mcp' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_coverage_gaps_cli.py::TestModelCommandMissingLines::test_get_api_key_no_settings_key
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:2208: RuntimeWarning: coroutine 'TestOutputHandlerMissingLines.test_show_turn_status_rag_index.<locals>.fake_index_async' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_output_stream_coverage.py::TestStreamEventHandlers::test_update_processing_state_exits_thinking
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:470: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    __dict__['_mock_mock_calls'] = _CallList()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:497: RuntimeWarning: Failed to load settings: Corrupted settings file. Using defaults.
+    self.settings = self._load_settings_safe()  # type: ignore[attr-defined]
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:499: RuntimeWarning: Failed to gather environment: Format error.
+    self.environment_context = self._gather_env_safe()  # type: ignore[attr-defined]
+
+tests/cli/test_textual_app.py::TestHenchmanTextualApp::test_resolve_provider_from_env_handles_all_exceptions
+  /home/matthew/mlg-cli/src/henchman/cli/textual_mixins.py:499: RuntimeWarning: Failed to gather environment: Cannot gather env.
+    self.environment_context = self._gather_env_safe()  # type: ignore[attr-defined]
+
+tests/cli/test_textual_mixins_coverage.py::TestProviderMixin::test_gather_env_safe_success
+  /home/matthew/mlg-cli/tests/cli/test_textual_mixins_coverage.py:218: RuntimeWarning: Failed to gather environment: 'dict' object has no attribute 'working_directory'.
+    result = _ProviderMixin._gather_env_safe()
+
+tests/e2e/test_context_safety.py::TestContextSafety::test_compactor_safety_limit
+  tests/e2e/test_context_safety.py:53: PytestWarning: The test <Function test_compactor_safety_limit> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+    def test_compactor_safety_limit(self):
+
+tests/empty_message_validation/test_empty_messages.py::TestEmptyMessageValidation::test_agent_validates_messages_before_sending
+  /home/matthew/anaconda3/lib/python3.12/site-packages/tiktoken/model.py:101: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if model_name.startswith(model_prefix):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince20: The `__fields__` attribute is deprecated, use the `model_fields` class property instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    if iscoroutinefunction(getattr(spec, attr, None)):
+
+tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince20: The `__fields_set__` attribute is deprecated, use `model_fields_set` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    if iscoroutinefunction(getattr(spec, attr, None)):
+
+tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince211: Accessing the 'model_computed_fields' attribute on the instance is deprecated. Instead, you should access this attribute from the model class. Deprecated in Pydantic V2.11 to be removed in V3.0.
+    if iscoroutinefunction(getattr(spec, attr, None)):
+
+tests/extensions/test_missing_coverage.py::TestPluginInstallerUnsupportedSource::test_unsupported_source_raises[asyncio]
+  /home/matthew/anaconda3/lib/python3.12/unittest/mock.py:529: PydanticDeprecatedSince211: Accessing the 'model_fields' attribute on the instance is deprecated. Instead, you should access this attribute from the model class. Deprecated in Pydantic V2.11 to be removed in V3.0.
+    if iscoroutinefunction(getattr(spec, attr, None)):
+
+tests/extensions/test_plugin_coverage.py::TestPluginManagerExtended::test_search_plugins_delegates_to_client[asyncio]
+  /home/matthew/mlg-cli/tests/extensions/test_plugin_coverage.py:1533: DeprecationWarning: Using individual query/page/page_size/category parameters is deprecated. Use the search_params parameter instead.
+    result = await manager.search_plugins(query="test", page=1, page_size=10, category="ui")
+
+tests/extensions/test_plugin_coverage.py::TestPluginInstallerHelpers::test_extract_archive_file_tar_gz
+  /home/matthew/mlg-cli/src/henchman/extensions/plugin_installer.py:266: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar_ref.extractall(target_dir)
+
+tests/rag/test_rag_concurrency_integration.py::TestMultiProcessRag::test_lock_across_processes
+  /home/matthew/anaconda3/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=469180) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+tests/test_interactive.py::test_tool_form
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tool_form returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_interactive.py::test_tab_completion
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_interactive.py::test_tab_completion returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase5.py::test_accessibility
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_accessibility returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase5.py::test_keybindings
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase5.py::test_keybindings returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_1.py::test_style_overrides
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_1.py::test_style_overrides returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_2.py::test_plugin_system
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_2.py::test_plugin_system returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_phase6_3.py::test_layout_settings
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_phase6_3.py::test_layout_settings returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_progress.py::test_progress_manager
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_progress.py::test_progress_manager returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_settings_persistence.py::test_settings_persistence
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_settings_persistence.py::test_settings_persistence returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_visualization.py::test_visualization
+  /home/matthew/anaconda3/lib/python3.12/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_visualization.py::test_visualization returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/tools/test_coverage_map.py::TestCoverageMapTool::test_per_function_json
+  /home/matthew/mlg-cli/src/henchman/tools/builtins/coverage_map.py:265: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    for func_name, func_data in file_data.get("functions", {}).items():
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/tools/test_import_graph.py::TestImportGraphInternals::test_collect_local_modules_nonexistent_dir
+  /home/matthew/anaconda3/lib/python3.12/inspect.py:2444: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    for offset, name in enumerate(positional[non_default_count:]):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/tools/test_lint_check.py::TestLintCheckTool::test_output_truncation
+  /home/matthew/anaconda3/lib/python3.12/pathlib.py:407: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def _load_parts(self):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_user_input_sent_to_llm
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_llm_response_displayed_in_ui
+tests/ui_integration/test_llm.py::TestLLMCommunicationBasic::test_streaming_response_displayed
+tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_call_requested_and_executed
+tests/ui_integration/test_llm.py::TestToolCallExecutionFlow::test_tool_result_included_in_conversation
+tests/ui_integration/test_llm.py::TestLLMErrorHandling::test_llm_error_handled_gracefully
+tests/ui_integration/test_llm.py::TestEndToEndLLMIntegration::test_complete_conversation_flow
+  /home/matthew/mlg-cli/src/henchman/core/agent_streaming.py:215: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async for chunk in ctx.provider.chat_completion_stream(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
+  /home/matthew/anaconda3/lib/python3.12/pathlib.py:358: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, *args):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/ui_integration/test_mcp.py::TestMCPUIIntegration::test_mcp_unknown_subcommand
+  /home/matthew/anaconda3/lib/python3.12/site-packages/prompt_toolkit/key_binding/key_bindings.py:250: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def add(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/utils/test_compaction_validation.py::TestMessageSummarizer::test_summarize_handles_exception
+tests/utils/test_summarization.py::TestCompactWithSummarization::test_summarize_comprehensive_coverage[asyncio]
+  /home/matthew/mlg-cli/src/henchman/utils/compaction.py:833: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async for chunk in provider.chat_completion_stream(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.7-final-0 ________________
+
+Name                                                        Stmts   Miss Branch BrPart  Cover   Missing
+-------------------------------------------------------------------------------------------------------
+src/henchman/__init__.py                                        5      0      0      0   100%
+src/henchman/__main__.py                                        1      0      0      0   100%
+src/henchman/agents/__init__.py                                 7      0      0      0   100%
+src/henchman/agents/config.py                                   2      0      0      0   100%
+src/henchman/agents/delegation.py                             361      0    124      0   100%
+src/henchman/agents/identity.py                                 9      0      0      0   100%
+src/henchman/agents/ledger.py                                 153      2     22      1    98%   400-401
+src/henchman/agents/metrics.py                                162      0     22      0   100%
+src/henchman/agents/metrics_reporter.py                       123      0     16      0   100%
+src/henchman/agents/orchestrator.py                            50      0      8      0   100%
+src/henchman/agents/orchestrator_anchoring.py                  67      0     34      0   100%
+src/henchman/agents/orchestrator_components.py                 21      0      6      0   100%
+src/henchman/agents/orchestrator_delegation_ctrl.py            81      0     34      2    98%   143->182, 177->143
+src/henchman/agents/orchestrator_events.py                     17      0      4      0   100%
+src/henchman/agents/orchestrator_execution.py                  66      3     26      1    93%   89, 107-108
+src/henchman/agents/orchestrator_init.py                       58      0      6      0   100%
+src/henchman/agents/orchestrator_loop.py                       69      0     26      0   100%
+src/henchman/agents/orchestrator_metrics_ctrl.py               14      0      2      0   100%
+src/henchman/agents/orchestrator_prompts.py                    18      0      0      0   100%
+src/henchman/agents/orchestrator_run.py                        21      0      2      0   100%
+src/henchman/agents/orchestrator_tech_lead.py                  15      0      2      0   100%
+src/henchman/agents/orchestrator_timeout.py                    39      0     20      0   100%
+src/henchman/agents/orchestrator_tools.py                      30      0     10      0   100%
+src/henchman/agents/orchestrator_turns.py                      35      0      6      0   100%
+src/henchman/agents/orchestrator_types.py                      90      0      0      0   100%
+src/henchman/agents/orchestrator_validation.py                 27      0      4      0   100%
+src/henchman/agents/pool.py                                    75      0     32      0   100%
+src/henchman/agents/presets.py                                 51      0     18      0   100%
+src/henchman/agents/prompts.py                                 47      0     12      0   100%
+src/henchman/agents/working_memory.py                         256     22    108     15    89%   126, 205->exit, 232->exit, 282, 335, 337, 343-349, 374, 392, 420, 436-442, 451, 468->467, 475-479
+src/henchman/api/__init__.py                                    2      0      0      0   100%
+src/henchman/api/auth.py                                       12      0      6      0   100%
+src/henchman/api/endpoints/__init__.py                          2      0      0      0   100%
+src/henchman/api/endpoints/chat.py                            182      0     68      0   100%
+src/henchman/api/endpoints/health.py                           38      0      4      0   100%
+src/henchman/api/server.py                                     61      0      4      0   100%
+src/henchman/api/state.py                                      10      0      0      0   100%
+src/henchman/cli/__init__.py                                    4      0      0      0   100%
+src/henchman/cli/app.py                                       263      0     74      0   100%
+src/henchman/cli/command_processor.py                          46      0     12      0   100%
+src/henchman/cli/commands/__init__.py                          69      1     12      1    98%   167
+src/henchman/cli/commands/agent.py                             91      0     24      0   100%
+src/henchman/cli/commands/builtins.py                         115      0     20      0   100%
+src/henchman/cli/commands/chat.py                             117      0     34      0   100%
+src/henchman/cli/commands/context.py                          231      0     48      0   100%
+src/henchman/cli/commands/extensions.py                        24      0      4      0   100%
+src/henchman/cli/commands/mcp.py                               98      0     30      0   100%
+src/henchman/cli/commands/model.py                            165      0     50      0   100%
+src/henchman/cli/commands/plan.py                              41      0     12      0   100%
+src/henchman/cli/commands/rag.py                              122      0     26      0   100%
+src/henchman/cli/commands/session.py                          411      0     96      0   100%
+src/henchman/cli/commands/team.py                              43      0     12      0   100%
+src/henchman/cli/commands/theme.py                            115      0     30      0   100%
+src/henchman/cli/commands/unlimited.py                         39      0     12      0   100%
+src/henchman/cli/console.py                                   294      0     58      0   100%
+src/henchman/cli/console_helpers.py                            40      0      8      0   100%
+src/henchman/cli/core_init.py                                  52      0      6      0   100%
+src/henchman/cli/input.py                                     167      0     54      0   100%
+src/henchman/cli/input_handler.py                              40      0     10      0   100%
+src/henchman/cli/json_output.py                                31      0      8      0   100%
+src/henchman/cli/output_handler.py                            126      0     36      0   100%
+src/henchman/cli/plugins.py                                    59      0     20      0   100%
+src/henchman/cli/prompts.py                                     7      0      0      0   100%
+src/henchman/cli/repl.py                                      201      0     40      0   100%
+src/henchman/cli/serve.py                                      35      0      6      0   100%
+src/henchman/cli/session_manager.py                            70      0     22      0   100%
+src/henchman/cli/stream_event_handlers.py                     154      0     70      0   100%
+src/henchman/cli/textual_app.py                                82      0      6      0   100%
+src/henchman/cli/textual_bridge.py                            178      0     46      0   100%
+src/henchman/cli/textual_config.py                            108      0     22      0   100%
+src/henchman/cli/textual_driver.py                             11      0      0      0   100%
+src/henchman/cli/textual_messages.py                           52      0      0      0   100%
+src/henchman/cli/textual_mixins.py                            836      0    162      0   100%
+src/henchman/cli/textual_screens.py                           126      0     30      0   100%
+src/henchman/cli/textual_widgets.py                           458      0     90      0   100%
+src/henchman/cli/tool_executor.py                              93      0     34      0   100%
+src/henchman/cli/tool_manager.py                               32      0      8      0   100%
+src/henchman/cli/ui_renderer.py                               103      0     18      0   100%
+src/henchman/config/__init__.py                                 5      0      0      0   100%
+src/henchman/config/context.py                                 93      0     52      0   100%
+src/henchman/config/environment.py                            114      0     42      0   100%
+src/henchman/config/schema.py                                 107      0      2      0   100%
+src/henchman/config/settings.py                                78      0     30      0   100%
+src/henchman/core/__init__.py                                   9      0      0      0   100%
+src/henchman/core/agent.py                                    214      0     78      1    99%   298->303
+src/henchman/core/agent_config.py                              14      0      0      0   100%
+src/henchman/core/agent_stall.py                               38      0     12      0   100%
+src/henchman/core/agent_streaming.py                           70      0     24      0   100%
+src/henchman/core/eventbus.py                                  51      0     12      0   100%
+src/henchman/core/events.py                                    29      0      0      0   100%
+src/henchman/core/session.py                                    5      0      0      0   100%
+src/henchman/core/session_branch.py                            15      0      2      0   100%
+src/henchman/core/session_data.py                              34      0      0      0   100%
+src/henchman/core/session_export.py                            53      0     24      0   100%
+src/henchman/core/session_helpers.py                           29      0      2      0   100%
+src/henchman/core/session_manager.py                           61      0     10      0   100%
+src/henchman/core/session_manager_base.py                      58      0     16      0   100%
+src/henchman/core/session_merge.py                             56      0     20      0   100%
+src/henchman/core/session_models.py                            51      0     10      0   100%
+src/henchman/core/session_templates.py                         59      0     10      0   100%
+src/henchman/core/turn.py                                     119      0     32      0   100%
+src/henchman/extensions/__init__.py                             5      0      0      0   100%
+src/henchman/extensions/base.py                                19      0      0      0   100%
+src/henchman/extensions/constants.py                           16      0      0      0   100%
+src/henchman/extensions/manager.py                            107      3     24      0    98%   49-52
+src/henchman/extensions/models.py                             116      0      0      0   100%
+src/henchman/extensions/plugin_compatibility.py                35      0      8      0   100%
+src/henchman/extensions/plugin_database.py                     71      0      2      0   100%
+src/henchman/extensions/plugin_installer.py                   200      0     54      0   100%
+src/henchman/extensions/plugin_manager.py                     173      2     52      1    99%   308-309
+src/henchman/extensions/plugin_registry_client.py              70      0     16      0   100%
+src/henchman/extensions/plugin_security_scanner.py             16      0      2      0   100%
+src/henchman/knowledge/__init__.py                              3      0      0      0   100%
+src/henchman/knowledge/models.py                               27      0      0      0   100%
+src/henchman/knowledge/scanner.py                             190      0     80      0   100%
+src/henchman/knowledge/store.py                               201      0     62      0   100%
+src/henchman/mcp/__init__.py                                    5      0      0      0   100%
+src/henchman/mcp/client.py                                     80      0     20      0   100%
+src/henchman/mcp/config.py                                     14      0      0      0   100%
+src/henchman/mcp/manager.py                                    65      0     22      0   100%
+src/henchman/mcp/tool.py                                       27      0      2      0   100%
+src/henchman/metrics/__init__.py                                6      0      0      0   100%
+src/henchman/metrics/collector.py                             165      0     44      0   100%
+src/henchman/metrics/dashboard.py                             127      0     18      0   100%
+src/henchman/metrics/exporter.py                              148      1     42      2    98%   124, 221->215
+src/henchman/metrics/models.py                                100      0      0      0   100%
+src/henchman/metrics/storage.py                               218      0     46      0   100%
+src/henchman/providers/__init__.py                              8      0      0      0   100%
+src/henchman/providers/anthropic.py                           212      0     60      0   100%
+src/henchman/providers/base.py                                 44      0      0      0   100%
+src/henchman/providers/deepseek.py                             12      0      0      0   100%
+src/henchman/providers/ollama.py                               15      0      0      0   100%
+src/henchman/providers/openai_compat.py                       136      0     40      0   100%
+src/henchman/providers/openrouter.py                           14      0      0      0   100%
+src/henchman/providers/registry.py                             36      0      4      0   100%
+src/henchman/providers/utils.py                                34      0     18      0   100%
+src/henchman/rag/__init__.py                                    7      0      0      0   100%
+src/henchman/rag/chunker.py                                    68      0     12      0   100%
+src/henchman/rag/concurrency.py                                79      0     14      0   100%
+src/henchman/rag/embedder.py                                   36      0      0      0   100%
+src/henchman/rag/indexer.py                                   134      0     52      0   100%
+src/henchman/rag/repo_id.py                                    66      0     16      0   100%
+src/henchman/rag/store.py                                      87      0     18      0   100%
+src/henchman/rag/system.py                                    102      0     36      0   100%
+src/henchman/tools/__init__.py                                  3      0      0      0   100%
+src/henchman/tools/base.py                                     45      1      4      1    96%   106
+src/henchman/tools/builtins/__init__.py                        35      0      0      0   100%
+src/henchman/tools/builtins/ask_user.py                        21      0      0      0   100%
+src/henchman/tools/builtins/code_format.py                     55      0     12      0   100%
+src/henchman/tools/builtins/coverage_map.py                   239      4     60      0    99%   50, 422, 427, 525
+src/henchman/tools/builtins/dead_code.py                      214      0     88      0   100%
+src/henchman/tools/builtins/deep_research.py                  131     37     38      4    67%   90, 101->100, 118-144, 159-172, 190-197, 259, 271
+src/henchman/tools/builtins/delegate.py                        31      0      0      0   100%
+src/henchman/tools/builtins/diff_view.py                       74      0     18      0   100%
+src/henchman/tools/builtins/env_inspect.py                     82      0     34      0   100%
+src/henchman/tools/builtins/file_edit.py                      115      0     28      0   100%
+src/henchman/tools/builtins/file_overview.py                  161     11     68      9    91%   62, 65-68, 71, 76->82, 101->107, 104-105, 109->108, 159, 207->211, 287-288
+src/henchman/tools/builtins/file_read.py                       64      1     12      1    97%   192
+src/henchman/tools/builtins/file_write.py                      29      0      0      0   100%
+src/henchman/tools/builtins/git_ops.py                        114      0     30      0   100%
+src/henchman/tools/builtins/glob_tool.py                       49      0     12      0   100%
+src/henchman/tools/builtins/grep.py                           190      0     46      0   100%
+src/henchman/tools/builtins/import_graph.py                   260      1     84      1    99%   169
+src/henchman/tools/builtins/kg_common.py                       17      0      2      0   100%
+src/henchman/tools/builtins/kg_query.py                       113      0     44      0   100%
+src/henchman/tools/builtins/kg_update.py                      102      0     38      0   100%
+src/henchman/tools/builtins/lint_check.py                      79      1     20      0    99%   184
+src/henchman/tools/builtins/ls.py                              48      0     16      0   100%
+src/henchman/tools/builtins/patch_apply.py                    225      0     62      0   100%
+src/henchman/tools/builtins/pattern_search.py                 136      5     60      6    94%   91->89, 97->95, 113, 117, 159-160, 168->174, 292
+src/henchman/tools/builtins/pip_inspect.py                     44      0      8      0   100%
+src/henchman/tools/builtins/pytest_run.py                     105      3     20      0    98%   292, 296, 304
+src/henchman/tools/builtins/python_ast.py                      33      0      2      0   100%
+src/henchman/tools/builtins/python_ast_helpers.py             110      0     58      0   100%
+src/henchman/tools/builtins/python_exec.py                     62      0     10      0   100%
+src/henchman/tools/builtins/rag_search.py                      45      0      8      0   100%
+src/henchman/tools/builtins/research_notes.py                 127      6     38      4    94%   72, 176-177, 203->196, 204->203, 208-209, 254
+src/henchman/tools/builtins/shell.py                          238      0     46      0   100%
+src/henchman/tools/builtins/symbol_trace.py                   186     11     70      4    94%   92, 102-103, 216-217, 237-238, 246, 248->250, 271-272, 296
+src/henchman/tools/builtins/test_gen.py                       180      0     52      0   100%
+src/henchman/tools/builtins/traceback_parse.py                101      0     32      0   100%
+src/henchman/tools/builtins/web_fetch.py                       52      0      4      0   100%
+src/henchman/tools/builtins/web_search.py                      17      0      0      0   100%
+src/henchman/tools/registry.py                                 93      0     24      0   100%
+src/henchman/tools/security.py                                162      0     62      0   100%
+src/henchman/tools/security/__init__.py                        11      0      4      0   100%
+src/henchman/tools/security/shell_secure.py                   180      0     36      0   100%
+src/henchman/tools/utils.py                                    31      0     16      0   100%
+src/henchman/utils/__init__.py                                  4      0      0      0   100%
+src/henchman/utils/cluster_utils.py                            20      0      8      0   100%
+src/henchman/utils/compaction.py                              340      0    108      0   100%
+src/henchman/utils/compression_strategy.py                    101      4     48      4    95%   105-109, 128, 134->91, 180
+src/henchman/utils/importance_scorer.py                        88      5     34      5    92%   55, 144, 204, 247, 254
+src/henchman/utils/intelligent_context.py                      82      5      8      1    91%   131-136, 467
+src/henchman/utils/intelligent_context_aggregator.py          183     38     98     19    75%   37, 119->122, 138, 161, 164->168, 178, 197-198, 225, 229, 237, 241, 277-290, 310-316, 331, 335-336, 375, 411, 422->421, 493, 526-539, 561, 587->583
+src/henchman/utils/intelligent_context_config.py               44      0      2      0   100%
+src/henchman/utils/intelligent_context_detector.py             32      1      8      1    95%   184
+src/henchman/utils/intelligent_context_extractor.py           159     10     54     11    90%   85, 199, 202-203, 222->221, 231, 233-234, 271, 294->291, 302, 346, 364->362
+src/henchman/utils/intelligent_context_formatter.py           150     49     52      9    63%   56, 127-142, 193->196, 233, 246, 276-278, 300, 320-344, 367-368, 375, 407, 428-448
+src/henchman/utils/intelligent_context_parser.py              267      3    128      5    98%   48, 53, 61, 210->219, 251->255
+src/henchman/utils/intelligent_context_summarizer.py           49      2     18      3    93%   49, 111->110, 204
+src/henchman/utils/intelligent_context_topic_extractor.py      42      4     20      5    85%   58, 85->84, 88->84, 92, 129-130
+src/henchman/utils/intelligent_context_types.py               156     11     22      8    88%   226, 257-259, 290, 294, 297, 311, 313, 315, 437
+src/henchman/utils/lazy_import.py                               9      0      2      0   100%
+src/henchman/utils/message_analyzer.py                         28      2      2      1    90%   56, 115
+src/henchman/utils/message_clusterer.py                       149      5     66      2    97%   52, 292-296
+src/henchman/utils/message_compactor.py                        86     14     30      6    79%   59, 66, 155-167, 210, 222->221, 276, 312-314
+src/henchman/utils/ratelimit.py                                30      0      8      0   100%
+src/henchman/utils/registry.py                                 27      2      4      1    90%   105-106
+src/henchman/utils/retry.py                                    51      0     12      0   100%
+src/henchman/utils/serialization.py                            34      5     14      3    79%   43, 63-65, 68
+src/henchman/utils/sorting_utils.py                             4      0      0      0   100%
+src/henchman/utils/tokens.py                                   59      0     20      0   100%
+src/henchman/utils/validation.py                               91      0     36      0   100%
+src/henchman/version.py                                         3      0      0      0   100%
+-------------------------------------------------------------------------------------------------------
+TOTAL                                                       18979    275   5086    138    98%
+=========== 5705 passed, 6 skipped, 45 warnings in 188.45s (0:03:08) ===========
+[2026-03-15T05:00:03Z] All tests passed.
+Committing changes...
