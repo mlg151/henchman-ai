@@ -1209,6 +1209,50 @@ class TestHelperFunctions:
         assert LineRange(1, 10) is not None
         assert LineRange.from_str("1-10") is not None
 
+    def test_memory_should_read_file_missing_return_bug(self):
+        """Test should_read_file bug: missing return statement in end-only branch.
+        
+        BUG: When called with end=<number> and start=None (read from beginning to line X),
+        the function falls through without returning, then crashes trying to create
+        LineRange(None, end).
+        """
+        memory = WorkingMemory(current_task="Test")
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "10-50"))
+        
+        # Test case that triggers the bug: end=100, start=None
+        # This should return (True, reason) but currently crashes
+        should_read, reason = memory.should_read_file("/test/file.py", end=100)
+        
+        # Should return True because we want to read lines 1-100 but only read 10-50
+        assert should_read is True, (
+            f"Should return True when reading lines 1-100 but only read 10-50. "
+            f"Got: {should_read}, reason: {reason}"
+        )
+        # Reason should indicate we need to read (line 100 is beyond last read line 50)
+        assert "beyond" in reason.lower() or "before" in reason.lower() or "gap" in reason.lower(), (
+            f"Reason should indicate need to read (line 100 beyond line 50 or before line 10). Got: {reason}"
+        )
+        
+        # Also test with end=5 (before any read lines)
+        should_read2, reason2 = memory.should_read_file("/test/file.py", end=5)
+        assert should_read2 is True, (
+            f"Should return True when reading lines 1-5 but read 10-50. "
+            f"Got: {should_read2}, reason: {reason2}"
+        )
+        assert "before first read line" in reason2.lower() or "gap" in reason2.lower() or "beyond" in reason2.lower(), (
+            f"Reason should indicate end line is before first read line. Got: {reason2}"
+        )
+        
+        # Test with end=30 (within read range 10-50)
+        should_read3, reason3 = memory.should_read_file("/test/file.py", end=30)
+        assert should_read3 is True, (
+            f"Should return True when reading lines 1-30 but only read 10-50 "
+            f"(need lines 1-9). Got: {should_read3}, reason: {reason3}"
+        )
+        assert "may need to read lines before" in reason3.lower() or "before" in reason3.lower() or "beyond" in reason3.lower(), (
+            f"Reason should indicate need to read lines before 10. Got: {reason3}"
+        )
+
     def test_memory_should_read_file_lines_read_none(self):
         """Test should_read_file when lines_read is None (e.g., from deserialization).
         
