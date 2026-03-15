@@ -1125,3 +1125,35 @@ class TestHelperFunctions:
         # Valid ranges should work
         assert LineRange(1, 10) is not None
         assert LineRange.from_str("1-10") is not None
+
+    def test_memory_should_read_file_lines_read_none(self):
+        """Test should_read_file when lines_read is None (e.g., from deserialization).
+        
+        BUG: Currently raises AttributeError when lines_read is None.
+        Should handle gracefully and return True with appropriate reason.
+        """
+        memory = WorkingMemory(current_task="Test")
+        
+        # Create an entry with lines_read=None (simulating deserialization from YAML)
+        # We need to bypass the normal constructor to set lines_read=None
+        from dataclasses import replace
+        entry = WorkingMemoryEntry("/test/file.py", "Test", "full")
+        entry_with_none = replace(entry, lines_read=None)  # type: ignore
+        
+        # Add to memory directly (not through add_recent_file which would normalize path)
+        memory.recent_files.append(entry_with_none)
+        
+        # Call should_read_file - should NOT raise AttributeError
+        # Should return True with appropriate reason
+        should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
+        
+        # Since lines_read is None, we can't determine if file was read
+        # Should return True (need to read) with appropriate reason
+        assert should_read is True, (
+            f"Should return True when lines_read is None (cannot determine). "
+            f"Got: {should_read}, reason: {reason}"
+        )
+        assert "cannot determine" in reason.lower() or "invalid" in reason.lower(), (
+            f"Reason should indicate cannot determine due to invalid lines_read. "
+            f"Got: {reason}"
+        )
