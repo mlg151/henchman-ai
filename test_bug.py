@@ -1,57 +1,87 @@
-"""Test to demonstrate the bug in should_read_file with full then partial reads."""
-
+"""Test for the lines_read=None bug."""
+import tempfile
+from pathlib import Path
+import yaml
 from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
 
-def test_full_then_partial_bug():
-    """Test that should_read_file incorrectly handles full read followed by partial read."""
+def test_lines_read_none():
+    """Test that lines_read=None is handled correctly."""
+    # Create a memory with an entry where lines_read=None
     memory = WorkingMemory(current_task="Test")
     
-    # Add old full read
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Old full read", "full"))
+    # Manually create an entry with lines_read=None (simulating loading from YAML)
+    # This is tricky because WorkingMemoryEntry has type hint str for lines_read
+    # But Python won't enforce it at runtime
+    entry_dict = {
+        "path": "/test/file.py",
+        "purpose": "Test",
+        "lines_read": None,  # This could happen from YAML with lines_read: null
+        "key_insights": [],
+        "timestamp": "2024-01-01T00:00:00Z"
+    }
     
-    # Add more recent partial read
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Recent partial read", "10-50"))
+    # Use from_dict to create entry (simulating load from YAML)
+    entry = WorkingMemoryEntry.from_dict(entry_dict)
+    print(f"Entry lines_read type: {type(entry.lines_read)}, value: {entry.lines_read}")
     
-    # Request lines 60-100
-    # The file was read fully in the past, so lines 60-100 WERE read
-    # But the most recent read was partial (10-50)
-    # According to the comment: "If file was read fully in the past but partially more recently,
-    # we should check if the requested range is covered by recent partial reads"
-    # Recent partial read (10-50) does NOT cover 60-100
-    # So should return True (need to read)
+    memory.add_recent_file(entry)
     
-    should_read, reason = memory.should_read_file("/test/file.py", 60, 100)
-    print(f"Result: should_read={should_read}, reason={reason}")
+    # Now test should_read_file
+    # The file should be considered NOT fully read because lines_read is None
+    # But actually, lines_read=None means "unknown what was read", not "nothing was read"
+    # The current implementation will treat it as "not fully read"
+    should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
+    print(f"should_read: {should_read}, reason: {reason}")
     
-    # Actually, let me think about this more...
-    # If file was fully read in the past, we have that knowledge.
-    # But if we then partially read it more recently, maybe the file changed?
-    # Or maybe we're focusing on a specific part?
-    # The comment suggests we should only consider recent partial reads.
+    # With the bug: should_read=True, reason="Cannot determine - invalid lines_read format"
+    # Actually, that's probably correct behavior! lines_read=None is invalid.
     
-    # Let me test another case: file was partially read, then fully read
-    memory2 = WorkingMemory(current_task="Test")
-    memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Partial read", "10-50"))
-    memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Full read", "full"))
-    
-    # Request lines 60-100
-    # Most recent read was "full", so should return False
-    should_read2, reason2 = memory2.should_read_file("/test/file2.py", 60, 100)
-    print(f"Result2: should_read={should_read2}, reason={reason2}")
-    
-    # Now test the actual bug: full read returns empty list from _parse_line_ranges
-    # So when checking coverage, full reads don't contribute
-    memory3 = WorkingMemory(current_task="Test")
-    memory3.add_recent_file(WorkingMemoryEntry("/test/file3.py", "Full read", "full"))
-    
-    # Request lines 10-50
-    # Most recent (and only) read is "full", so should return False
-    should_read3, reason3 = memory3.should_read_file("/test/file3.py", 10, 50)
-    print(f"Result3: should_read={should_read3}, reason={reason3}")
-    
-    # But what about when start=None, end=None (read entire file)?
-    should_read4, reason4 = memory3.should_read_file("/test/file3.py")
-    print(f"Result4 (read entire file): should_read={should_read4}, reason={reason4}")
+    # But what if the file WAS marked as "full" but saved as null in YAML?
+    # That's the bug: data loss/corruption leads to incorrect behavior.
+
+def test_yaml_roundtrip():
+    """Test YAML save/load with lines_read=None."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create memory with entry
+        memory = WorkingMemory(current_task="Test")
+        entry = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="Test",
+            lines_read="full",  # Marked as full
+        )
+        memory.add_recent_file(entry)
+        
+        # Save to YAML
+        file_path = Path(tmpdir) / "memory.yaml"
+        memory.save(file_path)
+        
+        # Manually modify YAML to set lines_read: null
+        with open(file_path, 'r') as f:
+            data = yaml.safe_load(f)
+        
+        # Set lines_read to null for the first entry
+        if data.get('recent_files'):
+            data['recent_files'][0]['lines_read'] = None
+        
+        # Save modified YAML
+        with open(file_path, 'w') as f:
+            yaml.dump(data, f, default_flow_style=False)
+        
+        # Load modified YAML
+        loaded = WorkingMemory.load(file_path)
+        
+        # Check what happened
+        if loaded.recent_files:
+            loaded_entry = loaded.recent_files[0]
+            print(f"Loaded entry lines_read type: {type(loaded_entry.lines_read)}, value: {loaded_entry.lines_read}")
+            
+            # Test should_read_file
+            should_read, reason = loaded.should_read_file("/test/file.py", 10, 50)
+            print(f"After loading with lines_read=None: should_read={should_read}, reason={reason}")
+            # BUG: Should be False (file was marked full), but will be True
 
 if __name__ == "__main__":
-    test_full_then_partial_bug()
+    print("Test 1: lines_read=None")
+    test_lines_read_none()
+    print("\nTest 2: YAML roundtrip with lines_read: null")
+    test_yaml_roundtrip()
