@@ -1,60 +1,35 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-15T22:15:00Z
+## Date: 2025-03-15T23:00:00Z
 ## Bug Summary
-The `add_recent_file` method incorrectly handles `key_insights` when it's a string instead of a list. When `entry.key_insights` is a string (e.g., `"Important finding"`), the code `list(entry.key_insights)` creates a list of characters (`['I', 'm', 'p', 'o', 'r', 't', 'a', 'n', 't', ' ', 'f', 'i', 'n', 'd', 'i', 'n', 'g']`) instead of a list with a single string element (`["Important finding"]`).
+The `WorkingMemoryEntry` dataclass doesn't validate that `lines_read` is a string (or None for deserialization), violating type safety. The type hint is `lines_read: str` but the constructor accepts any type, including `int`, `list`, etc.
 
 ## Lens
-**Lens 1: The Intent vs. Reality Check** - Type Safety
+**Phase 1: The Intent vs. Reality Check - Type Safety**
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| `key_insights` should be a list of strings (per type hint `list[str]`) | String values are accepted but incorrectly converted to list of characters |
-| String `"Important finding"` should become `["Important finding"]` | String `"Important finding"` becomes `['I', 'm', 'p', 'o', 'r', 't', 'a', 'n', 't', ' ', 'f', 'i', 'n', 'd', 'i', 'n', 'g']` |
-| Type safety: Should validate or gracefully handle non-list inputs | `list(string)` silently converts string to list of characters |
+| `lines_read` should be a string (type hint: `str`) | Any type is accepted, violating type safety |
+| Invalid types should be caught at creation time | Invalid values propagate to `should_read_file` |
+| Type hints should be enforced at runtime | No runtime validation despite type hints |
 
 ## Root Cause
-In `add_recent_file` method (line 177):
-```python
-key_insights=list(entry.key_insights) if entry.key_insights is not None else []
-```
-
-When `entry.key_insights` is a string, `list(string)` creates a list of characters. The type hint `list[str]` is not enforced at runtime. The code assumes `key_insights` is either `None` or a list, but doesn't handle string inputs.
+Python dataclasses don't enforce type hints at runtime. The `WorkingMemoryEntry` constructor accepts any type for `lines_read`, which violates the `str` type hint. While `_parse_line_ranges` handles `None` and non-string values gracefully (returns empty list), this is a type safety issue that could lead to subtle bugs.
 
 ## Fix Plan
-Modify the `add_recent_file` method to handle string `key_insights` by wrapping them in a list:
-```python
-if entry.key_insights is None:
-    key_insights = []
-elif isinstance(entry.key_insights, str):
-    key_insights = [entry.key_insights]
-else:
-    key_insights = list(entry.key_insights)
-```
+Add `__post_init__` validation to `WorkingMemoryEntry` to ensure `lines_read` is either a string or `None` (for deserialization).
 
 ## Status: FIXED
 
 ## Files Changed
-1. `src/henchman/agents/working_memory.py` - Modified `add_recent_file` method to handle string `key_insights` by wrapping them in a list
-2. `tests/agents/test_working_memory_key_insights_bug.py` - Created test to demonstrate and verify the fix
+1. `src/henchman/agents/working_memory.py` - Added `__post_init__` validation to `WorkingMemoryEntry` (lines 67-74)
+2. `tests/agents/test_working_memory_type_safety_bug.py` - Updated test to expect validation
+3. `tests/agents/test_working_memory_real_bug_final.py` - Deleted (tested for bug that was fixed)
+4. `.agent_tasks/four-lenses-agents-working_memory/README.md` - This documentation file
 
 ## Fix Details
-Changed line 177 in `add_recent_file` method from:
-```python
-key_insights=list(entry.key_insights) if entry.key_insights is not None else []
-```
+The fix adds a `__post_init__` method to `WorkingMemoryEntry` that validates:
+- `lines_read` must be either `None` (allowed for deserialization) or a string
+- Raises `TypeError` with clear message for invalid types
 
-To:
-```python
-key_insights=(
-    [entry.key_insights] if isinstance(entry.key_insights, str) else
-    list(entry.key_insights) if entry.key_insights is not None else []
-)
-```
-
-This handles three cases:
-1. `key_insights` is `None` → empty list `[]`
-2. `key_insights` is a string → wrap in list `[string]`
-3. `key_insights` is a list/tuple → convert to list `list(iterable)`
-
-All existing tests pass, and the new test verifies the fix works correctly.
+This ensures type safety while maintaining backward compatibility for deserialization scenarios where `lines_read=None` might be parsed from YAML/JSON.
