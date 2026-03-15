@@ -45,7 +45,7 @@ henchman --prompt "Explain this code" < file.py
 | Groq (`groq`) | ✅ | `groq` | Alias for `openai_compat` with Groq base URL |
 | Fireworks AI (`fireworks`) | ✅ | `fireworks` | Alias for `openai_compat` with Fireworks base URL |
 
-**Note**: The `openai_compat` provider is a generic provider for any OpenAI-compatible API. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs pre-configured.
+**Note**: The `openai_compat` provider is a generic provider for any OpenAI-compatible API. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` that require you to configure the appropriate base URL in your settings.
 
 **See [Providers](providers.md) for complete details and configuration.**
 

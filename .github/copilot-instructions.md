@@ -33,7 +33,7 @@ src/henchman/
 ├── tools/      # Built-in tools (34 total): read_file, write_file, edit_file, shell, grep, etc.
 └── utils/      # Utility functions and helpers
 ```
-**Key insight**: The `OpenAICompatibleProvider` handles any OpenAI-compatible API including DeepSeek, OpenAI, OpenRouter, Together, Groq, Fireworks AI, and similar services. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs.
+**Key insight**: The `OpenAICompatibleProvider` handles any OpenAI-compatible API including DeepSeek, OpenAI, OpenRouter, Together, Groq, Fireworks AI, and similar services. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` that require you to configure the appropriate base URL in your settings.
 ## Development Setup
 ```bash
 pip install -e ".[dev]"       # Install in editable mode with dev deps

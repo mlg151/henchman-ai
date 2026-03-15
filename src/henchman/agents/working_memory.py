@@ -477,6 +477,7 @@ class WorkingMemory(SerializableDataclass):
                 
                 # Line is after all ranges
                 last_rng = merged_ranges[-1]
+                return True, f"End line {end} beyond last read line {last_rng.end}"
         requested = LineRange(start, end)
 
         if not valid_ranges:

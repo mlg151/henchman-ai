@@ -1,28 +1,48 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2026-03-15T05:15:00+00:00
+## Date: 2025-03-15T06:00:00Z
 ## Bug Summary
-Invalid line number validation in `should_read_file` method happens AFTER early return for "full" file reads, causing invalid input (e.g., start=0) to be silently accepted when file was read fully.
+The `should_read_file` method has a critical bug where it crashes with `TypeError` when called with `end=<number>` and `start=None` (reading from beginning to line X). The function falls through without returning in the `end is not None, start is None` branch, then tries to create a `LineRange` with `None` values, causing a crash.
 
 ## Lens
-Phase 1: The Intent vs. Reality Check - Logic Gaps
+**Phase 1: The Intent vs. Reality Check** - Logic Gaps: The code assumes a "happy path" where all branches return, but one branch misses a return statement, causing the function to continue executing with invalid state.
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Invalid line numbers (start < 1 or end < 1) should always be reported as errors, regardless of whether file was previously read. | When file was read fully and invalid line numbers are provided (e.g., start=0), method returns False ("File already read (full)") instead of reporting invalid line number error. |
-| Input validation should happen before business logic. | Input validation happens after checking if file was read fully, allowing invalid input to bypass validation. |
+| `should_read_file(path, end=100)` should return `(bool, str)` tuple | Function crashes with `TypeError: '<' not supported between instances of 'NoneType' and 'int'` |
+| All code paths should have explicit return statements | Missing return in `end is not None, start is None` branch causes fall-through |
+| Function should handle `None` values for `start`/`end` before creating `LineRange` | Creates `LineRange(None, 100)` which fails validation |
 
 ## Root Cause
-In `should_read_file` method (lines 353-498), the validation for invalid line numbers (lines 399-403) occurs AFTER the early return for "full" file reads (lines 387-392). When a file was marked as "full" in working memory and the user requests to read with invalid line numbers (e.g., start=0, end=-1), the method returns early with "File already read (full)" before reaching the validation code that would report "Invalid line number: start must be positive (1-indexed), got start=0".
+In the `should_read_file` method, when `start is None and end is not None` (reading from beginning to line Y), the code correctly computes whether to read but then misses a return statement at line 480. The function continues to line 493 `requested = LineRange(start, end)` where `start=None`, causing `LineRange.__post_init__` to crash when comparing `self.start < 1` (comparing `None < 1`).
+
+The bug is in lines 478-480:
+```python
+                # Line is after all ranges
+                last_rng = merged_ranges[-1]
+```
+No `return` statement! Should be:
+```python
+                # Line is after all ranges
+                last_rng = merged_ranges[-1]
+                return True, f"End line {end} beyond last read line {last_rng.end}"
+```
 
 ## Fix Plan
-Move line number validation (lines 399-403 and 415-417) to immediately after parameter normalization (line 378), before any logic checking file read status. This ensures invalid input is always caught and reported, maintaining consistent error handling regardless of file read history.
+1. Add missing return statement in the `end is not None, start is None` branch
+2. Verify all code paths have proper returns
+3. Write a test that fails before the fix and passes after
 
-## Status: FIXED
+## Fix Implemented
+Added missing return statement at line 480:
+```python
+                # Line is after all ranges
+                last_rng = merged_ranges[-1]
+                return True, f"End line {end} beyond last read line {last_rng.end}"
+```
 
 ## Files Changed
-1. `src/henchman/agents/working_memory.py` - Moved line number validation to happen before early return for "full" file reads (lines 379-387). Also fixed inconsistent error message when `valid_ranges` is empty (lines 482-484).
-2. `tests/agents/test_working_memory.py` - Added test `test_memory_should_read_file_invalid_line_numbers_with_full_read` to verify the fix and fixed a bug in the test itself (removed incorrect assertion at line 807).
+1. `src/henchman/agents/working_memory.py` - Added missing return statement at line 480
+2. `tests/agents/test_working_memory.py` - Added test `test_memory_should_read_file_missing_return_bug` to verify fix
 
-## Summary
-The bug was that invalid line number validation (`start < 1`, `end < 1`, `start > end`) happened AFTER the early return for "full" file reads. When a file was marked as "full" in working memory and the user requested to read with invalid line numbers (e.g., `start=0`), the method would return `False, "File already read (full)"` instead of reporting the invalid line number error. The fix moves all input validation to the beginning of the `should_read_file` method, ensuring invalid input is always caught and reported consistently.
+## Status: FIXED
