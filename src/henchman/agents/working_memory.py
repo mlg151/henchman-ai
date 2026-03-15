@@ -56,6 +56,17 @@ class WorkingMemoryEntry(SerializableDataclass):
         default_factory=lambda: datetime.now(timezone.utc).isoformat(),
         compare=False,
     )
+    
+    def __post_init__(self) -> None:
+        """Validate fields after initialization.
+        
+        Note: lines_read may be None during deserialization, which is handled
+        gracefully by _parse_line_ranges.
+        """
+        if self.lines_read is not None and not isinstance(self.lines_read, str):
+            raise TypeError(
+                f"lines_read must be a string or None, got {type(self.lines_read).__name__}"
+            )
 
 
 @dataclass
@@ -63,6 +74,8 @@ class DecisionEntry(SerializableDataclass):
     """A recorded decision made during a task."""
 
     decision: str
+    rationale: str
+    impact: str = DEFAULT_IMPACT
     rationale: str
     impact: str = DEFAULT_IMPACT
 
