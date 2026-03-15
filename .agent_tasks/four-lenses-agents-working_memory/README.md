@@ -1,56 +1,41 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-15T06:00:00Z
+## Date: 2025-03-15T07:00:00Z
 ## Bug Summary
-The `should_read_file` method has a critical bug where it crashes with `TypeError` when called with `end=<number>` and `start=None` (reading from beginning to line X). The function falls through without returning in the `end is not None, start is None` branch, then tries to create a `LineRange` with `None` values, causing a crash.
+The `should_read_file` method contains duplicate code: line 335 redundantly normalizes the path (already normalized at line 330), and lines 343-349 redundantly search for matching file entries (already done at lines 333-337). The `if not matches:` check at line 349 is dead code that can never execute.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - Logic Gaps: The code assumes a "happy path" where all branches return, but one branch misses a return statement, causing the function to continue executing with invalid state.
+Phase 1: Logic Gaps - The method has redundant operations and dead code paths.
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| `should_read_file(path, end=100)` should return `(bool, str)` tuple | Function crashes with `TypeError: '<' not supported between instances of 'NoneType' and 'int'` |
-| All code paths should have explicit return statements | Missing return in `end is not None, start is None` branch causes fall-through |
-| Function should handle `None` values for `start`/`end` before creating `LineRange` | Creates `LineRange(None, 100)` which fails validation |
+| Method should normalize path once | Path is normalized twice (lines 330 and 335) |
+| Method should search for matches once | Matches are searched for twice (lines 333-337 and 343-349) |
+| All code paths should be reachable | Line 349 `if not matches:` can never be True (would have returned at line 337) |
+| Code should be efficient | Redundant operations waste CPU cycles |
+| Code should be maintainable | Dead code increases cognitive load and maintenance cost |
 
 ## Root Cause
-In the `should_read_file` method, when `start is None and end is not None` (reading from beginning to line Y), the code correctly computes whether to read but then misses a return statement at line 480. The function continues to line 493 `requested = LineRange(start, end)` where `start=None`, causing `LineRange.__post_init__` to crash when comparing `self.start < 1` (comparing `None < 1`).
-
-The bug is in lines 478-480:
-```python
-                # Line is after all ranges
-                last_rng = merged_ranges[-1]
-```
-No `return` statement! Should be:
-```python
-                # Line is after all ranges
-                last_rng = merged_ranges[-1]
-                return True, f"End line {end} beyond last read line {last_rng.end}"
-```
+The `should_read_file` method was likely modified during development, and duplicate code was introduced accidentally. The duplicate `normalized_path` assignment at line 335 serves no purpose. The duplicate `matches` search at lines 343-349 is redundant because:
+1. Lines 333-337 already find matches and return if none
+2. Between lines 337 and 343, `self.recent_files` is not modified
+3. `normalized_path` is the same (duplicate assignment doesn't change value)
+4. Therefore `matches` will have the same value as before
+5. The `if not matches:` check at line 349 can never be True (would have returned at line 337)
 
 ## Fix Plan
-1. Add missing return statement in the `end is not None, start is None` branch
-2. Verify all code paths have proper returns
-3. Write a test that fails before the fix and passes after
-
-## Fix Implemented
-1. Added missing return statement at line 480:
-```python
-                # Line is after all ranges
-                last_rng = merged_ranges[-1]
-                return True, f"End line {end} beyond last read line {last_rng.end}"
-```
-
-2. Removed dead code with undefined variable at line 489:
-```python
-            # This happens when lines_read is invalid, empty, or contains only invalid ranges
-            return True, "Cannot determine - invalid lines_read format"
-            # Removed dead code: if requested.start >= rng.start and requested.end <= rng.end:
-            # Removed dead code:     return False, "File already read (contained within previously read lines)"
-```
-
-## Files Changed
-1. `src/henchman/agents/working_memory.py` - Added missing return statement at line 480 and removed dead code at line 489
-2. `tests/agents/test_working_memory.py` - Added test `test_memory_should_read_file_missing_return_bug` to verify fix
+Remove the duplicate code:
+1. Remove line 335: `normalized_path = _normalize_path(path)` (already done at line 330)
+2. Remove lines 343-349: The entire duplicate `matches` finding and check (already done at lines 333-337)
 
 ## Status: FIXED
+
+## Files Changed
+1. `src/henchman/agents/working_memory.py` - Removed duplicate code:
+   - Line 335: Removed redundant `normalized_path = _normalize_path(path)` (already normalized at line 330)
+   - Lines 343-349: Removed entire duplicate `matches` search and `if not matches:` check (already done at lines 333-337)
+
+## Verification
+- All 60 existing tests pass (`tests/agents/test_working_memory.py`)
+- Code coverage improved (removed dead code that was marked as missed in coverage report)
+- Functionality remains unchanged (bug was about redundant operations, not incorrect behavior)

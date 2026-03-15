@@ -373,9 +373,6 @@ class WorkingMemory(SerializableDataclass):
         if not matches:
             return True, "File not in recent files"
 
-        # Normalize the path for consistent comparison
-        normalized_path = _normalize_path(path)
-
         # Validate line numbers if provided (1-indexed)
         if start is not None and start < 1:
             return True, f"Invalid line number: start must be positive (1-indexed), got start={start}"
@@ -385,11 +382,6 @@ class WorkingMemory(SerializableDataclass):
         # Validate line range if both are provided
         if start is not None and end is not None and start > end:
             return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"
-
-        # Find ALL entries for this file (most recent first)
-        matches = [e for e in reversed(self.recent_files) if e.path == normalized_path]
-        if not matches:
-            return True, "File not in recent files"
 
         # Check if the MOST RECENT entry indicates file was read fully
         # Only skip reading if the most recent read was "full"
