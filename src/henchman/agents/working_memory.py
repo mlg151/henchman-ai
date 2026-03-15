@@ -340,24 +340,23 @@ class WorkingMemory(SerializableDataclass):
                     start = int(start_str)
                     end = int(end_str)
                     if start < 1 or end < 1:
-                        continue  # Skip invalid
+                        return []  # Invalid: non-positive line numbers
                     if start > end:
-                        continue  # Skip invalid
+                        return []  # Invalid: start > end
                     ranges.append(LineRange(start, end))
                 except (ValueError, TypeError):
-                    continue  # Skip invalid
+                    return []  # Invalid: cannot parse as integers
             else:
                 # Single line
                 try:
                     line = int(part)
                     if line < 1:
-                        continue
+                        return []  # Invalid: non-positive line number
                     ranges.append(LineRange(line, line))
                 except (ValueError, TypeError):
-                    continue
+                    return []  # Invalid: cannot parse as integer
 
         return ranges
-
     def should_read_file(
         self: WorkingMemory, path: str, start: int | None = None, end: int | None = None,
     ) -> tuple[bool, str]:
