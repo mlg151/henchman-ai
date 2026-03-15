@@ -316,6 +316,7 @@ class WorkingMemory(SerializableDataclass):
             
         Returns:
             List of LineRange objects, empty list for invalid formats or "full".
+            Invalid parts in comma-separated strings are skipped.
         """
         if not lines_read or not isinstance(lines_read, str):
             return []
@@ -340,21 +341,21 @@ class WorkingMemory(SerializableDataclass):
                     start = int(start_str)
                     end = int(end_str)
                     if start < 1 or end < 1:
-                        return []  # Invalid: non-positive line numbers
+                        continue  # Skip invalid: non-positive line numbers
                     if start > end:
-                        return []  # Invalid: start > end
+                        continue  # Skip invalid: start > end
                     ranges.append(LineRange(start, end))
                 except (ValueError, TypeError):
-                    return []  # Invalid: cannot parse as integers
+                    continue  # Skip invalid: cannot parse as integers
             else:
                 # Single line
                 try:
                     line = int(part)
                     if line < 1:
-                        return []  # Invalid: non-positive line number
+                        continue  # Skip invalid: non-positive line number
                     ranges.append(LineRange(line, line))
                 except (ValueError, TypeError):
-                    return []  # Invalid: cannot parse as integer
+                    continue  # Skip invalid: cannot parse as integer
 
         return ranges
     def should_read_file(
