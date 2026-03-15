@@ -1,81 +1,108 @@
 """Test for a real bug in working_memory.py."""
 
 import pytest
-from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry, LineRange
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
 
-def test_should_read_file_bug_with_multiple_entries_and_gaps():
-    """Test a bug in should_read_file when multiple entries have gaps.
-    
-    Scenario:
-    - Entry 1: Read lines 10-50
-    - Entry 2: Read lines 60-100  
-    - Request: Read lines 1-100
-    
-    There's a gap at lines 1-9 and 51-59.
-    The method should return True (need to read).
-    """
-    memory = WorkingMemory(current_task="Test")
-    
-    # Add two entries with a gap between them
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "First read", "10-50"))
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Second read", "60-100"))
-    
-    # Request lines 1-100 (has gaps 1-9 and 51-59)
-    should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
-    
-    print(f"should_read: {should_read}, reason: {reason}")
-    
-    # Should return True because of gaps
-    assert should_read is True, (
-        f"Lines 1-100 have gaps (1-9, 51-59), should return True. "
-        f"Got: {should_read}, reason: {reason}"
+def test_bug_key_insights_string():
+    """BUG: key_insights as string creates list of characters."""
+    # This should fail or handle gracefully
+    entry = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="1-10",
+        key_insights="Important finding"  # String instead of list!
     )
     
-    # Now test with merged ranges that should cover
-    memory2 = WorkingMemory(current_task="Test")
-    memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "First read", "1-50"))
-    memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Second read", "51-100"))
+    memory = WorkingMemory(current_task="Test")
+    # This will call list("Important finding") -> ['I', 'm', 'p', 'o', ...]
+    memory.add_recent_file(entry)
     
-    # These are adjacent (50 and 51), so _merge_ranges should merge to 1-100
-    should_read2, reason2 = memory2.should_read_file("/test/file2.py", 1, 100)
+    # Check what happened
+    print(f"Entry added: {memory.recent_files[0]}")
+    print(f"key_insights type: {type(memory.recent_files[0].key_insights)}")
+    print(f"key_insights value: {memory.recent_files[0].key_insights}")
     
-    print(f"should_read2: {should_read2}, reason2: {reason2}")
-    
-    # Should return False (covered by merged range 1-100)
-    assert should_read2 is False, (
-        f"Lines 1-100 should be covered by merged range 1-100. "
-        f"Got: {should_read2}, reason: {reason2}"
-    )
+    # This is a bug! key_insights should be ["Important finding"], not list of chars
+    # But is it a "core functionality" bug?
 
-def test_parse_line_ranges_bug_with_negative_numbers():
-    """Test _parse_line_ranges with negative numbers.
+def test_bug_should_read_file_with_end_minus_one_and_full():
+    """BUG: end=-1 with file read 'full' returns incorrect result."""
+    memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="full"
+    ))
     
-    BUG: What if lines_read contains negative numbers like "-10-20" or "10--20"?
-    """
-    from henchman.agents.working_memory import WorkingMemory
+    # File was read fully
+    # User wants to check if lines 10-EOF need to be read
+    # Since file was read fully, should return False
+    should_read, reason = memory.should_read_file("/test/file.py", 10, -1)
     
+    print(f"File read 'full', request lines 10-EOF (end=-1):")
+    print(f"  Result: should_read={should_read}, reason={reason}")
+    print(f"  Expected: False (file read fully)")
+    
+    # Actually, this works correctly! Returns False, "File already read (full)"
+    assert should_read is False, f"Expected False, got {should_read}"
+    assert "already read" in reason.lower()
+
+def test_bug_parse_line_ranges_unicode_dash():
+    """Test _parse_line_ranges with Unicode dash characters."""
     memory = WorkingMemory(current_task="Test")
     
-    # Test with negative start: "-10-20"
-    ranges = memory._parse_line_ranges("-10-20")
-    print(f"_parse_line_ranges('-10-20') = {ranges}")
-    # Should return [] because start < 1
+    # Test with en dash U+2013
+    # Note: Python string literal with Unicode
+    ranges = memory._parse_line_ranges("10\u201320")  # en dash
+    print(f"Parsing '10\\u201320' (en dash): {ranges}")
+    # Should parse as 10-20
     
-    # Test with negative end: "10--20"  
-    ranges2 = memory._parse_line_ranges("10--20")
-    print(f"_parse_line_ranges('10--20') = {ranges2}")
-    # Regex finds first dash, splits: start_str="10", end_str="-20"
-    # int("-20") raises ValueError, caught, continue, returns []
+    # Test with em dash U+2014
+    ranges2 = memory._parse_line_ranges("10\u201420")  # em dash
+    print(f"Parsing '10\\u201420' (em dash): {ranges2}")
+    # Should parse as 10-20
     
-    # Test with valid range
-    ranges3 = memory._parse_line_ranges("10-20")
-    print(f"_parse_line_ranges('10-20') = {ranges3}")
-    assert len(ranges3) == 1
-    assert ranges3[0].start == 10
-    assert ranges3[0].end == 20
+    # The regex r'[-\u2012\u2013\u2014\u2015\u2212]' should match these
+
+def test_bug_should_read_file_with_invalid_lines_read():
+    """BUG: Invalid lines_read format not handled correctly in coverage check."""
+    memory = WorkingMemory(current_task="Test")
+    
+    # Add entry with invalid lines_read (empty string)
+    memory.add_recent_file(WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read=""  # Empty string
+    ))
+    
+    # Request to read lines 10-20
+    should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
+    
+    print(f"File with lines_read='', request 10-20:")
+    print(f"  Result: should_read={should_read}, reason={reason}")
+    print(f"  Expected: True with 'Cannot determine' or similar")
+    
+    # lines_read="" parses to [] (empty list)
+    # valid_ranges is empty
+    # Line 445: if not valid_ranges: return True, "Cannot determine - invalid lines_read format"
+    # This seems correct!
 
 if __name__ == "__main__":
-    test_should_read_file_bug_with_multiple_entries_and_gaps()
-    print("\n---")
-    test_parse_line_ranges_bug_with_negative_numbers()
-    print("\nTests complete.")
+    print("Testing for real bugs...")
+    print("=" * 60)
+    
+    test_bug_key_insights_string()
+    print()
+    
+    test_bug_should_read_file_with_end_minus_one_and_full()
+    print()
+    
+    test_bug_parse_line_ranges_unicode_dash()
+    print()
+    
+    test_bug_should_read_file_with_invalid_lines_read()
+    
+    print("=" * 60)
+    print("Note: Most 'bugs' tested here are actually handled correctly.")
+    print("The boolean bug and invalid line number bug have been fixed.")
+    print("Need to find a different bug.")
