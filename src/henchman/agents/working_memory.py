@@ -300,6 +300,56 @@ class WorkingMemory(SerializableDataclass):
                     merged.append(rng)
         return merged
 
+    @staticmethod
+    def _parse_line_ranges(lines_read: str) -> list[LineRange]:
+        """Parse a lines_read string into a list of LineRange objects.
+        
+        Supports formats:
+        - "full" (returns empty list as special case)
+        - "10-20" (single range)
+        - "10-20,30-40" (multiple ranges)
+        - "10" (single line)
+        
+        Args:
+            lines_read: String describing which lines were read.
+            
+        Returns:
+            List of LineRange objects, empty list for invalid formats or "full".
+        """
+        if not lines_read or not isinstance(lines_read, str):
+            return []
+        
+        # Normalize: remove whitespace, convert to lowercase
+        normalized = "".join(lines_read.split()).lower()
+        if normalized == "full":
+            return []
+        
+        ranges = []
+        for part in normalized.split(","):
+            if "-" in part:
+                try:
+                    start_str, end_str = part.split("-", 1)
+                    start = int(start_str)
+                    end = int(end_str)
+                    if start < 1 or end < 1:
+                        continue  # Skip invalid
+                    if start > end:
+                        continue  # Skip invalid
+                    ranges.append(LineRange(start, end))
+                except (ValueError, TypeError):
+                    continue  # Skip invalid
+            else:
+                # Single line
+                try:
+                    line = int(part)
+                    if line < 1:
+                        continue
+                    ranges.append(LineRange(line, line))
+                except (ValueError, TypeError):
+                    continue
+        
+        return ranges
+
     def should_read_file(
         self: WorkingMemory, path: str, start: int | None = None, end: int | None = None,
     ) -> tuple[bool, str]:
@@ -337,9 +387,8 @@ class WorkingMemory(SerializableDataclass):
         # Collect all valid line ranges from all entries (needed for partial range checks)
         valid_ranges: list[LineRange] = []
         for match in matches:
-            rng = LineRange.from_str(match.lines_read)
-            if rng:
-                valid_ranges.append(rng)
+            ranges = self._parse_line_ranges(match.lines_read)
+            valid_ranges.extend(ranges)
 
         # Validate line numbers if provided (1-indexed)
         if start is not None and start < 1:
