@@ -1,35 +1,30 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-15T14:00:00+00:00
+## Date: 2025-03-15T15:00:00Z
 ## Bug Summary
-The `should_read_file` method has a **critical logic bug** in its error message generation when a file range is already read. When a requested line range is fully covered by previously read ranges (even a single range), the method returns `False, "File already read (covered by multiple entries)"`. This error message is **misleading and incorrect** when the range is covered by a single entry, not multiple entries. This is a core functionality bug because it provides incorrect diagnostic information to users/agents relying on the reason string for debugging.
+The `_parse_line_ranges` method silently ignores invalid parts in the `lines_read` string (e.g., "10-20-30" or "invalid-format") without any indication, which can lead to incorrect behavior in `should_read_file` when mixed valid and invalid ranges are provided.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - Logic Gaps
+**Phase 1: The Intent vs. Reality Check** - The method assumes all input is valid or can be safely ignored, but silently ignoring invalid parts can lead to incorrect conclusions about what lines were actually read.
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| When a file range is already read (covered by ONE previous read), error message should say "covered" or "already read" without implying multiple entries | Error message ALWAYS says "covered by multiple entries" even when covered by a single entry |
-| Diagnostic messages should accurately reflect reality to aid debugging | Misleading error messages cause confusion and incorrect assumptions about system state |
-| The method should distinguish between coverage by single vs. multiple entries for accurate reporting | No distinction is made, always reports "multiple entries" |
+| Invalid `lines_read` format should be rejected or at least logged | Invalid parts are silently ignored |
+| Method should return error/None for invalid input | Returns partial results for mixed valid/invalid input |
+| Callers should know when input is invalid | Callers may think invalid input was parsed correctly |
 
 ## Root Cause
-The bug is in the `should_read_file` method at line 519: `return False, "File already read (covered by multiple entries)"`. This hardcoded message is returned whenever a requested range is fully covered by merged ranges, regardless of whether those merged ranges came from one or multiple original entries. The algorithm merges ranges from all entries, so even if the original coverage came from a single entry (e.g., "10-50"), the message says "multiple entries".
+In `_parse_line_ranges`, when parsing parts split by commas, if a part doesn't match the expected format (e.g., "10-20-30" has multiple dashes, "invalid-format" has no dash), the method catches the `ValueError` from `int()` conversion and `continue`s, silently skipping the invalid part. This means `"1-10,20-30,40-50-60"` returns `[LineRange(1,10), LineRange(20,30)]` without any indication that `"40-50-60"` was invalid.
 
 ## Fix Plan
-1. Track whether coverage came from single vs. multiple original entries
-2. Generate appropriate error message: "File already read (covered)" for single entry, "File already read (covered by multiple entries)" for multiple entries
-3. Update tests to verify correct error messages
-4. This is a minimal, surgical fix that addresses core functionality (accurate diagnostic information)
+1. Modify `_parse_line_ranges` to return empty list when ANY part is invalid
+2. Update `should_read_file` to handle the new behavior (already handles empty list as invalid)
 
-## Status: FIXED
+## Fix Implementation
+Changed `continue` statements to `return []` in `_parse_line_ranges` method. Now when any part of the `lines_read` string is invalid (e.g., non-integer, negative line numbers, start > end, multiple dashes), the entire method returns empty list `[]` instead of silently ignoring invalid parts and returning partial results.
 
 ## Files Changed
-1. `src/henchman/agents/working_memory.py` - Line 519: Changed error message from `"File already read (covered by multiple entries)"` to `"File already read (covered)"`
-2. `tests/agents/test_working_memory_bug_error_message.py` - Updated test expectations to match new error message
+1. `src/henchman/agents/working_memory.py` - Modified `_parse_line_ranges` method to return empty list when any part is invalid
+2. `tests/agents/test_working_memory.py` - Added test `test_memory_parse_line_ranges_invalid_parts_silently_ignored_bug` to verify the fix
 
-## Verification
-- All existing tests pass (620 tests)
-- New test `test_error_message_single_entry` passes with corrected error message
-- Bug was confirmed with failing test first (TDD), then fixed, then all tests pass
-- The fix is minimal and surgical, addressing only the misleading error message without changing core logic
+## Status: FIXED
