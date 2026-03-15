@@ -512,7 +512,7 @@ class WorkingMemory(SerializableDataclass):
                 current_line = rng.end + 1
                 if current_line > requested.end:
                     # We've covered the entire requested range
-                    return False, "File already read (covered by multiple entries)"
+                    return False, "File already read (covered)"
 
         # If we get here, we either didn't cover the end or there were gaps
         return True, "New or partially overlapping lines need to be read"
