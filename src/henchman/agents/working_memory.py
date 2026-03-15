@@ -484,8 +484,6 @@ class WorkingMemory(SerializableDataclass):
             # No valid line range format in any entry
             # This happens when lines_read is invalid, empty, or contains only invalid ranges
             return True, "Cannot determine - invalid lines_read format"
-            if requested.start >= rng.start and requested.end <= rng.end:
-                return False, "File already read (contained within previously read lines)"
 
         # Merge overlapping or adjacent ranges
         merged_ranges = self._merge_ranges(valid_ranges)
