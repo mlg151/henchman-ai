@@ -327,9 +327,10 @@ class WorkingMemory(SerializableDataclass):
         
         ranges = []
         for part in normalized.split(","):
-            # Check for dash characters: hyphen '-', en dash '–' (U+2013), em dash '—' (U+2014)
+            # Check for dash characters: hyphen '-', figure dash '‒' (U+2012), en dash '–' (U+2013), 
+            # em dash '—' (U+2014), horizontal bar '―' (U+2015), minus sign '−' (U+2212)
             # Use regex to find the first dash-like character
-            dash_match = re.search(r'[-\u2013\u2014]', part)
+            dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
             if dash_match:
                 # Split on the dash character found
                 dash_pos = dash_match.start()
