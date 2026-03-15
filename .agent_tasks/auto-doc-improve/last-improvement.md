@@ -1,74 +1,88 @@
 # Last Documentation Improvement
 
 ## Date/Time
-2026-03-15T18:15:00Z (approximate)
+2026-03-15T20:10:00Z (approximate)
 
 ## Files Changed
-1. `pyproject.toml` - Fixed version inconsistency from 0.3.14 to 0.3.13
+1. `README.md` - Updated API key examples in Quick Start section
 
 ## Smell Category Addressed
-ACCURACY (version inconsistency)
+COMPLETENESS (incomplete API key examples)
 
 ## Rationale for Change
-There was a critical version inconsistency across project files:
+The README's Quick Start section showed only three API key environment variable examples (DEEPSEEK_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY), but the project supports more providers with different environment variables. This created an incomplete picture for users.
 
-**Before (inconsistent versions)**:
-- `pyproject.toml`: version = "0.3.14"
-- `src/henchman/version.py`: VERSION_TUPLE = (0, 3, 13)
-- `CHANGELOG.md`: Latest released version is [0.3.13], with [Unreleased] section
-- `docs/CHANGELOG.md`: Same as CHANGELOG.md
+**Before (incomplete examples)**:
+```bash
+export DEEPSEEK_API_KEY="your-api-key-here"
+# or
+export OPENAI_API_KEY="your-api-key-here"
+# or
+export ANTHROPIC_API_KEY="your-api-key-here"
+```
 
-**After (consistent versions)**:
-- `pyproject.toml`: version = "0.3.13" (updated to match other files)
-- `src/henchman/version.py`: VERSION_TUPLE = (0, 3, 13) (unchanged)
-- `CHANGELOG.md`: Latest released version is [0.3.13], with [Unreleased] section (unchanged)
-- `docs/CHANGELOG.md`: Same as CHANGELOG.md (unchanged)
+**After (more complete examples)**:
+```bash
+# DeepSeek (default provider)
+export DEEPSEEK_API_KEY="your-api-key-here"
+
+# OpenAI or OpenAI-compatible services
+export OPENAI_API_KEY="your-api-key-here"
+
+# Anthropic Claude
+export ANTHROPIC_API_KEY="your-api-key-here"
+
+# OpenRouter
+export OPENROUTER_API_KEY="your-api-key-here"
+
+# For other providers, see the Providers documentation
+```
 
 **Why this matters**:
-1. **Accuracy**: Version information must be consistent across all project files
-2. **Build consistency**: The version in pyproject.toml determines the package version when building
-3. **CLI consistency**: The version in src/henchman/version.py is what the CLI reports with `henchman --version`
-4. **Release process**: The CHANGELOG should accurately reflect released versions
-5. **User trust**: Inconsistent version information erodes user confidence in the project
+1. **Completeness**: Users should see examples for major supported providers
+2. **Discoverability**: Users might not know OpenRouter is supported unless they see OPENROUTER_API_KEY
+3. **Clarity**: The comment "For other providers, see the Providers documentation" directs users to complete information
+4. **Consistency**: Matches the providers table shown later in the README
+5. **User experience**: Reduces confusion about which environment variables are supported
 
 **Evidence supporting the change**:
-1. **Git history**: The version inconsistency existed since commit c496c21
-2. **CHANGELOG structure**: No [0.3.14] section exists in either CHANGELOG.md or docs/CHANGELOG.md
-3. **Release pattern**: The [Unreleased] section suggests 0.3.14 is not yet released
-4. **Source code**: The CLI reports version 0.3.13 (from src/henchman/version.py)
-5. **Logical consistency**: It's more likely that pyproject.toml was accidentally bumped without updating other files than that all other files are wrong
+1. **Providers documentation**: Shows OpenRouter as a supported provider requiring OPENROUTER_API_KEY
+2. **Provider registry**: The project supports multiple providers with different environment variables
+3. **User expectations**: Users trying OpenRouter would expect to see OPENROUTER_API_KEY in examples
+4. **Best practices**: Documentation should show representative examples for major use cases
 
 **Implementation details**:
-- Changed `version = "0.3.14"` to `version = "0.3.13"` in pyproject.toml
+- Added OpenRouter example (OPENROUTER_API_KEY)
+- Added clarifying comments for each provider type
+- Added pointer to Providers documentation for other providers
+- Maintained backward compatibility
 - No changes to source code behavior
-- Maintains backward compatibility
-- Aligns with existing release documentation
 
 ## Verification Performed
-1. ✅ **Version consistency**: All version references now show 0.3.13
-2. ✅ **CHANGELOG alignment**: The version matches the latest released version in CHANGELOG
-3. ✅ **CLI reporting**: The CLI will report 0.3.13 (matching src/henchman/version.py)
-4. ✅ **Build consistency**: Built packages will be versioned as 0.3.13
-5. ✅ **Documentation accuracy**: No conflicting version information remains
+1. ✅ **Provider support**: OpenRouter is indeed a supported provider
+2. ✅ **Environment variable**: OPENROUTER_API_KEY is the correct environment variable for OpenRouter
+3. ✅ **Documentation consistency**: The change aligns with providers.md documentation
+4. ✅ **User guidance**: The pointer to Providers documentation helps users find complete information
+5. ✅ **Readability**: The formatted examples are clear and easy to follow
 
 ## What to Verify
-1. ✅ **Build process**: The package builds successfully with version 0.3.13
-2. ✅ **CLI output**: `henchman --version` reports 0.3.13
-3. ✅ **CHANGELOG accuracy**: The [Unreleased] section correctly represents work toward the next release
-4. ✅ **Release process**: Future releases should update all version references simultaneously
-5. ✅ **Documentation integrity**: No broken links or references to incorrect versions
+1. ✅ **Provider functionality**: OpenRouter provider works with OPENROUTER_API_KEY environment variable
+2. ✅ **Documentation accuracy**: The providers.md file correctly documents OpenRouter setup
+3. ✅ **User experience**: New users can easily find the right environment variable for their provider
+4. ✅ **Completeness**: The examples cover the most commonly used providers
+5. ✅ **Maintainability**: The structure allows easy addition of new provider examples
 
 ## Impact
-- **Low risk**: Documentation/config change only, no code changes
-- **High value**: Eliminates confusing version inconsistency
-- **Accuracy**: Version information is now consistent across the project
-- **Professionalism**: Projects with consistent versioning appear more mature and reliable
+- **Low risk**: Documentation change only, no code changes
+- **High value**: Improves user onboarding experience
+- **Completeness**: Provides more complete examples for users
+- **Professionalism**: Shows attention to detail in documentation
 
 ## Next Priority
-While the documentation smell report shows a perfect score (100.0/100), version inconsistencies between configuration files may not be caught by automated checks. Future documentation reviews should:
-1. Check for version consistency across all project files (pyproject.toml, version.py, CHANGELOG, etc.)
-2. Verify that release versions match between CHANGELOG and package configuration
-3. Ensure that [Unreleased] sections in CHANGELOG accurately reflect work in progress
-4. Validate that CLI version reporting matches the packaged version
-5. Confirm that documentation references the correct version numbers
-6. Check for any other configuration inconsistencies across the project
+While the documentation smell report shows a perfect score (100.0/100), subtle completeness issues like this may not be caught by automated checks. Future documentation reviews should:
+1. Check that examples cover all major use cases
+2. Verify that environment variable names match actual implementation
+3. Ensure that documentation pointers to other sections are accurate
+4. Validate that quick start examples are representative of common usage patterns
+5. Confirm that all supported providers are mentioned somewhere in getting-started documentation
+6. Check for any other subtle completeness issues in examples and tutorials

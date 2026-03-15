@@ -50,11 +50,19 @@ uv pip install henchman-ai
 
 1. **Set your API key** (choose your preferred provider):
    ```bash
+   # DeepSeek (default provider)
    export DEEPSEEK_API_KEY="your-api-key-here"
-   # or
+   
+   # OpenAI or OpenAI-compatible services
    export OPENAI_API_KEY="your-api-key-here"
-   # or
+   
+   # Anthropic Claude
    export ANTHROPIC_API_KEY="your-api-key-here"
+   
+   # OpenRouter
+   export OPENROUTER_API_KEY="your-api-key-here"
+   
+   # For other providers, see the Providers documentation
    ```
 
 2. **Start the CLI**:
