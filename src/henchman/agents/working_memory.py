@@ -392,8 +392,13 @@ class WorkingMemory(SerializableDataclass):
         if end is not None:
             if type(end) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
                 return True, f"Invalid line number: end must be an integer, got {type(end).__name__}={end}"
-            if end < 1:
+            if end < 1 and end != -1:
                 return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
+
+        # Convert end=-1 to None (read to end of file)
+        # This matches the read_file tool's API where end=-1 means "read to EOF"
+        if end == -1:
+            end = None
 
         # Validate line range if both are provided
         if start is not None and end is not None and start > end:
