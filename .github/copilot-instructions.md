@@ -78,7 +78,7 @@ async for chunk in provider.chat_completion_stream(
 | DeepSeek (`deepseek`) | `DEEPSEEK_API_KEY` | deepseek-chat | OpenAI-compatible, default provider |
 | Anthropic (`anthropic`) | `ANTHROPIC_API_KEY` | claude-sonnet-4-20250514 | Native SDK |
 | Ollama (`ollama`) | None required | llama3.2 | Local models, OpenAI-compatible API |
-| OpenRouter (`openrouter`) | `OPENROUTER_API_KEY` | openai/gpt-4o | OpenAI-compatible, access to hundreds of models |
+| OpenRouter (`openrouter`) | `OPENROUTER_API_KEY` | openai/gpt-4o-mini | OpenAI-compatible, access to hundreds of models |
 | OpenAI-Compatible (`openai_compat`) | Varies by service | gpt-4o | Generic provider for ANY OpenAI-compatible API (OpenAI, Together, Groq, Fireworks, etc.) |
 | Together AI (`together`) | `TOGETHER_API_KEY` | meta-llama/Llama-3.3-70B-Instruct-Turbo | OpenAI-compatible (alias for openai_compat with Together base URL) |
 | Groq (`groq`) | `GROQ_API_KEY` | llama-3.3-70b-specdec | OpenAI-compatible (alias for openai_compat with Groq base URL) |

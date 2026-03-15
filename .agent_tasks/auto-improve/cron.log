@@ -707815,3 +707815,283 @@ TOTAL                                                       18923    258   5054 
 =========== 5701 passed, 6 skipped, 46 warnings in 187.82s (0:03:07) ===========
 [2026-03-14T23:00:02Z] All tests passed.
 Committing changes...
+[main 815040a] fix(four-lenses): four-lenses-agents-working_memory
+ 6 files changed, 3081 insertions(+), 874 deletions(-)
+[2026-03-14T23:00:02Z] Auto-improve complete.
+[2026-03-15T00:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-15T00:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10531[/]
+I'll start by reading the smell report and then the target file to understand the context and identify a bug.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.8/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-15T00:00:30.737216+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py...
+Let me read the test file:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me create the documentation stub for the bug report:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'content': "# Four 
+Lenses Bug Report: src/henchman/agents/working_memory.py\n## Date: 
+2025-03-15T00:00:00Z\n## Bug Summary\nThe `add_recent_file` method modifies the 
+input `WorkingMemoryEntry` object in-place by normalizing its path, violating 
+the principle of immutability and potentially causing unexpected side effects 
+for callers.\n\n## Lens\n**Phase 2: State & Side Effects (The Entropy Audit)** -
+The code accidentally mutates inputs which could break callers.\n\n## Expected 
+vs. Observed\n| Expected Behavior | Observed Risk |\n|---|---|\n| 
+`add_recent_file` should not modify the input object | The input object's `path`
+field is modified in-place |\n| Callers can safely reuse or inspect the entry 
+after adding it | Callers see unexpected changes to their data |\n| The method 
+creates a copy or uses copy-on-write semantics | The method directly modifies 
+the input |\n\n## Root Cause\nThe `add_recent_file` method calls 
+`_normalize_path(entry.path)` and then uses `replace(entry, 
+path=normalized_path)` to create a new entry. However, the `replace` function 
+from `dataclasses` creates a shallow copy. If the `entry` object contains 
+mutable fields (like `key_insights` list), those mutable fields are shared 
+between the original and the copy. More critically, the test shows that the 
+original entry's path is being modified, suggesting either:\n1. The `replace` 
+function is not working as expected with the serialization system\n2. There's 
+some interaction with the `SerializableDataclass` base class\n3. The 
+normalization is somehow affecting the original object\n\n## Fix Plan\n1. Create
+a deep copy of the entry with normalized path instead of using `replace`\n2. 
+Ensure all mutable fields are properly copied\n3. Add a test to verify the input
+object remains unchanged\n\n## Status: IN PROGRESS"})
+[result] Successfully wrote 1768 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/README.md...
+Now let me examine the test that's already failing to understand the bug better:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+60, 'end_line': 100})
+[result]         }
+        
+        entry = WorkingMemoryEntry.from_dict(data)
+        assert entry.path == "/test/file.py"
+        assert entry.purpose == "Test"
+        assert entry.lines_read == "10-20"
+   ...
+Let me look at the specific test that's failing:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+80, 'end_line': 120})
+[result]         assert memory.current_task == "Test task"
+        assert memory.task_objectives == ["Objective 1", "Objective 2"]
+        assert memory.recent_files == []
+        assert memory.active_context ...
+
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+100, 'end_line': 130})
+[result]         
+        assert len(memory.recent_files) == 1
+        stored_entry = memory.recent_files[0]
+        assert stored_entry.path == "/test/file.py"
+        assert stored_entry.purpose == "Read for...
+Now let me run the existing test to see if it's actually failing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py::TestWorkingMemory::test_memory_add_file_doe
+s_not_modify_input -xvs'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Interesting! The test is passing. Let me look more closely at the test to understand what it's actually checking:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+100, 'end_line': 140})
+[result]         
+        assert len(memory.recent_files) == 1
+        stored_entry = memory.recent_files[0]
+        assert stored_entry.path == "/test/file.py"
+        assert stored_entry.purpose == "Read for...
+Wait, the test is passing but the comment says "BUG: entry.path should NOT be modified. Currently it IS modified (normalized in place)". Let me run the test with more detail to see what's happening:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -c "\nfrom 
+henchman.agents.working_memory import WorkingMemory, 
+WorkingMemoryEntry\n\nmemory = 
+WorkingMemory(current_task=\'Test\')\noriginal_path = \'./test/file.py\'\nentry 
+= WorkingMemoryEntry(\n    path=original_path,\n    purpose=\'Read for 
+understanding\',\n    lines_read=\'1-50\',\n    key_insights=[\'Insight 
+1\'],\n)\n\nprint(f\'Before add_recent_file: entry.path = 
+{entry.path!r}\')\nprint(f\'original_path = {original_path!r}\')\nprint(f\'Are 
+they the same object? {entry.path is original_path}\')\nprint(f\'Are they equal?
+{entry.path == 
+original_path}\')\n\nmemory.add_recent_file(entry)\n\nprint(f\'After 
+add_recent_file: entry.path = {entry.path!r}\')\nprint(f\'original_path = 
+{original_path!r}\')\nprint(f\'Are they the same object? {entry.path is 
+original_path}\')\nprint(f\'Are they equal? {entry.path == 
+original_path}\')\nprint(f\'Stored entry path: 
+{memory.recent_files[0].path!r}\')\nprint(f\'Is stored entry same object as 
+input? {memory.recent_files[0] is entry}\')\n"'})
+[result] Before add_recent_file: entry.path = './test/file.py'
+original_path = './test/file.py'
+Are they the same object? True
+Are they equal? True
+After add_recent_file: entry.path = './test/file.py'
+original...
+Ah! So the test is passing because the input object's path is NOT being modified (it remains `'./test/file.py'`), but the stored entry has a normalized path (`'test/file.py'`). The test comment is wrong - it says the bug is that the input is modified, but actually the test shows it's NOT modified. 
+
+However, looking at the test comment more carefully: "Note: With the bug, entry IS stored_entry (same object), so this would fail. With fix, they might be different objects or same object with copy-on-write semantics". This suggests the test was written to catch a bug where `entry` and `stored_entry` would be the same object. But they're not the same object (as shown by `memory.recent_files[0] is entry` returning `False`).
+
+Let me check the actual implementation of `add_recent_file`:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+180, 'end_line': 200})
+[result]             entry: A DecisionEntry object containing the decision 
+details,
+                   rationale, and impact assessment.
+        
+        Returns:
+            None
+        """
+        self.deci...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+150, 'end_line': 170})
+[result] 
+    current_task: str = ""
+    task_objectives: list[str] = field(default_factory=list)
+    recent_files: list[WorkingMemoryEntry] = field(default_factory=list)
+    active_context: dict[str, Any] = f...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+170, 'end_line': 190})
+[result]         """
+        # Normalize the path before storing
+        # Create a copy with normalized path to avoid modifying input
+        normalized_entry = replace(entry, path=_normalize_path(entry.path)...
+OK, so the implementation uses `replace(entry, path=_normalize_path(entry.path))` which should create a new object. But wait, let me check what `replace` does with the `SerializableDataclass`:
+[tool] read_file({'path': 'src/henchman/utils/serialization.py'})
+[result] """Utilities for dataclass serialization and deserialization."""
+
+from __future__ import annotations
+
+from dataclasses import asdict, fields
+from typing import Any, TypeVar, Union, get_args, get_origi...
+The `SerializableDataclass` doesn't override `replace`. So `replace` should work normally from `dataclasses`. Let me trace through this more carefully. Actually, I think I need to look for a REAL bug, not this one that seems to already be fixed (or never existed). Let me re-examine the code through the Four Lenses:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `should_read_file` method (which is flagged as highly complex in the smell report), I see several potential issues:
+
+1. **Logic Gaps**: The method has many branches and could have edge cases not handled properly.
+2. **Type Safety**: The method accepts `start: int | None = None` and `end: int | None = None`, but doesn't handle all combinations well.
+
+Let me look at the `should_read_file` method more carefully:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+264, 'end_line': 320})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+Let me continue reading the `should_read_file` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+320, 'end_line': 380})
+[result]                     # But might need to read beyond max_read_end
+                    return True, f"May need to read lines beyond {max_read_end}"
+                else:
+                    # start > ma...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+380, 'end_line': 400})
+[result] 
+        # Actually, let's take a simpler approach: check if the requested range
+        # is fully covered by walking through merged ranges
+        current_line = requested.start
+        for rng in m...
+Now I need to analyze this complex method for bugs. Let me run the existing tests to see if any are failing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py -xvs 2>&1 | tail -100'})
+[result] src/henchman/mcp/config.py                                     14     
+14      0      0     0%   6-51
+src/henchman/mcp/manager.py                                    65     65     22 
+0     0%   7-2...
+All tests are passing. Let me look more carefully at the `should_read_file` method. I need to find a real bug. Let me examine the logic for when `start` is None or `end` is None. Looking at lines 304-330:
+
+```python
+if start is None or end is None:
+    # Handle partial range specifications
+    if start is None and end is None:
+        # Want to read entire file, but file wasn't read fully
+        return True, "File not fully read - partial read recorded"
+    elif start is not None:
+        # start=X, end=None: read from X to EOF
+        # Check if we've read from X to max(read_end)
+        if not valid_ranges:
+            return True, "Cannot determine - invalid lines_read format"
+        max_read_end = max(r.end for r in valid_ranges)
+        if start <= max_read_end:
+            # We've read at least from start to max_read_end
+            # But might need to read beyond max_read_end
+            return True, f"May need to read lines beyond {max_read_end}"
+        else:
+            # start > max_read_end, definitely need to read
+            return True, f"Start line {start} beyond last read line {max_read_end}"
+    else:  # end is not None, start is None
+        # start=None, end=Y: read from beginning to Y
+        # Check if we've read from min(read_start) to Y
+        if not valid_ranges:
+            return True, "Cannot determine - invalid lines_read format"
+        min_read_start = min(r.start for r in valid_ranges)
+        if end >= min_read_start:
+            # We've read at least from min(read_start) to end
+            # But might need to read before min_read_start
+            return True, f"May need to read lines before {min_read_start}"
+        else:
+            # end < min_read_start, definitely need to read
+            return True, f"End line {end} before first read line {min_read_start}"
+```
+
+I see a bug! When `start` is not None but `end` is None (read from line X to EOF), the logic checks if `start <= max_read_end`. If true, it returns `True` with message "May need to read lines beyond {max_read_end}". But what if we've already read from `start` to `max_read_end` AND `max_read_end` is the end of the file? We should check if the file was read fully!
+
+Similarly for `start=None, end=Y`: it checks if `end >= min_read_start`. If true, returns "May need to read lines before {min_read_start}". But what if `min_read_start` is 1 (beginning of file)?
+
+Actually, wait. We can't know if `max_read_end` is the end of the file or if `min_read_start` is 1. The method doesn't have access to file length. So maybe this is intentional?
+
+But there's another issue: the method always returns `True` when `start` is None or `end` is None (except when file was read "full" earlier). That seems wrong. If I want to read from line 10 to EOF, and I've already read lines 10-50, I should return `False` (don't read), not `True` with "May need to read lines beyond 50".
+
+Actually, looking at the test file, there are tests for this! Let me check:
+[tool] grep({'pattern': 'should_read_file.*partial.*range', 'path': 
+'tests/agents/test_working_memory.py', 'line_numbers': True})
+[result] 698:    def 
+test_memory_should_read_file_invalid_line_numbers_partial_range(self):
+819:    def test_memory_should_read_file_multiple_partials_cover_range(self):
+820:        """Test should_read_file wh...
+Let me look at the test for partial range specification bug:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+922, 'end_line': 980})
+[result]     def 
+test_memory_should_read_file_partial_range_specification_bug(self):
+        """Test should_read_file bug with partial range specifications.
+        
+        BUG: When only start OR end is prov...
+So

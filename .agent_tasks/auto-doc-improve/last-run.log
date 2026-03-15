@@ -1,28 +1,72 @@
-[2026-03-14T22:00:01Z] Starting auto-doc-improve run...
+[2026-03-15T00:00:02Z] Starting auto-doc-improve run...
 Running documentation smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-ℹ [blue]CHAT[/] | Tokens: ~[cyan]10525[/]
-I'll start by examining the current state of the documentation to understand what needs improvement. Let me first check the last improvement made to avoid repeating work.
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10531[/]
+I'll start by examining the current state of the documentation improvement tracking to understand what was done last time and identify any remaining issues.
 [tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
 
 [result] # Last Documentation Improvement
 
 ## Date/Time
-2026-03-14T20:15:00Z (approximate)
+2026-03-14T22:10:00Z (approximate)
 
 ## Files Changed
-- `CHANGELOG.md` (root file)
-- `docs/CHANGELOG.md` (already correct, verified)
+- `.github/copilot-instructions.md`
 
-## Smell Category Ad...
-Excellent! The documentation is in perfect shape with a score of 100.0/100 and no remaining smells. According to the report, all 245 files have no smells and all docstring coverage is at 100%. 
+## Smell Category Addressed
+Completeness/Accuracy (MEDIUM sever...
+Excellent! The documentation has achieved a perfect score of 100.0/100 with zero smells. According to the smell report, all 245 files (55 documentation files and 190 source files) have no documentation issues. The docstring coverage is 100.0%, and all files have an A grade.
 
-However, I should verify if there are any subtle issues that might not be caught by the automated smell detector. Let me check a few key documentation files to ensure they're up-to-date with the current project state.
+However, as a Technical Documentation Improvement Agent, I should still verify that the documentation is truly complete and accurate. Let me check if there are any subtle issues that might not have been caught by the automated smell detector. I'll start by examining the mkdocs configuration to ensure all documentation pages are properly included in the navigation.
+[tool] read_file({'path': 'mkdocs.yml'})
+[result] site_name: Henchman-AI
+site_url: https://github.com/mlg151/henchman-ai
+site_description: A Model-Agnostic AI Agent CLI in Python
+site_author: Matthew
 
-First, let me check the main README.md to see if it accurately reflects the current project status:
-[tool] read_file({'path': 'README.md', 'start_line': 1, 'end_line': 50})
+repo_name: mlg151/henchman-ai
+repo_...
+The mkdocs.yml looks well-structured and includes all the key documentation pages. Let me check if there are any documentation files that might not be included in the navigation. I'll list the documentation directory to see all available files.
+[tool] ls({'path': 'docs'})
+[result] CHANGELOG.md
+CONTRIBUTING.md
+RELEASE_CHECKLIST.md
+agents.md
+api.md
+architecture.md
+configuration.md
+evals/
+extensions.md
+getting-started.md
+index.md
+intelligent-context-management.md
+javascripts/
+mcp....
+All documentation files in the docs directory appear to be included in the navigation. Let me check if there are any root-level documentation files that should also be included or linked.
+[tool] ls({'path': '.', 'show_hidden': False})
+[result] CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+MagicMock/
+README.md
+RELEASE_CHECKLIST.md
+__pycache__/
+after_extractor_smells.json
+after_summarizer_refactor_smells.json
+after_summarizer_smells.json
+all_smells.js...
+I can see several root-level documentation files: `CHANGELOG.md`, `CONTRIBUTING.md`, `README.md`, and `RELEASE_CHECKLIST.md`. Looking at the mkdocs.yml, I see that `CHANGELOG.md`, `CONTRIBUTING.md`, and `RELEASE_CHECKLIST.md` are already included in the navigation. However, `README.md` is not included in the mkdocs navigation, but it's typically the main landing page for GitHub. Let me check if the docs/index.md properly references or includes the README content.
+[tool] read_file({'path': 'docs/index.md'})
+[result] # Henchman-AI
+
+**A Model-Agnostic AI Agent CLI in Python**
+
+Henchman-AI is a powerful terminal-based AI agent that supports multiple LLM 
+providers through a unified interface. Inspired by gemini-cli, ...
+The docs/index.md looks comprehensive and serves as a good landing page for the documentation site. The README.md at the root is typically for GitHub and doesn't need to be in the mkdocs navigation. However, I should check if the README.md content is up-to-date and consistent with the documentation.
+[tool] read_file({'path': 'README.md'})
 [result] # Henchman-AI
 
 > Your AI Henchman for the Terminal - A Model-Agnostic AI Agent CLI
@@ -31,68 +75,38 @@ First, let me check the main README.md to see if it accurately reflects the curr
 version](https://img.shields.io/pypi/v/henchman-ai.svg)](https://pypi.org/projec
 t/henchman-ai/)
 [![Python ve...
-Let me check the version information in the README to ensure it matches the current version:
-[tool] read_file({'path': 'src/henchman/version.py'})
-[result] """Version information for Henchman-AI."""
+The README.md looks comprehensive and up-to-date. It's well-structured with badges, installation instructions, quick start guide, architecture overview, usage examples, configuration details, provider information, development setup, and documentation links. The content appears consistent with the docs/index.md and other documentation.
 
-VERSION_TUPLE = (0, 3, 13)
-VERSION = ".".join(str(v) for v in VERSION_TUPLE)
+However, I notice one potential issue: The README.md has relative links to documentation files (e.g., `[Providers](docs/providers.md)`) which work on GitHub but might not work when the documentation is built with mkdocs. In mkdocs, the links should be relative to the documentation root. Let me check if there are any broken links by examining a few key documentation files.
+[tool] grep({'pattern': '\[.*\\]\\(.*\\.md\\)', 'path': 'README.md', 
+'line_numbers': True})
+[result] 234:**See [Providers](docs/providers.md) for complete details and 
+configuration.**
+248:**For AI Agent Development**: Henchman-AI includes comprehensive copilot 
+instructions for AI agents working on th...
+I found the issue! The README.md contains relative links to documentation files (e.g., `docs/providers.md`, `docs/index.md`, etc.) that work on GitHub but would break when the documentation is built with mkdocs. In mkdocs, the documentation is served from the root, so links should be like `providers.md` not `docs/providers.md`. 
 
-__all__ = ["VERSION", "VERSION_TUPLE"]
-...
-Good, the version is 0.3.13. Now let me check if the README mentions the correct version. Let me search for version references:
-[tool] grep({'pattern': '0\\.3\\.', 'path': 'README.md', 'line_numbers': True})
-[result] No matches found...
-Good, the README doesn't have hardcoded version numbers that could become stale. Let me check the PyPI badge to see if it's correct:
-[tool] grep({'pattern': 'pypi.*henchman-ai', 'path': 'README.md'})
-[result] [![PyPI 
-version](https://img.shields.io/pypi/v/henchman-ai.svg)](https://pypi.org/projec
-t/henchman-ai/)
-[![Python 
-versions](https://img.shields.io/pypi/pyversions/henchman-ai.svg)](https://pypi.
-org/pr...
-The PyPI badge is dynamic, so it will always show the correct version. Let me check the documentation index page to ensure it's up-to-date:
-[tool] read_file({'path': 'docs/index.md', 'start_line': 1, 'end_line': 50})
-[result] # Henchman-AI
+However, since README.md is primarily for GitHub and not part of the mkdocs site, this might be acceptable. But for consistency and to avoid confusion, I should check if the documentation files themselves have similar issues. Let me check the docs/index.md for links:
+[tool] grep({'pattern': '\[.*\\]\\(.*\\.md\\)', 'path': 'docs/index.md', 
+'line_numbers': True})
+[result] 50:**See [Providers](providers.md) for complete details and 
+configuration.**
+66:*See [Tools](tools.md) for the complete list of all 34 tools.*
+70:- [Getting Started](getting-started.md) - Installation...
+Perfect! The docs/index.md has correct relative links (e.g., `providers.md`, `tools.md`) which work in mkdocs. The README.md has GitHub-style links (e.g., `docs/providers.md`) which work on GitHub. This is actually correct - each file uses the appropriate link format for its context.
 
-**A Model-Agnostic AI Agent CLI in Python**
+However, I should verify that all the documentation files in the mkdocs navigation actually exist. Let me check a few key ones:
+[tool] read_file({'path': 'docs/providers.md', 'start_line': 1, 'end_line': 50})
+[result] # Providers
 
-Henchman-AI is a powerful terminal-based AI agent that supports multiple LLM 
-providers through a unified interface. Inspired by gemini-cli, ...
-The documentation looks good. Let me check one more thing - the copilot instructions file that was provided as context to see if it needs any updates:
-[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 1, 
-'end_line': 50})
-[result] # Henchman-AI Copilot Instructions
+Henchman-AI supports multiple LLM providers through a unified interface.
 
-Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by 
-gemini-cli. It supports multiple LLM providers (DeepSeek, 
-OpenAI/OpenAI-compatible APIs, Ant...
-The copilot instructions look comprehensive and up-to-date. Let me check if there are any inconsistencies between the copilot instructions and the actual project structure. Let me look at the tools section to see if it mentions all 34 built-in tools:
-[tool] grep({'pattern': 'Built-in Tools', 'path': 
-'.github/copilot-instructions.md', 'context_before': 2, 'context_after': 10})
-[result] - **Phase 3**: Core Agent Loop ✅
-- **Phase 4**: Tool System ✅
-- **Phase 5**: Built-in Tools ✅ (including ask_user tool)
-- **Phase 6**: Configuration System ✅
-- **Phase 7**: Terminal UI ✅
-- **Phase 8**...
-I need to focus on my role as TECH_LEAD and make a targeted documentation improvement. Let me check the actual project structure to see if the copilot instructions accurately reflect it. First, let me examine the tools directory structure:
-[tool] ls({'path': 'src/henchman/tools/builtins'})
-[result] __init__.py
-__init__.py,cover
-__pycache__/
-ask_user.py
-ask_user.py,cover
-code_format.py
-code_format.py,cover
-coverage_map.py
-coverage_map.py,cover
-dead_code.py
-dead_code.py,cover
-deep_research.py
-deep...
-I can see there are 34 built-in tools (excluding the `__init__.py` and `__pycache__`). Now let me check if the copilot instructions mention the correct number of tools. Looking back at the copilot instructions, I see it mentions "Built-in tools: read_file, write_file, delegate_task, ask_user" but this is just a subset. The actual list in the copilot instructions shows 34 tools in the file structure section. Let me check if the tools documentation page is accurate:
-[tool] read_file({'path': 'docs/tools.md', 'start_line': 1, 'end_line': 100})
+## Supported Providers
+
+| Provider | Status | API Compatibility | Registry Name | Notes |
+|----------|--------|--...
+Good, the providers.md file exists and has content. Let me check one more documentation file to ensure completeness:
+[tool] read_file({'path': 'docs/tools.md', 'start_line': 1, 'end_line': 50})
 [result] # Tools
 
 Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent 
@@ -102,155 +116,257 @@ can use to interact with your system.
 
 | Tool | Category | Kind | Description |
 |------|---...
-The tools documentation looks comprehensive and accurate. However, I notice there's a potential issue. Looking at the copilot instructions, in the "Architecture Overview" section, it shows:
+Excellent! The tools.md file exists and correctly lists all 34 tools. The documentation appears to be in excellent shape with a perfect score of 100.0/100.
 
-```
-├── tools/      # Built-in tools: read_file, write_file, delegate_task, ask_user
-```
+However, as a Technical Documentation Improvement Agent, I should look for any subtle inconsistencies or opportunities for improvement. Let me check the copilot instructions file that was updated in the last improvement to ensure it's still accurate:
+[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 1, 
+'end_line': 100})
+[result] # Henchman-AI Copilot Instructions
 
-This only lists 4 tools as examples, but there are actually 34 built-in tools. While this isn't technically incorrect (it says "Built-in tools:" and gives examples), it could be misleading or incomplete. However, the actual tools documentation page (`docs/tools.md`) is complete and accurate.
+Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by 
+gemini-cli. It supports multiple LLM providers (DeepSeek, 
+OpenAI/OpenAI-compatible APIs, Ant...
+The copilot instructions look good and have been updated correctly with the "(34 total)" mention for tools. However, I notice something in the "Available Providers" table. Let me check if the default model for OpenRouter is accurate by looking at the actual OpenRouter provider implementation:
+[tool] read_file({'path': 'src/henchman/providers/openrouter.py'})
+[result] """OpenRouter provider implementation."""
 
-Let me check if there are any other documentation files that might have incomplete tool listings. Let me search for references to tool counts:
-[tool] grep({'pattern': '34.*tool', 'path': 'docs', 'ignore_case': True})
-[result] docs/index.md:Henchman-AI includes a comprehensive set of 34 tools for 
-code analysis, testing, file operations, and multi-agent coordination, 
-including:
-docs/index.md:*See [Tools](tools.md) for the co...
-Good! The documentation correctly states there are 34 tools. Let me check the README.md for tool references:
-[tool] grep({'pattern': 'tool', 'path': 'README.md', 'ignore_case': True, 
-'line_numbers': True})
-[result] 16:- 🔌 **Extensible**: Plugin system for tools, providers, and custom 
-commands
-18:- 🛠️ **Built-in Tools**: File operations, shell commands, web fetching, and 
-more
-19:- 🔗 **MCP Integration**: Connect t...
-The README mentions "Built-in Tools" but doesn't specify the count. This is fine as it's a high-level overview. Let me check if there are any other documentation inconsistencies. Let me look at the architecture documentation:
-[tool] read_file({'path': 'docs/architecture.md', 'start_line': 1, 'end_line': 
-50})
-[result] # System Architecture
+import os
+from typing import Any
 
-## Overview
+from henchman.providers.openai_compat import OpenAICompatibleProvider
 
-Henchman-AI is built with a modular, component-based architecture that separates
-concerns and promotes maintainability. The system is designed around the 
-principle ...
-The architecture documentation looks good. Now, let me check if there's a specific issue I should address. Since the documentation smell report shows a perfect score of 100.0/100, I should look for subtle issues that might not be caught by automated checks.
+__all__ = ["OpenRouterProvider"]
 
-One thing I notice is that the copilot instructions file (`.github/copilot-instructions.md`) is referenced in the context but isn't part of the official documentation. It's an internal file for guiding AI assistants. However, it should still be accurate. Let me check if it has the complete list of 34 tools in the file structure section:
-[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 120, 
-'end_line': 180})
-[result]     elif event.type == EventType.TOOL_CALL_REQUEST:
-        # Handle tool call
-        tool_call = event.data
-        result = execute_tool(tool_call)
-        agent.submit_tool_result(tool_call.id, re...
-Let me look at the file structure section in the copilot instructions more carefully:
-[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 80, 
+
+class OpenRouterP...
+I found an inconsistency! The copilot instructions say the default model for OpenRouter is `openai/gpt-4o`, but the actual implementation in `src/henchman/providers/openrouter.py` shows the default is `openai/gpt-4o-mini`. This is a documentation accuracy issue that should be fixed.
+
+Let me also check the OpenAI-compatible provider to see if there are similar inconsistencies:
+[tool] read_file({'path': 'src/henchman/providers/openai_compat.py', 
+'start_line': 1, 'end_line': 100})
+[result] """OpenAI-compatible provider base class.
+
+This provider works with any API that follows the OpenAI chat completions 
+format,
+including DeepSeek, Together, Groq, Fireworks, and others.
+"""
+
+from __futu...
+Let me check the default model for the OpenAICompatibleProvider:
+[tool] grep({'pattern': 'default_model.*=', 'path': 
+'src/henchman/providers/openai_compat.py', 'line_numbers': True})
+[result] 164:            default_model=default_model,
+168:        self.default_model = default_model...
+
+[tool] read_file({'path': 'src/henchman/providers/openai_compat.py', 
+'start_line': 150, 'end_line': 180})
+[result]         api_key: str,
+        base_url: str,
+        default_model: str,
+    ) -> None:
+        """Initialize the provider.
+
+        Args:
+            api_key: API key for authentication.
+            ...
+The OpenAICompatibleProvider doesn't have a hardcoded default model - it's passed as a parameter. Let me check the registry to see what default is used:
+[tool] grep({'pattern': 'openai_compat.*model', 'path': 
+'src/henchman/providers/registry.py', 'line_numbers': True})
+[result] No matches found...
+Let me check the default settings to see what model is used for openai_compat:
+[tool] grep({'pattern': 'openai_compat', 'path': 
+'src/henchman/config/schema.py', 'line_numbers': True})
+[result] 108:    openai_compat: dict[str, object] = 
+Field(default_factory=dict)...
+
+[tool] read_file({'path': 'src/henchman/config/schema.py', 'start_line': 100, 
 'end_line': 130})
-[result] | Ollama (`ollama`) | None required | llama3.2 | Local models, 
-OpenAI-compatible API |
-| OpenRouter (`openrouter`) | `OPENROUTER_API_KEY` | openai/gpt-4o | 
-OpenAI-compatible, access to hundreds of mod...
-I need to find the file structure section. Let me search for it:
-[tool] grep({'pattern': 'Architecture Overview', 'path': 
-'.github/copilot-instructions.md', 'context_before': 2, 'context_after': 20})
-[result] - **Phase 12**: Polish & Release ✅ (100% test coverage, all core 
-features implemented)
-- **Phase 13**: Multi-Agent Dev Team ✅ (Orchestrator, EventBus, Team 
-Delegation)
-## Architecture Overview
-```
-src...
-I found the issue! In the copilot instructions file (`.github/copilot-instructions.md`), the Architecture Overview section shows:
+[result]         default_factory=lambda: dict[str, object]({"model": 
+"deepseek-chat"}),
+    )
+    openai: dict[str, object] = Field(default_factory=dict)
+    anthropic: dict[str, object] = Field(default_factor...
+I see that the `openai_compat` provider doesn't have a default model in the schema. Let me check the actual default model used in the copilot instructions. The issue is that the copilot instructions say the default model for OpenRouter is `openai/gpt-4o`, but the actual implementation shows it's `openai/gpt-4o-mini`. This is a documentation accuracy issue that needs to be fixed.
 
-```
-├── tools/      # Built-in tools: read_file, write_file, delegate_task, ask_user
-```
+Let me also verify the other providers' default models in the copilot instructions against the actual implementations:
+[tool] read_file({'path': 'src/henchman/providers/deepseek.py', 'start_line': 1,
+'end_line': 50})
+[result] """DeepSeek provider implementation."""
 
-This only lists 4 tools as examples, but there are actually 34 built-in tools. While this isn't technically wrong (it's just giving examples), it could be misleading or incomplete for someone reading the copilot instructions. The actual tools documentation (`docs/tools.md`) correctly lists all 34 tools.
+import os
 
-As TECH_LEAD, I should improve this to be more accurate and helpful. I'll update the copilot instructions to either:
-1. List all 34 tools (too verbose for an architecture overview)
-2. Mention the correct count of tools
-3. Provide a better representation
+from henchman.providers.openai_compat import OpenAICompatibleProvider
 
-Looking at the context, this is an internal file for guiding AI assistants, so it should be accurate but concise. I'll update it to mention the correct count and reference the complete documentation.
+__all__ = ["DeepSeekProvider"]
 
-Let me make this improvement:
-[tool] edit_file({'path': '.github/copilot-instructions.md', 'old_str': '├── 
-tools/      # Built-in tools: read_file, write_file, delegate_task, ask_user', 
-'new_str': '├── tools/      # Built-in tools (34 total): read_file, write_file, 
-edit_file, shell, grep, etc.'})
+
+class DeepSeekProvider(OpenAICompatibleProvi...
+Good, DeepSeek default is `deepseek-chat` which matches the copilot instructions.
+[tool] read_file({'path': 'src/henchman/providers/anthropic.py', 'start_line': 
+1, 'end_line': 50})
+[result] """Anthropic Claude provider.
+
+This provider uses the Anthropic SDK to communicate with Claude models.
+Unlike OpenAI-compatible APIs, Anthropic has its own message format.
+"""
+
+from __future__ import ...
+
+[tool] grep({'pattern': 'def __init__', 'path': 
+'src/henchman/providers/anthropic.py', 'line_numbers': True})
+[result] 74:    def __init__(
+267:    def __init__(
+409:    def __init__(...
+
+[tool] read_file({'path': 'src/henchman/providers/anthropic.py', 'start_line': 
+74, 'end_line': 100})
+[result]     def __init__(
+        self: _EventProcessingResult,
+        params: EventProcessingResultParams,
+    ) -> None:
+        """Initialize the event processing result.
+
+        Args:
+            params...
+
+[tool] read_file({'path': 'src/henchman/providers/anthropic.py', 'start_line': 
+267, 'end_line': 300})
+[result]     def __init__(
+        self: _AnthropicStreamProcessor,
+        provider: AnthropicProvider,
+    ) -> None:
+        """Initialize the stream processor.
+
+        Args:
+            provider: The pare...
+
+[tool] read_file({'path': 'src/henchman/providers/anthropic.py', 'start_line': 
+409, 'end_line': 450})
+[result]     def __init__(
+        self: AnthropicProvider,
+        config: AnthropicProviderConfig | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the Anthropic provider.
+
+        A...
+Let me check the AnthropicProviderConfig to see the default model:
+[tool] grep({'pattern': 'class AnthropicProviderConfig', 'path': 
+'src/henchman/providers/anthropic.py', 'line_numbers': True})
+[result] 115:class AnthropicProviderConfig:...
+
+[tool] read_file({'path': 'src/henchman/providers/anthropic.py', 'start_line': 
+115, 'end_line': 140})
+[result] class AnthropicProviderConfig:
+    """Configuration parameters for AnthropicProvider."""
+
+    api_key: str | None = None
+    model: str = "claude-sonnet-4-20250514"
+    max_tokens: int = DEFAULT_MAX_T...
+Good, Anthropic default is `claude-sonnet-4-20250514` which matches the copilot instructions.
+[tool] read_file({'path': 'src/henchman/providers/ollama.py', 'start_line': 1, 
+'end_line': 50})
+[result] """Ollama local model provider.
+
+This provider connects to a local Ollama instance which provides an
+OpenAI-compatible API.
+"""
+
+import os
+
+from henchman.providers.openai_compat import OpenAICompatibl...
+Good, Ollama default is `llama3.2` which matches the copilot instructions.
+
+Now let me check the other providers mentioned in the copilot instructions: Together, Groq, and Fireworks. These are aliases for `openai_compat` with specific base URLs. Let me check if there are separate provider files for these:
+[tool] ls({'path': 'src/henchman/providers'})
+[result] __init__.py
+__init__.py,cover
+__pycache__/
+anthropic.py
+anthropic.py,cover
+base.py
+base.py,cover
+deepseek.py
+deepseek.py,cover
+ollama.py
+ollama.py,cover
+openai_compat.py
+openai_compat.py,cover
+openai_...
+I don't see separate files for Together, Groq, or Fireworks. These are likely configured as aliases in the registry. Let me check the registry:
+[tool] read_file({'path': 'src/henchman/providers/registry.py'})
+[result] """Provider registry for discovering and creating providers."""
+
+from typing import Any
+
+from henchman.providers.base import ModelProvider
+
+__all__ = ["ProviderRegistry", "get_default_registry"]
+
+
+cla...
+Perfect! I can see that `together`, `groq`, and `fireworks` are indeed registered as aliases for `OpenAICompatibleProvider`. Now I need to check what default models are documented for these in the copilot instructions and verify if they're accurate.
+
+Looking at the copilot instructions table:
+- Together AI: `meta-llama/Llama-3.3-70B-Instruct-Turbo`
+- Groq: `llama-3.3-70b-specdec`  
+- Fireworks AI: `accounts/fireworks/models/llama-v3p1-70b-instruct`
+
+Since these are aliases for `openai_compat`, they don't have hardcoded defaults in the code. The defaults shown in the copilot instructions are likely examples or commonly used models for those services. However, the OpenRouter default model discrepancy is a real issue that needs to be fixed.
+
+Let me also check if the OpenAI-compatible provider default model in the copilot instructions (`gpt-4o`) is accurate. Since `openai_compat` is a generic provider, it doesn't have a hardcoded default. The `gpt-4o` is likely an example.
+
+Now, let me fix the OpenRouter default model discrepancy in the copilot instructions:
+[tool] edit_file({'path': '.github/copilot-instructions.md', 'old_str': '| 
+OpenRouter (`openrouter`) | `OPENROUTER_API_KEY` | openai/gpt-4o | 
+OpenAI-compatible, access to hundreds of models |', 'new_str': '| OpenRouter 
+(`openrouter`) | `OPENROUTER_API_KEY` | openai/gpt-4o-mini | OpenAI-compatible, 
+access to hundreds of models |'})
 [result] Successfully edited 
 /home/matthew/mlg-cli/.github/copilot-instructions.md...
-Now let me verify the change was made correctly:
-[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 25, 
-'end_line': 45})
-[result] ├── config/     # Pydantic settings, hierarchical YAML loading, 
-AgentConfig
-├── core/       # Agent layer: Agent, EventBus, events, session
-├── extensions/ # Plugin system: Extension ABC, ExtensionMan...
-Good! Now let me also check if there are any other references to tool counts in the copilot instructions that might need updating. Let me search for other mentions:
-[tool] grep({'pattern': 'tool.*34\\|34.*tool', 'path': 
-'.github/copilot-instructions.md', 'ignore_case': True})
-[result] No matches found...
-Good, there are no other references to tool counts that need updating. Now let me document this improvement in the last-improvement.md file:
+Now I should update the last improvement record to document this change:
 [tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
 'content': '# Last Documentation Improvement\n\n## 
-Date/Time\n2026-03-14T22:10:00Z (approximate)\n\n## Files Changed\n- 
-`.github/copilot-instructions.md`\n\n## Smell Category 
-Addressed\nCompleteness/Accuracy (MEDIUM severity)\n\n## Rationale for 
-Change\nThe copilot instructions file (internal documentation for AI assistants)
-had an incomplete representation of the built-in tools in the Architecture 
-Overview section. It listed only 4 tools as examples (`read_file, write_file, 
-delegate_task, ask_user`) when the project actually has 34 built-in tools. While
-this wasn\'t technically incorrect (it was just giving examples), it could be 
-misleading or give an incomplete picture of the tool system\'s 
-capabilities.\n\nThe actual tools documentation (`docs/tools.md`) correctly 
-lists all 34 tools, but the copilot instructions should also accurately 
-represent the scale and scope of the tool system for AI assistants that rely on 
-this guidance.\n\n## Changes Made\n1. **Updated 
-`.github/copilot-instructions.md`**:\n   - Changed line in Architecture Overview
-from:\n     ```\n     ├── tools/      # Built-in tools: read_file, write_file, 
-delegate_task, ask_user\n     ```\n     to:\n     ```\n     ├── tools/      # 
-Built-in tools (34 total): read_file, write_file, edit_file, shell, grep, etc.\n
-```\n   - Added the correct count "(34 total)" to provide accurate scale\n   - 
-Updated the example tools to include more representative ones (`edit_file, 
-shell, grep`) that better showcase the diversity of tools available\n   - Added 
-"etc." to indicate this is not an exhaustive list\n\n## What to Verify\n- The 
-copilot instructions now accurately represent the scale of the tool system (34 
-tools)\n- The example tools shown are more representative of the tool 
-diversity\n- The change doesn\'t break any formatting or links in the file\n- 
-The actual tools documentation (`docs/tools.md`) remains the authoritative 
-source with the complete list\n- No other documentation files need similar 
-updates (they already correctly mention 34 tools)\n\n## Next Priority\nAll 
-documentation smells have been addressed with a perfect score of 100.0/100. 
-Future documentation improvements should focus on:\n1. Keeping the copilot 
-instructions synchronized with actual project features\n2. Ensuring example 
-lists in documentation are representative of the full capabilities\n3. 
-Proactively updating internal guidance files when new tools are added'})
-[result] Successfully wrote 2376 bytes to 
+Date/Time\n2026-03-15T00:00:00Z (approximate)\n\n## Files Changed\n- 
+`.github/copilot-instructions.md`\n\n## Smell Category Addressed\nAccuracy (HIGH
+severity)\n\n## Rationale for Change\nThe copilot instructions had an inaccurate
+default model for the OpenRouter provider. The table listed `openai/gpt-4o` as 
+the default model, but the actual implementation in 
+`src/henchman/providers/openrouter.py` shows the default is 
+`openai/gpt-4o-mini`. This discrepancy could lead to confusion or incorrect 
+assumptions when AI agents reference the documentation.\n\n## Changes Made\n1. 
+**Updated `.github/copilot-instructions.md`**:\n   - Changed the OpenRouter 
+provider entry in the "Available Providers" table from:\n     ```\n     | 
+OpenRouter (`openrouter`) | `OPENROUTER_API_KEY` | openai/gpt-4o | 
+OpenAI-compatible, access to hundreds of models |\n     ```\n     to:\n     
+```\n     | OpenRouter (`openrouter`) | `OPENROUTER_API_KEY` | 
+openai/gpt-4o-mini | OpenAI-compatible, access to hundreds of models |\n     
+```\n   - This aligns the documentation with the actual code 
+implementation\n\n## What to Verify\n- The copilot instructions now accurately 
+reflect the OpenRouter provider\'s default model\n- The change doesn\'t break 
+any formatting or links in the file\n- The actual OpenRouter provider 
+implementation (`src/henchman/providers/openrouter.py`) correctly uses 
+`openai/gpt-4o-mini` as default\n- No other provider default models in the table
+have similar discrepancies (DeepSeek, Anthropic, Ollama are correct)\n\n## Next 
+Priority\nAll documentation smells have been addressed with a perfect score of 
+100.0/100. Future documentation improvements should focus on:\n1. Keeping the 
+copilot instructions synchronized with actual project features\n2. Ensuring 
+example lists in documentation are representative of the full capabilities\n3. 
+Proactively updating internal guidance files when new tools or providers are 
+added\n4. Periodically verifying that documented defaults match actual code 
+implementations'})
+[result] Successfully wrote 2010 bytes to 
 .agent_tasks/auto-doc-improve/last-improvement.md...
-Perfect! As TECH_LEAD, I've successfully completed a targeted documentation improvement. Let me summarize what was accomplished:
+Perfect! I've successfully identified and fixed a documentation accuracy issue. The OpenRouter provider's default model was incorrectly documented as `openai/gpt-4o` in the copilot instructions, but the actual implementation uses `openai/gpt-4o-mini`. This fix ensures that AI agents and developers referencing the copilot instructions have accurate information about the project.
 
-## Summary
+**Summary of the improvement:**
+- **Issue**: Inaccurate default model for OpenRouter provider in copilot instructions
+- **Fix**: Updated from `openai/gpt-4o` to `openai/gpt-4o-mini` to match actual implementation
+- **Impact**: Higher accuracy for AI agents and developers using the documentation
+- **Verification**: All other provider defaults were verified to be correct (DeepSeek, Anthropic, Ollama)
 
-**Improvement Made**: Updated the copilot instructions file (`.github/copilot-instructions.md`) to accurately represent the scale of the built-in tools system.
-
-**Problem Identified**: The Architecture Overview section only listed 4 tools as examples (`read_file, write_file, delegate_task, ask_user`) when the project actually has 34 built-in tools. This could give an incomplete picture of the tool system's capabilities to AI assistants relying on this guidance.
-
-**Solution Implemented**: 
-- Added the correct count "(34 total)" to provide accurate scale
-- Updated the example tools to include more representative ones (`edit_file, shell, grep`)
-- Added "etc." to indicate this is not an exhaustive list
-
-**Verification**:
-- The actual tools documentation (`docs/tools.md`) correctly lists all 34 tools and remains the authoritative source
-- Other documentation files already correctly mention the 34 tools
-- The project maintains its perfect documentation score of 100.0/100
-
-This improvement enhances the accuracy and completeness of internal guidance for AI assistants while maintaining the project's high documentation standards.[tech_lead] completed work
-[2026-03-14T22:00:01Z] Running mkdocs build to verify documentation...
+The documentation now maintains its perfect score of 100.0/100 while being even more accurate. This improvement follows the core documentation principle of **ACCURACY** - ensuring documentation matches the actual code.[tech_lead] completed work
+[2026-03-15T00:00:02Z] Running mkdocs build to verify documentation...
 INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
   File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
     from pytz.tzinfo import unpickler, BaseTzInfo
@@ -259,11 +375,8 @@ INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecate
 
 INFO    -  Cleaning site directory
 INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
-INFO    -  Documentation built in 0.99 seconds
-[2026-03-14T22:00:01Z] Re-running doc smell detector to verify improvement...
+INFO    -  Documentation built in 0.97 seconds
+[2026-03-15T00:00:02Z] Re-running doc smell detector to verify improvement...
 }
-[2026-03-14T22:00:01Z] Verification passed.
+[2026-03-15T00:00:02Z] Verification passed.
 Committing changes...
-[main 775fd94] docs(auto-improve): automated documentation improvement
- 9 files changed, 827 insertions(+), 2730 deletions(-)
-[2026-03-14T22:00:01Z] Done.
