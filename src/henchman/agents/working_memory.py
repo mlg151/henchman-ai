@@ -281,10 +281,10 @@ class WorkingMemory(SerializableDataclass):
         """
         if not ranges:
             return []
-        
+
         # Sort ranges by start line
         sorted_ranges = sorted(ranges, key=lambda r: r.start)
-        
+
         # Merge overlapping or adjacent ranges
         merged: list[LineRange] = []
         for rng in sorted_ranges:
@@ -319,15 +319,15 @@ class WorkingMemory(SerializableDataclass):
         """
         if not lines_read or not isinstance(lines_read, str):
             return []
-        
+
         # Normalize: remove whitespace, convert to lowercase
         normalized = "".join(lines_read.split()).lower()
         if normalized == "full":
             return []
-        
+
         ranges = []
         for part in normalized.split(","):
-            # Check for dash characters: hyphen '-', figure dash '‒' (U+2012), en dash '–' (U+2013), 
+            # Check for dash characters: hyphen '-', figure dash '‒' (U+2012), en dash '–' (U+2013),
             # em dash '—' (U+2014), horizontal bar '―' (U+2015), minus sign '−' (U+2212)
             # Use regex to find the first dash-like character
             dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
@@ -355,7 +355,7 @@ class WorkingMemory(SerializableDataclass):
                     ranges.append(LineRange(line, line))
                 except (ValueError, TypeError):
                     continue
-        
+
         return ranges
 
     def should_read_file(
@@ -386,10 +386,10 @@ class WorkingMemory(SerializableDataclass):
             return True, f"Invalid line number: start must be positive (1-indexed), got start={start}"
         if end is not None and end < 1:
             return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
-        
+
         # Validate line range if both are provided
         if start is not None and end is not None and start > end:
-            return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"
+            return True, f"Invalid line range: start ({start}) > end ({end}) - line numbers must be in ascending order"
 
         # Check if the MOST RECENT entry indicates file was read fully
         # Check if ANY entry indicates file was read fully
@@ -421,16 +421,16 @@ class WorkingMemory(SerializableDataclass):
                 # Check if we've read line X
                 if not valid_ranges:
                     return True, "Cannot determine - invalid lines_read format"
-                
+
                 # Merge ranges to check for gaps
                 merged_ranges = self._merge_ranges(valid_ranges)
-                
+
                 # Check if start line is within any merged range
                 for rng in merged_ranges:
                     if start >= rng.start and start <= rng.end:
                         # Line is within a read range, but might need to read beyond
                         return True, f"May need to read lines beyond {rng.end}"
-                
+
                 # Line is not within any read range - check if it's before, between, or after ranges
                 # Find where start falls relative to merged ranges
                 for i, rng in enumerate(merged_ranges):
@@ -443,7 +443,7 @@ class WorkingMemory(SerializableDataclass):
                             # Between previous range and this range
                             prev_rng = merged_ranges[i-1]
                             return True, f"Start line {start} in gap between lines {prev_rng.end+1} and {rng.start-1}"
-                
+
                 # Line is after all ranges
                 last_rng = merged_ranges[-1]
                 return True, f"Start line {start} beyond last read line {last_rng.end}"
@@ -452,19 +452,19 @@ class WorkingMemory(SerializableDataclass):
                 # Check if we've read line Y
                 if not valid_ranges:
                     return True, "Cannot determine - invalid lines_read format"
-                
+
                 # Merge ranges to check for gaps
                 merged_ranges = self._merge_ranges(valid_ranges)
-                
+
                 # Type narrowing for mypy
                 assert end is not None, "end should not be None in this branch"
-                
+
                 # Check if end line is within any merged range
                 for rng in merged_ranges:
                     if end >= rng.start and end <= rng.end:
                         # Line is within a read range, but might need to read before
                         return True, f"May need to read lines before {rng.start}"
-                
+
                 # Line is not within any read range - check if it's before, between, or after ranges
                 # Find where end falls relative to merged ranges
                 for i, rng in enumerate(merged_ranges):
@@ -477,7 +477,7 @@ class WorkingMemory(SerializableDataclass):
                             # Between previous range and this range
                             prev_rng = merged_ranges[i-1]
                             return True, f"End line {end} in gap between lines {prev_rng.end+1} and {rng.start-1}"
-                
+
                 # Line is after all ranges
                 last_rng = merged_ranges[-1]
                 return True, f"End line {end} beyond last read line {last_rng.end}"
