@@ -49,8 +49,12 @@ ui:
 | `HENCHMAN_MODEL` | Override model for default provider |
 | `HENCHMAN_API_KEY` | Fallback API key |
 | `DEEPSEEK_API_KEY` | DeepSeek API key |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
+| `OPENAI_API_KEY` | OpenAI or OpenAI-compatible API key |
+| `ANTHROPIC_API_KEY` | Anthropic Claude API key |
+| `OPENROUTER_API_KEY` | OpenRouter API key |
+| `TOGETHER_API_KEY` | Together AI API key |
+| `GROQ_API_KEY` | Groq API key |
+| `FIREWORKS_API_KEY` | Fireworks AI API key |
 
 ## Provider Settings
 
