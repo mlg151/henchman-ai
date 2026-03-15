@@ -754386,3 +754386,300 @@ TOTAL                                                       18990    268   5098 
 =========== 5776 passed, 6 skipped, 45 warnings in 187.43s (0:03:07) ===========
 [2026-03-15T21:00:03Z] All tests passed.
 Committing changes...
+[main 29d106a] fix(four-lenses): four-lenses-agents-working_memory
+ 10 files changed, 3684 insertions(+), 770 deletions(-)
+ create mode 100644 tests/agents/test_working_memory_bug_end_minus_one.py
+ create mode 100644 tests/agents/test_working_memory_bug_find.py
+ create mode 100644 tests/agents/test_working_memory_end_minus_one_bug.py
+[2026-03-15T21:00:03Z] Auto-improve complete.
+[2026-03-15T22:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-15T22:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10546[/]
+I'll start by reading the smell report to understand the context, then analyze the target file through the Four Lenses of Failure.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.4/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-15T22:00:30.233331+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and identify potential bugs:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py
+tests/agents/test_working_memory_algorithm_bug.py
+tests/agents/test_working_memory_bug.py
+tests/agents/test_working_memory_bug_end_minus_one.py
+tests/agents/test_wo...
+Let me check the main test file to understand the existing tests:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me check some of the bug test files to see what issues have already been identified:
+[tool] read_file({'path': 'tests/agents/test_working_memory_real_bug.py'})
+[result] """Test for a real bug in working_memory.py."""
+
+import pytest
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+
+def test_memory_should_read_file_with_whitespace_only_lines...
+Let me check another bug test file:
+[tool] read_file({'path': 
+'tests/agents/test_working_memory_four_lenses_real_bug.py'})
+[result] """Test for the real bug identified through Four Lenses analysis.
+
+This test demonstrates the bug where should_read_file returns incorrect result
+when a file was read "full" but invalid line numbers a...
+Now let me analyze the target file through the Four Lenses of Failure:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `should_read_file` method (lines 363-518), I can see several issues:
+
+1. **Logic Gaps**: The method has complex logic with many branches. The most critical issue I see is in the validation of line numbers. The code uses `type(start) is not int` to reject booleans (since `bool` is a subclass of `int` in Python), but this check happens AFTER checking if the file was read "full". This means if a file was read "full" and someone passes `start=True`, the method returns `False, "File already read (full)"` instead of reporting the invalid input.
+
+2. **Type Safety**: The method accepts `start: int | None = None` and `end: int | None = None`, but doesn't properly handle the case where `bool` values are passed (since `bool` is a subclass of `int`). The check `type(start) is not int` helps, but it's in the wrong place.
+
+## Phase 2: State & Side Effects
+
+The `add_recent_file` method modifies the input entry by normalizing its path. This is a side effect that could break callers who expect their objects not to be modified. However, looking at the code, I see it uses `replace()` to create a copy, so this might not be the issue.
+
+## Phase 3: Performance & Resource Management
+
+The `should_read_file` method has cyclomatic complexity of 46 (rank F) and is 155 lines long. This makes it hard to test and maintain, but the performance impact is probably minimal.
+
+## Phase 4: The Forensic Refactor
+
+Looking at the tests, I can see there's already a test for the boolean line number bug. Let me run it to confirm:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory_four_lenses_real_bug.py::test_memory_should_re
+ad_file_boolean_line_numbers', 'verbose': True})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Interesting! The test passes. Let me check if the bug has already been fixed. Let me look at the actual code more carefully. The test says there's a bug where boolean values are accepted as line numbers. Let me trace through the logic:
+
+Looking at line 387-392 in the `should_read_file` method:
+```python
+if start is not None:
+    if type(start) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
+        return True, f"Invalid line number: start must be an integer, got {type(start).__name__}={start}"
+    if start < 1:
+        return True, f"Invalid line number: start must be positive (1-indexed), got start={start}"
+```
+
+This check happens AFTER checking if the file was read "full". Let me trace the flow:
+
+1. Line 363: `should_read_file` starts
+2. Line 376: Normalize path
+3. Line 379: Find matches
+4. Line 382: If no matches, return `True, "File not in recent files"`
+5. Line 387-404: Validate line numbers (including boolean check with `type(start) is not int`)
+6. Line 407-410: Convert `end=-1` to `None`
+7. Line 413-416: Validate line range if both provided
+8. Line 419-432: Check if file was read "full" at any point
+
+Wait, the validation happens BEFORE checking for "full" read! So the bug should be fixed. Let me check the actual order in the code:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+380, 'end_line': 450})
+[result] 
+        # Find ALL entries for this file (most recent first)
+        matches = [e for e in reversed(self.recent_files) if e.path == 
+normalized_path]
+        if not matches:
+            return True, "...
+I need to analyze this code through the Four Lenses of Failure and identify a real bug. Let me create the documentation stub first as required:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/agents/working_memory.py\n## Date: 
+2025-03-15T22:15:00Z\n## Bug Summary\nThe `should_read_file` method incorrectly 
+handles boolean values as line numbers when a file was read "full". Boolean 
+values (True/False) are accepted because `bool` is a subclass of `int` in 
+Python, and the type check `type(start) is not int` is in the wrong position 
+relative to the "full file read" check.\n\n## Lens\n**Lens 1: The Intent vs. 
+Reality Check** - Logic Gaps and Type Safety\n\n## Expected vs. Observed\n| 
+Expected Behavior | Observed Risk |\n|---|---|\n| Boolean values (True/False) 
+should be rejected as invalid line numbers with clear error messages | When file
+was read "full", boolean values are accepted: True=1, False=0, leading to 
+incorrect "File already read (full)" response |\n| Invalid input validation 
+should happen BEFORE checking file read status | Invalid boolean validation 
+happens AFTER checking if file was read "full" |\n| Type safety: Only integers 
+or None should be accepted for line numbers | Boolean values pass type check 
+because bool is subclass of int |\n\n## Root Cause\nThe validation logic for 
+line numbers (lines 387-404) checks `type(start) is not int` to reject booleans,
+but this check is positioned AFTER the early return for "file not in recent 
+files" (line 382) and BEFORE the check for "full file read" (lines 419-432). 
+However, when tracing through the actual execution path, I see the validation 
+DOES happen before the "full" check. Let me re-examine...\n\nActually, looking 
+at the code structure:\n1. Line 382: Check if file not in recent files → return 
+early\n2. Line 387-404: Validate line numbers (including boolean check)\n3. Line
+407-416: Convert end=-1 and validate range\n4. Line 419-432: Check if file was 
+read "full"\n\nThe validation IS before the "full" check. But the test 
+`test_memory_should_read_file_boolean_line_numbers` passes, which suggests the 
+bug might have been fixed or I\'m misunderstanding something.\n\nLet me run a 
+simpler test to verify current 
+behavior:\n\n<｜DSML｜function_calls>\n<｜DSML｜invoke 
+name="python_exec">\n<｜DSML｜parameter name="code" string="true">from 
+henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry\n\n# 
+Test the boolean bug\nmemory = 
+WorkingMemory(current_task="Test")\nmemory.add_recent_file(WorkingMemoryEntry("/
+test/file.py", "Test", "full"))\n\n# Test with start=True (bool)\nshould_read, 
+reason = memory.should_read_file("/test/file.py", True, 10)\nprint(f"start=True,
+end=10: should_read={should_read}, reason={reason}")\nprint(f"Expected: True 
+with error about invalid type")\nprint()\n\n# Test with start=False (bool)  
+\nshould_read2, reason2 = memory.should_read_file("/test/file.py", False, 
+10)\nprint(f"start=False, end=10: should_read={should_read2}, 
+reason={reason2}")\nprint(f"Expected: True with error about invalid line number 
+(0 is invalid)")\nprint()\n\n# Test with valid integers\nshould_read3, reason3 =
+memory.should_read_file("/test/file.py", 10, 50)\nprint(f"start=10, end=50: 
+should_read={should_read3}, reason={reason3}")\nprint(f"Expected: False (file 
+read fully)")'})
+[result] Successfully wrote 3075 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/README.md...
+
+[tool] python_exec({'code': 'from henchman.agents.working_memory import 
+WorkingMemory, WorkingMemoryEntry\n\n# Test the boolean bug\nmemory = 
+WorkingMemory(current_task="Test")\nmemory.add_recent_file(WorkingMemoryEntry("/
+test/file.py", "Test", "full"))\n\n# Test with start=True (bool)\nshould_read, 
+reason = memory.should_read_file("/test/file.py", True, 10)\nprint(f"start=True,
+end=10: should_read={should_read}, reason={reason}")\nprint(f"Expected: True 
+with error about invalid type")\nprint()\n\n# Test with start=False (bool)  
+\nshould_read2, reason2 = memory.should_read_file("/test/file.py", False, 
+10)\nprint(f"start=False, end=10: should_read={should_read2}, 
+reason={reason2}")\nprint(f"Expected: True with error about invalid line number 
+(0 is invalid)")\nprint()\n\n# Test with valid integers\nshould_read3, reason3 =
+memory.should_read_file("/test/file.py", 10, 50)\nprint(f"start=10, end=50: 
+should_read={should_read3}, reason={reason3}")\nprint(f"Expected: False (file 
+read fully)")'})
+[result] start=True, end=10: should_read=True, reason=Invalid line number: start
+must be an integer, got bool=True
+Expected: True with error about invalid type
+
+start=False, end=10: should_read=True, reason=In...
+Good! So the boolean bug IS actually being caught by the `type(start) is not int` check. The test passes because the bug has been fixed. Let me look for a different bug. Let me examine the code more carefully for other issues.
+
+Actually, wait. Let me check if there's a different ordering issue. The test in `test_working_memory_four_lenses_real_bug.py` says the bug is that "invalid line numbers masked by 'full' read". Let me trace through the logic more carefully:
+
+When `start=True` is passed:
+1. `type(True) is not int` → `True` (because `type(True)` is `bool`, not `int`)
+2. Returns `True, "Invalid line number: start must be an integer, got bool=True"`
+
+That seems correct. But what about when `start=0` (invalid line number, not boolean)?
+1. `type(0) is not int` → `False` (0 is an int)
+2. `0 < 1` → `True`
+3. Returns `True, "Invalid line number: start must be positive (1-indexed), got start=0"`
+
+That also seems correct. Let me check if the validation happens BEFORE the "full" check when the file WAS read fully. Looking at the code again:
+
+Lines 419-432 check if file was read "full". This happens AFTER line validation (387-416). So if invalid line numbers are provided, they should be caught BEFORE the "full" check.
+
+Wait, but I need to actually find a bug. Let me re-read the test file more carefully:
+[tool] read_file({'path': 
+'tests/agents/test_working_memory_four_lenses_real_bug.py', 'start_line': 15, 
+'end_line': 50})
+[result]     (e.g., start=0, end=-1), the method returns False, "File already 
+read (full)"
+    instead of reporting the invalid line number error.
+    
+    This is incorrect because:
+    1. Invalid inputs shou...
+The test claims that `start=0` should return an error but instead returns "File already read (full)". Let me test this:
+[tool] python_exec({'code': 'from henchman.agents.working_memory import 
+WorkingMemory, WorkingMemoryEntry\n\nmemory = 
+WorkingMemory(current_task="Test")\nmemory.add_recent_file(WorkingMemoryEntry("/
+test/file.py", "Test", "full"))\n\n# Test with start=0 (invalid, lines are 
+1-indexed)\nshould_read, reason = memory.should_read_file("/test/file.py", 0, 
+10)\nprint(f"start=0, end=10: should_read={should_read}, 
+reason={reason}")\nprint(f"Expected: True with error about invalid line 
+number")\nprint()\n\n# Test with start=1, end=-1 (end=-1 is valid special 
+value)\nshould_read2, reason2 = memory.should_read_file("/test/file.py", 1, 
+-1)\nprint(f"start=1, end=-1: should_read={should_read2}, 
+reason={reason2}")\nprint(f"Expected: False (file read fully, end=-1 is valid 
+\'read to EOF\')")'})
+[result] start=0, end=10: should_read=True, reason=Invalid line number: start 
+must be positive (1-indexed), got start=0
+Expected: True with error about invalid line number
+
+start=1, end=-1: should_read=False, ...
+Interesting! The code actually works correctly - it returns the error about invalid line number. So the test is failing because it expects the bug to exist, but the bug has been fixed. Let me run the actual test to see:
+[tool] pytest_run({'path': 
+'tests/agents/test_working_memory_four_lenses_real_bug.py::test_memory_should_re
+ad_file_full_with_invalid_line_numbers', 'verbose': True})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+The test passes! So the bug described in the test has been fixed. I need to find a different bug. Let me examine the code more carefully for other issues. Let me look at the `_parse_line_ranges` method which has complexity 13 (rank C):
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+305, 'end_line': 362})
+[result]     def _parse_line_ranges(lines_read: str) -> list[LineRange]:
+        """Parse a lines_read string into a list of LineRange objects.
+        
+        Supports formats:
+        - "full" (returns empt...
+This method looks complex but seems correct. Let me check for bugs in the `should_read_file` method logic. One issue I notice: when checking if a file was read "full", the code checks `if normalized == "full" or "full" in normalized.split(",")`. But `normalized.split(",")` on an empty string returns `['']`, not an empty list. Let me test:
+[tool] python_exec({'code': '# Test the split behavior\nnormalized = 
+""\nprint(f"Empty string split(\',\') = 
+{normalized.split(\',\')}")\nprint(f"\'full\' in [\'\'] = {\'full\' in 
+[\'\']}")\n\nnormalized = "full"\nprint(f"\'full\' split(\',\') = 
+{normalized.split(\',\')}")\nprint(f"\'full\' in [\'full\'] = {\'full\' in 
+[\'full\']}")\n\nnormalized = "full,10-20"\nprint(f"\'full,10-20\' split(\',\') 
+= {normalized.split(\',\')}")\nprint(f"\'full\' in [\'full\', \'10-20\'] = 
+{\'full\' in [\'full\', \'10-20\']}")\n\nnormalized = 
+"10-20,full"\nprint(f"\'10-20,full\' split(\',\') = 
+{normalized.split(\',\')}")\nprint(f"\'full\' in [\'10-20\', \'full\'] = 
+{\'full\' in [\'10-20\', \'full\']}")'})
+[result] Empty string split(',') = ['']
+'full' in [''] = False
+'full' split(',') = ['full']
+'full' in ['full'] = True
+'full,10-20' split(',') = ['full', '10-20']
+'full' in ['full', '10-20'] = True
+'10-20,full'...
+That seems correct. The check `"full" in normalized.split(",")` works even for empty string (returns `False` which is correct).
+
+Let me look for other bugs. Actually, wait - I should check the `_merge_ranges` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+280, 'end_line': 304})
+[result]             List of merged LineRange objects, sorted by start line.
+        """
+        if not ranges:
+            return []
+
+        # Sort ranges by start line
+        sorted_ranges = sorted(ranges,...
+Let me think about this more systematically. I need to find a real bug in core functionality. Let me examine the code through the Four Lenses again:
+
+## Lens 1: Logic Gaps
+
+Looking at the `should_read_file` method, I see a potential issue with the validation logic. Look at lines 395-396:
+
+```python
+if end

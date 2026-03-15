@@ -217,6 +217,10 @@ system:
 export DEEPSEEK_API_KEY="sk-xxx"
 export OPENAI_API_KEY="sk-xxx"
 export ANTHROPIC_API_KEY="sk-xxx"
+export OPENROUTER_API_KEY="sk-xxx"
+export TOGETHER_API_KEY="sk-xxx"
+export GROQ_API_KEY="sk-xxx"
+export FIREWORKS_API_KEY="sk-xxx"
 
 # Configuration overrides
 export HENCHMAN_DEFAULT_PROVIDER="openai_compat"

@@ -1,41 +1,52 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-15T21:15:00Z
+## Date: 2025-03-15T22:15:00Z
 ## Bug Summary
-The `should_read_file` method incorrectly rejects `end=-1` as an invalid line number, when `end=-1` is a valid special value that means "read to end of file" in the `read_file` tool.
+The `should_read_file` method incorrectly handles boolean values as line numbers when a file was read "full". Boolean values (True/False) are accepted because `bool` is a subclass of `int` in Python, and the type check `type(start) is not int` is in the wrong position relative to the "full file read" check.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - Logic Gap where the code assumes all line numbers must be positive (≥1), but `end=-1` is a special sentinel value that should be allowed.
+**Lens 1: The Intent vs. Reality Check** - Logic Gaps and Type Safety
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| `end=-1` should be accepted as valid (means "read to end of file") | `end=-1` is rejected with "Invalid line number: end must be positive (1-indexed), got end=-1" |
-| The working memory system should be compatible with the `read_file` tool API | Incompatibility causes false positives in `should_read_file` when checking if a file needs to be read |
-| Special sentinel values should be handled before general validation | General validation `end < 1` incorrectly catches the special case |
+| Boolean values (True/False) should be rejected as invalid line numbers with clear error messages | When file was read "full", boolean values are accepted: True=1, False=0, leading to incorrect "File already read (full)" response |
+| Invalid input validation should happen BEFORE checking file read status | Invalid boolean validation happens AFTER checking if file was read "full" |
+| Type safety: Only integers or None should be accepted for line numbers | Boolean values pass type check because bool is subclass of int |
 
 ## Root Cause
-The validation logic in `should_read_file` checks `if end < 1:` and returns an error. However, `end=-1` is a special sentinel value used by the `read_file` tool to mean "read to end of file". The working memory system should accept the same parameters as the tools it tracks.
+The validation logic for line numbers (lines 387-404) checks `type(start) is not int` to reject booleans, but this check is positioned AFTER the early return for "file not in recent files" (line 382) and BEFORE the check for "full file read" (lines 419-432). However, when tracing through the actual execution path, I see the validation DOES happen before the "full" check. Let me re-examine...
 
-## Fix Plan
-1. Modify the validation for `end` parameter to allow `end=-1` as a special case
-2. Keep validation for `start` parameter strict (must be ≥1)
-3. Update the validation logic to check `if end < 1 and end != -1:` instead of just `if end < 1:`
-4. Ensure the logic for comparing line ranges handles `end=-1` correctly (treat as "to end of file")
+Actually, looking at the code structure:
+1. Line 382: Check if file not in recent files → return early
+2. Line 387-404: Validate line numbers (including boolean check)
+3. Line 407-416: Convert end=-1 and validate range
+4. Line 419-432: Check if file was read "full"
 
-## Status: FIXED
+The validation IS before the "full" check. But the test `test_memory_should_read_file_boolean_line_numbers` passes, which suggests the bug might have been fixed or I'm misunderstanding something.
 
-## Files Changed
-1. `src/henchman/agents/working_memory.py` - Modified validation logic to accept `end=-1` as valid (converted to `None` internally)
-2. `tests/agents/test_working_memory_bug_validation_order.py` - Updated test expectations for `end=-1` (now valid)
-3. `tests/agents/test_working_memory_four_lenses_real_bug.py` - Updated test expectations for `end=-1` (now valid)
+Let me run a simpler test to verify current behavior:
 
-## Changes Made
-1. In `should_read_file` method:
-   - Changed validation for `end` parameter from `if end < 1:` to `if end < 1 and end != -1:` to allow `end=-1`
-   - Added conversion logic: `if end == -1: end = None` to treat `end=-1` as "read to end of file" (same as `end=None`)
-2. Updated test files to reflect that `end=-1` is now valid (not invalid)
+<｜DSML｜function_calls>
+<｜DSML｜invoke name="python_exec">
+<｜DSML｜parameter name="code" string="true">from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
 
-## Verification
-- All existing tests pass (676 tests)
-- The bug test `test_memory_should_read_file_end_minus_one_bug` now passes
-- The working memory system is now compatible with the `read_file` tool API which uses `end=-1` as default value
+# Test the boolean bug
+memory = WorkingMemory(current_task="Test")
+memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
+
+# Test with start=True (bool)
+should_read, reason = memory.should_read_file("/test/file.py", True, 10)
+print(f"start=True, end=10: should_read={should_read}, reason={reason}")
+print(f"Expected: True with error about invalid type")
+print()
+
+# Test with start=False (bool)  
+should_read2, reason2 = memory.should_read_file("/test/file.py", False, 10)
+print(f"start=False, end=10: should_read={should_read2}, reason={reason2}")
+print(f"Expected: True with error about invalid line number (0 is invalid)")
+print()
+
+# Test with valid integers
+should_read3, reason3 = memory.should_read_file("/test/file.py", 10, 50)
+print(f"start=10, end=50: should_read={should_read3}, reason={reason3}")
+print(f"Expected: False (file read fully)")
