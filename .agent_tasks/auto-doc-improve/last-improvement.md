@@ -1,55 +1,54 @@
 # Last Documentation Improvement
 
 ## Date/Time
-2026-03-15T06:20:00Z (approximate)
+2026-03-15T08:10:00Z (approximate)
 
 ## Files Changed
-1. `docs/providers.md` - Fixed inaccurate claim about "pre-configured" base URLs for provider aliases
-2. `docs/index.md` - Fixed same inaccurate claim in main documentation page
-3. `README.md` - Fixed same inaccurate claim in project README
-4. `.github/copilot-instructions.md` - Clarified that provider aliases require base URL configuration
-5. `.agent_tasks/auto-doc-improve/last-improvement.md` (this file) - Updated with improvement details
+1. `docs/providers.md` - Removed redundant "OpenAI (via `openai_compat`)" row from providers table
 
 ## Smell Category Addressed
-Accuracy (Incorrect information about provider configuration)
+Accuracy (Inconsistent provider documentation)
 
 ## Rationale for Change
-The documentation contained an inaccuracy regarding provider aliases (`together`, `groq`, `fireworks`). The documentation claimed these aliases had "appropriate base URLs pre-configured", but the code shows they are simply aliases for `openai_compat` without any automatic base URL configuration. Users must explicitly configure base URLs for these aliases in their settings.
+The providers.md documentation table contained a redundant row for "OpenAI (via `openai_compat`)" that was inconsistent with:
+1. The actual provider registry implementation (which doesn't have a separate `openai` provider)
+2. The index.md documentation (which doesn't list OpenAI as a separate provider)
+3. The getting-started.md documentation (which correctly explains OpenAI is used via `openai_compat` with specific base URL)
 
-**Before (incorrect)**:
-- "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs pre-configured." (providers.md)
-- "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs pre-configured." (index.md)
-- "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs pre-configured." (README.md)
-- "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs." (copilot-instructions.md)
+**Before (inconsistent)**:
+- Table had "OpenAI (via `openai_compat`)" as a separate row, suggesting it's a distinct provider
+- This created confusion because `openai_compat` is the actual provider name, and OpenAI is just one configuration of it
+- Inconsistent with index.md which doesn't have this separate row
 
-**After (correct)**:
-- "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` that require you to configure the appropriate base URL (see examples below)." (providers.md)
-- "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` that require you to configure the appropriate base URL in your settings." (index.md)
-- "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` that require you to configure the appropriate base URL in your settings." (README.md)
-- "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` that require you to configure the appropriate base URL in your settings." (copilot-instructions.md)
+**After (consistent)**:
+- Table now only lists actual registered providers: `deepseek`, `anthropic`, `ollama`, `openrouter`, `openai_compat`, `together`, `groq`, `fireworks`
+- The note already explains: "For OpenAI specifically, use `openai_compat` with `base_url: https://api.openai.com/v1` and `api_key: ${OPENAI_API_KEY}`."
+- Consistent with index.md and getting-started.md documentation
+- Matches the actual provider registry implementation
 
 ## Verification Performed
-1. ✅ **Code inspection**: Verified that `together`, `groq`, and `fireworks` are registered as aliases for `OpenAICompatibleProvider` in `src/henchman/providers/registry.py` without any automatic base URL configuration
-2. ✅ **Configuration examples**: The examples in providers.md already showed users configuring base URLs, which contradicted the "pre-configured" claim
-3. ✅ **Consistency check**: Updated all three documentation files for consistency
-4. ✅ **Clarity improvement**: The new wording clearly indicates that users must configure base URLs, eliminating potential confusion
-5. ✅ **Cross-reference check**: Verified no other documentation files contain similar inaccuracies
+1. ✅ **Registry check**: Verified that `src/henchman/providers/registry.py` only registers `deepseek`, `anthropic`, `ollama`, `openrouter`, `openai_compat`, `together`, `groq`, `fireworks` (no separate `openai` provider)
+2. ✅ **Consistency check**: Verified index.md doesn't have separate OpenAI row, only lists `openai_compat` as generic provider
+3. ✅ **Getting-started check**: Verified getting-started.md correctly explains OpenAI is used via `openai_compat` with specific base URL
+4. ✅ **Note clarity**: The note in providers.md already clearly explains how to use OpenAI with `openai_compat`
+5. ✅ **Cross-reference check**: No other documentation files reference "OpenAI (via `openai_compat`)" as a separate provider
 
 ## What to Verify
-1. ✅ **Provider configuration examples**: The examples in providers.md (Together AI, Groq, Fireworks AI) correctly show users configuring base URLs
-2. ✅ **Registry implementation**: The provider registry only registers aliases, doesn't set default base URLs
-3. ✅ **User experience**: Users won't be misled into thinking base URLs are automatically configured
-4. ✅ **Documentation consistency**: All documentation files now have consistent messaging about provider configuration
+1. ✅ **Provider registry**: Only the 8 providers listed are actually registered
+2. ✅ **Documentation consistency**: All documentation files now have consistent messaging about OpenAI usage
+3. ✅ **User clarity**: Users won't be confused into looking for a separate `openai` provider
+4. ✅ **Configuration examples**: The examples in providers.md show how to configure `openai_compat` for different services including OpenAI
 
 ## Impact
 - **Low risk**: Documentation change only, no code changes
-- **High value**: Prevents user confusion and misconfiguration
-- **Consistency**: Aligns documentation with actual implementation across all documentation files
+- **High value**: Eliminates potential user confusion about provider naming
+- **Consistency**: Aligns documentation with actual implementation and across all documentation files
+- **Clarity**: Makes it clear that `openai_compat` is the provider name, and OpenAI is one of many services that can be used with it
 
 ## Next Priority
-While the documentation smell report shows a perfect score (100.0/100), subtle semantic inaccuracies like this one may not be caught by automated checks. Future documentation reviews should:
-1. Pay attention to claims about "automatic" or "pre-configured" behavior
-2. Verify such claims against the actual code implementation
-3. Check for consistency between different documentation files
-4. Ensure examples match the described behavior
-5. Use grep searches to find similar patterns across all documentation
+While the documentation smell report shows a perfect score (100.0/100), subtle inconsistencies like this one may not be caught by automated checks. Future documentation reviews should:
+1. Check for consistency between different documentation files (index.md, providers.md, getting-started.md)
+2. Verify documentation matches actual code implementation (provider registry)
+3. Look for redundant or misleading information in tables
+4. Ensure examples in documentation match the described behavior
+5. Check that all registered providers are documented, and no non-existent providers are documented

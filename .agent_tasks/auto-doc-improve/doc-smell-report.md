@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-15T06:00:03.234386+00:00_
+_Generated: 2026-03-15T08:00:03.365150+00:00_
 
 ## Executive Summary
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-15T06:00:03.234386+00:00_
 |-----:|:-----|:------|------:|-------:|:-------------|
 | 1 | CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-14 |
 | 2 | CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 3 | README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 3 | README.md | ✅ A | 100.0 | 0 | 2026-03-15 |
 | 4 | RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-03 |
 | 5 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 6 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
@@ -32,7 +32,7 @@ _Generated: 2026-03-15T06:00:03.234386+00:00_
 | 12 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 13 | docs/extensions.md | ✅ A | 100.0 | 0 | 2026-03-03 |
 | 14 | docs/getting-started.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 15 | docs/index.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 15 | docs/index.md | ✅ A | 100.0 | 0 | 2026-03-15 |
 
 ## ✨ Clean Files (245 files with no smells)
 

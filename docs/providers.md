@@ -11,7 +11,6 @@ Henchman-AI supports multiple LLM providers through a unified interface.
 | Ollama | ✅ | OpenAI-compatible | `ollama` | Local models, no API key required |
 | OpenRouter | ✅ | OpenAI-compatible | `openrouter` | Access to hundreds of models |
 | OpenAI-Compatible (`openai_compat`) | ✅ | OpenAI-compatible | `openai_compat` | Generic provider for ANY OpenAI-compatible API (OpenAI, Together, Groq, Fireworks, etc.) |
-| OpenAI (via `openai_compat`) | ✅ | OpenAI-compatible | `openai_compat` | Use with `base_url: https://api.openai.com/v1` |
 | Together AI (`together`) | ✅ | OpenAI-compatible | `together` | Alias for `openai_compat` with Together base URL |
 | Groq (`groq`) | ✅ | OpenAI-compatible | `groq` | Alias for `openai_compat` with Groq base URL |
 | Fireworks AI (`fireworks`) | ✅ | OpenAI-compatible | `fireworks` | Alias for `openai_compat` with Fireworks base URL |

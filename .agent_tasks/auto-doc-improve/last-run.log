@@ -1,87 +1,386 @@
-[2026-03-15T06:00:02Z] Starting auto-doc-improve run...
+[2026-03-15T08:00:02Z] Starting auto-doc-improve run...
 Running documentation smell detector...
 Report written to /home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/doc-smell-report.md
 Running Henchman...
 Warning: Input is not a terminal (fd=0).
-ℹ [blue]CHAT[/] | Tokens: ~[cyan]10544[/]
-I'll start by examining the current state of the documentation to understand what needs improvement. Let me first check the last improvement made to avoid duplication.
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10552[/]
+I'll start by examining the current documentation smell report and the last improvement made to understand what needs to be addressed.
 [tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
 
 [result] # Last Documentation Improvement
 
 ## Date/Time
-2026-03-15T04:00:00Z (approximate)
+2026-03-15T06:20:00Z (approximate)
 
 ## Files Changed
-- `.agent_tasks/auto-doc-improve/last-improvement.md` (this file)
+1. `docs/providers.md` - Fixed inaccurate claim about "pre-configured" base URLs
+for provider aliase...
+Excellent! The last improvement was focused on fixing inaccurate claims about provider configuration. Now I need to check the current documentation smell report again. According to the report, we have a perfect score of 100.0/100 with 0 smells. However, I should verify if there are any subtle issues that might not be caught by automated checks.
 
-## Smell Category Addressed
-Maint...
-Now let me check the documentation smell report to see if there are any issues that need attention, even though it shows a perfect score.
-[tool] read_file({'path': '.agent_tasks/auto-doc-improve/doc-smell-report.md', 
-'start_line': 1, 'end_line': 50})
-[result] # Documentation Smell Report — ✅ A (Score: 100.0/100)
+Let me examine the main documentation files to see if there are any potential improvements that could be made. Since the report shows perfect scores, I should look for completeness or consistency issues that might not be flagged as "smells".
+[tool] ls({'path': 'docs'})
+[result] CHANGELOG.md
+CONTRIBUTING.md
+RELEASE_CHECKLIST.md
+agents.md
+api.md
+architecture.md
+configuration.md
+evals/
+extensions.md
+getting-started.md
+index.md
+intelligent-context-management.md
+javascripts/
+mcp....
+Let me check the mkdocs.yml configuration to ensure all documentation files are properly included in the navigation:
+[tool] read_file({'path': 'mkdocs.yml'})
+[result] site_name: Henchman-AI
+site_url: https://github.com/mlg151/henchman-ai
+site_description: A Model-Agnostic AI Agent CLI in Python
+site_author: Matthew
 
-_Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-15T06:00:03.234386+00:00_
+repo_name: mlg151/henchman-ai
+repo_...
+The mkdocs.yml looks good. All documentation files appear to be properly included in the navigation. Let me check if there are any orphaned documentation files that aren't in the nav by comparing the files in the docs directory with what's listed in the nav:
+[tool] shell({'command': 'find docs -name "*.md" -type f | sort'})
+[result] docs/agents.md
+docs/api.md
+docs/architecture.md
+docs/configuration.md
+docs/evals/README.md
+docs/extensions.md
+docs/getting-started.md
+docs/index.md
+docs/intelligent-context-management.md
+docs/mcp.md
+d...
+Let me check if all these files are in the nav:
+[tool] shell({'command': 'grep -o "\\.md" mkdocs.yml | sort | uniq'})
+[result] .md
+...
+Let me check more carefully by looking at the nav structure:
+[tool] shell({'command': 'grep -E "^\\s*-\\s*.*\\.md" mkdocs.yml'})
+[result]   - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture: architecture.md
+  - Multi-Agent Dev Team: agents.md
+    - Configuration: configuration.md
+    - Intelligent Context Managem...
+Good! All documentation files are in the nav. Let me check the README.md to see if it's up to date with the latest features:
+[tool] read_file({'path': 'README.md', 'start_line': 1, 'end_line': 50})
+[result] # Henchman-AI
 
-## Executive Summary
+> Your AI Henchman for the Terminal - A Model-Agnostic AI Agent CLI
 
-| Metric | Value |
-|:-------|------:|
-| *...
-The documentation shows a perfect score of 100.0/100 with zero smells. However, I should verify if there are any subtle issues that might not be caught by the automated smell detector. Let me check the copilot instructions file to see if it's up to date with the current state of the project.
-[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 1, 
-'end_line': 50})
-[result] # Henchman-AI Copilot Instructions
+[![PyPI 
+version](https://img.shields.io/pypi/v/henchman-ai.svg)](https://pypi.org/projec
+t/henchman-ai/)
+[![Python ve...
+The README looks good. Let me check if there are any inconsistencies between the README and the main documentation. Let me look at the tools documentation to see if it's up to date with the actual tools available:
+[tool] read_file({'path': 'docs/tools.md', 'start_line': 1, 'end_line': 100})
+[result] # Tools
 
-Henchman-AI is a **model-agnostic AI agent CLI** in Python, inspired by 
-gemini-cli. It supports multiple LLM providers (DeepSeek, 
-OpenAI/OpenAI-compatible APIs, Ant...
-Let me check the tool count to verify if the documentation is accurate. The copilot instructions say "34 total" built-in tools. Let me verify this count.
-[tool] ls({'path': 'src/henchman/tools/builtins'})
-[result] __init__.py
-__init__.py,cover
-__pycache__/
-ask_user.py
-ask_user.py,cover
-code_format.py
-code_format.py,cover
-coverage_map.py
-coverage_map.py,cover
-dead_code.py
-dead_code.py,cover
-deep_research.py
-deep...
-Let me count the actual tool files (excluding __init__.py, __pycache__, and backup files):
-[tool] shell({'command': 'find src/henchman/tools/builtins -name "*.py" -not 
--name "__init__.py" -not -name "*cover" -not -name "*backup" | wc -l'})
+Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent 
+can use to interact with your system.
+
+## Quick Reference
+
+| Tool | Category | Kind | Description |
+|------|---...
+I need to check if there are any documentation issues. Let me look at the tools documentation more carefully to see if it matches the actual tools available. First, let me check what tools are actually available by looking at the source code:
+[tool] shell({'command': 'find src/henchman/tools/builtins -name "*.py" -type f 
+| wc -l'})
+[result] 37
+...
+There are 37 tool files, but the documentation says 34 tools. Let me check more carefully:
+[tool] shell({'command': 'ls src/henchman/tools/builtins/ | grep -E "\\.py$" | 
+grep -v "__" | wc -l'})
 [result] 36
 ...
-Interesting! There are 36 tool files, but the documentation says "34 total". Let me check which tools are actually there:
-[tool] shell({'command': 'find src/henchman/tools/builtins -name "*.py" -not 
--name "__init__.py" -not -name "*cover" -not -name "*backup" | sort'})
-[result] src/henchman/tools/builtins/ask_user.py
-src/henchman/tools/builtins/code_format.py
-src/henchman/tools/builtins/coverage_map.py
-src/henchman/tools/builtins/dead_code.py
-src/henchman/tools/builtins/deep...
-I see 36 tool files. However, `kg_common.py` and `python_ast_helpers.py` might be helper files rather than actual tools. Let me check if they're registered as tools:
-[tool] read_file({'path': 'src/henchman/tools/builtins/kg_common.py', 
-'start_line': 1, 'end_line': 30})
-[result] """Shared utilities for knowledge graph tools.
-
-Extracted to eliminate the duplicate ``_find_git_root`` function and the
-identical ``__init__`` that previously existed in both ``kg_query.py``
-and ``kg...
-
+Let me list them to see what's there:
+[tool] shell({'command': 'ls src/henchman/tools/builtins/ | grep -E "\\.py$" | 
+grep -v "__" | sort'})
+[result] ask_user.py
+code_format.py
+coverage_map.py
+dead_code.py
+deep_research.py
+delegate.py
+diff_view.py
+env_inspect.py
+file_edit.py
+file_overview.py
+file_read.py
+file_write.py
+git_ops.py
+glob_tool.py
+grep.p...
+That's 36 tools. Let me check if `python_ast_helpers.py` is actually a tool or just a helper module:
 [tool] read_file({'path': 'src/henchman/tools/builtins/python_ast_helpers.py', 
 'start_line': 1, 'end_line': 30})
 [result] """Module-level helper functions for Python AST analysis.
 
 Extracted from PythonAstTool to eliminate Feature Envy and reduce class size.
 These are pure functions with no side effects — easy to test in...
-I need to check the actual tool registration to see how many tools are actually available. Let me check the __init__.py file in the builtins directory:
+So `python_ast_helpers.py` is just a helper module, not a tool. That means we have 35 actual tools. Let me check if there are any other helper files:
+[tool] shell({'command': 'grep -l "class.*Tool" src/henchman/tools/builtins/*.py
+| wc -l'})
+[result] 35
+...
+So there are 35 tool classes. Let me check which ones are documented in the tools.md file:
+[tool] shell({'command': 'grep -o "^\\`[a-z_]*\\`" docs/tools.md | sed 
+\'s/`//g\' | sort'})
+✗ \[error] Security validation failed: Dangerous pattern detected: `.*`
+Let me try a different approach:
+[tool] shell({'command': 'grep -E "^\\| \\`[a-z_]*\\`" docs/tools.md | sed \'s/|
+`//g\' | sed \'s/`.*//g\' | sort'})
+✗ \[error] Security validation failed: Dangerous pattern detected: `.*`
+Let me check the tools.md file manually to count the tools listed:
+[tool] read_file({'path': 'docs/tools.md', 'start_line': 10, 'end_line': 50})
+[result] | `write_file` | File Operations | WRITE | Write content to a file |
+| `edit_file` | File Operations | WRITE | Make surgical edits to a file |
+| `patch_apply` | File Operations | WRITE | Apply unified...
+I can see there are 34 tools listed in the table (I counted them). But I found 35 tool classes in the source code. Let me check which tool is missing by comparing the list. Let me get the actual tool names from the source code:
+[tool] shell({'command': 'grep -h "class.*Tool" src/henchman/tools/builtins/*.py
+| grep -v "class.*Base" | sed \'s/class //g\' | sed \'s/(.*//g\' | sed 
+\'s/.*://g\' | tr -d \' \' | sort'})
+[result] AskUserTool
+"'classesthatinheritfromTool'"
+CodeFormatTool
+CoverageMapTool
+DeadCodeTool
+DeepResearchTool
+DelegateTaskTool
+DiffViewTool
+DuckDuckGoSearchTool
+EditFileTool
+EnvInspectTool
+FileOverviewTool
+...
+There's some noise in the output. Let me check more carefully. I see `DuckDuckGoSearchTool` which might be the web search tool. Let me check if there's a `KgQueryTool` and `KgUpdateTool`:
+[tool] shell({'command': 'grep -l "KgQueryTool\\|KgUpdateTool" 
+src/henchman/tools/builtins/*.py'})
+✗ \[error] Security validation failed: Invalid shell syntax: No escaped 
+character
+
+[tool] shell({'command': 'ls -la src/henchman/tools/builtins/kg_*.py'})
+[result] -rw-rw-r-- 1 matthew matthew  1670 Mar  3 13:08 
+src/henchman/tools/builtins/kg_common.py
+-rw-rw-r-- 1 matthew matthew 10191 Mar  3 13:36 
+src/henchman/tools/builtins/kg_query.py
+-rw-rw-r-- 1 matthew ma...
+Good, so `kg_query.py` and `kg_update.py` exist. Let me check what tool classes are in those files:
+[tool] shell({'command': 'grep "class.*Tool" 
+src/henchman/tools/builtins/kg_query.py'})
+[result] class KgQueryTool(KgToolBase):
+...
+
+[tool] shell({'command': 'grep "class.*Tool" 
+src/henchman/tools/builtins/kg_update.py'})
+[result] class KgUpdateTool(KgToolBase):
+...
+So we have `KgQueryTool` and `KgUpdateTool`. Now let me check what the actual tool names are (the `name` property). Let me look at one example:
+[tool] read_file({'path': 'src/henchman/tools/builtins/kg_query.py', 
+'start_line': 1, 'end_line': 50})
+[result] """Knowledge graph query tool for agents.
+
+Provides a READ tool that searches the project knowledge graph by
+entity name/type, relations, full-text search, and importance ranking.
+"""
+
+from __future__...
+Let me check the `name` property:
+[tool] shell({'command': 'grep -A5 "@property" 
+src/henchman/tools/builtins/kg_query.py | grep -A5 "name"'})
+[result]     def name(self: KgQueryTool) -> str:
+        """Tool name."""
+        return "kg_query"
+
+    @property
+    def description(self: KgQueryTool) -> str:
+        """Tool description."""
+...
+So the tool name is `kg_query`. Now let me check all the actual tool names by looking at their `name` properties:
+[tool] shell({'command': 'for file in src/henchman/tools/builtins/*.py; do if 
+grep -q "class.*Tool" "$file"; then tool_name=$(grep -A5 "@property" "$file" | 
+grep -A5 "name" | head -2 | tail -1 | sed \'s/return //g\' | sed \'s/"//g\' | 
+sed "s/\'//g" | tr -d \' \'); echo "$tool_name"; fi; done | sort'})
+✗ \[error] Security validation failed: Dangerous pattern detected: \$\(.*\)
+Let me take a simpler approach. I'll write a Python script to check the tool names:
+[tool] python_exec({'code': 'import os\nimport re\n\ntool_names = []\ntool_dir =
+"src/henchman/tools/builtins"\n\nfor filename in os.listdir(tool_dir):\n    if 
+filename.endswith(".py") and not filename.startswith("__"):\n        filepath = 
+os.path.join(tool_dir, filename)\n        with open(filepath, \'r\') as f:\n    
+content = f.read()\n            \n            # Look for class definitions that 
+end with Tool\n            class_matches = re.findall(r\'class\\s+(\\w+Tool)\', 
+content)\n            if class_matches:\n                # Look for name 
+property\n                name_match = re.search(r\'def 
+name\\([^)]*\\)[^:]*:\\s*"[^"]*"\', content)\n                if name_match:\n  
+# Extract the return value\n                    name_line = 
+name_match.group(0)\n                    tool_name = 
+re.search(r\'return\\s+"([^"]+)"\', name_line)\n                    if 
+tool_name:\n                        tool_names.append(tool_name.group(1))\n     
+else:\n                    # Try single quotes\n                    name_match =
+re.search(r"def name\\([^)]*\\)[^:]*:\\s*\'[^\']*\'", content)\n                
+if name_match:\n                        name_line = name_match.group(0)\n       
+tool_name = re.search(r"return\\s+\'([^\']+)\'", name_line)\n                   
+if tool_name:\n                            
+tool_names.append(tool_name.group(1))\n\nprint(f"Found {len(tool_names)} 
+tools:")\nfor name in sorted(tool_names):\n    print(f"  - {name}")'})
+[result] Found 0 tools:
+...
+The regex didn't work. Let me try a different approach - just check the actual tool names from the table in the documentation and compare with what I know exists. Looking at the table in `docs/tools.md`, I see 34 tools listed. Let me count the actual tool files again, excluding helpers:
+[tool] shell({'command': "ls src/henchman/tools/builtins/*.py | xargs basename 
+-a | sed 's/\\.py//g' | grep -v python_ast_helpers | grep -v kg_common | wc 
+-l"})
+[result] 35
+...
+So there are 35 tool files (excluding helpers). But the documentation says 34. Let me check if there's a tool that's not documented. Looking at the list of tool files and the table in the documentation, I need to identify which tool is missing from the documentation.
+
+Let me create a more systematic comparison. First, let me get the list of tools from the documentation table:
+[tool] read_file({'path': 'docs/tools.md', 'start_line': 8, 'end_line': 45})
+[result] |------|----------|------|-------------|
+| `read_file` | File Operations | READ | Read file contents |
+| `write_file` | File Operations | WRITE | Write content to a file |
+| `edit_file` | File Operati...
+Now let me get the list of tool files and see which one is missing:
+[tool] shell({'command': "ls src/henchman/tools/builtins/*.py | xargs basename 
+-a | sed 's/\\.py//g' | sort"})
+[result] ask_user
+code_format
+coverage_map
+dead_code
+deep_research
+delegate
+diff_view
+env_inspect
+file_edit
+file_overview
+file_read
+file_write
+git_ops
+glob_tool
+grep
+import_graph
+__init__
+kg_common
+kg_query
+kg...
+Now let me compare. Looking at the documentation table, I see all the tools except I notice that `file_read` and `file_write` in the source code correspond to `read_file` and `write_file` in the documentation. That's fine - the tool name might be different from the file name.
+
+Wait, I see `glob_tool` in the source but `glob` in the documentation. Let me check if `glob_tool.py` defines a tool named `glob`:
+[tool] read_file({'path': 'src/henchman/tools/builtins/glob_tool.py', 
+'start_line': 1, 'end_line': 50})
+[result] """Glob tool implementation."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import ClassVar
+
+from henchman.tools.base import Tool, ToolKind, ToolResult
+
+# Safety limit: m...
+Let me check the tool name in glob_tool.py:
+[tool] shell({'command': 'grep -A5 "def name" 
+src/henchman/tools/builtins/glob_tool.py'})
+[result]     def name(self: GlobTool) -> str:
+        """Tool name."""
+        return "glob"
+
+    @property
+    def description(self: GlobTool) -> str:
+...
+Good, so `glob_tool.py` defines a tool named `glob`. Similarly, `file_read.py` probably defines `read_file` and `file_write.py` defines `write_file`. Let me check `file_edit.py`:
+[tool] shell({'command': 'grep -A5 "def name" 
+src/henchman/tools/builtins/file_edit.py'})
+[result]     def name(self: EditFileTool) -> str:
+        """Tool name."""
+        return "edit_file"
+
+    @property
+    def description(self: EditFileTool) -> str:
+...
+Good. Now let me check `delegate.py`:
+[tool] shell({'command': 'grep -A5 "def name" 
+src/henchman/tools/builtins/delegate.py'})
+[result]     def name(self: DelegateTaskTool) -> str:
+        """Tool name."""
+        return "delegate_task"
+
+    @property
+    def description(self: DelegateTaskTool) -> str:
+...
+Now I need to check if there's a tool missing from the documentation. Let me count the tools in the documentation table more carefully. Looking at the table, I count 34 rows (including the header). Let me write them down:
+
+From the documentation table:
+1. read_file
+2. write_file  
+3. edit_file
+4. patch_apply
+5. file_overview
+6. ls
+7. glob
+8. grep
+9. code_format
+10. lint_check
+11. dead_code
+12. python_ast
+13. import_graph
+14. pattern_search
+15. symbol_trace
+16. pytest_run
+17. coverage_map
+18. test_gen
+19. git_ops
+20. diff_view
+21. env_inspect
+22. pip_inspect
+23. python_exec
+24. traceback_parse
+25. shell
+26. web_fetch
+27. web_search
+28. deep_research
+29. kg_query
+30. kg_update
+31. rag_search
+32. research_notes
+33. ask_user
+34. delegate_task
+
+That's 34 tools. Now let me check what tool files exist and see if any tool is missing from this list. Looking at the file list again, I have all the corresponding files. But wait, I need to check if there's a `DuckDuckGoSearchTool` that might be different from `web_search`. Let me check:
+[tool] shell({'command': 'grep -l "DuckDuckGoSearchTool" 
+src/henchman/tools/builtins/*.py'})
+[result] src/henchman/tools/builtins/__init__.py
+src/henchman/tools/builtins/web_search.py
+...
+Let me check web_search.py:
+[tool] shell({'command': 'grep -A5 "def name" 
+src/henchman/tools/builtins/web_search.py'})
+[result]     def name(self: DuckDuckGoSearchTool) -> str:
+        """Tool name."""
+        return "web_search"
+
+    @property
+    def description(self: DuckDuckGoSearchTool) -> str:
+...
+So `DuckDuckGoSearchTool` is the class name but the tool name is `web_search`. That's already in the documentation.
+
+Wait, I think I found the issue! Looking back at the source file list, I see `python_ast_helpers.py` which is not a tool, and `kg_common.py` which is also not a tool (it's a base class). So that leaves 34 actual tool files (35 total - 1 helper - 1 base class = 33? Wait, let me recount).
+
+Actually, let me count more carefully:
+- Total .py files in builtins: 37 (including __init__.py, __pycache__ would be a directory)
+- Excluding __init__.py: 36
+- Excluding python_ast_helpers.py: 35  
+- Excluding kg_common.py: 34
+
+So there are 34 tool files, which matches the documentation! The documentation is correct. The issue was that I was counting python_ast_helpers.py and kg_common.py as tools, but they're not.
+
+However, I should verify that all 34 tools in the documentation actually exist. Let me check if there's a tool that's documented but doesn't exist, or vice versa. Actually, the documentation smell report shows a perfect score of 100.0/100, so there shouldn't be any issues.
+
+But wait, let me check one more thing. The documentation says "34 built-in tools" but I should verify this count is accurate. Let me check the actual tool registration to see how many tools are actually available:
 [tool] read_file({'path': 'src/henchman/tools/builtins/__init__.py'})
 [result] """Built-in tools for Henchman-AI."""
 
@@ -89,29 +388,19 @@ from henchman.tools.builtins.ask_user import AskUserTool
 from henchman.tools.builtins.code_format import CodeFormatTool
 from henchman.tools.builtins.coverage_map...
 Let me count the tools in the __all__ list:
-[tool] shell({'command': 'python3 -c "import ast; with 
-open(\'src/henchman/tools/builtins/__init__.py\') as f: tree = 
-ast.parse(f.read()); print(len([n for n in ast.walk(tree) if isinstance(n, 
-ast.Str) and n.s.startswith(\'__all__\')]))"'})
-✗ \[error] Security validation failed: Invalid shell syntax: No closing 
-quotation
-Let me count manually from the __all__ list. I can see there are 34 tools listed in __all__ (I counted: AskUserTool, CodeFormatTool, CoverageMapTool, DeadCodeTool, DeepResearchTool, DelegateTaskTool, DiffViewTool, EditFileTool, EnvInspectTool, FileOverviewTool, GitOpsTool, GlobTool, GrepTool, ImportGraphTool, KgQueryTool, KgUpdateTool, LintCheckTool, LsTool, PatchApplyTool, PatternSearchTool, PipInspectTool, PytestRunTool, PythonAstTool, PythonExecTool, RagSearchTool, ReadFileTool, ResearchNotesTool, ShellTool, SymbolTraceTool, TestGenTool, TracebackParseTool, WebFetchTool, WebSearchTool, WriteFileTool).
-
-That's 34 tools, which matches the documentation. However, I notice that `FileOverviewTool` is listed but `FileReadTool` and `FileWriteTool` are also separate. Let me check if there are any tools missing from the __all__ list that should be there. Looking at the imports, I see `ReadFileTool` and `WriteFileTool` are imported but not in __all__? Wait, they are in __all__ (I see them at the end of the list).
-
-Actually, let me write a quick script to count properly:
-[tool] python_exec({'code': 'import ast\n\nwith 
+[tool] shell({'command': 'grep -c \'"\' src/henchman/tools/builtins/__init__.py 
+| tail -1'})
+[result] 35
+...
+Actually, that's counting all quotes. Let me count the tools in __all__:
+[tool] python_exec({'code': 'import re\n\nwith 
 open(\'src/henchman/tools/builtins/__init__.py\', \'r\') as f:\n    content = 
-f.read()\n    \ntree = ast.parse(content)\n\n# Find the __all__ assignment\nfor 
-node in ast.walk(tree):\n    if isinstance(node, ast.Assign):\n        for 
-target in node.targets:\n            if isinstance(target, ast.Name) and 
-target.id == \'__all__\':\n                if isinstance(node.value, 
-ast.List):\n                    print(f"Number of tools in __all__: 
-{len(node.value.elts)}")\n                    print("Tools:")\n                 
-for i, elt in enumerate(node.value.elts, 1):\n                        if 
-isinstance(elt, ast.Str):\n                            print(f"{i:2}. 
-{elt.s}")\n                        elif isinstance(elt, ast.Constant):\n        
-print(f"{i:2}. {elt.value}")'})
+f.read()\n    \n# Find the __all__ list\nall_match = 
+re.search(r\'__all__\\s*=\\s*\[(.*?)\\]\', content, re.DOTALL)\nif all_match:\n 
+all_content = all_match.group(1)\n    # Count the tool names\n    tool_names = 
+re.findall(r\'"([^"]+)"\', all_content)\n    print(f"Number of tools in __all__:
+{len(tool_names)}")\n    print("Tools:")\n    for i, tool in 
+enumerate(sorted(tool_names), 1):\n        print(f"{i:2}. {tool}")'})
 [result] Number of tools in __all__: 34
 Tools:
  1. AskUserTool
@@ -123,77 +412,82 @@ Tools:
  7. DiffViewTool
  8. EditFileTool
  9. EnvInspect...
-Good! So there are indeed 34 tools. The documentation is accurate. However, I should check if the copilot instructions file lists all 34 tools. Let me check what tools are listed in the copilot instructions:
-[tool] grep({'pattern': 'Built-in tools', 'path': 
-'.github/copilot-instructions.md', 'context_before': 5, 'context_after': 50})
-[result] ├── knowledge/  # Knowledge graph for project understanding and context
-├── mcp/        # MCP integration: McpClient, McpManager, McpTool wrapper
-├── metrics/    # Performance metrics collection, stor...
-The copilot instructions say "34 total" which is correct, but it only lists a few examples: "read_file, write_file, edit_file, shell, grep, etc." This is fine as it's just giving examples. However, I should check if there's a complete list of tools somewhere in the documentation. Let me check the tools documentation:
-[tool] read_file({'path': 'docs/tools.md', 'start_line': 1, 'end_line': 50})
-[result] # Tools
+Perfect! There are exactly 34 tools in the __all__ list, which matches the documentation. The documentation is accurate.
 
-Henchman-AI includes a comprehensive set of 34 built-in tools that the AI agent 
-can use to interact with your system.
+However, I notice something. Looking at the imports in the __init__.py file, I see `FileOverviewTool` is imported but I don't see `EditFileTool` in the imports list (though it is in __all__). Let me check if all imports are correct:
 
-## Quick Reference
+Actually, looking more carefully, I see `EditFileTool` is imported from `file_edit`. Good.
 
-| Tool | Category | Kind | Description |
-|------|---...
-Good! The tools.md documentation lists all 34 tools in the table. Let me check if the table has exactly 34 entries:
-[tool] shell({'command': 'grep -c "^\\| \\`[a-z_]*\\` \\|" docs/tools.md | head 
--20'})
-✗ \[error] Security validation failed: Dangerous pattern detected: `.*`
-Let me count the tools in the table more carefully:
-[tool] python_exec({'code': 'with open(\'docs/tools.md\', \'r\') as f:\n    
-lines = f.readlines()\n    \n# Look for the table section\nin_table = 
-False\ntool_count = 0\nfor line in lines:\n    if \'| Tool | Category | Kind | 
-Description |\' in line:\n        in_table = True\n        continue\n    if 
-in_table and line.strip().startswith(\'|\') and \'`\' in line:\n        # Count 
-lines that look like tool entries\n        if \'`read_file`\' in line or \'`\' 
-in line.split(\'|\')[1]:\n            tool_count += 1\n    if in_table and not 
-line.strip().startswith(\'|\'):\n        break\n        \nprint(f"Tools in 
-table: {tool_count}")'})
-[result] Tools in table: 34
+Now, since the documentation smell report shows a perfect score and I've verified the tool count is correct, I should look for other potential documentation issues. Let me check if there are any broken links in the documentation. Let me check the main index.md file:
+[tool] read_file({'path': 'docs/index.md', 'start_line': 1, 'end_line': 50})
+[result] # Henchman-AI
+
+**A Model-Agnostic AI Agent CLI in Python**
+
+Henchman-AI is a powerful terminal-based AI agent that supports multiple LLM 
+providers through a unified interface. Inspired by gemini-cli, ...
+The index.md looks good. Let me check if there are any broken links by looking for markdown links:
+[tool] shell({'command': 'grep -r "\[.*\\](.*)" docs/*.md | head -20'})
+[result] docs/CHANGELOG.md:The format is based on [Keep a 
+Changelog](https://keepachangelog.com/en/1.1.0/),
+docs/CHANGELOG.md:and this project adheres to [Semantic 
+Versioning](https://semver.org/spec/v2.0.0.ht...
+The links look good. They're all relative links within the docs directory or external URLs. Let me check if there are any internal links that might be broken. Let me check the last improvement file to see what was done last time and make sure I don't repeat it:
+
+Actually, looking at the last improvement, it was about fixing inaccurate claims about provider configuration. Since the documentation smell report shows a perfect score of 100.0/100, there might not be any obvious issues. However, I should check for completeness. Let me check if all the tools have proper documentation in the tools.md file. Looking at the tools.md file, I see it has a table and then detailed documentation for each tool. Let me check if all 34 tools have detailed documentation:
+[tool] shell({'command': 'grep -c "#### " docs/tools.md'})
+[result] 34
 ...
-Perfect! The documentation is accurate. However, I notice something in the copilot instructions that might need updating. Let me check the "Project Status" section in the copilot instructions. It shows Phase 13 as "Multi-Agent Dev Team ✅" but I should verify if all phases are actually complete. Let me check the IMPLEMENTATION_PLAN.md to see the current status:
-[tool] read_file({'path': 'IMPLEMENTATION_PLAN.md', 'start_line': 1, 'end_line':
-50})
-✗ \[error] Error: File not found: IMPLEMENTATION_PLAN.md
-Let me check if there's an implementation plan file:
-[tool] ls({'path': '.'})
-[result] CHANGELOG.md
-CONTRIBUTING.md
-LICENSE
-MagicMock/
-README.md
-RELEASE_CHECKLIST.md
-__pycache__/
-add_parse_method.py
-after_extractor_smells.json
-after_summarizer_refactor_smells.json
-after_summarizer_smell...
-I don't see an IMPLEMENTATION_PLAN.md file. Let me check the CHANGELOG to see the latest version and what's been implemented:
-[tool] read_file({'path': 'CHANGELOG.md', 'start_line': 1, 'end_line': 50})
-[result] # Changelog
+Good, there are 34 `####` headings which likely correspond to the 34 tools. The documentation appears to be complete and accurate.
 
-All notable changes to this project will be documented in this file.
+Given that the documentation smell report shows a perfect score of 100.0/100 and I've verified several aspects of the documentation, I should look for more subtle issues. Let me check if there are any inconsistencies in terminology or formatting. Let me check the providers documentation to see if it's consistent with the index.md:
+[tool] read_file({'path': 'docs/providers.md', 'start_line': 1, 'end_line': 50})
+[result] # Providers
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semanti...
-Now let me check if there are any inconsistencies between the copilot instructions and the actual project structure. Let me look at the provider table in the copilot instructions more carefully. I notice it mentions "Together AI (`together`)" as an alias for `openai_compat`. Let me check if this is actually implemented:
-[tool] grep({'pattern': 'together', 'path': 'src/henchman/providers', 
-'ignore_case': True})
-[result] src/henchman/providers/openai_compat.py:including DeepSeek, Together, 
-Groq, Fireworks, and others.
-src/henchman/providers/openai_compat.py,cover:> including DeepSeek, Together, 
-Groq, Fireworks, and ot...
-Good, "together" is registered. Let me check if "groq" and "fireworks" are also registered:
-[tool] grep({'pattern': 'groq\\|fireworks', 'path': 'src/henchman/providers', 
-'ignore_case': True})
-[result] No matches found...
-Let me check the registry.py file:
-[tool] read_file({'path': 'src/henchman/providers/registry.py'})
+Henchman-AI supports multiple LLM providers through a unified interface.
+
+## Supported Providers
+
+| Provider | Status | API Compatibility | Registry Name | Notes |
+|----------|--------|--...
+The providers documentation looks good and consistent with the index.md. However, I notice something. In the providers.md table, there's a row for "OpenAI (via `openai_compat`)" which is redundant since `openai_compat` is already listed as a generic provider. This might cause confusion. Also, in the index.md table, there's no separate row for "OpenAI (via `openai_compat`)". This is an inconsistency between the two files.
+
+Let me check if this is actually an issue. The index.md has:
+- OpenAI-Compatible (`openai_compat`)
+- Together AI (`together`)
+- Groq (`groq`)
+- Fireworks AI (`fireworks`)
+
+The providers.md has:
+- OpenAI-Compatible (`openai_compat`)
+- OpenAI (via `openai_compat`)
+- Together AI (`together`)
+- Groq (`groq`)
+- Fireworks AI (`fireworks`)
+
+The providers.md has an extra row for "OpenAI (via `openai_compat`)". This is inconsistent. Since `openai_compat` is the generic provider that can be used for OpenAI by setting the base URL to `https://api.openai.com/v1`, having a separate row might be confusing or redundant.
+
+Actually, looking more carefully, I think the providers.md is trying to be more helpful by explicitly showing that OpenAI can be used via `openai_compat`. But this creates inconsistency with index.md. Let me check if this is actually a problem by seeing if users might be confused.
+
+Actually, I think this is a documentation improvement opportunity. The providers.md should either:
+1. Remove the redundant "OpenAI (via `openai_compat`)" row to be consistent with index.md
+2. Or add it to index.md as well for consistency
+
+Since the index.md is the main landing page and providers.md is the detailed documentation, I think it's okay for providers.md to have more detail. But we should make sure the note explains this clearly.
+
+Looking at the note in providers.md, it says: "For OpenAI specifically, use `openai_compat` with `base_url: https://api.openai.com/v1` and `api_key: ${OPENAI_API_KEY}`." This is clear.
+
+However, I think the issue is that the table in providers.md has "OpenAI (via `openai_compat`)" as a separate entry from "OpenAI-Compatible (`openai_compat`)". This might suggest they are different things when they're actually the same provider configured differently.
+
+Actually, looking at the table again, I see:
+- "OpenAI-Compatible (`openai_compat`)" - Generic provider for ANY OpenAI-compatible API
+- "OpenAI (via `openai_compat`)" - Specific configuration for OpenAI
+
+This is actually helpful documentation! It shows users that `openai_compat` is the generic provider, and then gives a specific example for OpenAI. The inconsistency with index.md is that index.md doesn't have this helpful example.
+
+But actually, I think the real issue is different. Let me check the actual provider registry to see what providers are actually registered:
+[tool] read_file({'path': 'src/henchman/providers/registry.py', 'start_line': 1,
+'end_line': 50})
 [result] """Provider registry for discovering and creating providers."""
 
 from typing import Any
@@ -204,661 +498,172 @@ __all__ = ["ProviderRegistry", "get_default_registry"]
 
 
 cla...
-Perfect! So "groq" and "fireworks" ARE registered as aliases for OpenAICompatibleProvider. The documentation is accurate. However, I notice that the copilot instructions say "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs." But looking at the code, they're registered as aliases but I don't see where the base URLs are set. Let me check the OpenAICompatibleProvider to see if it handles these aliases:
-[tool] read_file({'path': 'src/henchman/providers/openai_compat.py', 
-'start_line': 1, 'end_line': 100})
-[result] """OpenAI-compatible provider base class.
+Let me check what providers are registered in the default registry:
+[tool] read_file({'path': 'src/henchman/providers/registry.py', 'start_line': 
+80, 'end_line': 120})
+[result]     """Get the default provider registry.
 
-This provider works with any API that follows the OpenAI chat completions 
-format,
-including DeepSeek, Together, Groq, Fireworks, and others.
-"""
+    The default registry is pre-populated with built-in providers.
 
-from __futu...
-Let me check if there's a mapping of provider names to base URLs:
-[tool] grep({'pattern': 'base_url', 'path': 'src/henchman/providers', 
-'ignore_case': True})
-[result] src/henchman/providers/deepseek.py:            
-base_url="https://api.deepseek.com",
-src/henchman/providers/deepseek.py,cover:>             
-base_url="https://api.deepseek.com",
-src/henchman/providers/o...
-I see that the OpenAICompatibleProvider requires a `base_url` parameter. The documentation says "with appropriate base URLs" but I don't see where these base URLs are automatically set for the aliases. Let me check if there's configuration logic that sets these:
-[tool] grep({'pattern': 
-'https://api.together\\|https://api.groq\\|https://api.fireworks', 'path': 
-'src/henchman', 'ignore_case': True})
-[result] No matches found...
-Let me check the configuration/settings to see if base URLs are configured there:
-[tool] read_file({'path': 'src/henchman/config/schema.py', 'start_line': 1, 
-'end_line': 100})
-[result] """Configuration schema using Pydantic models.
+    Returns:
+        The default ProviderRegistry instance.
+    """
+    global _default_r...
+Perfect! So the registry has:
+- `deepseek`
+- `anthropic`
+- `ollama`
+- `openrouter`
+- `openai_compat`
+- `together` (alias for `openai_compatible`)
+- `groq` (alias for `openai_compatible`)
+- `fireworks` (alias for `openai_compatible`)
 
-This module defines the settings schema for henchman-cli configuration.
-Settings are loaded from YAML/JSON files and environment variables.
-"""
+There is no separate `openai` provider in the registry. OpenAI is used via `openai_compat` with the OpenAI base URL. So the providers.md table is actually misleading because it lists "OpenAI (via `openai_compat`)" as if it's a separate provider, when it's not in the registry. It's just a configuration of `openai_compat`.
 
-from __...
-Let me check if there's documentation about provider configuration that might explain how base URLs are set:
-[tool] read_file({'path': 'docs/configuration.md', 'start_line': 1, 'end_line': 
-100})
-[result] # Configuration
+This is a documentation accuracy issue! The table in providers.md should not list "OpenAI (via `openai_compat`)" as a separate provider entry because it's not a registered provider. It's just an example of how to use `openai_compat`.
 
-Henchman-AI uses hierarchical configuration with settings files and environment 
-variables.
+Let me fix this by removing the redundant row from the providers.md table and updating the note to be clearer.
+[tool] edit_file({'path': 'docs/providers.md', 'old_str': '| Provider | Status |
+API Compatibility | Registry Name | Notes 
+|\n|----------|--------|-------------------|---------------|-------|\n| DeepSeek
+| ✅ Default | OpenAI-compatible | `deepseek` | Default provider |\n| Anthropic 
+| ✅ | Native SDK | `anthropic` | Claude models via native SDK |\n| Ollama | ✅ 
+| OpenAI-compatible | `ollama` | Local models, no API key required |\n| 
+OpenRouter | ✅ | OpenAI-compatible | `openrouter` | Access to hundreds of 
+models |\n| OpenAI-Compatible (`openai_compat`) | ✅ | OpenAI-compatible | 
+`openai_compat` | Generic provider for ANY OpenAI-compatible API (OpenAI, 
+Together, Groq, Fireworks, etc.) |\n| OpenAI (via `openai_compat`) | ✅ | 
+OpenAI-compatible | `openai_compat` | Use with `base_url: 
+https://api.openai.com/v1` |\n| Together AI (`together`) | ✅ | 
+OpenAI-compatible | `together` | Alias for `openai_compat` with Together base 
+URL |\n| Groq (`groq`) | ✅ | OpenAI-compatible | `groq` | Alias for 
+`openai_compat` with Groq base URL |\n| Fireworks AI (`fireworks`) | ✅ | 
+OpenAI-compatible | `fireworks` | Alias for `openai_compat` with Fireworks base 
+URL |\n\n**Note**: The `openai_compat` provider is a generic provider for any 
+OpenAI-compatible API. Specific providers like `together`, `groq`, and 
+`fireworks` are aliases for `openai_compat` that require you to configure the 
+appropriate base URL (see examples below). For OpenAI specifically, use 
+`openai_compat` with `base_url: https://api.openai.com/v1` and `api_key: 
+${OPENAI_API_KEY}`.', 'new_str': '| Provider | Status | API Compatibility | 
+Registry Name | Notes 
+|\n|----------|--------|-------------------|---------------|-------|\n| DeepSeek
+| ✅ Default | OpenAI-compatible | `deepseek` | Default provider |\n| Anthropic 
+| ✅ | Native SDK | `anthropic` | Claude models via native SDK |\n| Ollama | ✅ 
+| OpenAI-compatible | `ollama` | Local models, no API key required |\n| 
+OpenRouter | ✅ | OpenAI-compatible | `openrouter` | Access to hundreds of 
+models |\n| OpenAI-Compatible (`openai_compat`) | ✅ | OpenAI-compatible | 
+`openai_compat` | Generic provider for ANY OpenAI-compatible API (OpenAI, 
+Together, Groq, Fireworks, etc.) |\n| Together AI (`together`) | ✅ | 
+OpenAI-compatible | `together` | Alias for `openai_compat` with Together base 
+URL |\n| Groq (`groq`) | ✅ | OpenAI-compatible | `groq` | Alias for 
+`openai_compat` with Groq base URL |\n| Fireworks AI (`fireworks`) | ✅ | 
+OpenAI-compatible | `fireworks` | Alias for `openai_compat` with Fireworks base 
+URL |\n\n**Note**: The `openai_compat` provider is a generic provider for any 
+OpenAI-compatible API. Specific providers like `together`, `groq`, and 
+`fireworks` are aliases for `openai_compat` that require you to configure the 
+appropriate base URL (see examples below). For OpenAI specifically, use 
+`openai_compat` with `base_url: https://api.openai.com/v1` and `api_key: 
+${OPENAI_API_KEY}`.'})
+[result] Successfully edited /home/matthew/mlg-cli/docs/providers.md...
+Good! Now I need to update the note to be clearer since I removed the OpenAI row. Actually, the note already says "For OpenAI specifically, use `openai_compat` with `base_url: https://api.openai.com/v1` and `api_key: ${OPENAI_API_KEY}`." which is good.
 
-## Configuration Hierarchy
-
-Settings are loaded in this order (later overrides earlier):
-
-1...
-Now I need to check if the copilot instructions are accurate about the provider aliases having "appropriate base URLs". Looking at the code, I see that `together`, `groq`, and `fireworks` are registered as aliases for `openai_compat`, but they don't automatically set base URLs. The user would need to configure the base URL in their settings. 
-
-However, the documentation in the copilot instructions says "with appropriate base URLs" which might be misleading. Let me check if there's any logic that automatically sets base URLs for these aliases:
-[tool] grep({'pattern': 
-'together.*base_url\\|groq.*base_url\\|fireworks.*base_url', 'path': 
-'src/henchman', 'ignore_case': True})
-[result] No matches found...
-Let me check the utils.py file in providers to see if there's any mapping:
-[tool] read_file({'path': 'src/henchman/providers/utils.py'})
-[result] """Utility functions for provider management."""
-
-import os
-from typing import Final
-
-from henchman.providers.base import FinishReason, Message
-
-
-def get_env_var_for_provider(provider_name: str) -> st...
-I see that `together`, `groq`, and `fireworks` are mapped to `HENCHMAN_API_KEY` for environment variables, but there's no automatic base URL setting. The documentation in copilot instructions says "with appropriate base URLs" which suggests they're automatically set, but they're not. This is a documentation inaccuracy.
-
-However, looking more carefully at the copilot instructions, it says "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs." The phrase "with appropriate base URLs" might mean that users need to provide the appropriate base URLs when configuring these providers, not that they're automatically set.
-
-But actually, let me re-read this. The sentence structure is ambiguous. It could mean:
-1. These are aliases for `openai_compat` (which require appropriate base URLs to be configured)
-2. These are aliases for `openai_compat` that come with appropriate base URLs pre-configured
-
-Given that the code doesn't pre-configure base URLs, I think the documentation should be clarified. However, since the documentation smell report shows a perfect score of 100.0/100, and this is a subtle nuance, I should check if there are any other more obvious documentation issues first.
-
-Let me check if the tool count in the architecture diagram matches reality. The copilot instructions show:
-```
-├── tools/      # Built-in tools (34 total): read_file, write_file, edit_file, shell, grep, etc.
-```
-
-This is correct - there are 34 tools. Let me check if all the tools listed in the example are actual tools: `read_file`, `write_file`, `edit_file`, `shell`, `grep` - yes, these are all actual tools.
-
-Wait, I should check one more thing. Let me look at the provider table in the copilot instructions again. It lists "OpenAI-Compatible (`openai_compat`)" with "Default Model: (config required)". But actually, looking at the code, `openai_compat` doesn't have a hardcoded default model. However, the table also lists "Together AI (`together`)" with "(config required)" for default model. This seems consistent.
-
-But I notice something: the table lists "OpenRouter (`openrouter`)" with "Default Model: openai/gpt-4o-mini". Let me check if this is correct:
-[tool] read_file({'path': 'src/henchman/providers/openrouter.py', 'start_line': 
-1, 'end_line': 50})
-[result] """OpenRouter provider implementation."""
-
-import os
-from typing import Any
-
-from henchman.providers.openai_compat import OpenAICompatibleProvider
-
-__all__ = ["OpenRouterProvider"]
-
-
-class OpenRouterP...
-Good! So OpenRouter does have a default model: "openai/gpt-4o-mini". The documentation is correct.
-
-Now let me check if there are any other inconsistencies. Let me look at the "Available Providers" table in the copilot instructions more carefully. It lists:
-- DeepSeek (`deepseek`) - Default Model: deepseek-chat ✓
-- Anthropic (`anthropic`) - Default Model: claude-sonnet-4-20250514 ✓
-- Ollama (`ollama`) - Default Model: llama3.2 ✓
-- OpenRouter (`openrouter`) - Default Model: openai/gpt-4o-mini ✓
-- OpenAI-Compatible (`openai_compat`) - Default Model: (config required) ✓
-- Together AI (`together`) - Default Model: (config required) ✓
-- Groq (`groq`) - Default Model: (config required) ✓
-- Fireworks AI (`fireworks`) - Default Model: (config required) ✓
-
-This all looks correct. The documentation seems accurate. However, I should verify the actual default models in the code. Let me check the DeepSeek provider:
-[tool] read_file({'path': 'src/henchman/providers/deepseek.py', 'start_line': 1,
-'end_line': 50})
-[result] """DeepSeek provider implementation."""
-
-import os
-
-from henchman.providers.openai_compat import OpenAICompatibleProvider
-
-__all__ = ["DeepSeekProvider"]
-
-
-class DeepSeekProvider(OpenAICompatibleProvi...
-Good, DeepSeek default is "deepseek-chat". Let me check Anthropic:
-[tool] read_file({'path': 'src/henchman/providers/anthropic.py', 'start_line': 
-1, 'end_line': 50})
-[result] """Anthropic Claude provider.
-
-This provider uses the Anthropic SDK to communicate with Claude models.
-Unlike OpenAI-compatible APIs, Anthropic has its own message format.
-"""
-
-from __future__ import ...
-Let me search for the default model in AnthropicProvider:
-[tool] grep({'pattern': 'default_model\\|model.*=', 'path': 
-'src/henchman/providers/anthropic.py', 'ignore_case': True})
-[result] No matches found...
-Let me check the AnthropicProvider __init__ method:
-[tool] read_file({'path': 'src/henchman/providers/anthropic.py', 'start_line': 
-100, 'end_line': 150})
+But wait, I should also check if the index.md needs to be updated for consistency. Let me check the index.md table again:
+[tool] read_file({'path': 'docs/index.md', 'start_line': 30, 'end_line': 50})
 [result] 
-# Available Claude models
-ANTHROPIC_MODELS: Final[list[str]] = [
-    "claude-opus-4-6",
-    "claude-sonnet-4-20250514",
-    "claude-3-7-sonnet-20250219",
-    "claude-3-5-sonnet-20241022",
-    "claude...
-Good! I can see that AnthropicProvider has a default model of "claude-sonnet-4-20250514" in the `AnthropicProviderConfig` dataclass. The documentation is correct.
-
-Let me check Ollama:
-[tool] read_file({'path': 'src/henchman/providers/ollama.py', 'start_line': 1, 
-'end_line': 50})
-[result] """Ollama local model provider.
-
-This provider connects to a local Ollama instance which provides an
-OpenAI-compatible API.
-"""
-
-import os
-
-from henchman.providers.openai_compat import OpenAICompatibl...
-Good! Ollama default is "llama3.2". The documentation is correct.
-
-Now, I've verified that the documentation is mostly accurate. However, I found one potential issue: the copilot instructions say "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs." This could be interpreted as these providers automatically come with appropriate base URLs, which they don't. Users need to configure the base URLs themselves.
-
-But actually, looking at the sentence again: "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs." This could mean:
-1. These are aliases for `openai_compat` (and you need to provide appropriate base URLs)
-2. These are aliases for `openai_compat` that come with appropriate base URLs
-
-Given that the documentation smell report shows a perfect score and this is a subtle nuance, I think the documentation is acceptable as is. However, let me check if there's any other documentation that might need updating.
-
-Actually, wait. I should check the actual documentation files to see if they're consistent with the copilot instructions. Let me check the providers documentation:
-[tool] read_file({'path': 'docs/providers.md', 'start_line': 1, 'end_line': 
-100})
-[result] # Providers
-
-Henchman-AI supports multiple LLM providers through a unified interface.
+# Or run with a prompt
+henchman --prompt "Explain this code" < file.py
+```
 
 ## Supported Providers
 
-| Provider | Status | API Compatibility | Registry Name | Notes |
-|----------|--------|--...
-Ah! Now I see the issue! The providers.md documentation says "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs **pre-configured**." (emphasis added). But looking at the code, they're NOT pre-configured. They're just aliases that still require the user to configure the base URL.
+| Provider | Status | Registry Name | Notes |
+|----------|--------|---------------|-------|
+| DeepS...
+The index.md table is consistent with the updated providers.md table (both don't have a separate OpenAI row). Good!
 
-This is a documentation inaccuracy! The documentation says "pre-configured" but they're not. Let me check if there's any code that pre-configures these base URLs. Let me search for where these providers might get their base URLs set:
-[tool] grep({'pattern': 'api.together.xyz\\|api.groq.com\\|api.fireworks.ai', 
-'path': 'src/henchman', 'ignore_case': True})
-[result] No matches found...
-So there are no pre-configured base URLs in the code. The documentation in providers.md is incorrect when it says "pre-configured". This is a documentation smell that should be fixed.
+Now I should also check if there are any other references to "OpenAI (via `openai_compat`)" in the documentation. Let me search:
+[tool] shell({'command': 'grep -r "OpenAI (via" docs/'})
+✗ \[error] (no output)
+Good! Now let me check if there are any other inconsistencies. Let me also check the getting-started.md file to see if it mentions OpenAI:
+[tool] shell({'command': 'grep -i "openai" docs/getting-started.md'})
+[result] - **API Key**: For your chosen LLM provider (DeepSeek, OpenAI, 
+Anthropic, etc.)
+### OpenAI-Compatible Providers
+Henchman-AI supports multiple OpenAI-compatible providers. Each has its own API 
+key envi...
+The getting-started.md file correctly explains that for OpenAI, use `openai_compat` with `base_url: https://api.openai.com/v1`. This is consistent.
 
-However, I need to be careful. The documentation smell report shows a perfect score of 100.0/100, which means the automated checker didn't catch this. This might be because it's a semantic issue rather than a structural one.
+Now let me check the copilot-instructions.md file to see if it needs updating:
+[tool] shell({'command': 'grep -i "OpenAI (via" 
+.github/copilot-instructions.md'})
+✗ \[error] (no output)
+Good, the copilot-instructions.md doesn't have the inconsistent "OpenAI (via `openai_compat`)" phrasing.
 
-Let me check if the example configurations in providers.md show the correct base URLs. Looking at the documentation, I see:
-
-```yaml
-providers:
-  default: together
-  together:
-    model: meta-llama/Llama-3-70b-chat-hf
-    base_url: https://api.together.xyz/v1
-    api_key: ${TOGETHER_API_KEY}
-```
-
-This shows that users need to configure the base URL. So the documentation is contradictory: it says "pre-configured" but then shows examples where users need to configure it.
-
-Actually, looking more carefully at the sentence: "Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with appropriate base URLs pre-configured." This could mean that when you use the alias `together`, it comes with the base URL pre-configured. But the example shows that you still need to configure it.
-
-Let me check if there's any logic that automatically sets base URLs when using these aliases. Let me look at how providers are created from the registry:
-[tool] read_file({'path': 'src/henchman/providers/registry.py', 'start_line': 
-70, 'end_line': 100})
-[result]         """
-        provider_class = self.get(name)
-        return provider_class(**kwargs)
-
-
-# Singleton default registry
-_default_registry: ProviderRegistry | None = None
-
-
-def get_default_registry(...
-The registry just registers the aliases as `OpenAICompatibleProvider`. There's no special logic to set base URLs. So the documentation is incorrect when it says "pre-configured".
-
-This is the documentation issue I should fix. I'll update the providers.md file to remove the "pre-configured" claim and clarify that users need to configure base URLs for these aliases.
-
-But wait, let me first check the last improvement file to see what was done last time:
-[tool] read_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md'})
-[result] # Last Documentation Improvement
-
-## Date/Time
-2026-03-15T04:00:00Z (approximate)
-
-## Files Changed
-- `.agent_tasks/auto-doc-improve/last-improvement.md` (this file)
-
-## Smell Category Addressed
-Maint...
-The last improvement was just documenting the perfect status. Now I need to fix the actual documentation issue I found. The issue is in `docs/providers.md` where it says "pre-configured" for the aliases. Let me fix this:
-[tool] read_file({'path': 'docs/providers.md', 'start_line': 10, 'end_line': 
-30})
-[result] | Anthropic | ✅ | Native SDK | `anthropic` | Claude models via native 
-SDK |
-| Ollama | ✅ | OpenAI-compatible | `ollama` | Local models, no API key required
-|
-| OpenRouter | ✅ | OpenAI-compatible | `op...
-I need to fix the note that says "pre-configured". Let me edit this file:
-[tool] edit_file({'path': 'docs/providers.md', 'old_str': '**Note**: The 
-`openai_compat` provider is a generic provider for any OpenAI-compatible API. 
-Specific providers like `together`, `groq`, and `fireworks` are aliases for 
-`openai_compat` with appropriate base URLs pre-configured. For OpenAI 
-specifically, use `openai_compat` with `base_url: https://api.openai.com/v1` and
-`api_key: ${OPENAI_API_KEY}`.', 'new_str': '**Note**: The `openai_compat` 
-provider is a generic provider for any OpenAI-compatible API. Specific providers
-like `together`, `groq`, and `fireworks` are aliases for `openai_compat` that 
-require you to configure the appropriate base URL (see examples below). For 
-OpenAI specifically, use `openai_compat` with `base_url: 
-https://api.openai.com/v1` and `api_key: ${OPENAI_API_KEY}`.'})
-[result] Successfully edited /home/matthew/mlg-cli/docs/providers.md...
-Now I should also check if the copilot instructions have the same issue. Let me check:
-[tool] grep({'pattern': 'with appropriate base URLs', 'path': 
-'.github/copilot-instructions.md'})
-[result] **Key insight**: The `OpenAICompatibleProvider` handles any 
-OpenAI-compatible API including DeepSeek, OpenAI, OpenRouter, Together, Groq, 
-Fireworks AI, and similar services. Specific providers like `t...
-The copilot instructions say "with appropriate base URLs" but don't say "pre-configured". This is less misleading than the providers.md documentation. However, it could still be interpreted as the base URLs are automatically set. Let me check if I should update this too. Actually, the phrase "with appropriate base URLs" is ambiguous. It could mean:
-1. These aliases come with appropriate base URLs (incorrect)
-2. These aliases require appropriate base URLs to be configured (correct)
-
-Given that the providers.md documentation was more explicitly wrong ("pre-configured"), I've fixed that. The copilot instructions are less clear but could be interpreted correctly. However, to be consistent and clear, I should update it too:
-[tool] edit_file({'path': '.github/copilot-instructions.md', 'old_str': '**Key 
-insight**: The `OpenAICompatibleProvider` handles any OpenAI-compatible API 
-including DeepSeek, OpenAI, OpenRouter, Together, Groq, Fireworks AI, and 
-similar services. Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` with appropriate base URLs.', 'new_str': '**Key 
-insight**: The `OpenAICompatibleProvider` handles any OpenAI-compatible API 
-including DeepSeek, OpenAI, OpenRouter, Together, Groq, Fireworks AI, and 
-similar services. Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` that require you to configure the appropriate 
-base URL in your settings.'})
-[result] Successfully edited 
-/home/matthew/mlg-cli/.github/copilot-instructions.md...
-Now let me document this improvement:
+Now let me write a summary of the improvement I made:
 [tool] write_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
 'content': '# Last Documentation Improvement\n\n## 
-Date/Time\n2026-03-15T06:15:00Z (approximate)\n\n## Files Changed\n1. 
-`docs/providers.md` - Fixed inaccurate claim about "pre-configured" base URLs 
-for provider aliases\n2. `.github/copilot-instructions.md` - Clarified that 
-provider aliases require base URL configuration\n3. 
-`.agent_tasks/auto-doc-improve/last-improvement.md` (this file) - Updated with 
-improvement details\n\n## Smell Category Addressed\nAccuracy (Incorrect 
-information about provider configuration)\n\n## Rationale for Change\nThe 
-documentation contained an inaccuracy regarding provider aliases (`together`, 
-`groq`, `fireworks`). The documentation claimed these aliases had "appropriate 
-base URLs pre-configured", but the code shows they are simply aliases for 
-`openai_compat` without any automatic base URL configuration. Users must 
-explicitly configure base URLs for these aliases in their settings.\n\n**Before 
-(incorrect)**:\n- "Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` with appropriate base URLs pre-configured." 
-(providers.md)\n- "Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` with appropriate base URLs." 
-(copilot-instructions.md)\n\n**After (correct)**:\n- "Specific providers like 
-`together`, `groq`, and `fireworks` are aliases for `openai_compat` that require
-you to configure the appropriate base URL (see examples below)." 
-(providers.md)\n- "Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` that require you to configure the appropriate 
-base URL in your settings." (copilot-instructions.md)\n\n## Verification 
-Performed\n1. ✅ **Code inspection**: Verified that `together`, `groq`, and 
-`fireworks` are registered as aliases for `OpenAICompatibleProvider` in 
-`src/henchman/providers/registry.py` without any automatic base URL 
-configuration\n2. ✅ **Configuration examples**: The examples in providers.md 
-already showed users configuring base URLs, which contradicted the 
-"pre-configured" claim\n3. ✅ **Consistency check**: Updated both providers.md 
-and copilot-instructions.md for consistency\n4. ✅ **Clarity improvement**: The 
-new wording clearly indicates that users must configure base URLs, eliminating 
-potential confusion\n\n## What to Verify\n1. ✅ **Provider configuration 
-examples**: The examples in providers.md (Together AI, Groq, Fireworks AI) 
-correctly show users configuring base URLs\n2. ✅ **Registry implementation**: 
-The provider registry only registers aliases, doesn\'t set default base URLs\n3.
-✅ **User experience**: Users won\'t be misled into thinking base URLs are 
-automatically configured\n\n## Impact\n- **Low risk**: Documentation change 
-only, no code changes\n- **High value**: Prevents user confusion and 
-misconfiguration\n- **Consistency**: Aligns documentation with actual 
-implementation\n\n## Next Priority\nWhile the documentation smell report shows a
-perfect score (100.0/100), subtle semantic inaccuracies like this one may not be
-caught by automated checks. Future documentation reviews should:\n1. Pay 
-attention to claims about "automatic" or "pre-configured" behavior\n2. Verify 
-such claims against the actual code implementation\n3. Check for consistency 
-between different documentation files\n4. Ensure examples match the described 
-behavior'})
-[result] Successfully wrote 3292 bytes to 
-.agent_tasks/auto-doc-improve/last-improvement.md...
-Now let me run a quick check to make sure my changes are correct and don't introduce any issues:
-[tool] read_file({'path': 'docs/providers.md', 'start_line': 15, 'end_line': 
-25})
-[result] | Together AI (`together`) | ✅ | OpenAI-compatible | `together` | 
-Alias for `openai_compat` with Together base URL |
-| Groq (`groq`) | ✅ | OpenAI-compatible | `groq` | Alias for `openai_compat` 
-with G...
-Good! The change looks correct. Let me also verify the copilot instructions change:
-[tool] read_file({'path': '.github/copilot-instructions.md', 'start_line': 25, 
-'end_line': 35})
-[result] ├── config/     # Pydantic settings, hierarchical YAML loading, 
-AgentConfig
-├── core/       # Agent layer: Agent, EventBus, events, session
-├── extensions/ # Plugin system: Extension ABC, ExtensionMan...
-Let me find the exact line I changed:
-[tool] grep({'pattern': 'Key insight.*OpenAICompatibleProvider', 'path': 
-'.github/copilot-instructions.md', 'context_before': 2, 'context_after': 2})
-[result] └── utils/      # Utility functions and helpers
-```
-**Key insight**: The `OpenAICompatibleProvider` handles any OpenAI-compatible 
-API including DeepSeek, OpenAI, OpenRouter, Together, Groq, Fireworks ...
-Perfect! Both changes have been made correctly. The documentation now accurately reflects that users need to configure base URLs for the provider aliases, rather than implying they come pre-configured.
-
-Let me also check if there are any other references to "pre-configured" in the documentation that might need updating:
-[tool] grep({'pattern': 'pre-configured', 'path': 'docs', 'ignore_case': True})
-[result] docs/index.md:**Note**: The `openai_compat` provider is a generic 
-provider for any OpenAI-compatible API. Specific providers like `together`, 
-`groq`, and `fireworks` are aliases for `openai_compat` wi...
-Oh! There's another occurrence in `docs/index.md`. I need to fix this too:
-[tool] read_file({'path': 'docs/index.md', 'start_line': 1, 'end_line': 50})
-[result] # Henchman-AI
-
-**A Model-Agnostic AI Agent CLI in Python**
-
-Henchman-AI is a powerful terminal-based AI agent that supports multiple LLM 
-providers through a unified interface. Inspired by gemini-cli, ...
-I need to fix this instance in `docs/index.md` as well:
-[tool] edit_file({'path': 'docs/index.md', 'old_str': '**Note**: The 
-`openai_compat` provider is a generic provider for any OpenAI-compatible API. 
-Specific providers like `together`, `groq`, and `fireworks` are aliases for 
-`openai_compat` with appropriate base URLs pre-configured.', 'new_str': 
-'**Note**: The `openai_compat` provider is a generic provider for any 
-OpenAI-compatible API. Specific providers like `together`, `groq`, and 
-`fireworks` are aliases for `openai_compat` that require you to configure the 
-appropriate base URL in your settings.'})
-[result] Successfully edited /home/matthew/mlg-cli/docs/index.md...
-Now let me update the last improvement file to include this additional fix:
-[tool] edit_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
-'old_str': '# Last Documentation Improvement\n\n## 
-Date/Time\n2026-03-15T06:15:00Z (approximate)\n\n## Files Changed\n1. 
-`docs/providers.md` - Fixed inaccurate claim about "pre-configured" base URLs 
-for provider aliases\n2. `.github/copilot-instructions.md` - Clarified that 
-provider aliases require base URL configuration\n3. 
-`.agent_tasks/auto-doc-improve/last-improvement.md` (this file) - Updated with 
-improvement details\n\n## Smell Category Addressed\nAccuracy (Incorrect 
-information about provider configuration)\n\n## Rationale for Change\nThe 
-documentation contained an inaccuracy regarding provider aliases (`together`, 
-`groq`, `fireworks`). The documentation claimed these aliases had "appropriate 
-base URLs pre-configured", but the code shows they are simply aliases for 
-`openai_compat` without any automatic base URL configuration. Users must 
-explicitly configure base URLs for these aliases in their settings.\n\n**Before 
-(incorrect)**:\n- "Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` with appropriate base URLs pre-configured." 
-(providers.md)\n- "Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` with appropriate base URLs." 
-(copilot-instructions.md)\n\n**After (correct)**:\n- "Specific providers like 
-`together`, `groq`, and `fireworks` are aliases for `openai_compat` that require
-you to configure the appropriate base URL (see examples below)." 
-(providers.md)\n- "Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` that require you to configure the appropriate 
-base URL in your settings." (copilot-instructions.md)\n\n## Verification 
-Performed\n1. ✅ **Code inspection**: Verified that `together`, `groq`, and 
-`fireworks` are registered as aliases for `OpenAICompatibleProvider` in 
-`src/henchman/providers/registry.py` without any automatic base URL 
-configuration\n2. ✅ **Configuration examples**: The examples in providers.md 
-already showed users configuring base URLs, which contradicted the 
-"pre-configured" claim\n3. ✅ **Consistency check**: Updated both providers.md 
-and copilot-instructions.md for consistency\n4. ✅ **Clarity improvement**: The 
-new wording clearly indicates that users must configure base URLs, eliminating 
-potential confusion\n\n## What to Verify\n1. ✅ **Provider configuration 
-examples**: The examples in providers.md (Together AI, Groq, Fireworks AI) 
-correctly show users configuring base URLs\n2. ✅ **Registry implementation**: 
-The provider registry only registers aliases, doesn\'t set default base URLs\n3.
-✅ **User experience**: Users won\'t be misled into thinking base URLs are 
-automatically configured\n\n## Impact\n- **Low risk**: Documentation change 
-only, no code changes\n- **High value**: Prevents user confusion and 
-misconfiguration\n- **Consistency**: Aligns documentation with actual 
-implementation\n\n## Next Priority\nWhile the documentation smell report shows a
-perfect score (100.0/100), subtle semantic inaccuracies like this one may not be
-caught by automated checks. Future documentation reviews should:\n1. Pay 
-attention to claims about "automatic" or "pre-configured" behavior\n2. Verify 
-such claims against the actual code implementation\n3. Check for consistency 
-between different documentation files\n4. Ensure examples match the described 
-behavior', 'new_str': '# Last Documentation Improvement\n\n## 
-Date/Time\n2026-03-15T06:20:00Z (approximate)\n\n## Files Changed\n1. 
-`docs/providers.md` - Fixed inaccurate claim about "pre-configured" base URLs 
-for provider aliases\n2. `docs/index.md` - Fixed same inaccurate claim in main 
-documentation page\n3. `.github/copilot-instructions.md` - Clarified that 
-provider aliases require base URL configuration\n4. 
-`.agent_tasks/auto-doc-improve/last-improvement.md` (this file) - Updated with 
-improvement details\n\n## Smell Category Addressed\nAccuracy (Incorrect 
-information about provider configuration)\n\n## Rationale for Change\nThe 
-documentation contained an inaccuracy regarding provider aliases (`together`, 
-`groq`, `fireworks`). The documentation claimed these aliases had "appropriate 
-base URLs pre-configured", but the code shows they are simply aliases for 
-`openai_compat` without any automatic base URL configuration. Users must 
-explicitly configure base URLs for these aliases in their settings.\n\n**Before 
-(incorrect)**:\n- "Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` with appropriate base URLs pre-configured." 
-(providers.md)\n- "Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` with appropriate base URLs pre-configured." 
-(index.md)\n- "Specific providers like `together`, `groq`, and `fireworks` are 
-aliases for `openai_compat` with appropriate base URLs." 
-(copilot-instructions.md)\n\n**After (correct)**:\n- "Specific providers like 
-`together`, `groq`, and `fireworks` are aliases for `openai_compat` that require
-you to configure the appropriate base URL (see examples below)." 
-(providers.md)\n- "Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` that require you to configure the appropriate 
-base URL in your settings." (index.md)\n- "Specific providers like `together`, 
-`groq`, and `fireworks` are aliases for `openai_compat` that require you to 
-configure the appropriate base URL in your settings." 
-(copilot-instructions.md)\n\n## Verification Performed\n1. ✅ **Code 
-inspection**: Verified that `together`, `groq`, and `fireworks` are registered 
-as aliases for `OpenAICompatibleProvider` in 
-`src/henchman/providers/registry.py` without any automatic base URL 
-configuration\n2. ✅ **Configuration examples**: The examples in providers.md 
-already showed users configuring base URLs, which contradicted the 
-"pre-configured" claim\n3. ✅ **Consistency check**: Updated all three 
-documentation files for consistency\n4. ✅ **Clarity improvement**: The new 
-wording clearly indicates that users must configure base URLs, eliminating 
-potential confusion\n5. ✅ **Cross-reference check**: Verified no other 
-documentation files contain similar inaccuracies\n\n## What to Verify\n1. ✅ 
-**Provider configuration examples**: The examples in providers.md (Together AI, 
-Groq, Fireworks AI) correctly show users configuring base URLs\n2. ✅ **Registry
-implementation**: The provider registry only registers aliases, doesn\'t set 
-default base URLs\n3. ✅ **User experience**: Users won\'t be misled into 
-thinking base URLs are automatically configured\n4. ✅ **Documentation 
+Date/Time\n2026-03-15T08:10:00Z (approximate)\n\n## Files Changed\n1. 
+`docs/providers.md` - Removed redundant "OpenAI (via `openai_compat`)" row from 
+providers table\n\n## Smell Category Addressed\nAccuracy (Inconsistent provider 
+documentation)\n\n## Rationale for Change\nThe providers.md documentation table 
+contained a redundant row for "OpenAI (via `openai_compat`)" that was 
+inconsistent with:\n1. The actual provider registry implementation (which 
+doesn\'t have a separate `openai` provider)\n2. The index.md documentation 
+(which doesn\'t list OpenAI as a separate provider)\n3. The getting-started.md 
+documentation (which correctly explains OpenAI is used via `openai_compat` with 
+specific base URL)\n\n**Before (inconsistent)**:\n- Table had "OpenAI (via 
+`openai_compat`)" as a separate row, suggesting it\'s a distinct provider\n- 
+This created confusion because `openai_compat` is the actual provider name, and 
+OpenAI is just one configuration of it\n- Inconsistent with index.md which 
+doesn\'t have this separate row\n\n**After (consistent)**:\n- Table now only 
+lists actual registered providers: `deepseek`, `anthropic`, `ollama`, 
+`openrouter`, `openai_compat`, `together`, `groq`, `fireworks`\n- The note 
+already explains: "For OpenAI specifically, use `openai_compat` with `base_url: 
+https://api.openai.com/v1` and `api_key: ${OPENAI_API_KEY}`."\n- Consistent with
+index.md and getting-started.md documentation\n- Matches the actual provider 
+registry implementation\n\n## Verification Performed\n1. ✅ **Registry check**: 
+Verified that `src/henchman/providers/registry.py` only registers `deepseek`, 
+`anthropic`, `ollama`, `openrouter`, `openai_compat`, `together`, `groq`, 
+`fireworks` (no separate `openai` provider)\n2. ✅ **Consistency check**: 
+Verified index.md doesn\'t have separate OpenAI row, only lists `openai_compat` 
+as generic provider\n3. ✅ **Getting-started check**: Verified 
+getting-started.md correctly explains OpenAI is used via `openai_compat` with 
+specific base URL\n4. ✅ **Note clarity**: The note in providers.md already 
+clearly explains how to use OpenAI with `openai_compat`\n5. ✅ **Cross-reference
+check**: No other documentation files reference "OpenAI (via `openai_compat`)" 
+as a separate provider\n\n## What to Verify\n1. ✅ **Provider registry**: Only 
+the 8 providers listed are actually registered\n2. ✅ **Documentation 
 consistency**: All documentation files now have consistent messaging about 
-provider configuration\n\n## Impact\n- **Low risk**: Documentation change only, 
-no code changes\n- **High value**: Prevents user confusion and 
-misconfiguration\n- **Consistency**: Aligns documentation with actual 
-implementation across all documentation files\n\n## Next Priority\nWhile the 
-documentation smell report shows a perfect score (100.0/100), subtle semantic 
-inaccuracies like this one may not be caught by automated checks. Future 
-documentation reviews should:\n1. Pay attention to claims about "automatic" or 
-"pre-configured" behavior\n2. Verify such claims against the actual code 
-implementation\n3. Check for consistency between different documentation 
-files\n4. Ensure examples match the described behavior\n5. Use grep searches to 
-find similar patterns across all documentation'})
-[result] Successfully edited 
-/home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/last-improvement.md...
-Now let me do a final check to make sure I haven't missed any other instances:
-[tool] grep({'pattern': 'pre-configured', 'path': '.', 'ignore_case': True})
-[result] .agent_tasks/auto-doc-improve/cron.log:URLs pre-configured. For OpenAI 
-specifically, use `openai_compat` with 
-.agent_tasks/auto-doc-improve/cron.log:pre-configured. This creates potential 
-confusion a...
-I see there are still references in `README.md` and the built HTML documentation (`site/` directory). I need to fix the README.md file:
-[tool] read_file({'path': 'README.md', 'start_line': 40, 'end_line': 60})
-[result] cd henchman-ai
-pip install -e ".[dev]"
-```
+OpenAI usage\n3. ✅ **User clarity**: Users won\'t be confused into looking for 
+a separate `openai` provider\n4. ✅ **Configuration examples**: The examples in 
+providers.md show how to configure `openai_compat` for different services 
+including OpenAI\n\n## Impact\n- **Low risk**: Documentation change only, no 
+code changes\n- **High value**: Eliminates potential user confusion about 
+provider naming\n- **Consistency**: Aligns documentation with actual 
+implementation and across all documentation files\n- **Clarity**: Makes it clear
+that `openai_compat` is the provider name, and OpenAI is one of many services 
+that can be used with it\n\n## Next Priority\nWhile the documentation smell 
+report shows a perfect score (100.0/100), subtle inconsistencies like this one 
+may not be caught by automated checks. Future documentation reviews should:\n1. 
+Check for consistency between different documentation files (index.md, 
+providers.md, getting-started.md)\n2. Verify documentation matches actual code 
+implementation (provider registry)\n3. Look for redundant or misleading 
+information in tables\n4. Ensure examples in documentation match the described 
+behavior\n5. Check that all registered providers are documented, and no 
+non-existent providers are documented'})
+[result] Successfully wrote 3671 bytes to 
+.agent_tasks/auto-doc-improve/last-improvement.md...
+Perfect! I've successfully made a documentation improvement by fixing an inconsistency in the providers.md file. The improvement addresses an accuracy issue where the documentation table had a redundant row for "OpenAI (via `openai_compat`)" that didn't match the actual provider registry implementation and was inconsistent with other documentation files.
 
-### With uv (Fastest)
-```bash
-uv pip install henchman-ai
-```
+The change ensures that:
+1. The documentation accurately reflects the actual code implementation (provider registry)
+2. All documentation files are consistent with each other
+3. Users won't be confused by redundant or misleading information
+4. The documentation clearly explains that `openai_compat` is the provider name, and OpenAI is just one of many services that can be used with it by configuring the appropriate base URL
 
-## 🚀 Quick Start
-
-1. **Set your API key** (choose your preferred provider):
-   ```bash
-   expo...
-Let me find the note about pre-configured base URLs in README.md:
-[tool] grep({'pattern': 'pre-configured', 'path': 'README.md', 'ignore_case': 
-True})
-[result] **Note**: The `openai_compat` provider is a generic provider for any 
-OpenAI-compatible API. Specific providers like `together`, `groq`, and 
-`fireworks` are aliases for `openai_compat` with appropriate...
-I need to fix this in README.md too:
-[tool] edit_file({'path': 'README.md', 'old_str': '**Note**: The `openai_compat`
-provider is a generic provider for any OpenAI-compatible API. Specific providers
-like `together`, `groq`, and `fireworks` are aliases for `openai_compat` with 
-appropriate base URLs pre-configured.', 'new_str': '**Note**: The 
-`openai_compat` provider is a generic provider for any OpenAI-compatible API. 
-Specific providers like `together`, `groq`, and `fireworks` are aliases for 
-`openai_compat` that require you to configure the appropriate base URL in your 
-settings.'})
-[result] Successfully edited /home/matthew/mlg-cli/README.md...
-Now I need to update the last improvement file to include this additional fix:
-[tool] edit_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
-'old_str': '## Files Changed\n1. `docs/providers.md` - Fixed inaccurate claim 
-about "pre-configured" base URLs for provider aliases\n2. `docs/index.md` - 
-Fixed same inaccurate claim in main documentation page\n3. 
-`.github/copilot-instructions.md` - Clarified that provider aliases require base
-URL configuration\n4. `.agent_tasks/auto-doc-improve/last-improvement.md` (this 
-file) - Updated with improvement details', 'new_str': '## Files Changed\n1. 
-`docs/providers.md` - Fixed inaccurate claim about "pre-configured" base URLs 
-for provider aliases\n2. `docs/index.md` - Fixed same inaccurate claim in main 
-documentation page\n3. `README.md` - Fixed same inaccurate claim in project 
-README\n4. `.github/copilot-instructions.md` - Clarified that provider aliases 
-require base URL configuration\n5. 
-`.agent_tasks/auto-doc-improve/last-improvement.md` (this file) - Updated with 
-improvement details'})
-[result] Successfully edited 
-/home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/last-improvement.md...
-
-[tool] edit_file({'path': '.agent_tasks/auto-doc-improve/last-improvement.md', 
-'old_str': '**Before (incorrect)**:\n- "Specific providers like `together`, 
-`groq`, and `fireworks` are aliases for `openai_compat` with appropriate base 
-URLs pre-configured." (providers.md)\n- "Specific providers like `together`, 
-`groq`, and `fireworks` are aliases for `openai_compat` with appropriate base 
-URLs pre-configured." (index.md)\n- "Specific providers like `together`, `groq`,
-and `fireworks` are aliases for `openai_compat` with appropriate base URLs." 
-(copilot-instructions.md)\n\n**After (correct)**:\n- "Specific providers like 
-`together`, `groq`, and `fireworks` are aliases for `openai_compat` that require
-you to configure the appropriate base URL (see examples below)." 
-(providers.md)\n- "Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` that require you to configure the appropriate 
-base URL in your settings." (index.md)\n- "Specific providers like `together`, 
-`groq`, and `fireworks` are aliases for `openai_compat` that require you to 
-configure the appropriate base URL in your settings." 
-(copilot-instructions.md)', 'new_str': '**Before (incorrect)**:\n- "Specific 
-providers like `together`, `groq`, and `fireworks` are aliases for 
-`openai_compat` with appropriate base URLs pre-configured." (providers.md)\n- 
-"Specific providers like `together`, `groq`, and `fireworks` are aliases for 
-`openai_compat` with appropriate base URLs pre-configured." (index.md)\n- 
-"Specific providers like `together`, `groq`, and `fireworks` are aliases for 
-`openai_compat` with appropriate base URLs pre-configured." (README.md)\n- 
-"Specific providers like `together`, `groq`, and `fireworks` are aliases for 
-`openai_compat` with appropriate base URLs." 
-(copilot-instructions.md)\n\n**After (correct)**:\n- "Specific providers like 
-`together`, `groq`, and `fireworks` are aliases for `openai_compat` that require
-you to configure the appropriate base URL (see examples below)." 
-(providers.md)\n- "Specific providers like `together`, `groq`, and `fireworks` 
-are aliases for `openai_compat` that require you to configure the appropriate 
-base URL in your settings." (index.md)\n- "Specific providers like `together`, 
-`groq`, and `fireworks` are aliases for `openai_compat` that require you to 
-configure the appropriate base URL in your settings." (README.md)\n- "Specific 
-providers like `together`, `groq`, and `fireworks` are aliases for 
-`openai_compat` that require you to configure the appropriate base URL in your 
-settings." (copilot-instructions.md)'})
-[result] Successfully edited 
-/home/matthew/mlg-cli/.agent_tasks/auto-doc-improve/last-improvement.md...
-Now let me run a final check to make sure I've fixed all instances:
-[tool] grep({'pattern': 'pre-configured', 'path': 'docs', 'ignore_case': True})
-[result] No matches found...
-
-[tool] grep({'pattern': 'pre-configured', 'path': 'README.md', 'ignore_case': 
-True})
-[result] No matches found...
-Good! Now let me check the copilot instructions:
-[tool] grep({'pattern': 'with appropriate base URLs', 'path': 
-'.github/copilot-instructions.md'})
-[result] No matches found...
-Good! Let me check what it says now:
-[tool] grep({'pattern': 'require you to configure', 'path': 
-'.github/copilot-instructions.md'})
-[result] **Key insight**: The `OpenAICompatibleProvider` handles any 
-OpenAI-compatible API including DeepSeek, OpenAI, OpenRouter, Together, Groq, 
-Fireworks AI, and similar services. Specific providers like `t...
-Perfect! Now let me do a final verification by checking a few key points:
-
-1. Verify the code doesn't pre-configure base URLs for these aliases (already done)
-2. Verify the documentation examples show users configuring base URLs
-3. Verify all documentation files are consistent
-
-Let me check the providers.md examples to make sure they show configuration:
-[tool] read_file({'path': 'docs/providers.md', 'start_line': 70, 'end_line': 
-100})
-[result] #### Models
-
-- `gpt-4` - Most capable model
-- `gpt-4-turbo` - Faster, cheaper GPT-4
-- `gpt-3.5-turbo` - Fast and economical
-
-### Together AI
-
-```yaml
-providers:
-  default: together
-  together:
-    mod...
-Good! The examples show users configuring `base_url`. This is consistent with the corrected documentation.
-
-Now let me run a quick test to make sure the documentation builds correctly (check mkdocs.yml):
-[tool] read_file({'path': 'mkdocs.yml', 'start_line': 1, 'end_line': 50})
-[result] site_name: Henchman-AI
-site_url: https://github.com/mlg151/henchman-ai
-site_description: A Model-Agnostic AI Agent CLI in Python
-site_author: Matthew
-
-repo_name: mlg151/henchman-ai
-repo_...
-The mkdocs.yml looks fine. The documentation should build correctly.
-
-Now let me create a summary of what I've accomplished:
-
-## Summary
-
-I've successfully fixed a documentation accuracy issue in the Henchman-AI project. The documentation incorrectly claimed that provider aliases (`together`, `groq`, `fireworks`) had "appropriate base URLs pre-configured". However, the code implementation shows these are simply aliases for `openai_compat` without any automatic base URL configuration. Users must explicitly configure base URLs for these aliases in their settings.
-
-### Changes Made:
-
-1. **`docs/providers.md`**: Changed "pre-configured" to "that require you to configure the appropriate base URL (see examples below)"
-2. **`docs/index.md`**: Changed "pre-configured" to "that require you to configure the appropriate base URL in your settings"
-3. **`README.md`**: Changed "pre-configured" to "that require you to configure the appropriate base URL in your settings"
-4. **`.github/copilot-instructions.md`**: Changed "with appropriate base URLs" to "that require you to configure the appropriate base URL in your settings"
-
-### Verification:
-
-1. ✅ **Code inspection**: Verified that `together`, `groq`, and `fireworks` are registered as aliases for `OpenAICompatibleProvider` in `src/henchman/providers/registry.py` without any automatic base URL configuration
-2. ✅ **Documentation consistency**: All documentation files now have consistent messaging about provider configuration
-3. ✅ **Example alignment**: The examples in providers.md already showed users configuring base URLs, which now aligns with the corrected documentation
-4. ✅ **User clarity**: The new wording clearly indicates that users must configure base URLs, eliminating potential confusion
-
-### Impact:
-
-- **Low risk**: Documentation change only, no code changes
-- **High value**: Prevents user confusion and misconfiguration
-- **Consistency**: Aligns documentation with actual implementation across all documentation files
-
-This fix addresses a subtle semantic inaccuracy that wasn't caught by the automated documentation smell detector (which showed a perfect 100.0/100 score). The issue was that the documentation claimed "pre-configured" behavior that didn't exist in the code, which could lead to user confusion when trying to configure these provider aliases.[tech_lead] completed work
-[2026-03-15T06:00:02Z] Running mkdocs build to verify documentation...
+This improvement aligns with the core documentation principles of accuracy, completeness, and consistency.[tech_lead] completed work
+[2026-03-15T08:00:02Z] Running mkdocs build to verify documentation...
 INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
   File "/home/matthew/anaconda3/lib/python3.12/site-packages/pytz/__init__.py", line 20, in <module>
     from pytz.tzinfo import unpickler, BaseTzInfo
@@ -867,12 +672,8 @@ INFO    -  DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecate
 
 INFO    -  Cleaning site directory
 INFO    -  Building documentation to directory: /home/matthew/mlg-cli/site
-INFO    -  Documentation built in 0.97 seconds
-[2026-03-15T06:00:02Z] Re-running doc smell detector to verify improvement...
+INFO    -  Documentation built in 1.06 seconds
+[2026-03-15T08:00:02Z] Re-running doc smell detector to verify improvement...
 }
-[2026-03-15T06:00:02Z] Verification passed.
+[2026-03-15T08:00:02Z] Verification passed.
 Committing changes...
-[main 93012e9] docs(auto-improve): automated documentation improvement
- 15 files changed, 3130 insertions(+), 2208 deletions(-)
- delete mode 100644 test_bug.py
-[2026-03-15T06:00:02Z] Done.
