@@ -139,6 +139,42 @@ class TestWorkingMemory:
         # Note: With the bug, entry IS stored_entry (same object), so this would fail
         # With fix, they might be different objects or same object with copy-on-write semantics
 
+    def test_memory_add_file_does_not_share_mutable_state(self):
+        """Test that add_recent_file creates a deep copy, not sharing mutable lists.
+        
+        BUG: Currently uses dataclasses.replace() which creates shallow copy.
+        If caller modifies entry.key_insights after add_recent_file(entry),
+        the stored entry's key_insights is also modified (shared reference).
+        """
+        memory = WorkingMemory(current_task="Test")
+        entry = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="Test",
+            lines_read="1-50",
+            key_insights=["Original insight"],
+        )
+        
+        # Add to memory
+        memory.add_recent_file(entry)
+        
+        # Modify the original entry's key_insights list
+        entry.key_insights.append("New insight added after storage")
+        
+        # Check stored entry - should NOT have the new insight
+        stored_entry = memory.recent_files[0]
+        assert stored_entry.key_insights == ["Original insight"], (
+            f"Stored entry should not be affected by modifications to input object. "
+            f"Expected key_insights=['Original insight'], got {stored_entry.key_insights}"
+        )
+        
+        # Also test that modifying stored entry doesn't affect original
+        stored_entry.key_insights.append("Another insight")
+        assert entry.key_insights == ["Original insight", "New insight added after storage"], (
+            f"Original entry should not be affected by modifications to stored entry. "
+            f"Expected key_insights=['Original insight', 'New insight added after storage'], "
+            f"got {entry.key_insights}"
+        )
+
     def test_memory_add_decision(self):
         """Test adding a decision to memory."""
         memory = WorkingMemory(current_task="Test")

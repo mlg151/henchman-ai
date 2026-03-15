@@ -171,8 +171,13 @@ class WorkingMemory(SerializableDataclass):
             None
         """
         # Normalize the path before storing
-        # Create a copy with normalized path to avoid modifying input
-        normalized_entry = replace(entry, path=_normalize_path(entry.path))
+        # Create a copy with normalized path and copied mutable fields to avoid
+        # sharing mutable state with the caller
+        normalized_entry = replace(
+            entry,
+            path=_normalize_path(entry.path),
+            key_insights=list(entry.key_insights),  # Create a copy of the list
+        )
         self.recent_files.append(normalized_entry)
 
     def add_decision(self: WorkingMemory, entry: DecisionEntry) -> None:
