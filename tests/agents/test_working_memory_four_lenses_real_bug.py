@@ -44,21 +44,25 @@ def test_memory_should_read_file_full_with_invalid_line_numbers():
         f"Got reason: {reason}"
     )
     
-    # Test 2: Invalid end=-1
+    # Test 2: end=-1 is VALID (means "read to end of file")
+    # This is not invalid - it's a special value used by the read_file tool
     should_read2, reason2 = memory.should_read_file("/test/file.py", 1, -1)
-    assert should_read2 is True, (
-        f"Invalid end=-1 should return True with error. "
+    assert should_read2 is False, (
+        f"end=-1 is valid (means 'read to end of file'). "
+        f"Since file was read fully, should return False. "
         f"Got: should_read={should_read2}, reason={reason2}"
     )
-    assert "invalid" in reason2.lower() or "positive" in reason2.lower() or "1-indexed" in reason2.lower()
+    assert "already read" in reason2.lower() or "full" in reason2.lower()
     
-    # Test 3: Both invalid
+    # Test 3: start=0 is invalid, end=-1 is valid
     should_read3, reason3 = memory.should_read_file("/test/file.py", 0, -1)
     assert should_read3 is True, (
-        f"Invalid start=0, end=-1 should return True with error. "
+        f"start=0 is invalid (must be positive), end=-1 is valid. "
+        f"Should return True with error about invalid start. "
         f"Got: should_read={should_read3}, reason={reason3}"
     )
     assert "invalid" in reason3.lower() or "positive" in reason3.lower() or "1-indexed" in reason3.lower()
+    assert "start" in reason3.lower()  # Error should mention start, not end
     
     # Test 4: start > end (invalid range)
     should_read4, reason4 = memory.should_read_file("/test/file.py", 10, 5)
