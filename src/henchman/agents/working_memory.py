@@ -268,6 +268,38 @@ class WorkingMemory(SerializableDataclass):
         else:
             raise ValueError(f"Problem '{updated.problem}' not found")
 
+    @staticmethod
+    def _merge_ranges(ranges: list[LineRange]) -> list[LineRange]:
+        """Merge overlapping or adjacent line ranges.
+        
+        Args:
+            ranges: List of LineRange objects to merge.
+            
+        Returns:
+            List of merged LineRange objects, sorted by start line.
+        """
+        if not ranges:
+            return []
+        
+        # Sort ranges by start line
+        sorted_ranges = sorted(ranges, key=lambda r: r.start)
+        
+        # Merge overlapping or adjacent ranges
+        merged: list[LineRange] = []
+        for rng in sorted_ranges:
+            if not merged:
+                merged.append(rng)
+            else:
+                last = merged[-1]
+                # Check if ranges overlap or are adjacent (end+1 >= start)
+                if rng.start <= last.end + 1:  # +1 for adjacent ranges
+                    # Merge: extend last range to cover both
+                    merged[-1] = LineRange(last.start, max(last.end, rng.end))
+                else:
+                    # No overlap, add as new range
+                    merged.append(rng)
+        return merged
+
     def should_read_file(
         self: WorkingMemory, path: str, start: int | None = None, end: int | None = None,
     ) -> tuple[bool, str]:
@@ -322,34 +354,69 @@ class WorkingMemory(SerializableDataclass):
                 return True, "File not fully read - partial read recorded"
             elif start is not None:
                 # start=X, end=None: read from X to EOF
-                # Check if we've read from X to max(read_end)
+                # Check if we've read line X
                 if not valid_ranges:
                     return True, "Cannot determine - invalid lines_read format"
-                max_read_end = max(r.end for r in valid_ranges)
-                # Type narrowing for mypy
-                assert start is not None, "start should not be None in this branch"
-                if start <= max_read_end:
-                    # We've read at least from start to max_read_end
-                    # But might need to read beyond max_read_end
-                    return True, f"May need to read lines beyond {max_read_end}"
-                else:
-                    # start > max_read_end, definitely need to read
-                    return True, f"Start line {start} beyond last read line {max_read_end}"
+                
+                # Merge ranges to check for gaps
+                merged_ranges = self._merge_ranges(valid_ranges)
+                
+                # Check if start line is within any merged range
+                for rng in merged_ranges:
+                    if start >= rng.start and start <= rng.end:
+                        # Line is within a read range, but might need to read beyond
+                        return True, f"May need to read lines beyond {rng.end}"
+                
+                # Line is not within any read range - check if it's before, between, or after ranges
+                # Find where start falls relative to merged ranges
+                for i, rng in enumerate(merged_ranges):
+                    if start < rng.start:
+                        # Line is before this range (could be before first range or between ranges)
+                        if i == 0:
+                            # Before first range
+                            return True, f"Start line {start} before first read line {rng.start}"
+                        else:
+                            # Between previous range and this range
+                            prev_rng = merged_ranges[i-1]
+                            return True, f"Start line {start} in gap between lines {prev_rng.end+1} and {rng.start-1}"
+                
+                # Line is after all ranges
+                last_rng = merged_ranges[-1]
+                return True, f"Start line {start} beyond last read line {last_rng.end}"
             else:  # end is not None, start is None
                 # start=None, end=Y: read from beginning to Y
-                # Check if we've read from min(read_start) to Y
+                # Check if we've read line Y
                 if not valid_ranges:
                     return True, "Cannot determine - invalid lines_read format"
-                min_read_start = min(r.start for r in valid_ranges)
+                
+                # Merge ranges to check for gaps
+                merged_ranges = self._merge_ranges(valid_ranges)
+                
                 # Type narrowing for mypy
                 assert end is not None, "end should not be None in this branch"
-                if end >= min_read_start:
-                    # We've read at least from min(read_start) to end
-                    # But might need to read before min_read_start
-                    return True, f"May need to read lines before {min_read_start}"
-                else:
-                    # end < min_read_start, definitely need to read
-                    return True, f"End line {end} before first read line {min_read_start}"
+                
+                # Check if end line is within any merged range
+                for rng in merged_ranges:
+                    if end >= rng.start and end <= rng.end:
+                        # Line is within a read range, but might need to read before
+                        return True, f"May need to read lines before {rng.start}"
+                
+                # Line is not within any read range - check if it's before, between, or after ranges
+                # Find where end falls relative to merged ranges
+                for i, rng in enumerate(merged_ranges):
+                    if end < rng.start:
+                        # Line is before this range (could be before first range or between ranges)
+                        if i == 0:
+                            # Before first range
+                            return True, f"End line {end} before first read line {rng.start}"
+                        else:
+                            # Between previous range and this range
+                            prev_rng = merged_ranges[i-1]
+                            return True, f"End line {end} in gap between lines {prev_rng.end+1} and {rng.start-1}"
+                
+                # Line is after all ranges
+                last_rng = merged_ranges[-1]
+                return True, f"End line {end} beyond last read line {last_rng.end}"
 
         # Validate line range (both are not None at this point)
         # Type narrowing for mypy
@@ -368,23 +435,8 @@ class WorkingMemory(SerializableDataclass):
             if requested.start >= rng.start and requested.end <= rng.end:
                 return False, "File already read (contained within previously read lines)"
 
-        # Sort ranges by start line for merging
-        valid_ranges.sort(key=lambda r: r.start)
-
         # Merge overlapping or adjacent ranges
-        merged_ranges: list[LineRange] = []
-        for rng in valid_ranges:
-            if not merged_ranges:
-                merged_ranges.append(rng)
-            else:
-                last = merged_ranges[-1]
-                # Check if ranges overlap or are adjacent (end+1 >= start)
-                if rng.start <= last.end + 1:  # +1 for adjacent ranges
-                    # Merge: extend last range to cover both
-                    merged_ranges[-1] = LineRange(last.start, max(last.end, rng.end))
-                else:
-                    # No overlap, add as new range
-                    merged_ranges.append(rng)
+        merged_ranges = self._merge_ranges(valid_ranges)
 
         # Check if requested range is fully covered by merged ranges
         # We need to check if the requested range is contained within the union of merged ranges

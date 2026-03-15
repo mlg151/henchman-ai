@@ -1230,3 +1230,53 @@ class TestHelperFunctions:
             f"File was read fully (with Unicode whitespace), should return False. Got: {reason}"
         )
         assert "already read" in reason.lower()
+
+    def test_memory_should_read_file_partial_range_gap_messages(self):
+        """Test that should_read_file returns accurate error messages for gaps in partial range requests.
+        
+        BUG: When start=X, end=None and line X is in a gap between read ranges,
+        the error message incorrectly says "May need to read lines beyond {max_read_end}"
+        instead of indicating the line is in a gap.
+        
+        Similarly, when start=None, end=Y and line Y is in a gap,
+        the error message incorrectly says "May need to read lines before {min_read_start}".
+        """
+        memory = WorkingMemory(current_task="Test")
+        
+        # Add two non-overlapping reads: lines 1-50 and lines 80-100
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "First read", "1-50"))
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Second read", "80-100"))
+        
+        # Test 1: start=70, end=None (line 70 is in gap 51-79)
+        should_read, reason = memory.should_read_file("/test/file.py", start=70)
+        assert should_read is True, f"Line 70 is in gap, should return True. Got: {should_read}, reason: {reason}"
+        # BUG: Current message is "May need to read lines beyond 100"
+        # Should mention gap or that line 70 hasn't been read
+        assert "gap" in reason.lower() or "not read" in reason.lower() or "70" in reason, (
+            f"Error message should mention gap or line 70. Got: {reason}"
+        )
+        
+        # Test 2: start=None, end=70 (lines 51-70 are in gap)
+        should_read2, reason2 = memory.should_read_file("/test/file.py", end=70)
+        assert should_read2 is True, f"Lines 51-70 are in gap, should return True. Got: {should_read2}, reason: {reason2}"
+        # BUG: Current message is "May need to read lines before 1"
+        # Should mention gap or that lines 51-70 haven't been read
+        assert "gap" in reason2.lower() or "not read" in reason2.lower() or "51" in reason2 or "70" in reason2, (
+            f"Error message should mention gap or lines 51-70. Got: {reason2}"
+        )
+        
+        # Test 3: start=90, end=None (line 90 is within second range 80-100)
+        should_read3, reason3 = memory.should_read_file("/test/file.py", start=90)
+        assert should_read3 is True, f"Line 90 is read but might need to read beyond 100. Got: {should_read3}, reason: {reason3}"
+        # This message is correct: "May need to read lines beyond 100"
+        assert "beyond" in reason3.lower() or "100" in reason3, (
+            f"Error message should mention beyond 100. Got: {reason3}"
+        )
+        
+        # Test 4: start=None, end=40 (line 40 is within first range 1-50)
+        should_read4, reason4 = memory.should_read_file("/test/file.py", end=40)
+        assert should_read4 is True, f"Line 40 is read but might need to read before 1. Got: {should_read4}, reason: {reason4}"
+        # This message is correct: "May need to read lines before 1"
+        assert "before" in reason4.lower() or "1" in reason4, (
+            f"Error message should mention before 1. Got: {reason4}"
+        )
