@@ -1,0 +1,133 @@
+"""Test for bug where lines_read containing 'full' but not exactly 'full' is not recognized."""
+
+import pytest
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+
+
+def test_lines_read_contains_full_but_not_exact():
+    """Test bug: lines_read='full,10-20' should still mean file was read fully."""
+    memory = WorkingMemory(current_task="Test")
+    
+    # Add entry with lines_read containing 'full' but not exactly 'full'
+    entry = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="full,10-20",  # Contains 'full' but not exactly 'full'
+        key_insights=[],
+    )
+    memory.add_recent_file(entry)
+    
+    # Request lines 1-100
+    should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
+    
+    print(f"Test - lines_read='full,10-20':")
+    print(f"  should_read={should_read}, reason={reason}")
+    
+    # BUG: Returns True (should read) because "full,10-20" != "full"
+    # Should return False (file was read fully)
+    assert should_read is False, (
+        f"lines_read='full,10-20' contains 'full', so file should be considered fully read. "
+        f"Got: should_read={should_read}, reason={reason}"
+    )
+    assert "already read" in reason.lower()
+
+
+def test_lines_read_full_with_extra_spaces():
+    """Test: lines_read='  full  ' should work (already works)."""
+    memory = WorkingMemory(current_task="Test")
+    
+    entry = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="  full  ",  # Extra spaces
+        key_insights=[],
+    )
+    memory.add_recent_file(entry)
+    
+    should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
+    
+    print(f"\nTest - lines_read='  full  ' (extra spaces):")
+    print(f"  should_read={should_read}, reason={reason}")
+    
+    # This should work (normalization removes spaces)
+    assert should_read is False
+    assert "already read" in reason.lower()
+
+
+def test_lines_read_full_with_other_text():
+    """Test: lines_read='full file was read' should mean file was read fully."""
+    memory = WorkingMemory(current_task="Test")
+    
+    entry = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="full file was read",  # Contains 'full' but with other text
+        key_insights=[],
+    )
+    memory.add_recent_file(entry)
+    
+    should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
+    
+    print(f"\nTest - lines_read='full file was read':")
+    print(f"  should_read={should_read}, reason={reason}")
+    
+    # BUG: Returns True (should read) because "full file was read" != "full"
+    # After normalization: "fullfilewasread" != "full"
+    # Should it be considered fully read? Probably not. "full file was read" is not a valid format.
+    # This is a documentation/validation issue, not necessarily a bug.
+
+
+def test_lines_read_multiple_parts_with_full():
+    """Test: lines_read='full,additional info' should mean file was read fully."""
+    memory = WorkingMemory(current_task="Test")
+    
+    entry = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="full,additional info",  # Multiple comma-separated parts, first is 'full'
+        key_insights=[],
+    )
+    memory.add_recent_file(entry)
+    
+    should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
+    
+    print(f"\nTest - lines_read='full,additional info':")
+    print(f"  should_read={should_read}, reason={reason}")
+    
+    # BUG: Returns True (should read) because "full,additional info" != "full"
+    # After normalization: "full,additionalinfo" != "full"
+    # Should it be considered fully read? If first token is 'full', probably yes.
+
+
+def test_parse_line_ranges_with_full_and_ranges():
+    """Test _parse_line_ranges with 'full,10-20'."""
+    from henchman.agents.working_memory import WorkingMemory
+    
+    memory = WorkingMemory(current_task="Test")
+    
+    # Test _parse_line_ranges directly
+    ranges = memory._parse_line_ranges("full,10-20")
+    print(f"\nTest _parse_line_ranges('full,10-20'):")
+    print(f"  ranges={ranges}")
+    
+    # Returns [LineRange(10, 20)] - ignores 'full'
+    # This is wrong! 'full' should take precedence.
+
+
+if __name__ == "__main__":
+    print("Testing bug: lines_read containing 'full' not recognized...")
+    print("=" * 60)
+    
+    try:
+        test_lines_read_contains_full_but_not_exact()
+        print("  ✗ FAIL: Test should have failed (bug exists)")
+    except AssertionError as e:
+        print(f"  ✓ PASS: Bug confirmed: {e}")
+    
+    test_lines_read_full_with_extra_spaces()
+    print("  ✓ PASS: Extra spaces handled correctly")
+    
+    test_parse_line_ranges_with_full_and_ranges()
+    
+    print("\n" + "=" * 60)
+    print("Bug confirmed: lines_read='full,10-20' is not recognized as 'full'")
