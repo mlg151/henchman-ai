@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-15T18:00:29.082804+00:00_
+_Generated: 2026-03-15T19:00:23.437333+00:00_
 
 ## Executive Summary
 
@@ -12,7 +12,7 @@ _Generated: 2026-03-15T18:00:29.082804+00:00_
 | **Overall Score** | 78.4/100 |
 | **Files Scanned** | 215 |
 | **Total Lines (non-blank)** | 44,383 |
-| **Total Smells** | 597 |
+| **Total Smells** | 598 |
 | **Avg Maintainability Index** | 70.0 |
 | **Avg Cyclomatic Complexity** | 14.0 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-15T18:00:29.082804+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 405 |
+| low | 406 |
 | medium | 187 |
 | high | 3 |
 | critical | 2 |
@@ -31,7 +31,7 @@ _Generated: 2026-03-15T18:00:29.082804+00:00_
 |:---------|------:|
 | Missing Type Hint | 143 |
 | Duplicate Code | 107 |
-| Feature Envy | 82 |
+| Feature Envy | 83 |
 | Long Method | 75 |
 | Deep Nesting | 59 |
 | Magic Number | 44 |
@@ -108,7 +108,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/working_memory.py | ❌ F | 10.9 | 32 | 471 | 36 | 27.5 |
+| 1 | agents/working_memory.py | ❌ F | 10.8 | 33 | 471 | 36 | 27.5 |
 | 2 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
 | 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
 | 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
@@ -123,7 +123,7 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 195 additional files omitted._
 
-### agents/working_memory.py — ❌ F (10.9/100)
+### agents/working_memory.py — ❌ F (10.8/100)
 
 LOC: 471 | Classes: 7 | Functions: 1 | MI: 36 | Avg CC: 27.5
 
@@ -145,7 +145,7 @@ LOC: 471 | Classes: 7 | Functions: 1 | MI: 36 | Avg CC: 27.5
 | 477 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'should_read_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 | 95 | 🟢 LOW | Missing Type Hint | Function '__post_init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
 
-_... and 17 more smells._
+_... and 18 more smells._
 
 ### tools/builtins/symbol_trace.py — ❌ F (51.2/100)
 

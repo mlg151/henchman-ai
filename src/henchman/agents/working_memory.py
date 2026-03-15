@@ -323,7 +323,9 @@ class WorkingMemory(SerializableDataclass):
 
         # Normalize: remove whitespace, convert to lowercase
         normalized = "".join(lines_read.split()).lower()
-        if normalized == "full":
+        # Check if "full" is a token in the comma-separated list
+        # e.g., "full", "full,10-20", "10-20,full" all mean file was read fully
+        if normalized == "full" or "full" in normalized.split(","):
             return []
 
         ranges = []
@@ -404,7 +406,9 @@ class WorkingMemory(SerializableDataclass):
             if isinstance(match.lines_read, str):
                 # Normalize whitespace: split on any whitespace (including Unicode) and join
                 normalized = "".join(match.lines_read.split()).lower()
-                if normalized == "full":
+                # Check if "full" is a token in the comma-separated list
+                # e.g., "full", "full,10-20", "10-20,full" all mean file was read fully
+                if normalized == "full" or "full" in normalized.split(","):
                     return False, "File already read (full)"
 
         # Collect all valid line ranges from all entries (needed for partial range checks)
