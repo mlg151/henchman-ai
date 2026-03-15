@@ -1,42 +1,34 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-15T02:30:00Z
+## Date: 2025-03-15T03:00:00Z
 ## Bug Summary
-The `add_recent_file` method uses `dataclasses.replace()` to create a shallow copy of the input `WorkingMemoryEntry`, but this creates shared mutable state for the `key_insights` list. If the caller modifies the `key_insights` list after calling `add_recent_file`, the stored entry's `key_insights` will also be modified.
+The `should_read_file` method returns misleading error messages for partial range requests (`start=X, end=None` or `start=None, end=Y`). When the requested line is in a gap between read ranges, the error message incorrectly refers to lines "beyond" or "before" the read ranges instead of identifying the gap.
 
 ## Lens
-**Lens 2: State & Side Effects (The Entropy Audit)** - The code creates shared mutable state between the caller and the internal storage. Modifying the input object after storing it unexpectedly modifies the stored data.
+**Phase 1: Logic Gaps** - The code assumes a "happy path" where the requested line is either within a read range or beyond the extremes, but doesn't properly handle the case where the line is in a gap between read ranges.
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| `add_recent_file` should create a deep copy or immutable snapshot of the input | `add_recent_file` creates a shallow copy, sharing mutable lists |
-| Modifying input object after storage should not affect stored data | Modifying `entry.key_insights` after `add_recent_file(entry)` modifies stored data |
-| Internal storage should be isolated from caller modifications | Internal storage shares references with caller |
+| When `start=70, end=None` and read ranges are 1-50, 80-100, message should indicate line 70 is in a gap | Message says "May need to read lines beyond 100" (incorrect) |
+| When `start=None, end=70` and read ranges are 1-50, 80-100, message should indicate lines 51-70 are in a gap | Message says "May need to read lines before 1" (incorrect) |
+| Error messages should help users understand WHY reading is needed | Misleading messages make debugging difficult |
 
 ## Root Cause
-The `add_recent_file` method at line 178 uses:
-```python
-normalized_entry = replace(entry, path=_normalize_path(entry.path))
-```
-
-`dataclasses.replace()` creates a new dataclass instance with replaced fields, but for mutable fields like `list[str]`, it copies the reference, not the contents. So `normalized_entry.key_insights` is the same list object as `entry.key_insights`.
+The logic for partial range requests uses `max_read_end` and `min_read_start` comparisons without checking if the requested line falls within the union of merged read ranges. When `start=X` is compared to `max_read_end`, if `X <= max_read_end`, it assumes the line might be within a read range (or beyond it). But it doesn't check if `X` is actually in a gap between ranges.
 
 ## Fix Plan
-Create a deep copy of the entry instead of using `replace()`. Since `WorkingMemoryEntry` is a dataclass, we can use `replace()` but also need to copy mutable fields:
-1. Create a copy of `key_insights` list: `key_insights=list(entry.key_insights)`
-2. Use `replace(entry, path=normalized_path, key_insights=key_insights_copy)`
-
-Alternatively, use `copy.deepcopy()` for a more robust solution.
+1. For `start=X, end=None`: Check if line X is within any merged read range using the existing `_merge_ranges` and gap-checking logic
+2. For `start=None, end=Y`: Check if line Y is within any merged read range using the existing `_merge_ranges` and gap-checking logic  
+3. Update error messages to accurately describe gaps when they exist
 
 ## Status: FIXED
 
 ## Files Changed
-1. `src/henchman/agents/working_memory.py` - Modified `add_recent_file` method to create a copy of `key_insights` list using `list(entry.key_insights)` to avoid sharing mutable state.
-2. `tests/agents/test_working_memory.py` - Added new test `test_memory_add_file_does_not_share_mutable_state` to verify the fix and prevent regression.
-
-## Verification
-- ✅ New test `test_memory_add_file_does_not_share_mutable_state` passes
-- ✅ All existing tests pass (60/60)
-- ✅ Code coverage for `working_memory.py` increased to 97%
-- ✅ The fix is minimal and surgical - only changes what's necessary to fix the bug
-- ✅ No other functionality is affected
+1. `src/henchman/agents/working_memory.py`:
+   - Added `_merge_ranges` static method to consolidate merging logic
+   - Updated `should_read_file` method to provide accurate error messages for gaps in partial range requests
+   - When `start=X, end=None` and line X is in a gap, message now says "Start line X in gap between lines Y and Z" instead of "May need to read lines beyond max_read_end"
+   - When `start=None, end=Y` and line Y is in a gap, message now says "End line Y in gap between lines A and B" instead of "May need to read lines before min_read_start"
+   
+2. `tests/agents/test_working_memory.py`:
+   - Added `test_memory_should_read_file_partial_range_gap_messages` test to verify accurate error messages for gaps
