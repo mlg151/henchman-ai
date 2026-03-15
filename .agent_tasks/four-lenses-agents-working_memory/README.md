@@ -1,56 +1,27 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2026-03-14T23:20:00Z
+## Date: 2025-03-15T00:00:00Z
 ## Bug Summary
-The `should_read_file` method incorrectly handles partial line range specifications (when only `start` or only `end` is provided). It returns `True` (should read) without checking if the requested partial range has already been read, leading to unnecessary file re-reads.
+The `add_recent_file` method modifies the input `WorkingMemoryEntry` object in-place by normalizing its path, violating the principle of immutability and potentially causing unexpected side effects for callers.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - Logic gap in handling edge cases for partial line range specifications.
+**Phase 2: State & Side Effects (The Entropy Audit)** - The code accidentally mutates inputs which could break callers.
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| When `start=10, end=None` (read from line 10 to EOF), method should check if lines 10-EOF have been read | Method returns `True` immediately without checking coverage |
-| When `start=None, end=50` (read from beginning to line 50), method should check if lines 1-50 have been read | Method returns `True` immediately without checking coverage |
-| Method should validate line numbers even when only one is provided | Method only validates if BOTH are provided |
-| Method should provide accurate reason for decision | Returns misleading "File not fully read - partial read recorded" even when specific lines might have been read |
+| `add_recent_file` should not modify the input object | The input object's `path` field is modified in-place |
+| Callers can safely reuse or inspect the entry after adding it | Callers see unexpected changes to their data |
+| The method creates a copy or uses copy-on-write semantics | The method directly modifies the input |
 
 ## Root Cause
-The method has an early return at line 298-300:
-```python
-if start is None or end is None:
-    # No line range specified but file wasn't read fully
-    return True, "File not fully read - partial read recorded"
-```
-
-This assumes that if either `start` or `end` is `None`, we want to read the entire file. But actually:
-- `start=10, end=None` means "read from line 10 to end of file"
-- `start=None, end=50` means "read from beginning to line 50"
-
-The method should handle these cases by checking if the requested partial range is covered by existing reads.
+The `add_recent_file` method calls `_normalize_path(entry.path)` and then uses `replace(entry, path=normalized_path)` to create a new entry. However, the `replace` function from `dataclasses` creates a shallow copy. If the `entry` object contains mutable fields (like `key_insights` list), those mutable fields are shared between the original and the copy. More critically, the test shows that the original entry's path is being modified, suggesting either:
+1. The `replace` function is not working as expected with the serialization system
+2. There's some interaction with the `SerializableDataclass` base class
+3. The normalization is somehow affecting the original object
 
 ## Fix Plan
-1. Handle the three cases separately: both provided, only start provided, only end provided
-2. For `start=10, end=None`: check if lines 10 through max(read_end) have been read
-3. For `start=None, end=50`: check if lines min(read_start) through 50 have been read  
-4. Update validation to check line numbers even when only one is provided
-5. Provide more accurate reason messages
+1. Create a deep copy of the entry with normalized path instead of using `replace`
+2. Ensure all mutable fields are properly copied
+3. Add a test to verify the input object remains unchanged
 
-## Status: FIXED
-
-## Files Changed
-1. `src/henchman/agents/working_memory.py` - Fixed `should_read_file` method to handle partial range specifications intelligently
-2. `tests/agents/test_working_memory.py` - Updated tests to match new behavior
-
-## Changes Made
-1. Moved `valid_ranges` computation earlier in `should_read_file` method
-2. Added intelligent handling for partial range specifications:
-   - `start=X, end=None`: Checks if we've read from X to max(read_end), returns "May need to read lines beyond {max_read_end}" or "Start line {start} beyond last read line {max_read_end}"
-   - `start=None, end=Y`: Checks if we've read from min(read_start) to Y, returns "May need to read lines before {min_read_start}" or "End line {end} before first read line {min_read_start}"
-3. Updated test expectations to match new, more accurate error messages
-4. Fixed a bug where the check for "full" file read was accidentally removed (restored it)
-
-## Verification
-- All 55 tests in `tests/agents/test_working_memory.py` pass
-- The fix provides more accurate error messages for partial range specifications
-- The method still correctly handles the "full" file read case
-- The method still validates line numbers even when only one is provided
+## Status: IN PROGRESS
