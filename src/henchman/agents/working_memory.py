@@ -291,8 +291,11 @@ class WorkingMemory(SerializableDataclass):
         # If file was read fully in the past but partially more recently,
         # we should check if the requested range is covered by recent partial reads
         lines_read = matches[0].lines_read
-        if isinstance(lines_read, str) and lines_read.strip().lower() == "full":
-            return False, "File already read (full)"
+        if isinstance(lines_read, str):
+            # Normalize whitespace: split on any whitespace (including Unicode) and join
+            normalized = "".join(lines_read.split()).lower()
+            if normalized == "full":
+                return False, "File already read (full)"
 
         # Collect all valid line ranges from all entries (needed for partial range checks)
         valid_ranges: list[LineRange] = []

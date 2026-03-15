@@ -1,20 +1,20 @@
-# Code Smell Report — ⚠️ C (Score: 78.8/100)
+# Code Smell Report — ⚠️ C (Score: 78.7/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-15T00:00:30.737216+00:00_
+_Generated: 2026-03-15T01:00:23.456974+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ⚠️ C |
-| **Overall Score** | 78.8/100 |
+| **Overall Score** | 78.7/100 |
 | **Files Scanned** | 215 |
-| **Total Lines (non-blank)** | 44,295 |
+| **Total Lines (non-blank)** | 44,301 |
 | **Total Smells** | 584 |
 | **Avg Maintainability Index** | 70.0 |
-| **Avg Cyclomatic Complexity** | 14.3 |
+| **Avg Cyclomatic Complexity** | 14.5 |
 
 ### Smells by Severity
 
@@ -22,7 +22,8 @@ _Generated: 2026-03-15T00:00:30.737216+00:00_
 |:---------|------:|
 | low | 399 |
 | medium | 183 |
-| high | 2 |
+| critical | 1 |
+| high | 1 |
 
 ### Smells by Category
 
@@ -42,13 +43,13 @@ _Generated: 2026-03-15T00:00:30.737216+00:00_
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:264** — 🟠 HIGH — Complex Function  
-   Function 'should_read_file' has cyclomatic complexity 34 (rank E)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-2. **agents/working_memory.py:264** — 🟠 HIGH — Long Method  
-   Function 'should_read_file' has 117 lines (threshold: 30)  
+1. **agents/working_memory.py:266** — 🔴 CRITICAL — Long Method  
+   Function 'should_read_file' has 124 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
+
+2. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:266** — 🟠 HIGH — Complex Function  
+   Function 'should_read_file' has cyclomatic complexity 38 (rank E)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 3. **/home/matthew/mlg-cli/src/henchman/agents/delegation.py:284** — 🟡 MEDIUM — Complex Function  
    Function '_validate_messages_access' has cyclomatic complexity 12 (rank C)  
@@ -107,7 +108,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/working_memory.py | ❌ F | 34.6 | 19 | 383 | 43 | 34.0 |
+| 1 | agents/working_memory.py | ❌ F | 27.2 | 19 | 389 | 42 | 38.0 |
 | 2 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
 | 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
 | 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
@@ -122,27 +123,27 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 195 additional files omitted._
 
-### agents/working_memory.py — ❌ F (34.6/100)
+### agents/working_memory.py — ❌ F (27.2/100)
 
-LOC: 383 | Classes: 7 | Functions: 1 | MI: 43 | Avg CC: 34.0
+LOC: 389 | Classes: 7 | Functions: 1 | MI: 42 | Avg CC: 38.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 264 | 🟠 HIGH | Long Method | Function 'should_read_file' has 117 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 264 | 🟠 HIGH | Complex Function | Function 'should_read_file' has cyclomatic complexity 34 (rank E) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 176 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'set_session' at cli/repl.py:291 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 176 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 176 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 176 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 264 | 🟡 MEDIUM | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'rng' 7 times but 'self' only 1 times | Move Method — consider moving 'should_read_file' to the class that owns 'rng'. |
+| 266 | 🔴 CRITICAL | Long Method | Function 'should_read_file' has 124 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 266 | 🟠 HIGH | Complex Function | Function 'should_read_file' has cyclomatic complexity 38 (rank E) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 178 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'set_session' at cli/repl.py:291 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 178 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 178 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 178 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 266 | 🟡 MEDIUM | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'rng' 7 times but 'self' only 1 times | Move Method — consider moving 'should_read_file' to the class that owns 'rng'. |
 | 94 | 🟢 LOW | Missing Type Hint | Function '__post_init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 148 | 🟢 LOW | Large Class | Class 'WorkingMemory' spans 329 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
-| 243 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'e' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'e'. |
-| 243 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'updated' 4 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'updated'. |
-| 264 | 🟢 LOW | Primitive Obsession | Function 'should_read_file' has 3 primitive-typed parameters: path: Name(id='str', ctx=Load()), start: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 264 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'r' 3 times but 'self' only 1 times | Move Method — consider moving 'should_read_file' to the class that owns 'r'. |
-| 264 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'requested' 4 times but 'self' only 1 times | Move Method — consider moving 'should_read_file' to the class that owns 'requested'. |
-| 264 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'last' 3 times but 'self' only 1 times | Move Method — consider moving 'should_read_file' to the class that owns 'last'. |
+| 150 | 🟢 LOW | Large Class | Class 'WorkingMemory' spans 336 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
+| 245 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'e' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'e'. |
+| 245 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'updated' 4 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'updated'. |
+| 266 | 🟢 LOW | Primitive Obsession | Function 'should_read_file' has 3 primitive-typed parameters: path: Name(id='str', ctx=Load()), start: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 266 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'r' 3 times but 'self' only 1 times | Move Method — consider moving 'should_read_file' to the class that owns 'r'. |
+| 266 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'requested' 4 times but 'self' only 1 times | Move Method — consider moving 'should_read_file' to the class that owns 'requested'. |
+| 266 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'last' 3 times but 'self' only 1 times | Move Method — consider moving 'should_read_file' to the class that owns 'last'. |
 
 _... and 4 more smells._
 

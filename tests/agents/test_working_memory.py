@@ -647,29 +647,32 @@ class TestWorkingMemory:
         # Current implementation returns True because "FULL" != "full"
         assert should_read is False, "File read fully (FULL) should return False for any line range"
         assert "already read" in reason.lower()
+    def test_memory_should_read_file_invalid_lines_read_and_start_gt_end(self):
+        """Test should_read_file with invalid lines_read AND start > end.
         
-        # Test with mixed case "Full"
-        memory2 = WorkingMemory(current_task="Test")
-        memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Test", "Full"))
-        should_read2, reason2 = memory2.should_read_file("/test/file2.py", 10, 50)
-        
-        assert should_read2 is False, "File read fully (Full) should return False for any line range"
-        assert "already read" in reason2.lower()
-        """Test should_read_file handles case-insensitive 'full'."""
+        BUG: When lines_read is invalid (e.g., "invalid-format") AND start > end
+        (e.g., start=50, end=10), the method should report the "start > end" error, 
+        not the "invalid lines_read format" error. The start > end validation 
+        should happen before checking valid_ranges.
+        """
         memory = WorkingMemory(current_task="Test")
+        # Add with invalid lines_read format
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "invalid-format"))
         
-        # Test with uppercase "FULL"
-        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "FULL"))
-        should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
+        # Test with start=50, end=10 (start > end)
+        should_read, reason = memory.should_read_file("/test/file.py", 50, 10)
         
-        # BUG: This should be False! File was read fully (FULL = full)
-        # Current implementation returns True because "FULL" != "full"
-        assert should_read is False, "File read fully (FULL) should return False for any line range"
-        assert "already read" in reason.lower()
-        
-        # Test with mixed case "Full"
-        memory2 = WorkingMemory(current_task="Test")
-        memory2.add_recent_file(WorkingMemoryEntry("/test/file2.py", "Test", "Full"))
+        # BUG: Currently returns "Cannot determine overlap - invalid lines_read format"
+        # Should return error about start > end
+        assert should_read is True
+        assert "start (50) > end (10)" in reason, (
+            f"Expected error about start > end, got: {reason}"
+        )
+        # The error should NOT be about invalid lines_read format when start > end
+        assert "invalid lines_read format" not in reason.lower(), (
+            f"Should report start > end error, not lines_read format error. Got: {reason}"
+        )
+
     def test_memory_should_read_file_invalid_line_numbers(self):
         """Test should_read_file with invalid line numbers (non-positive)."""
         memory = WorkingMemory(current_task="Test")
@@ -682,6 +685,18 @@ class TestWorkingMemory:
         
         # Test with start=-5 (invalid)
         should_read, reason = memory.should_read_file("/test/file.py", -5, 10)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+        
+        # Test with end=0 (invalid)
+        should_read, reason = memory.should_read_file("/test/file.py", 1, 0)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
+        
+        # Test with both invalid
+        should_read, reason = memory.should_read_file("/test/file.py", -5, -1)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower()
         assert should_read is True
         assert "invalid" in reason.lower() or "positive" in reason.lower()
         
@@ -1132,28 +1147,50 @@ class TestHelperFunctions:
         BUG: Currently raises AttributeError when lines_read is None.
         Should handle gracefully and return True with appropriate reason.
         """
+    def test_memory_should_read_file_lines_read_not_string(self):
+        """Test should_read_file when lines_read is not a string (e.g., integer from malformed YAML).
+        
+        BUG: Currently raises AttributeError when lines_read is not a string.
+        Should handle gracefully and return True with appropriate reason.
+        """
         memory = WorkingMemory(current_task="Test")
         
-        # Create an entry with lines_read=None (simulating deserialization from YAML)
-        # We need to bypass the normal constructor to set lines_read=None
+        # Create an entry with lines_read=123 (integer, simulating malformed YAML)
         from dataclasses import replace
         entry = WorkingMemoryEntry("/test/file.py", "Test", "full")
-        entry_with_none = replace(entry, lines_read=None)  # type: ignore
+        entry_with_int = replace(entry, lines_read=123)  # type: ignore
         
         # Add to memory directly (not through add_recent_file which would normalize path)
-        memory.recent_files.append(entry_with_none)
+        memory.recent_files.append(entry_with_int)
         
-        # Call should_read_file - should NOT raise AttributeError
-        # Should return True with appropriate reason
-        should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
+        # Test with start=1, end=10
+        should_read, reason = memory.should_read_file("/test/file.py", 1, 10)
         
-        # Since lines_read is None, we can't determine if file was read
-        # Should return True (need to read) with appropriate reason
-        assert should_read is True, (
-            f"Should return True when lines_read is None (cannot determine). "
-            f"Got: {should_read}, reason: {reason}"
+        # Should return True with appropriate reason, not crash
+    def test_memory_should_read_file_full_with_unicode_whitespace(self):
+        """Test should_read_file when lines_read is 'full' with Unicode whitespace.
+        
+        BUG: Currently uses str.strip() which only removes ASCII whitespace.
+        Unicode whitespace like \\u2003 (em space) is not stripped, causing
+        the comparison to fail.
+        """
+        memory = WorkingMemory(current_task="Test")
+        
+        # Create an entry with lines_read containing Unicode whitespace
+        from dataclasses import replace
+        entry = WorkingMemoryEntry("/test/file.py", "Test", "full")
+        # Add Unicode em space (\\u2003) around "full"
+        entry_with_unicode = replace(entry, lines_read="\u2003full\u2003")  # type: ignore
+        
+        # Add to memory directly
+        memory.recent_files.append(entry_with_unicode)
+        
+        # Request any line range - should return False (already read fully)
+        should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
+        
+        # BUG: Currently returns True because "\u2003full\u2003".strip() != "full"
+        # Should return False (file already read fully)
+        assert should_read is False, (
+            f"File was read fully (with Unicode whitespace), should return False. Got: {reason}"
         )
-        assert "cannot determine" in reason.lower() or "invalid" in reason.lower(), (
-            f"Reason should indicate cannot determine due to invalid lines_read. "
-            f"Got: {reason}"
-        )
+        assert "already read" in reason.lower()
