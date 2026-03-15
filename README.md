@@ -15,7 +15,7 @@ Henchman-AI is a powerful, terminal-based AI agent that supports multiple LLM pr
 - 🐍 **Pythonic**: Leverages Python's async ecosystem and rich libraries for optimal performance
 - 🔌 **Extensible**: Plugin system for tools, providers, and custom commands
 - 🚀 **Production-Ready**: Proper error handling, comprehensive testing with 100% coverage, and semantic versioning
-- 🛠️ **Built-in Tools**: File operations, shell commands, web fetching, and more
+- 🛠️ **Built-in Tools**: 34 tools for file operations, shell commands, web fetching, code analysis, testing, and multi-agent coordination
 - 🔗 **MCP Integration**: Connect to external tool servers via Model Context Protocol
 - ⚡ **Fast & Efficient**: Async-first design with intelligent caching and rate limiting
 - 🔒 **Secure**: Environment-based configuration and safe execution sandboxing
