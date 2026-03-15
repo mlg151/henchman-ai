@@ -18,6 +18,8 @@ Henchman-AI is a powerful terminal-based AI agent that supports multiple LLM pro
 
 ## Quick Start
 
+**Prerequisites**: Python 3.10 or higher
+
 ```bash
 # Install from PyPI
 pip install henchman-ai

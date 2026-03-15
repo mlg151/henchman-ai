@@ -1,58 +1,67 @@
 # Last Documentation Improvement
 
 ## Date/Time
-2026-03-15T12:15:00Z (approximate)
+2026-03-15T14:15:00Z (approximate)
 
 ## Files Changed
-1. `docs/index.md` - Updated feature description to explicitly mention "34 tools" for consistency with README.md and tools.md
+1. `docs/index.md` - Added Python version requirement to Quick Start section
 
 ## Smell Category Addressed
-Consistency (Feature description inconsistency between documentation files)
+Consistency (Python version requirement inconsistency between documentation files)
 
 ## Rationale for Change
-The docs/index.md documentation had an inconsistency with README.md and tools.md regarding tool count description:
+The Python version requirement was not consistently documented across all files:
 
 **Before (inconsistent)**:
-- docs/index.md: "Built-in Tools: File operations, shell commands, web fetching, and more"
-- README.md: "Built-in Tools: 34 tools for file operations, shell commands, web fetching, code analysis, testing, and multi-agent coordination"
-- tools.md: "Henchman-AI includes a comprehensive set of 34 built-in tools"
+- `README.md`: "Python 3.10 or higher" (explicit)
+- `docs/getting-started.md`: "Python 3.10 or higher" (explicit)
+- `docs/index.md`: No Python version mentioned
+- `.github/copilot-instructions.md`: No Python version mentioned (acceptable for developer docs)
 
 **After (consistent)**:
-- docs/index.md: "Built-in Tools: 34 tools for code analysis, testing, file operations, and multi-agent coordination"
-- README.md: "Built-in Tools: 34 tools for file operations, shell commands, web fetching, code analysis, testing, and multi-agent coordination"
-- tools.md: "Henchman-AI includes a comprehensive set of 34 built-in tools"
+- `README.md`: "Python 3.10 or higher" (unchanged, correct)
+- `docs/getting-started.md`: "Python 3.10 or higher" (unchanged, correct)
+- `docs/index.md`: "Prerequisites: Python 3.10 or higher" (added to Quick Start section)
+- `.github/copilot-instructions.md`: No Python version mentioned (unchanged, appropriate for developer docs)
 
 **Why this matters**:
-1. **Accuracy**: The project actually has exactly 34 built-in tools (verified by counting both tool files and table entries)
-2. **Consistency**: All main documentation files should mention the same tool count
-3. **Completeness**: The docs/index.md feature list was missing the explicit tool count that other files mention
-4. **Clarity**: Explicitly stating "34 tools" gives users a better sense of the tooling richness
-5. **Cross-reference alignment**: Users moving between documentation files get consistent information
+1. **Accuracy**: Users need to know the minimum Python version (3.10) required for Henchman-AI
+2. **Consistency**: All user-facing documentation entry points should mention system requirements
+3. **Completeness**: `docs/index.md` is the documentation homepage and should include basic prerequisites
+4. **User experience**: Users checking `docs/index.md` first will immediately see the Python requirement
+5. **Clarity**: Explicit requirements prevent installation issues and user frustration
+
+**Implementation details**:
+- Added "**Prerequisites**: Python 3.10 or higher" line above the code block in Quick Start section
+- Placed it prominently at the beginning of the Quick Start section for visibility
+- Used consistent phrasing with other documentation files ("Python 3.10 or higher")
+- Maintained the concise nature of `docs/index.md` while adding essential information
 
 ## Verification Performed
-1. ✅ **Tool count verification**: Counted actual tool files in `src/henchman/tools/builtins/` - exactly 34 tools (excluding utility files like kg_common.py, python_ast_helpers.py)
-2. ✅ **Table verification**: Counted tools in docs/tools.md table - exactly 34 tools listed
-3. ✅ **Cross-reference check**: Verified README.md mentions "34 tools" explicitly
-4. ✅ **Copilot instructions**: Verified .github/copilot-instructions.md mentions "Built-in tools (34 total)"
-5. ✅ **Feature completeness**: The updated description now includes all major tool categories mentioned in other documentation
+1. ✅ **Version accuracy**: Verified Python 3.10+ is correct requirement (matches pyproject.toml and actual code dependencies)
+2. ✅ **Cross-reference check**: Verified README.md and docs/getting-started.md both mention "Python 3.10 or higher"
+3. ✅ **Format consistency**: Used same phrasing as other documentation files
+4. ✅ **Placement appropriateness**: Added to Quick Start section where users expect to see prerequisites
+5. ✅ **Documentation completeness**: `docs/index.md` now includes all essential system requirements
 
 ## What to Verify
-1. ✅ **Tool count accuracy**: The project has exactly 34 built-in tools
-2. ✅ **Documentation consistency**: All main documentation files now consistently mention the tool count
-3. ✅ **Category alignment**: Tool categories are consistently described across files
-4. ✅ **User clarity**: Users get a clear understanding of the tooling richness from all documentation entry points
+1. ✅ **Python version accuracy**: Henchman-AI requires Python 3.10+ (verified in pyproject.toml)
+2. ✅ **Documentation consistency**: All user-facing docs now mention Python 3.10+ requirement
+3. ✅ **Placement appropriateness**: Quick Start section is the right place for prerequisites
+4. ✅ **User clarity**: Users will see Python requirement before installation commands
+5. ✅ **Format consistency**: Uses same phrasing as other documentation files
 
 ## Impact
 - **Low risk**: Documentation change only, no code changes
-- **High value**: Improves consistency between all documentation files
-- **Accuracy**: Reflects the actual tool count in the project
-- **Completeness**: Better represents the full range of tool capabilities across all documentation
+- **High value**: Improves consistency and completeness of documentation
+- **Accuracy**: Reflects actual Python version requirement
+- **User experience**: Prevents installation issues by clearly stating requirements upfront
 
 ## Next Priority
 While the documentation smell report shows a perfect score (100.0/100), subtle inconsistencies like this one may not be caught by automated checks. Future documentation reviews should:
-1. Check for consistency between different documentation files (README.md, docs/index.md, feature lists)
-2. Verify numerical claims (like tool counts) match actual implementation
-3. Look for missing categories or features in high-level descriptions
-4. Ensure feature lists are comprehensive and accurate
-5. Check that all registered providers/tools are documented consistently across files
-6. Verify that tool categories are consistently described (code analysis, testing, file operations, multi-agent coordination)
+1. Check for consistency in system requirements across all documentation files
+2. Verify that all entry-point documentation includes essential prerequisites
+3. Look for missing version requirements or dependencies
+4. Ensure that installation instructions are appropriate for each documentation context
+5. Check that technical requirements are accurately reflected in all user-facing docs
+6. Verify that specialized documentation (like copilot instructions) has appropriate level of detail for its audience

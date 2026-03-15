@@ -738941,3 +738941,260 @@ TOTAL                                                       18982    271   5088 
 =========== 5717 passed, 6 skipped, 44 warnings in 187.34s (0:03:07) ===========
 [2026-03-15T13:00:02Z] All tests passed.
 Committing changes...
+[main f9b0509] fix(four-lenses): four-lenses-agents-working_memory
+ 7 files changed, 2956 insertions(+), 1563 deletions(-)
+ delete mode 100644 test_bug.py
+ create mode 100644 tests/agents/test_working_memory_error_message.py
+[2026-03-15T13:00:02Z] Auto-improve complete.
+[2026-03-15T14:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-15T14:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10552[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.4/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-15T14:00:29.567441+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py
+tests/agents/test_working_memory_bug.py
+tests/agents/test_working_memory_error_message.py
+tests/agents/test_working_memory_four_lenses_bug.py
+tests/agents/test_work...
+Let me examine the existing tests to understand the test coverage:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me check the other test files to see if there are any existing bug tests:
+[tool] read_file({'path': 'tests/agents/test_working_memory_real_bug.py'})
+[result] """Test for a real bug in working_memory.py."""
+
+import pytest
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+
+def test_memory_should_read_file_with_whitespace_only_lines...
+Now let me examine the actual code more carefully. I need to apply the Four Lenses of Failure to identify a real bug in core functionality. Let me start by creating the documentation stub:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/agents/working_memory.py\n## Date: 
+2025-03-15T14:00:00+00:00\n## Bug Summary\nThe `should_read_file` method has a 
+critical bug where it incorrectly handles files that were read fully 
+(lines_read="full") when checking partial ranges (start=None or end=None). When 
+a file was read fully and a partial range is requested (e.g., start=10, 
+end=None), the method returns True with an error about invalid line numbers 
+instead of returning False because the file was already read fully.\n\n## 
+Lens\n**Phase 1: The Intent vs. Reality Check** - Logic Gaps\n\n## Expected vs. 
+Observed\n| Expected Behavior | Observed Risk |\n|---|---|\n| When a file was 
+read fully (lines_read="full"), any subsequent read request (full or partial) 
+should return False (skip) | When start=None or end=None is provided with a file
+that was read fully, the method validates line numbers AFTER checking for 
+"full", causing it to return True with an error about invalid line numbers 
+instead of returning False |\n| Line number validation should happen BEFORE 
+checking if file was read fully | Line number validation happens AFTER the early
+return for "full" files, causing incorrect behavior for invalid line numbers 
+|\n| Invalid line numbers (e.g., start=0) should always be reported as errors, 
+even for files that were read fully | For files read fully, invalid line numbers
+are not validated, and the method returns False (skip) instead of True (read) 
+with error |\n\n## Root Cause\nThe bug is in the `should_read_file` method at 
+lines 361-502. The method has this flow:\n1. Normalize path\n2. Find matching 
+entries\n3. Check if ANY entry has lines_read="full" (case-insensitive, 
+whitespace-normalized)\n4. If yes, return False immediately ("File already read 
+(full)")\n5. **BUG**: Line number validation (start < 1, end < 1, start > end) 
+happens AFTER the "full" check\n6. This means if a file was read fully and 
+invalid line numbers are provided (e.g., start=0), the method returns False 
+instead of reporting the invalid line number error\n\nAdditionally, when only 
+start OR end is provided (not both) for a file that was read fully, the method 
+doesn\'t handle this case correctly in the partial range logic.\n\n## Fix 
+Plan\n1. Move line number validation to happen BEFORE checking if file was read 
+fully\n2. Ensure invalid line numbers are always reported as errors, regardless 
+of file read status\n3. Update the logic for partial ranges (start=None or 
+end=None) to correctly handle files that were read fully\n4. Add comprehensive 
+test coverage for these edge cases\n\n## Status: IN PROGRESS'})
+[result] Successfully wrote 2572 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/README.md...
+Now let me write a failing test first (TDD). I need to create a test that demonstrates the bug:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py', 'start_line': 
+1, 'end_line': 50})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Let me check if there's already a test file for the four lenses bug:
+[tool] read_file({'path': 
+'tests/agents/test_working_memory_four_lenses_bug.py'})
+[result] """Test for the Four Lenses bug in working_memory.py."""
+
+import pytest
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+
+
+def test_memory_should_read_file_older_full_read_...
+I need to examine the actual bug more carefully. Looking at the test file, I see there are already tests for some bugs. Let me run the existing tests to see what's currently failing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory_four_lenses_bug.py -xvs'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Interesting! The tests are passing. Let me look at the actual implementation more carefully. Let me examine the `should_read_file` method in detail:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+361, 'end_line': 450})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+Now I need to look at the rest of the method to understand the full logic:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+450, 'end_line': 502})
+[result]             else:  # end is not None, start is None
+                # start=None, end=Y: read from beginning to Y
+                # Check if we've read line Y
+                if not valid_ranges:
+    ...
+Let me see the rest:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+502, 'end_line': 550})
+[result] 
+        # Actually, let's take a simpler approach: check if the requested range
+        # is fully covered by walking through merged ranges
+        current_line = requested.start
+        for rng in m...
+Now I need to understand the bug better. Looking at the code, I see that the method checks for "full" files early (lines 395-402). However, I notice something: the line number validation happens BEFORE the "full" check (lines 382-391). But wait, let me re-examine the bug report I wrote. Actually, looking more carefully at the code:
+
+1. Line number validation happens at lines 382-391
+2. "Full" check happens at lines 395-402
+3. So if a file was read fully and invalid line numbers are provided, the line number validation should catch it first
+
+But wait, let me check the tests again. The tests in `test_working_memory_four_lenses_bug.py` are passing. Let me run a specific test to see what's happening:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -c "\nfrom 
+henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry\n\n# 
+Test the bug: file read fully, invalid line numbers\nmemory = 
+WorkingMemory(current_task=\'Test\')\nmemory.add_recent_file(WorkingMemoryEntry(
+\'/test/file.py\', \'Test\', \'full\'))\n\n# Test with start=0, end=10 (invalid 
+start, file read fully)\nshould_read, reason = 
+memory.should_read_file(\'/test/file.py\', 0, 10)\nprint(f\'Test 1 - start=0, 
+end=10 (invalid start): should_read={should_read}, reason={reason}\')\n\n# Test 
+with start=1, end=0 (invalid end, file read fully)\nshould_read2, reason2 = 
+memory.should_read_file(\'/test/file.py\', 1, 0)\nprint(f\'Test 2 - start=1, 
+end=0 (invalid end): should_read={should_read2}, reason={reason2}\')\n\n# Test 
+with start=0, end=None (invalid start, partial range)\nshould_read3, reason3 = 
+memory.should_read_file(\'/test/file.py\', start=0)\nprint(f\'Test 3 - start=0, 
+end=None (invalid start, partial): should_read={should_read3}, 
+reason={reason3}\')\n\n# Test with start=None, end=0 (invalid end, partial 
+range)\nshould_read4, reason4 = memory.should_read_file(\'/test/file.py\', 
+end=0)\nprint(f\'Test 4 - start=None, end=0 (invalid end, partial): 
+should_read={should_read4}, reason={reason4}\')\n\n# Test with start=10, end=5 
+(start > end, file read fully)\nshould_read5, reason5 = 
+memory.should_read_file(\'/test/file.py\', 10, 5)\nprint(f\'Test 5 - start=10, 
+end=5 (start > end): should_read={should_read5}, reason={reason5}\')\n\n# Valid 
+line numbers should return False\nshould_read6, reason6 = 
+memory.should_read_file(\'/test/file.py\', 10, 50)\nprint(f\'Test 6 - start=10, 
+end=50 (valid): should_read={should_read6}, reason={reason6}\')\n"'})
+[result] Test 1 - start=0, end=10 (invalid start): should_read=True, 
+reason=Invalid line number: start must be positive (1-indexed), got start=0
+Test 2 - start=1, end=0 (invalid end): should_read=True, reason=...
+Good! So the line number validation IS working correctly. The bug I identified in my report is actually NOT a bug - the code correctly validates line numbers before checking if the file was read fully. Let me re-examine the code to find a real bug.
+
+Let me look at the logic more carefully. Actually, I think I see a different bug. Look at lines 395-402:
+
+```python
+# Check if the MOST RECENT entry indicates file was read fully
+# Check if ANY entry indicates file was read fully
+# If file was read fully at any point, we should consider it fully read
+for match in matches:
+    if isinstance(match.lines_read, str):
+        # Normalize whitespace: split on any whitespace (including Unicode) and join
+        normalized = "".join(match.lines_read.split()).lower()
+        if normalized == "full":
+            return False, "File already read (full)"
+```
+
+The comment says "Check if ANY entry indicates file was read fully" but `matches` is `[e for e in reversed(self.recent_files) if e.path == normalized_path]`. This gets entries in reverse order (most recent first). So it IS checking all entries, but in reverse order. That seems correct.
+
+Wait, let me look at the logic for partial ranges (when start=None or end=None). Look at lines 407-455. When start=None and end=None (want to read entire file), and the file wasn't read fully, it checks `if not valid_ranges:` and returns `True, "Cannot determine - invalid lines_read format"`. But what if `valid_ranges` is not empty? It returns `True, "File not fully read - partial read recorded"`. That seems correct.
+
+But wait, I think I found a bug! Look at lines 407-455 again. When `start is not None` and `end is None` (read from start to EOF), the code checks if `start` line is within any merged range. If it is, it returns `True, f"May need to read lines beyond {rng.end}"`. But what if the file was read fully? The "full" check already returned False earlier, so we wouldn't reach this code. That's correct.
+
+Actually, let me think about this more carefully. The smell report says the function has cyclomatic complexity 41 and is 142 lines long. That's definitely a code smell. But I need to find a REAL bug in core functionality, not just a code smell.
+
+Let me run the existing tests to see if any are failing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py -xvs -k "test_memory_should_read_file" | 
+head -100'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+All tests are passing! Let me look more carefully at the code. I need to find a real bug. Let me examine the `_parse_line_ranges` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+305, 'end_line': 360})
+[result]     def _parse_line_ranges(lines_read: str) -> list[LineRange]:
+        """Parse a lines_read string into a list of LineRange objects.
+        
+        Supports formats:
+        - "full" (returns empt...
+Now let me look at the `_merge_ranges` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+280, 'end_line': 304})
+[result]             List of merged LineRange objects, sorted by start line.
+        """
+        if not ranges:
+            return []
+
+        # Sort ranges by start line
+        sorted_ranges = sorted(ranges,...
+Let me think about this more systematically. I need to apply the Four Lenses of Failure to find a real bug:
+
+## Phase 1: The Intent vs. Reality Check
+Looking for logic gaps and type safety issues...
+
+Actually, I think I found a bug! Look at the `_parse_line_ranges` method. It has a comment: "Supports formats: - 'full' (returns empty list as special case)". But look at line 321: `if normalized == "full": return []`. 
+
+Wait, but in `should_read_file`, when it checks for "full", it does it BEFORE calling `_parse_line_ranges`. So that's not the bug.
+
+Let me look for type safety issues. The `lines_read` parameter in `_parse_line_ranges` is typed as `str`, but the first check is `if not lines_read or not isinstance(lines_read, str): return []`. If `lines_read` is `None`, `not lines_read` is `True`, so it returns `[]`. That's fine.
+
+But wait! What if `lines_read` is an empty string `""`? Then `not lines_read` is `True`, and it returns `[]`. That's correct.
+
+Actually, let me look at the `should_read_file` method more carefully. I need to find a real bug. Let me write a test to explore edge cases:
