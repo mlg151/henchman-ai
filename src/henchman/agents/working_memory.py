@@ -392,15 +392,14 @@ class WorkingMemory(SerializableDataclass):
             return True, f"Invalid line range: start ({start}) > end ({end}) - treating as new read"
 
         # Check if the MOST RECENT entry indicates file was read fully
-        # Only skip reading if the most recent read was "full"
-        # If file was read fully in the past but partially more recently,
-        # we should check if the requested range is covered by recent partial reads
-        lines_read = matches[0].lines_read
-        if isinstance(lines_read, str):
-            # Normalize whitespace: split on any whitespace (including Unicode) and join
-            normalized = "".join(lines_read.split()).lower()
-            if normalized == "full":
-                return False, "File already read (full)"
+        # Check if ANY entry indicates file was read fully
+        # If file was read fully at any point, we should consider it fully read
+        for match in matches:
+            if isinstance(match.lines_read, str):
+                # Normalize whitespace: split on any whitespace (including Unicode) and join
+                normalized = "".join(match.lines_read.split()).lower()
+                if normalized == "full":
+                    return False, "File already read (full)"
 
         # Collect all valid line ranges from all entries (needed for partial range checks)
         valid_ranges: list[LineRange] = []

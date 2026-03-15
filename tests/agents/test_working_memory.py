@@ -834,9 +834,9 @@ class TestWorkingMemory:
     def test_memory_should_read_file_full_then_partial(self):
         """Test should_read_file when file was read fully then partially.
         
-        When a file was read fully in the past but partially more recently,
-        we should only consider lines that were read in the most recent partial read.
-        The full read is older and may not reflect current file state or focus.
+        When a file was read fully at any point, it should be considered fully read,
+        regardless of more recent partial reads. The full read indicates we've read
+        the entire file during this agent task.
         """
         memory = WorkingMemory(current_task="Test")
         
@@ -850,22 +850,22 @@ class TestWorkingMemory:
         assert should_read is False, f"Lines 20-40 should be already read (in partial read). Got: {should_read}"
         assert "already read" in reason.lower()
         
-        # Test 2: Lines NOT in partial read but in full read (60-100) - should be True
-        # The most recent read was partial (10-50), not full, so we haven't read 60-100 recently
+        # Test 2: Lines NOT in partial read but in full read (60-100) - should be False
+        # The file was read fully in an older entry, so all lines should be considered read
         should_read, reason = memory.should_read_file("/test/file.py", 60, 100)
-        assert should_read is True, (
-            f"Lines 60-100 were not in the most recent partial read (10-50). "
-            f"Should return True (need to read). Got: {should_read}, reason: {reason}"
+        assert should_read is False, (
+            f"Lines 60-100 were read in the full read. "
+            f"Should return False (already read). Got: {should_read}, reason: {reason}"
         )
-        # Reason should indicate we need to read these lines
-        assert "already read" not in reason.lower()
+        # Reason should indicate file was already read
+        assert "already read" in reason.lower()
         
-        # Test 3: Lines spanning both (1-100) - should be True
-        # The most recent read was partial (10-50), so lines 1-9 and 51-100 haven't been read recently
+        # Test 3: Lines spanning both (1-100) - should be False
+        # The file was read fully in an older entry, so all lines should be considered read
         should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
-        assert should_read is True, (
-            f"Lines 1-100 span beyond the most recent partial read (10-50). "
-            f"Should return True (need to read). Got: {should_read}"
+        assert should_read is False, (
+            f"Lines 1-100 were read in the full read. "
+            f"Should return False (already read). Got: {should_read}"
         )
         
         # Test 4: Reverse order (partial then full) - should work correctly
@@ -927,8 +927,8 @@ class TestWorkingMemory:
     def test_memory_should_read_file_full_then_partial_bug(self):
         """Test that should_read_file correctly handles full read followed by partial read.
         
-        BUG: Currently returns False when file was fully read in the past but partially read
-        more recently. Should only return False if MOST RECENT entry is "full".
+        When a file was read fully at any point, it should be considered fully read,
+        regardless of more recent partial reads.
         """
         memory = WorkingMemory(current_task="Test")
         
@@ -939,15 +939,14 @@ class TestWorkingMemory:
         memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Recent partial read", "10-50"))
         
         # Request lines 1-100
-        # The most recent read was partial (10-50), not full
-        # So we should return True (should read) because we haven't read lines 1-9 or 51-100 recently
+        # The file was read fully in an older entry, so all lines should be considered read
         should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
         
-        assert should_read is True, (
-            f"File was partially read most recently (10-50), not fully. "
-            f"Should return True for lines 1-100. Got: {should_read}, reason: {reason}"
+        assert should_read is False, (
+            f"File was fully read in an older entry. "
+            f"Should return False for lines 1-100. Got: {should_read}, reason: {reason}"
         )
-        assert "already read" not in reason.lower()
+        assert "already read" in reason.lower()
 
     def test_memory_should_read_file_path_normalization_bug(self):
         """Test that should_read_file normalizes file paths.
