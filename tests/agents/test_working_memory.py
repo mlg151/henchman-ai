@@ -1284,3 +1284,106 @@ class TestHelperFunctions:
             f"Reason should indicate cannot determine due to invalid lines_read. "
             f"Got: {reason}"
         )
+
+    def test_memory_should_read_file_full_with_invalid_line_numbers_bug(self):
+        """Test should_read_file bug: invalid line numbers should be reported even when file was read fully.
+        
+        BUG: When file was read fully (lines_read='full') and invalid line numbers are provided
+        (e.g., start=0, end=-1, or start > end), the method returns "File already read (full)"
+        instead of reporting the line number validation error.
+        
+        Line number validation should happen BEFORE checking if file was read fully.
+        """
+        memory = WorkingMemory(current_task="Test")
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
+        
+        # Test 1: Invalid start line (0) - should report line number error, not "already read"
+        should_read, reason = memory.should_read_file("/test/file.py", 0, 10)
+        assert should_read is True, (
+            f"Invalid line number start=0 should return True with error, "
+            f"not False (file was read fully). Got: {should_read}, reason: {reason}"
+        )
+        assert "invalid" in reason.lower() or "positive" in reason.lower() or "must be positive" in reason.lower(), (
+            f"Should report invalid line number error, not 'File already read (full)'. "
+            f"Got reason: {reason}"
+        )
+        assert "already read" not in reason.lower(), (
+            f"Should NOT say 'already read' when line numbers are invalid. Got: {reason}"
+        )
+        
+        # Test 2: Invalid end line (0) - should report line number error
+        should_read, reason = memory.should_read_file("/test/file.py", 1, 0)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower() or "must be positive" in reason.lower()
+        assert "already read" not in reason.lower()
+        
+        # Test 3: Negative start line (-5) - should report line number error
+        should_read, reason = memory.should_read_file("/test/file.py", -5, 10)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower() or "must be positive" in reason.lower()
+        assert "already read" not in reason.lower()
+        
+        # Test 4: start > end (10 > 5) - should report line range error
+        should_read, reason = memory.should_read_file("/test/file.py", 10, 5)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "start.*>.*end" in reason.lower() or "greater than" in reason.lower()
+        assert "already read" not in reason.lower()
+        
+        # Test 5: Valid line numbers should still return False (file read fully)
+        should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
+        assert should_read is False
+        assert "already read" in reason.lower()
+        
+        # Test 6: Partial range with invalid start (start=0, end=None)
+        should_read, reason = memory.should_read_file("/test/file.py", start=0)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower() or "must be positive" in reason.lower()
+        assert "already read" not in reason.lower()
+        
+        # Test 7: Partial range with invalid end (start=None, end=0)
+        should_read, reason = memory.should_read_file("/test/file.py", end=0)
+        assert should_read is True
+        assert "invalid" in reason.lower() or "positive" in reason.lower() or "must be positive" in reason.lower()
+        assert "already read" not in reason.lower()
+
+    def test_memory_parse_line_ranges_unicode_dash_bug(self):
+        """Test _parse_line_ranges bug: doesn't handle Unicode dash characters.
+        
+        BUG: _parse_line_ranges only splits on ASCII hyphen '-', not Unicode dash
+        characters like en dash '–' (U+2013) or em dash '—' (U+2014).
+        """
+        from henchman.agents.working_memory import WorkingMemory
+        
+        # Test with ASCII hyphen (should work)
+        result = WorkingMemory._parse_line_ranges("10-20")
+        assert len(result) == 1
+        assert result[0].start == 10
+        assert result[0].end == 20
+        
+        # Test with en dash '–' (U+2013) - BUG: should work but doesn't
+        result = WorkingMemory._parse_line_ranges("10–20")  # en dash
+        # Should return [LineRange(10, 20)]
+        assert len(result) == 1, f"Should handle en dash and return [LineRange(10, 20)], got {result}"
+        assert result[0].start == 10 and result[0].end == 20
+        
+        # Test with em dash '—' (U+2014) - BUG: should work but doesn't
+        result = WorkingMemory._parse_line_ranges("10—20")  # em dash
+        assert len(result) == 1, f"Should handle em dash and return [LineRange(10, 20)], got {result}"
+        assert result[0].start == 10 and result[0].end == 20
+        
+        # Test with multiple ranges and en dash
+        result = WorkingMemory._parse_line_ranges("10–20,30–40")  # en dashes
+        assert len(result) == 2, f"Should handle multiple ranges with en dashes, got {result}"
+        assert result[0].start == 10 and result[0].end == 20
+        assert result[1].start == 30 and result[1].end == 40
+        
+        # Test with spaces and en dash
+        result = WorkingMemory._parse_line_ranges("10 – 20")  # space, en dash, space
+        assert len(result) == 1, f"Should handle spaces with en dash, got {result}"
+        assert result[0].start == 10 and result[0].end == 20
+        
+        # Test with hyphen-minus (ASCII) should still work
+        result = WorkingMemory._parse_line_ranges("10-20,30-40")
+        assert len(result) == 2
+        assert result[0].start == 10 and result[0].end == 20
+        assert result[1].start == 30 and result[1].end == 40

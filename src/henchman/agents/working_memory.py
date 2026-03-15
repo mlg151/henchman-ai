@@ -8,6 +8,7 @@ a task.
 from __future__ import annotations
 
 import os
+import re
 import uuid
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
@@ -326,9 +327,15 @@ class WorkingMemory(SerializableDataclass):
         
         ranges = []
         for part in normalized.split(","):
-            if "-" in part:
+            # Check for dash characters: hyphen '-', en dash '–' (U+2013), em dash '—' (U+2014)
+            # Use regex to find the first dash-like character
+            dash_match = re.search(r'[-\u2013\u2014]', part)
+            if dash_match:
+                # Split on the dash character found
+                dash_pos = dash_match.start()
+                start_str = part[:dash_pos]
+                end_str = part[dash_pos + 1:]  # +1 to skip the dash character
                 try:
-                    start_str, end_str = part.split("-", 1)
                     start = int(start_str)
                     end = int(end_str)
                     if start < 1 or end < 1:
