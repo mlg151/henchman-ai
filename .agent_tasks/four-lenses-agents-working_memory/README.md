@@ -34,15 +34,23 @@ No `return` statement! Should be:
 3. Write a test that fails before the fix and passes after
 
 ## Fix Implemented
-Added missing return statement at line 480:
+1. Added missing return statement at line 480:
 ```python
                 # Line is after all ranges
                 last_rng = merged_ranges[-1]
                 return True, f"End line {end} beyond last read line {last_rng.end}"
 ```
 
+2. Removed dead code with undefined variable at line 489:
+```python
+            # This happens when lines_read is invalid, empty, or contains only invalid ranges
+            return True, "Cannot determine - invalid lines_read format"
+            # Removed dead code: if requested.start >= rng.start and requested.end <= rng.end:
+            # Removed dead code:     return False, "File already read (contained within previously read lines)"
+```
+
 ## Files Changed
-1. `src/henchman/agents/working_memory.py` - Added missing return statement at line 480
+1. `src/henchman/agents/working_memory.py` - Added missing return statement at line 480 and removed dead code at line 489
 2. `tests/agents/test_working_memory.py` - Added test `test_memory_should_read_file_missing_return_bug` to verify fix
 
 ## Status: FIXED
