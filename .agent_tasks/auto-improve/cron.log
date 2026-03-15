@@ -734613,3 +734613,267 @@ TOTAL                                                       18982    270   5086 
 =========== 5711 passed, 6 skipped, 45 warnings in 183.87s (0:03:03) ===========
 [2026-03-15T11:00:03Z] All tests passed.
 Committing changes...
+[main 89feab1] fix(four-lenses): four-lenses-agents-working_memory
+ 12 files changed, 4574 insertions(+), 1210 deletions(-)
+ create mode 100644 .agent_tasks/four-lenses-agents-working_memory/test_coverage_bug.py
+ create mode 100644 .agent_tasks/four-lenses-agents-working_memory/test_full_bug.py
+ create mode 100644 .agent_tasks/four-lenses-agents-working_memory/test_full_then_partial_bug.py
+ create mode 100644 .agent_tasks/four-lenses-agents-working_memory/test_minus_sign_bug.py
+ create mode 100644 .agent_tasks/four-lenses-agents-working_memory/test_real_bug.py
+[2026-03-15T11:00:03Z] Auto-improve complete.
+[2026-03-15T12:00:02Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-15T12:00:02Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10552[/]
+I'll start by reading the smell report and the target file to understand the context and identify bugs.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.4/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-15T12:00:31.824651+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and identify bugs:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py
+tests/agents/test_working_memory_bug.py
+tests/agents/test_working_memory_real_bug.py...
+Let me read the test files to understand what's already tested:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me check the other test files to see if there are any existing bug tests:
+[tool] read_file({'path': 'tests/agents/test_working_memory_bug.py'})
+[result] """Test for a bug in working_memory.py."""
+
+import pytest
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+
+def test_memory_should_read_file_empty_lines_read():
+    """Test...
+
+[tool] read_file({'path': 'tests/agents/test_working_memory_real_bug.py'})
+[result] """Test for a real bug in working_memory.py."""
+
+import pytest
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+
+def test_memory_should_read_file_with_whitespace_only_lines...
+Now let me create the documentation stub for my analysis:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/agents/working_memory.py\n## Date: 
+2025-03-15T12:00:00Z\n## Bug Summary\nThe `should_read_file` method has a logic 
+bug where it incorrectly handles the case when a file was read fully 
+(`lines_read="full"`) but then later partially read again. The method only 
+checks if the MOST RECENT entry has `lines_read="full"`, ignoring that older 
+full reads should still count as the file having been fully read at some 
+point.\n\n## Lens\n**Phase 1: The Intent vs. Reality Check** - Logic Gaps\n\n## 
+Expected vs. Observed\n| Expected Behavior | Observed Risk |\n|---|---|\n| If a 
+file was ever read fully (even if older entries), any line range should be 
+considered already read | Method only checks most recent entry, causing 
+unnecessary re-reading of lines that were previously read in full |\n| Multiple 
+partial reads that collectively cover a requested range should prevent 
+re-reading | Method doesn\'t merge/check across all entries for the same file 
+|\n| Path normalization should ensure consistent file comparison | Paths are 
+normalized but the method doesn\'t properly handle all entries for normalized 
+path |\n\n## Root Cause\nThe `should_read_file` method has several issues:\n1. 
+**Line 361-505**: The 143-line method is too complex (cyclomatic complexity 40) 
+and has deep nesting (depth 6)\n2. **Line 398-401**: Only checks 
+`matches[0].lines_read` (most recent entry) for "full" read, ignoring older full
+reads\n3. **Line 405-420**: When checking partial ranges, it collects 
+`valid_ranges` from ALL entries but doesn\'t properly handle the case where an 
+older full read should make all ranges covered\n4. **Line 430-505**: The logic 
+for checking if requested range is covered by merged ranges is overly complex 
+and buggy\n\n## Fix Plan\n1. Simplify the `should_read_file` method by 
+extracting helper functions\n2. Fix the logic to check ALL entries for a file, 
+not just the most recent\n3. If ANY entry has `lines_read="full"` 
+(case-insensitive, whitespace-normalized), the file should be considered fully 
+read\n4. For partial reads, merge ranges from ALL entries and check if requested
+range is covered\n5. Add proper validation for line numbers before any other 
+logic\n\n## Status: IN PROGRESS'})
+[result] Successfully wrote 2202 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/README.md...
+Now let me examine the code more carefully to identify the exact bug. Looking at the `should_read_file` method, I can see several issues. Let me trace through the logic:
+
+1. **Lines 398-401**: It checks `if normalized == "full": return False, "File already read (full)"`. This only checks the MOST RECENT entry (`matches[0]`).
+
+2. **Lines 405-420**: It collects `valid_ranges` from ALL entries but this happens AFTER the early return for "full" in the most recent entry.
+
+3. The real bug is that if a file was read fully in an older entry, but then partially read more recently, the method will return `True` for lines outside the partial read, even though they were read in the full read.
+
+Let me write a failing test to demonstrate this bug:
+[tool] write_file({'path': 
+'tests/agents/test_working_memory_four_lenses_bug.py', 'content': '"""Test for 
+the Four Lenses bug in working_memory.py."""\n\nimport pytest\nfrom 
+henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry\n\n\ndef
+test_memory_should_read_file_older_full_read_ignored():\n    """Test that 
+should_read_file ignores older full reads.\n    \n    BUG: When a file was read 
+fully in an older entry, but partially read\n    more recently, should_read_file
+only checks the most recent (partial) read\n    and ignores the older full 
+read.\n    \n    This causes unnecessary re-reading of lines that were 
+previously read in full.\n    """\n    memory = 
+WorkingMemory(current_task="Test")\n    \n    # Add older full read\n    
+memory.add_recent_file(WorkingMemoryEntry(\n        path="/test/file.py",\n     
+purpose="Full read (older)",\n        lines_read="full",\n        
+key_insights=["Full file read"]\n    ))\n    \n    # Add more recent partial 
+read\n    memory.add_recent_file(WorkingMemoryEntry(\n        
+path="/test/file.py", \n        purpose="Partial read (newer)",\n        
+lines_read="10-50",\n        key_insights=["Only read middle section"]\n    ))\n
+\n    # Request lines 60-100 (were in older full read, not in recent partial 
+read)\n    should_read, reason = memory.should_read_file("/test/file.py", 60, 
+100)\n    \n    # BUG: Returns True (should read) even though lines 60-100 were 
+read in the full read\n    # Should return False (already read) because file was
+fully read in older entry\n    assert should_read is False, (\n        f"Lines 
+60-100 were read in older full read. "\n        f"Should return False (already 
+read). Got: {should_read}, reason: {reason}"\n    )\n    assert "already read" 
+in reason.lower()\n\n\ndef 
+test_memory_should_read_file_multiple_partials_cover_range():\n    """Test that 
+should_read_file doesn\'t merge ranges from multiple entries.\n    \n    BUG: 
+When multiple partial reads collectively cover a requested range,\n    
+should_read_file doesn\'t recognize this and returns True (should read).\n    
+"""\n    memory = WorkingMemory(current_task="Test")\n    \n    # Add two 
+partial reads that together cover lines 1-100\n    
+memory.add_recent_file(WorkingMemoryEntry(\n        path="/test/file.py",\n     
+purpose="First half",\n        lines_read="1-50"\n    ))\n    
+memory.add_recent_file(WorkingMemoryEntry(\n        path="/test/file.py",\n     
+purpose="Second half", \n        lines_read="51-100"\n    ))\n    \n    # 
+Request lines 1-100 (covered by both entries together)\n    should_read, reason 
+= memory.should_read_file("/test/file.py", 1, 100)\n    \n    # BUG: Returns 
+True (should read) even though entries 1-50 and 51-100 cover 1-100\n    # Should
+return False (already read)\n    assert should_read is False, (\n        f"Lines
+1-100 should be already read (covered by entries 1-50 and 51-100). "\n        
+f"Got: {should_read}, reason: {reason}"\n    )\n    assert "already read" in 
+reason.lower()\n\n\ndef 
+test_memory_should_read_file_full_anywhere_in_history():\n    """Test that 
+should_read_file should check ALL entries for \'full\', not just most recent.\n 
+\n    BUG: Only checks most recent entry for \'full\'. If ANY entry has 
+\'full\',\n    the file should be considered fully read.\n    """\n    memory = 
+WorkingMemory(current_task="Test")\n    \n    # Add partial read (most recent)\n
+memory.add_recent_file(WorkingMemoryEntry(\n        path="/test/file.py",\n     
+purpose="Partial read",\n        lines_read="10-50"\n    ))\n    \n    # Add 
+older full read (not most recent)\n    
+memory.add_recent_file(WorkingMemoryEntry(\n        path="/test/file.py",\n     
+purpose="Full read (older)",\n        lines_read="full"\n    ))\n    \n    # 
+Request lines 60-100 (were in older full read)\n    should_read, reason = 
+memory.should_read_file("/test/file.py", 60, 100)\n    \n    # BUG: Returns True
+(should read) even though file was fully read in older entry\n    # Should 
+return False (already read)\n    assert should_read is False, (\n        f"File 
+was fully read in older entry. "\n        f"Should return False (already read). 
+Got: {should_read}, reason: {reason}"\n    )\n    assert "already read" in 
+reason.lower()\n\n\ndef test_memory_should_read_file_case_insensitive_full():\n 
+"""Test that should_read_file should handle case-insensitive \'full\'.\n    \n  
+BUG: Only checks for lowercase \'full\', not \'FULL\', \'Full\', etc.\n    """\n
+memory = WorkingMemory(current_task="Test")\n    \n    # Add entry with 
+uppercase FULL\n    memory.add_recent_file(WorkingMemoryEntry(\n        
+path="/test/file.py",\n        purpose="Test",\n        lines_read="FULL"\n    
+))\n    \n    # Request any lines\n    should_read, reason = 
+memory.should_read_file("/test/file.py", 10, 50)\n    \n    # BUG: Returns True 
+(should read) because "FULL" != "full"\n    # Should return False (already 
+read)\n    assert should_read is False, (\n        f"File marked as \'FULL\' 
+should be considered fully read. "\n        f"Got: {should_read}, reason: 
+{reason}"\n    )\n    assert "already read" in reason.lower()\n\n\nif __name__ 
+== "__main__":\n    # Run tests to demonstrate bugs\n    import sys\n    \n    
+print("Running Four Lenses bug tests...")\n    print("=" * 60)\n    \n    tests 
+= [\n        test_memory_should_read_file_older_full_read_ignored,\n        
+test_memory_should_read_file_multiple_partials_cover_range,\n        
+test_memory_should_read_file_full_anywhere_in_history,\n        
+test_memory_should_read_file_case_insensitive_full,\n    ]\n    \n    failures =
+0\n    for test in tests:\n        print(f"\\nRunning {test.__name__}...")\n    
+try:\n            test()\n            print("  ✓ PASS")\n        except 
+AssertionError as e:\n            print(f"  ✗ FAIL: {e}")\n            failures 
++= 1\n        except Exception as e:\n            print(f"  ✗ ERROR: {e}")\n    
+failures += 1\n    \n    print(f"\\n" + "=" * 60)\n    print(f"Total: 
+{len(tests)} tests, {failures} failures")\n    sys.exit(1 if failures > 0 else 
+0)'})
+[result] Successfully wrote 5794 bytes to 
+tests/agents/test_working_memory_four_lenses_bug.py...
+I need to run the failing test to confirm the bug:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory_four_lenses_bug.py -x -q --tb=short'})
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p
+Good! The test fails as expected. Now let me run all the tests to see how many fail:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory_four_lenses_bug.py -q --tb=short'})
+✗ \[error] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p
+Good! 1 test fails and 3 pass. Actually, looking at the output more carefully, I see that 3 tests passed and 1 failed. Let me check which ones passed:
+
+1. `test_memory_should_read_file_older_full_read_ignored` - FAILED (this is the bug I identified)
+2. `test_memory_should_read_file_multiple_partials_cover_range` - PASSED (interesting!)
+3. `test_memory_should_read_file_full_anywhere_in_history` - PASSED (wait, this should fail too based on my analysis)
+4. `test_memory_should_read_file_case_insensitive_full` - PASSED (this should also fail)
+
+Let me run the tests individually to see what's happening:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory_four_lenses_bug.py::test_memory_should_read_fil
+e_full_anywhere_in_history -xvs'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+Interesting! The test passed. Let me check what the actual behavior is. Let me look at the test more carefully and run it with some debug output:
+[tool] write_file({'path': 'debug_test.py', 'content': 'from 
+henchman.agents.working_memory import WorkingMemory, 
+WorkingMemoryEntry\n\nmemory = WorkingMemory(current_task="Test")\n\n# Add 
+partial read (most recent)\nmemory.add_recent_file(WorkingMemoryEntry(\n    
+path="/test/file.py",\n    purpose="Partial read",\n    
+lines_read="10-50"\n))\n\n# Add older full read (not most 
+recent)\nmemory.add_recent_file(WorkingMemoryEntry(\n    path="/test/file.py",\n
+purpose="Full read (older)",\n    lines_read="full"\n))\n\nprint("Recent files 
+(most recent first):")\nfor i, entry in 
+enumerate(reversed(memory.recent_files)):\n    print(f"  {i}: path={entry.path},
+lines_read={entry.lines_read}, purpose={entry.purpose}")\n\n# Request lines 
+60-100 (were in older full read)\nshould_read, reason = 
+memory.should_read_file("/test/file.py", 60, 
+100)\n\nprint(f"\\nshould_read_file(\'/test/file.py\', 60, 100):")\nprint(f"  
+should_read: {should_read}")\nprint(f"  reason: {reason}")\n\n# Also test the 
+reverse order\nprint("\\n" + "="*60)\nprint("Testing reverse order (full read 
+most recent):")\nmemory2 = WorkingMemory(current_task="Test")\n\n# Add older 
+full read\nmemory2.add_recent_file(WorkingMemoryEntry(\n    
+path="/test/file.py",\n    purpose="Full read (older)",\n    
+lines_read="full"\n))\n\n# Add partial read (most 
+recent)\nmemory2.add_recent_file(WorkingMemoryEntry(\n    
+path="/test/file.py",\n    purpose="Partial read",\n    
+lines_read="10-50"\n))\n\nprint("\\nRecent files (most recent first):")\nfor i, 
+entry in enumerate(reversed(memory2.recent_files)):\n    print(f"  {i}: 
+path={entry.path}, lines_read={entry.lines_read}, purpose={entry.purpose}")\n\n#
+Request lines 60-100 (were in older full read)\nshould_read2, reason2 = 
+memory2.should_read_file("/test/file.py", 60, 
+100)\n\nprint(f"\\nshould_read_file(\'/test/file.py\', 60, 100):")\nprint(f"  
+should_read: {should_read2}")\nprint(f"  reason: {reason2}")'})
+[result] Successfully wrote 1804 bytes to debug_test.py...

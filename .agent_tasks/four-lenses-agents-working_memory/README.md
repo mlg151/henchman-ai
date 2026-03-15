@@ -1,55 +1,30 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-15T11:45:00Z
+## Date: 2025-03-15T12:00:00Z
 ## Bug Summary
-The `_parse_line_ranges` method uses regex `r'[-\u2013\u2014]'` to find dash characters, but misses mathematical minus sign `−` (U+2212) and figure dash `‒` (U+2012). When `lines_read` contains these characters (e.g., "10−20" copied from formatted text), the method fails to parse the range and returns empty list, causing `should_read_file` to report "Cannot determine - invalid lines_read format" even though the format is valid.
+The `should_read_file` method has a logic bug where it incorrectly handles the case when a file was read fully (`lines_read="full"`) but then later partially read again. The method only checks if the MOST RECENT entry has `lines_read="full"`, ignoring that older full reads should still count as the file having been fully read at some point.
 
 ## Lens
-Phase 1: The Intent vs. Reality Check (Logic Gaps)
+**Phase 1: The Intent vs. Reality Check** - Logic Gaps
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| All common dash-like characters should be recognized: hyphen `-`, en dash `–`, em dash `—`, minus sign `−`, figure dash `‒`. | Only hyphen, en dash, and em dash are recognized. |
-| "10−20" (with mathematical minus) should parse as LineRange(10,20). | Returns empty list, treated as invalid format. |
-| Consistent parsing regardless of which dash character is used. | Inconsistent: depends on character choice. |
+| If a file was ever read fully (even if older entries), any line range should be considered already read | Method only checks most recent entry, causing unnecessary re-reading of lines that were previously read in full |
+| Multiple partial reads that collectively cover a requested range should prevent re-reading | Method doesn't merge/check across all entries for the same file |
+| Path normalization should ensure consistent file comparison | Paths are normalized but the method doesn't properly handle all entries for normalized path |
 
 ## Root Cause
-The regex pattern `r'[-\u2013\u2014]'` in `_parse_line_ranges` explicitly lists only three characters:
-- Hyphen `-` (ASCII 45)
-- En dash `–` (U+2013)  
-- Em dash `—` (U+2014)
-
-Missing:
-- Figure dash `‒` (U+2012)
-- Minus sign `−` (U+2212)
-- Horizontal bar `―` (U+2015)
-- Other dash-like Unicode characters
-
-When the regex doesn't match, the code treats the part as a single line number, tries `int("10−20")` which raises `ValueError`, catches it, and continues (skipping the range).
+The `should_read_file` method has several issues:
+1. **Line 361-505**: The 143-line method is too complex (cyclomatic complexity 40) and has deep nesting (depth 6)
+2. **Line 398-401**: Only checks `matches[0].lines_read` (most recent entry) for "full" read, ignoring older full reads
+3. **Line 405-420**: When checking partial ranges, it collects `valid_ranges` from ALL entries but doesn't properly handle the case where an older full read should make all ranges covered
+4. **Line 430-505**: The logic for checking if requested range is covered by merged ranges is overly complex and buggy
 
 ## Fix Plan
-1. Expand regex to include common dash characters: `r'[-\u2012\u2013\u2014\u2015\u2212]'`
-   - `\u2012`: FIGURE DASH
-   - `\u2013`: EN DASH  
-   - `\u2014`: EM DASH
-   - `\u2015`: HORIZONTAL BAR
-   - `\u2212`: MINUS SIGN
-2. Alternatively, use Unicode property `\p{Pd}` (Dash_Punctuation) but Python's `re` doesn't support Unicode properties by default.
-3. Keep backward compatibility with existing dash characters.
+1. Simplify the `should_read_file` method by extracting helper functions
+2. Fix the logic to check ALL entries for a file, not just the most recent
+3. If ANY entry has `lines_read="full"` (case-insensitive, whitespace-normalized), the file should be considered fully read
+4. For partial reads, merge ranges from ALL entries and check if requested range is covered
+5. Add proper validation for line numbers before any other logic
 
-## Status: FIXED
-
-## Files Changed
-1. `src/henchman/agents/working_memory.py` - Updated regex in `_parse_line_ranges` method from `r'[-\u2013\u2014]'` to `r'[-\u2012\u2013\u2014\u2015\u2212]'` to include figure dash (U+2012), horizontal bar (U+2015), and minus sign (U+2212).
-2. `tests/agents/test_working_memory.py` - Added test cases for figure dash, minus sign, and horizontal bar in `test_memory_parse_line_ranges_unicode_dash_bug` test.
-
-## Fix Details
-The regex pattern in `_parse_line_ranges` method now includes:
-- `-` (hyphen, ASCII 45)
-- `\u2012` (figure dash)
-- `\u2013` (en dash)  
-- `\u2014` (em dash)
-- `\u2015` (horizontal bar)
-- `\u2212` (minus sign)
-
-This ensures that common dash-like Unicode characters used in formatted text are properly recognized when parsing line range strings like "10−20" or "10‒20".
+## Status: IN PROGRESS
