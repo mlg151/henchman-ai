@@ -22,10 +22,10 @@ from henchman.utils.serialization import SerializableDataclass
 
 def _normalize_path(path: str) -> str:
     """Normalize a file path for consistent comparison.
-    
+
     Args:
         path: The file path to normalize.
-        
+
     Returns:
         Normalized path string. Empty string is returned as-is.
     """
@@ -62,7 +62,7 @@ class WorkingMemoryEntry(SerializableDataclass):
 
     def __post_init__(self) -> None:
         """Validate fields after initialization.
-        
+
         Note: lines_read may be None during deserialization, which is handled
         gracefully by _parse_line_ranges.
         """
@@ -84,11 +84,11 @@ class WorkingMemoryEntry(SerializableDataclass):
     @staticmethod
     def _validate_lines_read(lines_read: str | None) -> None:
         """Validate lines_read string format.
-        
+
         Args:
             lines_read: String describing which lines were read, or None.
                 None and empty string are valid (means no lines read).
-        
+
         Raises:
             ValueError: If lines_read is invalid (e.g., no valid parts found)
         """
@@ -312,11 +312,11 @@ class WorkingMemory(SerializableDataclass):
 
     def add_recent_file(self: WorkingMemory, entry: WorkingMemoryEntry) -> None:
         """Record a file that has been read.
-        
+
         Args:
             entry: A WorkingMemoryEntry object containing file read information,
                 including path, purpose, lines read, key insights, and timestamp.
-                
+
         Returns:
             None
         """
@@ -335,7 +335,7 @@ class WorkingMemory(SerializableDataclass):
         Args:
             entry: A DecisionEntry object containing the decision details,
                    rationale, and impact assessment.
-        
+
         Returns:
             None
         """
@@ -343,10 +343,10 @@ class WorkingMemory(SerializableDataclass):
 
     def add_completed_step(self: WorkingMemory, step: str) -> None:
         """Record a completed step.
-        
+
         Args:
             step: A string describing the completed step.
-        
+
         Returns:
             None
         """
@@ -356,11 +356,11 @@ class WorkingMemory(SerializableDataclass):
 
     def add_next_action(self: WorkingMemory, entry: ActionEntry) -> None:
         """Queue a planned action.
-        
+
         Args:
             entry: An ActionEntry object containing the action description,
                    priority, and estimated effort.
-        
+
         Returns:
             None
         """
@@ -370,10 +370,10 @@ class WorkingMemory(SerializableDataclass):
 
     def add_insight(self: WorkingMemory, insight: str) -> None:
         """Record a new insight.
-        
+
         Args:
             insight: A string describing the insight gained during the task.
-        
+
         Returns:
             None
         """
@@ -383,11 +383,11 @@ class WorkingMemory(SerializableDataclass):
 
     def add_problem(self: WorkingMemory, entry: ProblemEntry) -> None:
         """Record a problem encountered during the task.
-        
+
         Args:
             entry: A ProblemEntry object containing the problem description,
                    status, and optional resolution.
-        
+
         Returns:
             None
         """
@@ -400,10 +400,10 @@ class WorkingMemory(SerializableDataclass):
         """Update an existing problem entry.
         Args:
             updated: The updated problem entry containing new status and resolution.
-            
+
         Returns:
             None
-            
+
         Raises:
             ValueError: If no problem with matching description is found.
         """
@@ -420,10 +420,10 @@ class WorkingMemory(SerializableDataclass):
     @staticmethod
     def _merge_ranges(ranges: list[LineRange]) -> list[LineRange]:
         """Merge overlapping or adjacent line ranges.
-        
+
         Args:
             ranges: List of LineRange objects to merge.
-            
+
         Returns:
             List of merged LineRange objects, sorted by start line.
         """
@@ -452,17 +452,17 @@ class WorkingMemory(SerializableDataclass):
     @staticmethod
     def _parse_line_ranges(lines_read: str | None) -> list[LineRange]:
         """Parse a lines_read string into a list of LineRange objects.
-        
+
         Supports formats:
         - "full" (returns empty list as special case)
         - "10-20" (single range)
         - "10-20,30-40" (multiple ranges)
         - "10" (single line)
-        
+
         Args:
             lines_read: String describing which lines were read, or None.
                 None and empty string return empty list.
-            
+
         Returns:
             List of LineRange objects, empty list for invalid formats or "full".
             Invalid parts in comma-separated strings are skipped.
@@ -520,6 +520,52 @@ class WorkingMemory(SerializableDataclass):
                     continue  # Skip invalid: cannot parse as integer
 
         return ranges
+
+    def _validate_and_normalize_line_numbers(
+        self, start: int | None, end: int | None
+    ) -> tuple[bool, str, int | None, int | None]:
+        """Validate line numbers and normalize special values.
+        
+        Args:
+            start: Optional starting line number (1-indexed).
+            end: Optional ending line number (inclusive) or -1 for EOF.
+            
+        Returns:
+            tuple[bool, str, int | None, int | None]: A tuple where:
+                - First element: True if should read (invalid input), False if valid
+                - Second element: Reason string (error message or empty)
+                - Third element: Normalized start (None if unchanged)
+                - Fourth element: Normalized end (None if unchanged, -1 converted to None)
+        """
+        # Validate line numbers if provided (1-indexed)
+        # Note: end=-1 is a special case meaning "read to EOF"
+        if start is not None:
+            if type(start) is not int:  # Use type() not isinstance() to reject bool
+                return True, f"Invalid line number: start must be an integer, got {type(start).__name__}={start}", start, end
+            if start < 1:
+                return True, f"Invalid line number: start must be positive (1-indexed), got start={start}", start, end
+        if end is not None:
+            if type(end) is not int:  # Use type() not isinstance() to reject bool
+                return True, f"Invalid line number: end must be an integer, got {type(end).__name__}={end}", start, end
+            # end=-1 is allowed (means "read to EOF"), other negative values are not
+            if end < 1 and end != -1:
+                return True, f"Invalid line number: end must be -1 (for EOF) or positive (1-indexed), got end={end}", start, end
+
+        # Convert end=-1 to None (read to end of file) AFTER validation
+        # This matches the read_file tool's API where end=-1 means "read to EOF"
+        # Only accept integer -1, not float -1.0 (type check above ensures this)
+        normalized_end = end
+        if end == -1:
+            normalized_end = None
+
+        # Validate line range if both are provided
+        # Note: end=-1 means "read to EOF", so start > -1 is always true for positive start
+        # This is valid (reading from start to EOF)
+        if start is not None and end is not None and end != -1 and start > end:
+            return True, f"Invalid line range: start ({start}) > end ({end}) - line numbers must be in ascending order", start, end
+
+        return False, "", start, normalized_end
+
     def should_read_file(
         self: WorkingMemory, path: str, start: int | None = None, end: int | None = None,
     ) -> tuple[bool, str]:
@@ -591,7 +637,7 @@ class WorkingMemory(SerializableDataclass):
             valid_ranges.extend(ranges)
 
             # Check if lines_read is empty string (valid "no lines read")
-            if match.lines_read != "":
+            if match.lines_read:
                 all_lines_read_empty = False
 
             # Check if lines_read is non-empty but produced no valid ranges (invalid format)
@@ -751,7 +797,7 @@ class WorkingMemory(SerializableDataclass):
             purpose: Why the file was read.
             line_range: The range of lines that were read.
             insights: Optional list of key insights gained.
-            
+
         Returns:
             None
         """
@@ -766,10 +812,10 @@ class WorkingMemory(SerializableDataclass):
 
     def prune_recent_files(self: WorkingMemory, max_entries: int = MAX_RECENT_FILES_DEFAULT) -> None:
         """Trim recent files list.
-        
+
         Args:
             max_entries: Maximum number of recent files to keep (default: 10).
-            
+
         Returns:
             None
         """
@@ -778,10 +824,10 @@ class WorkingMemory(SerializableDataclass):
 
     def save(self: WorkingMemory, path: Path) -> None:
         """Persist the working memory to a YAML file.
-        
+
         Args:
             path: Path to save the working memory to.
-            
+
         Returns:
             None
         """
@@ -791,10 +837,10 @@ class WorkingMemory(SerializableDataclass):
     @classmethod
     def load(cls: type[WorkingMemory], path: Path) -> WorkingMemory:
         """Load working memory from a YAML file.
-        
+
         Args:
             path: Path to load the working memory from.
-            
+
         Returns:
             WorkingMemory: The loaded working memory instance.
         """
@@ -811,12 +857,12 @@ class WorkingMemorySystem:
 
     def create_memory(self: WorkingMemorySystem, task: str, objectives: list[str] | None = None) -> str:
         """Create a new working memory.
-        
+
         Args:
             task: A string describing the current task.
             objectives: Optional list of specific objectives for the task.
                 Defaults to an empty list.
-        
+
         Returns:
             str: The unique task ID (UUID) assigned to the new memory.
         """
@@ -827,13 +873,13 @@ class WorkingMemorySystem:
 
     def switch_memory(self: WorkingMemorySystem, t_id: str) -> None:
         """Switch active memory.
-        
+
         Args:
             t_id: The task ID to switch to.
-            
+
         Raises:
             KeyError: If the task ID is not found in the memory registry.
-            
+
         Returns:
             None: This method does not return a value.
         """
@@ -843,7 +889,7 @@ class WorkingMemorySystem:
 
     def get_current_memory(self: WorkingMemorySystem) -> WorkingMemory | None:
         """Return active memory.
-        
+
         Returns:
             WorkingMemory | None: The current working memory, or None if no task is active.
         """
@@ -851,13 +897,13 @@ class WorkingMemorySystem:
 
     def archive_current_memory(self: WorkingMemorySystem, archive_dir: Path) -> Path:
         """Archive current memory and remove from registry.
-        
+
         Args:
             archive_dir: Directory where the memory should be archived.
-            
+
         Returns:
             Path: The path where the memory was saved.
-            
+
         Raises:
             ValueError: If there is no current task to archive.
         """

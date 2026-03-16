@@ -1,5 +1,6 @@
 """Tests for working memory system."""
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -1050,6 +1051,325 @@ class TestWorkingMemory:
         )
         assert "end line 5 before first read line" in reason4.lower()
 
+
+class TestWorkingMemoryEntryValidation:
+    """Test WorkingMemoryEntry validation edge cases."""
+
+    def test_entry_validation_invalid_lines_read(self):
+        """Test validation of invalid lines_read strings."""
+        # Test invalid range (start > end)
+        with pytest.raises(ValueError, match="Invalid lines_read"):
+            WorkingMemoryEntry(
+                path="/test/file.py",
+                purpose="test",
+                lines_read="50-10",  # start > end
+            )
+        
+        # Test non-decimal characters in range
+        with pytest.raises(ValueError, match="Invalid lines_read"):
+            WorkingMemoryEntry(
+                path="/test/file.py",
+                purpose="test",
+                lines_read="10-abc",  # non-decimal in end
+            )
+        
+        # Test non-decimal characters in single line
+        with pytest.raises(ValueError, match="Invalid lines_read"):
+            WorkingMemoryEntry(
+                path="/test/file.py",
+                purpose="test",
+                lines_read="abc",  # non-decimal
+            )
+        
+        # Test negative line numbers
+        with pytest.raises(ValueError, match="Invalid lines_read"):
+            WorkingMemoryEntry(
+                path="/test/file.py",
+                purpose="test",
+                lines_read="-10-20",  # negative start
+            )
+        
+        # Test zero line numbers
+        with pytest.raises(ValueError, match="Invalid lines_read"):
+            WorkingMemoryEntry(
+                path="/test/file.py",
+                purpose="test",
+                lines_read="0-10",  # zero start
+            )
+
+    def test_entry_validation_valid_lines_read(self):
+        """Test validation of valid lines_read strings."""
+        # These should not raise exceptions
+        entry1 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="10-20",  # valid range
+        )
+        assert entry1.lines_read == "10-20"
+        
+        entry2 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="10",  # valid single line
+        )
+        assert entry2.lines_read == "10"
+        
+        entry3 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="full",  # valid full
+        )
+        assert entry3.lines_read == "full"
+        
+        entry4 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="",  # valid empty
+        )
+        assert entry4.lines_read == ""
+        
+        entry5 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="10-20,30-40",  # valid multiple ranges
+        )
+        assert entry5.lines_read == "10-20,30-40"
+        
+        # Test whitespace-only string (should be valid)
+        entry6 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="   ",  # whitespace only
+        )
+        assert entry6.lines_read == "   "
+        
+        # Test string with spaces around commas
+        entry7 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="10-20 , 30-40",  # spaces around comma
+        )
+        assert entry7.lines_read == "10-20 , 30-40"
+        
+        # Test "full" with other parts (should be valid)
+        entry8 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="full,10-20",  # full with range
+        )
+        assert entry8.lines_read == "full,10-20"
+        
+        # Test string with empty parts (multiple commas)
+        entry9 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="10-20,,30-40",  # empty part between commas
+        )
+        assert entry9.lines_read == "10-20,,30-40"
+        
+        # Test string with trailing comma
+        entry10 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="10-20,",  # trailing comma
+        )
+        assert entry10.lines_read == "10-20,"
+        
+        # Test string with leading comma
+        entry11 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read=",10-20",  # leading comma
+        )
+        assert entry11.lines_read == ",10-20"
+        
+        # Test string with valid and invalid parts (should be valid - invalid parts are skipped)
+        entry12 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="10-20,abc,30-40",  # valid, invalid, valid
+        )
+        assert entry12.lines_read == "10-20,abc,30-40"
+        
+        # Test string with valid range and invalid range (start > end)
+        entry13 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="10-20,50-10,30-40",  # valid, invalid (start > end), valid
+        )
+        assert entry13.lines_read == "10-20,50-10,30-40"
+        
+        # Test string with valid range and negative line numbers
+        entry14 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="10-20,-10-20,30-40",  # valid, invalid (negative), valid
+        )
+        assert entry14.lines_read == "10-20,-10-20,30-40"
+        
+        # Test string with valid range and zero line numbers
+        entry15 = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="test",
+            lines_read="10-20,0-10,30-40",  # valid, invalid (zero), valid
+        )
+        assert entry15.lines_read == "10-20,0-10,30-40"
+        
+        # Test string with only invalid parts (should raise exception)
+        # This tests line 188: if not has_valid_range and normalized:
+        with pytest.raises(ValueError, match="Invalid lines_read"):
+            WorkingMemoryEntry(
+                path="/test/file.py",
+                purpose="test",
+                lines_read="0-10,abc,50-10",  # all invalid parts
+            )
+        
+        # Test string with single invalid part (should raise exception)
+        # This also tests line 188
+        with pytest.raises(ValueError, match="Invalid lines_read"):
+            WorkingMemoryEntry(
+                path="/test/file.py",
+                purpose="test",
+                lines_read="0-10",  # single invalid part (zero start)
+            )
+
+    def test_entry_validation_lines_read_type_error(self):
+        """Test validation of lines_read with wrong type."""
+        # Test with non-string lines_read
+        with pytest.raises(TypeError, match="lines_read must be a string or None"):
+            WorkingMemoryEntry(
+                path="/test/file.py",
+                purpose="test",
+                lines_read=123,  # type: ignore
+            )
+        
+        # Test with list lines_read
+        with pytest.raises(TypeError, match="lines_read must be a string or None"):
+            WorkingMemoryEntry(
+                path="/test/file.py",
+                purpose="test",
+                lines_read=["10-20"],  # type: ignore
+            )
+
+    def test_entry_validation_key_insights_type_error(self):
+        """Test validation of key_insights with wrong type."""
+        # Test with non-list key_insights
+        with pytest.raises(TypeError, match="key_insights must be a list or None"):
+            WorkingMemoryEntry(
+                path="/test/file.py",
+                purpose="test",
+                lines_read="10-20",
+                key_insights="not a list",  # type: ignore
+            )
+        
+        # Test with dict key_insights
+        with pytest.raises(TypeError, match="key_insights must be a list or None"):
+            WorkingMemoryEntry(
+                path="/test/file.py",
+                purpose="test",
+                lines_read="10-20",
+                key_insights={"key": "value"},  # type: ignore
+            )
+
+
+class TestWorkingMemoryEdgeCases:
+    """Test WorkingMemory edge cases."""
+
+    def test_should_read_file_edge_cases(self):
+        """Test edge cases for should_read_file method."""
+        memory = WorkingMemory()
+        
+        # Test with invalid line numbers (bool instead of int)
+        result, reason = memory.should_read_file("/test.py", start=True, end=False)
+        assert result is True
+        assert "Invalid line number" in reason
+        
+        # Test with negative end (not -1)
+        result, reason = memory.should_read_file("/test.py", start=1, end=-2)
+        assert result is True
+        assert "Invalid line number" in reason
+        
+        # Test with start > end
+        result, reason = memory.should_read_file("/test.py", start=10, end=5)
+        assert result is True
+        assert "Invalid line range" in reason
+        
+        # Test with float line numbers
+        result, reason = memory.should_read_file("/test.py", start=1.5, end=10.0)
+        assert result is True
+        assert "Invalid line number" in reason
+
+    def test_update_problem_not_found(self):
+        """Test update_problem when problem not found."""
+        memory = WorkingMemory()
+        problem = ProblemEntry(problem="test problem", status="open")
+        memory.add_problem(problem)
+        
+        # Try to update a different problem
+        updated = ProblemEntry(problem="different problem", status="resolved")
+        with pytest.raises(ValueError, match="Problem 'different problem' not found"):
+            memory.update_problem(updated)
+
+    def test_add_problem_invalid_type(self):
+        """Test add_problem with invalid type."""
+        memory = WorkingMemory()
+        with pytest.raises(TypeError, match="entry must be a ProblemEntry"):
+            memory.add_problem("not a problem entry")  # type: ignore
+
+    def test_update_problem_invalid_type(self):
+        """Test update_problem with invalid type."""
+        memory = WorkingMemory()
+        problem = ProblemEntry(problem="test", status="open")
+        memory.add_problem(problem)
+        
+        with pytest.raises(TypeError, match="updated must be a ProblemEntry"):
+            memory.update_problem("not a problem entry")  # type: ignore
+
+
+class TestLineRangeEdgeCases:
+    """Test LineRange edge cases."""
+
+    def test_line_range_from_str_edge_cases(self):
+        """Test edge cases for LineRange.from_str."""
+        # Test with invalid dash characters
+        assert LineRange.from_str("10_20") is None  # underscore instead of dash
+        assert LineRange.from_str("10.20") is None  # dot instead of dash
+        assert LineRange.from_str("10 20") is None  # space instead of dash
+        
+        # Test with non-decimal characters
+        assert LineRange.from_str("abc-def") is None
+        assert LineRange.from_str("10-abc") is None
+        assert LineRange.from_str("abc-10") is None
+        
+        # Test with invalid range (start > end)
+        assert LineRange.from_str("20-10") is None
+        
+        # Test with zero or negative numbers
+        assert LineRange.from_str("0-10") is None
+        assert LineRange.from_str("-10-20") is None
+        assert LineRange.from_str("10--20") is None
+        
+        # Test with non-string input
+        assert LineRange.from_str(None) is None  # type: ignore
+        assert LineRange.from_str(123) is None  # type: ignore
+        assert LineRange.from_str(["10-20"]) is None  # type: ignore
+
+
+class TestWorkingMemorySystemEdgeCases:
+    """Test WorkingMemorySystem edge cases."""
+
+    def test_get_current_memory_when_no_current_task(self):
+        """Test get_current_memory when no current task."""
+        system = WorkingMemorySystem()
+        assert system.get_current_memory() is None
+    
+    def test_archive_current_memory_when_no_current_task(self):
+        """Test archive_current_memory when no current task."""
+        system = WorkingMemorySystem()
+        with pytest.raises(ValueError, match="No current task to archive"):
+            system.archive_current_memory(Path("/tmp"))
+
+
 class TestWorkingMemorySystem:
     """Test WorkingMemorySystem class."""
 
@@ -1133,6 +1453,30 @@ class TestWorkingMemorySystem:
 
 class TestHelperFunctions:
     """Test helper functions."""
+
+    def test_normalize_path(self):
+        """Test _normalize_path function."""
+        from henchman.agents.working_memory import _normalize_path
+        
+        # Test empty path
+        assert _normalize_path("") == ""
+        
+        # Test path with ~ (home directory)
+        home = os.path.expanduser("~")
+        assert _normalize_path("~/test/file.py") == os.path.join(home, "test", "file.py")
+        
+        # Test path with . and ..
+        assert _normalize_path("./test/../file.py") == "file.py"
+        
+        # Test normal path
+        assert _normalize_path("/test/file.py") == "/test/file.py"
+        
+        # Test Windows-style path (should normalize to forward slashes on Unix)
+        if os.name == "nt":
+            assert _normalize_path("C:\\test\\file.py") == "C:\\test\\file.py"
+        else:
+            # On Unix, backslashes are treated as part of the filename
+            assert _normalize_path("C:\\test\\file.py") == "C:\\test\\file.py"
 
     def test_parse_line_range_valid(self):
         """Test parsing valid line range."""
@@ -1288,15 +1632,15 @@ class TestHelperFunctions:
         # Should return True with appropriate reason
         should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
         
-        # Since lines_read is None, we can't determine if file was read
-        # Should return True (need to read) with appropriate reason
+        # Since lines_read is None (means "no lines read"), we should return True
+        # with reason indicating no lines have been read
         assert should_read is True, (
-            f"Should return True when lines_read is None (cannot determine). "
+            f"Should return True when lines_read is None (no lines read). "
             f"Got: {should_read}, reason: {reason}"
         )
-        assert "cannot determine" in reason.lower() or "invalid" in reason.lower(), (
-            f"Reason should indicate cannot determine due to invalid lines_read. "
-            f"Got: {reason}"
+        # lines_read=None is valid (means "no lines read"), same as lines_read=""
+        assert "no lines have been read" in reason.lower(), (
+            f"Reason should indicate no lines have been read. Got: {reason}"
         )
 
     def test_memory_should_read_file_full_with_invalid_line_numbers_bug(self):
