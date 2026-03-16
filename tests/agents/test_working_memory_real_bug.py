@@ -31,9 +31,9 @@ def test_memory_should_read_file_with_whitespace_only_lines_read():
     # Request lines 10-20
     should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
     
-    # Should return True (invalid lines_read format for empty string)
+    # Should return True (empty string means "no lines read")
     assert should_read is True
-    assert "invalid lines_read format" in reason or "Cannot determine" in reason
+    assert "no lines" in reason.lower() or "not read" in reason.lower()
     
     print(f"Test passes: should_read={should_read}, reason={reason}")
 

@@ -33,9 +33,9 @@ def test_memory_should_read_file_whitespace_only_bug():
     
     print(f"lines_read='', request 10-20: {should_read}, {reason}")
     
-    # Empty string is valid, but should_read_file returns "Cannot determine - invalid lines_read format"
+    # Empty string is valid "no lines read"
     assert should_read is True
-    assert "cannot determine" in reason.lower() or "invalid" in reason.lower()
+    assert "no lines" in reason.lower() or "not read" in reason.lower()
 
 
 def test_memory_validate_lines_read_whitespace():

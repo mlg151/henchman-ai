@@ -553,24 +553,46 @@ class WorkingMemory(SerializableDataclass):
 
         # Collect all valid line ranges from all entries (needed for partial range checks)
         valid_ranges: list[LineRange] = []
+        all_lines_read_empty = True  # Track if ALL lines_read are empty strings
+        any_lines_read_invalid = False  # Track if ANY lines_read is non-empty but invalid
+        
         for match in matches:
             ranges = self._parse_line_ranges(match.lines_read)
             valid_ranges.extend(ranges)
+            
+            # Check if lines_read is empty string (valid "no lines read")
+            if match.lines_read != "":
+                all_lines_read_empty = False
+            
+            # Check if lines_read is non-empty but produced no valid ranges (invalid format)
+            if match.lines_read and match.lines_read.strip() and not ranges:
+                # lines_read is non-empty and non-whitespace, but _parse_line_ranges returned []
+                # This means it's an invalid format (not empty string)
+                any_lines_read_invalid = True
+
+        # Helper to get appropriate reason when valid_ranges is empty
+        def get_empty_ranges_reason() -> str:
+            if all_lines_read_empty:
+                return "No lines have been read"
+            elif any_lines_read_invalid:
+                return "Cannot determine - invalid lines_read format"
+            else:
+                # Should not happen, but handle gracefully
+                return "Cannot determine - no valid line ranges"
 
         if start is None or end is None:
             # Handle partial range specifications
             if start is None and end is None:
                 # Want to read entire file, but file wasn't read fully
                 if not valid_ranges:
-                    # Invalid lines_read format (empty, None, malformed)
-                    return True, "Cannot determine - invalid lines_read format"
+                    return True, get_empty_ranges_reason()
                 # Valid partial read recorded
                 return True, "File not fully read - partial read recorded"
             elif start is not None:
                 # start=X, end=None: read from X to EOF
                 # Check if we've read line X
                 if not valid_ranges:
-                    return True, "Cannot determine - invalid lines_read format"
+                    return True, get_empty_ranges_reason()
 
                 # Merge ranges to check for gaps
                 merged_ranges = self._merge_ranges(valid_ranges)
@@ -601,7 +623,7 @@ class WorkingMemory(SerializableDataclass):
                 # start=None, end=Y: read from beginning to Y
                 # Check if we've read line Y
                 if not valid_ranges:
-                    return True, "Cannot determine - invalid lines_read format"
+                    return True, get_empty_ranges_reason()
 
                 # Merge ranges to check for gaps
                 merged_ranges = self._merge_ranges(valid_ranges)
@@ -636,7 +658,7 @@ class WorkingMemory(SerializableDataclass):
         if not valid_ranges:
             # No valid line range format in any entry
             # This happens when lines_read is invalid, empty, or contains only invalid ranges
-            return True, "Cannot determine - invalid lines_read format"
+            return True, get_empty_ranges_reason()
 
         # Merge overlapping or adjacent ranges
         merged_ranges = self._merge_ranges(valid_ranges)

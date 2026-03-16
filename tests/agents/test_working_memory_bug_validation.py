@@ -58,11 +58,11 @@ def test_working_memory_entry_accepts_empty_string():
     
     should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
     
-    # Empty string is treated as invalid
+    # Empty string is valid "no lines read" (not invalid)
     assert should_read is True
-    assert "invalid lines_read format" in reason or "Cannot determine" in reason
+    assert "no lines" in reason.lower() or "not read" in reason.lower()
     
-    print(f"Empty lines_read='' is treated as invalid: {reason}")
+    print(f"Empty lines_read='' is valid 'no lines read': {reason}")
 
 
 if __name__ == "__main__":

@@ -110,9 +110,9 @@ def test_memory_should_read_file_empty_ranges():
     
     # _parse_line_ranges("") returns []
     # valid_ranges is empty
-    # The logic at line ~545: if not valid_ranges: return True, "Cannot determine - invalid lines_read format"
+    # After fix: empty lines_read is valid "no lines read", not "invalid format"
     assert should_read is True
-    assert "cannot determine" in reason.lower() or "invalid" in reason.lower()
+    assert "no lines" in reason.lower() or "not read" in reason.lower()
 
 
 if __name__ == "__main__":

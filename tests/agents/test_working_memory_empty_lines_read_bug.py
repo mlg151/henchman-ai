@@ -42,12 +42,12 @@ def test_memory_empty_lines_read():
     # - File wasn't read "full" (lines_read is "", not "full")
     # - At line ~545: if not valid_ranges: return True, "Cannot determine - invalid lines_read format"
     
-    # So current behavior is Option 2.
+    # After fix: Empty lines_read means "no lines read", not "invalid format"
     assert should_read is True
-    assert "cannot determine" in reason.lower() or "invalid" in reason.lower()
+    assert "no lines" in reason.lower() or "not read" in reason.lower()
     
-    # But is this correct? Empty lines_read should mean "no lines read",
-    # not "invalid format". We should read the file!
+    # This is correct! Empty lines_read means "no lines read",
+    # so we should read the file!
     # Actually, "Cannot determine - invalid lines_read format" returns True (should read).
     # So the outcome is correct (should read), but the reason is misleading.
 
@@ -81,9 +81,9 @@ def test_memory_whitespace_lines_read():
     
     print(f"lines_read='', request 10-20: should_read={should_read}, reason={reason}")
     
-    # Empty string is valid, but should_read_file returns "Cannot determine - invalid lines_read format"
+    # Empty string is valid "no lines read"
     assert should_read is True
-    assert "cannot determine" in reason.lower() or "invalid" in reason.lower()
+    assert "no lines" in reason.lower() or "not read" in reason.lower()
 
 
 def test_memory_none_lines_read():

@@ -121,10 +121,9 @@ def test_should_read_file_better_error_message():
     # Current error message for empty string
     print(f"Current error for empty string: {reason}")
     
-    # Error message is "Cannot determine - invalid lines_read format"
-    # Could be improved to "No lines recorded for this file" or similar
+    # After fix: Error message is "No lines have been read" (improved!)
     assert should_read is True
-    assert "cannot determine" in reason.lower() or "invalid" in reason.lower()
+    assert "no lines" in reason.lower() or "not read" in reason.lower()
 
 
 if __name__ == "__main__":
