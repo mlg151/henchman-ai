@@ -780268,3 +780268,436 @@ TOTAL                                                       19048    279   5134 
 =========== 5829 passed, 6 skipped, 43 warnings in 185.48s (0:03:05) ===========
 [2026-03-16T07:00:02Z] All tests passed.
 Committing changes...
+[main 60be011] fix(four-lenses): four-lenses-agents-working_memory
+ 12 files changed, 4660 insertions(+), 2387 deletions(-)
+ create mode 100644 tests/agents/test_working_memory_empty_lines_read_bug.py
+ create mode 100644 tests/agents/test_working_memory_validation_bug.py
+[2026-03-16T07:00:02Z] Auto-improve complete.
+[2026-03-16T08:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-16T08:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10546[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.3/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-16T08:00:32.405237+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py
+tests/agents/test_working_memory_actual_bug.py
+tests/agents/test_working_memory_algorithm_bug.py
+tests/agents/test_working_memory_bool_bug.py
+tests/agents/test_work...
+Let me look at the main test file to understand the existing tests:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me examine the file more closely to understand the Four Lenses of Failure analysis. First, let me check the directory structure for the bug report:
+[tool] ls({'path': '.agent_tasks'})
+[result] agent-coordinator-extraction/
+agent-refactoring/
+api-server-mode/
+auto-doc-improve/
+auto-improve/
+bug-hunt/
+bug-whisperer-delegation/
+continuous-refactoring/
+coverage-improvement/
+debug-scripts/
+debug...
+Let me check if there's already a bug report for this file:
+[tool] ls({'path': '.agent_tasks/four-lenses-agents-working_memory'})
+[result] README.md
+test_coverage_bug.py
+test_edge_case.py
+test_failing.py
+test_full_bug.py
+test_full_then_partial_bug.py
+test_minus_sign_bug.py
+test_real_bug.py...
+Let me read the existing README to see what's already been documented:
+[tool] read_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md'})
+[result] # Four Lenses Bug Report: src/henchman/agents/working_memory.py
+## Date: 2025-03-16T07:00:00Z
+## Bug Summary
+The `_validate_lines_read` method in `WorkingMemoryEntry` accepts 
+whitespace-only strings (...
+I see there's already a bug report and fix for this file. However, I need to find a **real bug** in core functionality. Let me analyze the file through the Four Lenses of Failure:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the code, I can see several potential issues:
+
+1. **Logic Gaps in `should_read_file`**: The function has 156 lines with cyclomatic complexity 46 (rank F). This is a massive function that's trying to do too much. The smell report shows this is the #1 critical issue.
+
+2. **Type Safety Issues**: Looking at the `should_read_file` method, I see it uses `type(start) is not int` instead of `isinstance(start, int)`. This is problematic because `bool` is a subclass of `int` in Python, so `type(True) is not int` returns `True` (good), but `isinstance(True, int)` returns `True` (bad). However, the current approach might reject other integer-like types.
+
+3. **Silent Failures**: In `_parse_line_ranges`, invalid parts are silently skipped with `continue`. This could lead to unexpected behavior.
+
+Let me examine the `should_read_file` method more closely:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+485, 'end_line': 650})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+Let me continue reading the rest of the `should_read_file` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+640, 'end_line': 660})
+[result] 
+        # Actually, let's take a simpler approach: check if the requested range
+        # is fully covered by walking through merged ranges
+        current_line = requested.start
+        for rng in m...
+Now let me examine the `_parse_line_ranges` method more closely:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+416, 'end_line': 490})
+[result]     def _parse_line_ranges(lines_read: str) -> list[LineRange]:
+        """Parse a lines_read string into a list of LineRange objects.
+        
+        Supports formats:
+        - "full" (returns empt...
+Now let me check the `_validate_lines_read` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+82, 'end_line': 160})
+[result]     def _validate_lines_read(lines_read: str) -> None:
+        """Validate lines_read string format.
+        
+        Raises:
+            ValueError: If lines_read is invalid (e.g., no valid parts fou...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+160, 'end_line': 170})
+[result]         # If we have "full", it's valid regardless of other valid 
+ranges
+        # Otherwise, need at least one valid range
+        if not has_full and not has_valid_range and normalized:
+            ...
+Now let me run some tests to understand the current behavior better. First, let me check if there are any existing failing tests:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py -x -q --tb=short 2>&1 | head -100'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Good, all tests pass. Now let me analyze the code through the Four Lenses:
+
+## Four Lenses Analysis
+
+### Phase 1: The Intent vs. Reality Check
+
+Looking at the `should_read_file` method, I found a **critical bug** in the logic:
+
+**Bug**: When checking if a file was read "fully", the code checks `if normalized == "full" or "full" in normalized.split(","):`. However, `normalized.split(",")` splits on commas, but what if the string is `"full,10-20"`? This would be split into `["full", "10-20"]` and `"full" in ["full", "10-20"]` returns `True`. This means a file marked as `"full,10-20"` is considered "fully read", which is **incorrect**! The string `"full,10-20"` is ambiguous - does it mean "file was read fully AND also lines 10-20"? Or is it malformed input?
+
+Actually, looking more closely at the code in `_parse_line_ranges`, I see:
+```python
+if normalized == "full" or "full" in normalized.split(","):
+    return []
+```
+
+So if `lines_read` is `"full,10-20"`, it returns an empty list (meaning "file read fully"). But in `should_read_file`, the check is:
+```python
+if normalized == "full" or "full" in normalized.split(","):
+    return False, "File already read (full)"
+```
+
+This is consistent but **wrong**! The specification says `"full"` means file was read fully. `"full,10-20"` should either be rejected as invalid or parsed as `"full"` (ignore the rest). But wait, let me check `_validate_lines_read`:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+140, 'end_line': 165})
+[result]                 
+                if start > end:
+                    continue  # Skip invalid: start > end
+                
+                has_valid_range = True
+            else:
+                # S...
+So `_validate_lines_read` says: "If we have 'full', it's valid regardless of other valid ranges". This means `"full,10-20"` is considered valid! And `"full" in parts` would be `True`, so it passes validation.
+
+But this creates a **logical inconsistency**: If `lines_read` is `"full,10-20"`, does it mean:
+1. File was read fully (ignore the `10-20`)
+2. File was read fully AND also lines 10-20 (redundant)
+3. Invalid input (should be rejected)
+
+The current implementation treats it as option 1 (file read fully). But this is confusing and could hide bugs.
+
+Actually, let me trace through this more carefully. In `should_read_file`:
+```python
+for match in matches:
+    if isinstance(match.lines_read, str):
+        normalized = "".join(match.lines_read.split()).lower()
+        if normalized == "full" or "full" in normalized.split(","):
+            return False, "File already read (full)"
+```
+
+So if `lines_read` is `"full,10-20"`, then `normalized` becomes `"full,10-20"`, and `normalized.split(",")` gives `["full", "10-20"]`, so `"full" in ["full", "10-20"]` is `True`, so it returns `False` (don't read).
+
+But wait! What if `lines_read` is `"10-20,full"`? Then `normalized` is `"10-20,full"`, split gives `["10-20", "full"]`, `"full" in ["10-20", "full"]` is `True`, so same result.
+
+So the bug is: **The code accepts malformed input like `"full,10-20"` and treats it as "file read fully"**. This could lead to incorrect behavior if someone accidentally writes `"full,10-20"` instead of just `"full"` or `"10-20"`.
+
+But actually, looking at the comment in `_parse_line_ranges`:
+```python
+# Check if "full" is a token in the comma-separated list
+# e.g., "full", "full,10-20", "10-20,full" all mean file was read fully
+```
+
+So this is **intentional**! The design says `"full,10-20"` means file was read fully. But this is still a **design bug** because it's ambiguous and confusing.
+
+However, I need to find a **real bug in core functionality**, not a design issue. Let me look deeper...
+
+### Phase 2: State & Side Effects
+
+Looking at the `add_recent_file` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+234, 'end_line': 250})
+[result]             return None
+        parts = s.split("-")
+        if len(parts) == EXPECTED_RANGE_PARTS:
+            # Check if both strings contain only decimal digits (0-9 and 
+compatible Unicode)
+       ...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+250, 'end_line': 270})
+[result] 
+
+# Type alias for any working memory entry
+MemoryEntry = Union[
+    WorkingMemoryEntry,
+    DecisionEntry,
+    ActionEntry,
+    ProblemEntry,
+    str,  # For completed steps and insights
+]
+
+
+@datacla...
+Let me continue examining the `add_recent_file` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+270, 'end_line': 290})
+[result]     decisions_made: list[DecisionEntry] = field(default_factory=list)
+    completed_steps: list[str] = field(default_factory=list)
+    next_actions: list[ActionEntry] = field(default_factory=list)
+   ...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+290, 'end_line': 300})
+[result]             entry,
+            path=_normalize_path(entry.path),
+            key_insights=list(entry.key_insights) if entry.key_insights is not 
+None else [],
+        )
+        self.recent_files.append...
+Good, `add_recent_file` uses `replace` to create a copy with normalized path. This avoids mutating the input object. But wait, I need to check if there's a bug here...
+
+Actually, let me look for a **real bug**. Let me examine the test file to see what tests are failing or what edge cases exist:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && find tests/agents -name 
+"test_working_memory_*.py" -exec basename {} \\; | sort'})
+✗ \[error] Security validation failed: Invalid shell syntax: No escaped 
+character
+
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && find tests/agents -name 
+"test_working_memory_*.py" | xargs -I {} basename {} | sort'})
+[result] test_working_memory_actual_bug.py
+test_working_memory_algorithm_bug.py
+test_working_memory_bool_bug.py
+test_working_memory_bug_end_minus_one.py
+test_working_memory_bug_error_message.py
+test_working_me...
+Let me check one of these bug test files to understand what bugs have been found:
+[tool] read_file({'path': 'tests/agents/test_working_memory_real_bug.py'})
+[result] """Test for a real bug in working_memory.py."""
+
+import pytest
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+
+def test_memory_should_read_file_with_whitespace_only_lines...
+Let me check another bug test:
+[tool] read_file({'path': 
+'tests/agents/test_working_memory_four_lenses_real_bug.py'})
+[result] """Test for the real bug identified through Four Lenses analysis.
+
+This test demonstrates the bug where should_read_file returns incorrect result
+when a file was read "full" but invalid line numbers a...
+Excellent! This test file identifies a **real bug**! Let me run this test to confirm it fails:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory_four_lenses_real_bug.py -xvs 2>&1 | tail 
+-100'})
+[result] src/henchman/mcp/config.py                                     14     
+14      0      0     0%   6-51
+src/henchman/mcp/manager.py                                    65     65     22 
+0     0%   7-2...
+Good! The tests pass. But wait, the test file says it should fail. Let me run the test file directly:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python 
+tests/agents/test_working_memory_four_lenses_real_bug.py 2>&1'})
+[result] Running Four Lenses Real Bug tests...
+============================================================
+
+Running test_memory_should_read_file_full_with_invalid_line_numbers...
+  ✓ PASS
+
+Running test_memory...
+Interesting! The tests pass, which means the bug described in the test file has already been fixed. Let me examine the current code to see if the bug still exists. Looking at the `should_read_file` method again:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+510, 'end_line': 530})
+[result]         # Accept both int -1 and float -1.0
+        if end == -1:
+            end = None
+
+        # Validate line numbers if provided (1-indexed)
+        if start is not None:
+            if type(star...
+Good! I can see the code validates line numbers **before** checking if the file was read "full". So the bug described in the test has been fixed. The validation happens at lines 515-530, and the "full" check happens at line 533 and after.
+
+But wait, let me trace through the logic more carefully. The test says:
+- File was read "full" 
+- Call `should_read_file` with `start=0, end=10`
+- Should return `True` with error about invalid line number
+
+Looking at the code:
+1. Line 515: `if start is not None:` → `True`
+2. Line 516: `if type(start) is not int:` → `type(0) is int` → `False`
+3. Line 518: `if start < 1:` → `0 < 1` → `True`
+4. Line 519: Returns `True, "Invalid line number: start must be positive (1-indexed), got start=0"`
+
+So the bug is **already fixed**! The validation happens before the "full" check.
+
+But let me think... Is there still a bug? Let me check the order of operations again. Actually, I need to look at the exact order:
+
+1. Line 510-512: Convert `end=-1` to `None`
+2. Line 515-530: Validate line numbers
+3. Line 533: Check if file was read "full"
+
+So yes, invalid line numbers are caught before the "full" check. The bug has been fixed.
+
+But I need to find **ONE real bug** in core functionality. Let me look for other issues...
+
+## Phase 3: Performance & Resource Management
+
+The `should_read_file` method is 156 lines with cyclomatic complexity 46. This is a performance issue in terms of maintainability and potential for bugs, but not a functional bug.
+
+Let me examine the `_parse_line_ranges` method more carefully. I see it uses `re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)` to find dash characters. This regex is compiled every time the method is called! That's inefficient.
+
+But actually, looking at line 82 in `_validate_lines_read`:
+
+```python
+import re
+dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
+```
+
+This imports `re` inside the method! That's called on every iteration of the loop! This is a **performance bug**!
+
+Wait, let me check `_parse_line_ranges`:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+440, 'end_line': 450})
+[result]             return []
+
+        ranges = []
+        for part in normalized.split(","):
+            # Check for dash characters: hyphen '-', figure dash '‒' (U+2012), 
+en dash '–' (U+2013),
+            #...
+Yes! `re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)` is called in a loop! The regex should be compiled once at module level.
+
+But actually, `re.search` caches compiled regexes internally in Python 3.2+, so this might not be a huge performance issue. Still, it's not ideal.
+
+Let me look for a **real functional bug**. Let me check the `LineRange.from_str` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+200, 'end_line': 235})
+[result]     end: int
+
+    def __post_init__(self) -> None:
+        """Validate that start <= end and line numbers are positive 
+(1-indexed)."""
+        if self.start < 1 or self.end < 1:
+            raise Valu...
+
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+235, 'end_line': 250})
+[result]         parts = s.split("-")
+        if len(parts) == EXPECTED_RANGE_PARTS:
+            # Check if both strings contain only decimal digits (0-9 and 
+compatible Unicode)
+            # This rejects unde...
+`LineRange.from_str` uses `s.split("-")` but `_parse_line_ranges` uses regex to handle various dash characters. This is **inconsistent**! `LineRange.from_str` won't parse `"10–20"` (en dash U+2013) or `"10—20"` (em dash U+2014), but `_parse_line_ranges` will!
+
+This is a **real bug**! The two methods that parse line ranges should handle the same characters, but they don't.
+
+Let me write a test to confirm this bug:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/test_dash_inconsistency_bug.py',
+'content': '"""Test for dash character inconsistency bug in 
+working_memory.py."""\n\nimport pytest\nfrom henchman.agents.working_memory 
+import LineRange, WorkingMemory\n\ndef 
+test_line_range_from_str_vs_parse_line_ranges_inconsistency():\n    """Test that
+LineRange.from_str and _parse_line_ranges handle different dash characters.\n   
+\n    BUG: LineRange.from_str only handles hyphen \'-\', but 
+_parse_line_ranges\n    handles multiple dash characters (hyphen, en dash, em 
+dash, etc.).\n    This inconsistency can cause bugs.\n    """\n    # Test with 
+hyphen (should work in both)\n    result1 = LineRange.from_str("10-20")\n    
+assert result1 is not None\n    assert result1.start == 10\n    assert 
+result1.end == 20\n    \n    # Test with en dash U+2013 (should work in 
+_parse_line_ranges but NOT in LineRange.from_str)\n    result2 = 
+LineRange.from_str("10–20")  # en dash\n    # BUG: This returns None because 
+LineRange.from_str uses s.split("-") which doesn\'t split on en dash\n    assert
+result2 is None, "LineRange.from_str should return None for en dash, but might 
+not"\n    \n    # Test with em dash U+2014 (should work in _parse_line_ranges 
+but NOT in LineRange.from_str)\n    result3 = LineRange.from_str("10—20")  # em 
+dash\n    assert result3 is None, "LineRange.from_str should return None for em 
+dash"\n    \n    # Test with minus sign U+2212 (should work in 
+_parse_line_ranges but NOT in LineRange.from_str)\n    result4 = 
+LineRange.from_str("10−20")  # minus sign\n    assert result4 is None, 
+"LineRange.from_str should return None for minus sign"\n    \n    
+print("LineRange.from_str inconsistency confirmed")\n    \n    # Now test 
+_parse_line_ranges\n    memory = WorkingMemory(current_task="Test")\n    \n    #
+All these should parse correctly in _parse_line_ranges\n    test_cases = [\n    
+"10-20",    # hyphen\n        "10–20",    # en dash U+2013\n        "10—20",    
+# em dash U+2014  \n        "10−20",    # minus sign U+2212\n    ]\n    \n    
+for test_str in test_cases:\n        ranges = 
+memory._parse_line_ranges(test_str)\n        assert len(ranges) == 1, 
+f"_parse_line_ranges should parse \'{test_str}\'"\n        assert 
+ranges[0].start == 10\n        assert ranges[0].end == 20\n    \n    
+print("_parse_line_ranges handles all dash characters correctly")\n    \n    # 
+The bug: inconsistency between the two parsing methods\n    print("\\nBUG 
+CONFIRMED: LineRange.from_str and _parse_line_ranges handle different dash 
+characters!")\n    print("This can cause inconsistent behavior in the 
+codebase.")\n\nif __name__ == "__main__":\n    
+test_line_range_from_str_vs_parse_line_ranges_inconsistency()\n    
+print("\\nTest complete - bug exists!")'})
+[result] Successfully wrote 2602 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/test_dash_inconsistency_bug.py...

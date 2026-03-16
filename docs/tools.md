@@ -649,7 +649,37 @@ Ask the user a question and wait for response. This is a **critical tool** for a
 
 #### delegate_task
 
-Delegate a task to a specialist agent.
+Delegate a task to a specialist agent. This is a **critical tool** for the multi-agent system that enables the Tech Lead to leverage specialized expertise for complex tasks. Each specialist agent starts with a CLEAN context, so you MUST provide all relevant information in the structured parameters.
+
+**When to use `delegate_task`:**
+- **Specialized expertise needed**: When a task requires specific skills (architecture, research, implementation, data engineering)
+- **Complex task decomposition**: When a large task needs to be broken down and handled by specialists
+- **Parallel work**: When multiple tasks can be worked on simultaneously by different specialists
+- **Quality assurance**: When specialized review or testing is needed
+- **Knowledge transfer**: When you want to document how a specialist would approach a problem
+
+**Specialist Agents Available:**
+- **`planner`**: Architecture design, task decomposition, structured planning, system design
+- **`explorer`**: Research, documentation, code exploration, knowledge gathering
+- **`engineer`**: Implementation, testing, debugging, code refactoring
+- **`data_engineer`**: Data pipelines, AWS infrastructure, PySpark/Pandas transformations, Airflow DAG design
+
+**Best practices for effective delegation:**
+1. **Be specific with `task`**: Provide precise, actionable descriptions with clear objectives
+2. **Define verifiable `done_when`**: Specify explicit, testable completion criteria
+3. **Provide complete `context`**: Include relevant decisions, constraints, and code snippets
+4. **List required `files`**: Always specify files the specialist should read or modify
+5. **Include `background`**: Summarize what other agents have already done
+6. **Set clear `requirements`**: Specify acceptance criteria and constraints
+7. **Acknowledge `depends_on`**: Document dependencies on prior work
+
+**Example scenarios:**
+- "Delegate API implementation to the engineer with specific endpoint requirements"
+- "Ask the explorer to research best practices for authentication middleware"
+- "Have the planner design the database schema for a new feature"
+- "Request the data engineer to create an ETL pipeline for customer data"
+
+**Critical reminder**: Specialist agents start with CLEAN context. Never assume they remember anything from prior conversations or delegations. Always provide complete information in the delegation parameters.
 
 ```json
 {
