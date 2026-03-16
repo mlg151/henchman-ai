@@ -17,7 +17,7 @@ graph TD
         Planner
         Explorer
         Engineer
-        DataEngineer[Data Engineer]
+        DataEngineer[Data Engineer (data_engineer)]
     end
     
     subgraph "Communication"
@@ -86,6 +86,7 @@ Or from the command line:
 henchman --agent explorer --prompt "How do I use the FastAPI background tasks?"
 henchman --agent engineer --prompt "Fix the bug in auth.py"
 henchman --agent planner --prompt "Design a microservices architecture"
+henchman --agent data_engineer --prompt "Create a data pipeline for user analytics"
 ```
 
 ### Team Management

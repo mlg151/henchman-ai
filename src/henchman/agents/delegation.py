@@ -361,9 +361,16 @@ def _fetch_agent_errors(target_agent: Any) -> list[str]:
             return []
         if errors is not None and isinstance(errors, list):
             return _collect_tool_errors(errors)
-    except Exception:  # noqa: BLE001
+    except (AttributeError, TypeError, RuntimeError) as exc:
         logger.warning(
-            "Failed to fetch delegation errors from agent %r",
+            "Failed to fetch delegation errors from agent %r: %s",
+            type(target_agent).__name__,
+            exc,
+        )
+    except Exception:  # noqa: BLE001
+        # Catch-all for unexpected errors, but log with full traceback
+        logger.warning(
+            "Unexpected error fetching delegation errors from agent %r",
             type(target_agent).__name__,
             exc_info=True,
         )
@@ -584,7 +591,9 @@ def _prepare_execution(runner: DelegationRunner, params: DelegationParams) -> No
         raise AttributeError(msg) from exc
     except Exception as exc:
         msg = f"Failed to clear history for agent '{params.target_role}': {exc}"
-        raise type(exc)(msg) from exc
+        # Preserve the original exception with its attributes
+        exc.args = (msg,) + exc.args[1:] if exc.args else (msg,)
+        raise
     prepared_brief = runner._prepare_delegation_context(  # noqa: SLF001
         params.target_role,
         params.brief,
@@ -785,7 +794,7 @@ class DelegationRunner:
         try:
             async for event in _finalize_execution(self, params):
                 yield event
-        except (ValueError, AttributeError, TypeError, RuntimeError, IndexError) as exc:
+        except Exception as exc:  # noqa: BLE001
             yield self._make_error_event(
                 f"Failed to finalize delegation for '{target_role}': "
                 f"{type(exc).__name__}: {exc}",
@@ -1035,12 +1044,12 @@ class DelegationRunner:
         Yields:
             AgentEvent: Events from all delegations merged by arrival order.
         """
-        # Use an unbounded buffer so producers never block waiting for consumer
-        # headroom — the consumer runs AFTER the task group exits.  A bounded
-        # buffer (e.g. 256) caused a deadlock: producers blocked when the
-        # buffer was full while the consumer hadn't started yet.
+        # Use a large but bounded buffer to prevent memory exhaustion while
+        # avoiding deadlock. The consumer runs after the task group exits,
+        # so producers could fill the buffer before consumption starts.
+        # 10,000 events should be sufficient for most practical use cases.
         send_stream, recv_stream = anyio.create_memory_object_stream[AgentEvent](
-            max_buffer_size=float("inf"),
+            max_buffer_size=10000,
         )
 
         async def _run_one(params: DelegationParams) -> None:
