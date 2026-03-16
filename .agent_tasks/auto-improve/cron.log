@@ -763200,3 +763200,284 @@ TOTAL                                                       18995    268   5102 
 =========== 5782 passed, 6 skipped, 46 warnings in 187.37s (0:03:07) ===========
 [2026-03-16T01:00:02Z] All tests passed.
 Committing changes...
+[main 2aca1c8] fix(four-lenses): four-lenses-agents-working_memory
+ 7 files changed, 3443 insertions(+), 673 deletions(-)
+ delete mode 100644 .agent_tasks/four-lenses-agents-working_memory/test_bug.py
+[2026-03-16T01:00:02Z] Auto-improve complete.
+[2026-03-16T02:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-16T02:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10546[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.4/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-16T02:00:31.059573+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py
+tests/agents/test_working_memory_algorithm_bug.py
+tests/agents/test_working_memory_bug.py
+tests/agents/test_working_memory_bug_end_minus_one.py
+tests/agents/test_wo...
+Let me check the main test file first:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me check one of the bug test files to see what issues have been identified:
+[tool] read_file({'path': 'tests/agents/test_working_memory_real_bug.py'})
+[result] """Test for a real bug in working_memory.py."""
+
+import pytest
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+
+def test_memory_should_read_file_with_whitespace_only_lines...
+Let me check another bug test file:
+[tool] read_file({'path': 
+'tests/agents/test_working_memory_four_lenses_real_bug.py'})
+[result] """Test for the real bug identified through Four Lenses analysis.
+
+This test demonstrates the bug where should_read_file returns incorrect result
+when a file was read "full" but invalid line numbers a...
+Now let me run the tests to see what's currently failing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory_four_lenses_real_bug.py -x -q --tb=short'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0
+rootdir: /home/matthew/mlg-cli
+configfile: pyproject.toml
+p...
+Interesting! The tests pass. Let me check if there are any other test files that might be failing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py -x -q --tb=short 2>&1 | tail -50'})
+[result] src/henchman/tools/builtins/patch_apply.py                    225    
+148     62      0    27%   88-91, 96-99, 104-107, 112-119, 126-132, 137-139, 
+149-167, 172-180, 185-192, 197-212, 222, 241, 262, 281...
+Now I need to analyze the target file through the Four Lenses of Failure. Let me first create the documentation stub as required:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'content': "# Four 
+Lenses Bug Report: src/henchman/agents/working_memory.py\n## Date: 
+2026-03-16T02:00:31.059573+00:00\n## Bug Summary\nThe `should_read_file` method 
+incorrectly accepts boolean values (True/False) as line numbers due to Python's 
+bool being a subclass of int, leading to incorrect logic where `True` is treated
+as line 1 and `False` as line 0.\n\n## Lens\n**Phase 1: The Intent vs. Reality 
+Check - Type Safety**\n\n## Expected vs. Observed\n| Expected Behavior | 
+Observed Risk |\n|---|---|\n| Line numbers should be integers, not booleans | 
+Boolean values are accepted because bool is a subclass of int in Python |\n| 
+Invalid type should be rejected with clear error | True is treated as line 1, 
+False as line 0 (which fails validation) |\n| Type checking should use `type()` 
+not `isinstance()` for int validation | Current code uses `type() is not int` 
+which should catch bool but doesn't in all cases |\n\n## Root Cause\nThe 
+`should_read_file` method validates line numbers using `type(start) is not int` 
+and `type(end) is not int`. However, when boolean values are passed:\n- `True` 
+is an instance of `bool`, which is a subclass of `int` in Python (`True == 1`, 
+`False == 0`)\n- `type(True) is bool`, not `int`, so the type check should catch
+it\n- But the actual bug is in the validation logic flow: boolean values should 
+be explicitly rejected\n\nLooking at the code, I see the validation uses 
+`type(start) is not int` which should reject `True` (since `type(True) is 
+bool`). However, there might be a deeper issue with how the validation is 
+structured or when it's applied.\n\n## Fix Plan\n1. Add explicit boolean check 
+in `should_read_file` method\n2. Ensure boolean values are rejected with clear 
+error message\n3. Update type validation to explicitly check for `bool` type\n4.
+Add test case to verify boolean values are rejected\n\n## Status: IN PROGRESS"})
+[result] Successfully wrote 1838 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/README.md...
+Now let me examine the `should_read_file` method more closely to understand the exact bug:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+379, 'end_line': 450})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+Wait, I need to look at the actual validation logic more carefully. The test says boolean values are accepted, but looking at the code, it uses `type(start) is not int` which should reject `True` because `type(True) is bool`, not `int`. Let me check if there's an issue with the test or the actual implementation:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -c "\nfrom 
+henchman.agents.working_memory import WorkingMemory, 
+WorkingMemoryEntry\n\nmemory = 
+WorkingMemory(current_task=\'Test\')\nmemory.add_recent_file(WorkingMemoryEntry(
+\'/test/file.py\', \'Test\', \'1-50\'))\n\n# Test with boolean 
+values\nprint(\'Testing start=True, end=10:\')\nshould_read, reason = 
+memory.should_read_file(\'/test/file.py\', True, 10)\nprint(f\'  
+should_read={should_read}, reason={reason}\')\n\nprint(\'\\\\nTesting start=5, 
+end=True:\')\nshould_read2, reason2 = memory.should_read_file(\'/test/file.py\',
+5, True)\nprint(f\'  should_read={should_read2}, 
+reason={reason2}\')\n\nprint(\'\\\\nTesting start=False, 
+end=10:\')\nshould_read3, reason3 = memory.should_read_file(\'/test/file.py\', 
+False, 10)\nprint(f\'  should_read={should_read3}, 
+reason={reason3}\')\n\nprint(\'\\\\nTesting start=5, 
+end=False:\')\nshould_read4, reason4 = 
+memory.should_read_file(\'/test/file.py\', 5, False)\nprint(f\'  
+should_read={should_read4}, reason={reason4}\')\n"'})
+[result] Testing start=True, end=10:
+  should_read=True, reason=Invalid line number: start must be an integer, got 
+bool=True
+
+Testing start=5, end=True:
+  should_read=True, reason=Invalid line number: end must...
+Interesting! The code actually DOES reject boolean values correctly! The test in `test_working_memory_four_lenses_real_bug.py` says it should fail but it passes. Let me re-examine the test:
+[tool] read_file({'path': 
+'tests/agents/test_working_memory_four_lenses_real_bug.py', 'start_line': 80, 
+'end_line': 120})
+[result]     )
+    assert "already read" in reason5.lower()
+
+
+def test_memory_should_read_file_partial_range_invalid_line_numbers():
+    """Test should_read_file with partial range and invalid line numbers.
+  ...
+The test says "BUG: When start=True or end=True is passed, they are treated as line 1" but my test shows they're correctly rejected. Let me run the actual test to see what happens:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory_four_lenses_real_bug.py::test_memory_should_rea
+d_file_boolean_line_numbers -xvs'})
+[result] ============================= test session starts 
+==============================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.5.0 -- 
+/home/matthew/anaconda3/bin/python
+cachedir: .pytest_cac...
+The test passes! So the bug described in the test doesn't actually exist. Let me look for a real bug. Let me re-examine the code more carefully with the Four Lenses approach:
+
+## Phase 1: The Intent vs. Reality Check
+
+Looking at the `should_read_file` method again, I notice something interesting in the validation logic:
+
+```python
+if start is not None:
+    if type(start) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
+        return True, f"Invalid line number: start must be an integer, got {type(start).__name__}={start}"
+    if start < 1:
+        return True, f"Invalid line number: start must be positive (1-indexed), got start={start}"
+if end is not None:
+    if type(end) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
+        return True, f"Invalid line number: end must be an integer, got {type(end).__name__}={end}"
+    if end < 1 and end != -1:
+        return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
+```
+
+Wait, there's a bug here! Look at the condition for `end`: `if end < 1 and end != -1:`. This means `end=-1` is considered valid (which is correct for the read_file tool API). But what about `end=0`? The condition `end < 1 and end != -1` would be `0 < 1 and 0 != -1` which is `True and True` = `True`, so `end=0` would correctly be rejected.
+
+But wait, let me trace through the logic more carefully. Actually, I think I need to look for a different bug. Let me check the `_parse_line_ranges` method:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+321, 'end_line': 380})
+[result]     def _parse_line_ranges(lines_read: str) -> list[LineRange]:
+        """Parse a lines_read string into a list of LineRange objects.
+        
+        Supports formats:
+        - "full" (returns empt...
+Let me check the `LineRange` class constructor:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+100, 'end_line': 130})
+[result]     problem: str
+    status: str = DEFAULT_STATUS
+    resolution: str = ""
+
+
+@dataclass
+class LineRange:
+    """Represents a range of lines in a file."""
+
+    start: int
+    end: int
+
+    def __post_i...
+Now let me think about this more systematically. Let me run all the working memory tests to see what's actually failing:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py -x -q --tb=short 2>&1 | grep -A5 
+"FAILED\\|ERROR\\|passed\\|failed"'})
+✗ \[error] Security validation failed: Invalid shell syntax: No escaped 
+character
+Let me run the tests properly:
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python -m pytest 
+tests/agents/test_working_memory.py -x --tb=short 2>&1 | tail -100'})
+[result] src/henchman/mcp/config.py                                     14     
+14      0      0     0%   6-51
+src/henchman/mcp/manager.py                                    65     65     22 
+0     0%   7-2...
+All tests pass! But wait, I need to find a real bug. Let me look more carefully at the code. Let me examine the `should_read_file` method logic for handling when a file was read "full". Looking at the code again:
+
+```python
+# Check if the MOST RECENT entry indicates file was read fully
+# Check if ANY entry indicates file was read fully
+# If file was read fully at any point, we should consider it fully read
+for match in matches:
+    if isinstance(match.lines_read, str):
+        # Normalize whitespace: split on any whitespace (including Unicode) and join
+        normalized = "".join(match.lines_read.split()).lower()
+        # Check if "full" is a token in the comma-separated list
+        # e.g., "full", "full,10-20", "10-20,full" all mean file was read fully
+        if normalized == "full" or "full" in normalized.split(","):
+            return False, "File already read (full)"
+```
+
+This looks correct. But wait, I need to check if there's a bug with the validation order. Let me trace through the logic:
+
+1. First, it validates line numbers
+2. Then it converts `end=-1` to `None`
+3. Then it validates line range (`start > end`)
+4. Then it checks if file was read "full"
+
+But what if `start=0` (invalid) and file was read "full"? The validation for `start=0` happens first (`if start < 1:`), so it should return an error. That's correct.
+
+Actually, wait! I think I found a bug! Look at the validation logic again:
+
+```python
+if start is not None:
+    if type(start) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
+        return True, f"Invalid line number: start must be an integer, got {type(start).__name__}={start}"
+    if start < 1:
+        return True, f"Invalid line number: start must be positive (1-indexed), got start={start}"
+if end is not None:
+    if type(end) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
+        return True, f"Invalid line number: end must be an integer, got {type(end).__name__}={end}"
+    if end < 1 and end != -1:
+        return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
+```
+
+The bug is in the `end` validation! Look at the condition: `if end < 1 and end != -1:`. This means:
+- `end=-1` is valid (correct)
+- `end=0` is invalid (correct, `0 < 1 and 0 != -1` is `True`)
+- `end=-2` is invalid (correct, `-2 < 1 and -2 != -1` is `True`)
+
+But wait, what about `end=-1` when we have `start=10`? Then `start > end` (10 > -1), which should be invalid! But the validation `if start is not None and end is not None and start > end:` happens AFTER `end=-1` is converted to `None`! Let me check:
+
+```python
+# Convert end=-1 to None (read to end of file)
+# This matches the read_file tool's API where end=-1 means "read to EOF"
+if end == -1:
+    end = None
+
+# Validate line range if both are provided
+if start is not None and end is not None and start > end:
+    return True, f"Invalid line range: start ({start}) > end ({end}) - line numbers must be in ascending order"
+```
+
+So
