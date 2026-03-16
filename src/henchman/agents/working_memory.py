@@ -523,14 +523,6 @@ class WorkingMemory(SerializableDataclass):
             whether the file should be read (True = read, False = skip), and the second
             element is a string explaining the reason for the decision.
         """
-        # Normalize the path for consistent comparison
-        normalized_path = _normalize_path(path)
-
-        # Find ALL entries for this file (most recent first)
-        matches = [e for e in reversed(self.recent_files) if e.path == normalized_path]
-        if not matches:
-            return True, "File not in recent files"
-
         # Validate line numbers if provided (1-indexed)
         # Note: end=-1 is a special case meaning "read to EOF"
         if start is not None:
@@ -556,6 +548,14 @@ class WorkingMemory(SerializableDataclass):
         # This is valid (reading from start to EOF)
         if start is not None and end is not None and end != -1 and start > end:
             return True, f"Invalid line range: start ({start}) > end ({end}) - line numbers must be in ascending order"
+
+        # Normalize the path for consistent comparison
+        normalized_path = _normalize_path(path)
+
+        # Find ALL entries for this file (most recent first)
+        matches = [e for e in reversed(self.recent_files) if e.path == normalized_path]
+        if not matches:
+            return True, "File not in recent files"
 
         # Check if the MOST RECENT entry indicates file was read fully
         # Check if ANY entry indicates file was read fully
