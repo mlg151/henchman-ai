@@ -51,6 +51,155 @@ def _validate_id(raw: object) -> str | None:
     return text
 
 
+# ---------------------------------------------------------------------------
+# Parameter schema sub-dicts (keep the `parameters` property concise)
+# ---------------------------------------------------------------------------
+
+_COMMON_PARAMS: dict[str, object] = {
+    "action": {
+        "type": "string",
+        "enum": ["add_entity", "add_observation", "add_relation", "remove_entity"],
+        "description": "The update action to perform.",
+    },
+    "entity_id": {
+        "type": "string",
+        "description": "Entity id (slug) for all actions.",
+    },
+}
+
+_ENTITY_PARAMS: dict[str, object] = {
+    "entity_type": {
+        "type": "string",
+        "enum": sorted(VALID_ENTITY_TYPES),
+        "description": "Type for add_entity.",
+    },
+    "name": {
+        "type": "string",
+        "description": "Human-readable name for add_entity.",
+    },
+    "description": {
+        "type": "string",
+        "description": "Description for add_entity or add_observation content.",
+    },
+    "file_path": {
+        "type": "string",
+        "description": "Source file path for add_entity.",
+    },
+    "tags": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Tags for add_entity.",
+    },
+}
+
+_OBSERVATION_PARAMS: dict[str, object] = {
+    "observation": {
+        "type": "string",
+        "description": "Observation text for add_observation.",
+    },
+    "source": {
+        "type": "string",
+        "description": "Source citation for add_observation.",
+    },
+}
+
+_RELATION_PARAMS: dict[str, object] = {
+    "target_id": {
+        "type": "string",
+        "description": "Target entity id for add_relation.",
+    },
+    "relation_type": {
+        "type": "string",
+        "enum": sorted(VALID_RELATION_TYPES),
+        "description": "Relation type for add_relation.",
+    },
+}
+
+_KG_UPDATE_PARAMETERS: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        **_COMMON_PARAMS,
+        **_ENTITY_PARAMS,
+        **_OBSERVATION_PARAMS,
+        **_RELATION_PARAMS,
+    },
+    "required": ["action", "entity_id"],
+}
+
+
+# ---------------------------------------------------------------------------
+# Module-level action handlers (no self usage → extracted from class)
+# ---------------------------------------------------------------------------
+
+
+def _handle_add_observation(
+    store: KnowledgeStore,
+    entity_id: str,
+    params: dict[str, object],
+) -> ToolResult:
+    """Add an observation to an existing entity."""
+    observation_text = str(
+        params.get("observation") or params.get("description") or "",
+    ).strip()
+    source = str(params.get("source") or "agent").strip()
+
+    if not observation_text:
+        return ToolResult(content="'observation' or 'description' is required.")
+
+    if store.get_entity(entity_id) is None:
+        return ToolResult(
+            content=f"Entity '{entity_id}' not found. Add it first with add_entity.",
+        )
+
+    obs = Observation(content=observation_text, source=source, author="agent")
+    store.add_observation(entity_id, obs)
+    store.save()
+    return ToolResult(content=f"Added observation to '{entity_id}': {observation_text}")
+
+
+def _handle_add_relation(
+    store: KnowledgeStore,
+    entity_id: str,
+    params: dict[str, object],
+) -> ToolResult:
+    """Add a relation between two existing entities."""
+    target_id = _validate_id(params.get("target_id"))
+    if not target_id:
+        return ToolResult(content="'target_id' is required for add_relation.")
+
+    relation_type = str(params.get("relation_type", "related_to")).strip()
+    if relation_type not in VALID_RELATION_TYPES:
+        return ToolResult(
+            content=(
+                f"Invalid relation_type '{relation_type}'. "
+                f"Must be one of: {', '.join(sorted(VALID_RELATION_TYPES))}."
+            ),
+        )
+
+    missing = [eid for eid in (entity_id, target_id) if store.get_entity(eid) is None]
+    if missing:
+        return ToolResult(
+            content=(
+                f"Cannot add relation — entity not found: "
+                f"{', '.join(repr(m) for m in missing)}. "
+                f"Add them first with add_entity."
+            ),
+        )
+
+    description = str(params.get("description") or "")
+    rel = Relation(
+        source=entity_id,
+        target=target_id,
+        relation_type=relation_type,
+        description=description,
+    )
+    store.add_relation(rel)
+    store.save()
+    return ToolResult(
+        content=(f"Added relation: '{entity_id}' —[{relation_type}]→ '{target_id}'."),
+    )
+
+
 class KgUpdateTool(KgToolBase):
     """Update the project knowledge graph.
 
@@ -76,65 +225,7 @@ class KgUpdateTool(KgToolBase):
     @property
     def parameters(self: KgUpdateTool) -> dict[str, object]:
         """JSON Schema for tool parameters."""
-        return {
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string",
-                    "enum": [
-                        "add_entity",
-                        "add_observation",
-                        "add_relation",
-                        "remove_entity",
-                    ],
-                    "description": "The update action to perform.",
-                },
-                "entity_id": {
-                    "type": "string",
-                    "description": "Entity id (slug) for all actions.",
-                },
-                "entity_type": {
-                    "type": "string",
-                    "enum": sorted(VALID_ENTITY_TYPES),
-                    "description": "Type for add_entity.",
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Human-readable name for add_entity.",
-                },
-                "description": {
-                    "type": "string",
-                    "description": "Description for add_entity or add_observation content.",
-                },
-                "file_path": {
-                    "type": "string",
-                    "description": "Source file path for add_entity.",
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Tags for add_entity.",
-                },
-                "observation": {
-                    "type": "string",
-                    "description": "Observation text for add_observation.",
-                },
-                "source": {
-                    "type": "string",
-                    "description": "Source citation for add_observation.",
-                },
-                "target_id": {
-                    "type": "string",
-                    "description": "Target entity id for add_relation.",
-                },
-                "relation_type": {
-                    "type": "string",
-                    "enum": sorted(VALID_RELATION_TYPES),
-                    "description": "Relation type for add_relation.",
-                },
-            },
-            "required": ["action", "entity_id"],
-        }
+        return _KG_UPDATE_PARAMETERS
 
     @property
     def kind(self: KgUpdateTool) -> ToolKind:
@@ -192,13 +283,13 @@ class KgUpdateTool(KgToolBase):
         if not entity_id:
             return ToolResult(content="'entity_id' is required and must be a non-empty string.")
 
-        # Dispatch to appropriate handler method
+        # Dispatch to appropriate handler
         if action == "add_entity":
             return self._handle_add_entity(store, entity_id, params)
         if action == "add_observation":
-            return self._handle_add_observation(store, entity_id, params)
+            return _handle_add_observation(store, entity_id, params)
         if action == "add_relation":
-            return self._handle_add_relation(store, entity_id, params)
+            return _handle_add_relation(store, entity_id, params)
         if action == "remove_entity":
             return self._handle_remove_entity(store, entity_id)
 
@@ -240,79 +331,6 @@ class KgUpdateTool(KgToolBase):
         store.add_entity(entity)
         store.save()
         return ToolResult(content=f"Added entity '{entity_id}' ({entity_type}).")
-
-    def _handle_add_observation(
-        self: KgUpdateTool,
-        store: KnowledgeStore,
-        entity_id: str,
-        params: dict[str, object],
-    ) -> ToolResult:
-        """Handle add_observation action."""
-        observation_text = str(
-            params.get("observation") or params.get("description") or "",
-        ).strip()
-        source = str(params.get("source") or "agent").strip()
-
-        if not observation_text:
-            return ToolResult(content="'observation' or 'description' is required.")
-
-        if store.get_entity(entity_id) is None:
-            return ToolResult(
-                content=f"Entity '{entity_id}' not found. Add it first with add_entity.",
-            )
-
-        obs = Observation(content=observation_text, source=source, author="agent")
-        store.add_observation(entity_id, obs)
-        store.save()
-        return ToolResult(content=f"Added observation to '{entity_id}': {observation_text}")
-
-    def _handle_add_relation(
-        self: KgUpdateTool,
-        store: KnowledgeStore,
-        entity_id: str,
-        params: dict[str, object],
-    ) -> ToolResult:
-        """Handle add_relation action."""
-        target_id = _validate_id(params.get("target_id"))
-        if not target_id:
-            return ToolResult(content="'target_id' is required for add_relation.")
-
-        relation_type = str(params.get("relation_type", "related_to")).strip()
-        if relation_type not in VALID_RELATION_TYPES:
-            return ToolResult(
-                content=(
-                    f"Invalid relation_type '{relation_type}'. "
-                    f"Must be one of: {', '.join(sorted(VALID_RELATION_TYPES))}."
-                ),
-            )
-
-        # Both endpoints must exist
-        missing = []
-        if store.get_entity(entity_id) is None:
-            missing.append(entity_id)
-        if store.get_entity(target_id) is None:
-            missing.append(target_id)
-        if missing:
-            return ToolResult(
-                content=(
-                    f"Cannot add relation — entity not found: "
-                    f"{', '.join(repr(m) for m in missing)}. "
-                    f"Add them first with add_entity."
-                ),
-            )
-
-        description = str(params.get("description") or "")
-        rel = Relation(
-            source=entity_id,
-            target=target_id,
-            relation_type=relation_type,
-            description=description,
-        )
-        store.add_relation(rel)
-        store.save()
-        return ToolResult(
-            content=(f"Added relation: '{entity_id}' —[{relation_type}]→ '{target_id}'."),
-        )
 
     def _handle_remove_entity(
         self: KgUpdateTool,

@@ -13,12 +13,12 @@ to avoid a circular-import chain with ``henchman.tools.builtins``.
 from __future__ import annotations
 
 import importlib.util
-import os as _os
+from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Re-export security.py (which is shadowed at the Python package level)
 # ---------------------------------------------------------------------------
-_module_path = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "security.py")
+_module_path = Path(__file__).parent.parent / "security.py"
 _spec = importlib.util.spec_from_file_location("henchman.tools.security._impl", _module_path)
 _mod = importlib.util.module_from_spec(_spec)  # type: ignore[arg-type]
 _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
@@ -27,4 +27,4 @@ for _name in dir(_mod):
     if not _name.startswith("_"):
         globals()[_name] = getattr(_mod, _name)
 
-del _os, _module_path, _spec, _mod, _name
+del _module_path, _spec, _mod, _name

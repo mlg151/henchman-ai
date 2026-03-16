@@ -21,7 +21,7 @@ def _collect_glob_matches(
     Returns:
         Tuple of (matches, truncated).
     """
-    matches_iter = base_path.glob(pattern)  # noqa: ASYNC240
+    matches_iter = base_path.glob(pattern)
     matches: list[Path] = []
     try:
         for _ in range(max_count + 1):
@@ -34,20 +34,23 @@ def _collect_glob_matches(
     return matches, False
 
 
+def _path_to_relative_str(match: Path, base_path: Path) -> str:
+    """Return *match* as a string relative to *base_path*, falling back to absolute."""
+    try:
+        return str(match.relative_to(base_path))
+    except ValueError:  # pragma: no cover
+        return str(match)
+
+
 def _format_glob_results(
     matches: list[Path],
     base_path: Path,
+    *,
     truncated: bool,
     max_count: int,
 ) -> str:
     """Format matched paths as a newline-separated string."""
-    results: list[str] = []
-    for match in sorted(matches):
-        try:
-            rel_path = match.relative_to(base_path)
-            results.append(str(rel_path))
-        except ValueError:  # pragma: no cover
-            results.append(str(match))
+    results = [_path_to_relative_str(match, base_path) for match in sorted(matches)]
 
     if truncated:
         results.append(
@@ -129,7 +132,7 @@ class GlobTool(Tool):
                     success=True,
                 )
 
-            content = _format_glob_results(matches, base_path, truncated, _MAX_MATCHES)
+            content = _format_glob_results(matches, base_path, truncated=truncated, max_count=_MAX_MATCHES)
             return ToolResult(content=content, success=True)
 
         except Exception as e:  # pragma: no cover  # noqa: BLE001

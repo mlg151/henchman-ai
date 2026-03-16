@@ -5,15 +5,49 @@ Extracted from IntelligentContextManager to address Large Class code smell.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
-from henchman.providers.base import Message
 from henchman.utils.cluster_utils import ClusterUtils
+from henchman.utils.intelligent_context_formatter import TokenCounterWrapper
 from henchman.utils.sorting_utils import sort_by_importance
 from henchman.utils.tokens import TokenCounter
 
 if TYPE_CHECKING:
+    from henchman.providers.base import Message
     from henchman.utils.intelligent_context import IntelligentContextConfig
+
+
+def _calc_message_tokens(msg: Message) -> int:
+    """Count tokens in a single message.
+
+    Args:
+        msg: Message to count tokens for.
+
+    Returns:
+        Token count for the message content.
+    """
+    return TokenCounter.count_text(msg.content or "")
+
+
+def _sort_to_original_order(
+    original_messages: list[Message],
+    messages_to_sort: list[Message],
+) -> list[Message]:
+    """Sort messages back to their original order.
+
+    Uses identity-based index lookup for O(n) performance.
+
+    Args:
+        original_messages: Original message list (for order reference).
+        messages_to_sort: Messages to sort.
+
+    Returns:
+        Messages sorted to match original order.
+    """
+    sentinel = len(original_messages)
+    msg_to_index = {id(msg): i for i, msg in enumerate(original_messages)}
+    indices = [msg_to_index.get(id(msg), sentinel) for msg in messages_to_sort]
+    return [original_messages[i] for i in sorted(indices) if i < sentinel]
 
 
 class MessageCompactor:
@@ -23,7 +57,7 @@ class MessageCompactor:
     when context exceeds token limits, while preserving important content.
     """
 
-    def __init__(self, config: IntelligentContextConfig) -> None:
+    def __init__(self: Self, config: IntelligentContextConfig) -> None:
         """Initialize message compactor.
 
         Args:
@@ -32,7 +66,7 @@ class MessageCompactor:
         self.config = config
 
     def apply_intelligent_truncation(
-        self,
+        self: Self,
         messages: list[Message],
         importance_scores: dict[int, float],
         clusters: list[list[int]],
@@ -58,49 +92,75 @@ class MessageCompactor:
         if not messages:
             return []
 
-        # Count tokens in original messages
-        total_tokens = self._count_tokens(messages)
-
-        # If within limit, return all messages
-        if total_tokens <= self.config.max_tokens:
+        if self._count_tokens(messages) <= self.config.max_tokens:
             return messages
 
-        # Sort messages by importance (descending)
-        sorted_indices = self._sort_by_importance(len(messages), importance_scores)
+        messages_to_keep = self._collect_messages_to_keep(
+            messages, importance_scores, clusters, protect_from_index,
+        )
+        return _sort_to_original_order(messages, messages_to_keep)
 
-        # Initialize result
+    def _collect_messages_to_keep(
+        self: Self,
+        messages: list[Message],
+        importance_scores: dict[int, float],
+        clusters: list[list[int]],
+        protect_from_index: int,
+    ) -> list[Message]:
+        """Collect all messages that fit within the token budget.
+
+        Applies three passes in priority order: protected messages, then
+        high-importance complete clusters, then individual messages.
+
+        Args:
+            messages: All messages.
+            importance_scores: Importance scores for each message.
+            clusters: Detected message clusters.
+            protect_from_index: Index from which to protect messages.
+
+        Returns:
+            Messages selected to keep within the token budget.
+        """
+        sorted_indices = self._sort_by_importance(len(messages), importance_scores)
         messages_to_keep: list[Message] = []
         tokens_used = 0
 
-        # Add protected messages first
         messages_to_keep, tokens_used = self._add_protected_messages(
-            messages, importance_scores, protect_from_index, messages_to_keep, tokens_used
+            messages, importance_scores, protect_from_index, messages_to_keep, tokens_used,
         )
 
-        # Calculate cluster importance
-        cluster_importance = self.calculate_cluster_importance(clusters, importance_scores)
+        cluster_indices = self._sort_clusters_by_importance(clusters, importance_scores)
+        messages_to_keep, tokens_used = self._add_complete_clusters(
+            messages, clusters, cluster_indices, messages_to_keep, tokens_used,
+        )
 
-        # Sort clusters by importance (descending)
-        cluster_indices = sorted(
+        messages_to_keep, tokens_used = self._add_individual_messages(
+            messages, sorted_indices, messages_to_keep, tokens_used,
+        )
+        return messages_to_keep
+
+    def _sort_clusters_by_importance(
+        self: Self,
+        clusters: list[list[int]],
+        importance_scores: dict[int, float],
+    ) -> list[int]:
+        """Sort cluster indices by their aggregate importance (descending).
+
+        Args:
+            clusters: List of message clusters.
+            importance_scores: Importance scores for individual messages.
+
+        Returns:
+            Cluster indices sorted by descending importance.
+        """
+        cluster_importance = self.calculate_cluster_importance(clusters, importance_scores)
+        return sorted(
             range(len(clusters)),
             key=lambda i: cluster_importance.get(i, 0.0),
             reverse=True,
         )
 
-        # Add complete high-importance clusters
-        messages_to_keep, tokens_used = self._add_complete_clusters(
-            messages, clusters, cluster_indices, messages_to_keep, tokens_used
-        )
-
-        # Add high-importance individual messages
-        messages_to_keep, tokens_used = self._add_individual_messages(
-            messages, sorted_indices, messages_to_keep, tokens_used
-        )
-
-        # Sort messages back to original order
-        return self._sort_messages_to_original_order(messages, messages_to_keep)
-
-    def _count_tokens(self, messages: list[Message]) -> int:
+    def _count_tokens(self: Self, messages: list[Message]) -> int:
         """Count total tokens in a list of messages.
 
         Args:
@@ -109,13 +169,10 @@ class MessageCompactor:
         Returns:
             Total token count.
         """
-        # Import here to avoid circular imports
-        from henchman.utils.intelligent_context import TokenCounterWrapper
-
         return TokenCounterWrapper.count_messages_tokens(messages)
 
     def _sort_by_importance(
-        self, item_count: int, importance_scores: dict[int, float]
+        self: Self, item_count: int, importance_scores: dict[int, float],
     ) -> list[int]:
         """Sort indices by importance scores (descending).
 
@@ -129,7 +186,7 @@ class MessageCompactor:
         return sort_by_importance(item_count, importance_scores)
 
     def _add_protected_messages(
-        self,
+        self: Self,
         messages: list[Message],
         importance_scores: dict[int, float],
         protect_from_index: int,
@@ -151,7 +208,6 @@ class MessageCompactor:
         if protect_from_index < 0 or protect_from_index >= len(messages):
             return messages_to_keep, tokens_used
 
-        # Sort protected indices by importance (most important first)
         protected_indices = list(range(protect_from_index, len(messages)))
         protected_indices.sort(
             key=lambda i: importance_scores.get(i, 0.0),
@@ -162,12 +218,12 @@ class MessageCompactor:
             msg = messages[idx]
             if self._add_message_if_fits(msg, messages_to_keep, tokens_used):
                 messages_to_keep.append(msg)
-                tokens_used = self._update_tokens_used(msg, tokens_used)
+                tokens_used += _calc_message_tokens(msg)
 
         return messages_to_keep, tokens_used
 
     def calculate_cluster_importance(
-        self, clusters: list[list[int]], importance_scores: dict[int, float]
+        self: Self, clusters: list[list[int]], importance_scores: dict[int, float],
     ) -> dict[int, float]:
         """Calculate importance score for each cluster.
 
@@ -181,7 +237,7 @@ class MessageCompactor:
         return ClusterUtils.calculate_cluster_importance(clusters, importance_scores, self.config)
 
     def _add_complete_clusters(
-        self,
+        self: Self,
         messages: list[Message],
         clusters: list[list[int]],
         cluster_indices: list[int],
@@ -205,30 +261,29 @@ class MessageCompactor:
         for cluster_idx in cluster_indices:
             cluster = clusters[cluster_idx]
 
-            # Skip if cluster is already partially kept
             if any(idx in kept_indices for idx in cluster):
                 continue
 
-            # Check if entire cluster fits
             cluster_tokens = sum(
-                TokenCounter.count_text(messages[idx].content or "")
+                _calc_message_tokens(messages[idx])
                 for idx in cluster
                 if idx < len(messages)
             )
+            if tokens_used + cluster_tokens > self.config.max_tokens:
+                continue
 
-            if tokens_used + cluster_tokens <= self.config.max_tokens:
-                # Add all messages in cluster
-                for idx in cluster:
-                    if idx < len(messages):
-                        msg = messages[idx]
-                        messages_to_keep.append(msg)
-                        tokens_used = self._update_tokens_used(msg, tokens_used)
-                        kept_indices.add(idx)
+            for idx in cluster:
+                if idx >= len(messages):
+                    continue
+                msg = messages[idx]
+                messages_to_keep.append(msg)
+                tokens_used += _calc_message_tokens(msg)
+                kept_indices.add(idx)
 
         return messages_to_keep, tokens_used
 
     def _add_individual_messages(
-        self,
+        self: Self,
         messages: list[Message],
         message_indices: list[int],
         messages_to_keep: list[Message],
@@ -254,65 +309,25 @@ class MessageCompactor:
             msg = messages[idx]
             if self._add_message_if_fits(msg, messages_to_keep, tokens_used):
                 messages_to_keep.append(msg)
-                tokens_used = self._update_tokens_used(msg, tokens_used)
+                tokens_used += _calc_message_tokens(msg)
                 kept_indices.add(idx)
 
         return messages_to_keep, tokens_used
 
     def _add_message_if_fits(
-        self, msg: Message, messages_to_keep: list[Message], tokens_used: int
+        self: Self, msg: Message, messages_to_keep: list[Message], tokens_used: int,
     ) -> bool:
-        """Add a message to the keep list if it fits within token limit.
+        """Check whether a message fits within the token budget and is not already kept.
 
         Args:
-            msg: Message to add.
+            msg: Message to check.
             messages_to_keep: Current list of messages to keep.
             tokens_used: Current token count.
 
         Returns:
-            True if message was added, False otherwise.
+            True if message fits and is not already kept, False otherwise.
         """
         if msg in messages_to_keep:
             return False
 
-        msg_tokens = TokenCounter.count_text(msg.content or "")
-        return tokens_used + msg_tokens <= self.config.max_tokens
-
-    def _update_tokens_used(self, msg: Message, tokens_used: int) -> int:
-        """Update token count after adding a message.
-
-        Args:
-            msg: Message that was added.
-            tokens_used: Current token count.
-
-        Returns:
-            Updated token count.
-        """
-        msg_tokens = TokenCounter.count_text(msg.content or "")
-        return tokens_used + msg_tokens
-
-    def _sort_messages_to_original_order(
-        self, original_messages: list[Message], messages_to_sort: list[Message]
-    ) -> list[Message]:
-        """Sort messages back to their original order.
-
-        Args:
-            original_messages: Original message list (for order reference).
-            messages_to_sort: Messages to sort.
-
-        Returns:
-            Messages sorted to match original order.
-        """
-        # Create a list of indices for messages to sort
-        indices_to_sort = []
-        for msg in messages_to_sort:
-            try:
-                idx = original_messages.index(msg)
-                indices_to_sort.append(idx)
-            except ValueError:
-                # Message not found in original list (shouldn't happen)
-                indices_to_sort.append(len(original_messages))
-
-        # Sort indices and get corresponding messages
-        sorted_indices = sorted(indices_to_sort)
-        return [original_messages[idx] for idx in sorted_indices if idx < len(original_messages)]
+        return tokens_used + _calc_message_tokens(msg) <= self.config.max_tokens
