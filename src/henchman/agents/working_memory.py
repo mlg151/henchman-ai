@@ -67,6 +67,12 @@ class WorkingMemoryEntry(SerializableDataclass):
             raise TypeError(
                 f"lines_read must be a string or None, got {type(self.lines_read).__name__}"
             )
+        
+        # Validate key_insights is a list (or None)
+        if self.key_insights is not None and not isinstance(self.key_insights, list):
+            raise TypeError(
+                f"key_insights must be a list or None, got {type(self.key_insights).__name__}"
+            )
 
 
 @dataclass
@@ -188,10 +194,7 @@ class WorkingMemory(SerializableDataclass):
         normalized_entry = replace(
             entry,
             path=_normalize_path(entry.path),
-            key_insights=(
-                [entry.key_insights] if isinstance(entry.key_insights, str) else
-                list(entry.key_insights) if entry.key_insights is not None else []
-            ),  # Handle string, list, or None
+            key_insights=list(entry.key_insights) if entry.key_insights is not None else [],
         )
         self.recent_files.append(normalized_entry)
 
