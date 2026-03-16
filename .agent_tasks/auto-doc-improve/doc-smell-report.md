@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-15T22:00:03.410502+00:00_
+_Generated: 2026-03-16T00:00:03.689328+00:00_
 
 ## Executive Summary
 
@@ -28,7 +28,7 @@ _Generated: 2026-03-15T22:00:03.410502+00:00_
 | 8 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 9 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 10 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 11 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 11 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-15 |
 | 12 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 13 | docs/extensions.md | ✅ A | 100.0 | 0 | 2026-03-03 |
 | 14 | docs/getting-started.md | ✅ A | 100.0 | 0 | 2026-03-13 |
