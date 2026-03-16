@@ -54,27 +54,39 @@ def test_working_memory_with_superscript_in_lines_read():
     """Test WorkingMemory with superscript digits in lines_read.
     
     This tests the integration through should_read_file.
-    """
-    memory = WorkingMemory(current_task="Test")
     
-    # Create an entry with superscript digits in lines_read
-    # This should be treated as invalid format
+    With the fix, WorkingMemoryEntry validates lines_read and rejects
+    superscript digits (not .isdecimal()).
+    """
+    # Should raise ValueError because superscript digits are not valid
+    with pytest.raises(ValueError, match="Invalid lines_read"):
+        entry = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="Test",
+            lines_read="¹-²",  # Superscript digits
+            key_insights=[],
+            timestamp="2025-01-01T00:00:00Z"
+        )
+    
+    print("✓ WorkingMemoryEntry correctly rejects superscript digits in lines_read")
+    
+    # Test with valid Arabic digits (should work)
+    memory = WorkingMemory(current_task="Test")
     entry = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
-        lines_read="¹-²",  # Superscript digits
+        lines_read="١-٢",  # Arabic digits
         key_insights=[],
         timestamp="2025-01-01T00:00:00Z"
     )
     memory.add_recent_file(entry)
     
-    # When checking if we should read the file, it should treat
-    # the superscript digits as invalid format
-    should_read, reason = memory.should_read_file("/test/file.py", start=10, end=20)
+    should_read, reason = memory.should_read_file("/test/file.py", start=1, end=2)
+    # Should be already read (lines 1-2)
+    assert should_read is False
+    assert "already read" in reason.lower()
     
-    # Should return True (cannot determine due to invalid format)
-    assert should_read is True
-    assert "cannot determine" in reason.lower() or "invalid" in reason.lower()
+    print(f"✓ Arabic digits work correctly: {reason}")
 
 
 def test_isdecimal_vs_isdigit_demonstration():

@@ -57,21 +57,24 @@ def test_line_range_from_str_superscript():
 
 def test_should_read_file_with_superscript_in_lines_read():
     """Test should_read_file when lines_read contains superscript digits."""
+    # With the fix, WorkingMemoryEntry validates lines_read and rejects
+    # superscript digits (not .isdecimal())
+    with pytest.raises(ValueError, match="Invalid lines_read"):
+        entry = WorkingMemoryEntry("/test/file.py", "Test", "¹-²")
+    
+    print(f"✓ WorkingMemoryEntry correctly rejects superscript digits in lines_read")
+    
+    # Test with valid Arabic digits (should work)
     memory = WorkingMemory(current_task="Test")
-    # This would fail if someone tried to create this entry
-    # WorkingMemoryEntry expects lines_read to be string
-    # But if somehow it contains superscript digits...
-    entry = WorkingMemoryEntry("/test/file.py", "Test", "¹-²")
+    entry = WorkingMemoryEntry("/test/file.py", "Test", "١-٢")  # Arabic digits
     memory.add_recent_file(entry)
     
-    # Should treat as invalid format
-    should_read, reason = memory.should_read_file("/test/file.py", start=10, end=20)
+    should_read, reason = memory.should_read_file("/test/file.py", start=1, end=2)
+    # Should be already read (lines 1-2)
+    assert should_read is False
+    assert "already read" in reason.lower()
     
-    # Should return True (cannot determine)
-    assert should_read is True
-    assert "cannot determine" in reason.lower() or "invalid" in reason.lower()
-    
-    print(f"✓ should_read_file with superscript in lines_read: {reason}")
+    print(f"✓ Arabic digits work correctly: {reason}")
 
 
 def test_isdecimal_vs_isdigit():

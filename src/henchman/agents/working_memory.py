@@ -68,10 +68,84 @@ class WorkingMemoryEntry(SerializableDataclass):
                 f"lines_read must be a string or None, got {type(self.lines_read).__name__}"
             )
         
+        # Validate lines_read content if it's a string
+        if isinstance(self.lines_read, str):
+            self._validate_lines_read(self.lines_read)
+        
         # Validate key_insights is a list (or None)
         if self.key_insights is not None and not isinstance(self.key_insights, list):
             raise TypeError(
                 f"key_insights must be a list or None, got {type(self.key_insights).__name__}"
+            )
+    
+    @staticmethod
+    def _validate_lines_read(lines_read: str) -> None:
+        """Validate lines_read string format.
+        
+        Raises:
+            ValueError: If lines_read is invalid (e.g., no valid parts found)
+        """
+        if not lines_read:
+            return  # Empty string is valid (means no lines read)
+        
+        normalized = "".join(lines_read.split()).lower()
+        # Check if "full" appears anywhere in comma-separated list
+        if "full" in normalized.split(","):
+            return  # "full" is valid (even with other parts, which are ignored)
+        
+        # Check if it contains at least one valid range
+        has_valid_range = False
+        
+        # Similar logic to _parse_line_ranges: skip invalid parts
+        for part in normalized.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            
+            # Check for dash-like characters
+            import re
+            dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
+            if dash_match:
+                # Range format: start-end
+                dash_pos = dash_match.start()
+                start_str = part[:dash_pos]
+                end_str = part[dash_pos + 1:]  # +1 to skip the dash character
+                
+                # Check if both parts are decimal numbers
+                if not start_str.isdecimal() or not end_str.isdecimal():
+                    continue  # Skip invalid: contains non-digit characters
+                
+                try:
+                    start = int(start_str)
+                    end = int(end_str)
+                except (ValueError, TypeError):
+                    continue  # Skip invalid: cannot parse as integers
+                
+                if start < 1 or end < 1:
+                    continue  # Skip invalid: non-positive line numbers
+                
+                if start > end:
+                    continue  # Skip invalid: start > end
+                
+                has_valid_range = True
+            else:
+                # Single line
+                if not part.isdecimal():
+                    continue  # Skip invalid: contains non-digit characters
+                
+                try:
+                    line = int(part)
+                except (ValueError, TypeError):
+                    continue  # Skip invalid: cannot parse as integer
+                
+                if line < 1:
+                    continue  # Skip invalid: non-positive line number
+                
+                has_valid_range = True
+        
+        if not has_valid_range and normalized:  # normalized not empty and not "full"
+            raise ValueError(
+                f"Invalid lines_read '{lines_read}': no valid line ranges found"
             )
 
 
