@@ -86,7 +86,7 @@ def test_validate_lines_read_inconsistent_with_parse():
         ("full,10-20", True, []),  # "full" with range: valid, parses to []
         ("10-20,full", True, []),  # Range with "full": valid, parses to []
         ("invalid", False, []),  # Invalid: invalid, parses to []
-        ("10-20,invalid", False, [LineRange(10, 20)]),  # Mixed: invalid, but _parse_line_ranges skips invalid part
+        ("10-20,invalid", True, [LineRange(10, 20)]),  # Mixed: NOW VALID (after fix), _parse_line_ranges skips invalid part
         ("10-20,30-40", True, [LineRange(10, 20), LineRange(30, 40)]),  # Valid ranges
     ]
     

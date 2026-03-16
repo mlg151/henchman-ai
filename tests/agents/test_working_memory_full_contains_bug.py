@@ -74,22 +74,29 @@ def test_lines_read_full_with_other_text():
 
 
 def test_lines_read_multiple_parts_with_full():
-    """Test: lines_read='full,additional info' should be REJECTED.
+    """Test: lines_read='full,additional info' should be ACCEPTED (after fix).
     
     Even though 'full' is present, 'additional info' is not a valid line range.
-    Invalid content should not be accepted.
+    But _parse_line_ranges returns [] for any string containing "full" (regardless of other parts).
+    So validation should accept it to be consistent.
     """
-    # Should be REJECTED because 'additional info' is invalid
-    with pytest.raises(ValueError, match="Invalid lines_read"):
-        entry = WorkingMemoryEntry(
-            path="/test/file.py",
-            purpose="Test",
-            lines_read="full,additional info",  # 'full' with invalid 'additional info'
-            key_insights=[],
-        )
+    # Should be ACCEPTED (after fix) because 'full' is present
+    # _parse_line_ranges returns [] for "full,additional info"
+    # Validation should match parsing
+    entry = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="full,additional info",  # 'full' with invalid 'additional info'
+        key_insights=[],
+    )
+    assert entry.lines_read == "full,additional info"
+    
+    # _parse_line_ranges returns [] for this
+    ranges = WorkingMemory._parse_line_ranges("full,additional info")
+    assert ranges == []
     
     print(f"\nTest - lines_read='full,additional info':")
-    print(f"  ✓ Correctly rejected (contains invalid content)")
+    print(f"  ✓ Correctly accepted (contains 'full', invalid parts ignored)")
 
 
 def test_parse_line_ranges_with_full_and_ranges():
