@@ -144,9 +144,10 @@ class LineRange:
             return None
         parts = s.split("-")
         if len(parts) == EXPECTED_RANGE_PARTS:
-            # Check if both strings contain only digits (0-9)
-            # This rejects underscores, decimal points, letters, etc.
-            if not parts[0].isdigit() or not parts[1].isdigit():
+            # Check if both strings contain only decimal digits (0-9 and compatible Unicode)
+            # This rejects underscores, decimal points, letters, superscript digits, etc.
+            # Use .isdecimal() instead of .isdigit() for consistency with _parse_line_ranges
+            if not parts[0].isdecimal() or not parts[1].isdecimal():
                 return None
             try:
                 line_range = cls(start=int(parts[0]), end=int(parts[1]))
@@ -359,9 +360,11 @@ class WorkingMemory(SerializableDataclass):
                 dash_pos = dash_match.start()
                 start_str = part[:dash_pos]
                 end_str = part[dash_pos + 1:]  # +1 to skip the dash character
-                # Check if both strings contain only digits (0-9)
-                # This rejects underscores, decimal points, letters, etc.
-                if not start_str.isdigit() or not end_str.isdigit():
+                # Check if both strings contain only decimal digits (0-9 and compatible Unicode)
+                # This rejects underscores, decimal points, letters, superscript digits, etc.
+                # Use .isdecimal() instead of .isdigit() because .isdecimal() only accepts
+                # characters that int() can parse (e.g., Arabic digits ٠١٢٣ work, superscript ¹²³ don't)
+                if not start_str.isdecimal() or not end_str.isdecimal():
                     continue  # Skip invalid: contains non-digit characters
                 try:
                     start = int(start_str)
@@ -375,9 +378,10 @@ class WorkingMemory(SerializableDataclass):
                     continue  # Skip invalid: cannot parse as integers
             else:
                 # Single line
-                # First check if the string contains only digits (0-9)
-                # This rejects underscores, decimal points, letters, etc.
-                if not part.isdigit():
+                # First check if the string contains only decimal digits (0-9 and compatible Unicode)
+                # This rejects underscores, decimal points, letters, superscript digits, etc.
+                # Use .isdecimal() instead of .isdigit() for consistency with range parsing
+                if not part.isdecimal():
                     continue  # Skip invalid: contains non-digit characters
                 try:
                     line = int(part)
