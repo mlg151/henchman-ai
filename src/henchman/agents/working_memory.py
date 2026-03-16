@@ -89,17 +89,22 @@ class WorkingMemoryEntry(SerializableDataclass):
             return  # Empty string is valid (means no lines read)
         
         normalized = "".join(lines_read.split()).lower()
-        # Check if "full" appears anywhere in comma-separated list
-        if "full" in normalized.split(","):
-            return  # "full" is valid (even with other parts, which are ignored)
+        parts = normalized.split(",")
         
-        # Check if it contains at least one valid range
+        # Check if "full" appears anywhere in comma-separated list
+        has_full = "full" in parts
+        
+        # Check if it contains at least one valid range (or "full")
         has_valid_range = False
         
         # Similar logic to _parse_line_ranges: skip invalid parts
-        for part in normalized.split(","):
+        for part in parts:
             part = part.strip()
             if not part:
+                continue
+            
+            # Skip "full" parts
+            if part == "full":
                 continue
             
             # Check for dash-like characters
@@ -143,7 +148,9 @@ class WorkingMemoryEntry(SerializableDataclass):
                 
                 has_valid_range = True
         
-        if not has_valid_range and normalized:  # normalized not empty and not "full"
+        # If we have "full", it's valid regardless of other valid ranges
+        # Otherwise, need at least one valid range
+        if not has_full and not has_valid_range and normalized:
             raise ValueError(
                 f"Invalid lines_read '{lines_read}': no valid line ranges found"
             )
