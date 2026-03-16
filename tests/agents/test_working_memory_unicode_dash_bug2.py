@@ -23,21 +23,21 @@ def test_memory_parse_line_ranges_unicode_dash_bug():
     
     This means "10‐20" (U+2010) won't be parsed correctly.
     """
-    memory = WorkingMemory(current_task="Test")
+    from henchman.agents.line_range_utils import parse_line_ranges
     
     # Test with U+2010 HYPHEN (not in regex)
-    result = memory._parse_line_ranges("10‐20")  # U+2010
+    result = parse_line_ranges("10‐20")  # U+2010
     # BUG: Returns empty list because dash not matched
     # Should return [LineRange(10, 20)]
     assert result == [], f"U+2010 HYPHEN not parsed, got {result}"
     
     # Test with U+002D HYPHEN-MINUS (in regex)
-    result2 = memory._parse_line_ranges("10-20")  # U+002D
+    result2 = parse_line_ranges("10-20")  # U+002D
     assert len(result2) == 1, f"U+002D should be parsed, got {result2}"
     assert result2[0].start == 10 and result2[0].end == 20
     
     # Test with U+2013 EN DASH (in regex)
-    result3 = memory._parse_line_ranges("10–20")  # U+2013
+    result3 = parse_line_ranges("10–20")  # U+2013
     assert len(result3) == 1, f"U+2013 should be parsed, got {result3}"
     assert result3[0].start == 10 and result3[0].end == 20
     

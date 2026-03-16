@@ -109,9 +109,10 @@ def test_memory_none_lines_read():
     
     memory = WorkingMemory(current_task="Test")
     
-    # _parse_line_ranges should handle None
-    ranges = memory._parse_line_ranges(None)  # type: ignore
-    print(f"_parse_line_ranges(None) = {ranges}")
+    # parse_line_ranges should handle None
+    from henchman.agents.line_range_utils import parse_line_ranges
+    ranges = parse_line_ranges(None)  # type: ignore
+    print(f"parse_line_ranges(None) = {ranges}")
     assert ranges == []
     
     # What about in should_read_file? We can't add entry with lines_read=None

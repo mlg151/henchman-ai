@@ -7,23 +7,34 @@ a task.
 
 from __future__ import annotations
 
-import os
 import re
 import uuid
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import yaml
 
+if TYPE_CHECKING:
+    pass
+
+from henchman.agents.file_read_decision_maker import FileReadDecisionMaker
 from henchman.agents.line_range_utils import (
     LineRange,
-    merge_line_ranges,
-    parse_line_ranges,
-    check_line_in_merged_ranges,
 )
 from henchman.utils.serialization import SerializableDataclass
+
+
+@dataclass
+class ValidationDecision:
+    """Data class for validation decision parameters."""
+
+    lines_read: str
+    normalized: str
+    has_full: bool
+    has_valid_range: bool
+    has_invalid_part: bool
 
 
 def _normalize_path(path: str) -> str:
@@ -38,9 +49,11 @@ def _normalize_path(path: str) -> str:
     if not path:
         return path  # Return empty string as-is
 
-    # Use os.path.normpath to normalize path separators and remove . and ..
-    # Also expand user home directory (~) if present
-    return os.path.normpath(os.path.expanduser(path))
+    # Expand user home directory (~) if present and normalize path
+    expanded = Path(path).expanduser()
+    # Use resolve() to normalize . and .. but also makes path absolute
+    # which is fine for comparison purposes
+    return str(expanded.resolve())
 
 
 # Constants to avoid magic values
@@ -88,58 +101,155 @@ class WorkingMemoryEntry(SerializableDataclass):
             )
 
     @staticmethod
+    def _validate_range_part(part: str) -> tuple[bool, bool]:
+        """Validate a range part (start-end format).
+
+        Args:
+            part: String in format "start-end".
+
+        Returns:
+            tuple[bool, bool]: (is_valid_range, is_invalid_part)
+        """
+        # Find dash position
+        dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
+        if not dash_match:
+            return False, False  # Not a range format
+
+        dash_pos = dash_match.start()
+        start_str = part[:dash_pos]
+        end_str = part[dash_pos + 1:]  # +1 to skip the dash character
+
+        # Check if both parts are decimal numbers
+        if not start_str.isdecimal() or not end_str.isdecimal():
+            return False, True  # Invalid: contains non-digit characters
+
+        try:
+            start = int(start_str)
+            end = int(end_str)
+        except (ValueError, TypeError):
+            return False, True  # Invalid: cannot parse as integers
+
+        if start < 1 or end < 1 or start > end:
+            return False, True  # Invalid: non-positive line numbers or start > end
+
+        return True, False  # Valid range
+
+    @staticmethod
+    def _validate_single_line_part(part: str) -> tuple[bool, bool]:
+        """Validate a single line part.
+
+        Args:
+            part: String representing a single line number.
+
+        Returns:
+            tuple[bool, bool]: (is_valid_range, is_invalid_part)
+        """
+        if not part.isdecimal():
+            return False, True  # Invalid: contains non-digit characters
+
+        try:
+            line = int(part)
+        except (ValueError, TypeError):
+            return False, True  # Invalid: cannot parse as integer
+
+        if line < 1:
+            return False, True  # Invalid: non-positive line number
+
+        return True, False  # Valid single line
+
+    @staticmethod
     def _process_validation_part(part: str) -> tuple[bool, bool]:
         """Process a single part during lines_read validation.
-        
+
         Args:
             part: A single part from the comma-separated lines_read string.
-            
+
         Returns:
             tuple[bool, bool]: (is_valid_range, is_invalid_part)
                 - is_valid_range: True if part represents a valid line range
                 - is_invalid_part: True if part is invalid
         """
-        is_valid_range = False
-        is_invalid_part = False
-        
-        # Check for dash-like characters
+        # Check for dash-like characters to determine if it's a range
         dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
         if dash_match:
-            # Range format: start-end
-            dash_pos = dash_match.start()
-            start_str = part[:dash_pos]
-            end_str = part[dash_pos + 1:]  # +1 to skip the dash character
-
-            # Check if both parts are decimal numbers
-            if not start_str.isdecimal() or not end_str.isdecimal():
-                is_invalid_part = True
-            else:
-                try:
-                    start = int(start_str)
-                    end = int(end_str)
-                except (ValueError, TypeError):
-                    is_invalid_part = True
-                else:
-                    if start < 1 or end < 1 or start > end:
-                        is_invalid_part = True
-                    else:
-                        is_valid_range = True
+            return WorkingMemoryEntry._validate_range_part(part)
         else:
-            # Single line
-            if not part.isdecimal():
-                is_invalid_part = True
-            else:
-                try:
-                    line = int(part)
-                except (ValueError, TypeError):
-                    is_invalid_part = True
-                else:
-                    if line < 1:
-                        is_invalid_part = True
-                    else:
-                        is_valid_range = True
-        
-        return is_valid_range, is_invalid_part
+            return WorkingMemoryEntry._validate_single_line_part(part)
+
+    @staticmethod
+    @staticmethod
+    def _validate_lines_read_normalize(lines_read: str) -> tuple[str, list[str]]:
+        """Normalize lines_read string and split into parts.
+
+        Args:
+            lines_read: String to normalize.
+
+        Returns:
+            tuple[str, list[str]]: (normalized_string, parts_list)
+        """
+        normalized = "".join(lines_read.split()).lower()
+
+        # Check if normalized is empty (whitespace-only input)
+        if not normalized:
+            return "", []
+
+        return normalized, normalized.split(",")
+
+    @staticmethod
+    def _validate_lines_read_process_parts(parts: list[str]) -> tuple[bool, bool, bool]:
+        """Process parts and collect validation flags.
+
+        Args:
+            parts: List of string parts.
+
+        Returns:
+            tuple[bool, bool, bool]: (has_full, has_valid_range, has_invalid_part)
+        """
+        has_full = False
+        has_valid_range = False
+        has_invalid_part = False
+
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+
+            # Check for "full" part
+            if part == "full":
+                has_full = True
+                continue
+
+            is_valid_range, is_invalid_part_flag = WorkingMemoryEntry._process_validation_part(part)
+            if is_valid_range:
+                has_valid_range = True
+            if is_invalid_part_flag:
+                has_invalid_part = True
+
+        return has_full, has_valid_range, has_invalid_part
+
+    @staticmethod
+    def _validate_lines_read_decision(decision: ValidationDecision) -> None:
+        """Make final validation decision.
+
+        Args:
+            decision: ValidationDecision object containing validation parameters.
+
+        Raises:
+            ValueError: If lines_read is invalid.
+        """
+        # If we have "full", it's valid regardless of other valid ranges or invalid parts
+        if decision.has_full:
+            return
+
+        # If we have invalid parts but no valid ranges, reject the string
+        if decision.has_invalid_part and not decision.has_valid_range and decision.normalized:
+            error_msg = f"Invalid lines_read '{decision.lines_read}': no valid line ranges found"
+            raise ValueError(error_msg)
+
+        # If we have no valid ranges and no "full", reject the string
+        if not decision.has_valid_range and decision.normalized:
+            error_msg = f"Invalid lines_read '{decision.lines_read}': no valid line ranges found"
+            raise ValueError(error_msg)
 
     @staticmethod
     def _validate_lines_read(lines_read: str | None) -> None:
@@ -152,60 +262,31 @@ class WorkingMemoryEntry(SerializableDataclass):
         Raises:
             ValueError: If lines_read is invalid (e.g., no valid parts found)
         """
+        # None or empty string is valid (means no lines read)
         if not lines_read:
-            return  # None or empty string is valid (means no lines read)
+            return
 
-        normalized = "".join(lines_read.split()).lower()
+        # Normalize and split
+        normalized, parts = WorkingMemoryEntry._validate_lines_read_normalize(lines_read)
 
         # Check if normalized is empty (whitespace-only input)
         if not normalized:
-            # Whitespace-only string: treat as valid "no lines read" (consistent with empty string)
-            # This is consistent with _parse_line_ranges which returns [] for whitespace-only
-            return
+            return  # Whitespace-only is valid "no lines read"
 
-        parts = normalized.split(",")
+        # Process parts and collect validation flags
+        has_full, has_valid_range, has_invalid_part = (
+            WorkingMemoryEntry._validate_lines_read_process_parts(parts)
+        )
 
-        # Check if "full" appears anywhere in comma-separated list
-        has_full = "full" in parts
-
-        # Check if it contains at least one valid range (or "full")
-        has_valid_range = False
-        has_invalid_part = False
-
-        # Similar logic to _parse_line_ranges: skip invalid parts
-        for part in parts:
-            part = part.strip()
-            if not part:
-                continue
-
-            # Skip "full" parts
-            if part == "full":
-                continue
-
-            is_valid_range, is_invalid_part = WorkingMemoryEntry._process_validation_part(part)
-            if is_valid_range:
-                has_valid_range = True
-            if is_invalid_part:
-                has_invalid_part = True
-
-        # If we have "full", it's valid regardless of other valid ranges or invalid parts
-        # (consistent with _parse_line_ranges which returns [] for "full" regardless of other parts)
-        if has_full:
-            return
-
-        # If we have invalid parts but no valid ranges, reject the string
-        # (consistent with _parse_line_ranges which returns [] when all parts are invalid)
-        if has_invalid_part and not has_valid_range and normalized:
-            raise ValueError(
-                f"Invalid lines_read '{lines_read}': no valid line ranges found"
-            )
-
-        # If we have no valid ranges and no "full", reject the string
-        # (empty string or whitespace-only is already handled above)
-        if not has_valid_range and normalized:
-            raise ValueError(
-                f"Invalid lines_read '{lines_read}': no valid line ranges found"
-            )
+        # Make final validation decision
+        decision = ValidationDecision(
+            lines_read=lines_read,
+            normalized=normalized,
+            has_full=has_full,
+            has_valid_range=has_valid_range,
+            has_invalid_part=has_invalid_part,
+        )
+        WorkingMemoryEntry._validate_lines_read_decision(decision)
 
 
 @dataclass
@@ -365,208 +446,25 @@ class WorkingMemory(SerializableDataclass):
         else:
             raise ValueError(f"Problem '{updated.problem}' not found")
 
-    def _validate_and_normalize_line_numbers(
-        self, start: int | None, end: int | None
-    ) -> tuple[bool, str, int | None, int | None]:
-        """Validate line numbers and normalize special values.
+    def _get_empty_ranges_reason(
+        self, all_lines_read_empty: bool, any_lines_read_invalid: bool
+    ) -> str:
+        """Get appropriate reason when valid_ranges is empty.
         
         Args:
-            start: Optional starting line number (1-indexed).
-            end: Optional ending line number (inclusive) or -1 for EOF.
+            all_lines_read_empty: Whether all lines_read entries are empty.
+            any_lines_read_invalid: Whether any lines_read entry is invalid.
             
         Returns:
-            tuple[bool, str, int | None, int | None]: A tuple where:
-                - First element: True if should read (invalid input), False if valid
-                - Second element: Reason string (error message or empty)
-                - Third element: Normalized start (None if unchanged)
-                - Fourth element: Normalized end (None if unchanged, -1 converted to None)
+            Reason string.
         """
-        # Validate line numbers if provided (1-indexed)
-        # Note: end=-1 is a special case meaning "read to EOF"
-        if start is not None:
-            if type(start) is not int:  # Use type() not isinstance() to reject bool
-                return True, f"Invalid line number: start must be an integer, got {type(start).__name__}={start}", start, end
-            if start < 1:
-                return True, f"Invalid line number: start must be positive (1-indexed), got start={start}", start, end
-        if end is not None:
-            if type(end) is not int:  # Use type() not isinstance() to reject bool
-                return True, f"Invalid line number: end must be an integer, got {type(end).__name__}={end}", start, end
-            # end=-1 is allowed (means "read to EOF"), other negative values are not
-            if end < 1 and end != -1:
-                return True, f"Invalid line number: end must be -1 (for EOF) or positive (1-indexed), got end={end}", start, end
-
-        # Convert end=-1 to None (read to end of file) AFTER validation
-        # This matches the read_file tool's API where end=-1 means "read to EOF"
-        # Only accept integer -1, not float -1.0 (type check above ensures this)
-        normalized_end = end
-        if end == -1:
-            normalized_end = None
-
-        # Validate line range if both are provided
-        # Note: end=-1 means "read to EOF", so start > -1 is always true for positive start
-        # This is valid (reading from start to EOF)
-        if start is not None and end is not None and end != -1 and start > end:
-            return True, f"Invalid line range: start ({start}) > end ({end}) - line numbers must be in ascending order", start, end
-
-        return False, "", start, normalized_end
-
-    def _get_full_read_reason(self, matches: list[WorkingMemoryEntry]) -> str | None:
-        """Check if any entry indicates the file was read fully.
-        
-        Args:
-            matches: List of WorkingMemoryEntry objects for the file.
-            
-        Returns:
-            str: Reason string if file was read fully (e.g., "File already read (full)"),
-            or None if file was not read fully.
-        """
-        for match in matches:
-            if isinstance(match.lines_read, str):
-                # Normalize whitespace: split on any whitespace (including Unicode) and join
-                normalized = "".join(match.lines_read.split()).lower()
-                # Check if "full" is a token in the comma-separated list
-                # e.g., "full", "full,10-20", "10-20,full" all mean file was read fully
-                if normalized == "full" or "full" in normalized.split(","):
-                    return "File already read (full)"
-        return None
-
-    def _collect_valid_ranges_from_matches(
-        self, matches: list[WorkingMemoryEntry]
-    ) -> tuple[list[LineRange], bool, bool]:
-        """Collect valid line ranges from matches and track metadata.
-        
-        Args:
-            matches: List of WorkingMemoryEntry objects.
-            
-        Returns:
-            tuple[list[LineRange], bool, bool]: A tuple containing:
-                - List of valid LineRange objects
-                - all_lines_read_empty: True if ALL lines_read are empty strings
-                - any_lines_read_invalid: True if ANY lines_read is non-empty but invalid
-        """
-        valid_ranges: list[LineRange] = []
-        all_lines_read_empty = True  # Track if ALL lines_read are empty strings
-        any_lines_read_invalid = False  # Track if ANY lines_read is non-empty but invalid
-
-        for match in matches:
-            ranges = parse_line_ranges(match.lines_read)
-            valid_ranges.extend(ranges)
-
-            # Check if lines_read is empty string (valid "no lines read")
-            if match.lines_read:
-                all_lines_read_empty = False
-
-            # Check if lines_read is non-empty but produced no valid ranges (invalid format)
-            if match.lines_read and match.lines_read.strip() and not ranges:
-                # lines_read is non-empty and non-whitespace, but _parse_line_ranges returned []
-                # This means it's an invalid format (not empty string)
-                any_lines_read_invalid = True
-
-        return valid_ranges, all_lines_read_empty, any_lines_read_invalid
-
-    def _handle_partial_range_specification(
-        self,
-        start: int | None,
-        end: int | None,
-        valid_ranges: list[LineRange],
-        get_empty_ranges_reason: Callable[[], str],
-    ) -> tuple[bool, str]:
-        """Handle partial range specifications (when start or end is None).
-        
-        Args:
-            start: Optional starting line number.
-            end: Optional ending line number.
-            valid_ranges: List of valid LineRange objects from previous reads.
-            get_empty_ranges_reason: Function that returns reason when no valid ranges.
-            
-        Returns:
-            tuple[bool, str]: Whether to read and reason.
-        """
-        if start is None and end is None:
-            # Want to read entire file, but we can't determine if it was fully read
-            # without knowing file size. Some lines were recorded (valid_ranges),
-            # but we don't know if they cover the entire file.
-            if not valid_ranges:
-                return True, get_empty_ranges_reason()
-            # Some lines recorded, but can't determine if file fully read
-            return True, "Cannot determine if file fully read - some lines recorded but file size unknown"
-        elif start is not None:
-            # start=X, end=None: read from X to EOF
-            # Check if we've read line X
-            if not valid_ranges:
-                return True, get_empty_ranges_reason()
-
-            # Merge ranges to check for gaps
-            merged_ranges = merge_line_ranges(valid_ranges)
-
-            return check_line_in_merged_ranges(start, merged_ranges, "Start")
-        else:  # end is not None, start is None
-            # start=None, end=Y: read from beginning to Y
-            # Check if we've read line Y
-            if not valid_ranges:
-                return True, get_empty_ranges_reason()
-
-            # Merge ranges to check for gaps
-            merged_ranges = merge_line_ranges(valid_ranges)
-
-            # Type narrowing for mypy
-            assert end is not None, "end should not be None in this branch"
-
-            return check_line_in_merged_ranges(end, merged_ranges, "End")
-
-    def _check_full_range_coverage(
-        self,
-        start: int,
-        end: int,
-        valid_ranges: list[LineRange],
-        get_empty_ranges_reason: Callable[[], str],
-    ) -> tuple[bool, str]:
-        """Check if a requested line range is fully covered by previous reads.
-        
-        Args:
-            start: Starting line number (1-indexed).
-            end: Ending line number (inclusive).
-            valid_ranges: List of valid LineRange objects from previous reads.
-            get_empty_ranges_reason: Function that returns reason when no valid ranges.
-            
-        Returns:
-            tuple[bool, str]: Whether to read and reason.
-        """
-        requested = LineRange(start, end)
-
-        if not valid_ranges:
-            # No valid line range format in any entry
-            # This happens when lines_read is invalid, empty, or contains only invalid ranges
-            return True, get_empty_ranges_reason()
-
-        # Merge overlapping or adjacent ranges
-        merged_ranges = merge_line_ranges(valid_ranges)
-
-        # Check if requested range is fully covered by merged ranges
-        # We need to check if the requested range is contained within the union of merged ranges
-        # This is more complex than checking a single range - we need to see if all parts of
-        # the requested range are covered by one or more merged ranges
-
-        # Simple approach: Check if requested range starts at or after first merged range
-        # and ends at or before last merged range, and there are no gaps between merged ranges
-        # that would leave parts of requested range uncovered
-
-        # Actually, let's take a simpler approach: check if the requested range
-        # is fully covered by walking through merged ranges
-        current_line = requested.start
-        for rng in merged_ranges:
-            if current_line < rng.start:
-                # Found a gap before this range
-                return True, "New or partially overlapping lines need to be read"
-            if current_line <= rng.end:
-                # This range covers from current_line up to rng.end
-                current_line = rng.end + 1
-                if current_line > requested.end:
-                    # We've covered the entire requested range
-                    return False, "File already read (covered)"
-
-        # If we get here, we either didn't cover the end or there were gaps
-        return True, "New or partially overlapping lines need to be read"
+        if all_lines_read_empty:
+            return "No lines have been read"
+        elif any_lines_read_invalid:
+            return "Cannot determine - invalid lines_read format"
+        else:
+            # Should not happen, but handle gracefully
+            return "Cannot determine - no valid line ranges"
 
     def should_read_file(
         self: WorkingMemory, path: str, start: int | None = None, end: int | None = None,
@@ -584,10 +482,10 @@ class WorkingMemory(SerializableDataclass):
             element is a string explaining the reason for the decision.
         """
         # Validate and normalize line numbers
-        should_read, reason, norm_start, norm_end = self._validate_and_normalize_line_numbers(start, end)
+        should_read, reason, norm_start, norm_end = FileReadDecisionMaker._validate_and_normalize_line_numbers(start, end)
         if should_read:
             return should_read, reason
-        
+
         # Use normalized values
         start, end = norm_start, norm_end
 
@@ -599,30 +497,15 @@ class WorkingMemory(SerializableDataclass):
         if not matches:
             return True, "File not in recent files"
 
-        # Check if any entry indicates file was read fully
-        full_read_reason = self._get_full_read_reason(matches)
-        if full_read_reason is not None:
-            return False, full_read_reason
-
-        # Collect all valid line ranges from all entries (needed for partial range checks)
-        valid_ranges, all_lines_read_empty, any_lines_read_invalid = self._collect_valid_ranges_from_matches(matches)
-
-        # Helper to get appropriate reason when valid_ranges is empty
-        def get_empty_ranges_reason() -> str:
-            if all_lines_read_empty:
-                return "No lines have been read"
-            elif any_lines_read_invalid:
-                return "Cannot determine - invalid lines_read format"
-            else:
-                # Should not happen, but handle gracefully
-                return "Cannot determine - no valid line ranges"
-
-        # Handle partial range specifications
-        if start is None or end is None:
-            return self._handle_partial_range_specification(
-                start, end, valid_ranges, get_empty_ranges_reason
-            )
-        return self._check_full_range_coverage(start, end, valid_ranges, get_empty_ranges_reason)
+        # Get ranges info once to avoid duplicate calls
+        _, all_empty, any_invalid = FileReadDecisionMaker._collect_valid_ranges_from_matches(matches)
+        
+        return FileReadDecisionMaker.should_read_file(
+            matches=matches,
+            start=start,
+            end=end,
+            get_empty_ranges_reason=lambda: self._get_empty_ranges_reason(all_empty, any_invalid)
+        )
 
     def get_file_insights(self: WorkingMemory, path: str) -> list[str]:
         """Return cached insights for a file.

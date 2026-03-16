@@ -14,10 +14,10 @@ def test_parse_line_ranges_skips_invalid_parts():
     BUG: Currently returns [] if any part is invalid.
     Should skip invalid parts and return valid ranges.
     """
-    memory = WorkingMemory(current_task="Test")
+    from henchman.agents.line_range_utils import parse_line_ranges
     
     # Test 1: Mixed valid and invalid (0-5 is invalid because 0 < 1)
-    ranges = memory._parse_line_ranges("10-50,0-5,60-100")
+    ranges = parse_line_ranges("10-50,0-5,60-100")
     # BUG: Returns [] (empty list)
     # FIX: Should return [LineRange(10, 50), LineRange(60, 100)]
     assert ranges == [
@@ -26,7 +26,7 @@ def test_parse_line_ranges_skips_invalid_parts():
     ], f"Expected [LineRange(10, 50), LineRange(60, 100)], got {ranges}"
     
     # Test 2: Mixed valid and non-integer
-    ranges = memory._parse_line_ranges("10-50,abc,60-100")
+    ranges = parse_line_ranges("10-50,abc,60-100")
     # BUG: Returns [] (empty list)
     # FIX: Should return [LineRange(10, 50), LineRange(60, 100)]
     assert ranges == [
@@ -35,7 +35,7 @@ def test_parse_line_ranges_skips_invalid_parts():
     ], f"Expected [LineRange(10, 50), LineRange(60, 100)], got {ranges}"
     
     # Test 3: Mixed valid and invalid start > end
-    ranges = memory._parse_line_ranges("10-50,60-55,70-100")  # 60-55 is invalid (start > end)
+    ranges = parse_line_ranges("10-50,60-55,70-100")  # 60-55 is invalid (start > end)
     # BUG: Returns [] (empty list)
     # FIX: Should return [LineRange(10, 50), LineRange(70, 100)]
     assert ranges == [
@@ -44,22 +44,22 @@ def test_parse_line_ranges_skips_invalid_parts():
     ], f"Expected [LineRange(10, 50), LineRange(70, 100)], got {ranges}"
     
     # Test 4: All invalid should return empty list
-    ranges = memory._parse_line_ranges("0-5,abc,10-5")
+    ranges = parse_line_ranges("0-5,abc,10-5")
     # Should return [] (all parts invalid)
     assert ranges == [], f"Expected [] (all invalid), got {ranges}"
     
     # Test 5: Single invalid part
-    ranges = memory._parse_line_ranges("0-5")
+    ranges = parse_line_ranges("0-5")
     # Should return [] (invalid)
     assert ranges == [], f"Expected [] (invalid), got {ranges}"
     
     # Test 6: Valid single range should work
-    ranges = memory._parse_line_ranges("10-50")
+    ranges = parse_line_ranges("10-50")
     # Should return [LineRange(10, 50)]
     assert ranges == [LineRange(10, 50)], f"Expected [LineRange(10, 50)], got {ranges}"
     
     # Test 7: Valid multiple ranges should work
-    ranges = memory._parse_line_ranges("10-50,60-100")
+    ranges = parse_line_ranges("10-50,60-100")
     # Should return [LineRange(10, 50), LineRange(60, 100)]
     assert ranges == [
         LineRange(10, 50),

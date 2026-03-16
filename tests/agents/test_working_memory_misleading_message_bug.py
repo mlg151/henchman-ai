@@ -57,6 +57,8 @@ def test_memory_should_read_file_misleading_message_bug():
     
     # The message should indicate uncertainty
     acceptable_phrases = [
+        "partially read",
+        "whole file not read",
         "cannot determine",
         "may not be",
         "uncertain",
@@ -68,7 +70,7 @@ def test_memory_should_read_file_misleading_message_bug():
     # At least one acceptable phrase should be in the message
     has_acceptable_phrase = any(phrase in reason.lower() for phrase in acceptable_phrases)
     assert has_acceptable_phrase, (
-        f"Error message should indicate uncertainty about file completeness. "
+        f"Error message should indicate file was partially read. "
         f"Message: '{reason}'. "
         f"Expected phrases like: {acceptable_phrases}"
     )

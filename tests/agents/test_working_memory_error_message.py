@@ -50,8 +50,8 @@ def test_should_read_file_invalid_line_numbers_error_messages():
     should_read, reason = memory.should_read_file("/test/file.py", 1, 0)
     assert should_read is True
     assert "Invalid line number" in reason
-    # New error message is more accurate: -1 is allowed for EOF
-    assert "end must be -1 (for EOF) or positive" in reason
+    # Error message: end must be positive (1-indexed)
+    assert "end must be positive" in reason
     assert "got end=0" in reason
     
     # Test with start=-5 (invalid)

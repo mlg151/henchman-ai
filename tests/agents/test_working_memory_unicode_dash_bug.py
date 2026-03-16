@@ -18,73 +18,75 @@ def test_memory_parse_line_ranges_unicode_dash_handling():
       - Hyphen-minus '-' (U+002D) - included
       - What about other dash-like characters?
     """
-    memory = WorkingMemory(current_task="Test")
+    from henchman.agents.line_range_utils import parse_line_ranges
     
     # Test with hyphen-minus (ASCII dash)
-    ranges = memory._parse_line_ranges("10-20")
+    ranges = parse_line_ranges("10-20")
     assert len(ranges) == 1
     assert ranges[0].start == 10
     assert ranges[0].end == 20
     
     # Test with en dash (U+2013)
-    ranges = memory._parse_line_ranges("10–20")  # en dash
+    ranges = parse_line_ranges("10–20")  # en dash
     assert len(ranges) == 1
     assert ranges[0].start == 10
     assert ranges[0].end == 20
     
     # Test with em dash (U+2014)
-    ranges = memory._parse_line_ranges("10—20")  # em dash
+    ranges = parse_line_ranges("10—20")  # em dash
     assert len(ranges) == 1
     assert ranges[0].start == 10
     assert ranges[0].end == 20
     
     # Test with minus sign (U+2212)
-    ranges = memory._parse_line_ranges("10−20")  # minus sign
+    ranges = parse_line_ranges("10−20")  # minus sign
     assert len(ranges) == 1
     assert ranges[0].start == 10
     assert ranges[0].end == 20
     
     # Test with figure dash (U+2012) - this might be the bug!
     # The regex includes \u2012, but let's test
-    ranges = memory._parse_line_ranges("10‒20")  # figure dash
+    ranges = parse_line_ranges("10‒20")  # figure dash
     assert len(ranges) == 1
     assert ranges[0].start == 10
     assert ranges[0].end == 20
     
     # Test with horizontal bar (U+2015)
-    ranges = memory._parse_line_ranges("10―20")  # horizontal bar
+    ranges = parse_line_ranges("10―20")  # horizontal bar
     assert len(ranges) == 1
     assert ranges[0].start == 10
     assert ranges[0].end == 20
     
     # Test mixed: comma-separated with different dashes
-    ranges = memory._parse_line_ranges("10-20,30–40,50—60,70−80")
+    ranges = parse_line_ranges("10-20,30–40,50—60,70−80")
     assert len(ranges) == 4
     assert ranges[0].start == 10 and ranges[0].end == 20
     assert ranges[1].start == 30 and ranges[1].end == 40
     assert ranges[2].start == 50 and ranges[2].end == 60
     assert ranges[3].start == 70 and ranges[3].end == 80
+    
+    print("✓ parse_line_ranges handles Unicode dash characters correctly")
 
 
 def test_memory_parse_line_ranges_invalid_unicode_dash():
-    """Test _parse_line_ranges with invalid Unicode dash-like characters.
+    """Test parse_line_ranges with invalid Unicode dash-like characters.
     
     BUG: What if someone uses a dash-like character not in the regex?
     """
-    memory = WorkingMemory(current_task="Test")
+    from henchman.agents.line_range_utils import parse_line_ranges
     
     # Test with underscore (not a dash) - should parse as single line "10_20"
-    ranges = memory._parse_line_ranges("10_20")
+    ranges = parse_line_ranges("10_20")
     # Should parse as single line "10_20" which is not a valid integer
     # So it should skip this part
     assert ranges == []  # Or maybe parse as single line 10? Let's see
     
     # Test with tilde (not a dash)
-    ranges = memory._parse_line_ranges("10~20")
+    ranges = parse_line_ranges("10~20")
     assert ranges == []  # Should skip
     
     # Test with equals sign (not a dash)
-    ranges = memory._parse_line_ranges("10=20")
+    ranges = parse_line_ranges("10=20")
     assert ranges == []  # Should skip
 
 

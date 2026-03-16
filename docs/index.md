@@ -38,8 +38,8 @@ henchman --prompt "Explain this code" < file.py
 
 ## Supported Providers
 
-| Provider | Status | Registry Name | Notes |
-|----------|--------|---------------|-------|
+| Provider | Status | Configuration Name | Notes |
+|----------|--------|-------------------|-------|
 | DeepSeek (`deepseek`) | ✅ | `deepseek` | Default provider, OpenAI-compatible API |
 | Anthropic (`anthropic`) | ✅ | `anthropic` | Claude models (native SDK) |
 | Ollama (`ollama`) | ✅ | `ollama` | Local models, OpenAI-compatible API |

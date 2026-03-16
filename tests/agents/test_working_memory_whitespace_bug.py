@@ -12,21 +12,21 @@ from henchman.agents.working_memory import (
 
 
 def test_parse_line_ranges_whitespace_only():
-    """Test _parse_line_ranges with whitespace-only string."""
-    memory = WorkingMemory(current_task="Test")
+    """Test parse_line_ranges with whitespace-only string."""
+    from henchman.agents.line_range_utils import parse_line_ranges
     
-    # _parse_line_ranges should return [] for whitespace-only string
-    ranges = memory._parse_line_ranges("   ")
-    assert ranges == [], f"_parse_line_ranges('   ') returned {ranges}, expected []"
+    # parse_line_ranges should return [] for whitespace-only string
+    ranges = parse_line_ranges("   ")
+    assert ranges == [], f"parse_line_ranges('   ') returned {ranges}, expected []"
     
-    ranges = memory._parse_line_ranges("\t\t")
-    assert ranges == [], f"_parse_line_ranges('\\t\\t') returned {ranges}, expected []"
+    ranges = parse_line_ranges("\t\t")
+    assert ranges == [], f"parse_line_ranges('\\t\\t') returned {ranges}, expected []"
     
-    ranges = memory._parse_line_ranges("\n\n")
-    assert ranges == [], f"_parse_line_ranges('\\n\\n') returned {ranges}, expected []"
+    ranges = parse_line_ranges("\n\n")
+    assert ranges == [], f"parse_line_ranges('\\n\\n') returned {ranges}, expected []"
     
-    ranges = memory._parse_line_ranges(" \t\n ")
-    assert ranges == [], f"_parse_line_ranges(' \\t\\n ') returned {ranges}, expected []"
+    ranges = parse_line_ranges(" \t\n ")
+    assert ranges == [], f"parse_line_ranges(' \\t\\n ') returned {ranges}, expected []"
     
     print("✓ _parse_line_ranges returns [] for whitespace-only strings")
 
@@ -79,14 +79,16 @@ def test_inconsistency_impact():
     entry1 = WorkingMemoryEntry("/test/file1.py", "Test", "", [])
     memory.add_recent_file(entry1)
     
-    # _parse_line_ranges("") returns []
-    ranges1 = memory._parse_line_ranges("")
+    from henchman.agents.line_range_utils import parse_line_ranges
+    
+    # parse_line_ranges("") returns []
+    ranges1 = parse_line_ranges("")
     assert ranges1 == [], "Empty string should return []"
     
     # Now test with a hypothetical whitespace-only string
     # (Can't create WorkingMemoryEntry with it, but if we could...)
-    # _parse_line_ranges("   ") also returns []
-    ranges2 = memory._parse_line_ranges("   ")
+    # parse_line_ranges("   ") also returns []
+    ranges2 = parse_line_ranges("   ")
     assert ranges2 == [], "Whitespace-only string should return []"
     
     # Both empty string and whitespace-only string result in []

@@ -5,31 +5,31 @@ from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry, Li
 
 
 def test_merge_ranges_empty_list():
-    """Test _merge_ranges with empty list."""
-    memory = WorkingMemory(current_task="Test")
+    """Test merge_line_ranges with empty list."""
+    from henchman.agents.line_range_utils import merge_line_ranges
     
-    ranges = memory._merge_ranges([])
+    ranges = merge_line_ranges([])
     assert ranges == []
     
-    print("✓ _merge_ranges([]) returns []")
+    print("✓ merge_line_ranges([]) returns []")
 
 
 def test_merge_ranges_single_range():
-    """Test _merge_ranges with single range."""
-    memory = WorkingMemory(current_task="Test")
+    """Test merge_line_ranges with single range."""
+    from henchman.agents.line_range_utils import merge_line_ranges
     
-    ranges = memory._merge_ranges([LineRange(10, 20)])
+    ranges = merge_line_ranges([LineRange(10, 20)])
     assert ranges == [LineRange(10, 20)]
     
-    print("✓ _merge_ranges([LineRange(10, 20)]) returns same")
+    print("✓ merge_line_ranges([LineRange(10, 20)]) returns same")
 
 
 def test_merge_ranges_unsorted():
-    """Test _merge_ranges with unsorted ranges."""
-    memory = WorkingMemory(current_task="Test")
+    """Test merge_line_ranges with unsorted ranges."""
+    from henchman.agents.line_range_utils import merge_line_ranges
     
     # Unsorted: 30-40, 10-20, 25-30
-    ranges = memory._merge_ranges([
+    ranges = merge_line_ranges([
         LineRange(30, 40),
         LineRange(10, 20),
         LineRange(25, 30),
@@ -40,22 +40,22 @@ def test_merge_ranges_unsorted():
     # So result should be [LineRange(10, 20), LineRange(25, 40)]
     assert ranges == [LineRange(10, 20), LineRange(25, 40)]
     
-    print("✓ _merge_ranges sorts and merges correctly")
+    print("✓ merge_line_ranges sorts and merges correctly")
 
 
 def test_merge_ranges_fully_overlapping():
-    """Test _merge_ranges with fully overlapping ranges."""
-    memory = WorkingMemory(current_task="Test")
+    """Test merge_line_ranges with fully overlapping ranges."""
+    from henchman.agents.line_range_utils import merge_line_ranges
     
     # 10-30 fully contains 15-25
-    ranges = memory._merge_ranges([
+    ranges = merge_line_ranges([
         LineRange(10, 30),
         LineRange(15, 25),
     ])
     # Should merge to 10-30
     assert ranges == [LineRange(10, 30)]
     
-    print("✓ _merge_ranges merges fully overlapping ranges")
+    print("✓ merge_line_ranges merges fully overlapping ranges")
 
 
 def test_line_range_validation():
@@ -140,43 +140,43 @@ def test_should_read_file_edge_cases():
 
 
 def test_parse_line_ranges_edge_cases():
-    """Test _parse_line_ranges with edge cases."""
-    memory = WorkingMemory(current_task="Test")
+    """Test parse_line_ranges with edge cases."""
+    from henchman.agents.line_range_utils import parse_line_ranges
     
     # Empty string
-    ranges = memory._parse_line_ranges("")
+    ranges = parse_line_ranges("")
     assert ranges == []
     
     # Whitespace only
-    ranges = memory._parse_line_ranges("   ")
+    ranges = parse_line_ranges("   ")
     assert ranges == []
     
     # "full" with spaces
-    ranges = memory._parse_line_ranges("  full  ")
+    ranges = parse_line_ranges("  full  ")
     assert ranges == []
     
     # Single line
-    ranges = memory._parse_line_ranges("42")
+    ranges = parse_line_ranges("42")
     assert ranges == [LineRange(42, 42)]
     
     # Multiple single lines
-    ranges = memory._parse_line_ranges("1,2,3")
+    ranges = parse_line_ranges("1,2,3")
     assert ranges == [LineRange(1, 1), LineRange(2, 2), LineRange(3, 3)]
     
     # Mixed: ranges and single lines
-    ranges = memory._parse_line_ranges("1-10,15,20-25")
+    ranges = parse_line_ranges("1-10,15,20-25")
     assert ranges == [LineRange(1, 10), LineRange(15, 15), LineRange(20, 25)]
     
     # With invalid parts (should be skipped)
-    ranges = memory._parse_line_ranges("1-10,invalid,20-25")
+    ranges = parse_line_ranges("1-10,invalid,20-25")
     # "invalid" is skipped
     assert ranges == [LineRange(1, 10), LineRange(20, 25)]
     
     # Unicode dash
-    ranges = memory._parse_line_ranges("1\u201310")  # EN DASH
+    ranges = parse_line_ranges("1\u201310")  # EN DASH
     assert ranges == [LineRange(1, 10)]
     
-    print("✓ _parse_line_ranges handles edge cases correctly")
+    print("✓ parse_line_ranges handles edge cases correctly")
 
 
 if __name__ == "__main__":

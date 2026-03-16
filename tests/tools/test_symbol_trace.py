@@ -119,6 +119,28 @@ class TestFindDefinitionsInFile:
         defs = _find_definitions_in_file(bad, "bad")
         assert defs == []
 
+    def test_finds_decorated_function_definition(self, tmp_path: Path) -> None:
+        """Finds decorated function and extracts correct signature."""
+        src = textwrap.dedent("""\
+            from typing import Optional
+            
+            @decorator
+            def decorated_func(x: int) -> Optional[str]:
+                return str(x) if x > 0 else None
+        """)
+        p = tmp_path / "decorated.py"
+        p.write_text(src)
+        
+        defs = _find_definitions_in_file(p, "decorated_func")
+        assert len(defs) == 1
+        assert defs[0].kind == "function"
+        # BUG: Currently returns "@decorator" instead of "def decorated_func(x: int) -> Optional[str]:"
+        # The signature should contain "decorated_func" and show the function signature
+        assert "decorated_func" in defs[0].signature
+        assert "def decorated_func" in defs[0].signature
+        # Should NOT be just the decorator
+        assert defs[0].signature != "@decorator"
+
 
 class TestFindImportsInFile:
     """Tests for _find_imports_in_file."""

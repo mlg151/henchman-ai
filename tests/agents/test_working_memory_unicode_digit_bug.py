@@ -10,11 +10,11 @@ def test_parse_line_ranges_unicode_superscript_digit():
     BUG: str.isdigit() returns True for superscript digits like '²' (superscript 2),
     but int('²') raises ValueError. The code should handle this.
     """
-    memory = WorkingMemory(current_task="Test")
+    from henchman.agents.line_range_utils import parse_line_ranges
     
     # Test with superscript digit (² is superscript 2)
     # '²'.isdigit() returns True, but int('²') raises ValueError
-    ranges = memory._parse_line_ranges("¹⁰-²⁰")  # superscript 10-20
+    ranges = parse_line_ranges("¹⁰-²⁰")  # superscript 10-20
     
     # Should return empty list (invalid) or handle gracefully
     # Currently: '¹⁰'.isdigit() returns True, int('¹⁰') raises ValueError
@@ -27,10 +27,10 @@ def test_parse_line_ranges_arabic_digits():
     
     Arabic digits like '٣' (Arabic digit 3) are valid for int().
     """
-    memory = WorkingMemory(current_task="Test")
+    from henchman.agents.line_range_utils import parse_line_ranges
     
     # Test with Arabic digits (٣ is Arabic 3, ٥ is Arabic 5)
-    ranges = memory._parse_line_ranges("٣-٥")  # Arabic 3-5
+    ranges = parse_line_ranges("٣-٥")  # Arabic 3-5
     
     # int('٣') works (returns 3), int('٥') works (returns 5)
     # So should parse successfully
@@ -41,19 +41,19 @@ def test_parse_line_ranges_arabic_digits():
 
 def test_parse_line_ranges_mixed_digits():
     """Test _parse_line_ranges with mixed regular and Unicode digits."""
-    memory = WorkingMemory(current_task="Test")
+    from henchman.agents.line_range_utils import parse_line_ranges
     
     # Test with regular digits (should work)
-    ranges = memory._parse_line_ranges("10-20")
+    ranges = parse_line_ranges("10-20")
     assert len(ranges) == 1
     assert ranges[0].start == 10
     assert ranges[0].end == 20
     
     # Test with string containing non-digit characters
-    ranges = memory._parse_line_ranges("10a-20")  # '10a' is not all digits
+    ranges = parse_line_ranges("10a-20")  # '10a' is not all digits
     assert ranges == []  # Should skip
     
-    ranges = memory._parse_line_ranges("10-20b")  # '20b' is not all digits
+    ranges = parse_line_ranges("10-20b")  # '20b' is not all digits
     assert ranges == []  # Should skip
 
 

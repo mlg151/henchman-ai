@@ -5,12 +5,12 @@ from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry, Li
 
 
 def test_memory_merge_ranges_adjacent():
-    """Test that _merge_ranges correctly merges adjacent ranges."""
-    memory = WorkingMemory(current_task="Test")
+    """Test that merge_line_ranges correctly merges adjacent ranges."""
+    from henchman.agents.line_range_utils import merge_line_ranges
     
     # Test merging adjacent ranges: 1-10 and 11-20 should merge to 1-20
     ranges = [LineRange(1, 10), LineRange(11, 20)]
-    merged = memory._merge_ranges(ranges)
+    merged = merge_line_ranges(ranges)
     
     assert len(merged) == 1
     assert merged[0].start == 1
@@ -18,7 +18,7 @@ def test_memory_merge_ranges_adjacent():
     
     # Test with overlapping ranges: 1-15 and 10-20 should merge to 1-20
     ranges2 = [LineRange(1, 15), LineRange(10, 20)]
-    merged2 = memory._merge_ranges(ranges2)
+    merged2 = merge_line_ranges(ranges2)
     
     assert len(merged2) == 1
     assert merged2[0].start == 1
@@ -26,7 +26,7 @@ def test_memory_merge_ranges_adjacent():
     
     # Test with non-adjacent ranges: 1-10 and 21-30 should NOT merge
     ranges3 = [LineRange(1, 10), LineRange(21, 30)]
-    merged3 = memory._merge_ranges(ranges3)
+    merged3 = merge_line_ranges(ranges3)
     
     assert len(merged3) == 2
     assert merged3[0].start == 1

@@ -17,6 +17,22 @@ The `_validate_and_normalize_line_numbers` method incorrectly handles boolean va
 Python's `bool` type is a subclass of `int` (`issubclass(bool, int)` returns `True`). The code uses `type(start) is not int` which checks for exact type equality, not subclass relationship. When a boolean value is passed (e.g., from a conditional expression), it fails validation even though `True == 1` and `False == 0`.
 
 ## Fix Plan
-Change `type(start) is not int` to `not isinstance(start, int)` in the `_validate_and_normalize_line_numbers` method to properly handle boolean values as integers. This will allow `True` and `False` to be validated as line numbers (True=1, False=0).
+Change `type(start) is not int` to `not isinstance(start, int)` in the `_validate_and_normalize_line_numbers` method to properly handle boolean values as integers. This will allow `True` and `False` to be validated as line numbers (True=1, False=0). Also convert boolean values to integers early in the validation process for consistent handling.
 
-## Status: IN PROGRESS
+## Status: FIXED
+
+## Files Changed
+1. `src/henchman/agents/working_memory.py` - Updated `_validate_and_normalize_line_numbers` method:
+   - Changed `type(start) is not int` to `not isinstance(start, int)`
+   - Changed `type(end) is not int` to `not isinstance(end, int)`
+   - Added early conversion of boolean values to integers: `if start is not None and isinstance(start, bool): start = int(start)` (and similarly for `end`)
+   
+2. `tests/agents/test_working_memory_bool_bug_fix.py` - Created test file to verify the fix (test was updated to correct expectation for invalid range `10 > 1`)
+
+## Verification
+- Created failing test first (TDD)
+- Implemented fix
+- All tests pass
+- Boolean values `True` and `False` are now properly handled as integers `1` and `0` respectively
+- Error messages show integer values instead of boolean values (e.g., `end (1)` instead of `end (True)`)
+- The fix maintains backward compatibility while fixing the type safety issue
