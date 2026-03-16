@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-16T12:00:33.743510+00:00_
+_Generated: 2026-03-16T14:00:27.824683+00:00_
 
 ## Executive Summary
 
@@ -48,7 +48,7 @@ These are the highest-impact smells to address first:
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 2. **agents/working_memory.py:511** — 🔴 CRITICAL — Long Method  
-   Function 'should_read_file' has 182 lines (threshold: 30)  
+   Function 'should_read_file' has 181 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
 3. **agents/working_memory.py:82** — 🟠 HIGH — Long Method  
@@ -129,7 +129,7 @@ LOC: 579 | Classes: 7 | Functions: 1 | MI: 27 | Avg CC: 25.2
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 511 | 🔴 CRITICAL | Long Method | Function 'should_read_file' has 182 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 511 | 🔴 CRITICAL | Long Method | Function 'should_read_file' has 181 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 511 | 🔴 CRITICAL | Complex Function | Function 'should_read_file' has cyclomatic complexity 51 (rank F) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
 | 82 | 🟠 HIGH | Long Method | Function '_validate_lines_read' has 92 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 | 511 | 🟠 HIGH | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'rng' 15 times but 'self' only 5 times | Move Method — consider moving 'should_read_file' to the class that owns 'rng'. |
