@@ -1,7 +1,7 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-16T07:00:00Z
+## Date: 2025-03-16T08:30:00Z
 ## Bug Summary
-The `_validate_lines_read` method in `WorkingMemoryEntry` accepts whitespace-only strings (e.g., `"   "`) as valid `lines_read` values, but the `should_read_file` method treats them as "invalid lines_read format". This inconsistency means valid input (according to validation) produces misleading error messages in core functionality.
+`LineRange.from_str` only handles hyphen '-' characters, while `_parse_line_ranges` handles multiple dash characters (hyphen, en dash, em dash, minus sign, etc.). This inconsistency can cause bugs when the same line range string is parsed differently by different methods.
 
 ## Lens
 **Phase 1: The Intent vs. Reality Check** - Logic Gaps and Inconsistent Validation
@@ -9,28 +9,21 @@ The `_validate_lines_read` method in `WorkingMemoryEntry` accepts whitespace-onl
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Validation and usage should be consistent | Whitespace-only strings pass validation but produce "invalid format" errors |
-| Clear error messages for valid input | Misleading "invalid format" message for valid whitespace-only input |
-| Empty/whitespace `lines_read` should mean "no lines read" | Treated as "invalid format" causing confusion |
+| Both methods should parse the same set of dash characters | `LineRange.from_str` fails on en dash/em dash/minus sign |
+| Consistent behavior across the codebase | Inconsistent parsing leads to unpredictable behavior |
+| Unicode dash characters should be handled uniformly | Some code paths accept them, others reject them |
 
 ## Root Cause
-The `_validate_lines_read` method returns early for empty strings (`if not lines_read: return`) and doesn't raise an error for whitespace-only strings because after normalization (`"".join(lines_read.split()).lower()`), whitespace-only becomes empty string, and the validation check `if not has_full and not has_valid_range and normalized:` has `normalized` as empty string (falsy), so doesn't raise `ValueError`.
-
-However, in `should_read_file`, when `_parse_line_ranges` returns an empty list for whitespace-only input, and the file wasn't read "full", the method returns `True, "Cannot determine - invalid lines_read format"`. This error message is misleading because the format is actually valid (whitespace-only is explicitly allowed by `_validate_lines_read`).
+`LineRange.from_str` uses simple string splitting: `s.split("-")` which only splits on hyphen '-'. `_parse_line_ranges` uses regex `re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)` to find multiple dash-like characters (hyphen, figure dash, en dash, em dash, horizontal bar, minus sign).
 
 ## Fix Plan
-1. Make `_validate_lines_read` reject whitespace-only strings (raise `ValueError`)
-2. OR change `should_read_file` to have a better error message for empty `valid_ranges` when `lines_read` is whitespace-only or empty
-3. Document what empty/whitespace `lines_read` means ("no lines read")
+Make `LineRange.from_str` use the same regex-based approach as `_parse_line_ranges` to handle all dash characters consistently.
 
 ## Status: FIXED
 
 ## Files Changed
-1. `src/henchman/agents/working_memory.py` - Modified `_validate_lines_read` method to reject whitespace-only strings (lines 133-140)
-2. `tests/agents/test_working_memory_validation_bug.py` - Updated tests to expect new behavior
-3. `tests/agents/test_working_memory_empty_lines_read_bug.py` - Updated tests to expect new behavior  
-4. `tests/agents/test_working_memory_real_bug.py` - Updated tests to expect new behavior
-5. `tests/agents/test_working_memory_real_failing_bug.py` - Updated tests to expect new behavior
+1. `src/henchman/agents/working_memory.py` - Modified `LineRange.from_str` to use regex for dash detection (lines 220-260)
+2. `tests/agents/test_working_memory_dash_inconsistency.py` - Created test file to verify the fix
 
 ## Summary
-The bug was that `_validate_lines_read` accepted whitespace-only strings (e.g., `"   "`) as valid `lines_read` values, but `should_read_file` treated them as "invalid lines_read format". This inconsistency has been fixed by making `_validate_lines_read` reject whitespace-only strings with a clear error message. Empty strings are still allowed (meaning "no lines read"), but whitespace-only strings are now rejected as invalid input.
+The bug was that `LineRange.from_str` and `_parse_line_ranges` handled different sets of dash characters, leading to inconsistent parsing of line range strings. This could cause bugs when the same input was processed differently depending on which method was called. The fix makes `LineRange.from_str` use the same regex pattern as `_parse_line_ranges` to handle hyphen '-', figure dash '‒' (U+2012), en dash '–' (U+2013), em dash '—' (U+2014), horizontal bar '―' (U+2015), and minus sign '−' (U+2212).

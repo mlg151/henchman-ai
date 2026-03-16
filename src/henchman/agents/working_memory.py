@@ -225,6 +225,9 @@ class LineRange:
         Args:
             s: String in format "start-end" where start and end are integers,
                e.g., "1-10", "5-25". The dash separator is required.
+               Supports multiple dash characters: hyphen '-', figure dash '‒' (U+2012),
+               en dash '–' (U+2013), em dash '—' (U+2014), horizontal bar '―' (U+2015),
+               minus sign '−' (U+2212).
 
         Returns:
             LineRange object if parsing succeeds, None if the format is invalid
@@ -232,21 +235,30 @@ class LineRange:
         """
         if not isinstance(s, str):
             return None
-        parts = s.split("-")
-        if len(parts) == EXPECTED_RANGE_PARTS:
-            # Check if both strings contain only decimal digits (0-9 and compatible Unicode)
-            # This rejects underscores, decimal points, letters, superscript digits, etc.
-            # Use .isdecimal() instead of .isdigit() for consistency with _parse_line_ranges
-            if not parts[0].isdecimal() or not parts[1].isdecimal():
-                return None
-            try:
-                line_range = cls(start=int(parts[0]), end=int(parts[1]))
-                # __post_init__ will validate start <= end
-                return line_range
-            except ValueError:
-                # Could be from int() conversion or __post_init__ validation
-                return None
-        return None
+        
+        # Use the same regex as _parse_line_ranges to find dash characters
+        dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', s)
+        if not dash_match:
+            return None
+        
+        # Split on the dash character found
+        dash_pos = dash_match.start()
+        start_str = s[:dash_pos]
+        end_str = s[dash_pos + 1:]  # +1 to skip the dash character
+        
+        # Check if both strings contain only decimal digits (0-9 and compatible Unicode)
+        # This rejects underscores, decimal points, letters, superscript digits, etc.
+        # Use .isdecimal() instead of .isdigit() for consistency with _parse_line_ranges
+        if not start_str.isdecimal() or not end_str.isdecimal():
+            return None
+        
+        try:
+            line_range = cls(start=int(start_str), end=int(end_str))
+            # __post_init__ will validate start <= end
+            return line_range
+        except ValueError:
+            # Could be from int() conversion or __post_init__ validation
+            return None
 
 
 # Type alias for any working memory entry
