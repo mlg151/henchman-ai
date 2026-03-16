@@ -1,60 +1,36 @@
 # Four Lenses Bug Report: src/henchman/agents/working_memory.py
-## Date: 2025-03-16T11:15:00Z
+## Date: 2025-03-16T12:00:00Z
 ## Bug Summary
-The `should_read_file` method has incorrect validation logic for the `end` parameter when it equals `-1`. The method converts `end=-1` to `None` (to mean "read to EOF") but then validates the converted value, not the original. This causes inconsistent error messages and could allow invalid negative values to pass validation.
+The `should_read_file` method has a critical bug where it fails to validate line numbers when only one of `start` or `end` is provided (partial range specification). This allows invalid line numbers (e.g., start=0, end=None) to pass through without proper validation, leading to incorrect "should read" decisions.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - Logic Gaps in validation order and error messaging.
+**Phase 1: The Intent vs. Reality Check** - Logic Gaps
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| When `end=-1` is passed, it should be converted to `None` and treated as "read to EOF" | `end=-1` is converted to `None` BEFORE validation, so it's not validated |
-| When `end=-2` is passed, it should be rejected with a clear error message | `end=-2` gets error "end must be positive (1-indexed)" which is misleading since `-1` is also negative but allowed |
-| All validation should happen before any conversions | Validation happens AFTER `end=-1` conversion, creating inconsistent state |
-| Error messages should accurately reflect what values are allowed | Error message says "must be positive" but `-1` is allowed (special case) |
+| When `start=0` is provided (invalid, lines are 1-indexed), method should return `True` with error about invalid line number | Method returns `True` with generic "File not fully read - partial read recorded" or similar, masking the actual error |
+| When `end=0` is provided (invalid), method should validate and report error | Method doesn't validate `end` when `start=None`, allowing invalid line 0 to pass |
+| Line number validation should happen BEFORE checking file read status | Line number validation happens AFTER early returns for "full" files and other checks |
 
 ## Root Cause
-The bug is in the validation flow in `should_read_file` method (lines 547-555):
-1. Line 547: `if end == -1: end = None` - converts `-1` to `None` immediately
-2. Lines 551-555: Validation checks `if end is not None:` then validates `end`
-3. The problem: `end=-1` becomes `None` and skips validation entirely
-4. The error message for invalid negative values says "must be positive" but `-1` is a valid (though special) negative value
+The `should_read_file` method has validation logic for line numbers when both `start` and `end` are provided, but this validation is incomplete:
 
-This creates two issues:
-1. **Inconsistent validation**: `end=-1` bypasses validation, `end=-2` gets validated and rejected
-2. **Misleading error message**: "must be positive" suggests only positive values allowed, but `-1` is allowed
+1. **Lines 547-558**: Validates `start` and `end` when both are not None
+2. **Lines 560-563**: Converts `end=-1` to `None` (for "read to EOF") AFTER validation
+3. **Lines 565-567**: Validates `start > end` when both are provided
+
+However, the validation for partial ranges (`start` only or `end` only) is missing:
+- When `start` is provided but `end` is None: No validation of `start` value
+- When `end` is provided but `start` is None: No validation of `end` value (except for `end=-1` special case)
+
+This creates a logic gap where invalid line numbers can pass through undetected.
 
 ## Fix Plan
-1. Move the `end=-1` conversion to happen AFTER validation
-2. Update validation logic to explicitly allow `end=-1` as a special case
-3. Update error message to be accurate about allowed values
-4. Add a test that demonstrates the bug and verifies the fix
+Add comprehensive line number validation for all cases:
+1. Validate `start` if provided (even when `end` is None)
+2. Validate `end` if provided (even when `start` is None)  
+3. Ensure validation happens BEFORE any other logic (including "full file" checks)
+4. Use `type(start) is not int` (not `isinstance`) to reject `bool` values
 
-## Status: FIXED
-
-## Files Changed
-1. `src/henchman/agents/working_memory.py` - Fixed validation order bug:
-   - Moved `end=-1` conversion to happen AFTER validation
-   - Updated validation logic to explicitly allow `end=-1` as a special case
-   - Updated error message to be accurate about allowed values
-   - Fixed line range validation to handle `end=-1` (means "read to EOF")
-
-2. `tests/agents/test_working_memory_error_message.py` - Updated test to expect new error message
-
-3. `tests/agents/test_working_memory_float_bug.py` - Updated tests to expect correct behavior (rejecting float values)
-
-4. `tests/agents/test_working_memory_float_minus_one_bug.py` - Updated tests to expect correct behavior (rejecting float values)
-
-5. `tests/agents/test_working_memory_float_precision_bug.py` - Updated tests to expect correct behavior (rejecting float values)
-
-6. `tests/agents/test_working_memory_validation_order_bug.py` - New test file created to demonstrate and verify the fix
-
-## Summary
-The bug was successfully fixed. The `should_read_file` method now:
-1. Validates all input BEFORE converting `end=-1` to `None`
-2. Only accepts integer `-1`, not float `-1.0` (consistent with method signature)
-3. Provides accurate error messages that mention `-1` is allowed as a special case
-4. Handles line range validation correctly when `end=-1` (means "read to EOF")
-
-All existing tests pass with the updated behavior.
+## Status: IN PROGRESS
