@@ -17,12 +17,14 @@ class LineRange:
     start: int
     end: int
 
-    def __post_init__(self) -> None:
+    def __post_init__(self: LineRange) -> None:
         """Validate that start <= end and line numbers are positive (1-indexed)."""
         if self.start < 1 or self.end < 1:
-            raise ValueError(f"Line numbers must be positive (1-indexed): start={self.start}, end={self.end}")
+            msg = f"Line numbers must be positive (1-indexed): start={self.start}, end={self.end}"
+            raise ValueError(msg)
         if self.start > self.end:
-            raise ValueError(f"Invalid LineRange: start ({self.start}) > end ({self.end})")
+            msg = f"Invalid LineRange: start ({self.start}) > end ({self.end})"
+            raise ValueError(msg)
 
     def overlaps(self: LineRange, other: LineRange) -> bool:
         """Check if this line range overlaps with another.
@@ -43,9 +45,9 @@ class LineRange:
         Args:
             s: String in format "start-end" where start and end are integers,
                e.g., "1-10", "5-25". The dash separator is required.
-               Supports multiple dash characters: hyphen '-', figure dash '‒' (U+2012),
-               en dash '–' (U+2013), em dash '—' (U+2014), horizontal bar '―' (U+2015),
-               minus sign '−' (U+2212).
+               Supports multiple dash characters: hyphen (U+002D), figure dash (U+2012),
+               en dash (U+2013), em dash (U+2014), horizontal bar (U+2015),
+               minus sign (U+2212).
 
         Returns:
             LineRange object if parsing succeeds, None if the format is invalid
@@ -55,7 +57,7 @@ class LineRange:
             return None
 
         # Use the same regex as _parse_line_ranges to find dash characters
-        dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', s)
+        dash_match = re.search(r"[-\u2012\u2013\u2014\u2015\u2212]", s)
         if not dash_match:
             return None
 
@@ -71,9 +73,8 @@ class LineRange:
             return None
 
         try:
-            line_range = cls(start=int(start_str), end=int(end_str))
+            return cls(start=int(start_str), end=int(end_str))
             # __post_init__ will validate start <= end
-            return line_range
         except ValueError:
             # Could be from int() conversion or __post_init__ validation
             return None
@@ -114,62 +115,82 @@ def merge_line_ranges(ranges: list[LineRange]) -> list[LineRange]:
 
 def _parse_range_part(part: str) -> LineRange | None:
     """Parse a single range part (start-end format).
-    
+
     Args:
         part: String in format "start-end".
-        
+
     Returns:
         LineRange object if valid, None if invalid.
     """
-    result = None
-    
-    # Check for dash-like characters
-    dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
-    if dash_match:
-        dash_pos = dash_match.start()
-        start_str = part[:dash_pos]
-        end_str = part[dash_pos + 1:]  # +1 to skip the dash character
-        
-        # Check if both parts are decimal numbers
-        if start_str.isdecimal() and end_str.isdecimal():
-            try:
-                start = int(start_str)
-                end = int(end_str)
-            except (ValueError, TypeError):
-                pass  # Cannot parse as integers
-            else:
-                if start >= 1 and end >= 1 and start <= end:
-                    try:
-                        result = LineRange(start, end)
-                    except ValueError:
-                        pass  # LineRange validation failed
-    
-    return result
+    dash_match = re.search(r"[-\u2012\u2013\u2014\u2015\u2212]", part)
+    if not dash_match:
+        return None
+
+    dash_pos = dash_match.start()
+    start_str = part[:dash_pos]
+    end_str = part[dash_pos + 1:]  # +1 to skip the dash character
+
+    if not start_str.isdecimal() or not end_str.isdecimal():
+        return None
+
+    try:
+        start, end = int(start_str), int(end_str)
+    except (ValueError, TypeError):
+        return None
+
+    if start < 1 or end < 1 or start > end:
+        return None
+
+    try:
+        return LineRange(start, end)
+    except ValueError:
+        return None
 
 
 def _parse_single_line_part(part: str) -> LineRange | None:
     """Parse a single line part.
-    
+
     Args:
         part: String representing a single line number.
-        
+
     Returns:
         LineRange object if valid, None if invalid.
     """
-    result = None
-    
-    if part.isdecimal():
-        try:
-            line = int(part)
-            if line >= 1:
-                try:
-                    result = LineRange(line, line)
-                except ValueError:
-                    pass  # LineRange validation failed
-        except (ValueError, TypeError):
-            pass  # Invalid: cannot parse as integer
-    
-    return result
+    if not part.isdecimal():
+        return None
+
+    try:
+        line = int(part)
+    except (ValueError, TypeError):
+        return None
+
+    if line < 1:
+        return None
+
+    try:
+        return LineRange(line, line)
+    except ValueError:
+        return None
+
+
+def _parse_parts(parts: list[str]) -> list[LineRange]:
+    """Parse individual comma-split parts into LineRange objects.
+
+    Args:
+        parts: List of strings from splitting the normalized input on commas.
+
+    Returns:
+        List of valid LineRange objects parsed from the parts.
+    """
+    ranges: list[LineRange] = []
+    for raw_part in parts:
+        stripped = raw_part.strip()
+        if not stripped:
+            continue
+        line_range = _parse_range_part(stripped) or _parse_single_line_part(stripped)
+        if line_range is not None:
+            ranges.append(line_range)
+    return ranges
 
 
 def parse_line_ranges(lines_read: str | None) -> list[LineRange]:
@@ -193,34 +214,17 @@ def parse_line_ranges(lines_read: str | None) -> list[LineRange]:
     # Normalize: remove whitespace, convert to lowercase
     normalized = "".join(lines_read.split()).lower()
 
-    # Check for empty after normalization (whitespace-only input)
     if not normalized:
         return []
 
     parts = normalized.split(",")
 
-    # Check if "full" appears anywhere in comma-separated list
     # "full" is a special case: treat as no specific ranges for compatibility
     # (the caller should handle "full" separately)
     if "full" in parts:
         return []
 
-    ranges: list[LineRange] = []
-
-    for part in parts:
-        part = part.strip()
-        if not part:
-            continue
-        
-        # Try parsing as range first, then as single line
-        line_range = _parse_range_part(part)
-        if line_range is None:
-            line_range = _parse_single_line_part(part)
-        
-        if line_range is not None:
-            ranges.append(line_range)
-
-    return ranges
+    return _parse_parts(parts)
 
 
 def check_line_in_merged_ranges(
@@ -229,12 +233,12 @@ def check_line_in_merged_ranges(
     prefix: str,
 ) -> tuple[bool, str]:
     """Check if a line is within, before, between, or after merged ranges.
-    
+
     Args:
         line: The line number to check.
         merged_ranges: List of merged LineRange objects (sorted by start).
         prefix: String prefix for the reason ("Start" or "End").
-        
+
     Returns:
         tuple[bool, str]: Whether to read and reason.
     """
@@ -244,8 +248,8 @@ def check_line_in_merged_ranges(
             # Line is within a read range, but might need to read beyond/before
             if prefix == "Start":
                 return True, f"May need to read lines beyond {rng.end}"
-            else:  # "End"
-                return True, f"May need to read lines before {rng.start}"
+            # "End"
+            return True, f"May need to read lines before {rng.start}"
 
     # Line is not within any read range - check if it's before, between, or after ranges
     # Find where line falls relative to merged ranges
@@ -255,10 +259,10 @@ def check_line_in_merged_ranges(
             if i == 0:
                 # Before first range
                 return True, f"{prefix} line {line} before first read line {rng.start}"
-            else:
-                # Between previous range and this range
-                prev_rng = merged_ranges[i-1]
-                return True, f"{prefix} line {line} in gap between lines {prev_rng.end+1} and {rng.start-1}"
+            # Between previous range and this range
+            prev_rng = merged_ranges[i-1]
+            gap_start, gap_end = prev_rng.end + 1, rng.start - 1
+            return True, f"{prefix} line {line} in gap between lines {gap_start} and {gap_end}"
 
     # Line is after all ranges
     last_rng = merged_ranges[-1]
