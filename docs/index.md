@@ -38,10 +38,10 @@ henchman --prompt "Explain this code" < file.py
 
 | Provider | Status | Registry Name | Notes |
 |----------|--------|---------------|-------|
-| DeepSeek | ✅ | `deepseek` | Default provider, OpenAI-compatible API |
-| Anthropic | ✅ | `anthropic` | Claude models (native SDK) |
-| Ollama | ✅ | `ollama` | Local models, OpenAI-compatible API |
-| OpenRouter | ✅ | `openrouter` | Access to hundreds of models, OpenAI-compatible API |
+| DeepSeek (`deepseek`) | ✅ | `deepseek` | Default provider, OpenAI-compatible API |
+| Anthropic (`anthropic`) | ✅ | `anthropic` | Claude models (native SDK) |
+| Ollama (`ollama`) | ✅ | `ollama` | Local models, OpenAI-compatible API |
+| OpenRouter (`openrouter`) | ✅ | `openrouter` | Access to hundreds of models, OpenAI-compatible API |
 | OpenAI-Compatible (`openai_compat`) | ✅ | `openai_compat` | Generic provider for ANY OpenAI-compatible API (OpenAI, Together, Groq, Fireworks, etc.) |
 | Together AI (`together`) | ✅ | `together` | Alias for `openai_compat` with Together base URL |
 | Groq (`groq`) | ✅ | `groq` | Alias for `openai_compat` with Groq base URL |

@@ -799346,3 +799346,42 @@ TOTAL                                                       19075    280   5146 
 =========== 5886 passed, 6 skipped, 46 warnings in 187.04s (0:03:07) ===========
 [2026-03-16T15:00:02Z] All tests passed.
 Committing changes...
+[main 0e64cf3] fix(four-lenses): four-lenses-agents-working_memory
+ 14 files changed, 4642 insertions(+), 2265 deletions(-)
+ create mode 100644 tests/agents/test_working_memory_actual_core_bug.py
+ create mode 100644 tests/agents/test_working_memory_four_lenses_bug_fix.py
+ create mode 100644 tests/agents/test_working_memory_whitespace_bug.py
+[2026-03-16T15:00:02Z] Auto-improve complete.
+[2026-03-16T16:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-16T16:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by reading the smell report and the target file to understand the context and identify bugs.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.2/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-16T16:00:35.311205+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py
+tests/agents/test_working_memory_actual_bug.py
+tests/agents/test_working_memory_actual_core_bug.py
+tests/agents/test_working_memory_algorithm_bug.py
+tests/agents/te...
