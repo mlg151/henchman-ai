@@ -208,6 +208,38 @@ class TestCollectAnnotations:
         annotations = _collect_annotations([py_file], "NeverAnnotated")
         assert annotations == []
 
+    def test_finds_all_argument_type_annotations(self, tmp_path: Path) -> None:
+        """Finds annotations in posonlyargs, vararg, and kwarg parameters."""
+        src = """
+from typing import Tuple, Dict
+
+def example_func(
+    pos_only: int, /,
+    normal: str,
+    *args: Tuple[int, ...],
+    kw_only: float = 0.0,
+    **kwargs: Dict[str, bool],
+) -> None:
+    pass
+"""
+        p = tmp_path / "modern.py"
+        p.write_text(src)
+        
+        # Test collecting annotations for "int"
+        int_annotations = _collect_annotations([p], "int")
+        assert any("int" in a for a in int_annotations), \
+            f"Should find 'int' in annotations: {int_annotations}"
+        
+        # Test collecting annotations for "Tuple"
+        tuple_annotations = _collect_annotations([p], "Tuple")
+        assert any("Tuple" in a for a in tuple_annotations), \
+            f"Should find 'Tuple' in annotations: {tuple_annotations}"
+        
+        # Test collecting annotations for "Dict"
+        dict_annotations = _collect_annotations([p], "Dict")
+        assert any("Dict" in a for a in dict_annotations), \
+            f"Should find 'Dict' in annotations: {dict_annotations}"
+
 
 class TestBuildTraceReport:
     """Tests for _build_trace_report."""

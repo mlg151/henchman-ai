@@ -254,9 +254,30 @@ def _collect_annotations_from_node(
     elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
         if node.returns:
             _process_annotation_node(node.returns, ann_pattern, annotations)
-        for arg in node.args.args + node.args.kwonlyargs:
+        
+        # Check all argument types for annotations
+        # Positional-only arguments (Python 3.8+)
+        for arg in node.args.posonlyargs:
             if arg.annotation:
                 _process_annotation_node(arg.annotation, ann_pattern, annotations)
+        
+        # Normal arguments
+        for arg in node.args.args:
+            if arg.annotation:
+                _process_annotation_node(arg.annotation, ann_pattern, annotations)
+        
+        # *args parameter
+        if node.args.vararg and node.args.vararg.annotation:
+            _process_annotation_node(node.args.vararg.annotation, ann_pattern, annotations)
+        
+        # Keyword-only arguments
+        for arg in node.args.kwonlyargs:
+            if arg.annotation:
+                _process_annotation_node(arg.annotation, ann_pattern, annotations)
+        
+        # **kwargs parameter
+        if node.args.kwarg and node.args.kwarg.annotation:
+            _process_annotation_node(node.args.kwarg.annotation, ann_pattern, annotations)
 
 
 def _collect_annotations(files: list[Path], symbol: str) -> list[str]:

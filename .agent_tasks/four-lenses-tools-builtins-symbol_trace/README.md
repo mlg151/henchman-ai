@@ -1,7 +1,7 @@
 # Four Lenses Bug Report: src/henchman/tools/builtins/symbol_trace.py
 ## Date: 2025-03-16T22:00:00Z
 ## Bug Summary
-The `_find_definitions_in_file` function incorrectly extracts signatures for decorated functions, returning the decorator line instead of the function signature line.
+The `_collect_annotations_from_node` function misses type annotations for positional-only arguments (`/`), `*args`, and `**kwargs` parameters, causing incomplete symbol tracing.
 
 ## Lens
 **Phase 1: The Intent vs. Reality Check** - Logic Gaps
@@ -9,24 +9,23 @@ The `_find_definitions_in_file` function incorrectly extracts signatures for dec
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Decorated function definitions should show the actual function signature (e.g., `def decorated_func(x: int) -> Optional[str]:`) | Currently returns the decorator line (e.g., `@decorator`) as the signature |
-| Users should see the actual function signature for understanding the interface | Users see misleading information that doesn't show the function's parameters or return type |
-| The signature should help identify the function's contract | The signature fails to provide useful information about the function |
+| All type annotations in function signatures should be collected, including those for `pos_only: int, /`, `*args: Tuple`, and `**kwargs: Dict` | Annotations for positional-only arguments, `*args`, and `**kwargs` are silently ignored |
+| Complete annotation coverage for symbol tracing | Users get incomplete information about where a type is used |
+| The tool should handle all Python 3.8+ syntax features | The tool fails on modern Python code with positional-only arguments |
 
 ## Root Cause
-The `_extract_signature` function uses `ast.unparse(node)` which returns the entire node including decorators. When it splits by newlines and looks for lines starting with "def " or "async def ", it finds the decorator line first (if decorators are on separate lines) and returns that instead of the function signature line.
+The `_collect_annotations_from_node` function only checks `args.args` (normal arguments) and `args.kwonlyargs` (keyword-only arguments), but misses:
+1. `args.posonlyargs` - positional-only arguments (Python 3.8+)
+2. `args.vararg` - `*args` parameter
+3. `args.kwarg` - `**kwargs` parameter
 
-Specifically, in the `_extract_signature` function:
-1. `ast.unparse(node)` returns the full source including decorators
-2. It splits by newlines and iterates through lines
-3. It returns the FIRST line that starts with "def " or "async def "
-4. However, decorators often appear on separate lines before the function definition
-5. The function returns the decorator line instead of the actual function signature
+These argument types can all have type annotations but are not included in the annotation collection logic.
 
 ## Fix Plan
-Modify the `_extract_signature` function to properly handle decorated functions by:
-1. Finding the actual function definition line (not decorator lines)
-2. Ensuring we return the complete function signature line
-3. Maintaining backward compatibility for non-decorated functions
+Modify the `_collect_annotations_from_node` function to check all argument types:
+1. Add `args.posonlyargs` to the loop
+2. Check `args.vararg` if it exists and has an annotation
+3. Check `args.kwarg` if it exists and has an annotation
+4. Maintain backward compatibility
 
 ## Status: IN PROGRESS
