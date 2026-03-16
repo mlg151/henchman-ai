@@ -166,15 +166,21 @@ class WorkingMemoryEntry(SerializableDataclass):
                 
                 has_valid_range = True
         
-        # If we have invalid parts, reject the entire string
-        if has_invalid_part:
+        # If we have "full", it's valid regardless of other valid ranges or invalid parts
+        # (consistent with _parse_line_ranges which returns [] for "full" regardless of other parts)
+        if has_full:
+            return
+        
+        # If we have invalid parts but no valid ranges, reject the string
+        # (consistent with _parse_line_ranges which returns [] when all parts are invalid)
+        if has_invalid_part and not has_valid_range and normalized:
             raise ValueError(
-                f"Invalid lines_read '{lines_read}': contains invalid content"
+                f"Invalid lines_read '{lines_read}': no valid line ranges found"
             )
         
-        # If we have "full", it's valid regardless of other valid ranges
-        # Otherwise, need at least one valid range
-        if not has_full and not has_valid_range and normalized:
+        # If we have no valid ranges and no "full", reject the string
+        # (empty string or whitespace-only is already handled above)
+        if not has_valid_range and normalized:
             raise ValueError(
                 f"Invalid lines_read '{lines_read}': no valid line ranges found"
             )
@@ -602,11 +608,13 @@ class WorkingMemory(SerializableDataclass):
         if start is None or end is None:
             # Handle partial range specifications
             if start is None and end is None:
-                # Want to read entire file, but file wasn't read fully
+                # Want to read entire file, but we can't determine if it was fully read
+                # without knowing file size. Some lines were recorded (valid_ranges),
+                # but we don't know if they cover the entire file.
                 if not valid_ranges:
                     return True, get_empty_ranges_reason()
-                # Valid partial read recorded
-                return True, "File not fully read - partial read recorded"
+                # Some lines recorded, but can't determine if file fully read
+                return True, "Cannot determine if file fully read - some lines recorded but file size unknown"
             elif start is not None:
                 # start=X, end=None: read from X to EOF
                 # Check if we've read line X

@@ -363,12 +363,17 @@ class TestWorkingMemory:
         # Call without line range
         should_read, reason = memory.should_read_file("/test/file.py")
         
-        # BUG: File was only partially read (lines 10-50), but calling without line range
+        # File was only partially read (lines 10-50), but calling without line range
         # means "should I read the whole file?" Answer should be YES because we haven't
-        # read lines 1-9 or 51-end.
-        # Current buggy behavior returns False
+        # read lines 1-9 or 51-end (or we don't know if we have).
         assert should_read is True, "File was only partially read (10-50), should read whole file when no line range specified"
-        assert "not fully read" in reason.lower() or "partial" in reason.lower() or "need to read" in reason.lower()
+        # Accept either old message ("not fully read") or new more accurate message
+        assert ("not fully read" in reason.lower() or 
+                "partial" in reason.lower() or 
+                "need to read" in reason.lower() or
+                "cannot determine" in reason.lower() or
+                "file size unknown" in reason.lower()), \
+            f"Reason should indicate file may not be fully read. Got: {reason}"
 
     def test_memory_should_read_file_overlapping_lines(self):
         """Test should_read_file for overlapping lines."""

@@ -71,26 +71,20 @@ def test_should_read_file_with_mixed_valid_invalid_lines_read():
     """Test that should_read_file works correctly when lines_read has mixed valid/invalid parts.
     
     When an entry has lines_read="10-50,0-5,60-100" (0-5 is invalid),
-    the entry should be REJECTED during creation because it contains invalid content.
+    the entry should be ACCEPTED (after fix) because it has valid parts.
+    Invalid parts are skipped.
     """
     memory = WorkingMemory(current_task="Test")
     
     # Add entry with mixed valid/invalid lines_read
     from henchman.agents.working_memory import WorkingMemoryEntry
     
-    # Should be REJECTED because 0-5 is invalid (line 0)
-    with pytest.raises(ValueError, match="Invalid lines_read"):
-        entry = WorkingMemoryEntry(
-            path="/test/file.py",
-            purpose="Test",
-            lines_read="10-50,0-5,60-100",  # 0-5 is invalid
-        )
-    
-    # Create a valid entry instead for testing
+    # Should be ACCEPTED (after fix) because it has valid parts (10-50, 60-100)
+    # Invalid part (0-5) is skipped
     entry = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
-        lines_read="10-50,60-100",  # Valid ranges only
+        lines_read="10-50,0-5,60-100",  # 0-5 is invalid but will be skipped
     )
     memory.add_recent_file(entry)
     

@@ -90,12 +90,18 @@ def test_should_read_file_end_minus_one_no_start():
     
     print(f"Result: should_read={should_read}, reason={reason}")
     
-    # Should return True (file not fully read)
+    # Should return True (file may not be fully read - we can't determine without file size)
     assert should_read is True, (
         f"File only read lines 1-50, requested entire file (end=-1). "
-        f"Should return True. Got: {should_read}, reason: {reason}"
+        f"Should return True (conservative). Got: {should_read}, reason: {reason}"
     )
-    assert "not fully read" in reason.lower() or "partial" in reason.lower() or "need" in reason.lower()
+    # Accept either old message ("not fully read") or new more accurate message
+    assert ("not fully read" in reason.lower() or 
+            "partial" in reason.lower() or 
+            "need" in reason.lower() or
+            "cannot determine" in reason.lower() or
+            "file size unknown" in reason.lower()), \
+        f"Reason should indicate file may not be fully read. Got: {reason}"
 
 
 if __name__ == "__main__":

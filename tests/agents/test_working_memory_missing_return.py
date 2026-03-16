@@ -49,7 +49,11 @@ def test_should_read_file_start_none_end_not_none():
     # end=-1 gets converted to None, so we're reading entire file
     # File has only lines 1-50 read, not full, so should return True
     assert should_read is True
-    assert "File not fully read" in reason or "May need to read lines before" in reason
+    # Accept either old message ("File not fully read") or new more accurate message
+    assert ("File not fully read" in reason or 
+            "May need to read lines before" in reason or
+            "Cannot determine if file fully read" in reason or
+            "file size unknown" in reason)
 
 
 def test_should_read_file_edge_cases():

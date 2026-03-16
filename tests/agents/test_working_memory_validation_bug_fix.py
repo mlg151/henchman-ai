@@ -5,22 +5,20 @@ from henchman.agents.working_memory import WorkingMemoryEntry
 
 
 def test_validate_lines_read_with_full_and_invalid_parts():
-    """Test that _validate_lines_read validates ALL parts even when 'full' is present.
+    """Test that _validate_lines_read handles 'full' with invalid parts correctly (after fix).
     
-    BUG: Previously, when 'full' appears in a comma-separated list, _validate_lines_read
-    returned early without validating other parts. This allowed invalid formats like
-    'full,invalid-format' to pass validation.
+    AFTER FIX: When 'full' appears in a comma-separated list, _validate_lines_read
+    returns early (accepts the string) because _parse_line_ranges returns [] for
+    any string containing 'full'. This is consistent behavior.
     
-    FIX: _validate_lines_read now validates ALL parts and rejects strings containing
-    invalid content, even when 'full' is present.
+    Strings with 'full' and invalid parts are accepted (invalid parts ignored).
     """
-    # Test 1: 'full,invalid-format' should be REJECTED (has invalid content)
-    with pytest.raises(ValueError, match="Invalid lines_read"):
-        WorkingMemoryEntry._validate_lines_read("full,invalid-format")
+    # Test 1: 'full,invalid-format' should be ACCEPTED (after fix)
+    # _parse_line_ranges returns [] for "full,invalid-format"
+    WorkingMemoryEntry._validate_lines_read("full,invalid-format")
     
-    # Test 2: 'invalid-format,full' should be REJECTED (has invalid content)
-    with pytest.raises(ValueError, match="Invalid lines_read"):
-        WorkingMemoryEntry._validate_lines_read("invalid-format,full")
+    # Test 2: 'invalid-format,full' should be ACCEPTED (after fix)
+    WorkingMemoryEntry._validate_lines_read("invalid-format,full")
     
     # Test 3: 'full,10-20' should pass (10-20 is valid)
     WorkingMemoryEntry._validate_lines_read("full,10-20")
@@ -34,55 +32,67 @@ def test_validate_lines_read_with_full_and_invalid_parts():
     # Test 6: 'full, ,10-20' (with empty part) should pass (empty parts are skipped)
     WorkingMemoryEntry._validate_lines_read("full, ,10-20")
     
-    # Test 7: 'full,invalid-format,10-20' should be REJECTED (has invalid content)
+    # Test 7: 'full,invalid-format,10-20' should be ACCEPTED (after fix)
+    WorkingMemoryEntry._validate_lines_read("full,invalid-format,10-20")
+    
+    # Test 8: 'invalid-format' (no 'full', no valid parts) should be REJECTED
     with pytest.raises(ValueError, match="Invalid lines_read"):
-        WorkingMemoryEntry._validate_lines_read("full,invalid-format,10-20")
+        WorkingMemoryEntry._validate_lines_read("invalid-format")
 
 
 def test_working_memory_entry_creation_with_invalid_lines_read():
-    """Test that WorkingMemoryEntry creation raises ValueError for invalid lines_read."""
-    # Test 1: 'full,invalid-format' should be REJECTED (has invalid content)
-    with pytest.raises(ValueError, match="Invalid lines_read"):
-        WorkingMemoryEntry(
-            path="/test/file.py",
-            purpose="Test",
-            lines_read="full,invalid-format",
-            key_insights=[]
-        )
+    """Test that WorkingMemoryEntry creation handles invalid lines_read correctly (after fix)."""
+    # Test 1: 'full,invalid-format' should be ACCEPTED (after fix)
+    entry1 = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="full,invalid-format",
+        key_insights=[]
+    )
+    assert entry1.lines_read == "full,invalid-format"
     
-    # Test 2: 'invalid-format,full' should be REJECTED (has invalid content)
-    with pytest.raises(ValueError, match="Invalid lines_read"):
-        WorkingMemoryEntry(
-            path="/test/file.py",
-            purpose="Test",
-            lines_read="invalid-format,full",
-            key_insights=[]
-        )
+    # Test 2: 'invalid-format,full' should be ACCEPTED (after fix)
+    entry2 = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="invalid-format,full",
+        key_insights=[]
+    )
+    assert entry2.lines_read == "invalid-format,full"
     
     # Test 3: Valid formats should work
-    entry1 = WorkingMemoryEntry(
+    entry3 = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
         lines_read="full,10-20",
         key_insights=[]
     )
-    assert entry1.lines_read == "full,10-20"
+    assert entry3.lines_read == "full,10-20"
     
-    entry2 = WorkingMemoryEntry(
+    entry4 = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
         lines_read="10-20,full",
         key_insights=[]
     )
-    assert entry2.lines_read == "10-20,full"
+    assert entry4.lines_read == "10-20,full"
     
-    entry3 = WorkingMemoryEntry(
+    entry5 = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
         lines_read="full",
         key_insights=[]
     )
-    assert entry3.lines_read == "full"
+    assert entry5.lines_read == "full"
+    
+    # Test 6: 'invalid-format' (no 'full', no valid parts) should be REJECTED
+    with pytest.raises(ValueError, match="Invalid lines_read"):
+        WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="Test",
+            lines_read="invalid-format",
+            key_insights=[]
+        )
 
 
 def test_parse_line_ranges_behavior_with_full():
