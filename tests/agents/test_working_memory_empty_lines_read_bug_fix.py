@@ -47,17 +47,18 @@ def test_empty_lines_read_not_invalid_format():
 
 
 def test_whitespace_only_lines_read_is_invalid():
-    """Test that whitespace-only lines_read is invalid (raises ValueError)."""
-    # Whitespace-only string should raise ValueError when creating WorkingMemoryEntry
-    with pytest.raises(ValueError, match="whitespace-only"):
-        WorkingMemoryEntry(
-            path="/test/file.py",
-            purpose="Test",
-            lines_read="   ",  # Only spaces
-            key_insights=[],
-        )
+    """Test that whitespace-only lines_read is now valid (after fix)."""
+    # Whitespace-only string should NOT raise ValueError when creating WorkingMemoryEntry (after fix)
+    entry = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="   ",  # Only spaces
+        key_insights=[],
+    )
     
-    print("✓ Whitespace-only lines_read correctly raises ValueError")
+    assert entry.lines_read == "   ", f"lines_read should be '   ', got: {entry.lines_read}"
+    
+    print("✓ Whitespace-only lines_read is valid (after fix)")
 
 
 def test_empty_vs_whitespace_consistency():
@@ -68,10 +69,19 @@ def test_empty_vs_whitespace_consistency():
     entry1 = WorkingMemoryEntry("/test/file1.py", "Test", "", [])
     memory.add_recent_file(entry1)
     
-    # Whitespace-only string is invalid (can't even create the entry)
-    # So we can't test it in memory
+    # Whitespace-only string is also valid (after fix)
+    entry2 = WorkingMemoryEntry("/test/file2.py", "Test", "   ", [])
+    memory.add_recent_file(entry2)
     
-    print("✓ Empty string valid, whitespace-only invalid (consistent)")
+    # Both should behave the same (no lines read)
+    should_read1, reason1 = memory.should_read_file("/test/file1.py", 10, 20)
+    should_read2, reason2 = memory.should_read_file("/test/file2.py", 10, 20)
+    
+    assert should_read1 is True
+    assert should_read2 is True
+    # Both should indicate no lines were read (or similar)
+    
+    print("✓ Empty string and whitespace-only both valid (consistent after fix)")
 
 
 if __name__ == "__main__":

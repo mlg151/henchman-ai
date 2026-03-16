@@ -70,9 +70,10 @@ def test_validate_lines_read_empty_string():
 
 def test_validate_lines_read_whitespace_only():
     """Test _validate_lines_read with whitespace-only string."""
-    # Should raise ValueError
-    with pytest.raises(ValueError, match="whitespace-only"):
-        WorkingMemoryEntry._validate_lines_read("   ")
+    # Should NOT raise ValueError (after fix)
+    WorkingMemoryEntry._validate_lines_read("   ")  # Should not raise
+    WorkingMemoryEntry._validate_lines_read("\t\t")  # Should not raise
+    WorkingMemoryEntry._validate_lines_read("\n\n")  # Should not raise
 
 
 def test_validate_lines_read_inconsistent_with_parse():
@@ -80,7 +81,7 @@ def test_validate_lines_read_inconsistent_with_parse():
     # Cases where they might disagree
     test_cases = [
         ("", True, []),  # Empty: valid, parses to []
-        ("   ", False, []),  # Whitespace-only: invalid, parses to []
+        ("   ", True, []),  # Whitespace-only: valid (after fix), parses to []
         ("full", True, []),  # "full": valid, parses to []
         ("full,10-20", True, []),  # "full" with range: valid, parses to []
         ("10-20,full", True, []),  # Range with "full": valid, parses to []
