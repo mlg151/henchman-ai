@@ -614,7 +614,27 @@ Persistent in-session note-taking scratchpad. Write, append, read, list, or sear
 
 #### ask_user
 
-Ask the user a question and wait for response.
+Ask the user a question and wait for response. This is a **critical tool** for agent interaction that enables collaborative problem-solving by allowing the agent to seek clarification, gather requirements, or confirm decisions.
+
+**When to use `ask_user`:**
+- **Clarification needed**: When requirements are ambiguous or incomplete
+- **Decision confirmation**: Before making significant changes or taking risky actions
+- **Preference gathering**: When multiple valid approaches exist and user preference matters
+- **Missing information**: When the agent lacks necessary context or credentials
+- **Complex trade-offs**: When decisions involve subjective judgment or business priorities
+
+**Best practices:**
+1. **Be specific**: Ask clear, focused questions that users can answer easily
+2. **Provide context**: Explain why you're asking and what depends on the answer
+3. **Offer options**: When appropriate, present choices with pros/cons
+4. **Set reasonable timeouts**: Use `timeout` parameter for time-sensitive decisions
+5. **Follow up**: Use the answer to continue the task or ask clarifying follow-ups
+
+**Example scenarios:**
+- "Which database should I use for this feature: PostgreSQL or SQLite?"
+- "The file `config.yaml` already exists. Should I overwrite it or create a backup first?"
+- "I found 3 possible solutions. Which approach aligns best with your priorities?"
+- "I need API credentials to proceed. Please provide your access token."
 
 ```json
 {

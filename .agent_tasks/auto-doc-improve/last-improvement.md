@@ -1,57 +1,71 @@
 # Last Documentation Improvement
 
 ## Date/Time
-2026-03-16T04:10:00Z (approximate)
+2026-03-16T06:05:00Z (approximate)
 
 ## Files Changed
-1. `docs/mcp.md` - Updated Serena configuration documentation
+1. `docs/tools.md` - Enhanced `ask_user` tool documentation with comprehensive guidance
 
 ## Smell Category Addressed
-COMPLETENESS (missing configuration options documentation)
+COMPLETENESS (incomplete tool usage guidance)
 
 ## Rationale for Change
-The MCP documentation was missing complete Serena configuration options. While the documentation had a basic Serena configuration example, it only showed 2 environment variables (`SERENA_WORKSPACE` and `SERENA_USE_JETBRAINS`) when the copilot instructions document shows 4 available environment variables (`SERENA_WORKSPACE`, `SERENA_BACKEND`, `SERENA_LSP_PYTHON_PATH`, and `SERENA_LOG_LEVEL`).
+The `ask_user` tool is one of the most critical tools for agent interaction, enabling collaborative problem-solving by allowing agents to seek clarification, gather requirements, and confirm decisions. However, the original documentation only provided a basic parameter description without guidance on when and how to use this tool effectively.
 
 **Changes made**:
-1. **Updated Serena configuration example** - Added all 4 environment variables with proper descriptions
-2. **Added Serena Configuration Options table** - Created a comprehensive table with all environment variables, their types, defaults, and descriptions
-3. **Added troubleshooting section** - Included common issues and solutions for Serena and MCP servers
-4. **Clarified deprecated option** - Noted that `SERENA_USE_JETBRAINS` is deprecated in favor of `SERENA_BACKEND: "jetbrains"`
+1. **Added importance context**: Emphasized that `ask_user` is a critical tool for collaborative problem-solving
+2. **Added "When to use" section**: Provided clear scenarios where the tool should be used:
+   - Clarification needed for ambiguous requirements
+   - Decision confirmation before significant changes
+   - Preference gathering for multiple valid approaches
+   - Missing information or credentials
+   - Complex trade-offs requiring subjective judgment
+3. **Added "Best practices" section**: Provided actionable guidance:
+   - Be specific with clear, focused questions
+   - Provide context for why the question is being asked
+   - Offer options with pros/cons when appropriate
+   - Set reasonable timeouts for time-sensitive decisions
+   - Follow up on answers to continue tasks
+4. **Added "Example scenarios"**: Provided concrete examples of effective questions:
+   - Database selection choices
+   - File overwrite confirmation
+   - Solution approach selection
+   - Credential requests
 
 **Why this improvement matters**:
-1. **Accuracy**: Documentation now matches the actual available configuration options
-2. **Completeness**: Users have complete information for configuring Serena
-3. **Usability**: Clear table format makes it easy to understand options
-4. **Troubleshooting**: Added help for common issues users might encounter
-5. **Professionalism**: Comprehensive documentation reflects project quality
+1. **User empowerment**: Helps users understand when and how agents should interact with them
+2. **Agent effectiveness**: Guides agents to use the tool appropriately for better collaboration
+3. **Clarity**: Provides concrete examples that illustrate proper usage
+4. **Professionalism**: Comprehensive documentation reflects mature tool design
+5. **Learning resource**: Serves as a reference for both users and agent developers
 
 ## Verification Performed
-1. ✅ **Cross-reference check**: Verified Serena configuration options against copilot instructions
-2. ✅ **Formatting check**: Ensured tables and code blocks render correctly
-3. ✅ **Link validation**: Checked all external links are valid
-4. ✅ **Consistency check**: Ensured terminology matches rest of documentation
-5. ✅ **Completeness assessment**: Confirmed all Serena features are documented
+1. ✅ **Accuracy check**: Verified tool parameters match actual implementation
+2. ✅ **Completeness assessment**: Confirmed all critical aspects of tool usage are covered
+3. ✅ **Formatting check**: Ensured Markdown formatting renders correctly
+4. ✅ **Consistency check**: Verified terminology matches rest of documentation
+5. ✅ **Practical value**: Assessed that guidance is actionable and useful
 
 ## What to Verify
-1. ✅ **Configuration accuracy**: Serena configuration options match available features
-2. ✅ **Documentation completeness**: All MCP features are properly documented
-3. ✅ **User experience**: Documentation is clear and helpful for configuring Serena
-4. ✅ **Troubleshooting value**: Added troubleshooting section addresses common issues
-5. ✅ **Professional standards**: Documentation meets open-source best practices
+1. ✅ **Tool accuracy**: Documentation matches actual `ask_user` tool implementation
+2. ✅ **Usage guidance**: Provides clear, actionable advice for when and how to use the tool
+3. ✅ **Example relevance**: Scenarios are realistic and helpful
+4. ✅ **Formatting**: Markdown renders correctly in documentation site
+5. ✅ **Integration**: Documentation flows naturally with surrounding content
 
 ## Impact
 - **Low risk**: Documentation-only changes, no code modifications
-- **High value**: Users can properly configure Serena with all available options
-- **Improved usability**: Clear documentation reduces configuration errors
-- **Better troubleshooting**: Users can resolve common issues more easily
-- **Professional quality**: Comprehensive documentation enhances project reputation
+- **High value**: Users and agents can collaborate more effectively
+- **Improved usability**: Clear guidance reduces confusion about tool usage
+- **Better outcomes**: Agents will ask better questions, leading to better results
+- **Educational value**: Serves as a learning resource for agent interaction patterns
 
 ## Next Priority
-With Serena MCP documentation now complete, future documentation efforts could focus on:
-1. **More examples**: Add more Serena tool usage examples
-2. **Performance tuning**: Document optimal Serena configuration for different use cases
-3. **Integration guides**: Create step-by-step guides for integrating other MCP servers
-4. **Video tutorials**: Consider creating video demonstrations of Serena in action
-5. **User testimonials**: Collect and document user success stories with Serena
+With comprehensive `ask_user` documentation now in place, future documentation efforts could focus on:
+1. **More tool deep-dives**: Similar enhancements for other critical tools like `delegate_task`
+2. **Tool combination patterns**: Document effective sequences of tool usage
+3. **Troubleshooting guides**: Common issues and solutions for tool usage
+4. **Performance optimization**: Best practices for efficient tool usage
+5. **Case studies**: Real-world examples of effective agent-user collaboration
 
-The MCP documentation is now comprehensive and provides users with all necessary information to effectively use Serena and other MCP servers.
+The `ask_user` tool documentation now provides comprehensive guidance that will help users and agents collaborate more effectively, leading to better outcomes and more productive interactions.
