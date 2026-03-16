@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-16T16:00:03.393652+00:00_
+_Generated: 2026-03-16T18:00:03.439432+00:00_
 
 ## Executive Summary
 
@@ -32,7 +32,7 @@ _Generated: 2026-03-16T16:00:03.393652+00:00_
 | 12 | docs/evals/README.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 13 | docs/extensions.md | ✅ A | 100.0 | 0 | 2026-03-03 |
 | 14 | docs/getting-started.md | ✅ A | 100.0 | 0 | 2026-03-16 |
-| 15 | docs/index.md | ✅ A | 100.0 | 0 | 2026-03-15 |
+| 15 | docs/index.md | ✅ A | 100.0 | 0 | 2026-03-16 |
 
 ## ✨ Clean Files (245 files with no smells)
 
