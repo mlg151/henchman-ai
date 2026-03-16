@@ -105,6 +105,7 @@ class WorkingMemoryEntry(SerializableDataclass):
         
         # Check if it contains at least one valid range (or "full")
         has_valid_range = False
+        has_invalid_part = False
         
         # Similar logic to _parse_line_ranges: skip invalid parts
         for part in parts:
@@ -127,35 +128,48 @@ class WorkingMemoryEntry(SerializableDataclass):
                 
                 # Check if both parts are decimal numbers
                 if not start_str.isdecimal() or not end_str.isdecimal():
+                    has_invalid_part = True
                     continue  # Skip invalid: contains non-digit characters
                 
                 try:
                     start = int(start_str)
                     end = int(end_str)
                 except (ValueError, TypeError):
+                    has_invalid_part = True
                     continue  # Skip invalid: cannot parse as integers
                 
                 if start < 1 or end < 1:
+                    has_invalid_part = True
                     continue  # Skip invalid: non-positive line numbers
                 
                 if start > end:
+                    has_invalid_part = True
                     continue  # Skip invalid: start > end
                 
                 has_valid_range = True
             else:
                 # Single line
                 if not part.isdecimal():
+                    has_invalid_part = True
                     continue  # Skip invalid: contains non-digit characters
                 
                 try:
                     line = int(part)
                 except (ValueError, TypeError):
+                    has_invalid_part = True
                     continue  # Skip invalid: cannot parse as integer
                 
                 if line < 1:
+                    has_invalid_part = True
                     continue  # Skip invalid: non-positive line number
                 
                 has_valid_range = True
+        
+        # If we have invalid parts, reject the entire string
+        if has_invalid_part:
+            raise ValueError(
+                f"Invalid lines_read '{lines_read}': contains invalid content"
+            )
         
         # If we have "full", it's valid regardless of other valid ranges
         # Otherwise, need at least one valid range
