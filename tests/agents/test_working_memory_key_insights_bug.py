@@ -1,105 +1,123 @@
-"""Test for the key_insights string bug in working_memory.py.
-
-BUG: When a WorkingMemoryEntry is created with key_insights as a string
-(instead of list[str]), the add_recent_file method converts it to a list
-of characters using list(string), which is incorrect.
-
-Example:
-  entry = WorkingMemoryEntry(..., key_insights="Important finding")
-  memory.add_recent_file(entry)
-  # key_insights becomes ['I', 'm', 'p', 'o', 'r', 't', 'a', 'n', 't', ' ', 'f', 'i', 'n', 'd', 'i', 'n', 'g']
-  # Should be ["Important finding"] or raise validation error
-"""
+"""Test for the bug where key_insights string is not properly handled."""
 
 import pytest
 from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
 
 
-def test_key_insights_string_bug():
-    """Test that key_insights as string creates incorrect list of characters."""
-    # Create entry with string key_insights (type hint says list[str] but Python doesn't enforce)
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="1-10",
-        key_insights="Important finding about the file"  # String instead of list!
-    )
+def test_add_recent_file_with_string_key_insights_bug():
+    """Test add_recent_file bug: string key_insights should be split or rejected.
     
+    BUG: When entry.key_insights is a string (e.g., "insight1,insight2"),
+    add_recent_file wraps it in a list ["insight1,insight2"] instead of
+    splitting it into ["insight1", "insight2"].
+    
+    This violates the type contract that key_insights should be list[str].
+    
+    FIXED: Now raises TypeError in WorkingMemoryEntry.__post_init__
+    """
     memory = WorkingMemory(current_task="Test")
     
-    # This should fail or handle gracefully
-    # Currently: list("Important finding about the file") creates list of chars
-    memory.add_recent_file(entry)
+    # Create entry with string key_insights (violates type annotation)
+    # After fix: Should raise TypeError in WorkingMemoryEntry.__post_init__
+    with pytest.raises(TypeError, match="key_insights must be a list or None"):
+        entry = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="Test",
+            lines_read="full",
+            key_insights="insight1,insight2"  # String instead of list[str]
+        )
+
+
+def test_working_memory_entry_validation_bug():
+    """Test that WorkingMemoryEntry doesn't validate key_insights type.
     
-    # Check what happened
-    stored_entry = memory.recent_files[0]
+    BUG: __post_init__ only validates lines_read, not key_insights.
     
-    # BUG: key_insights is list of characters, not list with single string
-    print(f"key_insights type: {type(stored_entry.key_insights)}")
-    print(f"key_insights value: {stored_entry.key_insights}")
-    # This is WRONG - should be ["Important finding about the file"]
-    # But currently it's ['I', 'm', 'p', 'o', 'r', 't', 'a', 'n', 't', ' ', 'f', 'i', 'n', 'd', 'i', 'n', 'g', ' ', 'a', 'b', 'o', 'u', 't', ' ', 't', 'h', 'e', ' ', 'f', 'i', 'l', 'e']
+    FIXED: Now raises TypeError in __post_init__
+    """
+    # After fix: Should raise TypeError in __post_init__
+    with pytest.raises(TypeError, match="key_insights must be a list or None"):
+        entry = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="Test",
+            lines_read="full",
+            key_insights="not a list"  # String instead of list
+        )
+
+
+def test_add_recent_file_preserves_list_key_insights():
+    """Test that add_recent_file correctly handles list key_insights."""
+    memory = WorkingMemory(current_task="Test")
     
-    # The bug: list(string) splits string into characters
-    # This assertion expects the buggy behavior:
-    # assert stored_entry.key_insights == ['I', 'm', 'p', 'o', 'r', 't', 'a', 'n', 't', ' ', 'f', 'i', 'n', 'd', 'i', 'n', 'g', ' ', 'a', 'b', 'o', 'u', 't', ' ', 't', 'h', 'e', ' ', 'f', 'i', 'l', 'e'], \
-    #     f"Expected list of characters due to bug, got {stored_entry.key_insights}"
-    
-    # What we SHOULD get (if bug fixed):
-    assert stored_entry.key_insights == ["Important finding about the file"], \
-        f"Expected ['Important finding about the file'], got {stored_entry.key_insights}"
+    # Create entry with proper list key_insights
     entry = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
-        lines_read="1-10",
-        key_insights=["Important finding about the file"]  # Correct: list with one string
+        lines_read="full",
+        key_insights=["insight1", "insight2"]  # Correct: list[str]
     )
     
-    memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(entry)
+    insights = memory.get_file_insights("/test/file.py")
     
-    stored_entry = memory.recent_files[0]
-    
-    # This works correctly
-    assert stored_entry.key_insights == ["Important finding about the file"], \
-        f"Expected ['Important finding about the file'], got {stored_entry.key_insights}"
-    
-    print("✓ List key_insights works correctly")
+    # Should return the list as-is
+    assert insights == ["insight1", "insight2"], (
+        f"Expected ['insight1', 'insight2'], got {insights}"
+    )
 
 
-def test_key_insights_none():
-    """Test that key_insights as None works correctly."""
+def test_add_recent_file_with_none_key_insights():
+    """Test that add_recent_file handles None key_insights."""
+    memory = WorkingMemory(current_task="Test")
+    
+    # Create entry with None key_insights
     entry = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
-        lines_read="1-10",
+        lines_read="full",
         key_insights=None  # None should become empty list
     )
     
-    memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(entry)
+    insights = memory.get_file_insights("/test/file.py")
     
-    stored_entry = memory.recent_files[0]
-    
-    # None should become empty list
-    assert stored_entry.key_insights == [], \
-        f"Expected [], got {stored_entry.key_insights}"
-    
-    print("✓ None key_insights becomes empty list")
+    # Should return empty list
+    assert insights == [], f"Expected empty list, got {insights}"
 
 
 if __name__ == "__main__":
-    print("Testing key_insights bug...")
+    # Run tests to demonstrate the bug
+    import sys
+    
+    print("Running key_insights bug tests...")
     print("=" * 60)
     
-    test_key_insights_string_bug()
-    print()
+    tests = [
+        test_add_recent_file_with_string_key_insights_bug,
+        test_working_memory_entry_validation_bug,
+        test_add_recent_file_preserves_list_key_insights,
+        test_add_recent_file_with_none_key_insights,
+    ]
     
-    test_key_insights_correct_list()
-    print()
+    failures = 0
+    for test in tests:
+        print(f"\nRunning {test.__name__}...")
+        try:
+            test()
+            print("  ✓ PASS (or bug not yet fixed)")
+        except AssertionError as e:
+            print(f"  ✗ FAIL: {e}")
+            failures += 1
+        except Exception as e:
+            print(f"  ✗ ERROR: {e}")
+            failures += 1
     
-    test_key_insights_none()
+    print(f"\n" + "=" * 60)
+    print(f"Total: {len(tests)} tests, {failures} failures")
     
-    print("=" * 60)
-    print("Bug confirmed: string key_insights converted to list of characters")
-    print("Fix: In add_recent_file, check if key_insights is string and wrap in list")
+    if failures > 0:
+        print("\nBUG CONFIRMED: Tests fail with current implementation.")
+    else:
+        print("\nAll tests pass (bug may have been fixed).")
+    
+    sys.exit(1 if failures > 0 else 0)
