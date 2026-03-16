@@ -531,13 +531,8 @@ class WorkingMemory(SerializableDataclass):
         if not matches:
             return True, "File not in recent files"
 
-        # Convert end=-1 to None (read to end of file)
-        # This matches the read_file tool's API where end=-1 means "read to EOF"
-        # Accept both int -1 and float -1.0
-        if end == -1:
-            end = None
-
         # Validate line numbers if provided (1-indexed)
+        # Note: end=-1 is a special case meaning "read to EOF"
         if start is not None:
             if type(start) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
                 return True, f"Invalid line number: start must be an integer, got {type(start).__name__}={start}"
@@ -546,11 +541,20 @@ class WorkingMemory(SerializableDataclass):
         if end is not None:
             if type(end) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
                 return True, f"Invalid line number: end must be an integer, got {type(end).__name__}={end}"
+            # end=-1 is allowed (means "read to EOF"), other negative values are not
             if end < 1 and end != -1:
-                return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
+                return True, f"Invalid line number: end must be -1 (for EOF) or positive (1-indexed), got end={end}"
+
+        # Convert end=-1 to None (read to end of file) AFTER validation
+        # This matches the read_file tool's API where end=-1 means "read to EOF"
+        # Only accept integer -1, not float -1.0 (type check above ensures this)
+        if end == -1:
+            end = None
 
         # Validate line range if both are provided
-        if start is not None and end is not None and start > end:
+        # Note: end=-1 means "read to EOF", so start > -1 is always true for positive start
+        # This is valid (reading from start to EOF)
+        if start is not None and end is not None and end != -1 and start > end:
             return True, f"Invalid line range: start ({start}) > end ({end}) - line numbers must be in ascending order"
 
         # Check if the MOST RECENT entry indicates file was read fully

@@ -11,18 +11,21 @@ def test_should_read_file_with_float_minus_one():
     This works for end=-1.0 (float) because -1.0 == -1 is True.
     But the method signature says end: int | None, not float.
     This is a type violation.
+    
+    FIXED: Now the method validates type BEFORE conversion, so end=-1.0
+    is rejected as not an integer (type(end) is not int).
     """
     memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Test with end=-1.0 (float) - should work but is type violation
+    # Test with end=-1.0 (float) - should be rejected as not integer
     should_read, reason = memory.should_read_file("/test/file.py", start=10, end=-1.0)
     
-    # File was read fully, so should return False
-    assert should_read is False
-    assert "already read" in reason.lower()
+    # Should return error about invalid line number (not integer)
+    assert should_read is True, f"end=-1.0 (float) should be rejected. Got: should_read={should_read}, reason={reason}"
+    assert "integer" in reason.lower() or "invalid" in reason.lower()
     
-    print(f"Test passes: end=-1.0 (float) works: should_read={should_read}, reason={reason}")
+    print(f"Test passes: end=-1.0 (float) correctly rejected: should_read={should_read}, reason={reason}")
 
 
 def test_should_read_file_with_float_minus_one_point_five():
@@ -46,23 +49,25 @@ def test_should_read_file_with_float_minus_one_point_five():
 
 
 def test_should_read_file_type_safety_bug():
-    """Test type safety bug: method accepts float but signature says int."""
+    """Test type safety bug: method accepts float but signature says int.
+    
+    FIXED: Now the method consistently rejects all float values,
+    including -1.0, because type(end) is not int for floats.
+    """
     memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # The bug is that the method signature is wrong!
-    # It should be: end: int | float | None = None
-    # Or it should reject float explicitly.
+    # Now correctly rejects float -1.0
+    should_read1, reason1 = memory.should_read_file("/test/file.py", start=10, end=-1.0)
+    assert should_read1 is True  # Error - not integer
+    assert "integer" in reason1.lower()
     
-    # Currently accepts float -1.0
-    should_read1, _ = memory.should_read_file("/test/file.py", start=10, end=-1.0)
-    assert should_read1 is False  # File read fully
-    
-    # Currently rejects float -1.5
+    # Also rejects float -1.5
     should_read2, reason2 = memory.should_read_file("/test/file.py", start=10, end=-1.5)
-    assert should_read2 is True  # Error
+    assert should_read2 is True  # Error - not integer
+    assert "integer" in reason2.lower()
     
-    print("Type safety bug: method inconsistently handles float values")
+    print("Type safety fixed: method consistently rejects float values")
 
 
 if __name__ == "__main__":
