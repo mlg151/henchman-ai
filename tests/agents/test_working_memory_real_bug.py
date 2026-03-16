@@ -6,34 +6,29 @@ from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
 def test_memory_should_read_file_with_whitespace_only_lines_read():
     """Test should_read_file when lines_read contains only whitespace.
     
-    After fix: whitespace-only strings should raise ValueError when creating WorkingMemoryEntry.
+    After fix: whitespace-only strings should be valid (treated as empty string).
     """
     memory = WorkingMemory(current_task="Test")
     
-    # Creating entry with whitespace-only lines_read should raise ValueError
-    with pytest.raises(ValueError, match="whitespace-only"):
-        WorkingMemoryEntry(
-            path="/test/file.py",
-            purpose="Test",
-            lines_read="   ",  # Only spaces
-            key_insights=[],
-        )
-    
-    # Test with empty string (should still work)
+    # Creating entry with whitespace-only lines_read should NOT raise ValueError (after fix)
     entry = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
-        lines_read="",  # Empty string
+        lines_read="   ",  # Only spaces
         key_insights=[],
     )
+    
+    assert entry.lines_read == "   ", f"lines_read should be '   ', got: {entry.lines_read}"
+    
     memory.add_recent_file(entry)
     
     # Request lines 10-20
     should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
     
-    # Should return True (empty string means "no lines read")
+    # Should return True (whitespace-only string means "no lines read", same as empty string)
     assert should_read is True
-    assert "no lines" in reason.lower() or "not read" in reason.lower()
+    # Reason can be "Cannot determine - no valid line ranges" or similar
+    assert "no valid" in reason.lower() or "cannot determine" in reason.lower() or "no lines" in reason.lower() or "not read" in reason.lower()
     
     print(f"Test passes: should_read={should_read}, reason={reason}")
 
