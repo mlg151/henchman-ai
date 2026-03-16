@@ -76,8 +76,6 @@ class DecisionEntry(SerializableDataclass):
     decision: str
     rationale: str
     impact: str = DEFAULT_IMPACT
-    rationale: str
-    impact: str = DEFAULT_IMPACT
 
 
 @dataclass

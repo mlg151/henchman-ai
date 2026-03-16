@@ -125,6 +125,10 @@ cat file.py | henchman --prompt "Review this Python code"
 | `/quit` | Exit the CLI |
 | `/clear` | Clear conversation history |
 | `/tools` | List available tools |
+| `/agent` | Multi-agent management (list, config, or talk directly to specialists) |
+| `/team` | Show team status or reset all agents |
+| `/mcp` | Manage MCP servers (list, status, logging) |
+| `/model` | Show or change the model and provider |
 | `/chat save [tag]` | Save current session |
 | `/chat list` | List saved sessions |
 | `/chat resume <tag>` | Resume a session |
