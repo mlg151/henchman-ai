@@ -230,8 +230,8 @@ export HENCHMAN_TEMPERATURE="0.5"
 
 ## 🔌 Supported Providers
 
-| Provider | Status | Registry Name | Notes |
-|----------|--------|---------------|-------|
+| Provider | Status | Configuration Name | Notes |
+|----------|--------|-------------------|-------|
 | DeepSeek | ✅ | `deepseek` | Default provider, OpenAI-compatible API |
 | Anthropic | ✅ | `anthropic` | Claude models (native SDK) |
 | Ollama | ✅ | `ollama` | Local models, OpenAI-compatible API |
@@ -242,6 +242,8 @@ export HENCHMAN_TEMPERATURE="0.5"
 | Fireworks AI (`fireworks`) | ✅ | `fireworks` | Alias for `openai_compat` with Fireworks base URL |
 
 **Note**: The `openai_compat` provider is a generic provider for any OpenAI-compatible API. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` that require you to configure the appropriate base URL in your settings.
+
+**Configuration Names**: Use these names in your `settings.yaml` file (e.g., `providers.default: deepseek`) or with the `--provider` CLI flag.
 
 **See [Providers](docs/providers.md) for complete details and configuration.**
 

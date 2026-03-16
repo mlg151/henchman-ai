@@ -4,8 +4,8 @@ Henchman-AI supports multiple LLM providers through a unified interface.
 
 ## Supported Providers
 
-| Provider | Status | API Compatibility | Registry Name | Notes |
-|----------|--------|-------------------|---------------|-------|
+| Provider | Status | API Compatibility | Configuration Name | Notes |
+|----------|--------|-------------------|-------------------|-------|
 | DeepSeek | ✅ Default | OpenAI-compatible | `deepseek` | Default provider |
 | Anthropic | ✅ | Native SDK | `anthropic` | Claude models via native SDK |
 | Ollama | ✅ | OpenAI-compatible | `ollama` | Local models, no API key required |
@@ -16,6 +16,8 @@ Henchman-AI supports multiple LLM providers through a unified interface.
 | Fireworks AI (`fireworks`) | ✅ | OpenAI-compatible | `fireworks` | Alias for `openai_compat` with Fireworks base URL |
 
 **Note**: The `openai_compat` provider is a generic provider for any OpenAI-compatible API. Specific providers like `together`, `groq`, and `fireworks` are aliases for `openai_compat` that require you to configure the appropriate base URL (see examples below). For OpenAI specifically, use `openai_compat` with `base_url: https://api.openai.com/v1` and `api_key: ${OPENAI_API_KEY}`.
+
+**Configuration Names**: Use these names in your `settings.yaml` file (e.g., `providers.default: deepseek`) or with the `--provider` CLI flag.
 
 ## DeepSeek (Default)
 
