@@ -411,6 +411,12 @@ class WorkingMemory(SerializableDataclass):
         if not matches:
             return True, "File not in recent files"
 
+        # Convert end=-1 to None (read to end of file)
+        # This matches the read_file tool's API where end=-1 means "read to EOF"
+        # Accept both int -1 and float -1.0
+        if end == -1:
+            end = None
+
         # Validate line numbers if provided (1-indexed)
         if start is not None:
             if type(start) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
@@ -422,11 +428,6 @@ class WorkingMemory(SerializableDataclass):
                 return True, f"Invalid line number: end must be an integer, got {type(end).__name__}={end}"
             if end < 1 and end != -1:
                 return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
-
-        # Convert end=-1 to None (read to end of file)
-        # This matches the read_file tool's API where end=-1 means "read to EOF"
-        if end == -1:
-            end = None
 
         # Validate line range if both are provided
         if start is not None and end is not None and start > end:

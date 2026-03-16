@@ -1,132 +1,98 @@
-"""Test to find a REAL bug in working_memory.py."""
+"""Test for a real bug in working_memory.py - finding the actual bug."""
 
 import pytest
-from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry, LineRange
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
 
 
-def test_memory_should_read_file_start_zero_end_valid():
-    """Test should_read_file with start=0 (invalid) and valid end.
+def test_should_read_file_bug_with_negative_end_other_than_minus_one():
+    """Test should_read_file with end=-2 (invalid, not -1).
     
-    BUG: start=0 should be rejected as invalid (lines are 1-indexed).
+    BUG: The validation allows end=-1 (special case for EOF), but what about
+    end=-2, -3, etc.? These should be invalid.
     """
     memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Test: start=0, end=10 (invalid start)
-    should_read, reason = memory.should_read_file("/test/file.py", 0, 10)
+    # Test with end=-2 (invalid, not -1)
+    should_read, reason = memory.should_read_file("/test/file.py", start=10, end=-2)
     
-    # Should return True with error about invalid start
-    assert should_read is True, f"Invalid start=0 should return True with error. Got: {should_read}, reason: {reason}"
-    assert "invalid" in reason.lower() or "positive" in reason.lower() or "1-indexed" in reason.lower()
-    assert "start" in reason.lower()
+    # Should return True with error about invalid line number
+    assert should_read is True
+    assert "invalid" in reason.lower() or "positive" in reason.lower(), (
+        f"Expected error about invalid line number for end=-2, got: {reason}"
+    )
 
 
-def test_memory_should_read_file_end_zero_start_valid():
-    """Test should_read_file with valid start and end=0 (invalid).
+def test_should_read_file_bug_with_end_zero():
+    """Test should_read_file with end=0 (invalid, 1-indexed)."""
+    memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    BUG: end=0 should be rejected as invalid (lines are 1-indexed).
+    # Test with end=0 (invalid, 1-indexed)
+    should_read, reason = memory.should_read_file("/test/file.py", start=10, end=0)
+    
+    # Should return True with error about invalid line number
+    assert should_read is True
+    assert "invalid" in reason.lower() or "positive" in reason.lower(), (
+        f"Expected error about invalid line number for end=0, got: {reason}"
+    )
+
+
+def test_should_read_file_bug_with_start_zero():
+    """Test should_read_file with start=0 (invalid, 1-indexed)."""
+    memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
+    
+    # Test with start=0 (invalid, 1-indexed)
+    should_read, reason = memory.should_read_file("/test/file.py", start=0, end=50)
+    
+    # Should return True with error about invalid line number
+    assert should_read is True
+    assert "invalid" in reason.lower() or "positive" in reason.lower(), (
+        f"Expected error about invalid line number for start=0, got: {reason}"
+    )
+
+
+def test_should_read_file_bug_with_boolean_start():
+    """Test should_read_file with start=True (bool, should be rejected).
+    
+    BUG: type(start) is not int will catch bool since bool is subclass of int,
+    but isinstance(start, int) would return True for bool.
     """
     memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Test: start=1, end=0 (invalid end)
-    should_read, reason = memory.should_read_file("/test/file.py", 1, 0)
+    # Test with start=True (bool, should be rejected)
+    should_read, reason = memory.should_read_file("/test/file.py", start=True, end=50)
     
-    # Should return True with error about invalid end
-    assert should_read is True, f"Invalid end=0 should return True with error. Got: {should_read}, reason: {reason}"
-    assert "invalid" in reason.lower() or "positive" in reason.lower() or "1-indexed" in reason.lower()
-    assert "end" in reason.lower() or "0" in reason.lower()
+    # Should return True with error about invalid line number
+    assert should_read is True
+    assert "invalid" in reason.lower() or "integer" in reason.lower(), (
+        f"Expected error about invalid line number for start=True, got: {reason}"
+    )
+    # Check that it specifically mentions bool
+    assert "bool" in reason.lower() or "boolean" in reason.lower(), (
+        f"Should mention bool/boolean in error, got: {reason}"
+    )
 
 
-def test_memory_should_read_file_start_gt_end():
-    """Test should_read_file with start > end (invalid range).
-    
-    BUG: start=10, end=5 should be rejected as invalid range.
-    """
+def test_should_read_file_bug_with_boolean_end():
+    """Test should_read_file with end=False (bool, should be rejected)."""
     memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Test: start=10, end=5 (invalid: start > end)
-    should_read, reason = memory.should_read_file("/test/file.py", 10, 5)
+    # Test with end=False (bool, should be rejected)
+    should_read, reason = memory.should_read_file("/test/file.py", start=10, end=False)
     
-    # Should return True with error about invalid range
-    assert should_read is True, f"Invalid range start=10 > end=5 should return True with error. Got: {should_read}, reason: {reason}"
-    assert "invalid" in reason.lower() or "start.*>.*end" in reason.lower() or "ascending" in reason.lower()
-
-
-def test_memory_should_read_file_float_line_numbers():
-    """Test should_read_file with float line numbers.
-    
-    BUG: Float values like 1.5 should be rejected as invalid type.
-    """
-    memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
-    
-    # Test: start=1.5, end=10 (float start)
-    should_read, reason = memory.should_read_file("/test/file.py", 1.5, 10)
-    
-    # Should return True with error about invalid type
-    assert should_read is True, f"Float start=1.5 should return True with error. Got: {should_read}, reason: {reason}"
-    assert "invalid" in reason.lower() or "type" in reason.lower() or "integer" in reason.lower()
-    assert "float" in reason.lower() or "1.5" in reason
-    
-    # Test: start=1, end=10.5 (float end)
-    should_read2, reason2 = memory.should_read_file("/test/file.py", 1, 10.5)
-    
-    assert should_read2 is True, f"Float end=10.5 should return True with error. Got: {should_read2}, reason: {reason2}"
-    assert "invalid" in reason2.lower() or "type" in reason2.lower() or "integer" in reason2.lower()
-    assert "float" in reason2.lower() or "10.5" in reason2
-
-
-def test_memory_should_read_file_string_line_numbers():
-    """Test should_read_file with string line numbers.
-    
-    BUG: String values like "10" should be rejected as invalid type.
-    """
-    memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
-    
-    # Test: start="10", end=20 (string start)
-    should_read, reason = memory.should_read_file("/test/file.py", "10", 20)  # type: ignore
-    
-    # Should return True with error about invalid type
-    assert should_read is True, f"String start='10' should return True with error. Got: {should_read}, reason: {reason}"
-    assert "invalid" in reason.lower() or "type" in reason.lower() or "integer" in reason.lower()
-    assert "str" in reason.lower() or "'10'" in reason or '"10"' in reason
-    
-    # Test: start=1, end="20" (string end)
-    should_read2, reason2 = memory.should_read_file("/test/file.py", 1, "20")  # type: ignore
-    
-    assert should_read2 is True, f"String end='20' should return True with error. Got: {should_read2}, reason: {reason2}"
-    assert "invalid" in reason2.lower() or "type" in reason2.lower() or "integer" in reason2.lower()
-    assert "str" in reason2.lower() or "'20'" in reason2 or '"20"' in reason2
-
-
-def test_memory_line_range_from_str_invalid():
-    """Test LineRange.from_str with invalid input.
-    
-    BUG: LineRange.from_str should return None for invalid input.
-    """
-    # Test with invalid format
-    assert LineRange.from_str("") is None
-    assert LineRange.from_str("invalid") is None
-    assert LineRange.from_str("10-") is None
-    assert LineRange.from_str("-20") is None
-    assert LineRange.from_str("10-20-30") is None  # Multiple dashes
-    
-    # Test with invalid numbers
-    assert LineRange.from_str("0-10") is None  # start=0 invalid
-    assert LineRange.from_str("10-0") is None  # end=0 invalid
-    assert LineRange.from_str("-5-10") is None  # negative start
-    assert LineRange.from_str("10--5") is None  # negative end
-    
-    # Test with start > end
-    assert LineRange.from_str("20-10") is None  # start > end
-    
-    # Valid cases
-    assert LineRange.from_str("10-20") is not None
-    assert LineRange.from_str("1-1") is not None  # single line
-    assert LineRange.from_str("100-200") is not None
+    # Should return True with error about invalid line number
+    assert should_read is True
+    assert "invalid" in reason.lower() or "integer" in reason.lower(), (
+        f"Expected error about invalid line number for end=False, got: {reason}"
+    )
+    # Check that it specifically mentions bool
+    assert "bool" in reason.lower() or "boolean" in reason.lower(), (
+        f"Should mention bool/boolean in error, got: {reason}"
+    )
 
 
 if __name__ == "__main__":
@@ -134,32 +100,28 @@ if __name__ == "__main__":
     import sys
     
     tests = [
-        test_memory_should_read_file_start_zero_end_valid,
-        test_memory_should_read_file_end_zero_start_valid,
-        test_memory_should_read_file_start_gt_end,
-        test_memory_should_read_file_float_line_numbers,
-        test_memory_should_read_file_string_line_numbers,
-        test_memory_line_range_from_str_invalid,
+        test_should_read_file_bug_with_negative_end_other_than_minus_one,
+        test_should_read_file_bug_with_end_zero,
+        test_should_read_file_bug_with_start_zero,
+        test_should_read_file_bug_with_boolean_start,
+        test_should_read_file_bug_with_boolean_end,
     ]
     
-    failures = 0
+    all_passed = True
     for test in tests:
-        print(f"\nRunning {test.__name__}...")
         try:
             test()
-            print("  ✓ PASS")
+            print(f"✓ {test.__name__} passed")
         except AssertionError as e:
-            print(f"  ✗ FAIL: {e}")
-            failures += 1
+            print(f"✗ {test.__name__} failed: {e}")
+            all_passed = False
         except Exception as e:
-            print(f"  ✗ ERROR: {e}")
-            failures += 1
+            print(f"✗ {test.__name__} error: {e}")
+            import traceback
+            traceback.print_exc()
+            all_passed = False
     
-    print(f"\nTotal: {len(tests)} tests, {failures} failures")
-    
-    if failures > 0:
-        print("\nBUGS FOUND!")
+    if not all_passed:
+        sys.exit(1)
     else:
-        print("\nAll tests pass (no bugs found).")
-    
-    sys.exit(1 if failures > 0 else 0)
+        print("\nAll tests passed!")

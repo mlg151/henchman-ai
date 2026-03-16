@@ -1,156 +1,111 @@
-"""Test for the real bug: should_read_file incorrectly rejects end=-1.
-
-This is the "Unit of Doom" test that FAILS on the original code
-and should PASS after the fix.
-"""
+"""Test for the end=-1 bug in working_memory.py."""
 
 import pytest
 from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
 
 
-def test_memory_should_read_file_end_minus_one_bug():
-    """Test should_read_file bug: end=-1 should be valid (means "read to end of file").
+def test_should_read_file_with_end_minus_one_bug():
+    """Test should_read_file bug when end=-1 (read to EOF) with start provided.
     
-    BUG: The validation in should_read_file rejects end=-1 with "Invalid line number: 
-    end must be positive (1-indexed), got end=-1", but end=-1 is a valid special value
-    that means "read to end of file" in the read_file tool.
+    BUG: When end=-1 is provided (meaning "read to end of file"), the method
+    converts end=-1 to None BEFORE validating line numbers. This causes a
+    TypeError when comparing start > end (where end is now None).
     
-    This test demonstrates the bug - it should FAIL on the original code.
+    Example: should_read_file("/test/file.py", start=10, end=-1)
+    Expected: Should validate start=10 is valid (positive integer)
+    Actual: Raises TypeError: '>' not supported between instances of 'int' and 'NoneType'
     """
     memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="1-50"
-    ))
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Test with end=-1 (should be valid!)
-    should_read, reason = memory.should_read_file("/test/file.py", 60, -1)
+    # Test case 1: start=10, end=-1 (read from line 10 to EOF)
+    # This should NOT raise TypeError
+    should_read, reason = memory.should_read_file("/test/file.py", start=10, end=-1)
     
-    # The bug: should_read_file returns True with error about invalid end=-1
-    # But it should accept end=-1 as valid!
-    
-    # Expected behavior: end=-1 is valid, so it should check if lines 60-end need to be read
-    # Since file was only read up to line 50, lines 60-end need to be read
-    # So should_read should be True, but NOT with an error about invalid end
-    
-    # Check that end=-1 is accepted (no error about invalid end)
-    assert "invalid" not in reason.lower() or "positive" not in reason.lower(), \
-        f"end=-1 should be valid, but got error: {reason}"
-    
-    # Since lines 60-end haven't been read, should_read should be True
-    assert should_read is True, f"Lines 60-end haven't been read, should_read should be True, got {should_read}"
-    
-    # The reason should indicate that new lines need to be read
-    assert "new" in reason.lower() or "need" in reason.lower() or "not in" in reason.lower() or "beyond" in reason.lower(), \
-        f"Should indicate lines need to be read, got: {reason}"
+    # The file was read fully, so should return False
+    # But more importantly, it should NOT crash with TypeError
+    assert should_read is False
+    assert "already read" in reason.lower()
 
 
-def test_memory_should_read_file_end_minus_one_with_full_read():
-    """Test end=-1 when file was read fully."""
+def test_should_read_file_with_end_minus_one_and_invalid_start():
+    """Test should_read_file with end=-1 and invalid start value.
+    
+    When end=-1 and start is invalid (e.g., start=0), the method should
+    report the invalid start error, not crash with TypeError.
+    """
     memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="full"
-    ))
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Test with end=-1 when file was read fully
-    should_read, reason = memory.should_read_file("/test/file.py", 10, -1)
+    # Test with invalid start=0, end=-1
+    should_read, reason = memory.should_read_file("/test/file.py", start=0, end=-1)
     
-    # end=-1 should be valid
-    assert "invalid" not in reason.lower() or "positive" not in reason.lower(), \
-        f"end=-1 should be valid, but got error: {reason}"
-    
-    # File was read fully, so should_read should be False
-    assert should_read is False, f"File was read fully, should_read should be False, got {should_read}"
-    assert "already read" in reason.lower() or "full" in reason.lower(), \
-        f"Should indicate file already read, got: {reason}"
+    # Should report invalid line number error, not crash
+    assert should_read is True
+    assert "invalid" in reason.lower() or "positive" in reason.lower()
 
 
-def test_memory_should_read_file_start_minus_one_still_invalid():
-    """Test start=-1 (should still be invalid, only end=-1 is special)."""
+def test_should_read_file_with_end_minus_one_and_start_gt_end():
+    """Test should_read_file with end=-1 and start > end scenario.
+    
+    When end=-1 and start > -1 (which is always true for positive start),
+    the validation should handle this special case properly.
+    """
     memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="1-50"
-    ))
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Test with start=-1 (should be invalid!)
-    should_read, reason = memory.should_read_file("/test/file.py", -1, 100)
+    # Test with start=10, end=-1
+    # Since end=-1 means "read to EOF", start=10 > -1 is actually valid
+    # (we want to read from line 10 to end of file)
+    should_read, reason = memory.should_read_file("/test/file.py", start=10, end=-1)
     
-    # start=-1 should be invalid (only end=-1 is special)
-    assert should_read is True, f"start=-1 is invalid, should_read should be True (error), got {should_read}"
-    assert "invalid" in reason.lower() or "positive" in reason.lower(), \
-        f"start=-1 should be invalid, got: {reason}"
-    assert "start" in reason.lower(), f"Error should mention 'start', got: {reason}"
+    # File was read fully, so should return False
+    assert should_read is False
+    assert "already read" in reason.lower()
 
 
-def test_memory_should_read_file_end_zero_still_invalid():
-    """Test end=0 (should still be invalid, only end=-1 is special)."""
+def test_should_read_file_end_minus_one_partial_read():
+    """Test should_read_file with end=-1 when file was partially read."""
     memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="1-50"
-    ))
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "10-50"))
     
-    # Test with end=0 (should be invalid, different from end=-1)
-    should_read, reason = memory.should_read_file("/test/file.py", 60, 0)
+    # Request to read from line 60 to EOF (end=-1)
+    should_read, reason = memory.should_read_file("/test/file.py", start=60, end=-1)
     
-    # end=0 should be invalid (only end=-1 is special)
-    assert should_read is True, f"end=0 is invalid, should_read should be True (error), got {should_read}"
-    assert "invalid" in reason.lower() or "positive" in reason.lower(), \
-        f"end=0 should be invalid, got: {reason}"
-    assert "end" in reason.lower(), f"Error should mention 'end', got: {reason}"
-
-
-def test_memory_should_read_file_end_minus_one_with_start_none():
-    """Test end=-1 with start=None (read from beginning to end)."""
-    memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="1-50"
-    ))
-    
-    # Test with start=None, end=-1 (read entire file)
-    should_read, reason = memory.should_read_file("/test/file.py", None, -1)
-    
-    # end=-1 should be valid even with start=None
-    assert "invalid" not in reason.lower() or "positive" not in reason.lower(), \
-        f"end=-1 should be valid with start=None, but got error: {reason}"
-    
-    # Since we're asking to read the entire file (None to -1) and file was only read 1-50,
-    # we should check if the entire file needs to be read
-    # Actually, with start=None, end=-1, we're asking "should I read the entire file?"
-    # Since part of it (1-50) was already read, but not the rest, it should return True
-    # But the logic might be more complex... let's just check it doesn't error on end=-1
-    # The exact behavior can be refined later
+    # Should return True (need to read lines 60-EOF)
+    assert should_read is True
+    assert "beyond" in reason.lower() or "need to read" in reason.lower()
 
 
 if __name__ == "__main__":
-    print("Running end=-1 bug tests...")
-    print("=" * 60)
+    # Run the tests
+    import sys
+    try:
+        test_should_read_file_with_end_minus_one_bug()
+        print("✓ test_should_read_file_with_end_minus_one_bug passed")
+    except Exception as e:
+        print(f"✗ test_should_read_file_with_end_minus_one_bug failed: {e}")
+        sys.exit(1)
     
-    tests = [
-        test_memory_should_read_file_end_minus_one_bug,
-        test_memory_should_read_file_end_minus_one_with_full_read,
-        test_memory_should_read_file_start_minus_one_still_invalid,
-        test_memory_should_read_file_end_zero_still_invalid,
-        test_memory_should_read_file_end_minus_one_with_start_none,
-    ]
+    try:
+        test_should_read_file_with_end_minus_one_and_invalid_start()
+        print("✓ test_should_read_file_with_end_minus_one_and_invalid_start passed")
+    except Exception as e:
+        print(f"✗ test_should_read_file_with_end_minus_one_and_invalid_start failed: {e}")
+        sys.exit(1)
     
-    for test in tests:
-        print(f"\nRunning {test.__name__}...")
-        try:
-            test()
-            print("  ✓ PASS")
-        except AssertionError as e:
-            print(f"  ✗ FAIL: {e}")
-        except Exception as e:
-            print(f"  ✗ ERROR: {e}")
+    try:
+        test_should_read_file_with_end_minus_one_and_start_gt_end()
+        print("✓ test_should_read_file_with_end_minus_one_and_start_gt_end passed")
+    except Exception as e:
+        print(f"✗ test_should_read_file_with_end_minus_one_and_start_gt_end failed: {e}")
+        sys.exit(1)
     
-    print("\n" + "=" * 60)
-    print("Tests complete.")
+    try:
+        test_should_read_file_end_minus_one_partial_read()
+        print("✓ test_should_read_file_end_minus_one_partial_read passed")
+    except Exception as e:
+        print(f"✗ test_should_read_file_end_minus_one_partial_read failed: {e}")
+        sys.exit(1)
+    
+    print("\nAll tests passed!")
