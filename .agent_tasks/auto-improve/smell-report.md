@@ -1,27 +1,27 @@
-# Code Smell Report — ⚠️ C (Score: 78.4/100)
+# Code Smell Report — ⚠️ C (Score: 78.3/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-16T05:00:33.920125+00:00_
+_Generated: 2026-03-16T06:00:32.916399+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ⚠️ C |
-| **Overall Score** | 78.4/100 |
+| **Overall Score** | 78.3/100 |
 | **Files Scanned** | 215 |
-| **Total Lines (non-blank)** | 44,404 |
-| **Total Smells** | 599 |
+| **Total Lines (non-blank)** | 44,454 |
+| **Total Smells** | 604 |
 | **Avg Maintainability Index** | 69.9 |
-| **Avg Cyclomatic Complexity** | 14.2 |
+| **Avg Cyclomatic Complexity** | 13.8 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 406 |
-| medium | 188 |
+| low | 408 |
+| medium | 191 |
 | high | 3 |
 | critical | 2 |
 
@@ -32,34 +32,34 @@ _Generated: 2026-03-16T05:00:33.920125+00:00_
 | Missing Type Hint | 144 |
 | Duplicate Code | 107 |
 | Feature Envy | 83 |
-| Long Method | 75 |
-| Deep Nesting | 59 |
+| Long Method | 76 |
+| Deep Nesting | 61 |
 | Magic Number | 44 |
 | Primitive Obsession | 43 |
-| Complex Function | 29 |
+| Complex Function | 31 |
 | Large Class | 15 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:395** — 🔴 CRITICAL — Complex Function  
+1. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:469** — 🔴 CRITICAL — Complex Function  
    Function 'should_read_file' has cyclomatic complexity 46 (rank F)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-2. **agents/working_memory.py:395** — 🔴 CRITICAL — Long Method  
+2. **agents/working_memory.py:469** — 🔴 CRITICAL — Long Method  
    Function 'should_read_file' has 156 lines (threshold: 30)  
    → _Extract Method — break this function into smaller, intention-revealing helper functions._
 
-3. **agents/working_memory.py:395** — 🟠 HIGH — Feature Envy  
+3. **agents/working_memory.py:469** — 🟠 HIGH — Feature Envy  
    Method 'WorkingMemory.should_read_file' accesses 'rng' 15 times but 'self' only 5 times  
    → _Move Method — consider moving 'should_read_file' to the class that owns 'rng'._
 
-4. **agents/working_memory.py:487** — 🟠 HIGH — Deep Nesting  
+4. **agents/working_memory.py:561** — 🟠 HIGH — Deep Nesting  
    Nesting depth 6 in 'should_read_file' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-5. **agents/working_memory.py:521** — 🟠 HIGH — Deep Nesting  
+5. **agents/working_memory.py:595** — 🟠 HIGH — Deep Nesting  
    Nesting depth 6 in 'should_read_file' (threshold: 4)  
    → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
@@ -71,36 +71,36 @@ These are the highest-impact smells to address first:
    Function '_run_delegation' has cyclomatic complexity 18 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-8. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:326** — 🟡 MEDIUM — Complex Function  
+8. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:48** — 🟡 MEDIUM — Complex Function  
+   Function 'WorkingMemoryEntry' has cyclomatic complexity 13 (rank C)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+9. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:82** — 🟡 MEDIUM — Complex Function  
+   Function '_validate_lines_read' has cyclomatic complexity 17 (rank C)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+10. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:400** — 🟡 MEDIUM — Complex Function  
    Function '_parse_line_ranges' has cyclomatic complexity 16 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-9. **/home/matthew/mlg-cli/src/henchman/config/context.py:132** — 🟡 MEDIUM — Complex Function  
+11. **/home/matthew/mlg-cli/src/henchman/config/context.py:132** — 🟡 MEDIUM — Complex Function  
    Function 'discover_files' has cyclomatic complexity 19 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-10. **/home/matthew/mlg-cli/src/henchman/config/environment.py:133** — 🟡 MEDIUM — Complex Function  
+12. **/home/matthew/mlg-cli/src/henchman/config/environment.py:133** — 🟡 MEDIUM — Complex Function  
    Function '_detect_git_status' has cyclomatic complexity 17 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-11. **/home/matthew/mlg-cli/src/henchman/core/agent.py:198** — 🟡 MEDIUM — Complex Function  
+13. **/home/matthew/mlg-cli/src/henchman/core/agent.py:198** — 🟡 MEDIUM — Complex Function  
    Function '__getattr__' has cyclomatic complexity 12 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-12. **/home/matthew/mlg-cli/src/henchman/mcp/client.py:42** — 🟡 MEDIUM — Complex Function  
+14. **/home/matthew/mlg-cli/src/henchman/mcp/client.py:42** — 🟡 MEDIUM — Complex Function  
    Function 'write' has cyclomatic complexity 13 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-13. **/home/matthew/mlg-cli/src/henchman/mcp/manager.py:132** — 🟡 MEDIUM — Complex Function  
+15. **/home/matthew/mlg-cli/src/henchman/mcp/manager.py:132** — 🟡 MEDIUM — Complex Function  
    Function '_build_logging_env' has cyclomatic complexity 11 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-14. **/home/matthew/mlg-cli/src/henchman/rag/indexer.py:217** — 🟡 MEDIUM — Complex Function  
-   Function 'index' has cyclomatic complexity 13 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-15. **/home/matthew/mlg-cli/src/henchman/rag/system.py:250** — 🟡 MEDIUM — Complex Function  
-   Function 'initialize_rag' has cyclomatic complexity 19 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 
@@ -108,7 +108,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/working_memory.py | ❌ F | 9.8 | 34 | 492 | 33 | 31.0 |
+| 1 | agents/working_memory.py | ❌ F | 8.7 | 39 | 542 | 29 | 23.0 |
 | 2 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
 | 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
 | 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
@@ -123,29 +123,29 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 195 additional files omitted._
 
-### agents/working_memory.py — ❌ F (9.8/100)
+### agents/working_memory.py — ❌ F (8.7/100)
 
-LOC: 492 | Classes: 7 | Functions: 1 | MI: 33 | Avg CC: 31.0
+LOC: 542 | Classes: 7 | Functions: 1 | MI: 29 | Avg CC: 23.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 395 | 🔴 CRITICAL | Long Method | Function 'should_read_file' has 156 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 395 | 🔴 CRITICAL | Complex Function | Function 'should_read_file' has cyclomatic complexity 46 (rank F) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 395 | 🟠 HIGH | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'rng' 15 times but 'self' only 5 times | Move Method — consider moving 'should_read_file' to the class that owns 'rng'. |
-| 487 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'should_read_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 521 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'should_read_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 206 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'set_session' at cli/repl.py:291 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 206 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 206 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 206 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 326 | 🟡 MEDIUM | Long Method | Function '_parse_line_ranges' has 53 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 326 | 🟡 MEDIUM | Complex Function | Function '_parse_line_ranges' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 478 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'should_read_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 485 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'should_read_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 512 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'should_read_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 519 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'should_read_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 469 | 🔴 CRITICAL | Long Method | Function 'should_read_file' has 156 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 469 | 🔴 CRITICAL | Complex Function | Function 'should_read_file' has cyclomatic complexity 46 (rank F) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 469 | 🟠 HIGH | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'rng' 15 times but 'self' only 5 times | Move Method — consider moving 'should_read_file' to the class that owns 'rng'. |
+| 561 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'should_read_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 595 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in 'should_read_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 48 | 🟡 MEDIUM | Complex Function | Function 'WorkingMemoryEntry' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 82 | 🟡 MEDIUM | Long Method | Function '_validate_lines_read' has 62 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 82 | 🟡 MEDIUM | Complex Function | Function '_validate_lines_read' has cyclomatic complexity 17 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 280 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'set_session' at cli/repl.py:291 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 280 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 280 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 280 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 400 | 🟡 MEDIUM | Long Method | Function '_parse_line_ranges' has 53 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 400 | 🟡 MEDIUM | Complex Function | Function '_parse_line_ranges' has cyclomatic complexity 16 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 552 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in 'should_read_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
 
-_... and 19 more smells._
+_... and 24 more smells._
 
 ### tools/builtins/symbol_trace.py — ❌ F (51.2/100)
 
