@@ -8,6 +8,8 @@
 
 Henchman-AI is a powerful, terminal-based AI agent that supports multiple LLM providers (DeepSeek, OpenAI-compatible APIs, Anthropic, Ollama, OpenRouter, and more) through a unified interface. Inspired by gemini-cli, built for extensibility and production use.
 
+**Project Status**: ✅ **Complete** - All 13 development phases implemented, including Multi-Agent Dev Team orchestration, MCP integration, and comprehensive tool system.
+
 ## ✨ Features
 
 - 🤝 **Multi-Agent Dev Team**: Orchestrate a team of specialists (Tech Lead, Planner, Explorer, Engineer, Data Engineer) to solve complex engineering tasks.
