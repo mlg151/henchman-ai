@@ -27,8 +27,11 @@ def _normalize_path(path: str) -> str:
         path: The file path to normalize.
         
     Returns:
-        Normalized path string.
+        Normalized path string. Empty string is returned as-is.
     """
+    if not path:
+        return path  # Return empty string as-is
+    
     # Use os.path.normpath to normalize path separators and remove . and ..
     # Also expand user home directory (~) if present
     return os.path.normpath(os.path.expanduser(path))
