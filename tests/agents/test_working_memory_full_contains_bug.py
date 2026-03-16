@@ -55,26 +55,22 @@ def test_lines_read_full_with_extra_spaces():
 
 
 def test_lines_read_full_with_other_text():
-    """Test: lines_read='full file was read' should mean file was read fully."""
-    memory = WorkingMemory(current_task="Test")
+    """Test: lines_read='full file was read' should be rejected as invalid.
     
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="full file was read",  # Contains 'full' but with other text
-        key_insights=[],
-    )
-    memory.add_recent_file(entry)
-    
-    should_read, reason = memory.should_read_file("/test/file.py", 1, 100)
+    With the fix, WorkingMemoryEntry validates lines_read and rejects invalid formats.
+    'full file was read' is not a valid format (not parseable as line ranges).
+    """
+    # Should raise ValueError because 'full file was read' is not a valid lines_read format
+    with pytest.raises(ValueError, match="Invalid lines_read"):
+        entry = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="Test",
+            lines_read="full file was read",  # Contains 'full' but with other text
+            key_insights=[],
+        )
     
     print(f"\nTest - lines_read='full file was read':")
-    print(f"  should_read={should_read}, reason={reason}")
-    
-    # BUG: Returns True (should read) because "full file was read" != "full"
-    # After normalization: "fullfilewasread" != "full"
-    # Should it be considered fully read? Probably not. "full file was read" is not a valid format.
-    # This is a documentation/validation issue, not necessarily a bug.
+    print(f"  ✓ Correctly rejected as invalid format")
 
 
 def test_lines_read_multiple_parts_with_full():

@@ -403,12 +403,19 @@ class TestWorkingMemory:
     def test_memory_should_read_file_invalid_lines_read(self):
         """Test should_read_file when lines_read is not a valid range."""
         memory = WorkingMemory(current_task="Test")
-        # Add with invalid lines_read format
-        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "invalid-format"))
+        # Add with invalid lines_read format - should raise ValueError
+        # Note: With the fix, WorkingMemoryEntry now validates lines_read
+        # and raises ValueError for invalid format
+        with pytest.raises(ValueError, match="Invalid lines_read"):
+            memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "invalid-format"))
+        
+        # After fix: can't add invalid lines_read, so test different scenario
+        # Add entry with empty lines_read (valid)
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", ""))
         should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
         
         assert should_read is True
-        assert "invalid lines_read format" in reason.lower()
+        assert "cannot determine" in reason.lower() or "invalid" in reason.lower()
 
     def test_memory_should_read_file_overlap_but_not_contained(self):
         """Test should_read_file when ranges overlap but requested range is not fully contained."""
@@ -653,21 +660,23 @@ class TestWorkingMemory:
         BUG: When lines_read is invalid (e.g., "invalid-format") AND line numbers are invalid
         (e.g., start=0, end=-1), the method should report the line number error, not the
         "invalid lines_read format" error. Line number validation should happen first.
+        
+        UPDATE: With the fix, WorkingMemoryEntry validates lines_read on creation,
+        so we can't create entry with invalid lines_read. Test updated to use valid lines_read.
         """
         memory = WorkingMemory(current_task="Test")
-        # Add with invalid lines_read format
-        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "invalid-format"))
+        # Add with valid lines_read format (empty string means no lines read)
+        memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", ""))
         
         # Test with start=0, end=-1 (both invalid)
         should_read, reason = memory.should_read_file("/test/file.py", 0, -1)
         
-        # BUG: Currently returns "Cannot determine overlap - invalid lines_read format"
-        # Should return error about invalid line numbers
+        # Should return error about invalid line numbers (start=0 is invalid)
         assert should_read is True
         assert "invalid" in reason.lower() or "positive" in reason.lower(), (
             f"Expected error about invalid line numbers, got: {reason}"
         )
-        # The error should NOT be about invalid lines_read format when line numbers are invalid
+        # The error should be about line numbers, not about lines_read format
         assert "invalid lines_read format" not in reason.lower(), (
             f"Should report line number error, not lines_read format error when line numbers are invalid. Got: {reason}"
         )
