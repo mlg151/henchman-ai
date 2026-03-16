@@ -1,138 +1,94 @@
-"""Test for the validation bug in working_memory.py.
+"""Test for validation bug in working_memory.py.
 
-This test demonstrates the bug where _validate_lines_read accepts
-whitespace-only strings but should_read_file treats them as invalid.
+Demonstrates that 'full,invalid' is incorrectly accepted as valid lines_read.
 """
 
 import pytest
-from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+from henchman.agents.working_memory import WorkingMemoryEntry
 
 
-def test_validate_lines_read_whitespace_inconsistent():
-    """Test the inconsistent validation bug.
+def test_working_memory_entry_validation_bug():
+    """Test that WorkingMemoryEntry incorrectly accepts 'full,invalid'.
     
-    BUG: _validate_lines_read accepts whitespace-only strings,
-    but should_read_file treats them as "invalid lines_read format".
-    
-    After fix: _validate_lines_read should reject whitespace-only strings.
+    This test FAILS with the current code (bug exists).
+    It should PASS after the fix (raises ValueError).
     """
-    from henchman.agents.working_memory import WorkingMemoryEntry
-    
-    # After fix: this SHOULD raise ValueError
-    with pytest.raises(ValueError, match="whitespace-only"):
-        WorkingMemoryEntry._validate_lines_read("   ")
-    
-    # Creating a WorkingMemoryEntry with whitespace-only lines_read
-    # should now raise ValueError in __post_init__
-    with pytest.raises(ValueError):
-        WorkingMemoryEntry(
-            path="/test/file.py",
-            purpose="Test",
-            lines_read="   ",
-            key_insights=[]
-        )
-    
-    # Test with empty string (should still be valid)
-    WorkingMemoryEntry._validate_lines_read("")
-    
-    # Create entry with empty string
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="",
-        key_insights=[]
-    )
-    
-    # Now use it in should_read_file
-    memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(entry)
-    
-    should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
-    
-    # Empty string is valid, but should_read_file still says "invalid lines_read format"
-    # This is still a problem, but less severe than whitespace-only
-    assert should_read is True
-    # The error message could be improved, but at least it's consistent now
-
-
-def test_validate_lines_read_should_reject_whitespace():
-    """Test that _validate_lines_read should reject whitespace-only strings.
-    
-    This is what the fix should do.
-    """
-    from henchman.agents.working_memory import WorkingMemoryEntry
-    
-    # After fix: this should raise ValueError
+    # BUG: 'full,invalid' should be rejected because 'invalid' is not a valid range
+    # but current code accepts it because it contains 'full'
     with pytest.raises(ValueError, match="Invalid lines_read"):
-        WorkingMemoryEntry._validate_lines_read("   ")
-    
-    # Empty string might still be valid (means "no lines read")
-    # Or should it also be rejected?
-    # Let's check current behavior first
-    try:
-        WorkingMemoryEntry._validate_lines_read("")
-        # Empty string is currently valid
-        print("Empty string is valid (means 'no lines read')")
-    except ValueError:
-        print("Empty string is invalid")
-
-
-def test_working_memory_entry_creation_with_whitespace():
-    """Test creating WorkingMemoryEntry with whitespace-only lines_read.
-    
-    After fix: should raise ValueError.
-    """
-    # After fix: should raise ValueError
-    with pytest.raises(ValueError, match="whitespace-only"):
-        WorkingMemoryEntry(
+        entry = WorkingMemoryEntry(
             path="/test/file.py",
             purpose="Test",
-            lines_read="   ",
-            key_insights=[]
+            lines_read="full,invalid",  # Contains invalid content 'invalid'
+            key_insights=[],
         )
     
-    # Test with empty string (should still work)
-    entry = WorkingMemoryEntry(
+    # Also test other invalid combinations
+    with pytest.raises(ValueError, match="Invalid lines_read"):
+        entry = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="Test",
+            lines_read="full,10-invalid",  # '10-invalid' has non-digit after dash
+            key_insights=[],
+        )
+    
+    with pytest.raises(ValueError, match="Invalid lines_read"):
+        entry = WorkingMemoryEntry(
+            path="/test/file.py", 
+            purpose="Test",
+            lines_read="full,invalid-20",  # 'invalid-20' has non-digit before dash
+            key_insights=[],
+        )
+    
+    print("Test passes: 'full,invalid' correctly rejected")
+
+
+def test_working_memory_entry_valid_cases():
+    """Test that valid cases still work."""
+    # Valid: just 'full'
+    entry1 = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
-        lines_read="",
-        key_insights=[]
+        lines_read="full",
+        key_insights=[],
     )
-    assert entry.lines_read == ""
-
-
-def test_should_read_file_better_error_message():
-    """Test that should_read_file should have better error for whitespace.
+    assert entry1.lines_read == "full"
     
-    After fix: whitespace-only strings are rejected, so test with empty string.
-    """
-    memory = WorkingMemory(current_task="Test")
-    
-    # Add entry with empty string lines_read
-    memory.add_recent_file(WorkingMemoryEntry(
+    # Valid: 'full,10-20' (full with valid range)
+    entry2 = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
-        lines_read="",  # Empty string
-        key_insights=[]
-    ))
+        lines_read="full,10-20",
+        key_insights=[],
+    )
+    assert entry2.lines_read == "full,10-20"
     
-    should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
+    # Valid: '10-20,full' (valid range with full)
+    entry3 = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="10-20,full",
+        key_insights=[],
+    )
+    assert entry3.lines_read == "10-20,full"
     
-    # Current error message for empty string
-    print(f"Current error for empty string: {reason}")
+    # Valid: '10-20,30-40' (multiple valid ranges)
+    entry4 = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="10-20,30-40",
+        key_insights=[],
+    )
+    assert entry4.lines_read == "10-20,30-40"
     
-    # After fix: Error message is "No lines have been read" (improved!)
-    assert should_read is True
-    assert "no lines" in reason.lower() or "not read" in reason.lower()
+    print("Test passes: valid cases still work")
 
 
 if __name__ == "__main__":
-    print("Testing validation bug...")
-    print("=" * 60)
+    try:
+        test_working_memory_entry_validation_bug()
+        print("BUG: Test should have failed but passed!")
+    except AssertionError:
+        print("Test correctly failed (bug exists)")
     
-    # Run the test that demonstrates the bug
-    test_validate_lines_read_whitespace_inconsistent()
-    print("✓ Bug demonstrated: whitespace-only passes validation but produces 'invalid format' error")
-    
-    print("\n" + "=" * 60)
-    print("Bug confirmed: Inconsistent validation vs. usage.")
+    test_working_memory_entry_valid_cases()

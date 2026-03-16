@@ -74,21 +74,22 @@ def test_lines_read_full_with_other_text():
 
 
 def test_lines_read_multiple_parts_with_full():
-    """Test: lines_read='full,additional info' should be accepted.
+    """Test: lines_read='full,additional info' should be REJECTED.
     
-    Even though 'additional info' is not a valid line range, 'full' is present,
-    so the file was read fully. Other parts are ignored.
+    Even though 'full' is present, 'additional info' is not a valid line range.
+    Invalid content should not be accepted.
     """
-    # Should be accepted because 'full' is present
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="full,additional info",  # 'full' overrides invalid 'additional info'
-        key_insights=[],
-    )
+    # Should be REJECTED because 'additional info' is invalid
+    with pytest.raises(ValueError, match="Invalid lines_read"):
+        entry = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="Test",
+            lines_read="full,additional info",  # 'full' with invalid 'additional info'
+            key_insights=[],
+        )
     
     print(f"\nTest - lines_read='full,additional info':")
-    print(f"  ✓ Accepted (full overrides invalid parts)")
+    print(f"  ✓ Correctly rejected (contains invalid content)")
 
 
 def test_parse_line_ranges_with_full_and_ranges():
