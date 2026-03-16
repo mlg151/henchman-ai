@@ -13,7 +13,7 @@ import uuid
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 
 import yaml
 
@@ -31,7 +31,7 @@ def _normalize_path(path: str) -> str:
     """
     if not path:
         return path  # Return empty string as-is
-    
+
     # Use os.path.normpath to normalize path separators and remove . and ..
     # Also expand user home directory (~) if present
     return os.path.normpath(os.path.expanduser(path))
@@ -70,54 +70,58 @@ class WorkingMemoryEntry(SerializableDataclass):
             raise TypeError(
                 f"lines_read must be a string or None, got {type(self.lines_read).__name__}"
             )
-        
+
         # Validate lines_read content if it's a string
         if isinstance(self.lines_read, str):
             self._validate_lines_read(self.lines_read)
-        
+
         # Validate key_insights is a list (or None)
         if self.key_insights is not None and not isinstance(self.key_insights, list):
             raise TypeError(
                 f"key_insights must be a list or None, got {type(self.key_insights).__name__}"
             )
-    
+
     @staticmethod
-    def _validate_lines_read(lines_read: str) -> None:
+    def _validate_lines_read(lines_read: str | None) -> None:
         """Validate lines_read string format.
+        
+        Args:
+            lines_read: String describing which lines were read, or None.
+                None and empty string are valid (means no lines read).
         
         Raises:
             ValueError: If lines_read is invalid (e.g., no valid parts found)
         """
         if not lines_read:
-            return  # Empty string is valid (means no lines read)
-        
+            return  # None or empty string is valid (means no lines read)
+
         normalized = "".join(lines_read.split()).lower()
-        
+
         # Check if normalized is empty (whitespace-only input)
         if not normalized:
             # Whitespace-only string: treat as valid "no lines read" (consistent with empty string)
             # This is consistent with _parse_line_ranges which returns [] for whitespace-only
             return
-        
+
         parts = normalized.split(",")
-        
+
         # Check if "full" appears anywhere in comma-separated list
         has_full = "full" in parts
-        
+
         # Check if it contains at least one valid range (or "full")
         has_valid_range = False
         has_invalid_part = False
-        
+
         # Similar logic to _parse_line_ranges: skip invalid parts
         for part in parts:
             part = part.strip()
             if not part:
                 continue
-            
+
             # Skip "full" parts
             if part == "full":
                 continue
-            
+
             # Check for dash-like characters
             import re
             dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
@@ -126,58 +130,58 @@ class WorkingMemoryEntry(SerializableDataclass):
                 dash_pos = dash_match.start()
                 start_str = part[:dash_pos]
                 end_str = part[dash_pos + 1:]  # +1 to skip the dash character
-                
+
                 # Check if both parts are decimal numbers
                 if not start_str.isdecimal() or not end_str.isdecimal():
                     has_invalid_part = True
                     continue  # Skip invalid: contains non-digit characters
-                
+
                 try:
                     start = int(start_str)
                     end = int(end_str)
                 except (ValueError, TypeError):
                     has_invalid_part = True
                     continue  # Skip invalid: cannot parse as integers
-                
+
                 if start < 1 or end < 1:
                     has_invalid_part = True
                     continue  # Skip invalid: non-positive line numbers
-                
+
                 if start > end:
                     has_invalid_part = True
                     continue  # Skip invalid: start > end
-                
+
                 has_valid_range = True
             else:
                 # Single line
                 if not part.isdecimal():
                     has_invalid_part = True
                     continue  # Skip invalid: contains non-digit characters
-                
+
                 try:
                     line = int(part)
                 except (ValueError, TypeError):
                     has_invalid_part = True
                     continue  # Skip invalid: cannot parse as integer
-                
+
                 if line < 1:
                     has_invalid_part = True
                     continue  # Skip invalid: non-positive line number
-                
+
                 has_valid_range = True
-        
+
         # If we have "full", it's valid regardless of other valid ranges or invalid parts
         # (consistent with _parse_line_ranges which returns [] for "full" regardless of other parts)
         if has_full:
             return
-        
+
         # If we have invalid parts but no valid ranges, reject the string
         # (consistent with _parse_line_ranges which returns [] when all parts are invalid)
         if has_invalid_part and not has_valid_range and normalized:
             raise ValueError(
                 f"Invalid lines_read '{lines_read}': no valid line ranges found"
             )
-        
+
         # If we have no valid ranges and no "full", reject the string
         # (empty string or whitespace-only is already handled above)
         if not has_valid_range and normalized:
@@ -256,23 +260,23 @@ class LineRange:
         """
         if not isinstance(s, str):
             return None
-        
+
         # Use the same regex as _parse_line_ranges to find dash characters
         dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', s)
         if not dash_match:
             return None
-        
+
         # Split on the dash character found
         dash_pos = dash_match.start()
         start_str = s[:dash_pos]
         end_str = s[dash_pos + 1:]  # +1 to skip the dash character
-        
+
         # Check if both strings contain only decimal digits (0-9 and compatible Unicode)
         # This rejects underscores, decimal points, letters, superscript digits, etc.
         # Use .isdecimal() instead of .isdigit() for consistency with _parse_line_ranges
         if not start_str.isdecimal() or not end_str.isdecimal():
             return None
-        
+
         try:
             line_range = cls(start=int(start_str), end=int(end_str))
             # __post_init__ will validate start <= end
@@ -283,13 +287,13 @@ class LineRange:
 
 
 # Type alias for any working memory entry
-MemoryEntry = Union[
-    WorkingMemoryEntry,
-    DecisionEntry,
-    ActionEntry,
-    ProblemEntry,
-    str,  # For completed steps and insights
-]
+MemoryEntry = (
+    WorkingMemoryEntry
+    | DecisionEntry
+    | ActionEntry
+    | ProblemEntry
+    | str  # For completed steps and insights
+)
 
 
 @dataclass
@@ -446,7 +450,7 @@ class WorkingMemory(SerializableDataclass):
         return merged
 
     @staticmethod
-    def _parse_line_ranges(lines_read: str) -> list[LineRange]:
+    def _parse_line_ranges(lines_read: str | None) -> list[LineRange]:
         """Parse a lines_read string into a list of LineRange objects.
         
         Supports formats:
@@ -456,7 +460,8 @@ class WorkingMemory(SerializableDataclass):
         - "10" (single line)
         
         Args:
-            lines_read: String describing which lines were read.
+            lines_read: String describing which lines were read, or None.
+                None and empty string return empty list.
             
         Returns:
             List of LineRange objects, empty list for invalid formats or "full".
@@ -580,15 +585,15 @@ class WorkingMemory(SerializableDataclass):
         valid_ranges: list[LineRange] = []
         all_lines_read_empty = True  # Track if ALL lines_read are empty strings
         any_lines_read_invalid = False  # Track if ANY lines_read is non-empty but invalid
-        
+
         for match in matches:
             ranges = self._parse_line_ranges(match.lines_read)
             valid_ranges.extend(ranges)
-            
+
             # Check if lines_read is empty string (valid "no lines read")
             if match.lines_read != "":
                 all_lines_read_empty = False
-            
+
             # Check if lines_read is non-empty but produced no valid ranges (invalid format)
             if match.lines_read and match.lines_read.strip() and not ranges:
                 # lines_read is non-empty and non-whitespace, but _parse_line_ranges returned []
