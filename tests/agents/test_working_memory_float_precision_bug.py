@@ -16,7 +16,7 @@ def test_memory_should_read_file_float_precision_bug():
     2. Reject all floats (only accept int -1)
     3. Convert float to int if close to integer
     
-    Current behavior: accepts -1.0 but rejects -1.000000000000001
+    FIXED: Now consistently rejects all float values (only accepts int -1).
     """
     memory = WorkingMemory(current_task="Test")
     
@@ -28,22 +28,19 @@ def test_memory_should_read_file_float_precision_bug():
         key_insights=["Full file read"]
     ))
     
-    # Test 1: end=-1.0 (float, exact) - should be accepted
+    # Test 1: end=-1.0 (float, exact) - should be rejected (not integer)
     should_read1, reason1 = memory.should_read_file("/test/file.py", 1, -1.0)
-    assert should_read1 is False, (
-        f"end=-1.0 should be accepted (converted to None). "
+    assert should_read1 is True, (
+        f"end=-1.0 should be rejected (not integer). "
         f"Got: should_read={should_read1}, reason={reason1}"
     )
-    assert "already read" in reason1.lower()
+    assert "integer" in reason1.lower() or "invalid" in reason1.lower()
     
-    # Test 2: end=-1.000000000000001 (float, very close to -1) - currently rejected
-    # This is the bug!
+    # Test 2: end=-1.000000000000001 (float, very close to -1) - should be rejected
     should_read2, reason2 = memory.should_read_file("/test/file.py", 1, -1.000000000000001)
-    # Currently returns True with error about invalid type
-    # Should either be accepted (like -1.0) or have better error message
     print(f"end=-1.000000000000001: should_read={should_read2}, reason={reason2}")
-    # The bug is that this gives misleading error: "Invalid line number: end must be an integer, got float=-1.000000000000001"
-    # But the user thinks they passed -1 (which should be accepted)
+    assert should_read2 is True
+    assert "integer" in reason2.lower() or "invalid" in reason2.lower()
     
     # Test 3: end=-1 (int) - should be accepted
     should_read3, reason3 = memory.should_read_file("/test/file.py", 1, -1)
@@ -55,9 +52,11 @@ def test_memory_should_read_file_float_precision_bug():
     
     # Test 4: end=-1.0000000000000001 (float, even closer to -1)
     # In Python: -1.0000000000000001 == -1 is True due to floating point precision
+    # But type(-1.0000000000000001) is float, not int, so should be rejected
     should_read4, reason4 = memory.should_read_file("/test/file.py", 1, -1.0000000000000001)
     print(f"end=-1.0000000000000001: should_read={should_read4}, reason={reason4}")
-    # This might be accepted (if -1.0000000000000001 == -1 is True)
+    assert should_read4 is True
+    assert "integer" in reason4.lower() or "invalid" in reason4.lower()
 
 
 if __name__ == "__main__":

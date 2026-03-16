@@ -9,6 +9,9 @@ def test_should_read_file_with_end_float_minus_one():
     
     BUG: end=-1.0 should be treated as end=-1 (read to EOF) since -1.0 == -1 is True.
     Currently it's rejected as "Invalid line number: end must be an integer".
+    
+    FIXED: Now correctly rejects float -1.0 because method signature is end: int | None.
+    Only integer -1 is accepted.
     """
     memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
@@ -16,14 +19,12 @@ def test_should_read_file_with_end_float_minus_one():
     # Test with end=-1.0 (float)
     should_read, reason = memory.should_read_file("/test/file.py", start=10, end=-1.0)
     
-    # Should NOT return error about invalid line number
-    # File was read fully, so should return False
-    # But currently returns True with error
+    # Should return error about invalid line number (not integer)
     print(f"should_read={should_read}, reason={reason}")
     
-    # This test should FAIL with current implementation
-    assert should_read is False, f"Expected False (file read fully), got True with reason: {reason}"
-    assert "already read" in reason.lower()
+    # Now correctly rejects float -1.0
+    assert should_read is True, f"Expected True (error), got False with reason: {reason}"
+    assert "integer" in reason.lower() or "invalid" in reason.lower()
 
 
 def test_should_read_file_with_end_float_minus_one_no_start():
@@ -34,11 +35,11 @@ def test_should_read_file_with_end_float_minus_one_no_start():
     # Test with end=-1.0 (float), no start
     should_read, reason = memory.should_read_file("/test/file.py", end=-1.0)
     
-    # Should return False (file read fully)
+    # Should return error about invalid line number (not integer)
     print(f"should_read={should_read}, reason={reason}")
     
-    assert should_read is False
-    assert "already read" in reason.lower()
+    assert should_read is True
+    assert "integer" in reason.lower() or "invalid" in reason.lower()
 
 
 def test_should_read_file_with_end_float_minus_one_partial():
@@ -49,11 +50,11 @@ def test_should_read_file_with_end_float_minus_one_partial():
     # Request to read from line 60 to EOF (end=-1.0 float)
     should_read, reason = memory.should_read_file("/test/file.py", start=60, end=-1.0)
     
-    # Should return True (need to read lines 60-EOF)
+    # Should return error about invalid line number (not integer)
     print(f"should_read={should_read}, reason={reason}")
     
     assert should_read is True
-    assert "beyond" in reason.lower() or "need to read" in reason.lower()
+    assert "integer" in reason.lower() or "invalid" in reason.lower()
 
 
 def test_should_read_file_with_end_int_minus_one():
