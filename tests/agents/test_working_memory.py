@@ -410,12 +410,13 @@ class TestWorkingMemory:
             memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "invalid-format"))
         
         # After fix: can't add invalid lines_read, so test different scenario
-        # Add entry with empty lines_read (valid)
+        # Add entry with empty lines_read (valid "no lines read")
         memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", ""))
         should_read, reason = memory.should_read_file("/test/file.py", 10, 50)
         
         assert should_read is True
-        assert "cannot determine" in reason.lower() or "invalid" in reason.lower()
+        # Empty lines_read means "no lines have been read", not "invalid format"
+        assert "no lines" in reason.lower() or "not read" in reason.lower()
 
     def test_memory_should_read_file_overlap_but_not_contained(self):
         """Test should_read_file when ranges overlap but requested range is not fully contained."""

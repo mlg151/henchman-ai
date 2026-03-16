@@ -25,15 +25,13 @@ def test_memory_should_read_file_empty_lines_read():
     should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
     
     # Should return True (need to read)
-    # Actually, the current implementation returns True with "Cannot determine - invalid lines_read format"
-    # That's correct! Empty lines_read is invalid.
+    # Empty lines_read means "no lines were read", which is valid
+    # After fix: returns "No lines have been read" instead of "invalid lines_read format"
     
     print(f"should_read: {should_read}, reason: {reason}")
     assert should_read is True
-    assert "invalid lines_read format" in reason or "not in recent files" in reason
-    
-    # Actually, wait. The entry has empty lines_read, which means no lines were read.
-    # So we should read the file. The current implementation returns True, which is correct.
+    # Empty lines_read is valid "no lines read", not invalid
+    assert "no lines" in reason.lower() or "not read" in reason.lower()
     
     print("Test passes (no bug)")
 
