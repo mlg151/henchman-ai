@@ -6,19 +6,24 @@ from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
 def test_memory_should_read_file_with_whitespace_only_lines_read():
     """Test should_read_file when lines_read contains only whitespace.
     
-    BUG: When lines_read is "   " (only spaces), _parse_line_ranges returns [].
-    This is interpreted as "invalid lines_read format" in should_read_file.
-    But actually, whitespace-only lines_read should be treated as empty/ invalid.
-    The current implementation returns True with "Cannot determine - invalid lines_read format".
-    That's correct!
+    After fix: whitespace-only strings should raise ValueError when creating WorkingMemoryEntry.
     """
     memory = WorkingMemory(current_task="Test")
     
-    # Add entry with whitespace-only lines_read
+    # Creating entry with whitespace-only lines_read should raise ValueError
+    with pytest.raises(ValueError, match="whitespace-only"):
+        WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="Test",
+            lines_read="   ",  # Only spaces
+            key_insights=[],
+        )
+    
+    # Test with empty string (should still work)
     entry = WorkingMemoryEntry(
         path="/test/file.py",
         purpose="Test",
-        lines_read="   ",  # Only spaces
+        lines_read="",  # Empty string
         key_insights=[],
     )
     memory.add_recent_file(entry)
@@ -26,7 +31,7 @@ def test_memory_should_read_file_with_whitespace_only_lines_read():
     # Request lines 10-20
     should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
     
-    # Should return True (invalid lines_read format)
+    # Should return True (invalid lines_read format for empty string)
     assert should_read is True
     assert "invalid lines_read format" in reason or "Cannot determine" in reason
     

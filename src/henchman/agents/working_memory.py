@@ -89,6 +89,15 @@ class WorkingMemoryEntry(SerializableDataclass):
             return  # Empty string is valid (means no lines read)
         
         normalized = "".join(lines_read.split()).lower()
+        
+        # Check if normalized is empty (whitespace-only input)
+        if not normalized:
+            # Whitespace-only string: treat as invalid (probably a mistake)
+            # Empty string is explicitly allowed above, but whitespace-only is ambiguous
+            raise ValueError(
+                f"Invalid lines_read '{lines_read}': whitespace-only string"
+            )
+        
         parts = normalized.split(",")
         
         # Check if "full" appears anywhere in comma-separated list

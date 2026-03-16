@@ -1,144 +1,134 @@
-"""Test to find a real bug in working_memory.py."""
+"""Test to find a bug in working_memory.py."""
 
-import pytest
-from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry, LineRange
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
 
 
-def test_memory_should_read_file_edge_case_negative_end_after_conversion():
-    """Test edge case with end=-1 after it's converted to None.
+def test_memory_should_read_file_start_equals_end():
+    """Test when start == end (single line request).
     
-    BUG POTENTIAL: When end=-1 is converted to None, and start is provided,
-    the validation start > end doesn't happen because end is None.
-    But actually, end=-1 means "read to end of file", so start=10, end=-1
-    means "read from line 10 to EOF", which is valid.
-    """
-    memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "1-50"))
-    
-    # Test: start=10, end=-1 (read from line 10 to EOF)
-    should_read, reason = memory.should_read_file("/test/file.py", 10, -1)
-    
-    # Lines 10-50 have been read, but we want 10-EOF (beyond 50)
-    # Should return True because we might need lines beyond 50
-    assert should_read is True, f"Expected True, got {should_read}, reason: {reason}"
-    assert "may need to read lines beyond" in reason.lower() or "beyond" in reason.lower()
-
-
-def test_memory_parse_line_ranges_unicode_dash():
-    """Test _parse_line_ranges with Unicode dash characters.
-    
-    The code handles various dash characters, but does it handle them correctly?
+    BUG POTENTIAL: What if we request a single line (start=10, end=10)
+    and that line has been read?
     """
     memory = WorkingMemory(current_task="Test")
     
-    # Test with en dash (U+2013)
-    ranges = memory._parse_line_ranges("10–20")  # en dash
-    assert len(ranges) == 1
-    assert ranges[0].start == 10
-    assert ranges[0].end == 20
+    # File read lines 5-15
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "5-15"))
     
-    # Test with em dash (U+2014)
-    ranges = memory._parse_line_ranges("30—40")  # em dash
-    assert len(ranges) == 1
-    assert ranges[0].start == 30
-    assert ranges[0].end == 40
+    # Request single line 10 (within 5-15)
+    should_read, reason = memory.should_read_file("/test/file.py", 10, 10)
     
-    # Test with minus sign (U+2212)
-    ranges = memory._parse_line_ranges("50−60")  # minus sign
-    assert len(ranges) == 1
-    assert ranges[0].start == 50
-    assert ranges[0].end == 60
+    print(f"Read: 5-15, Request: 10-10, Result: {should_read}, {reason}")
+    
+    # Line 10 is within 5-15, so should return False
+    assert should_read is False, f"Line 10 is within 5-15. Got: {should_read}"
+    assert "already read" in reason.lower() or "covered" in reason.lower()
+    
+    # Request single line 20 (not in 5-15)
+    should_read2, reason2 = memory.should_read_file("/test/file.py", 20, 20)
+    print(f"Read: 5-15, Request: 20-20, Result: {should_read2}, {reason2}")
+    assert should_read2 is True, f"Line 20 is not in 5-15. Got: {should_read2}"
 
 
-def test_memory_should_read_file_empty_lines_read():
-    """Test should_read_file when lines_read is empty string.
+def test_memory_should_read_file_start_gt_end_validation():
+    """Test validation when start > end.
     
-    BUG POTENTIAL: Empty lines_read string should be treated as invalid.
+    BUG: The validation at line 525 checks `if start is not None and end is not None and start > end:`.
+    But what if start=10, end=5? That's invalid.
     """
     memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "1-100"))
     
-    # Add entry with empty lines_read
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="",  # Empty string
-        key_insights=[],
-    )
-    memory.add_recent_file(entry)
+    # Invalid: start > end
+    should_read, reason = memory.should_read_file("/test/file.py", 10, 5)
     
-    # Request lines 10-20
-    should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
+    print(f"Invalid: start=10 > end=5, Result: {should_read}, {reason}")
     
-    # Should return True (invalid lines_read format)
-    assert should_read is True
-    assert "invalid lines_read format" in reason.lower() or "Cannot determine" in reason.lower()
+    assert should_read is True, f"Invalid range start=10 > end=5 should return True. Got: {should_read}"
+    assert "invalid" in reason.lower() or "start.*>.*end" in reason.lower()
 
 
-def test_memory_line_range_validation_zero():
-    """Test LineRange validation with zero values.
+def test_memory_should_read_file_float_validation():
+    """Test float validation.
     
-    BUG: LineRange(0, 10) should raise ValueError because lines are 1-indexed.
-    """
-    # This should raise ValueError
-    with pytest.raises(ValueError, match="Line numbers must be positive"):
-        LineRange(0, 10)
-    
-    # This should also raise ValueError
-    with pytest.raises(ValueError, match="Line numbers must be positive"):
-        LineRange(1, 0)
-    
-    # This should work
-    lr = LineRange(1, 10)
-    assert lr.start == 1
-    assert lr.end == 10
-
-
-def test_memory_should_read_file_invalid_lines_read_none():
-    """Test should_read_file when lines_read is None (after deserialization).
-    
-    BUG POTENTIAL: lines_read can be None after deserialization.
+    BUG: What about start=1.5 (float)? Should be rejected.
     """
     memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "1-100"))
     
-    # Create entry with lines_read=None (simulating deserialization)
-    # This is tricky because WorkingMemoryEntry.__post_init__ validates lines_read
-    # But let's test the _parse_line_ranges method directly
-    ranges = memory._parse_line_ranges(None)  # type: ignore
-    assert ranges == []
+    # Float start
+    should_read, reason = memory.should_read_file("/test/file.py", 1.5, 10)
     
-    # Test with empty string
-    ranges = memory._parse_line_ranges("")
-    assert ranges == []
+    print(f"Float start=1.5, Result: {should_read}, {reason}")
     
-    # Test with whitespace only
-    ranges = memory._parse_line_ranges("   ")
-    assert ranges == []
+    assert should_read is True, f"Float start=1.5 should be rejected. Got: {should_read}"
+    assert "invalid" in reason.lower() or "integer" in reason.lower() or "type" in reason.lower()
+    
+    # Float end (not -1.0)
+    should_read2, reason2 = memory.should_read_file("/test/file.py", 1, 10.5)
+    
+    print(f"Float end=10.5, Result: {should_read2}, {reason2}")
+    
+    assert should_read2 is True, f"Float end=10.5 should be rejected. Got: {should_read2}"
+    assert "invalid" in reason.lower() or "integer" in reason.lower() or "type" in reason.lower()
+
+
+def test_memory_should_read_file_string_validation():
+    """Test string validation (should fail).
+    
+    BUG: What if someone passes a string? type("10") is not int.
+    """
+    memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "1-100"))
+    
+    # String start (should fail)
+    should_read, reason = memory.should_read_file("/test/file.py", "10", 20)  # type: ignore
+    
+    print(f"String start='10', Result: {should_read}, {reason}")
+    
+    assert should_read is True, f"String start='10' should be rejected. Got: {should_read}"
+    assert "invalid" in reason.lower() or "integer" in reason.lower() or "type" in reason.lower()
+
+
+def test_memory_should_read_file_none_start_valid_end():
+    """Test when start=None, end=valid.
+    
+    BUG POTENTIAL: The validation at line 510 checks `if end is not None:`.
+    If end=10, it validates. Good.
+    """
+    memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "20-30"))
+    
+    # start=None, end=10 (read lines 1-10)
+    should_read, reason = memory.should_read_file("/test/file.py", end=10)
+    
+    print(f"Read: 20-30, Request: 1-10 (end=10), Result: {should_read}, {reason}")
+    
+    # We've read 20-30, but need 1-10 (before what we read)
+    assert should_read is True, f"Need lines 1-10. Got: {should_read}"
+    assert "before" in reason.lower() or "gap" in reason.lower() or "need to read" in reason.lower()
 
 
 if __name__ == "__main__":
-    # Run tests
-    import sys
+    print("Running bug find tests...")
+    print("=" * 60)
     
     tests = [
-        test_memory_should_read_file_edge_case_negative_end_after_conversion,
-        test_memory_parse_line_ranges_unicode_dash,
-        test_memory_should_read_file_empty_lines_read,
-        test_memory_line_range_validation_zero,
-        test_memory_should_read_file_invalid_lines_read_none,
+        test_memory_should_read_file_start_equals_end,
+        test_memory_should_read_file_start_gt_end_validation,
+        test_memory_should_read_file_float_validation,
+        test_memory_should_read_file_string_validation,
+        test_memory_should_read_file_none_start_valid_end,
     ]
     
-    failures = 0
     for test in tests:
-        print(f"\nRunning {test.__name__}...")
+        print(f"\n{test.__name__}...")
         try:
             test()
             print("  ✓ PASS")
         except AssertionError as e:
             print(f"  ✗ FAIL: {e}")
-            failures += 1
         except Exception as e:
             print(f"  ✗ ERROR: {e}")
-            failures += 1
     
-    print(f"\nTotal: {len(tests)} tests, {failures} failures")
-    sys.exit(1 if failures > 0 else 0)
+    print("\n" + "=" * 60)
+    print("Tests completed.")

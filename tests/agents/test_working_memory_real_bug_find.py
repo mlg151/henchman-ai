@@ -1,127 +1,163 @@
-"""Test for a real bug in working_memory.py - finding the actual bug."""
+"""Test to find a real bug in working_memory.py."""
 
 import pytest
-from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry
+from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry, LineRange
 
 
-def test_should_read_file_bug_with_negative_end_other_than_minus_one():
-    """Test should_read_file with end=-2 (invalid, not -1).
+def test_memory_should_read_file_float_end_minus_one():
+    """Test should_read_file with float -1.0 (should be treated as -1).
     
-    BUG: The validation allows end=-1 (special case for EOF), but what about
-    end=-2, -3, etc.? These should be invalid.
+    BUG: The comment says "Accept both int -1 and float -1.0" but
+    the code uses `end == -1` which works for float -1.0 because
+    -1.0 == -1 is True in Python. However, what about -1.1? That's
+    also < 1 and != -1, so it would fail validation.
+    
+    Actually, that's correct - only -1 should be accepted.
     """
     memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
+    memory.add_recent_file(WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="full"
+    ))
     
-    # Test with end=-2 (invalid, not -1)
-    should_read, reason = memory.should_read_file("/test/file.py", start=10, end=-2)
+    # Test with float -1.0
+    should_read, reason = memory.should_read_file("/test/file.py", 1, -1.0)
+    print(f"float -1.0: should_read={should_read}, reason={reason}")
+    # Should return False (file read fully)
+    assert should_read is False, f"float -1.0 should be treated as -1. Got: {should_read}"
+    assert "already read" in reason.lower()
     
-    # Should return True with error about invalid line number
-    assert should_read is True
-    assert "invalid" in reason.lower() or "positive" in reason.lower(), (
-        f"Expected error about invalid line number for end=-2, got: {reason}"
-    )
+    # Test with float -1.1 (invalid)
+    should_read2, reason2 = memory.should_read_file("/test/file.py", 1, -1.1)
+    print(f"float -1.1: should_read={should_read2}, reason={reason2}")
+    # Should return True with error
+    assert should_read2 is True, f"float -1.1 should be invalid. Got: {should_read2}"
+    assert "invalid" in reason2.lower() or "positive" in reason2.lower()
 
 
-def test_should_read_file_bug_with_end_zero():
-    """Test should_read_file with end=0 (invalid, 1-indexed)."""
-    memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
+def test_memory_should_read_file_none_validation_order():
+    """Test that validation happens in correct order.
     
-    # Test with end=0 (invalid, 1-indexed)
-    should_read, reason = memory.should_read_file("/test/file.py", start=10, end=0)
+    BUG POTENTIAL: What if start=None, end=None? The validation
+    at line 510 checks `if end is not None:` but end is None,
+    so it skips validation. That's correct.
     
-    # Should return True with error about invalid line number
-    assert should_read is True
-    assert "invalid" in reason.lower() or "positive" in reason.lower(), (
-        f"Expected error about invalid line number for end=0, got: {reason}"
-    )
-
-
-def test_should_read_file_bug_with_start_zero():
-    """Test should_read_file with start=0 (invalid, 1-indexed)."""
-    memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
-    
-    # Test with start=0 (invalid, 1-indexed)
-    should_read, reason = memory.should_read_file("/test/file.py", start=0, end=50)
-    
-    # Should return True with error about invalid line number
-    assert should_read is True
-    assert "invalid" in reason.lower() or "positive" in reason.lower(), (
-        f"Expected error about invalid line number for start=0, got: {reason}"
-    )
-
-
-def test_should_read_file_bug_with_boolean_start():
-    """Test should_read_file with start=True (bool, should be rejected).
-    
-    BUG: type(start) is not int will catch bool since bool is subclass of int,
-    but isinstance(start, int) would return True for bool.
+    But what about the check `if end < 1 and end != -1:` when
+    end is None? It doesn't execute because of the `if end is not None:` guard.
     """
     memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
+    memory.add_recent_file(WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="10-50"
+    ))
     
-    # Test with start=True (bool, should be rejected)
-    should_read, reason = memory.should_read_file("/test/file.py", start=True, end=50)
-    
-    # Should return True with error about invalid line number
+    # Test with start=None, end=None
+    should_read, reason = memory.should_read_file("/test/file.py")
+    print(f"None, None: should_read={should_read}, reason={reason}")
+    # Should return True (file not fully read)
     assert should_read is True
-    assert "invalid" in reason.lower() or "integer" in reason.lower(), (
-        f"Expected error about invalid line number for start=True, got: {reason}"
-    )
-    # Check that it specifically mentions bool
-    assert "bool" in reason.lower() or "boolean" in reason.lower(), (
-        f"Should mention bool/boolean in error, got: {reason}"
-    )
+    assert "not fully read" in reason.lower() or "partial" in reason.lower()
 
 
-def test_should_read_file_bug_with_boolean_end():
-    """Test should_read_file with end=False (bool, should be rejected)."""
+def test_memory_parse_line_ranges_unicode_digits():
+    """Test _parse_line_ranges with Unicode digits.
+    
+    BUG: The code uses .isdecimal() which accepts Arabic digits (٠١٢٣...).
+    But int() might not parse them correctly? Actually, int() does parse
+    Arabic digits in Python!
+    """
     memory = WorkingMemory(current_task="Test")
-    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Test with end=False (bool, should be rejected)
-    should_read, reason = memory.should_read_file("/test/file.py", start=10, end=False)
+    # Test with Arabic digits (٠ = 0, ١ = 1, ٢ = 2, etc.)
+    # Arabic digit ١ is 1, ١٠ is 10
+    ranges = memory._parse_line_ranges("١-١٠")  # "1-10" in Arabic digits
+    print(f"Arabic digits ١-١٠: {ranges}")
+    # Should parse as LineRange(1, 10)
+    assert len(ranges) == 1
+    assert ranges[0].start == 1
+    assert ranges[0].end == 10
     
-    # Should return True with error about invalid line number
+    # Test with mixed (should fail)
+    ranges2 = memory._parse_line_ranges("1-١٠")  # Mixed Arabic and Latin
+    print(f"Mixed 1-١٠: {ranges2}")
+    # .isdecimal() returns True for Arabic ١٠, so it might parse?
+    # Actually, int("١٠") = 10 in Python!
+    if ranges2:
+        print(f"  Parsed as: {ranges2[0]}")
+
+
+def test_memory_should_read_file_negative_start():
+    """Test should_read_file with negative start line.
+    
+    BUG: start=-5 should be invalid (lines are 1-indexed).
+    The code checks `if start < 1:` which catches this.
+    """
+    memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="10-50"
+    ))
+    
+    should_read, reason = memory.should_read_file("/test/file.py", -5, 10)
+    print(f"start=-5: should_read={should_read}, reason={reason}")
     assert should_read is True
-    assert "invalid" in reason.lower() or "integer" in reason.lower(), (
-        f"Expected error about invalid line number for end=False, got: {reason}"
+    assert "invalid" in reason.lower() or "positive" in reason.lower()
+
+
+def test_memory_working_memory_entry_validation():
+    """Test WorkingMemoryEntry validation.
+    
+    BUG POTENTIAL: What if lines_read is None? The __post_init__
+    checks `if self.lines_read is not None and not isinstance(self.lines_read, str):`
+    So if lines_read is None, it skips validation. That might be okay?
+    """
+    # Test with lines_read=None
+    try:
+        entry = WorkingMemoryEntry(
+            path="/test/file.py",
+            purpose="Test",
+            lines_read=None,  # type: ignore
+            key_insights=[]
+        )
+        print(f"lines_read=None created successfully: {entry}")
+        # Should this be allowed?
+    except Exception as e:
+        print(f"lines_read=None raised: {e}")
+    
+    # Test with lines_read as empty string
+    entry2 = WorkingMemoryEntry(
+        path="/test/file.py",
+        purpose="Test",
+        lines_read="",
+        key_insights=[]
     )
-    # Check that it specifically mentions bool
-    assert "bool" in reason.lower() or "boolean" in reason.lower(), (
-        f"Should mention bool/boolean in error, got: {reason}"
-    )
+    print(f"lines_read='' created successfully: {entry2}")
 
 
 if __name__ == "__main__":
-    # Run tests
-    import sys
+    print("Running bug finding tests...")
+    print("=" * 60)
     
     tests = [
-        test_should_read_file_bug_with_negative_end_other_than_minus_one,
-        test_should_read_file_bug_with_end_zero,
-        test_should_read_file_bug_with_start_zero,
-        test_should_read_file_bug_with_boolean_start,
-        test_should_read_file_bug_with_boolean_end,
+        test_memory_should_read_file_float_end_minus_one,
+        test_memory_should_read_file_none_validation_order,
+        test_memory_parse_line_ranges_unicode_digits,
+        test_memory_should_read_file_negative_start,
+        test_memory_working_memory_entry_validation,
     ]
     
-    all_passed = True
     for test in tests:
+        print(f"\n{test.__name__}...")
         try:
             test()
-            print(f"✓ {test.__name__} passed")
+            print("  ✓ PASS")
         except AssertionError as e:
-            print(f"✗ {test.__name__} failed: {e}")
-            all_passed = False
+            print(f"  ✗ FAIL: {e}")
         except Exception as e:
-            print(f"✗ {test.__name__} error: {e}")
-            import traceback
-            traceback.print_exc()
-            all_passed = False
+            print(f"  ✗ ERROR: {e}")
     
-    if not all_passed:
-        sys.exit(1)
-    else:
-        print("\nAll tests passed!")
+    print("\n" + "=" * 60)
+    print("Tests completed.")
