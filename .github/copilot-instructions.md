@@ -73,8 +73,8 @@ async for chunk in provider.chat_completion_stream(
         break
 ```
 ### Available Providers
-| Provider | API Key Env Var | Default Model | Notes |
-|----------|----------------|---------------|-------|
+| Provider (Configuration Name) | API Key Env Var | Default Model | Notes |
+|-------------------------------|----------------|---------------|-------|
 | DeepSeek (`deepseek`) | `DEEPSEEK_API_KEY` | deepseek-chat | OpenAI-compatible, default provider |
 | Anthropic (`anthropic`) | `ANTHROPIC_API_KEY` | claude-sonnet-4-20250514 | Native SDK |
 | Ollama (`ollama`) | None required | llama3.2 | Local models, OpenAI-compatible API |
@@ -85,6 +85,8 @@ async for chunk in provider.chat_completion_stream(
 | Fireworks AI (`fireworks`) | `FIREWORKS_API_KEY` | (config required) | OpenAI-compatible (alias for openai_compat with Fireworks base URL) |
 
 **Note**: Providers marked "(config required)" do not have hardcoded default models. You must specify a model in your configuration (settings.yaml) or when creating the provider instance. See example configurations in the documentation for suggested models.
+
+**Configuration Names**: The names in parentheses (e.g., `deepseek`, `anthropic`) are used in configuration files (`settings.yaml`) and CLI flags (`--provider`).
 ### Core Types
 ```python
 from henchman.providers import (
