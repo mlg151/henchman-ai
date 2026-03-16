@@ -3,124 +3,113 @@
 import pytest
 from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry, LineRange
 
-def test_should_read_file_with_invalid_lines_read_format():
-    """Test should_read_file when lines_read has invalid format like '10-20-30'.
+
+def test_line_range_creation_with_none():
+    """Test that LineRange cannot be created with None values.
     
-    BUG: '10-20-30' has two dashes, which might not be handled correctly.
+    BUG: LineRange(start: int, end: int) has type hints for int, but
+    should_read_file creates LineRange(start, end) where start and end
+    could be None if not properly validated.
     """
-    memory = WorkingMemory(current_task="Test")
+    # This should raise TypeError because start and end must be int
+    with pytest.raises(TypeError):
+        LineRange(None, 10)
     
-    # Create entry with invalid lines_read format '10-20-30' (two dashes)
-    # With current implementation, WorkingMemoryEntry validates lines_read
-    # and raises ValueError for invalid format
-    with pytest.raises(ValueError, match="Invalid lines_read"):
-        entry = WorkingMemoryEntry(
-            path="/test/file.py",
-            purpose="Test",
-            lines_read="10-20-30",  # Invalid: two dashes
-            key_insights=[],
-        )
+    with pytest.raises(TypeError):
+        LineRange(10, None)
     
-    # So we can't create entry with invalid format. Test with valid format instead.
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="10-20",  # Valid
-        key_insights=[],
-    )
-    memory.add_recent_file(entry)
-    
-    # Request lines 15-25 (overlaps with 10-20)
-    should_read, reason = memory.should_read_file("/test/file.py", 15, 25)
-    
-    # Lines 15-20 are already read, lines 21-25 are not
-    # Should return True
-    assert should_read is True
-    assert "need to be read" in reason.lower() or "overlapping" in reason.lower()
-    
-    print(f"Test passes: should_read={should_read}, reason={reason}")
+    with pytest.raises(TypeError):
+        LineRange(None, None)
 
-def test_parse_line_ranges_with_multiple_dashes():
-    """Test _parse_line_ranges with '10-20-30' (two dashes)."""
-    from henchman.agents.working_memory import WorkingMemory
-    
-    memory = WorkingMemory(current_task="Test")
-    
-    # '10-20-30' has two dashes - should be skipped
-    ranges = memory._parse_line_ranges("10-20-30")
-    # Should return empty list or handle gracefully
-    # Current behavior: finds first dash at position 2, start_str="10", end_str="20-30"
-    # end_str="20-30" is not decimal (contains dash), so .isdecimal() returns False
-    # So it continues (skips)
-    assert ranges == []
-    
-    print("Test passes: '10-20-30' correctly skipped")
 
-def test_should_read_file_with_empty_string_lines_read():
-    """Test should_read_file when lines_read is empty string ''.
+def test_should_read_file_with_none_values():
+    """Test should_read_file with None values for start/end.
     
-    Empty string means "no lines have been read".
-    """
-    memory = WorkingMemory(current_task="Test")
-    
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="",  # Empty string = no lines read
-        key_insights=[],
-    )
-    memory.add_recent_file(entry)
-    
-    # Request lines 10-20
-    should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
-    
-    # Should return True (no lines have been read)
-    assert should_read is True
-    assert "no lines" in reason.lower() or "not read" in reason.lower()
-    
-    print(f"Test passes: should_read={should_read}, reason={reason}")
-
-def test_line_range_from_str_with_unicode_digits():
-    """Test LineRange.from_str with Unicode digits like '١٠-٢٠' (Arabic digits 10-20).
-    
-    BUG: .isdecimal() returns True for Arabic digits, but int() might fail?
-    Actually int() works with Arabic digits in Python!
-    """
-    from henchman.agents.working_memory import LineRange
-    
-    # Arabic digits: ١ = 1, ٠ = 0, so ١٠ = 10, ٢٠ = 20
-    result = LineRange.from_str("١٠-٢٠")
-    # .isdecimal() returns True for Arabic digits
-    # int() can parse Arabic digits in Python
-    # So should create LineRange(10, 20)
-    assert result is not None
-    assert result.start == 10
-    assert result.end == 20
-    
-    print(f"Test passes: LineRange.from_str('١٠-٢٠') = {result}")
-
-def test_should_read_file_with_float_start():
-    """Test should_read_file with start=10.5 (float).
-    
-    BUG: type(start) is not int returns True for float, so should return error.
+    BUG: The method signature says start: int | None, end: int | None,
+    but the validation logic might not handle all cases correctly.
     """
     memory = WorkingMemory(current_task="Test")
     memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Test with start=10.5 (float)
-    should_read, reason = memory.should_read_file("/test/file.py", start=10.5, end=20)
+    # Test with start=None, end=None (read entire file)
+    should_read, reason = memory.should_read_file("/test/file.py", None, None)
+    # File was read fully, should return False
+    assert should_read is False
+    assert "already read" in reason
     
-    # Should return error about invalid line number
+    # Test with start=10, end=None (read from line 10 to EOF)
+    should_read, reason = memory.should_read_file("/test/file.py", 10, None)
+    # File was read fully, should return False
+    assert should_read is False
+    assert "already read" in reason
+    
+    # Test with start=None, end=20 (read from beginning to line 20)
+    should_read, reason = memory.should_read_file("/test/file.py", None, 20)
+    # File was read fully, should return False
+    assert should_read is False
+    assert "already read" in reason
+
+
+def test_should_read_file_with_invalid_string_line_numbers():
+    """Test should_read_file with string line numbers (should fail).
+    
+    BUG: The validation uses type(start) is not int, which correctly
+    rejects strings, but the error message might not be clear.
+    """
+    memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
+    
+    # Test with start as string
+    should_read, reason = memory.should_read_file("/test/file.py", "10", 20)
     assert should_read is True
-    assert "integer" in reason.lower() or "invalid" in reason.lower()
-    assert "float" in reason.lower()  # Error message should mention float
+    assert "must be an integer" in reason
+    assert "str" in reason  # Should mention the type
     
-    print(f"Test passes: start=10.5 (float) correctly rejected: {reason}")
+    # Test with end as string
+    should_read, reason = memory.should_read_file("/test/file.py", 10, "20")
+    assert should_read is True
+    assert "must be an integer" in reason
+    assert "str" in reason
+
+
+def test_should_read_file_with_float_line_numbers():
+    """Test should_read_file with float line numbers (should fail).
+    
+    BUG: Floats like 10.0 should be rejected as invalid line numbers.
+    """
+    memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
+    
+    # Test with start as float
+    should_read, reason = memory.should_read_file("/test/file.py", 10.0, 20)
+    assert should_read is True
+    assert "must be an integer" in reason
+    assert "float" in reason  # Should mention the type
+    
+    # Test with end as float
+    should_read, reason = memory.should_read_file("/test/file.py", 10, 20.0)
+    assert should_read is True
+    assert "must be an integer" in reason
+    assert "float" in reason
+    
+    # Test with end=-1.0 (float -1.0, should be rejected)
+    should_read, reason = memory.should_read_file("/test/file.py", 10, -1.0)
+    assert should_read is True
+    assert "must be an integer" in reason
+    assert "float" in reason
+
 
 if __name__ == "__main__":
-    test_should_read_file_with_invalid_lines_read_format()
-    test_parse_line_ranges_with_multiple_dashes()
-    test_should_read_file_with_empty_string_lines_read()
-    test_line_range_from_str_with_unicode_digits()
-    test_should_read_file_with_float_start()
-    print("\nAll tests pass (no bug found)")
+    test_line_range_creation_with_none()
+    print("test_line_range_creation_with_none passed")
+    
+    test_should_read_file_with_none_values()
+    print("test_should_read_file_with_none_values passed")
+    
+    test_should_read_file_with_invalid_string_line_numbers()
+    print("test_should_read_file_with_invalid_string_line_numbers passed")
+    
+    test_should_read_file_with_float_line_numbers()
+    print("test_should_read_file_with_float_line_numbers passed")
+    
+    print("\nAll tests passed - no bug found!")

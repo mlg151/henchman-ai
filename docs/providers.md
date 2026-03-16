@@ -6,10 +6,10 @@ Henchman-AI supports multiple LLM providers through a unified interface.
 
 | Provider | Status | API Compatibility | Configuration Name | Notes |
 |----------|--------|-------------------|-------------------|-------|
-| DeepSeek | ✅ Default | OpenAI-compatible | `deepseek` | Default provider |
-| Anthropic | ✅ | Native SDK | `anthropic` | Claude models via native SDK |
-| Ollama | ✅ | OpenAI-compatible | `ollama` | Local models, no API key required |
-| OpenRouter | ✅ | OpenAI-compatible | `openrouter` | Access to hundreds of models |
+| DeepSeek (`deepseek`) | ✅ Default | OpenAI-compatible | `deepseek` | Default provider |
+| Anthropic (`anthropic`) | ✅ | Native SDK | `anthropic` | Claude models via native SDK |
+| Ollama (`ollama`) | ✅ | OpenAI-compatible | `ollama` | Local models, no API key required |
+| OpenRouter (`openrouter`) | ✅ | OpenAI-compatible | `openrouter` | Access to hundreds of models |
 | OpenAI-Compatible (`openai_compat`) | ✅ | OpenAI-compatible | `openai_compat` | Generic provider for ANY OpenAI-compatible API (OpenAI, Together, Groq, Fireworks, etc.) |
 | Together AI (`together`) | ✅ | OpenAI-compatible | `together` | Alias for `openai_compat` with Together base URL |
 | Groq (`groq`) | ✅ | OpenAI-compatible | `groq` | Alias for `openai_compat` with Groq base URL |
