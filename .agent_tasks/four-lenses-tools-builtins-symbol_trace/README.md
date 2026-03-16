@@ -28,4 +28,17 @@ Modify the `_collect_annotations_from_node` function to check all argument types
 3. Check `args.kwarg` if it exists and has an annotation
 4. Maintain backward compatibility
 
-## Status: IN PROGRESS
+## Status: FIXED
+
+## Files Changed
+1. `src/henchman/tools/builtins/symbol_trace.py` - Modified `_collect_annotations_from_node` function to include all argument types:
+   - Added check for `args.posonlyargs` (positional-only arguments)
+   - Added check for `args.vararg` (`*args` parameter)
+   - Added check for `args.kwarg` (`**kwargs` parameter)
+2. `tests/tools/test_symbol_trace.py` - Added new test `test_finds_all_argument_type_annotations` to verify the fix
+
+## Verification
+- The failing test `test_finds_all_argument_type_annotations` now passes
+- All existing tests continue to pass (33/33)
+- The fix handles all Python 3.8+ syntax features for type annotations
+- Complete annotation coverage for symbol tracing is now achieved
