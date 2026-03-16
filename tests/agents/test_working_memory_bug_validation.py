@@ -29,10 +29,10 @@ def test_working_memory_entry_accepts_invalid_lines_read():
     # should_read_file will have issues with lines_read=None
     should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
     
-    # Currently returns "Cannot determine - invalid lines_read format"
-    # Which is correct behavior given invalid input
+    # lines_read=None is valid (means "no lines read"), same as lines_read=""
+    # Should return True with reason indicating no lines have been read
     assert should_read is True
-    assert "invalid lines_read format" in reason or "Cannot determine" in reason
+    assert "no lines have been read" in reason.lower()
     
     print(f"BUG: WorkingMemoryEntry accepts lines_read=None (violates type hint str)")
     print(f"  should_read_file returns: should_read={should_read}, reason={reason}")
