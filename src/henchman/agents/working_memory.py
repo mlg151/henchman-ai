@@ -56,7 +56,7 @@ class WorkingMemoryEntry(SerializableDataclass):
         default_factory=lambda: datetime.now(timezone.utc).isoformat(),
         compare=False,
     )
-    
+
     def __post_init__(self) -> None:
         """Validate fields after initialization.
         
