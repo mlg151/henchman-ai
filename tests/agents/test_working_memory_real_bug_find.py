@@ -1,210 +1,165 @@
-"""Test to find a real bug in working_memory.py."""
+"""Test to find a REAL bug in working_memory.py."""
 
 import pytest
 from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry, LineRange
 
 
-def test_lines_read_empty_string():
-    """Test with empty string as lines_read."""
+def test_memory_should_read_file_start_zero_end_valid():
+    """Test should_read_file with start=0 (invalid) and valid end.
+    
+    BUG: start=0 should be rejected as invalid (lines are 1-indexed).
+    """
     memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Add entry with empty lines_read
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="",  # Empty string
-        key_insights=[],
-    )
-    memory.add_recent_file(entry)
+    # Test: start=0, end=10 (invalid start)
+    should_read, reason = memory.should_read_file("/test/file.py", 0, 10)
     
-    # Request lines 10-20
-    should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
-    
-    print(f"Test - Empty lines_read string:")
-    print(f"  should_read={should_read}, reason={reason}")
-    # _parse_line_ranges returns [] for empty string
-    # should_read_file returns True with "Cannot determine - invalid lines_read format"
-    assert should_read is True
-    assert "invalid lines_read format" in reason or "Cannot determine" in reason
+    # Should return True with error about invalid start
+    assert should_read is True, f"Invalid start=0 should return True with error. Got: {should_read}, reason: {reason}"
+    assert "invalid" in reason.lower() or "positive" in reason.lower() or "1-indexed" in reason.lower()
+    assert "start" in reason.lower()
 
 
-def test_lines_read_none():
-    """Test with None as lines_read (shouldn't happen but defensive)."""
+def test_memory_should_read_file_end_zero_start_valid():
+    """Test should_read_file with valid start and end=0 (invalid).
+    
+    BUG: end=0 should be rejected as invalid (lines are 1-indexed).
+    """
     memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Can't create WorkingMemoryEntry with lines_read=None because type is str
-    # But what if from_dict creates it?
-    data = {
-        "path": "/test/file.py",
-        "purpose": "Test",
-        "lines_read": None,  # None instead of string
-        "key_insights": [],
-        "timestamp": "2024-01-01T00:00:00Z",
-    }
-    entry = WorkingMemoryEntry.from_dict(data)
-    memory.add_recent_file(entry)
+    # Test: start=1, end=0 (invalid end)
+    should_read, reason = memory.should_read_file("/test/file.py", 1, 0)
     
-    # Request lines 10-20
-    should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
-    
-    print(f"\nTest - None lines_read (from_dict):")
-    print(f"  should_read={should_read}, reason={reason}")
-    # _parse_line_ranges returns [] for None
-    # should_read_file returns True with "Cannot determine - invalid lines_read format"
+    # Should return True with error about invalid end
+    assert should_read is True, f"Invalid end=0 should return True with error. Got: {should_read}, reason: {reason}"
+    assert "invalid" in reason.lower() or "positive" in reason.lower() or "1-indexed" in reason.lower()
+    assert "end" in reason.lower() or "0" in reason.lower()
 
 
-def test_lines_read_invalid_format():
-    """Test with invalid lines_read format."""
+def test_memory_should_read_file_start_gt_end():
+    """Test should_read_file with start > end (invalid range).
+    
+    BUG: start=10, end=5 should be rejected as invalid range.
+    """
     memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Add entry with invalid format
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="abc-def",  # Not integers
-        key_insights=[],
-    )
-    memory.add_recent_file(entry)
+    # Test: start=10, end=5 (invalid: start > end)
+    should_read, reason = memory.should_read_file("/test/file.py", 10, 5)
     
-    # Request lines 10-20
-    should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
-    
-    print(f"\nTest - Invalid lines_read 'abc-def':")
-    print(f"  should_read={should_read}, reason={reason}")
-    # _parse_line_ranges returns [] (skips invalid)
-    # should_read_file returns True with "Cannot determine - invalid lines_read format"
+    # Should return True with error about invalid range
+    assert should_read is True, f"Invalid range start=10 > end=5 should return True with error. Got: {should_read}, reason: {reason}"
+    assert "invalid" in reason.lower() or "start.*>.*end" in reason.lower() or "ascending" in reason.lower()
 
 
-def test_lines_read_negative_numbers():
-    """Test with negative line numbers in lines_read."""
+def test_memory_should_read_file_float_line_numbers():
+    """Test should_read_file with float line numbers.
+    
+    BUG: Float values like 1.5 should be rejected as invalid type.
+    """
     memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Add entry with negative line numbers
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="-10--5",  # Negative numbers
-        key_insights=[],
-    )
-    memory.add_recent_file(entry)
+    # Test: start=1.5, end=10 (float start)
+    should_read, reason = memory.should_read_file("/test/file.py", 1.5, 10)
     
-    # Request lines 10-20
-    should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
+    # Should return True with error about invalid type
+    assert should_read is True, f"Float start=1.5 should return True with error. Got: {should_read}, reason: {reason}"
+    assert "invalid" in reason.lower() or "type" in reason.lower() or "integer" in reason.lower()
+    assert "float" in reason.lower() or "1.5" in reason
     
-    print(f"\nTest - Negative line numbers '-10--5':")
-    print(f"  should_read={should_read}, reason={reason}")
-    # _parse_line_ranges skips negative numbers (start < 1 or end < 1)
-    # Returns []
-    # should_read_file returns True with "Cannot determine - invalid lines_read format"
+    # Test: start=1, end=10.5 (float end)
+    should_read2, reason2 = memory.should_read_file("/test/file.py", 1, 10.5)
+    
+    assert should_read2 is True, f"Float end=10.5 should return True with error. Got: {should_read2}, reason: {reason2}"
+    assert "invalid" in reason2.lower() or "type" in reason2.lower() or "integer" in reason2.lower()
+    assert "float" in reason2.lower() or "10.5" in reason2
 
 
-def test_lines_read_zero():
-    """Test with zero line numbers (invalid, 1-indexed)."""
+def test_memory_should_read_file_string_line_numbers():
+    """Test should_read_file with string line numbers.
+    
+    BUG: String values like "10" should be rejected as invalid type.
+    """
     memory = WorkingMemory(current_task="Test")
+    memory.add_recent_file(WorkingMemoryEntry("/test/file.py", "Test", "full"))
     
-    # Add entry with zero line numbers
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="0-10",  # start=0 (invalid)
-        key_insights=[],
-    )
-    memory.add_recent_file(entry)
+    # Test: start="10", end=20 (string start)
+    should_read, reason = memory.should_read_file("/test/file.py", "10", 20)  # type: ignore
     
-    # Request lines 10-20
-    should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
+    # Should return True with error about invalid type
+    assert should_read is True, f"String start='10' should return True with error. Got: {should_read}, reason: {reason}"
+    assert "invalid" in reason.lower() or "type" in reason.lower() or "integer" in reason.lower()
+    assert "str" in reason.lower() or "'10'" in reason or '"10"' in reason
     
-    print(f"\nTest - Zero start line '0-10':")
-    print(f"  should_read={should_read}, reason={reason}")
-    # _parse_line_ranges skips (start < 1)
-    # Returns []
-    # should_read_file returns True with "Cannot determine - invalid lines_read format"
+    # Test: start=1, end="20" (string end)
+    should_read2, reason2 = memory.should_read_file("/test/file.py", 1, "20")  # type: ignore
+    
+    assert should_read2 is True, f"String end='20' should return True with error. Got: {should_read2}, reason: {reason2}"
+    assert "invalid" in reason2.lower() or "type" in reason2.lower() or "integer" in reason2.lower()
+    assert "str" in reason2.lower() or "'20'" in reason2 or '"20"' in reason2
 
 
-def test_lines_read_start_greater_than_end():
-    """Test with start > end (invalid range)."""
-    memory = WorkingMemory(current_task="Test")
+def test_memory_line_range_from_str_invalid():
+    """Test LineRange.from_str with invalid input.
     
-    # Add entry with invalid range (start > end)
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="50-10",  # 50 > 10
-        key_insights=[],
-    )
-    memory.add_recent_file(entry)
+    BUG: LineRange.from_str should return None for invalid input.
+    """
+    # Test with invalid format
+    assert LineRange.from_str("") is None
+    assert LineRange.from_str("invalid") is None
+    assert LineRange.from_str("10-") is None
+    assert LineRange.from_str("-20") is None
+    assert LineRange.from_str("10-20-30") is None  # Multiple dashes
     
-    # Request lines 10-20
-    should_read, reason = memory.should_read_file("/test/file.py", 10, 20)
+    # Test with invalid numbers
+    assert LineRange.from_str("0-10") is None  # start=0 invalid
+    assert LineRange.from_str("10-0") is None  # end=0 invalid
+    assert LineRange.from_str("-5-10") is None  # negative start
+    assert LineRange.from_str("10--5") is None  # negative end
     
-    print(f"\nTest - Invalid range '50-10' (start > end):")
-    print(f"  should_read={should_read}, reason={reason}")
-    # _parse_line_ranges skips (start > end)
-    # Returns []
-    # should_read_file returns True with "Cannot determine - invalid lines_read format"
-
-
-def test_multiple_entries_mixed_valid_invalid():
-    """Test with multiple entries, some valid, some invalid."""
-    memory = WorkingMemory(current_task="Test")
+    # Test with start > end
+    assert LineRange.from_str("20-10") is None  # start > end
     
-    # Add invalid entry first
-    memory.add_recent_file(WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Invalid read",
-        lines_read="abc-def",  # Invalid
-    ))
-    
-    # Add valid entry second (more recent)
-    memory.add_recent_file(WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Valid read",
-        lines_read="10-50",  # Valid
-    ))
-    
-    # Request lines 20-40 (within valid range)
-    should_read, reason = memory.should_read_file("/test/file.py", 20, 40)
-    
-    print(f"\nTest - Mixed valid/invalid entries:")
-    print(f"  should_read={should_read}, reason={reason}")
-    # Should return False (lines 20-40 are within 10-50)
-    # The invalid entry should be ignored
-
-
-def test_unicode_dash_characters():
-    """Test with Unicode dash characters in lines_read."""
-    memory = WorkingMemory(current_task="Test")
-    
-    # Test with en dash (U+2013)
-    entry = WorkingMemoryEntry(
-        path="/test/file.py",
-        purpose="Test",
-        lines_read="10–50",  # en dash
-        key_insights=[],
-    )
-    memory.add_recent_file(entry)
-    
-    # Request lines 20-40
-    should_read, reason = memory.should_read_file("/test/file.py", 20, 40)
-    
-    print(f"\nTest - Unicode en dash '10–50':")
-    print(f"  should_read={should_read}, reason={reason}")
-    # _parse_line_ranges should parse Unicode dash
-    # Should return False (20-40 within 10-50)
+    # Valid cases
+    assert LineRange.from_str("10-20") is not None
+    assert LineRange.from_str("1-1") is not None  # single line
+    assert LineRange.from_str("100-200") is not None
 
 
 if __name__ == "__main__":
-    print("Testing edge cases in working_memory.py...")
-    print("=" * 60)
+    # Run tests
+    import sys
     
-    test_lines_read_empty_string()
-    test_lines_read_none()
-    test_lines_read_invalid_format()
-    test_lines_read_negative_numbers()
-    test_lines_read_zero()
-    test_lines_read_start_greater_than_end()
-    test_multiple_entries_mixed_valid_invalid()
-    test_unicode_dash_characters()
+    tests = [
+        test_memory_should_read_file_start_zero_end_valid,
+        test_memory_should_read_file_end_zero_start_valid,
+        test_memory_should_read_file_start_gt_end,
+        test_memory_should_read_file_float_line_numbers,
+        test_memory_should_read_file_string_line_numbers,
+        test_memory_line_range_from_str_invalid,
+    ]
     
-    print("\n" + "=" * 60)
-    print("Tests complete.")
+    failures = 0
+    for test in tests:
+        print(f"\nRunning {test.__name__}...")
+        try:
+            test()
+            print("  ✓ PASS")
+        except AssertionError as e:
+            print(f"  ✗ FAIL: {e}")
+            failures += 1
+        except Exception as e:
+            print(f"  ✗ ERROR: {e}")
+            failures += 1
+    
+    print(f"\nTotal: {len(tests)} tests, {failures} failures")
+    
+    if failures > 0:
+        print("\nBUGS FOUND!")
+    else:
+        print("\nAll tests pass (no bugs found).")
+    
+    sys.exit(1 if failures > 0 else 0)

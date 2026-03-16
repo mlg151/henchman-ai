@@ -144,6 +144,10 @@ class LineRange:
             return None
         parts = s.split("-")
         if len(parts) == EXPECTED_RANGE_PARTS:
+            # Check if both strings contain only digits (0-9)
+            # This rejects underscores, decimal points, letters, etc.
+            if not parts[0].isdigit() or not parts[1].isdigit():
+                return None
             try:
                 line_range = cls(start=int(parts[0]), end=int(parts[1]))
                 # __post_init__ will validate start <= end
@@ -355,6 +359,10 @@ class WorkingMemory(SerializableDataclass):
                 dash_pos = dash_match.start()
                 start_str = part[:dash_pos]
                 end_str = part[dash_pos + 1:]  # +1 to skip the dash character
+                # Check if both strings contain only digits (0-9)
+                # This rejects underscores, decimal points, letters, etc.
+                if not start_str.isdigit() or not end_str.isdigit():
+                    continue  # Skip invalid: contains non-digit characters
                 try:
                     start = int(start_str)
                     end = int(end_str)
@@ -367,6 +375,10 @@ class WorkingMemory(SerializableDataclass):
                     continue  # Skip invalid: cannot parse as integers
             else:
                 # Single line
+                # First check if the string contains only digits (0-9)
+                # This rejects underscores, decimal points, letters, etc.
+                if not part.isdigit():
+                    continue  # Skip invalid: contains non-digit characters
                 try:
                     line = int(part)
                     if line < 1:
