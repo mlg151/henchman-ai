@@ -171829,3 +171829,9 @@ INFO    -  Documentation built in 1.01 seconds
 }
 [2026-03-16T14:00:01Z] Verification passed.
 Committing changes...
+[main cca18ff] docs(auto-improve): automated documentation improvement
+ 14 files changed, 3659 insertions(+), 2264 deletions(-)
+ create mode 100644 tests/agents/test_working_memory_core_bug.py
+ create mode 100644 tests/agents/test_working_memory_find_bug.py
+ create mode 100644 tests/agents/test_working_memory_missing_return.py
+[2026-03-16T14:00:01Z] Done.
