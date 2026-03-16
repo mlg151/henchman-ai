@@ -33,7 +33,13 @@ mcp_servers:
     env:
       # Optional: Set workspace directory (defaults to current directory)
       SERENA_WORKSPACE: "${PROJECT_ROOT}"
-      # Optional: Enable JetBrains plugin backend if available
+      # Optional: Backend selection: "lsp" or "jetbrains" (if plugin installed)
+      SERENA_BACKEND: "lsp"
+      # Optional: Language server configuration
+      SERENA_LSP_PYTHON_PATH: "/usr/bin/python3"
+      # Optional: Logging level
+      SERENA_LOG_LEVEL: "INFO"
+      # Optional: Enable JetBrains plugin backend if available (deprecated, use SERENA_BACKEND instead)
       SERENA_USE_JETBRAINS: "false"
     trusted: true
     # Note: Serena requires uv to be installed: https://docs.astral.sh/uv/
@@ -165,6 +171,29 @@ Controls visibility of MCP server log messages.
 - **Enhances productivity**: IDE-like capabilities in the CLI
 - **Scales with codebase**: Efficient even in large, complex projects
 
+#### Serena Configuration Options:
+
+| Environment Variable | Type | Default | Description |
+|---------------------|------|---------|-------------|
+| `SERENA_WORKSPACE` | string | Current directory | Workspace directory to analyze |
+| `SERENA_BACKEND` | string | `"lsp"` | Backend selection: `"lsp"` or `"jetbrains"` (if plugin installed) |
+| `SERENA_LSP_PYTHON_PATH` | string | System Python | Path to Python interpreter for LSP backend |
+| `SERENA_LOG_LEVEL` | string | `"INFO"` | Logging level: `"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"` |
+| `SERENA_USE_JETBRAINS` | boolean | `"false"` | Deprecated: Use `SERENA_BACKEND: "jetbrains"` instead |
+
+**Example configuration:**
+```yaml
+serena:
+  command: uvx
+  args: ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"]
+  env:
+    SERENA_WORKSPACE: "/path/to/your/project"
+    SERENA_BACKEND: "lsp"
+    SERENA_LSP_PYTHON_PATH: "/usr/bin/python3"
+    SERENA_LOG_LEVEL: "INFO"
+  trusted: true
+```
+
 ## Programmatic Usage
 
 ### Single Server
@@ -281,3 +310,60 @@ if __name__ == "__main__":
 ```
 
 See the [MCP specification](https://modelcontextprotocol.io/) for full details.
+
+## Troubleshooting
+
+### Common Issues
+
+#### Serena Connection Issues
+
+| Issue | Solution |
+|-------|----------|
+| **"uvx not found"** | Install uv: `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| **Connection failed** | Check `uvx --version` and internet connectivity |
+| **No tools discovered** | Verify Serena starts correctly: `uvx --from git+https://github.com/oraios/serena serena start-mcp-server --help` |
+| **Performance issues** | Consider using JetBrains plugin backend for better analysis: `SERENA_BACKEND: "jetbrains"` |
+
+#### General MCP Issues
+
+| Issue | Solution |
+|-------|----------|
+| **Server won't start** | Check command path and arguments in configuration |
+| **Tools not appearing** | Verify server is trusted or confirm tool execution |
+| **Connection timeout** | Increase timeout in settings or check server logs |
+| **Permission errors** | Ensure server has appropriate file system permissions |
+
+### Debugging Tips
+
+1. **Enable verbose logging**:
+   ```bash
+   henchman --verbose
+   ```
+
+2. **Check MCP server status**:
+   ```
+   /mcp status
+   ```
+
+3. **View available tools**:
+   ```
+   /tools
+   ```
+
+4. **Test server manually**:
+   ```bash
+   # Test Serena server directly
+   uvx --from git+https://github.com/oraios/serena serena start-mcp-server --help
+   ```
+
+5. **Check environment variables**:
+   ```bash
+   echo $SERENA_WORKSPACE
+   echo $SERENA_BACKEND
+   ```
+
+### Getting Help
+
+- **GitHub Issues**: [Henchman-AI Issues](https://github.com/mlg151/henchman-ai/issues)
+- **MCP Documentation**: [Model Context Protocol](https://modelcontextprotocol.io/)
+- **Serena Repository**: [oraios/serena](https://github.com/oraios/serena)

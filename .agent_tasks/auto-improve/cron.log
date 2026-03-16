@@ -768414,3 +768414,268 @@ TOTAL                                                       19001    268   5108 
 =========== 5798 passed, 6 skipped, 45 warnings in 188.33s (0:03:08) ===========
 [2026-03-16T03:00:02Z] All tests passed.
 Committing changes...
+[main c500832] fix(four-lenses): four-lenses-agents-working_memory
+ 11 files changed, 4635 insertions(+), 2015 deletions(-)
+ create mode 100644 tests/agents/test_working_memory_float_minus_one_bug.py
+ create mode 100644 tests/agents/test_working_memory_real_failing_bug.py
+ create mode 100644 tests/agents/test_working_memory_unicode_digit_bug.py
+[2026-03-16T03:00:02Z] Auto-improve complete.
+[2026-03-16T04:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-16T04:00:03Z] Targeting lowest-graded file: src/henchman/agents/working_memory.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10546[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+[result] # Code Smell Report — ⚠️ C (Score: 78.4/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-16T04:00:31.795841+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:...
+Now let me read the target file to understand its structure and functionality:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py'})
+[result] """Working Memory System for agent context management.
+
+Provides a structured in-memory cache that tracks recently accessed files,
+decisions, completed steps, actions, insights, and problems encounter...
+Now let me check if there are any existing tests for this file:
+[tool] glob({'pattern': '**/test*working_memory*.py'})
+[result] tests/agents/test_working_memory.py
+tests/agents/test_working_memory_actual_bug.py
+tests/agents/test_working_memory_algorithm_bug.py
+tests/agents/test_working_memory_bug.py
+tests/agents/test_working_m...
+Let me examine the main test file to understand the existing test structure:
+[tool] read_file({'path': 'tests/agents/test_working_memory.py'})
+[result] """Tests for working memory system."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from henchman.agents.working_memory import (
+    ActionEntry,
+    DecisionEntry,
+    LineRange,
+    Pro...
+Now let me examine the file more closely to understand the structure and identify potential bugs. Let me first create the documentation stub as required:
+[tool] write_file({'path': 
+'.agent_tasks/four-lenses-agents-working_memory/README.md', 'content': '# Four 
+Lenses Bug Report: src/henchman/agents/working_memory.py\n## Date: 
+2025-03-16T04:00:00Z\n## Bug Summary\nThe `should_read_file` method has a 
+critical bug in its line number validation logic: when `end=-1` is passed (which
+means "read to end of file" in the read_file tool API), the method incorrectly 
+converts it to `None` and then fails to validate it as a valid integer, leading 
+to incorrect behavior when checking if files should be read.\n\n## Lens\n**Phase
+1: The Intent vs. Reality Check** - Logic Gaps\n\n## Expected vs. Observed\n| 
+Expected Behavior | Observed Risk |\n|---|---|\n| When `end=-1` is passed 
+(meaning "read to EOF"), the method should handle it as a special case and 
+validate it properly | The method converts `end=-1` to `None` early in the 
+function, then later when checking line number validity, it doesn\'t validate 
+`None` values, potentially allowing invalid logic flow |\n| Line number 
+validation should happen consistently for all inputs | The early conversion of 
+`end=-1` to `None` bypasses validation that would catch other invalid values 
+|\n| The method should maintain consistency with the read_file tool\'s API where
+`end=-1` means "read to EOF" | The conversion creates a disconnect between the 
+caller\'s intent and the method\'s internal representation |\n\n## Root 
+Cause\nIn the `should_read_file` method, lines 418-420:\n```python\n# Convert 
+end=-1 to None (read to end of file)\n# This matches the read_file tool\'s API 
+where end=-1 means "read to EOF"\nif end == -1:\n    end = None\n```\n\nThis 
+early conversion happens BEFORE line number validation (lines 423-440). However,
+the validation logic only checks if `end is not None`:\n```python\nif end is not
+None:\n    if type(end) is not int:  # Use type() not isinstance() to reject 
+bool (bool is subclass of int)\n        return True, f"Invalid line number: end 
+must be an integer, got {type(end).__name__}={end}"\n    if end < 1 and end != 
+-1:\n        return True, f"Invalid line number: end must be positive 
+(1-indexed), got end={end}"\n```\n\nThe problem is that after converting 
+`end=-1` to `None`, the validation `end < 1 and end != -1` is skipped because 
+`end is None`. This means:\n1. `end=-1` gets converted to `None`\n2. Validation 
+is skipped because `end is None`\n3. Later logic treats `None` as "read to EOF" 
+but this creates inconsistency\n\nMore critically, this creates a bug when `end`
+is a float `-1.0` (which also means "read to EOF" in some contexts). The check 
+`end == -1` uses `==` which returns `False` for `-1.0 == -1` in Python 
+(different types). So `end=-1.0` doesn\'t get converted to `None`, but then 
+fails validation because `type(end) is not int`.\n\n## Fix Plan\n1. Remove the 
+early conversion of `end=-1` to `None`\n2. Handle `end=-1` as a special case 
+throughout the validation and logic\n3. Also handle `end=-1.0` (float) as 
+equivalent to `end=-1` (int)\n4. Update all validation logic to properly handle 
+the `end=-1` special case\n5. Ensure consistency with the read_file tool\'s 
+API\n\n## Status: IN PROGRESS'})
+[result] Successfully wrote 2990 bytes to 
+.agent_tasks/four-lenses-agents-working_memory/README.md...
+Now let me examine the `should_read_file` method more closely to understand the full extent of the bug:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+391, 'end_line': 600})
+[result]     def should_read_file(
+        self: WorkingMemory, path: str, start: int | None = None, end: int | 
+None = None,
+    ) -> tuple[bool, str]:
+        """Determine whether a file needs to be read.
+
+  ...
+Now I need to look at the validation logic more carefully. I see the issue: the comment says "Accept both int -1 and float -1.0" but the check `if end == -1:` will return `False` for `-1.0` because `-1.0 == -1` is `True` in Python (due to numeric comparison), but `type(end) is not int` will fail for `-1.0`. Actually, let me test this:
+[tool] python_exec({'code': '# Test the comparison logic\nprint("Testing -1.0 ==
+-1:", -1.0 == -1)\nprint("Testing type(-1.0) is int:", type(-1.0) is 
+int)\nprint("Testing type(-1) is int:", type(-1) is int)\nprint("Testing 
+isinstance(-1.0, int):", isinstance(-1.0, int))\nprint("Testing isinstance(-1, 
+int):", isinstance(-1, int))'})
+[result] Testing -1.0 == -1: True
+Testing type(-1.0) is int: False
+Testing type(-1) is int: True
+Testing isinstance(-1.0, int): False
+Testing isinstance(-1, int): True
+...
+So `-1.0 == -1` is `True`, but `type(-1.0) is int` is `False`. This means the code has a bug: if `end=-1.0` (float), it will pass the `if end == -1:` check and be converted to `None`, but then later when checking `if end is not None:`, it won't validate it (because it's now `None`). Wait, actually if it's converted to `None`, then `if end is not None:` is `False`, so it skips validation entirely. That might be okay? But the comment says "Accept both int -1 and float -1.0" - but actually it only accepts `-1.0` by converting it to `None`, not by handling it as `-1.0`.
+
+Actually, looking more carefully at the validation logic:
+```python
+if end is not None:
+    if type(end) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
+        return True, f"Invalid line number: end must be an integer, got {type(end).__name__}={end}"
+    if end < 1 and end != -1:
+        return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
+```
+
+So if `end=-1.0` (float), it doesn't get converted to `None` (because `-1.0 == -1` is `True`? Wait, actually `if end == -1:` would convert it to `None`). But then `type(end) is not int` would be `True` (since `-1.0` is float), so it would return an error. So the comment is wrong - it doesn't actually accept float `-1.0`.
+
+But there's a deeper bug: what if `end` is `-1` (int)? It gets converted to `None`, then validation is skipped. But what if `start=10, end=-1`? Then `start > end` validation would fail because `10 > -1` is `True`. Actually, the validation `if start is not None and end is not None and start > end:` would check if `end is not None`, but `end` is now `None`, so it skips this check! So `start=10, end=-1` would pass validation when it shouldn't.
+
+Actually, wait. Let me trace through the logic:
+1. `end=-1` → converted to `None` 
+2. `if end is not None:` → `False`, skips validation
+3. `if start is not None and end is not None and start > end:` → `end is None`, so `False`, skips validation
+4. Later in the function: `if start is None or end is None:` → `end is None`, so `True`, goes into partial range logic
+5. In partial range logic: `elif start is not None:` → `start=10`, so goes into "start=X, end=None: read from X to EOF" branch
+
+So `start=10, end=-1` gets treated as `start=10, end=None` (read from line 10 to EOF). That might actually be correct? The read_file tool API says `end=-1` means "read to EOF". So `start=10, end=-1` means "read from line 10 to EOF", which is equivalent to `start=10, end=None`.
+
+But there's still a bug: what if someone passes `end=-2`? That's invalid (should be `-1` for EOF or positive). The validation `if end < 1 and end != -1:` would catch it, but only if `end is not None`. If we convert `end=-1` to `None`, we're changing the semantics.
+
+Actually, I think the real bug is simpler: the method signature says `end: int | None = None`, but then we convert `end=-1` to `None`. This means the method internally treats `end=-1` and `end=None` as the same thing, but they're semantically different to the caller. The caller expects `end=-1` to mean "read to EOF", not "same as not specifying end".
+
+But actually, looking at the read_file tool API: `end=-1` does mean "read to end of file". So in the context of `should_read_file`, if someone asks "should I read from line 10 to EOF (end=-1)?", we need to check if lines 10 through the end of the file have been read. That's not the same as "should I read from line 10 to some unspecified line?".
+
+Hmm, but we don't know how many lines are in the file. We only know what lines have been read. So we can't check if "lines 10 to EOF" have been read unless we know where EOF is. So treating `end=-1` as `end=None` (read to EOF) might be the best we can do - check if we've read from line 10 onward.
+
+Actually, wait. Let me look at the partial range logic again. If `start=10, end=None`, the code checks if line 10 has been read, and if so, says "May need to read lines beyond {last_read_line}". That seems reasonable for `end=-1` too.
+
+But there's still the float `-1.0` issue. And the fact that converting `end=-1` to `None` happens before validation means invalid values like `end=-2` don't get validated properly.
+
+Let me write a test to understand the current behavior:
+[tool] write_file({'path': 'test_bug.py', 'content': '"""Test to understand the 
+bug in should_read_file."""\nfrom henchman.agents.working_memory import 
+WorkingMemory, WorkingMemoryEntry\n\n# Test 1: end=-1 (int)\nmemory = 
+WorkingMemory(current_task="Test")\nmemory.add_recent_file(WorkingMemoryEntry("/
+test/file.py", "Test", "1-100"))\n\nprint("Test 1: start=10, end=-1 
+(int)")\nshould_read, reason = memory.should_read_file("/test/file.py", 10, 
+-1)\nprint(f"  Result: should_read={should_read}, reason={reason}")\n\n# Test 2:
+end=-1.0 (float)\nprint("\\nTest 2: start=10, end=-1.0 (float)")\ntry:\n    
+should_read, reason = memory.should_read_file("/test/file.py", 10, -1.0)\n    
+print(f"  Result: should_read={should_read}, reason={reason}")\nexcept Exception
+as e:\n    print(f"  Exception: {e}")\n\n# Test 3: end=-2 (invalid, should be 
+caught)\nprint("\\nTest 3: start=10, end=-2 (invalid)")\nshould_read, reason = 
+memory.should_read_file("/test/file.py", 10, -2)\nprint(f"  Result: 
+should_read={should_read}, reason={reason}")\n\n# Test 4: start=10, end=50 
+(valid, within 1-100)\nprint("\\nTest 4: start=10, end=50 (valid, within 
+1-100)")\nshould_read, reason = memory.should_read_file("/test/file.py", 10, 
+50)\nprint(f"  Result: should_read={should_read}, reason={reason}")\n\n# Test 5:
+start=10, end=None (partial range)\nprint("\\nTest 5: start=10, end=None 
+(partial range)")\nshould_read, reason = 
+memory.should_read_file("/test/file.py", 10, None)\nprint(f"  Result: 
+should_read={should_read}, reason={reason}")'})
+[result] Successfully wrote 1431 bytes to test_bug.py...
+
+[tool] shell({'command': 'cd /home/matthew/mlg-cli && python test_bug.py'})
+[result] Test 1: start=10, end=-1 (int)
+  Result: should_read=True, reason=May need to read lines beyond 100
+
+Test 2: start=10, end=-1.0 (float)
+  Result: should_read=True, reason=May need to read lines beyond...
+Interesting! So `end=-1.0` (float) actually works - it returns "May need to read lines beyond 100". That means `-1.0 == -1` is `True`, so it gets converted to `None`, and then treated as a partial range. But wait, the validation `type(end) is not int` would fail for `-1.0`... unless `end` is now `None` after conversion. Let me check:
+[tool] python_exec({'code': '# Test what happens with -1.0\nend = 
+-1.0\nprint(f"end = {end}, type = {type(end)}")\nprint(f"end == -1: {end == 
+-1}")\nif end == -1:\n    end = None\n    print(f"After conversion: end = {end},
+type = {type(end)}")'})
+[result] end = -1.0, type = <class 'float'>
+end == -1: True
+After conversion: end = None, type = <class 'NoneType'>
+...
+So `-1.0` gets converted to `None`, then validation is skipped because `end is None`. That's actually okay - it treats `end=-1.0` the same as `end=-1`.
+
+But Test 3 shows `end=-2` returns "Invalid line number: end must be positive (1-indexed), got end=-2". That means `end=-2` doesn't get converted to `None` (because `-2 == -1` is `False`), so it goes through validation and gets caught. Good.
+
+But wait, there's still a bug! What if `start=150, end=-1`? Lines 150-EOF haven't been read (file only read up to line 100). The method should return `True` (should read). Let me test:
+[tool] python_exec({'code': 'from henchman.agents.working_memory import 
+WorkingMemory, WorkingMemoryEntry\n\nmemory = 
+WorkingMemory(current_task="Test")\nmemory.add_recent_file(WorkingMemoryEntry("/
+test/file.py", "Test", "1-100"))\n\nprint("Test: start=150, end=-1 (beyond 
+what\'s been read)")\nshould_read, reason = 
+memory.should_read_file("/test/file.py", 150, -1)\nprint(f"  Result: 
+should_read={should_read}, reason={reason}")\n\nprint("\\nTest: start=150, 
+end=None (partial range)")\nshould_read2, reason2 = 
+memory.should_read_file("/test/file.py", 150, None)\nprint(f"  Result: 
+should_read={should_read2}, reason={reason2}")'})
+[result] Test: start=150, end=-1 (beyond what's been read)
+  Result: should_read=True, reason=Start line 150 beyond last read line 100
+
+Test: start=150, end=None (partial range)
+  Result: should_read=True, rea...
+Good, that works correctly. Both return `True` with "Start line 150 beyond last read line 100".
+
+But I think I found the real bug! Look at the validation logic again:
+
+```python
+if end is not None:
+    if type(end) is not int:  # Use type() not isinstance() to reject bool (bool is subclass of int)
+        return True, f"Invalid line number: end must be an integer, got {type(end).__name__}={end}"
+    if end < 1 and end != -1:
+        return True, f"Invalid line number: end must be positive (1-indexed), got end={end}"
+```
+
+The check `if end < 1 and end != -1:` has a problem: what if `end = 0`? Then `0 < 1` is `True` and `0 != -1` is `True`, so it returns error. Good.
+What if `end = -1`? Then `-1 < 1` is `True` but `-1 != -1` is `False`, so `True and False` is `False`, skips the error. Good.
+What if `end = -2`? Then `-2 < 1` is `True` and `-2 != -1` is `True`, returns error. Good.
+
+But wait, `end=-1` doesn't go through this validation because it gets converted to `None` first! So actually `end=-1` skips ALL validation. That means if someone passes `end=-1` and `start=0` (invalid), it won't catch `start=0` because... actually `start=0` would be caught by `if start < 1:`. But `end=-1` with `start=10` is okay.
+
+Actually, I think the bug is more subtle. Let me look at the `LineRange` class creation later in the function:
+
+```python
+requested = LineRange(start, end)
+```
+
+If `end=-1` was converted to `None`, then `LineRange(start, None)` would be created. Let me check what `LineRange` does with `None`:
+[tool] read_file({'path': 'src/henchman/agents/working_memory.py', 'start_line':
+80, 'end_line': 120})
+[result]     """A recorded decision made during a task."""
+
+    decision: str
+    rationale: str
+    impact: str = DEFAULT_IMPACT
+
+
+@dataclass
+class ActionEntry(SerializableDataclass):
+    """A planned next ac...
+So `LineRange` expects both `start` and `end` to be `int`, not `None`. If `end=None`, then `LineRange(start, None)` will fail because `None < 1` raises `TypeError`. Actually, let me check:
+[tool] python_exec({'code': '# Test LineRange with None\ntry:\n    from 
+henchman.agents.working_memory import LineRange\n    lr = LineRange(10, None)\n 
+print(f"LineRange(10, None) created: {lr}")\nexcept Exception as e:\n    
+print(f"LineRange(10, None) failed: {type(e).__name__}: {e}")\n\n# Test 
+comparison\nprint(f"None < 1: {None < 1}")  # Should raise TypeError'})
+✗ \[error] LineRange(10, None) failed: TypeError: '<' not supported between 
+instances of 'NoneType' and 'int'
+
+Traceback (most recent call last):
+  File "<string>", line 10, in <module>
+TypeError: '<' not suppor
+So `LineRange(10, None)` would fail with `TypeError`. But wait, in `should_read_file`, `LineRange(start, end)` is only created
