@@ -15,6 +15,7 @@ from henchman.agents.working_memory import (
     WorkingMemoryEntry,
     WorkingMemorySystem,
 )
+from henchman.agents.line_range_utils import parse_line_ranges
 
 
 class TestWorkingMemoryEntry:
@@ -1509,8 +1510,8 @@ class TestHelperFunctions:
         result = LineRange.from_str("10-20,30-40")
         assert result is None  # LineRange.from_str doesn't support multiple ranges
         
-        # Test that _parse_line_ranges handles multiple ranges
-        ranges = WorkingMemory._parse_line_ranges("10-20,30-40")
+        # Test that parse_line_ranges handles multiple ranges
+        ranges = parse_line_ranges("10-20,30-40")
         assert len(ranges) == 2
         assert ranges[0].start == 10
         assert ranges[0].end == 20
@@ -1705,74 +1706,101 @@ class TestHelperFunctions:
         assert "already read" not in reason.lower()
 
     def test_memory_parse_line_ranges_unicode_dash_bug(self):
-        """Test _parse_line_ranges bug: doesn't handle Unicode dash characters.
+        """Test parse_line_ranges bug: doesn't handle Unicode dash characters.
         
-        BUG: _parse_line_ranges only splits on ASCII hyphen '-', not Unicode dash
+        BUG: parse_line_ranges only splits on ASCII hyphen '-', not Unicode dash
         characters like en dash '–' (U+2013) or em dash '—' (U+2014).
         """
-        from henchman.agents.working_memory import WorkingMemory
         
         # Test with ASCII hyphen (should work)
-        result = WorkingMemory._parse_line_ranges("10-20")
+        result = parse_line_ranges("10-20")
         assert len(result) == 1
         assert result[0].start == 10
         assert result[0].end == 20
         
-        # Test with en dash '–' (U+2013) - BUG: should work but doesn't
-        result = WorkingMemory._parse_line_ranges("10–20")  # en dash
-        # Should return [LineRange(10, 20)]
-        assert len(result) == 1, f"Should handle en dash and return [LineRange(10, 20)], got {result}"
-        assert result[0].start == 10 and result[0].end == 20
+        # Test with en dash (U+2013) – should work now
+        result = parse_line_ranges("10–20")  # en dash
+        assert len(result) == 1
+        assert result[0].start == 10
+        assert result[0].end == 20
         
-        # Test with em dash '—' (U+2014) - BUG: should work but doesn't
-        result = WorkingMemory._parse_line_ranges("10—20")  # em dash
-        assert len(result) == 1, f"Should handle em dash and return [LineRange(10, 20)], got {result}"
-        assert result[0].start == 10 and result[0].end == 20
+        # Test with em dash (U+2014) – should work now
+        result = parse_line_ranges("10—20")  # em dash
+        assert len(result) == 1
+        assert result[0].start == 10
+        assert result[0].end == 20
         
-        # Test with multiple ranges and en dash
-        result = WorkingMemory._parse_line_ranges("10–20,30–40")  # en dashes
-        assert len(result) == 2, f"Should handle multiple ranges with en dashes, got {result}"
-        assert result[0].start == 10 and result[0].end == 20
-        assert result[1].start == 30 and result[1].end == 40
+        # Test with multiple ranges using en dashes
+        result = parse_line_ranges("10–20,30–40")  # en dashes
+        assert len(result) == 2
+        assert result[0].start == 10
+        assert result[0].end == 20
+        assert result[1].start == 30
+        assert result[1].end == 40
         
         # Test with spaces and en dash
-        result = WorkingMemory._parse_line_ranges("10 – 20")  # space, en dash, space
-        assert len(result) == 1, f"Should handle spaces with en dash, got {result}"
-        assert result[0].start == 10 and result[0].end == 20
+        result = parse_line_ranges("10 – 20")  # space, en dash, space
+        assert len(result) == 1
+        assert result[0].start == 10
+        assert result[0].end == 20
         
-        # Test with hyphen-minus (ASCII) should still work
-        result = WorkingMemory._parse_line_ranges("10-20,30-40")
+        # Test with multiple ASCII hyphens (should work)
+        result = parse_line_ranges("10-20,30-40")
         assert len(result) == 2
-        assert result[0].start == 10 and result[0].end == 20
-        assert result[1].start == 30 and result[1].end == 40
+        assert result[0].start == 10
+        assert result[0].end == 20
+        assert result[1].start == 30
+        assert result[1].end == 40
         
-        # Test with figure dash '‒' (U+2012) - BUG: should work but doesn't
-        result = WorkingMemory._parse_line_ranges("10‒20")  # figure dash U+2012
-        # Should return [LineRange(10, 20)]
-        assert len(result) == 1, f"Should handle figure dash U+2012 and return [LineRange(10, 20)], got {result}"
-        assert result[0].start == 10 and result[0].end == 20
+        # Test with figure dash (U+2012) – should work now
+        result = parse_line_ranges("10‒20")  # figure dash U+2012
+        assert len(result) == 1
+        assert result[0].start == 10
+        assert result[0].end == 20
         
-        # Test with minus sign '−' (U+2212) - BUG: should work but doesn't
-        result = WorkingMemory._parse_line_ranges("10−20")  # minus sign U+2212
-        assert len(result) == 1, f"Should handle minus sign U+2212 and return [LineRange(10, 20)], got {result}"
-        assert result[0].start == 10 and result[0].end == 20
+        # Test with minus sign (U+2212) – should work now
+        result = parse_line_ranges("10−20")  # minus sign U+2212
+        assert len(result) == 1
+        assert result[0].start == 10
+        assert result[0].end == 20
         
-        # Test with horizontal bar '―' (U+2015) - BUG: should work but doesn't
-        result = WorkingMemory._parse_line_ranges("10―20")  # horizontal bar U+2015
-        assert len(result) == 1, f"Should handle horizontal bar U+2015 and return [LineRange(10, 20)], got {result}"
-        assert result[0].start == 10 and result[0].end == 20
+        # Test with horizontal bar (U+2015) – should work now
+        result = parse_line_ranges("10―20")  # horizontal bar U+2015
+        assert len(result) == 1
+        assert result[0].start == 10
+        assert result[0].end == 20
     
     def test_memory_parse_line_ranges_invalid_parts_silently_ignored_bug(self):
-        """Test _parse_line_ranges: invalid parts are silently ignored.
+        """Test parse_line_ranges: invalid parts are silently ignored.
         
-        FIXED: When lines_read contains mixed valid and invalid parts (e.g., "1-10,invalid-format,20-30"),
-        the method now skips invalid parts and returns only valid parts.
+        BUG: Invalid parts like "invalid-format" or "10-20-30" should be
+        silently ignored, not cause errors.
+        """
+        # Test with invalid part in the middle
+        result = parse_line_ranges("1-10,invalid-format,20-30")
+        assert len(result) == 2  # Should parse 1-10 and 20-30, skip invalid-format
+        assert result[0].start == 1
+        assert result[0].end == 10
+        assert result[1].start == 20
+        assert result[1].end == 30
+        
+        # Test with invalid format (too many dashes)
+        result = parse_line_ranges("10-20-30")
+        assert len(result) == 0  # Should parse as invalid and return empty list
+        
+        # Test with valid format
+        result = parse_line_ranges("1-10,20-30")
+        assert len(result) == 2
+        assert result[0].start == 1
+        assert result[0].end == 10
+        assert result[1].start == 20
+        assert result[1].end == 30
         This is BETTER than returning empty list because it uses valid information.
         """
         from henchman.agents.working_memory import WorkingMemory
         
         # Test with mixed valid and invalid parts
-        result = WorkingMemory._parse_line_ranges("1-10,invalid-format,20-30")
+        result = parse_line_ranges("1-10,invalid-format,20-30")
         # FIXED: Now returns [LineRange(1,10), LineRange(20,30)], skipping "invalid-format"
         # This is BETTER than returning empty list because we can use valid information
         assert len(result) == 2, f"Should skip invalid parts and return valid ranges, got {result}"
@@ -1780,12 +1808,12 @@ class TestHelperFunctions:
         assert result[1].start == 20 and result[1].end == 30
         
         # Test with multiple dashes (invalid) - should return empty list
-        result = WorkingMemory._parse_line_ranges("10-20-30")
+        result = parse_line_ranges("10-20-30")
         # "10-20-30" has multiple dashes, can't parse as valid range
         assert result == [], f"Should return empty list for invalid format '10-20-30', got {result}"
         
         # Test with valid format only
-        result = WorkingMemory._parse_line_ranges("1-10,20-30")
+        result = parse_line_ranges("1-10,20-30")
         assert len(result) == 2
         assert result[0].start == 1 and result[0].end == 10
         assert result[1].start == 20 and result[1].end == 30
@@ -1799,39 +1827,39 @@ class TestHelperFunctions:
         from henchman.agents.working_memory import WorkingMemory
         
         # Test with underscore (should be rejected, not parsed as 1020)
-        result = WorkingMemory._parse_line_ranges("10_20")
+        result = parse_line_ranges("10_20")
         # BUG: Currently returns [LineRange(1020, 1020)] because int("10_20") = 1020
         # Should return [] because "10_20" is not a valid line range format
         assert result == [], f"Should reject '10_20' as invalid format, got {result}"
         
         # Test with valid number with underscores (Python allows int("1_000_000"))
-        result = WorkingMemory._parse_line_ranges("1_000_000")
+        result = parse_line_ranges("1_000_000")
         # BUG: Currently returns [LineRange(1000000, 1000000)]
         # Should return [] because "1_000_000" is not a valid line number format
         assert result == [], f"Should reject '1_000_000' as invalid format, got {result}"
         
         # Test mixed: valid range and invalid underscore
-        result = WorkingMemory._parse_line_ranges("10-20,30_40")
+        result = parse_line_ranges("10-20,30_40")
         # Should return only [LineRange(10, 20)], skipping "30_40"
         assert len(result) == 1, f"Should skip invalid '30_40' and return only valid ranges, got {result}"
         assert result[0].start == 10 and result[0].end == 20
         
         # Test with other invalid characters
-        result = WorkingMemory._parse_line_ranges("10.5")
+        result = parse_line_ranges("10.5")
         # Should return [] because "10.5" is not a valid integer
         assert result == [], f"Should reject '10.5' as invalid format, got {result}"
         
         # Test with letters
-        result = WorkingMemory._parse_line_ranges("abc")
+        result = parse_line_ranges("abc")
         # Should return []
         assert result == [], f"Should reject 'abc' as invalid format, got {result}"
         
         # Test with valid input (should still work)
-        result = WorkingMemory._parse_line_ranges("10-20")
+        result = parse_line_ranges("10-20")
         assert len(result) == 1
         assert result[0].start == 10 and result[0].end == 20
         
         # Test with valid single line
-        result = WorkingMemory._parse_line_ranges("42")
+        result = parse_line_ranges("42")
         assert len(result) == 1
         assert result[0].start == 42 and result[0].end == 42

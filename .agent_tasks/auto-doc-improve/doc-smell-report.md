@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-16T18:00:03.439432+00:00_
+_Generated: 2026-03-16T20:00:04.139861+00:00_
 
 ## Executive Summary
 
@@ -10,7 +10,7 @@ _Generated: 2026-03-16T18:00:03.439432+00:00_
 | **Overall Grade** | ✅ A |
 | **Overall Score** | 100.0/100 |
 | **Doc Files Scanned** | 55 |
-| **Source Files Checked** | 190 |
+| **Source Files Checked** | 191 |
 | **Total Smells** | 0 |
 | **Docstring Coverage** | 100.0% |
 
@@ -25,7 +25,7 @@ _Generated: 2026-03-16T18:00:03.439432+00:00_
 | 5 | docs/CHANGELOG.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 6 | docs/CONTRIBUTING.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 7 | docs/RELEASE_CHECKLIST.md | ✅ A | 100.0 | 0 | 2026-03-13 |
-| 8 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-13 |
+| 8 | docs/agents.md | ✅ A | 100.0 | 0 | 2026-03-16 |
 | 9 | docs/api.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 10 | docs/architecture.md | ✅ A | 100.0 | 0 | 2026-03-13 |
 | 11 | docs/configuration.md | ✅ A | 100.0 | 0 | 2026-03-15 |
@@ -34,7 +34,7 @@ _Generated: 2026-03-16T18:00:03.439432+00:00_
 | 14 | docs/getting-started.md | ✅ A | 100.0 | 0 | 2026-03-16 |
 | 15 | docs/index.md | ✅ A | 100.0 | 0 | 2026-03-16 |
 
-## ✨ Clean Files (245 files with no smells)
+## ✨ Clean Files (246 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -96,6 +96,7 @@ _Generated: 2026-03-16T18:00:03.439432+00:00_
 - src/henchman/agents/delegation.py — ✅ A
 - src/henchman/agents/identity.py — ✅ A
 - src/henchman/agents/ledger.py — ✅ A
+- src/henchman/agents/line_range_utils.py — ✅ A
 - src/henchman/agents/metrics.py — ✅ A
 - src/henchman/agents/metrics_reporter.py — ✅ A
 - src/henchman/agents/orchestrator.py — ✅ A
