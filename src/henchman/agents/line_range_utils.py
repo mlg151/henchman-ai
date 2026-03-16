@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass
@@ -80,7 +79,7 @@ class LineRange:
             return None
 
 
-def merge_line_ranges(ranges: List[LineRange]) -> List[LineRange]:
+def merge_line_ranges(ranges: list[LineRange]) -> list[LineRange]:
     """Merge overlapping or adjacent line ranges.
 
     Args:
@@ -94,7 +93,7 @@ def merge_line_ranges(ranges: List[LineRange]) -> List[LineRange]:
 
     # Sort by start line
     sorted_ranges = sorted(ranges, key=lambda r: r.start)
-    merged: List[LineRange] = []
+    merged: list[LineRange] = []
 
     current = sorted_ranges[0]
     for next_range in sorted_ranges[1:]:
@@ -113,7 +112,67 @@ def merge_line_ranges(ranges: List[LineRange]) -> List[LineRange]:
     return merged
 
 
-def parse_line_ranges(lines_read: str | None) -> List[LineRange]:
+def _parse_range_part(part: str) -> LineRange | None:
+    """Parse a single range part (start-end format).
+    
+    Args:
+        part: String in format "start-end".
+        
+    Returns:
+        LineRange object if valid, None if invalid.
+    """
+    result = None
+    
+    # Check for dash-like characters
+    dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
+    if dash_match:
+        dash_pos = dash_match.start()
+        start_str = part[:dash_pos]
+        end_str = part[dash_pos + 1:]  # +1 to skip the dash character
+        
+        # Check if both parts are decimal numbers
+        if start_str.isdecimal() and end_str.isdecimal():
+            try:
+                start = int(start_str)
+                end = int(end_str)
+            except (ValueError, TypeError):
+                pass  # Cannot parse as integers
+            else:
+                if start >= 1 and end >= 1 and start <= end:
+                    try:
+                        result = LineRange(start, end)
+                    except ValueError:
+                        pass  # LineRange validation failed
+    
+    return result
+
+
+def _parse_single_line_part(part: str) -> LineRange | None:
+    """Parse a single line part.
+    
+    Args:
+        part: String representing a single line number.
+        
+    Returns:
+        LineRange object if valid, None if invalid.
+    """
+    result = None
+    
+    if part.isdecimal():
+        try:
+            line = int(part)
+            if line >= 1:
+                try:
+                    result = LineRange(line, line)
+                except ValueError:
+                    pass  # LineRange validation failed
+        except (ValueError, TypeError):
+            pass  # Invalid: cannot parse as integer
+    
+    return result
+
+
+def parse_line_ranges(lines_read: str | None) -> list[LineRange]:
     """Parse a lines_read string into a list of LineRange objects.
 
     Args:
@@ -146,67 +205,27 @@ def parse_line_ranges(lines_read: str | None) -> List[LineRange]:
     if "full" in parts:
         return []
 
-    ranges: List[LineRange] = []
+    ranges: list[LineRange] = []
 
-    # Similar logic to _process_validation_part but we actually create LineRange objects
     for part in parts:
         part = part.strip()
         if not part:
             continue
-
-        # Check for dash-like characters
-        dash_match = re.search(r'[-\u2012\u2013\u2014\u2015\u2212]', part)
-        if dash_match:
-            # Range format: start-end
-            dash_pos = dash_match.start()
-            start_str = part[:dash_pos]
-            end_str = part[dash_pos + 1:]  # +1 to skip the dash character
-
-            # Check if both parts are decimal numbers
-            if not start_str.isdecimal() or not end_str.isdecimal():
-                continue  # Skip invalid: contains non-digit characters
-
-            try:
-                start = int(start_str)
-                end = int(end_str)
-            except (ValueError, TypeError):
-                continue  # Skip invalid: cannot parse as integers
-
-            if start < 1 or end < 1:
-                continue  # Skip invalid: non-positive line numbers
-
-            if start > end:
-                continue  # Skip invalid: start > end
-
-            try:
-                ranges.append(LineRange(start, end))
-            except ValueError:
-                # LineRange validation failed (e.g., start > end, which we already checked)
-                continue  # Skip invalid
-        else:
-            # Single line
-            if not part.isdecimal():
-                continue  # Skip invalid: contains non-digit characters
-
-            try:
-                line = int(part)
-            except (ValueError, TypeError):
-                continue  # Skip invalid: cannot parse as integer
-
-            if line < 1:
-                continue  # Skip invalid: non-positive line number
-
-            try:
-                ranges.append(LineRange(line, line))
-            except ValueError:
-                continue  # Skip invalid
+        
+        # Try parsing as range first, then as single line
+        line_range = _parse_range_part(part)
+        if line_range is None:
+            line_range = _parse_single_line_part(part)
+        
+        if line_range is not None:
+            ranges.append(line_range)
 
     return ranges
 
 
 def check_line_in_merged_ranges(
     line: int,
-    merged_ranges: List[LineRange],
+    merged_ranges: list[LineRange],
     prefix: str,
 ) -> tuple[bool, str]:
     """Check if a line is within, before, between, or after merged ranges.

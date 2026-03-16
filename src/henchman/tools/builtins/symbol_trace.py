@@ -97,8 +97,15 @@ def _collect_python_files(root: Path, include_tests: bool) -> list[Path]:
 def _extract_signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
     """Extract a single-line signature from a function node."""
     try:
-        sig = ast.unparse(node)[:120]
-        return sig.split("\n")[0]
+        sig = ast.unparse(node)
+        # Handle decorated functions: find the "def" line
+        lines = sig.split("\n")
+        for line in lines:
+            if line.strip().startswith(("def ", "async def ")):
+                # Return the function signature line (truncated if needed)
+                return line[:120]
+        # Fallback: return first line (for backward compatibility)
+        return lines[0][:120] if lines else f"def {node.name}(...)"
     except Exception:  # noqa: BLE001
         return f"def {node.name}(...)"
 

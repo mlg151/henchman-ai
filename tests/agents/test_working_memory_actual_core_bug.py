@@ -105,17 +105,17 @@ def test_merge_ranges_adjacent_bug():
     LineRange(1, 10) and LineRange(11, 20) are adjacent (10+1 = 11).
     Should they be merged? Current code merges them.
     """
-    from henchman.agents.working_memory import WorkingMemory
+    from henchman.agents.line_range_utils import merge_line_ranges
     
     ranges = [LineRange(1, 10), LineRange(11, 20)]
-    merged = WorkingMemory._merge_ranges(ranges)
+    merged = merge_line_ranges(ranges)
     # Should merge into LineRange(1, 20)
     assert len(merged) == 1
     assert merged[0] == LineRange(1, 20)
     
     # Test with gap
     ranges2 = [LineRange(1, 10), LineRange(12, 20)]  # Gap at line 11
-    merged2 = WorkingMemory._merge_ranges(ranges2)
+    merged2 = merge_line_ranges(ranges2)
     # Should NOT merge, should keep as two ranges
     assert len(merged2) == 2
     assert merged2[0] == LineRange(1, 10)
@@ -141,9 +141,9 @@ def test_real_core_bug_should_read_file_with_invalid_lines_read():
     assert entry.path == "/test/file.py"
     assert entry.lines_read == "10-20,invalid,30-40"
     
-    # _parse_line_ranges handles it gracefully
-    from henchman.agents.working_memory import WorkingMemory
-    ranges = WorkingMemory._parse_line_ranges("10-20,invalid,30-40")
+    # parse_line_ranges handles it gracefully
+    from henchman.agents.line_range_utils import parse_line_ranges
+    ranges = parse_line_ranges("10-20,invalid,30-40")
     assert len(ranges) == 2
     assert ranges[0] == LineRange(10, 20)
     assert ranges[1] == LineRange(30, 40)

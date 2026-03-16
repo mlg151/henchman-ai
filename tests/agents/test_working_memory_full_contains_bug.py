@@ -91,8 +91,9 @@ def test_lines_read_multiple_parts_with_full():
     )
     assert entry.lines_read == "full,additional info"
     
-    # _parse_line_ranges returns [] for this
-    ranges = WorkingMemory._parse_line_ranges("full,additional info")
+    # parse_line_ranges returns [] for this
+    from henchman.agents.line_range_utils import parse_line_ranges
+    ranges = parse_line_ranges("full,additional info")
     assert ranges == []
     
     print(f"\nTest - lines_read='full,additional info':")
@@ -101,12 +102,10 @@ def test_lines_read_multiple_parts_with_full():
 
 def test_parse_line_ranges_with_full_and_ranges():
     """Test _parse_line_ranges with 'full,10-20'."""
-    from henchman.agents.working_memory import WorkingMemory
+    from henchman.agents.line_range_utils import parse_line_ranges
     
-    memory = WorkingMemory(current_task="Test")
-    
-    # Test _parse_line_ranges directly
-    ranges = memory._parse_line_ranges("full,10-20")
+    # Test parse_line_ranges directly
+    ranges = parse_line_ranges("full,10-20")
     print(f"\nTest _parse_line_ranges('full,10-20'):")
     print(f"  ranges={ranges}")
     

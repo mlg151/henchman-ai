@@ -19,14 +19,15 @@ def test_parse_line_ranges_superscript_digits():
 
 
 def test_parse_line_ranges_circled_digits():
-    """Test _parse_line_ranges with circled digits."""
+    """Test parse_line_ranges with circled digits."""
+    from henchman.agents.line_range_utils import parse_line_ranges
     # Circled digits: ① (circled 1), ② (circled 2)
-    result = WorkingMemory._parse_line_ranges("①-②")
+    result = parse_line_ranges("①-②")
     
     # Should return empty list (invalid)
     assert result == []
     
-    print("✓ _parse_line_ranges('①-②') returns [] (invalid)")
+    print("✓ parse_line_ranges('①-②') returns [] (invalid)")
 
 
 def test_parse_line_ranges_arabic_digits():
@@ -34,8 +35,9 @@ def test_parse_line_ranges_arabic_digits():
     
     Arabic digits are valid: int('١') = 1
     """
+    from henchman.agents.line_range_utils import parse_line_ranges
     # Arabic digits: ١ (Arabic 1), ٢ (Arabic 2)
-    result = WorkingMemory._parse_line_ranges("١-٢")
+    result = parse_line_ranges("١-٢")
     
     # Should parse successfully
     assert len(result) == 1

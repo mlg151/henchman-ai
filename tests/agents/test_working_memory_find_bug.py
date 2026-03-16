@@ -5,56 +5,61 @@ from henchman.agents.working_memory import WorkingMemory, WorkingMemoryEntry, Li
 
 
 def test_parse_line_ranges_empty_string():
-    """Test _parse_line_ranges with empty string."""
-    result = WorkingMemory._parse_line_ranges("")
+    """Test parse_line_ranges with empty string."""
+    from henchman.agents.line_range_utils import parse_line_ranges
+    result = parse_line_ranges("")
     assert result == []  # Empty string means no lines read
 
 
 def test_parse_line_ranges_whitespace_only():
-    """Test _parse_line_ranges with whitespace-only string."""
-    result = WorkingMemory._parse_line_ranges("   ")
+    """Test parse_line_ranges with whitespace-only string."""
+    from henchman.agents.line_range_utils import parse_line_ranges
+    result = parse_line_ranges("   ")
     assert result == []  # Whitespace-only becomes empty after normalization
 
 
 def test_parse_line_ranges_invalid_characters():
-    """Test _parse_line_ranges with invalid characters."""
+    """Test parse_line_ranges with invalid characters."""
+    from henchman.agents.line_range_utils import parse_line_ranges
     # Test with letters
-    result = WorkingMemory._parse_line_ranges("abc")
+    result = parse_line_ranges("abc")
     assert result == []
     
     # Test with decimal point
-    result = WorkingMemory._parse_line_ranges("10.5")
+    result = parse_line_ranges("10.5")
     assert result == []  # .isdecimal() returns False for "10.5"
     
     # Test with negative sign (not dash between numbers)
-    result = WorkingMemory._parse_line_ranges("-10")
+    result = parse_line_ranges("-10")
     assert result == []  # .isdecimal() returns False for "-10"
 
 
 def test_parse_line_ranges_leading_zeros():
-    """Test _parse_line_ranges with leading zeros."""
+    """Test parse_line_ranges with leading zeros."""
+    from henchman.agents.line_range_utils import parse_line_ranges
     # Single line with leading zero
-    result = WorkingMemory._parse_line_ranges("01")
+    result = parse_line_ranges("01")
     assert len(result) == 1
     assert result[0].start == 1
     assert result[0].end == 1
     
     # Range with leading zeros
-    result = WorkingMemory._parse_line_ranges("01-05")
+    result = parse_line_ranges("01-05")
     assert len(result) == 1
     assert result[0].start == 1
     assert result[0].end == 5
     
     # "00" should be rejected (line 0 is invalid)
-    result = WorkingMemory._parse_line_ranges("00")
+    result = parse_line_ranges("00")
     assert result == []
 
 
 def test_parse_line_ranges_unicode_digits():
-    """Test _parse_line_ranges with Unicode digits."""
+    """Test parse_line_ranges with Unicode digits."""
+    from henchman.agents.line_range_utils import parse_line_ranges
     # Arabic digits (٠١٢٣) - .isdecimal() returns True for these!
     # int() CAN parse Arabic digits in Python
-    result = WorkingMemory._parse_line_ranges("١-١٠")  # 1-10 in Arabic digits
+    result = parse_line_ranges("١-١٠")  # 1-10 in Arabic digits
     # .isdecimal() returns True, and int() can parse them
     # So they should be accepted
     assert len(result) == 1
@@ -98,8 +103,9 @@ def test_validate_lines_read_inconsistent_with_parse():
         except ValueError:
             is_valid = False
         
-        # Test _parse_line_ranges
-        parsed = WorkingMemory._parse_line_ranges(lines_read)
+        # Test parse_line_ranges
+        from henchman.agents.line_range_utils import parse_line_ranges
+        parsed = parse_line_ranges(lines_read)
         
         print(f"'{lines_read}': valid={is_valid}, parsed={parsed}, expected_valid={should_be_valid}, expected_ranges={expected_ranges}")
         

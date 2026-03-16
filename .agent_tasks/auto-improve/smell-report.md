@@ -1,104 +1,105 @@
-# Code Smell Report — ⚠️ C (Score: 78.4/100)
+# Code Smell Report — ⚠️ C (Score: 78.8/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-16T20:00:39.375097+00:00_
+_Generated: 2026-03-16T22:00:41.110974+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | ⚠️ C |
-| **Overall Score** | 78.4/100 |
-| **Files Scanned** | 216 |
-| **Total Lines (non-blank)** | 44,629 |
-| **Total Smells** | 603 |
+| **Overall Score** | 78.8/100 |
+| **Files Scanned** | 217 |
+| **Total Lines (non-blank)** | 44,790 |
+| **Total Smells** | 592 |
 | **Avg Maintainability Index** | 69.9 |
-| **Avg Cyclomatic Complexity** | 13.6 |
+| **Avg Cyclomatic Complexity** | 13.4 |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 414 |
-| medium | 189 |
+| low | 406 |
+| medium | 185 |
+| high | 1 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Missing Type Hint | 149 |
+| Missing Type Hint | 145 |
 | Duplicate Code | 107 |
-| Feature Envy | 83 |
-| Long Method | 79 |
-| Deep Nesting | 50 |
-| Magic Number | 45 |
+| Feature Envy | 86 |
+| Long Method | 76 |
+| Deep Nesting | 48 |
+| Magic Number | 46 |
 | Primitive Obsession | 43 |
-| Complex Function | 32 |
-| Large Class | 15 |
+| Complex Function | 27 |
+| Large Class | 14 |
 
 ## 🎯 Prioritised Refactoring Queue
 
 These are the highest-impact smells to address first:
 
-1. **/home/matthew/mlg-cli/src/henchman/agents/delegation.py:284** — 🟡 MEDIUM — Complex Function  
-   Function '_validate_messages_access' has cyclomatic complexity 12 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+1. **agents/line_range_utils.py:144** — 🟠 HIGH — Deep Nesting  
+   Nesting depth 6 in '_parse_range_part' (threshold: 4)  
+   → _Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return._
 
-2. **/home/matthew/mlg-cli/src/henchman/agents/line_range_utils.py:116** — 🟡 MEDIUM — Complex Function  
-   Function 'parse_line_ranges' has cyclomatic complexity 18 (rank C)  
+2. **/home/matthew/mlg-cli/src/henchman/agents/delegation.py:284** — 🟡 MEDIUM — Complex Function  
+   Function '_validate_messages_access' has cyclomatic complexity 12 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 3. **/home/matthew/mlg-cli/src/henchman/agents/orchestrator_delegation_ctrl.py:122** — 🟡 MEDIUM — Complex Function  
    Function '_run_delegation' has cyclomatic complexity 18 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-4. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:57** — 🟡 MEDIUM — Complex Function  
-   Function 'WorkingMemoryEntry' has cyclomatic complexity 12 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-5. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:91** — 🟡 MEDIUM — Complex Function  
-   Function '_process_validation_part' has cyclomatic complexity 13 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-6. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:145** — 🟡 MEDIUM — Complex Function  
-   Function '_validate_lines_read' has cyclomatic complexity 14 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-7. **/home/matthew/mlg-cli/src/henchman/agents/working_memory.py:368** — 🟡 MEDIUM — Complex Function  
-   Function '_validate_and_normalize_line_numbers' has cyclomatic complexity 13 (rank C)  
-   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
-
-8. **/home/matthew/mlg-cli/src/henchman/config/context.py:132** — 🟡 MEDIUM — Complex Function  
+4. **/home/matthew/mlg-cli/src/henchman/config/context.py:132** — 🟡 MEDIUM — Complex Function  
    Function 'discover_files' has cyclomatic complexity 19 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-9. **/home/matthew/mlg-cli/src/henchman/config/environment.py:133** — 🟡 MEDIUM — Complex Function  
+5. **/home/matthew/mlg-cli/src/henchman/config/environment.py:133** — 🟡 MEDIUM — Complex Function  
    Function '_detect_git_status' has cyclomatic complexity 17 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-10. **/home/matthew/mlg-cli/src/henchman/core/agent.py:198** — 🟡 MEDIUM — Complex Function  
+6. **/home/matthew/mlg-cli/src/henchman/core/agent.py:198** — 🟡 MEDIUM — Complex Function  
    Function '__getattr__' has cyclomatic complexity 12 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-11. **/home/matthew/mlg-cli/src/henchman/mcp/client.py:42** — 🟡 MEDIUM — Complex Function  
+7. **/home/matthew/mlg-cli/src/henchman/mcp/client.py:42** — 🟡 MEDIUM — Complex Function  
    Function 'write' has cyclomatic complexity 13 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-12. **/home/matthew/mlg-cli/src/henchman/mcp/manager.py:132** — 🟡 MEDIUM — Complex Function  
+8. **/home/matthew/mlg-cli/src/henchman/mcp/manager.py:132** — 🟡 MEDIUM — Complex Function  
    Function '_build_logging_env' has cyclomatic complexity 11 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-13. **/home/matthew/mlg-cli/src/henchman/rag/indexer.py:217** — 🟡 MEDIUM — Complex Function  
+9. **/home/matthew/mlg-cli/src/henchman/rag/indexer.py:217** — 🟡 MEDIUM — Complex Function  
    Function 'index' has cyclomatic complexity 13 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-14. **/home/matthew/mlg-cli/src/henchman/rag/system.py:250** — 🟡 MEDIUM — Complex Function  
+10. **/home/matthew/mlg-cli/src/henchman/rag/system.py:250** — 🟡 MEDIUM — Complex Function  
    Function 'initialize_rag' has cyclomatic complexity 19 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
-15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/env_inspect.py:82** — 🟡 MEDIUM — Complex Function  
+11. **/home/matthew/mlg-cli/src/henchman/tools/builtins/env_inspect.py:82** — 🟡 MEDIUM — Complex Function  
    Function 'execute' has cyclomatic complexity 14 (rank C)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+12. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:35** — 🟡 MEDIUM — Complex Function  
+   Function '_format_function_sig' has cyclomatic complexity 11 (rank C)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+13. **/home/matthew/mlg-cli/src/henchman/tools/builtins/file_overview.py:136** — 🟡 MEDIUM — Complex Function  
+   Function '_summarize_python' has cyclomatic complexity 11 (rank C)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+14. **/home/matthew/mlg-cli/src/henchman/tools/builtins/ls.py:54** — 🟡 MEDIUM — Complex Function  
+   Function 'execute' has cyclomatic complexity 14 (rank C)  
+   → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
+
+15. **/home/matthew/mlg-cli/src/henchman/tools/builtins/pattern_search.py:73** — 🟡 MEDIUM — Complex Function  
+   Function '_extract_structural_patterns' has cyclomatic complexity 13 (rank C)  
    → _Extract Method / Replace Conditional with Polymorphism to reduce branching._
 
 
@@ -106,8 +107,8 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | agents/working_memory.py | ❌ F | 19.4 | 30 | 545 | 34 | 13.0 |
-| 2 | tools/builtins/symbol_trace.py | ❌ F | 51.2 | 16 | 381 | 47 | 13.0 |
+| 1 | tools/builtins/symbol_trace.py | ❌ F | 49.7 | 17 | 385 | 47 | 13.0 |
+| 2 | agents/working_memory.py | ❌ F | 53.9 | 13 | 484 | 42 | 0.0 |
 | 3 | cli/textual_mixins.py | 🔶 D | 61.3 | 4 | 1463 | 4 | 0.0 |
 | 4 | cli/textual_screens.py | 🔶 D | 61.9 | 17 | 398 | 52 | 0.0 |
 | 5 | mcp/manager.py | 🔶 D | 63.0 | 13 | 173 | 65 | 11.0 |
@@ -119,55 +120,51 @@ These are the highest-impact smells to address first:
 
 ## 📁 Per-File Details
 
-_Showing 20 worst files. 196 additional files omitted._
+_Showing 20 worst files. 197 additional files omitted._
 
-### agents/working_memory.py — ❌ F (19.4/100)
+### tools/builtins/symbol_trace.py — ❌ F (49.7/100)
 
-LOC: 545 | Classes: 6 | Functions: 1 | MI: 34 | Avg CC: 13.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 57 | 🟡 MEDIUM | Complex Function | Function 'WorkingMemoryEntry' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 91 | 🟡 MEDIUM | Complex Function | Function '_process_validation_part' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 145 | 🟡 MEDIUM | Long Method | Function '_validate_lines_read' has 54 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 145 | 🟡 MEDIUM | Complex Function | Function '_validate_lines_read' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 281 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'set_session' at cli/repl.py:291 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 281 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 281 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 281 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 368 | 🟡 MEDIUM | Complex Function | Function '_validate_and_normalize_line_numbers' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 69 | 🟢 LOW | Missing Type Hint | Function '__post_init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
-| 91 | 🟢 LOW | Long Method | Function '_process_validation_part' has 41 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 120 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_process_validation_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 123 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_process_validation_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 134 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_process_validation_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 137 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_process_validation_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-
-_... and 15 more smells._
-
-### tools/builtins/symbol_trace.py — ❌ F (51.2/100)
-
-LOC: 381 | Classes: 5 | Functions: 11 | MI: 47 | Avg CC: 13.0
+LOC: 385 | Classes: 5 | Functions: 11 | MI: 47 | Avg CC: 13.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
-| 106 | 🟡 MEDIUM | Complex Function | Function '_find_definitions_in_file' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 153 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_find_definitions_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 166 | 🟡 MEDIUM | Complex Function | Function '_find_imports_in_file' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 195 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_find_imports_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 354 | 🟡 MEDIUM | Complex Function | Function '_execute_symbol_trace' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
-| 100 | 🟢 LOW | Magic Number | Magic number 120 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 106 | 🟢 LOW | Long Method | Function '_find_definitions_in_file' has 45 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 152 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_find_definitions_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 188 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_find_imports_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 193 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_find_imports_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 251 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_collect_annotations_from_node' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 277 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 300 | 🟢 LOW | Long Method | Function '_build_trace_report' has 43 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 345 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 354 | 🟢 LOW | Long Method | Function '_execute_symbol_trace' has 39 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 113 | 🟡 MEDIUM | Complex Function | Function '_find_definitions_in_file' has cyclomatic complexity 12 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 160 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_find_definitions_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 173 | 🟡 MEDIUM | Complex Function | Function '_find_imports_in_file' has cyclomatic complexity 14 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 202 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_find_imports_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 361 | 🟡 MEDIUM | Complex Function | Function '_execute_symbol_trace' has cyclomatic complexity 13 (rank C) | Extract Method / Replace Conditional with Polymorphism to reduce branching. |
+| 106 | 🟢 LOW | Magic Number | Magic number 120 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 108 | 🟢 LOW | Magic Number | Magic number 120 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 113 | 🟢 LOW | Long Method | Function '_find_definitions_in_file' has 45 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 159 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_find_definitions_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 195 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_find_imports_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 200 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_find_imports_in_file' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 258 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_collect_annotations_from_node' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 284 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
+| 307 | 🟢 LOW | Long Method | Function '_build_trace_report' has 43 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 352 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
-_... and 1 more smells._
+_... and 2 more smells._
+
+### agents/working_memory.py — ❌ F (53.9/100)
+
+LOC: 484 | Classes: 7 | Functions: 1 | MI: 42 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 231 | 🟡 MEDIUM | Feature Envy | Method 'WorkingMemoryEntry._validate_lines_read_decision' accesses 'decision' 8 times but 'self' only 0 times | Move Method — consider moving '_validate_lines_read_decision' to the class that owns 'decision'. |
+| 362 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'set_session' at cli/repl.py:291 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 362 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'post' at cli/textual_bridge.py:181 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 362 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'add_auto_approve_policy' at tools/registry.py:170 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 362 | 🟡 MEDIUM | Duplicate Code | Function 'add_decision' is 100% similar to 'remove_auto_approve_policy' at tools/registry.py:184 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 82 | 🟢 LOW | Missing Type Hint | Function '__post_init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 255 | 🟢 LOW | Feature Envy | Method 'WorkingMemoryEntry._validate_lines_read' accesses 'WorkingMemoryEntry' 3 times but 'self' only 0 times | Move Method — consider moving '_validate_lines_read' to the class that owns 'WorkingMemoryEntry'. |
+| 342 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.add_recent_file' accesses 'entry' 3 times but 'self' only 1 times | Move Method — consider moving 'add_recent_file' to the class that owns 'entry'. |
+| 428 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'e' 3 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'e'. |
+| 428 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.update_problem' accesses 'updated' 4 times but 'self' only 1 times | Move Method — consider moving 'update_problem' to the class that owns 'updated'. |
+| 449 | 🟢 LOW | Missing Type Hint | Function '_get_empty_ranges_reason' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
+| 469 | 🟢 LOW | Primitive Obsession | Function 'should_read_file' has 3 primitive-typed parameters: path: Name(id='str', ctx=Load()), start: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), end: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 469 | 🟢 LOW | Feature Envy | Method 'WorkingMemory.should_read_file' accesses 'FileReadDecisionMaker' 3 times but 'self' only 2 times | Move Method — consider moving 'should_read_file' to the class that owns 'FileReadDecisionMaker'. |
 
 ### cli/textual_mixins.py — 🔶 D (61.3/100)
 
@@ -356,6 +353,21 @@ LOC: 245 | Classes: 4 | Functions: 0 | MI: 57 | Avg CC: 14.0
 | 248 | 🟢 LOW | Feature Envy | Method 'CompressionStrategy._preserve_code_blocks_in_cluster' accesses 'msg' 4 times but 'self' only 0 times | Move Method — consider moving '_preserve_code_blocks_in_cluster' to the class that owns 'msg'. |
 | 274 | 🟢 LOW | Long Method | Function 'create_for_conversation_type' has 42 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
 
+### agents/line_range_utils.py — 🔶 D (65.8/100)
+
+LOC: 181 | Classes: 1 | Functions: 5 | MI: 56 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 144 | 🟠 HIGH | Deep Nesting | Nesting depth 6 in '_parse_range_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 142 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_parse_range_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 167 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_parse_single_line_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 20 | 🟢 LOW | Missing Type Hint | Function '__post_init__' has incomplete type hints: 1/1 params untyped | Add Type Annotations for all parameters and return type. |
+| 138 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_parse_range_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 141 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_parse_range_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 165 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_parse_single_line_part' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 175 | 🟢 LOW | Long Method | Function 'parse_line_ranges' has 34 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+
 ### mcp/client.py — 🔶 D (66.9/100)
 
 LOC: 199 | Classes: 4 | Functions: 0 | MI: 62 | Avg CC: 13.0
@@ -447,26 +459,6 @@ LOC: 549 | Classes: 7 | Functions: 11 | MI: 47 | Avg CC: 0.0
 | 130 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at tools/builtins/coverage_map.py:394 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 130 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '__init__' at tools/security/shell_secure.py:442 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 536 | 🟡 MEDIUM | Duplicate Code | Function '_show_help_message' is 94% similar to '_list_themes' at cli/commands/theme.py:206 | Extract Shared Function — identify the common logic and parameterise the differences. |
-
-### utils/tokens.py — ⚠️ C (70.7/100)
-
-LOC: 125 | Classes: 1 | Functions: 1 | MI: 70 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 139 | 🟡 MEDIUM | Feature Envy | Method 'TokenCounter.count_messages' accesses 'msg' 5 times but 'self' only 0 times | Move Method — consider moving 'count_messages' to the class that owns 'msg'. |
-| 70 | 🟢 LOW | Missing Type Hint | Function '_get_encoding' has incomplete type hints: 1/2 params untyped | Add Type Annotations for all parameters and return type. |
-| 70 | 🟢 LOW | Feature Envy | Method 'TokenCounter._get_encoding' accesses 'tiktoken' 3 times but 'self' only 0 times | Move Method — consider moving '_get_encoding' to the class that owns 'tiktoken'. |
-| 70 | 🟢 LOW | Feature Envy | Method 'TokenCounter._get_encoding' accesses 'cls' 3 times but 'self' only 0 times | Move Method — consider moving '_get_encoding' to the class that owns 'cls'. |
-| 98 | 🟢 LOW | Missing Type Hint | Function 'count_text' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 115 | 🟢 LOW | Missing Type Hint | Function 'truncate_text' has incomplete type hints: 1/4 params untyped | Add Type Annotations for all parameters and return type. |
-| 115 | 🟢 LOW | Primitive Obsession | Function 'truncate_text' has 3 primitive-typed parameters: text: Name(id='str', ctx=Load()), max_tokens: Name(id='int', ctx=Load()), model: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 139 | 🟢 LOW | Long Method | Function 'count_messages' has 39 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 139 | 🟢 LOW | Missing Type Hint | Function 'count_messages' has incomplete type hints: 1/3 params untyped | Add Type Annotations for all parameters and return type. |
-| 139 | 🟢 LOW | Feature Envy | Method 'TokenCounter.count_messages' accesses 'encoding' 4 times but 'self' only 0 times | Move Method — consider moving 'count_messages' to the class that owns 'encoding'. |
-| 158 | 🟢 LOW | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 181 | 🟢 LOW | Magic Number | Magic number 10 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
-| 188 | 🟢 LOW | Magic Number | Magic number 3 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 
 ## ✨ Clean Files (77 files with no smells)
 

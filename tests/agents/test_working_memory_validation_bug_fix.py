@@ -96,22 +96,20 @@ def test_working_memory_entry_creation_with_invalid_lines_read():
 
 
 def test_parse_line_ranges_behavior_with_full():
-    """Test that _parse_line_ranges returns empty list when 'full' is present.
+    """Test that parse_line_ranges returns empty list when 'full' is present.
     
     This tests the existing behavior that should remain unchanged.
     """
-    from henchman.agents.working_memory import WorkingMemory
-    
-    memory = WorkingMemory(current_task="Test")
+    from henchman.agents.line_range_utils import parse_line_ranges
     
     # 'full' returns empty list
-    assert memory._parse_line_ranges("full") == []
+    assert parse_line_ranges("full") == []
     # 'full,10-20' returns empty list (10-20 ignored)
-    assert memory._parse_line_ranges("full,10-20") == []
+    assert parse_line_ranges("full,10-20") == []
     # '10-20,full' returns empty list (10-20 ignored)
-    assert memory._parse_line_ranges("10-20,full") == []
+    assert parse_line_ranges("10-20,full") == []
     # '10-20' returns LineRange(10, 20)
-    ranges = memory._parse_line_ranges("10-20")
+    ranges = parse_line_ranges("10-20")
     assert len(ranges) == 1
     assert ranges[0].start == 10
     assert ranges[0].end == 20

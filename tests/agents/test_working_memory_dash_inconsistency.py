@@ -38,7 +38,9 @@ def test_line_range_from_str_vs_parse_line_ranges_inconsistency():
     # Now test _parse_line_ranges
     memory = WorkingMemory(current_task="Test")
     
-    # All these should parse correctly in _parse_line_ranges
+    # All these should parse correctly in parse_line_ranges
+    from henchman.agents.line_range_utils import parse_line_ranges
+    
     test_cases = [
         "10-20",    # hyphen
         "10–20",    # en dash U+2013
@@ -47,12 +49,12 @@ def test_line_range_from_str_vs_parse_line_ranges_inconsistency():
     ]
     
     for test_str in test_cases:
-        ranges = memory._parse_line_ranges(test_str)
-        assert len(ranges) == 1, f"_parse_line_ranges should parse '{test_str}'"
+        ranges = parse_line_ranges(test_str)
+        assert len(ranges) == 1, f"parse_line_ranges should parse '{test_str}'"
         assert ranges[0].start == 10
         assert ranges[0].end == 20
     
-    print("_parse_line_ranges handles all dash characters correctly")
+    print("parse_line_ranges handles all dash characters correctly")
     
     # The bug is now fixed: both methods handle the same dash characters
     print("\nBUG FIXED: LineRange.from_str and _parse_line_ranges now handle the same dash characters!")

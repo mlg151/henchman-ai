@@ -73,29 +73,27 @@ def test_memory_validate_lines_read_whitespace():
 
 
 def test_memory_parse_line_ranges_whitespace():
-    """Test _parse_line_ranges with whitespace."""
-    from henchman.agents.working_memory import WorkingMemory
-    
-    memory = WorkingMemory(current_task="Test")
+    """Test parse_line_ranges with whitespace."""
+    from henchman.agents.line_range_utils import parse_line_ranges
     
     # Test empty string
-    ranges = memory._parse_line_ranges("")
-    print(f"_parse_line_ranges('') = {ranges}")
+    ranges = parse_line_ranges("")
+    print(f"parse_line_ranges('') = {ranges}")
     assert ranges == []
     
     # Test whitespace-only
-    ranges2 = memory._parse_line_ranges("   ")
-    print(f"_parse_line_ranges('   ') = {ranges2}")
+    ranges2 = parse_line_ranges("   ")
+    print(f"parse_line_ranges('   ') = {ranges2}")
     assert ranges2 == []
     
     # Test "full"
-    ranges3 = memory._parse_line_ranges("full")
-    print(f"_parse_line_ranges('full') = {ranges3}")
+    ranges3 = parse_line_ranges("full")
+    print(f"parse_line_ranges('full') = {ranges3}")
     assert ranges3 == []
     
     # Test "10-20"
-    ranges4 = memory._parse_line_ranges("10-20")
-    print(f"_parse_line_ranges('10-20') = {ranges4}")
+    ranges4 = parse_line_ranges("10-20")
+    print(f"parse_line_ranges('10-20') = {ranges4}")
     assert len(ranges4) == 1
     assert ranges4[0].start == 10
     assert ranges4[0].end == 20

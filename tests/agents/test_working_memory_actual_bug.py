@@ -70,11 +70,11 @@ def test_memory_should_read_file_edge_case_merge():
     """
     memory = WorkingMemory(current_task="Test")
     
-    # Test _merge_ranges directly
-    from henchman.agents.working_memory import LineRange
+    # Test merge_line_ranges directly
+    from henchman.agents.line_range_utils import LineRange, merge_line_ranges
     
     ranges = [LineRange(1, 5), LineRange(6, 10)]
-    merged = memory._merge_ranges(ranges)
+    merged = merge_line_ranges(ranges)
     print(f"Ranges {ranges} merged to {merged}")
     assert len(merged) == 1
     assert merged[0].start == 1

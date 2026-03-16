@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 100.0/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-16T20:00:04.139861+00:00_
+_Generated: 2026-03-16T22:00:03.411345+00:00_
 
 ## Executive Summary
 
@@ -10,7 +10,7 @@ _Generated: 2026-03-16T20:00:04.139861+00:00_
 | **Overall Grade** | ✅ A |
 | **Overall Score** | 100.0/100 |
 | **Doc Files Scanned** | 55 |
-| **Source Files Checked** | 191 |
+| **Source Files Checked** | 192 |
 | **Total Smells** | 0 |
 | **Docstring Coverage** | 100.0% |
 
@@ -34,7 +34,7 @@ _Generated: 2026-03-16T20:00:04.139861+00:00_
 | 14 | docs/getting-started.md | ✅ A | 100.0 | 0 | 2026-03-16 |
 | 15 | docs/index.md | ✅ A | 100.0 | 0 | 2026-03-16 |
 
-## ✨ Clean Files (246 files with no smells)
+## ✨ Clean Files (247 files with no smells)
 
 <details><summary>Click to expand</summary>
 
@@ -94,6 +94,7 @@ _Generated: 2026-03-16T20:00:04.139861+00:00_
 - tests/README.md — ✅ A
 - tests/ui_integration/INTERACTIVE_SESSION_TESTS.md — ✅ A
 - src/henchman/agents/delegation.py — ✅ A
+- src/henchman/agents/file_read_decision_maker.py — ✅ A
 - src/henchman/agents/identity.py — ✅ A
 - src/henchman/agents/ledger.py — ✅ A
 - src/henchman/agents/line_range_utils.py — ✅ A

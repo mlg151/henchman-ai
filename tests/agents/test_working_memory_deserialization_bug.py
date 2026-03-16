@@ -41,9 +41,9 @@ def test_deserialization_bug_invalid_lines_read():
     assert entry.path == "/test/file.py"
     assert entry.lines_read == "10-20,invalid,30-40"
     
-    # _parse_line_ranges handles it gracefully
-    from henchman.agents.working_memory import WorkingMemory
-    ranges = WorkingMemory._parse_line_ranges("10-20,invalid,30-40")
+    # parse_line_ranges handles it gracefully
+    from henchman.agents.line_range_utils import parse_line_ranges
+    ranges = parse_line_ranges("10-20,invalid,30-40")
     assert len(ranges) == 2  # Skips "invalid"
     
     # Now validation and parsing are consistent!
