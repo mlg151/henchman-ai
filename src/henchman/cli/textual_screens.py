@@ -11,18 +11,18 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from textual.binding import Binding
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Select
 
 from henchman.cli.textual_messages import SwitchProviderMessage
-from henchman.core.session import SessionMetadata
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
+    from textual.binding import Binding
 
     from henchman.cli.textual_app import HenchmanTextualApp
+    from henchman.core.session import SessionMetadata
     from henchman.tools.base import ConfirmationRequest
 
 # Map risk level to Rich colour for the confirmation dialog.
@@ -86,7 +86,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         ("escape", "deny", "No"),
     ]
 
-    def __init__(self, request: ConfirmationRequest) -> None:
+    def __init__(self: ConfirmToolScreen, request: ConfirmationRequest) -> None:
         """Initialize.
 
         Args:
@@ -95,7 +95,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         super().__init__()
         self._request: ConfirmationRequest = request
 
-    def compose(self) -> ComposeResult:
+    def compose(self: ConfirmToolScreen) -> ComposeResult:
         """Build the confirmation dialog.
 
         Returns:
@@ -103,7 +103,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         """
         yield self._build_confirmation_dialog()
 
-    def _build_confirmation_dialog(self) -> Vertical:
+    def _build_confirmation_dialog(self: ConfirmToolScreen) -> Vertical:
         """Build the confirmation dialog widget.
 
         Returns:
@@ -129,23 +129,23 @@ class ConfirmToolScreen(ModalScreen[bool]):
             Label(
                 f"[dim]Risk level: [{colour}]{self._request.risk_level}[/][/dim]",
             ),
-            Vertical(
-                Button(
-                    "Yes  (y)",
-                    variant="success",
-                    id="btn-yes",
-                ),
-                Button(
-                    "No   (n)",
-                    variant="error",
-                    id="btn-no",
-                ),
-                id="confirm-buttons",
-            ),
+            self._build_action_buttons(),
             id="confirm-dialog",
         )
 
-    def _build_params_label(self) -> list[Label]:
+    def _build_action_buttons(self: ConfirmToolScreen) -> Vertical:
+        """Build the approve/deny button group.
+
+        Returns:
+            Vertical container with Yes and No buttons.
+        """
+        return Vertical(
+            Button("Yes  (y)", variant="success", id="btn-yes"),
+            Button("No   (n)", variant="error", id="btn-no"),
+            id="confirm-buttons",
+        )
+
+    def _build_params_label(self: ConfirmToolScreen) -> list[Label]:
         """Build an optional parameters label.
 
         Returns:
@@ -162,7 +162,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
             text = str(self._request.params)
         return [Label(f"[dim]Parameters:[/]\n[yellow]{escape(text)}[/]")]
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
+    def on_button_pressed(self: ConfirmToolScreen, event: Button.Pressed) -> None:
         """Dismiss with the user's choice.
 
         Args:
@@ -173,7 +173,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         """
         self.dismiss(event.button.id == "btn-yes")
 
-    def action_approve(self) -> None:
+    def action_approve(self: ConfirmToolScreen) -> None:
         """Approve the tool call.
 
         Returns:
@@ -181,7 +181,7 @@ class ConfirmToolScreen(ModalScreen[bool]):
         """
         self.dismiss(result=True)
 
-    def action_deny(self) -> None:
+    def action_deny(self: ConfirmToolScreen) -> None:
         """Deny the tool call.
 
         Returns:
@@ -211,9 +211,11 @@ class HelpScreen(ModalScreen[None]):
         align: center middle;
     }
     """
-    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [("escape", "app.pop_screen", "Close")]
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        ("escape", "app.pop_screen", "Close"),
+    ]
 
-    def compose(self) -> ComposeResult:
+    def compose(self: HelpScreen) -> ComposeResult:
         """Compose the help dialog.
 
         Returns:
@@ -247,7 +249,7 @@ class HelpScreen(ModalScreen[None]):
             id="help-dialog",
         )
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
+    def on_button_pressed(self: HelpScreen, event: Button.Pressed) -> None:
         """Close the help screen.
 
         Args:
@@ -283,9 +285,11 @@ class ProviderScreen(ModalScreen[None]):
         margin: 1 0;
     }
     """
-    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [("escape", "app.pop_screen", "Close")]
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        ("escape", "app.pop_screen", "Close"),
+    ]
 
-    def compose(self) -> ComposeResult:
+    def compose(self: ProviderScreen) -> ComposeResult:
         """Compose the provider dialog.
 
         Returns:
@@ -365,7 +369,7 @@ class ProviderScreen(ModalScreen[None]):
             return str(settings.providers.default)
         return "unknown"
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
+    def on_button_pressed(self: ProviderScreen, event: Button.Pressed) -> None:
         """Handle button press.
 
         Args:
@@ -420,9 +424,11 @@ class SessionScreen(ModalScreen[str | None]):
     }
     """
 
-    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [("escape", "cancel", "Close")]
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        ("escape", "cancel", "Close"),
+    ]
 
-    def __init__(self, sessions: list[SessionMetadata] | None = None) -> None:
+    def __init__(self: SessionScreen, sessions: list[SessionMetadata] | None = None) -> None:
         """Initialize with an optional pre-loaded session list.
 
         Args:
@@ -432,7 +438,7 @@ class SessionScreen(ModalScreen[str | None]):
         super().__init__()
         self._sessions: list[SessionMetadata] = sessions or []
 
-    def compose(self) -> ComposeResult:
+    def compose(self: SessionScreen) -> ComposeResult:
         """Build the session management dialog.
 
         Returns:
@@ -459,7 +465,7 @@ class SessionScreen(ModalScreen[str | None]):
             id="session-dialog",
         )
 
-    def _build_entries(self) -> list[tuple[str, str]]:
+    def _build_entries(self: SessionScreen) -> list[tuple[str, str]]:
         """Build display entries from session list.
 
         Returns:
@@ -475,7 +481,7 @@ class SessionScreen(ModalScreen[str | None]):
             entries.append((label, sid))
         return entries
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
+    def on_button_pressed(self: SessionScreen, event: Button.Pressed) -> None:
         """Handle button presses.
 
         Args:
@@ -496,7 +502,7 @@ class SessionScreen(ModalScreen[str | None]):
         else:
             self.dismiss(None)
 
-    def action_cancel(self) -> None:
+    def action_cancel(self: SessionScreen) -> None:
         """Cancel and close.
 
         Returns:
