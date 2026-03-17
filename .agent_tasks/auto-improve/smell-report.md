@@ -2,7 +2,7 @@
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-17T18:00:36.941643+00:00_
+_Generated: 2026-03-17T19:00:27.786738+00:00_
 
 ## Executive Summary
 
@@ -12,7 +12,7 @@ _Generated: 2026-03-17T18:00:36.941643+00:00_
 | **Overall Score** | 80.1/100 |
 | **Files Scanned** | 217 |
 | **Total Lines (non-blank)** | 46,880 |
-| **Total Smells** | 374 |
+| **Total Smells** | 373 |
 | **Avg Maintainability Index** | 69.5 |
 | **Avg Cyclomatic Complexity** | 13.3 |
 
@@ -20,7 +20,7 @@ _Generated: 2026-03-17T18:00:36.941643+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 201 |
+| low | 200 |
 | medium | 166 |
 | high | 7 |
 
@@ -34,7 +34,7 @@ _Generated: 2026-03-17T18:00:36.941643+00:00_
 | Primitive Obsession | 40 |
 | Feature Envy | 38 |
 | Magic Number | 25 |
-| Deep Nesting | 18 |
+| Deep Nesting | 17 |
 | Complex Function | 16 |
 | Large Class | 12 |
 
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_mixins.py | ❌ F | 38.7 | 12 | 1483 | 1 | 0.0 |
+| 1 | cli/textual_mixins.py | ❌ F | 40.2 | 11 | 1472 | 1 | 0.0 |
 | 2 | utils/compaction.py | ❌ F | 57.2 | 7 | 857 | 30 | 11.0 |
 | 3 | knowledge/store.py | 🔶 D | 63.6 | 7 | 482 | 46 | 0.0 |
 | 4 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
@@ -122,24 +122,23 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 197 additional files omitted._
 
-### cli/textual_mixins.py — ❌ F (38.7/100)
+### cli/textual_mixins.py — ❌ F (40.2/100)
 
-LOC: 1483 | Classes: 13 | Functions: 6 | MI: 1 | Avg CC: 0.0
+LOC: 1472 | Classes: 13 | Functions: 6 | MI: 1 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 113 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '_reset_string_state' at utils/intelligent_context_parser.py:221 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 489 | 🟡 MEDIUM | Long Method | Function '_textual_confirm' has 65 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 542 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 555 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 1328 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool_args' is 93% similar to '_format_full_tool_args' at cli/textual_mixins.py:1347 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1461 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to 'discover_directory' at extensions/manager.py:235 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1461 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 541 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 554 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 579 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_cleanup_confirm_futures' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 1231 | 🟢 LOW | Feature Envy | Method '_CommandPaletteMixin._fill_input_with_text' accesses 'widget' 3 times but 'self' only 1 times | Move Method — consider moving '_fill_input_with_text' to the class that owns 'widget'. |
-| 1777 | 🟢 LOW | Primitive Obsession | Function 'update_status' has 3 primitive-typed parameters: message: Name(id='str', ctx=Load()), tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cost: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 489 | 🟡 MEDIUM | Long Method | Function '_textual_confirm' has 72 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 547 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 562 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 1323 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool_args' is 93% similar to '_format_full_tool_args' at cli/textual_mixins.py:1342 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1456 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to 'discover_directory' at extensions/manager.py:235 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1456 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 544 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 559 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 1226 | 🟢 LOW | Feature Envy | Method '_CommandPaletteMixin._fill_input_with_text' accesses 'widget' 3 times but 'self' only 1 times | Move Method — consider moving '_fill_input_with_text' to the class that owns 'widget'. |
+| 1772 | 🟢 LOW | Primitive Obsession | Function 'update_status' has 3 primitive-typed parameters: message: Name(id='str', ctx=Load()), tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cost: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
 ### utils/compaction.py — ❌ F (57.2/100)
 
@@ -215,7 +214,7 @@ LOC: 276 | Classes: 4 | Functions: 7 | MI: 67 | Avg CC: 0.0
 | 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 100% similar to '_should_index' at rag/indexer.py:226 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 100% similar to 'classify_import' at tools/builtins/import_graph.py:278 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 94% similar to '_truncate_with_marker' at utils/intelligent_context_formatter.py:379 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 94% similar to 'on_switch_provider_message' at cli/textual_mixins.py:1461 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 94% similar to 'on_switch_provider_message' at cli/textual_mixins.py:1456 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 100% similar to 'discover_directory' at extensions/manager.py:235 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 100% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
@@ -269,17 +268,6 @@ LOC: 442 | Classes: 2 | Functions: 3 | MI: 47 | Avg CC: 0.0
 | 144 | 🟢 LOW | Large Class | Class 'Repl' spans 389 lines (threshold: 300) | Extract Class — split into smaller, cohesive classes with single responsibilities. |
 | 144 | 🟢 LOW | Large Class | Class 'Repl' has 22 methods (threshold: 20) | Split Class — group related methods into smaller collaborating classes. |
 
-### extensions/plugin_manager.py — ⚠️ C (70.8/100)
-
-LOC: 364 | Classes: 2 | Functions: 8 | MI: 42 | Avg CC: 0.0
-
-| Line | Severity | Type | Message | Suggested Refactoring |
-|-----:|:---------|:-----|:--------|:----------------------|
-| 57 | 🟡 MEDIUM | Duplicate Code | Function 'to_search_params' is 100% similar to 'to_declaration' at tools/base.py:137 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 57 | 🟡 MEDIUM | Duplicate Code | Function 'to_search_params' is 100% similar to 'to_config' at tools/builtins/coverage_map.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 202 | 🟡 MEDIUM | Primitive Obsession | Function 'search_plugins' has 4 primitive-typed parameters: query: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), page: Name(id='int', ctx=Load()), page_size: Name(id='int', ctx=Load()), category: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-| 256 | 🟢 LOW | Primitive Obsession | Function 'install_plugin' has 3 primitive-typed parameters: plugin_name: Name(id='str', ctx=Load()), version: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), confirm_permissions: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
-
 ### tools/builtins/research_notes.py — ⚠️ C (71.0/100)
 
 LOC: 293 | Classes: 2 | Functions: 10 | MI: 57 | Avg CC: 13.0
@@ -307,6 +295,17 @@ LOC: 297 | Classes: 1 | Functions: 10 | MI: 51 | Avg CC: 11.0
 | 207 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 230 | 🟢 LOW | Magic Number | Magic number 20 — consider extracting to a named constant | Extract Constant / Introduce Named Constant. |
 | 261 | 🟢 LOW | Long Method | Function '_execute_file_overview' has 35 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+
+### extensions/plugin_manager.py — ⚠️ C (71.4/100)
+
+LOC: 375 | Classes: 2 | Functions: 8 | MI: 44 | Avg CC: 0.0
+
+| Line | Severity | Type | Message | Suggested Refactoring |
+|-----:|:---------|:-----|:--------|:----------------------|
+| 57 | 🟡 MEDIUM | Duplicate Code | Function 'to_search_params' is 100% similar to 'to_declaration' at tools/base.py:137 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 57 | 🟡 MEDIUM | Duplicate Code | Function 'to_search_params' is 100% similar to 'to_config' at tools/builtins/coverage_map.py:44 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 202 | 🟡 MEDIUM | Primitive Obsession | Function 'search_plugins' has 4 primitive-typed parameters: query: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), page: Name(id='int', ctx=Load()), page_size: Name(id='int', ctx=Load()), category: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 256 | 🟢 LOW | Primitive Obsession | Function 'install_plugin' has 3 primitive-typed parameters: plugin_name: Name(id='str', ctx=Load()), version: BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None)), confirm_permissions: Name(id='bool', ctx=Load()) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
 ### agents/presets.py — ⚠️ C (72.1/100)
 

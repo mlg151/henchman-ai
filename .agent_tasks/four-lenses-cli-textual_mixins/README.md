@@ -1,41 +1,24 @@
 # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
-## Date: 2026-03-17T16:00:40.205506+00:00
+## Date: 2026-03-17T19:15:00+00:00
 ## Bug Summary
-The `_textual_confirm` method has a TOCTOU race condition in exception handlers where `future.cancel()` can be called after the future has already completed, potentially causing `asyncio.InvalidStateError`.
+The `_textual_confirm` method has a race condition where the `_callback` function can access `self._confirm_futures` after it has been cleaned up during shutdown, potentially causing `KeyError` or `AttributeError`.
 
 ## Lens
-**Phase 2: State & Side Effects (The Entropy Audit)** - Shared state mutation without proper synchronization
+Phase 2: State & Side Effects (The Entropy Audit) - Shared State mutation without proper synchronization during cleanup.
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| `future.cancel()` should be called safely on asyncio Futures | Exception handlers check `if not future.done():` before calling `future.cancel()` |
-| `future.cancel()` is idempotent for asyncio Futures | TOCTOU race between check and cancel can cause InvalidStateError |
-| Consistent pattern should be used throughout codebase | `_cleanup_confirm_futures` already fixed, but `_textual_confirm` still has bug |
+| Callback should safely handle missing futures during cleanup | Callback assumes `_confirm_futures` dict exists and contains the key |
+| Cleanup should prevent callbacks from accessing cleaned state | Callback runs asynchronously and may access dict after cleanup |
+| Thread-safe access to shared mutable state | No lock protection in sync callback context |
 
 ## Root Cause
-In the `_textual_confirm` method, both exception handlers (`except asyncio.CancelledError:` and `except Exception:`) have:
-```python
-if not future.done():
-    future.cancel()
-```
-
-This creates a TOCTOU race condition. Between checking `future.done()` and calling `future.cancel()`, the `_callback` function could complete the future (setting result/exception), causing `future.cancel()` to raise `asyncio.InvalidStateError`.
-
-The `_cleanup_confirm_futures` method was already fixed to call `future.cancel()` directly (without the check), with a comment explaining: "future.cancel() is idempotent for asyncio Futures - No need to check future.done() first (avoids TOCTOU race)".
+The `_callback` function is defined as a regular function (not async) and accesses `self._confirm_futures` without acquiring the lock in the sync callback context. During `_cleanup_confirm_futures()` (called from `on_unmount`), futures are cancelled and removed from the dict, but callbacks may still run and try to access the dict.
 
 ## Fix Plan
-Replace the `if not future.done(): future.cancel()` pattern in both exception handlers of `_textual_confirm` with `future.cancel()` alone, matching the fix already applied in `_cleanup_confirm_futures`.
+1. Add null-check in `_callback` before accessing `self._confirm_futures`
+2. Use `pop()` with default value to avoid KeyError
+3. Ensure callback is idempotent and handles missing futures gracefully
 
-## Status: FIXED
-
-## Files Changed
-1. `src/henchman/cli/textual_mixins.py` - Fixed TOCTOU race condition in `_textual_confirm` method by removing `if not future.done():` check before `future.cancel()` calls in both exception handlers (`except asyncio.CancelledError:` and `except Exception:`). Added explanatory comments matching the fix already present in `_cleanup_confirm_futures`.
-
-2. `tests/cli/test_textual_mixins_toctou_bug.py` - Created new test file to verify the bug exists and that the fix works correctly. Test demonstrates the TOCTOU race condition and verifies that `future.cancel()` is idempotent.
-
-## Verification
-- Test `test_toctou_race_in_exception_handler` passes after fix (was failing before)
-- All existing tests continue to pass
-- The fix matches the pattern already used in `_cleanup_confirm_futures` method
-- Added explanatory comments: "future.cancel() is idempotent for asyncio Futures - No need to check future.done() first (avoids TOCTOU race)"
+## Status: IN PROGRESS
