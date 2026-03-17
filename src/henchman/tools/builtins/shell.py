@@ -8,11 +8,16 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import errno
+import fcntl
 import os
+import pty
+import select
 import sys
 import termios
 import tty
 from dataclasses import dataclass
+from pathlib import Path
 
 from henchman.tools.base import Tool, ToolKind, ToolResult
 from henchman.tools.security import (
@@ -22,7 +27,7 @@ from henchman.tools.security import (
 )
 
 # ---------------------------------------------------------------------------
-# Constants – replace magic numbers with named values
+# Constants - replace magic numbers with named values
 # ---------------------------------------------------------------------------
 _READ_CHUNK_SIZE = 64 * 1024
 """Bytes to read per chunk from subprocess pipes."""
@@ -97,7 +102,7 @@ class _ProcessOutcome:
 
 @dataclass(frozen=True, slots=True)
 class ShellParams:
-    """Parameter object for shell execution — eliminates primitive obsession."""
+    """Parameter object for shell execution - eliminates primitive obsession."""
 
     command: str
     env: dict[str, str]
@@ -157,7 +162,11 @@ def _format_output(stdout: str, stderr: str) -> str:
         truncated if above :data:`MAX_OUTPUT_CHARS`.
     """
     parts = [s for s in (stdout, stderr) if s]
-    text = "\n".join(parts)
+    return _truncate_output("\n".join(parts))
+
+
+def _truncate_output(text: str) -> str:
+    """Truncate shell output to the configured limit."""
     if len(text) > MAX_OUTPUT_CHARS:
         text = text[:MAX_OUTPUT_CHARS] + f"\n... (output truncated after {MAX_OUTPUT_CHARS} chars)"
     return text or "(no output)"
@@ -236,7 +245,7 @@ async def _poll_until_exit(
                 process.kill()
             return True, elapsed
 
-        # Linux-specific zombie check – avoids waiting on open pipes.
+        # Linux-specific zombie check - avoids waiting on open pipes.
         if _is_process_dead(process.pid):
             return False, loop.time() - start
 
@@ -252,12 +261,13 @@ def _is_process_dead(pid: int) -> bool:
     Returns:
         ``True`` when the process can be considered finished.
     """
+    proc_stat_path = Path(f"/proc/{pid}/stat")
     try:
-        with open(f"/proc/{pid}/stat") as fh:
+        with open(proc_stat_path) as fh:
             return fh.read().split()[2] == "Z"
     except (FileNotFoundError, ProcessLookupError):
         return True
-    except Exception:
+    except OSError:
         return False
 
 
@@ -271,10 +281,13 @@ async def _drain_readers(*tasks: asyncio.Task[None]) -> bool:
         ``True`` if all readers finished within :data:`_DRAIN_TIMEOUT`.
     """
     try:
-        await asyncio.wait_for(asyncio.gather(*tasks), timeout=_DRAIN_TIMEOUT)
-    except (asyncio.TimeoutError, Exception):
+        results = await asyncio.wait_for(
+            asyncio.gather(*tasks, return_exceptions=True),
+            timeout=_DRAIN_TIMEOUT,
+        )
+    except asyncio.TimeoutError:
         return False
-    return True
+    return not any(isinstance(result, BaseException) for result in results)
 
 
 def _force_close_pipes(process: asyncio.subprocess.Process) -> None:
@@ -283,16 +296,14 @@ def _force_close_pipes(process: asyncio.subprocess.Process) -> None:
     Args:
         process: The subprocess whose pipes should be closed.
     """
-    try:
-        trans = process._transport  # type: ignore[attr-defined]
+    with contextlib.suppress(Exception):
+        trans = getattr(process, "_transport", None)
         if trans is None:
             return
         for fd_num in (1, 2):
             pipe = trans.get_pipe_transport(fd_num)
             if pipe:
                 pipe.close()
-    except Exception:
-        pass
 
 
 async def _reap_process(process: asyncio.subprocess.Process) -> None:
@@ -426,8 +437,6 @@ def _handle_pty_read(master_fd: int, accumulator: list[str]) -> None:
         master_fd: File descriptor of the PTY master side.
         accumulator: List to append decoded output to.
     """
-    import errno
-
     try:
         chunk = os.read(master_fd, _PTY_READ_SIZE)
     except OSError as e:
@@ -472,6 +481,82 @@ def _handle_pty_io(master_fd: int, ready: list[object], accumulator: list[str]) 
         _handle_pty_stdin_write(master_fd)
 
 
+async def _create_pty_process(
+    params: ShellParams,
+    slave_fd: int,
+) -> asyncio.subprocess.Process:
+    """Create the subprocess attached to the PTY slave."""
+    return await asyncio.create_subprocess_shell(
+        params.command,
+        stdin=slave_fd,
+        stdout=slave_fd,
+        stderr=slave_fd,
+        env=params.env,
+        cwd=params.cwd,
+        start_new_session=True,
+    )
+
+
+def _configure_pty_master(master_fd: int) -> None:
+    """Switch the PTY master into non-blocking mode."""
+    flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
+    fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+
+def _build_timeout_result(timeout: float | None) -> ToolResult:
+    """Build the timeout result for interactive sudo execution."""
+    return ToolResult(
+        content="Command timed out",
+        success=False,
+        error=f"Timeout after {timeout} seconds",
+    )
+
+
+def _is_pty_timed_out(params: ShellParams, start_time: float) -> bool:
+    """Return whether the interactive command exceeded its timeout."""
+    if not params.timeout:
+        return False
+    elapsed = asyncio.get_running_loop().time() - start_time
+    return elapsed > params.timeout
+
+
+async def _run_pty_event_loop(
+    process: asyncio.subprocess.Process,
+    master_fd: int,
+    params: ShellParams,
+    output_data: list[str],
+) -> ToolResult | None:
+    """Run the PTY event loop until the process exits or times out."""
+    start_time = asyncio.get_running_loop().time()
+    while True:
+        if _is_pty_timed_out(params, start_time):
+            process.kill()
+            return _build_timeout_result(params.timeout)
+        if process.returncode is not None:
+            _drain_pty(master_fd, output_data)
+            return None
+        ready, _, _ = select.select(
+            [master_fd, sys.stdin],
+            [],
+            [],
+            _POLL_INTERVAL,
+        )
+        _handle_pty_io(master_fd, ready, output_data)
+
+
+def _build_pty_result(
+    process: asyncio.subprocess.Process,
+    output_data: list[str],
+) -> ToolResult:
+    """Build the final PTY execution result."""
+    output = _truncate_output("".join(output_data))
+    return ToolResult(
+        content=output,
+        success=process.returncode == 0,
+        error=f"Exit code: {process.returncode}" if process.returncode != 0 else None,
+    )
+
+
 async def _run_sudo_with_pty(params: ShellParams) -> ToolResult:
     """Execute a sudo command with interactive password input via PTY.
 
@@ -481,77 +566,30 @@ async def _run_sudo_with_pty(params: ShellParams) -> ToolResult:
     Returns:
         ToolResult with command output or error.
     """
-    import fcntl
-    import pty
-    import select
-
     try:
         master_fd, slave_fd = pty.openpty()
         os.setsid()
-
-        process = await asyncio.create_subprocess_shell(
-            params.command,
-            stdin=slave_fd,
-            stdout=slave_fd,
-            stderr=slave_fd,
-            env=params.env,
-            cwd=params.cwd,
-            start_new_session=True,
-        )
+        process = await _create_pty_process(params, slave_fd)
         os.close(slave_fd)
+        _configure_pty_master(master_fd)
 
-        flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
-        fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-        old_settings = termios.tcgetattr(sys.stdin.fileno())
+        stdin_fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(stdin_fd)
 
         try:
-            tty.setraw(sys.stdin.fileno())
+            tty.setraw(stdin_fd)
             output_data: list[str] = []
-            start_time = asyncio.get_running_loop().time()
-
-            while True:
-                elapsed = asyncio.get_running_loop().time() - start_time
-                if params.timeout and elapsed > params.timeout:
-                    process.kill()
-                    return ToolResult(
-                        content="Command timed out",
-                        success=False,
-                        error=f"Timeout after {params.timeout} seconds",
-                    )
-
-                if process.returncode is not None:
-                    _drain_pty(master_fd, output_data)
-                    break
-
-                rlist, _, _ = select.select(
-                    [master_fd, sys.stdin],
-                    [],
-                    [],
-                    _POLL_INTERVAL,
-                )
-                _handle_pty_io(master_fd, rlist, output_data)
-
+            timeout_result = await _run_pty_event_loop(process, master_fd, params, output_data)
+            if timeout_result is not None:
+                return timeout_result
             await process.wait()
-
-            output = "".join(output_data)
-            if len(output) > MAX_OUTPUT_CHARS:
-                output = (
-                    output[:MAX_OUTPUT_CHARS]
-                    + f"\n... (output truncated after {MAX_OUTPUT_CHARS} chars)"
-                )
-
-            return ToolResult(
-                content=output or "(no output)",
-                success=process.returncode == 0,
-                error=(f"Exit code: {process.returncode}" if process.returncode != 0 else None),
-            )
+            return _build_pty_result(process, output_data)
 
         finally:
-            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_settings)
+            termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_settings)
             os.close(master_fd)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return ToolResult(
             content=f"Error executing sudo command: {e}",
             success=False,
@@ -613,6 +651,22 @@ class ShellTool(Tool):
         """
         return await _run_sudo_with_pty(params)
 
+    async def _execute_params(
+        self: ShellTool,
+        params: ShellParams,
+        *,
+        interactive: object,
+    ) -> ToolResult:
+        """Execute already-sanitized shell parameters."""
+        command = params.command
+        timeout = params.timeout
+        is_sudo = _is_sudo_command(command)
+        if _should_use_interactive_mode(interactive, is_sudo=is_sudo):
+            return await self._execute_interactive_sudo(params)
+        process = await _create_process(params, is_sudo=is_sudo)
+        outcome = await _run_and_collect(process, timeout)
+        return _make_result(outcome, timeout)
+
     # -- Tool interface ------------------------------------------------------
     @property
     def name(self: ShellTool) -> str:
@@ -665,30 +719,27 @@ class ShellTool(Tool):
                 error="Command validation failed",
             )
 
-        effective_timeout = _resolve_timeout(timeout, self._default_timeout)
+        params = ShellParams(
+            command=sanitized_command,
+            env=_build_env(),
+            cwd=cwd,
+            timeout=_resolve_timeout(timeout, self._default_timeout),
+        )
 
         try:
-            env = _build_env()
-            interactive = kwargs.get("interactive", False)
-            is_sudo = _is_sudo_command(sanitized_command)
-            params = ShellParams(
-                command=sanitized_command,
-                env=env,
-                cwd=cwd,
-                timeout=effective_timeout,
+            return await self._execute_params(
+                params,
+                interactive=kwargs.get("interactive", False),
             )
-
-            if (interactive or is_sudo) and sys.stdin.isatty():
-                return await self._execute_interactive_sudo(params)
-
-            process = await _create_process(params, is_sudo=is_sudo)
-            outcome = await _run_and_collect(process, effective_timeout)
-            return _make_result(outcome, effective_timeout)
-
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # noqa: BLE001  # pragma: no cover
             sanitized_error = sanitize_error_message(e)
             return ToolResult(
                 content=f"Error executing command: {sanitized_error}",
                 success=False,
                 error=sanitized_error,
             )
+
+
+def _should_use_interactive_mode(interactive: object, *, is_sudo: bool) -> bool:
+    """Return whether command execution should use the PTY path."""
+    return bool(interactive or is_sudo) and sys.stdin.isatty()

@@ -58,12 +58,9 @@ def is_import_context(name_node: ast.Name, tree: ast.Module) -> bool:
     Returns:
         True if the node is within an import statement.
     """
-    ast_walk = ast.walk
-    Import = ast.Import
-    ImportFrom = ast.ImportFrom
-    for import_node in ast_walk(tree):
+    for import_node in ast.walk(tree):
         if (
-            isinstance(import_node, (Import, ImportFrom))
+            isinstance(import_node, (ast.Import, ast.ImportFrom))
             and hasattr(import_node, "lineno")
             and import_node.lineno == name_node.lineno
         ):
@@ -81,16 +78,12 @@ def collect_top_level_definitions(tree: ast.Module) -> dict[str, tuple[str, int]
         Dictionary mapping name to (kind, line_number).
     """
     definitions: dict[str, tuple[str, int]] = {}
-    iter_child_nodes = ast.iter_child_nodes
-    FunctionDef = ast.FunctionDef
-    AsyncFunctionDef = ast.AsyncFunctionDef
-    ClassDef = ast.ClassDef
-    for node in iter_child_nodes(tree):
-        node_name = node.name if hasattr(node, "name") else ""
-        if isinstance(node, (FunctionDef, AsyncFunctionDef)):
+    for node in ast.iter_child_nodes(tree):
+        node_name = node.name if hasattr(node, "name") else ""  # type: ignore[union-attr]
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if not node_name.startswith(_PRIVATE_PREFIX):
                 definitions[node_name] = ("function", node.lineno)
-        elif isinstance(node, ClassDef) and not node_name.startswith(_PRIVATE_PREFIX):
+        elif isinstance(node, ast.ClassDef) and not node_name.startswith(_PRIVATE_PREFIX):
             definitions[node_name] = ("class", node.lineno)
     return definitions
 
@@ -105,18 +98,14 @@ def find_all_assignment(node: ast.AST) -> ast.expr | None:
         The value expression if node assigns to __all__ with list/tuple,
         None otherwise.
     """
-    Assign = ast.Assign
-    Name = ast.Name
-    List = ast.List
-    Tuple = ast.Tuple
-    if not isinstance(node, Assign):
+    if not isinstance(node, ast.Assign):
         return None
 
     for target in node.targets:
         if (
-            isinstance(target, Name)
+            isinstance(target, ast.Name)
             and target.id == _ALL_NAME
-            and isinstance(node.value, (List, Tuple))
+            and isinstance(node.value, (ast.List, ast.Tuple))
         ):
             return node.value
     return None
@@ -412,6 +401,18 @@ def _extract_dead_code_params(
     return path, check_imports, check_functions, whitelist
 
 
+def _resolve_analysis_target(path: str) -> Path | ToolResult:
+    """Resolve and validate the path for dead code analysis."""
+    target = Path(path)
+    if not target.exists():
+        return ToolResult(
+            content=f"Error: Path not found: {path}",
+            success=False,
+            error=f"Path not found: {path}",
+        )
+    return target
+
+
 class DeadCodeTool(Tool):
     """Detect unused imports, functions, and classes in Python code.
 
@@ -493,13 +494,9 @@ class DeadCodeTool(Tool):
                 error="Empty path",
             )
 
-        target = Path(path)
-        if not target.exists():
-            return ToolResult(
-                content=f"Error: Path not found: {path}",
-                success=False,
-                error=f"Path not found: {path}",
-            )
+        target = _resolve_analysis_target(path)
+        if isinstance(target, ToolResult):
+            return target
 
         analysis_params = AnalysisParameters(
             check_imports=check_imports,
@@ -646,5 +643,4 @@ class DeadCodeTool(Tool):
             content=header + "\n\n".join(all_findings),
             success=True,
         )
-
 

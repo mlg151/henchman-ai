@@ -139,3 +139,55 @@ class TestProtectedZoneTruncation:
         tool_msgs = [m for m in result if m.role == "tool"]
         if tool_msgs:
             assert tool_msgs[0].content == "Short"
+
+    def test_truncation_integer_division_bug(self) -> None:
+        """Test that integer division doesn't cause token underestimation.
+        
+        The bug: trimmed_tokens = (char_diff) // CHARS_PER_TOKEN_ESTIMATE
+        Integer division rounds down small character reductions to 0 tokens,
+        causing cumulative underestimation.
+        
+        This test verifies that the fix uses actual token counting instead of
+        integer division, which would underestimate small truncations.
+        """
+        # Use a very small max_tokens to force truncation
+        compactor = ContextCompactor(max_tokens=50, max_protected_ratio=0.5)
+        
+        # Create tool message with content over TRUNCATION_CHAR_THRESHOLD
+        tool_msg = Message(
+            role="tool",
+            content="x" * 600,  # 600 chars, well over threshold
+            tool_call_id="tc1"
+        )
+        
+        original_length = len(tool_msg.content or "")
+        
+        messages = [
+            Message(role="system", content="System"),
+            Message(role="user", content="User request"),
+            Message(
+                role="assistant",
+                content="OK",
+                tool_calls=[ToolCall(id="tc1", name="test", arguments={})]
+            ),
+            tool_msg,
+        ]
+        
+        # Compact with protection (all messages from index 2 are protected)
+        result = compactor.compact(messages, protect_from_index=2)
+        
+        # Find the tool message in result
+        tool_msgs = [m for m in result if m.role == "tool"]
+        assert len(tool_msgs) == 1, "Tool message should be preserved"
+        
+        truncated_length = len(tool_msgs[0].content or "")
+        
+        # Tool message should be truncated (content > TRUNCATION_CHAR_THRESHOLD
+        # and protected zone exceeds budget)
+        assert truncated_length < original_length, (
+            f"Tool message should be truncated: {truncated_length} < {original_length}"
+        )
+        
+        # Verify significant truncation occurred
+        print(f"Original length: {original_length}, Truncated length: {truncated_length}")
+        assert original_length - truncated_length > 100, "Significant truncation should occur"

@@ -65,13 +65,14 @@ class TestChatPaneBugs:
         Description: Uses __class__.__name__ == "ThinkingMessage" which
         breaks if class is renamed or subclassed.
         """
-        pane = ChatPane()
+        from henchman.cli.textual_widgets import ChatPane
 
         # We can't easily test this without creating actual ThinkingMessage widgets
         # But we can verify the code now uses isinstance instead of string comparison
         import inspect
 
-        source = inspect.getsource(pane.clear_thinking_messages)
+        # Get source from the class, not an instance, to avoid inspect.getsource issues
+        source = inspect.getsource(ChatPane.clear_thinking_messages)
         # Should use isinstance now, not string comparison
         assert "isinstance(child, ThinkingMessage)" in source, (
             "Should use isinstance check, not string comparison"

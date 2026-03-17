@@ -6,6 +6,7 @@ older messages, with optional summarization of dropped content.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, TypeAlias
 
@@ -338,10 +339,13 @@ def _truncate_protected_zone_messages(
         content = msg.content
         if content and len(content) > TRUNCATION_CHAR_THRESHOLD:
             truncated_msg = _truncate_tool_message_content(msg, tokens_to_trim)
-            trimmed_tokens = (
-                len(content) - len(truncated_msg.content or "")
-            ) // CHARS_PER_TOKEN_ESTIMATE
-            tokens_to_trim -= trimmed_tokens
+            # Calculate actual token reduction instead of estimating from characters
+            original_tokens = TokenCounter.count_text(content)
+            truncated_tokens = TokenCounter.count_text(truncated_msg.content or "")
+            trimmed_tokens = original_tokens - truncated_tokens
+            # Ensure non-negative (should always be, but guard against edge cases)
+            if trimmed_tokens > 0:
+                tokens_to_trim -= trimmed_tokens
             result.append(truncated_msg)
         else:
             result.append(msg)

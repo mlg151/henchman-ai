@@ -46,6 +46,7 @@ except ImportError:  # pragma: no cover
 _DEFAULT_BASE_TOOL_ITERATIONS: int = 25
 _DEFAULT_MAX_TOOL_CALLS_PER_TURN: int = 100
 _MONITOR_POLL_INTERVAL: float = 0.1
+_MONITOR_CLEANUP_TIMEOUT: float = 1.0
 
 
 @dataclass
@@ -121,7 +122,7 @@ async def _cleanup_monitor(
     if hasattr(monitor, "_stop_event"):
         monitor._stop_event.set()
     try:
-        await asyncio.wait_for(monitor_task, timeout=1.0)
+        await asyncio.wait_for(monitor_task, timeout=_MONITOR_CLEANUP_TIMEOUT)
     except (asyncio.TimeoutError, asyncio.CancelledError):
         monitor_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
@@ -223,12 +224,11 @@ class Repl:
     def _init_plugin_manager(self: Self) -> None:
         """Load plugins from home and workspace plugin directories."""
         self.plugin_manager = PluginManager(self)
-        self.plugin_manager.load_plugins_from_directory(
+        for plugin_directory in (
             Path.home() / ".henchman" / "plugins",
-        )
-        self.plugin_manager.load_plugins_from_directory(
             Path.cwd() / ".henchman" / "plugins",
-        )
+        ):
+            self.plugin_manager.load_plugins_from_directory(plugin_directory)
 
     def _init_orchestrator(self: Self, environment_context: str | None) -> Orchestrator:
         """Create the orchestrator with provider, tools, and event bus."""

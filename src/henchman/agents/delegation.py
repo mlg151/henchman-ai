@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import anyio
 
+from henchman.agents.orchestrator_types import AgentLoopParams
 from henchman.core.events import AgentEvent, EventType
 
 from .orchestrator_anchoring import _enrich_completion_from_report
@@ -20,12 +21,8 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
 
     from henchman.agents.ledger import TaskLedger
-    from henchman.agents.orchestrator import (
-        AgentLoopParams,
-        CompletionStatus,
-        DelegationParams,
-        OrchestratorMetrics,
-    )
+    from henchman.agents.metrics import OrchestratorMetrics
+    from henchman.agents.orchestrator_types import CompletionStatus, DelegationParams
     from henchman.agents.pool import AgentPool
     from henchman.config.schema import Settings
     from henchman.core.agent import Agent
@@ -303,12 +300,24 @@ def _validate_messages_access(target_agent: Any, msg_start: int) -> None:
         ValueError: If msg_start is out of bounds.
         AttributeError: If target_agent is missing messages attribute.
     """
+    _validate_msg_start(msg_start)
+    messages = _get_target_agent_messages(target_agent)
+    _validate_msg_start_bounds(messages, msg_start)
+    _validate_message_sample(messages, msg_start)
+
+
+def _validate_msg_start(msg_start: int) -> None:
+    """Validate the delegation message start index."""
     if not isinstance(msg_start, int):
         msg = f"msg_start must be an integer, got {type(msg_start).__name__}"
         raise TypeError(msg)
     if msg_start < 0:
         msg = f"msg_start must be non-negative, got {msg_start}"
         raise ValueError(msg)
+
+
+def _get_target_agent_messages(target_agent: Any) -> Sequence[Any]:
+    """Return a validated messages sequence from *target_agent*."""
     if not hasattr(target_agent, "messages"):
         msg = f"target_agent missing 'messages' attribute (type: {type(target_agent).__name__})"
         raise AttributeError(msg)
@@ -319,21 +328,31 @@ def _validate_messages_access(target_agent: Any, msg_start: int) -> None:
     if not isinstance(messages, Sequence):
         msg = f"target_agent.messages must be a Sequence, got {type(messages).__name__}"
         raise TypeError(msg)
+    return messages
+
+
+def _validate_msg_start_bounds(messages: Sequence[Any], msg_start: int) -> None:
+    """Validate that *msg_start* fits within *messages*."""
     if msg_start > len(messages):
         msg = f"msg_start ({msg_start}) exceeds messages length ({len(messages)})"
         raise ValueError(msg)
-    if messages and msg_start < len(messages):
-        try:
-            sample_msg = messages[msg_start]
-        except (IndexError, TypeError) as exc:
-            msg = f"Invalid messages sequence at index {msg_start}: {exc}"
-            raise TypeError(msg) from exc
-        if not (hasattr(sample_msg, "role") and hasattr(sample_msg, "content")):
-            msg = (
-                f"messages do not appear to be Message instances. "
-                f"First message type: {type(sample_msg).__name__}"
-            )
-            raise TypeError(msg)
+
+
+def _validate_message_sample(messages: Sequence[Any], msg_start: int) -> None:
+    """Validate the message located at *msg_start*, if one exists."""
+    if not messages or msg_start >= len(messages):
+        return
+    try:
+        sample_msg = messages[msg_start]
+    except (IndexError, TypeError) as exc:
+        msg = f"Invalid messages sequence at index {msg_start}: {exc}"
+        raise TypeError(msg) from exc
+    if not (hasattr(sample_msg, "role") and hasattr(sample_msg, "content")):
+        msg = (
+            f"messages do not appear to be Message instances. "
+            f"First message type: {type(sample_msg).__name__}"
+        )
+        raise TypeError(msg)
 
 
 def _collect_tool_errors(errors: list[Any]) -> list[str]:
@@ -365,10 +384,10 @@ def _fetch_agent_errors(target_agent: Any) -> list[str]:
     try:
         if hasattr(target_agent, "get_delegation_errors"):
             errors = target_agent.get_delegation_errors()
-        elif hasattr(target_agent, "_delegation_tool_errors"):
-            errors = target_agent._delegation_tool_errors
         else:
-            return []
+            errors = getattr(target_agent, "_delegation_tool_errors", None)
+            if errors is None:
+                return []
         if errors is not None and isinstance(errors, list):
             return _collect_tool_errors(errors)
     except (AttributeError, TypeError, RuntimeError) as exc:
@@ -377,7 +396,7 @@ def _fetch_agent_errors(target_agent: Any) -> list[str]:
             type(target_agent).__name__,
             exc,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001
         # Catch-all for unexpected errors, but log with full traceback
         logger.warning(
             "Unexpected error fetching delegation errors from agent %r",
@@ -540,9 +559,8 @@ def _parse_completion_report(summary: str) -> dict[str, str]:
     """
     # CRITICAL BUG FIX: Type safety validation
     if not isinstance(summary, str):
-        raise TypeError(
-            f"summary must be a string, got {type(summary).__name__}",
-        )
+        msg = f"summary must be a string, got {type(summary).__name__}"
+        raise TypeError(msg)
 
     parsed: dict[str, str] = {}
     for key, pattern in _COMPLETION_REPORT_PATTERNS.items():
@@ -592,6 +610,13 @@ def _prepare_execution(runner: DelegationRunner, params: DelegationParams) -> No
         TypeError: If target_agent doesn't conform to AgentProtocol.
         AttributeError: If clear_history is missing after protocol check.
     """
+    target_agent = _get_valid_target_agent_for_execution(params)
+    _clear_target_agent_history(target_agent, params.target_role)
+    _populate_execution_params(runner, params, target_agent)
+
+
+def _get_valid_target_agent_for_execution(params: DelegationParams) -> Any:
+    """Return the validated target agent for a delegation."""
     if params.target_agent is None:
         msg = (
             f"Cannot prepare execution for agent '{params.target_role}': "
@@ -605,22 +630,34 @@ def _prepare_execution(runner: DelegationRunner, params: DelegationParams) -> No
     content_error = _validate_agent_messages_content(target_agent, params.target_role)
     if content_error:
         raise TypeError(content_error)
+    return target_agent
+
+
+def _clear_target_agent_history(target_agent: Any, target_role: str) -> None:
+    """Clear target-agent history while preserving original error behavior."""
     try:
         target_agent.clear_history()
     except AttributeError as exc:
-        msg = f"Agent '{params.target_role}' missing 'clear_history()': {exc}"
+        msg = f"Agent '{target_role}' missing 'clear_history()': {exc}"
         raise AttributeError(msg) from exc
     except Exception as exc:
-        msg = f"Failed to clear history for agent '{params.target_role}': {exc}"
-        # Preserve the original exception with its attributes
-        exc.args = (msg,) + exc.args[1:] if exc.args else (msg,)
+        msg = f"Failed to clear history for agent '{target_role}': {exc}"
+        exc.args = (msg, *exc.args[1:]) if exc.args else (msg,)
         raise
-    prepared_brief = runner._prepare_delegation_context(
+
+
+def _populate_execution_params(
+    runner: DelegationRunner,
+    params: DelegationParams,
+    target_agent: Any,
+) -> None:
+    """Populate the fully rendered task and message bounds on *params*."""
+    prepared_brief = runner._prepare_delegation_context(  # noqa: SLF001
         params.target_role,
         params.brief,
         task=params.task,
     )
-    params.full_task = runner._assemble_delegation_input(
+    params.full_task = runner._assemble_delegation_input(  # noqa: SLF001
         params.task,
         prepared_brief,
         mission=runner.ledger.goal if runner.ledger else None,
@@ -645,8 +682,6 @@ async def _execute_loop(
         TypeError: If runner._run_agent_loop doesn't return an async iterator.
         RuntimeError: If agent loop execution fails.
     """
-    from henchman.agents.orchestrator import AgentLoopParams
-
     max_turns = runner.settings.agents.max_delegation_turns
     loop_params = AgentLoopParams(
         agent=params.target_agent,
@@ -655,7 +690,7 @@ async def _execute_loop(
         max_turns=max_turns,
         msg_start_index=params.msg_start,
     )
-    agent_loop_result = runner._run_agent_loop(loop_params)
+    agent_loop_result = runner._run_agent_loop(loop_params)  # noqa: SLF001
     try:
         async for event in agent_loop_result:
             yield event
@@ -686,7 +721,7 @@ async def _finalize_execution(
     if params.target_agent is None:
         msg = f"Cannot finalize: agent '{params.target_role}' target_agent is None."
         raise ValueError(msg)
-    summary, parsed, status = runner._process_delegation_results(
+    summary, parsed, status = runner._process_delegation_results(  # noqa: SLF001
         params.target_role,
         params.target_agent,
         params.msg_start,
@@ -727,7 +762,7 @@ class DelegationRunner:
         assess_completion: Callback to assess agent completion status.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self: DelegationRunner,
         pool: AgentPool,
         settings: Settings,
@@ -764,17 +799,11 @@ class DelegationRunner:
                 yield event
             return
         target_role = params.target_role
-        target_agent_result = await self._get_target_agent_with_error_handling(target_role)
-        if isinstance(target_agent_result, AgentEvent):
-            if target_agent_result.type != EventType.ERROR:
-                yield self._make_error_event(
-                    f"Unexpected event type '{target_agent_result.type}' "
-                    f"when getting agent '{target_role}'",
-                )
-            else:
-                yield target_agent_result
+        target_agent = await self._resolve_target_agent(target_role)
+        if isinstance(target_agent, AgentEvent):
+            yield target_agent
             return
-        params.target_agent = target_agent_result
+        params.target_agent = target_agent
         try:
             _prepare_execution(self, params)
         except (ValueError, AttributeError, TypeError, RuntimeError) as exc:
@@ -789,6 +818,28 @@ class DelegationRunner:
         )
         async for event in self._execute_and_finalize(params):
             yield event
+
+    async def _resolve_target_agent(
+        self: DelegationRunner,
+        target_role: str,
+    ) -> Agent | AgentEvent:
+        """Resolve a target agent or return an error event to emit."""
+        target_agent_result = await self._get_target_agent_with_error_handling(target_role)
+        if isinstance(target_agent_result, AgentEvent):
+            return self._normalize_target_agent_error(target_agent_result, target_role)
+        return target_agent_result
+
+    def _normalize_target_agent_error(
+        self: DelegationRunner,
+        event: AgentEvent,
+        target_role: str,
+    ) -> AgentEvent:
+        """Normalize non-error resolution events into explicit error events."""
+        if event.type == EventType.ERROR:
+            return event
+        return self._make_error_event(
+            f"Unexpected event type '{event.type}' when getting agent '{target_role}'",
+        )
 
     async def _execute_and_finalize(
         self: DelegationRunner,
@@ -806,7 +857,7 @@ class DelegationRunner:
         try:
             async for event in _execute_loop(self, params):
                 yield event
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             yield self._make_error_event(
                 f"Failed to execute delegation for '{target_role}': "
                 f"{type(exc).__name__}: {exc}",
@@ -815,7 +866,7 @@ class DelegationRunner:
         try:
             async for event in _finalize_execution(self, params):
                 yield event
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             yield self._make_error_event(
                 f"Failed to finalize delegation for '{target_role}': "
                 f"{type(exc).__name__}: {exc}",
@@ -884,7 +935,7 @@ class DelegationRunner:
         try:
             agent = self.pool.get_agent(target_role)
             error = _check_agent_protocol_compliance(agent, target_role)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             msg = f"Failed to get agent '{target_role}': {type(exc).__name__}: {exc}"
             return self._make_error_event(msg)
         else:
@@ -988,7 +1039,7 @@ class DelegationRunner:
 
     def _process_delegation_results(
         self: DelegationRunner,
-        target_role: str,
+        _target_role: str,
         target_agent: Agent,
         msg_start: int,
     ) -> tuple[str, dict[str, str], CompletionStatus]:
@@ -1070,7 +1121,7 @@ class DelegationRunner:
         # so producers could fill the buffer before consumption starts.
         # 10,000 events should be sufficient for most practical use cases.
         send_stream, recv_stream = anyio.create_memory_object_stream[AgentEvent](
-            max_buffer_size=10000,
+            max_buffer_size=MAX_PARALLEL_DELEGATION_BUFFER,
         )
 
         async def _run_one(params: DelegationParams) -> None:

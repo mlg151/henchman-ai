@@ -5,19 +5,18 @@ from __future__ import annotations
 import importlib.util
 import logging
 import sys
-from collections.abc import Callable
-from importlib.metadata import EntryPoint, entry_points
-from pathlib import Path
+from importlib.metadata import entry_points
+from pathlib import Path  # noqa: TC003
 from typing import TYPE_CHECKING, TypeVar
 
-from henchman.cli.commands import Command
+from henchman.cli.commands import Command  # noqa: TC001
 from henchman.extensions.base import Extension
-from henchman.tools.base import Tool
-from henchman.utils.registry import Registry
+from henchman.tools.base import Tool  # noqa: TC001
+from henchman.utils.registry import Registry, _set_dict_item
 
 if TYPE_CHECKING:
-    # TYPE_CHECKING imports for types only used in type hints
-    pass
+    from collections.abc import Callable
+    from importlib.metadata import EntryPoint
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +45,6 @@ def _register_extension(
     extension: Extension,
 ) -> None:
     """Register an extension in the given registry dict."""
-    from henchman.utils.registry import _set_dict_item
-
     _set_dict_item(registry, extension.name, extension)
     logger.debug("Registered extension: %s v%s", extension.name, extension.version)
 
@@ -61,11 +58,14 @@ def _load_entry_point_extension(ep: EntryPoint, manager: ExtensionManager) -> No
             logger.info("Loaded extension from entry point: %s", ep.name)
         else:
             logger.warning("Entry point %s is not an Extension subclass", ep.name)
-    except Exception as e:
-        logger.warning("Failed to load extension %s: %s", ep.name, e)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to load extension %s: %s", ep.name, exc)
 
 
-def _try_load_extension_dir(ext_dir: Path, manager: ExtensionManager) -> None:
+def _try_load_extension_dir(
+    ext_dir: Path,
+    load_extension: Callable[[Path, str], None],
+) -> None:
     """Try to load an extension from a candidate directory, handling errors gracefully."""
     if not ext_dir.is_dir():
         return
@@ -73,9 +73,9 @@ def _try_load_extension_dir(ext_dir: Path, manager: ExtensionManager) -> None:
     if not ext_file.exists():
         return
     try:
-        manager._load_extension_from_file(ext_file, ext_dir.name)
-    except Exception as e:
-        logger.warning("Failed to load extension from %s: %s", ext_dir.name, e)
+        load_extension(ext_file, ext_dir.name)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to load extension from %s: %s", ext_dir.name, exc)
 
 
 def _try_instantiate_ext_class(
@@ -85,8 +85,8 @@ def _try_instantiate_ext_class(
     """Attempt to instantiate *ext_class*, returning ``None`` on failure."""
     try:
         return ext_class()
-    except Exception as e:
-        logger.warning("Failed to instantiate extension %s: %s", ext_name, e)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to instantiate extension %s: %s", ext_name, exc)
         return None
 
 
@@ -106,8 +106,8 @@ def _load_extension_from_file_impl(ext_file: Path, ext_name: str) -> Extension |
 
     try:
         spec.loader.exec_module(module)
-    except Exception as e:
-        logger.warning("Error executing extension module %s: %s", ext_name, e)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Error executing extension module %s: %s", ext_name, exc)
         del sys.modules[spec.name]
         return None
 
@@ -123,7 +123,7 @@ def _load_extension_from_file_impl(ext_file: Path, ext_name: str) -> Extension |
 
 def _discover_extensions_in_directory(
     directory: Path,
-    manager: ExtensionManager,
+    load_extension: Callable[[Path, str], None],
 ) -> None:
     """Scan *directory* for extension sub-directories and register each one.
 
@@ -132,7 +132,7 @@ def _discover_extensions_in_directory(
     if not directory.exists() or not directory.is_dir():
         return
     for ext_dir in directory.iterdir():
-        _try_load_extension_dir(ext_dir, manager)
+        _try_load_extension_dir(ext_dir, load_extension)
 
 
 class ExtensionManager(Registry[Extension]):
@@ -160,8 +160,7 @@ class ExtensionManager(Registry[Extension]):
         Returns:
             None
         """
-        super().register(extension.name, extension)
-        logger.debug("Registered extension: %s v%s", extension.name, extension.version)
+        _register_extension(self._items, extension)
 
     def unregister(self: ExtensionManager, name: str) -> bool:
         """Unregister an extension by name.
@@ -192,7 +191,10 @@ class ExtensionManager(Registry[Extension]):
         Returns:
             List of Tool instances from all extensions.
         """
-        return [t for ext in self.list_items() for t in ext.get_tools()]
+        tools: list[Tool] = []
+        for extension in self.list_items():
+            tools.extend(extension.get_tools())
+        return tools
 
     def get_all_commands(self: ExtensionManager) -> list[Command]:
         """Get all commands from all registered extensions.
@@ -242,7 +244,7 @@ class ExtensionManager(Registry[Extension]):
         Returns:
             None
         """
-        _discover_extensions_in_directory(directory, self)
+        _discover_extensions_in_directory(directory, self._load_extension_from_file)
 
     def _load_extension_from_file(self: ExtensionManager, ext_file: Path, ext_name: str) -> None:
         """Load an extension from a Python file.

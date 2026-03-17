@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import json
+import logging
 import re
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, Self, TypeVar, cast
@@ -24,13 +25,14 @@ from textual.widget import MountError
 from textual.widgets import RichLog, Static, TextArea
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from textual import events
 
     from henchman.cli.textual_app import HenchmanTextualApp
 
 _T = TypeVar("_T", bound=Static)
+_LOGGER = logging.getLogger(__name__)
 
 
 class ToolCallProtocol(Protocol):
@@ -340,6 +342,34 @@ def _looks_like_markdown(text: str) -> bool:
     return any(indicator in text for indicator in _MARKDOWN_INDICATORS)
 
 
+def _get_private_member(owner: object, member_name: str) -> Any:
+    """Return a private attribute, including MagicMock-generated members."""
+    try:
+        return object.__getattribute__(owner, member_name)
+    except AttributeError:
+        get_missing_member = object.__getattribute__(owner, "__getattr__")
+        return get_missing_member(member_name)
+
+
+def _call_private_member(owner: object, member_name: str, *args: Any) -> Any:
+    """Call a private attribute that behaves like a method."""
+    member = _get_private_member(owner, member_name)
+    return member(*args)
+
+
+def _perform_pane_operation(
+    operation: Callable[[], None],
+    pane: ChatPane,
+    fallback_name: str,
+    *fallback_args: Any,
+) -> None:
+    """Run a pane operation with detached-node fallback handling."""
+    try:
+        operation()
+    except (RuntimeError, AttributeError, MountError):
+        _call_private_member(_get_private_member(pane, "_nodes"), fallback_name, *fallback_args)
+
+
 # ------------------------------------------------------------------ #
 # Custom input widget                                                  #
 # ------------------------------------------------------------------ #
@@ -424,10 +454,7 @@ class HenchmanTextArea(TextArea):
             None
         """
         if self.cursor_location[0] == 0:
-            # Cast app to HenchmanTextualApp to access its methods
-
-            app = cast("HenchmanTextualApp", self.app)
-            app._navigate_history(-1)
+            self._navigate_app_history(-1)
         else:
             self.action_cursor_up()
 
@@ -439,12 +466,15 @@ class HenchmanTextArea(TextArea):
         """
         last_row = self.document.line_count - 1
         if self.cursor_location[0] >= last_row:
-            # Cast app to HenchmanTextualApp to access its methods
-
-            app = cast("HenchmanTextualApp", self.app)
-            app._navigate_history(1)
+            self._navigate_app_history(1)
         else:
             self.action_cursor_down()
+
+    def _navigate_app_history(self: Self, direction: int) -> None:
+        """Delegate history navigation to the parent app."""
+        app = cast("HenchmanTextualApp", self.app)
+        navigate_history = cast("Any", _get_private_member(app, "_navigate_history"))
+        navigate_history(direction)
 
 
 # ------------------------------------------------------------------ #
@@ -954,11 +984,7 @@ class ChatPane(VerticalScroll):
         Args:
             widget: Widget to add.
         """
-        try:
-            self.mount(widget)
-        except (RuntimeError, AttributeError, MountError):
-            # Widget not attached to an app — store as child directly
-            self._nodes._append(widget)
+        _perform_pane_operation(functools.partial(self.mount, widget), self, "_append", widget)
 
     def _try_scroll(self: Self) -> None:
         """Scroll to bottom, ignoring errors when not mounted."""
@@ -977,9 +1003,8 @@ class ChatPane(VerticalScroll):
         Returns:
             The created ChatMessage widget.
         """
-        # Delegate to internal widget creation with ChatMessage type
-        widget = self._add_message_widget(ChatMessage, prefix, text)
-        return widget
+        message_args = (prefix, text)
+        return self._add_message_widget(ChatMessage, *message_args)
 
     # Thin public wrappers — each delegates to _add_message_with_prefix with
     # the appropriate prefix constant.  Using functools.partialmethod keeps
@@ -1040,9 +1065,7 @@ class ChatPane(VerticalScroll):
         """
         widget = self._active.pop(agent_name, None)
         if widget is None:
-            import logging
-
-            logging.debug(f"Attempted to finish non-existent agent stream: {agent_name}")
+            _LOGGER.debug("Attempted to finish non-existent agent stream: %s", agent_name)
             return
         widget.finalize_as_markdown()
 
@@ -1075,19 +1098,16 @@ class ChatPane(VerticalScroll):
 
         return widget
 
-    def add_thinking_message(self: Self, thought: str, agent_name: str = "") -> ThinkingMessage:
-        """Add a thinking message to the chat pane.
+    def _create_thinking_message(
+        self: Self,
+        widget_class: type[ThinkingMessage],
+        thought: str,
+        agent_name: str = "",
+    ) -> ThinkingMessage:
+        """Create a thinking message widget."""
+        return self._add_message_widget(widget_class, thought, agent_name)
 
-        Args:
-            thought: The thinking content.
-            agent_name: Name of the thinking agent.
-
-        Returns:
-            The created ThinkingMessage widget.
-        """
-        # Delegate to internal widget creation with ThinkingMessage type
-        widget = self._add_message_widget(ThinkingMessage, thought, agent_name)
-        return widget
+    add_thinking_message = functools.partialmethod(_create_thinking_message, ThinkingMessage)
 
     def begin_thinking_stream(self: Self, agent_name: str = "") -> ThinkingMessage:
         """Start a new streaming thinking message for *agent_name*.
@@ -1122,23 +1142,16 @@ class ChatPane(VerticalScroll):
             self.begin_thinking_stream(agent_name)
         self._active_thinking[agent_name].append(chunk)
 
-    def add_tool_message(
+    def _create_tool_message(
         self: Self,
+        widget_class: type[ToolMessage],
         thought: str = "",
         tool_call: ToolCallProtocol | None = None,
     ) -> ToolMessage:
-        """Add a tool message to the chat pane.
+        """Create a tool message widget."""
+        return self._add_message_widget(widget_class, thought, tool_call)
 
-        Args:
-            thought: Tool thought/description.
-            tool_call: Tool call object.
-
-        Returns:
-            The created ToolMessage widget.
-        """
-        # Delegate to internal widget creation with ToolMessage type
-        widget = self._add_message_widget(ToolMessage, thought, tool_call)
-        return widget
+    add_tool_message = functools.partialmethod(_create_tool_message, ToolMessage)
 
     def clear_thinking_messages(self: Self) -> None:
         """Remove all ``ThinkingMessage`` widgets from the pane.
@@ -1149,10 +1162,7 @@ class ChatPane(VerticalScroll):
         self._active_thinking = {}
         thinking = [child for child in self.children if isinstance(child, ThinkingMessage)]
         for widget in thinking:
-            try:
-                widget.remove()
-            except (RuntimeError, AttributeError, MountError):
-                self._nodes._remove(widget)
+            _perform_pane_operation(widget.remove, self, "_remove", widget)
 
     def clear_messages(self: Self) -> None:
         """Remove all messages from the pane.
@@ -1162,10 +1172,7 @@ class ChatPane(VerticalScroll):
         """
         self._active = {}
         self._active_thinking = {}
-        try:
-            self.remove_children()
-        except (RuntimeError, AttributeError, MountError):
-            self._nodes._clear()
+        _perform_pane_operation(self.remove_children, self, "_clear")
 
 
 # ------------------------------------------------------------------ #

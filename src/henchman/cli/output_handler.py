@@ -6,6 +6,7 @@ This module handles console output, event streaming, and status updates.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -177,11 +178,6 @@ class OutputHandler:
         if model:
             return get_model_limit(model)
 
-        # Fallback: use settings compaction max_tokens
-        if not self.settings:
-            return 0
-        if not hasattr(self.settings, "context"):
-            return 0
         context = getattr(self.settings, "context", None)
         if not context:
             return 0
@@ -200,14 +196,11 @@ class OutputHandler:
             tokens: Current token count.
             max_tokens: Maximum token limit.
         """
-        LOW_THRESHOLD = 50
-        MEDIUM_THRESHOLD = 75
-
         percentage = (tokens / max_tokens) * 100
 
-        if percentage < LOW_THRESHOLD:
+        if percentage < 50:
             color = "green"
-        elif percentage < MEDIUM_THRESHOLD:
+        elif percentage < 75:
             color = "yellow"
         else:
             color = "red"
@@ -221,8 +214,10 @@ class OutputHandler:
             status: The status list to append to.
         """
         try:
-            if hasattr(self.tool_manager.registry, "list_tools"):
-                tool_count = len(self.tool_manager.registry.list_tools())
+            registry = getattr(self.tool_manager, "registry", None)
+            list_tools = getattr(registry, "list_tools", None)
+            if callable(list_tools):
+                tool_count = len(list_tools())
                 status.append(("", f" Tools: {tool_count} "))
         except Exception:
             pass
@@ -269,6 +264,11 @@ class OutputHandler:
         if self.rag_system and getattr(self.rag_system, "is_indexing", False):
             status.append(("bg:cyan fg:black", " RAG: Indexing... "))
 
+    def _start_rag_indexing(self: Self) -> None:
+        """Start RAG indexing when the configured system supports it."""
+        if self.rag_system and hasattr(self.rag_system, "index_async"):
+            self._safe_create_task(self.rag_system.index_async())
+
     def get_rich_status_message(self: Self, agent: Agent) -> str:
         """Get rich status message for persistent display.
 
@@ -305,9 +305,7 @@ class OutputHandler:
             self.warning(status)
         else:
             self.muted(status)
-
-            if self.rag_system and hasattr(self.rag_system, "index_async"):
-                self._safe_create_task(self.rag_system.index_async())
+            self._start_rag_indexing()
 
     def start_background_indexing(self: Self) -> None:
         """Start background indexing if RAG is available.
@@ -315,8 +313,7 @@ class OutputHandler:
         Returns:
             None
         """
-        if self.rag_system and hasattr(self.rag_system, "index_async"):
-            self._safe_create_task(self.rag_system.index_async())
+        self._start_rag_indexing()
 
     @staticmethod
     def _safe_create_task(coro: Any) -> None:
@@ -325,8 +322,6 @@ class OutputHandler:
         Args:
             coro: Coroutine to schedule.
         """
-        import logging
-
         task = asyncio.create_task(coro)
 
         def _on_done(t: asyncio.Task[Any]) -> None:

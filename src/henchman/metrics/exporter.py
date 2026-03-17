@@ -57,7 +57,7 @@ def _build_storage_kwargs(filters: dict[str, Any]) -> dict[str, Any]:
     return {k: filters.get(k) for k in _STORAGE_FILTER_KEYS}
 
 
-def _write_metrics_csv(path: "Path", metrics: "list[dict[str, Any]]") -> None:
+def _write_metrics_csv(path: Path, metrics: list[dict[str, Any]]) -> None:
     """Write metrics records to *path* in CSV format."""
     if not metrics:
         path.write_text("id,metric_type,timestamp\n", encoding="utf-8")
@@ -193,11 +193,11 @@ class SummaryCalculator:
         cls: type[SummaryCalculator], metrics: list[dict[str, Any]], filters: dict[str, Any],
     ) -> dict[str, Any]:
         """Calculate summary statistics for metrics.
-        
+
         Args:
             metrics: List of metric dictionaries to analyze.
             filters: Dictionary of filters applied to the metrics.
-            
+
         Returns:
             Dictionary containing summary statistics including total metrics count,
             metric type distribution, time range, and filter information.
@@ -292,12 +292,12 @@ class MetricsExporter:
 
     def export_to_json(self: MetricsExporter, filepath: str | Path, **filters: Any) -> None:
         """Export metrics to JSON file.
-        
+
         Args:
             filepath: Path where the JSON file should be saved.
             filters: Keyword arguments for filtering metrics (e.g., metric_type,
                 session_id, agent_id, start_date, end_date, limit).
-        
+
         Returns:
             None
         """
@@ -320,56 +320,32 @@ class MetricsExporter:
 
     def export_to_csv(self: MetricsExporter, filepath: str | Path, **filters: Any) -> None:
         """Export metrics to CSV file.
-        
+
         Args:
             filepath: Path where the CSV file should be saved.
             filters: Keyword arguments for filtering metrics (e.g., metric_type,
                 session_id, agent_id, start_date, end_date, limit).
-        
+
         Returns:
             None
         """
-        import csv
-
         metrics = self._get_filtered_metrics(**filters)
         path = Path(filepath)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        if not metrics:
-            with path.open("w", newline="", encoding="utf-8") as f:
-                f.write("id,metric_type,timestamp\n")
-            return
-
-        fieldnames = sorted({k for m in metrics for k in m})
-        with path.open("w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            for m in metrics:
-                writer.writerow(
-                    {
-                        k: (
-                            json.dumps(v, default=str)
-                            if isinstance(v, (dict, list))
-                            else ("" if v is None else str(v))
-                        )
-                        for k in fieldnames
-                        for v in [m.get(k)]
-                    },
-                )
+        _write_metrics_csv(path, metrics)
 
     def export_to_prometheus(self: MetricsExporter, endpoint: str, **filters: Any) -> None:
         """Export metrics to Prometheus endpoint.
-        
+
         Args:
             endpoint: Prometheus push gateway endpoint URL.
             filters: Keyword arguments for filtering metrics (e.g., metric_type,
                 session_id, agent_id, start_date, end_date, limit).
-        
+
         Returns:
             None
         """
-        import requests
-
         if not endpoint:
             msg = "Prometheus endpoint cannot be empty"
             raise ValueError(msg)
@@ -394,11 +370,11 @@ class MetricsExporter:
 
     def export_summary(self: MetricsExporter, **filters: Any) -> dict[str, Any]:
         """Export summary statistics.
-        
+
         Args:
             filters: Keyword arguments for filtering metrics (e.g., metric_type,
                 session_id, agent_id, start_date, end_date, limit).
-        
+
         Returns:
             Dictionary containing summary statistics.
         """
@@ -407,7 +383,7 @@ class MetricsExporter:
 
     def get_available_formats(self: MetricsExporter) -> list[str]:
         """Get list of available export formats.
-        
+
         Returns:
             List of available export format names.
         """
