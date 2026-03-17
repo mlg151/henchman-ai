@@ -162,21 +162,34 @@ class TestTextualConfirmThreadingLockBug:
         import inspect
         source = inspect.getsource(_InitMixin._init_confirm_state)
         
-        # Current buggy implementation uses threading.Lock
-        # This test should FAIL because threading.Lock is wrong for async code
-        # After fix, it should pass (asserting asyncio.Lock is used)
-        if "threading.Lock" in source:
-            print("BUG DETECTED: _init_confirm_state uses threading.Lock for async code")
+        # Check if the code creates threading.Lock (not just mentions it in comments)
+        lines = source.split('\n')
+        creates_threading_lock = False
+        creates_asyncio_lock = False
+        
+        for line in lines:
+            # Skip comments and look for actual assignment
+            line_stripped = line.strip()
+            if line_stripped.startswith('#'):
+                continue
+            if 'threading.Lock()' in line or 'threading.Lock(' in line:
+                creates_threading_lock = True
+            if 'asyncio.Lock()' in line or 'asyncio.Lock(' in line:
+                creates_asyncio_lock = True
+        
+        # Current buggy implementation creates threading.Lock
+        if creates_threading_lock:
+            print("BUG DETECTED: _init_confirm_state creates threading.Lock for async code")
             # This is the bug - threading.Lock doesn't properly serialize async tasks
             pytest.fail(
-                "Bug: _init_confirm_state uses threading.Lock instead of asyncio.Lock. "
+                "Bug: _init_confirm_state creates threading.Lock instead of asyncio.Lock. "
                 "threading.Lock is reentrant within same thread, allowing concurrent "
                 "async access to shared state."
             )
         
-        # The fix should use asyncio.Lock
-        assert "asyncio.Lock" in source, (
-            "Fix needed: _init_confirm_state should use asyncio.Lock, not threading.Lock"
+        # The fix should create asyncio.Lock
+        assert creates_asyncio_lock, (
+            "Fix needed: _init_confirm_state should create asyncio.Lock, not threading.Lock"
         )
         
         # Also check _textual_confirm uses async with for asyncio.Lock

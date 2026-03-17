@@ -1,36 +1,47 @@
 # Last Documentation Improvement
 
 ## Date/Time
-2026-03-17T20:10:00Z
+2026-03-17T22:15:00Z
 
 ## Files Changed
-1. `src/henchman/cli/tool_executor.py`
+1. `src/henchman/extensions/plugin_manager.py`
 
 ## Smell Category Addressed
-**Stale Docstring** (HIGH severity)
+**Incomplete Docstring** (MEDIUM severity)
 
 ## Rationale for Change
-The smell report identified that `ToolExecutor.execute_tool_calls` had undocumented parameters: `announced_tool_call_ids`. This was a HIGH severity issue because undocumented parameters make the API harder to use correctly and can lead to misuse.
+The smell report identified that `PluginManager.scan_security` had 1 parameter but no Args: section in docstring (MEDIUM severity). Additionally, it was missing a Returns: section (LOW severity).
 
 From code analysis:
-- The `announced_tool_call_ids` parameter is a keyword-only parameter (after `*`)
-- It's an optional set of strings (tool call IDs)
-- When provided, tool calls with IDs in this set will not show the "[tool]" announcement prefix when executed
-- This is used to avoid duplicate announcements when tool calls are retried or re-executed
-- The parameter defaults to `None` (which becomes an empty set in the method body)
+- The method signature is: `async def scan_security(self: PluginManager, plugin_name: str) -> SecurityReport`
+- It takes one parameter: `plugin_name` (string name of installed plugin to scan)
+- It returns a `SecurityReport` object containing security analysis results
+- It raises `ValueError` if the plugin is not installed
+- The method validates the plugin is installed, then delegates to `PluginSecurityScanner.scan()`
 
-The parameter is used in line 268 where it's passed to `_execute_and_record_tool_call` as `announce_request=tc.id not in announced_ids`.
+The SecurityReport contains:
+- `plugin_name`: Name of the scanned plugin
+- `passed`: Boolean indicating if security check passed
+- `warnings`: List of security warnings
+- `errors`: List of security errors  
+- `permissions_used`: List of permissions detected in code
+- `risk_level`: Overall risk level (low/medium/high)
+- `scan_timestamp`: When scan was performed
 
 ## Changes Made
-1. Added `announced_tool_call_ids` parameter to the `Args:` section
-2. Provided a clear description of what the parameter does and when to use it
-3. Maintained Google-style docstring format with proper indentation
+1. Added `Args:` section documenting the `plugin_name` parameter
+2. Added `Returns:` section describing the SecurityReport return value
+3. Added `Raises:` section documenting the ValueError exception
+4. Also fixed missing Returns sections for `initialize()` and `close()` methods (LOW severity issues in same file)
 
 ## What to Verify
-1. The smell detector should no longer flag `execute_tool_calls` for undocumented parameters
-2. The documentation accurately describes the parameter's purpose and behavior
-3. The parameter description matches the actual implementation (prevents duplicate "[tool]" announcements)
+1. The smell detector should no longer flag `scan_security` for missing Args or Returns sections
+2. The documentation accurately describes the parameter, return value, and exceptions
+3. The SecurityReport description matches the actual model definition
 4. The docstring follows Google-style format with proper sections
 
 ## Next Priority
-The next highest priority issue is the MEDIUM severity incomplete docstring in `src/henchman/extensions/plugin_manager.py:423` where `PluginManager.scan_security` has 1 parameter but no Args section in docstring.
+The next highest priority issues are in `src/henchman/agents/pool.py`:
+1. Line 313: `AgentPool.reset_agent` missing Returns section
+2. Line 322: `AgentPool.reset_all` missing Returns section  
+3. Line 327: `AgentPool.shutdown` missing Returns section

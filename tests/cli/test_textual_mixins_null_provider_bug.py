@@ -62,7 +62,18 @@ class TestNullProviderBug:
                 yield_stmt = stmt
         
         assert raise_stmt is not None, "chat_completion_stream should raise"
-        assert yield_stmt is not None, "chat_completion_stream should have yield"
+        # After fix: yield should be present and reachable
+        # Note: yield StreamChunk() is ast.Expr(value=ast.Yield(value=ast.Call(...)))
+        if yield_stmt is None:
+            # Debug: print all statements
+            print("Debug: Method body statements:")
+            for i, stmt in enumerate(body):
+                print(f"  [{i}] {type(stmt).__name__}: {ast.unparse(stmt) if hasattr(ast, 'unparse') else stmt}")
+                if isinstance(stmt, ast.Expr):
+                    print(f"     value type: {type(stmt.value).__name__}")
+                    if isinstance(stmt.value, ast.Yield):
+                        print("     ^ This is a yield expression!")
+        assert yield_stmt is not None, "chat_completion_stream should have yield statement"
         
         print("Found:")
         print(f"  Raise statement: {ast.unparse(raise_stmt) if hasattr(ast, 'unparse') else 'Raise'}")
@@ -92,61 +103,49 @@ class TestNullProviderBug:
     
     @pytest.mark.anyio
     async def test_chat_completion_stream_actually_raises(self) -> None:
-        """Test that chat_completion_stream raises as expected."""
+        """Test that chat_completion_stream yields then raises as expected."""
         from henchman.cli.textual_mixins import _NullProvider
         
         provider = _NullProvider()
         
-        # Should raise RuntimeError
+        # Should yield once then raise RuntimeError
+        gen = provider.chat_completion_stream([])
+        # First iteration should yield an empty chunk
+        chunk = await gen.__anext__()
+        assert chunk is not None
+        # Should be a StreamChunk instance
+        from henchman.providers.base import StreamChunk
+        assert isinstance(chunk, StreamChunk)
+        # All fields should be None (empty chunk)
+        assert chunk.content is None
+        assert chunk.tool_calls is None
+        assert chunk.finish_reason is None
+        assert chunk.thinking is None
+        assert chunk.usage is None
+        
+        # Next iteration should raise
         with pytest.raises(RuntimeError, match="No model provider available"):
-            # Try to iterate (will raise immediately)
-            async for _ in provider.chat_completion_stream([]):
-                pass  # Should never reach here
+            await gen.__anext__()
         
-        # Also test that it's an async generator (has __aiter__)
-        # Actually, async generator functions return async generator objects
-        # when called, even if they raise immediately
+        # Test that it's a proper async generator
+        gen2 = provider.chat_completion_stream([])
+        assert hasattr(gen2, '__aiter__')
+        assert hasattr(gen2, '__anext__')
         
+        # Test async for loop
+        count = 0
         try:
-            gen = provider.chat_completion_stream([])
-            # It should be an async generator
-            assert hasattr(gen, '__aiter__')
-            assert hasattr(gen, '__anext__')
-            
-            # But iterating should raise
-            with pytest.raises(RuntimeError):
-                await gen.__anext__()
-        except RuntimeError:
-            # It might raise immediately when called, not when iterated
-            # That's also acceptable
-            
-            # Actually, looking at the code:
-            # async def chat_completion_stream(...):
-            #     raise RuntimeError(...)
-            #     yield
-            #
-            # When called, it returns a coroutine object
-            # When awaited, it raises
-            # So it's NOT an async generator that yields, it's an async function that raises
-            
-            # Wait, actually async def with yield is an async generator function
-            # Calling it returns an async generator object
-            # But if it raises before first yield, the raise happens when?
-            
-            # Let me test:
-            gen = provider.chat_completion_stream([])
-            print(f"Type of chat_completion_stream result: {type(gen)}")
-            
-            # In Python, async def with yield returns an async generator object
-            # But if it raises immediately, the exception might be raised
-            # when trying to get the first element with __anext__()
-            
-            # Actually, the current implementation raises when the function is AWAITED
-            # not when __anext__() is called. Let me check...
-            
-            # This is getting complex. The key point is the unreachable yield.
-            
-            print("Note: Implementation raises immediately, not on __anext__()")
+            async for chunk in provider.chat_completion_stream([]):
+                count += 1
+                # Should get exactly one chunk
+                assert count == 1
+                assert isinstance(chunk, StreamChunk)
+        except RuntimeError as e:
+            # Should raise after first chunk
+            assert count == 1
+            assert "No model provider available" in str(e)
+        else:
+            pytest.fail("Should have raised RuntimeError after first chunk")
     
     def test_fix_would_remove_unreachable_yield(self) -> None:
         """Show what the fix should look like."""
