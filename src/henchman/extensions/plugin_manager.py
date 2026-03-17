@@ -208,7 +208,22 @@ class PluginManager(ExtensionManager):
         *,
         search_params: PluginSearchParams | None = None,
     ) -> PluginSearchResult:
-        """Search the plugin registry."""
+        """Search the plugin registry.
+        
+        Args:
+            query: Search query string. If None, returns all plugins.
+            page: Page number (1-indexed). Defaults to 1.
+            page_size: Results per page. Defaults to PluginConstants.DEFAULT_PAGE_SIZE.
+            category: Filter by category. If None, searches all categories.
+            search_params: Advanced search parameters. If provided, overrides individual
+                query/page/page_size/category parameters.
+        
+        Returns:
+            PluginSearchResult containing matching plugins and pagination info.
+        
+        Raises:
+            RuntimeError: If plugin manager is not initialized.
+        """
         if not self._initialized or not self.registry_client:
             raise RuntimeError(PLUGIN_MANAGER_NOT_INITIALIZED)
         legacy_request = _LegacySearchRequest(query, page, page_size, category)

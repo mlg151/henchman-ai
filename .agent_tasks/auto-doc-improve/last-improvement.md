@@ -1,33 +1,37 @@
 # Last Documentation Improvement
 
 ## Date/Time
-2026-03-17T06:00:00Z
+2026-03-17T08:00:00Z
 
 ## Files Changed
-1. `src/henchman/tools/builtins/deep_research.py`
-2. `src/henchman/tools/builtins/web_search.py`
+1. `src/henchman/extensions/plugin_manager.py`
 
 ## Smell Category Addressed
-**Stale Docstring** (HIGH severity)
+**Incomplete Docstring** (MEDIUM severity)
 
 ## Rationale for Change
-The smell report identified that `DeepResearchTool.execute` and `DuckDuckGoSearchTool.execute` had undocumented parameters: `_kwargs`. 
+The smell report identified that `PluginManager.search_plugins` had 5 parameters but no Args section in its docstring, and also lacked a Returns section. This was a MEDIUM severity issue because undocumented parameters make the API harder to use correctly.
 
-Upon investigation, I found that these tools were using `**_kwargs: object` in their function signatures while most other tools in the codebase use `**kwargs: object` (without the underscore). The docstrings also used `**_kwargs:` instead of `**kwargs:`.
+The method signature shows:
+- `query: str | None = None` - Search query string
+- `page: int = 1` - Page number (1-indexed)
+- `page_size: int = PluginConstants.DEFAULT_PAGE_SIZE` - Results per page
+- `category: str | None = None` - Filter by category
+- `search_params: PluginSearchParams | None = None` - Advanced search parameters
 
-The inconsistency was causing the docstring parser to flag these as undocumented parameters because:
-1. The parameter name `**_kwargs` (with underscore) didn't match the convention used throughout the codebase (`**kwargs`)
-2. The docstring parser might have been extracting `_kwargs` (without asterisks) from the signature `**_kwargs`
+The method returns `PluginSearchResult` which contains matching plugins and pagination info.
 
 ## Changes Made
-1. **deep_research.py**: Changed `**_kwargs: object` to `**kwargs: object` in function signature and updated docstring from `**_kwargs:` to `**kwargs:`
-2. **web_search.py**: Changed `**_kwargs: object` to `**kwargs: object` in function signature and updated docstring from `**_kwargs:` to `**kwargs:`
+1. Added comprehensive `Args:` section documenting all 5 parameters with their types and default values
+2. Added `Returns:` section describing the `PluginSearchResult` return value
+3. Added `Raises:` section documenting the `RuntimeError` that can be raised
+4. Enhanced the brief description to be more informative
 
 ## What to Verify
-1. The smell detector should no longer flag these files for undocumented `_kwargs` parameters
-2. The parameter naming is now consistent with other tools in the codebase
-3. The docstrings accurately reflect the function signatures
-4. No functionality is affected since `**kwargs`/`**_kwargs` are both catch-all parameters for ignored arguments
+1. The smell detector should no longer flag `search_plugins` for missing Args/Returns sections
+2. The documentation accurately reflects the method's parameters and return type
+3. The parameter descriptions match the actual behavior (e.g., `search_params` overrides individual parameters)
+4. The docstring follows Google-style format with proper sections
 
 ## Next Priority
-The next highest priority issue is the MEDIUM severity incomplete docstrings in `src/henchman/extensions/plugin_compatibility.py:59` where `PluginCompatibilityChecker.check_compatibility` has 1 parameter but no Args section in docstring.
+The next highest priority issue is the MEDIUM severity incomplete docstring in `src/henchman/extensions/plugin_manager.py:218` where `PluginManager.get_plugin_info` has 2 parameters but no Args section in docstring.

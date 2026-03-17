@@ -411,8 +411,8 @@ class _InitMixin:
     def _init_confirm_state(self: _InitMixin) -> None:
         """Initialize tool confirmation future state."""
         self._confirm_futures: dict[int, asyncio.Future[bool]] = {}
-        # _confirm_counter is no longer used but kept for compatibility
         self._confirm_counter: int = 0
+        self._confirm_lock: asyncio.Lock = asyncio.Lock()
 
     def _init_proxy_stubs(self: _InitMixin) -> None:
         """Initialize proxy compatibility stub attributes."""
@@ -495,9 +495,11 @@ class _InitMixin:
         future: asyncio.Future[bool] = loop.create_future()
         # Use a counter-based ID instead of id(future) to avoid potential
         # collisions when memory addresses are reused after garbage collection
-        req_id = self._confirm_counter  # type: ignore[attr-defined]
-        self._confirm_counter += 1  # type: ignore[attr-defined]
-        self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
+        # Use lock to make counter increment atomic in concurrent execution
+        async with self._confirm_lock:  # type: ignore[attr-defined]
+            req_id = self._confirm_counter  # type: ignore[attr-defined]
+            self._confirm_counter += 1  # type: ignore[attr-defined]
+            self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
 
         def _callback(result: object | None) -> None:
             if not future.done():

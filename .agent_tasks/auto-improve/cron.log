@@ -831559,4 +831559,33 @@ set_result raised InvalidStateError: invalid state
 Checking if done() prevents set_result on cancelled...
 Ah! So when a future is cancelled, `done()` returns `True`. So the check `if not future.done():` would prevent `set_result()` from being called on a cancelled future. My bug hypothesis was wrong!
 
-Let me re-examine the code more carefully. Let me look for a different bug using the Four Lenses approach.
+Let me re-examine the code more carefully. Let me look for a different bug using the Four Lenses approach.[2026-03-17T08:00:03Z] Starting Four Lenses bug-hunt run...
+Running code smell detector...
+Report written to /home/matthew/mlg-cli/.agent_tasks/auto-improve/smell-report.md
+[2026-03-17T08:00:03Z] Targeting lowest-graded file: src/henchman/cli/textual_mixins.py
+Running Henchman...
+Warning: Input is not a terminal (fd=0).
+ℹ [blue]CHAT[/] | Tokens: ~[cyan]10588[/]
+I'll start by reading the smell report to understand the context, then examine the target file and its tests.
+[tool] read_file({'path': '.agent_tasks/auto-improve/smell-report.md'})
+
+
+[result] # Code Smell Report — 👍 B (Score: 80.5/100)
+
+_Scanned: /home/matthew/mlg-cli/src/henchman_  
+
+_Generated: 2026-03-17T08:00:51.301796+00:00_
+
+## Executive Summary
+
+| Metric | Value |
+|:-------|------:|...
+Now let me examine the target file `src/henchman/cli/textual_mixins.py`:
+[tool] read_file({'path': 'src/henchman/cli/textual_mixins.py'})
+
+[result] """Mixin classes for HenchmanTextualApp.
+
+Extracted from textual_app.py to reduce class size and improve
+maintainability. Each mixin encapsulates a specific concern of the
+Textual TUI application.
+"""...
