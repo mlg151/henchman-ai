@@ -1,29 +1,31 @@
 # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
-## Date: 2025-03-17T09:15:00Z
+## Date: 2025-03-17T11:15:00Z
 ## Bug Summary
-Race condition in `_textual_confirm` method where concurrent tool confirmation requests can get duplicate request IDs, causing one future to overwrite another in `_confirm_futures` dictionary.
+The `_cleanup_confirm_futures` method had a race condition with `_textual_confirm` because it didn't use the same lock, allowing concurrent modification of the `_confirm_futures` dictionary during iteration.
 
 ## Lens
-**Phase 2: State & Side Effects (The Entropy Audit)** - Shared state mutation without proper synchronization.
+**Phase 2: State & Side Effects (The Entropy Audit)** - Shared State
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| Each tool confirmation request gets a unique ID | Concurrent requests can read same counter value before increment |
-| All confirmation futures are stored and retrievable | One future can overwrite another in dictionary |
-| Callback can safely set result on its future | Callback may try to set result on cancelled future causing InvalidStateError |
+| `_cleanup_confirm_futures` should synchronize access to `_confirm_futures` dictionary | `_cleanup_confirm_futures` didn't use any lock while `_textual_confirm` used `asyncio.Lock` |
+| Dictionary iteration should be protected from concurrent modifications | `_cleanup_confirm_futures` iterated over `_confirm_futures` while `_textual_confirm` could modify it |
+| All pending futures should be cleaned up during shutdown | Futures added during cleanup iteration wouldn't be cleaned up (missed in list copy) |
 
 ## Root Cause
-The `_textual_confirm` method in `_InitMixin` has three related bugs:
-1. **Counter race condition**: `req_id = self._confirm_counter` followed by `self._confirm_counter += 1` is not atomic
-2. **Dictionary race**: Concurrent calls can store futures with same key, overwriting each other
-3. **Callback safety**: Callback doesn't check `future.cancelled()` before `set_result()`
+`_cleanup_confirm_futures` was called from `on_unmount` (sync context) and didn't acquire the `_confirm_lock` that `_textual_confirm` used. This created a race condition where:
+1. `_cleanup_confirm_futures` created a list copy of `_confirm_futures.items()`
+2. `_textual_confirm` added a new future to `_confirm_futures` (inside lock)
+3. `_cleanup_confirm_futures` processed the list copy (which didn't include the new future)
+4. The new future remained in the dictionary and wouldn't be cancelled/cleaned up
 
-The core issue is that `self._confirm_counter` is read and incremented without synchronization, allowing concurrent calls to get the same ID. When this happens, the second future overwrites the first in `_confirm_futures`, causing the first request to never receive a response.
+Additionally, concurrent iteration and modification of a dictionary could cause runtime errors or inconsistent state.
 
-## Fix Plan
-1. Add `asyncio.Lock` around the counter increment and dictionary update in `_textual_confirm`
-2. Update callback to check both `future.done()` and `future.cancelled()` before calling `set_result()`
-3. Ensure lock is properly initialized in `_init_confirm_state`
+## Fix Applied
+The bug was fixed by changing `_confirm_lock` from `asyncio.Lock` to `threading.Lock`, which works in both async and sync contexts. Both `_textual_confirm` and `_cleanup_confirm_futures` now use `with self._confirm_lock:` to synchronize access to the `_confirm_futures` dictionary.
 
-## Status: IN PROGRESS
+## Files Changed
+1. `src/henchman/cli/textual_mixins.py` - Changed `_confirm_lock` from `asyncio.Lock` to `threading.Lock` in `_init_confirm_state` method, and updated both `_textual_confirm` and `_cleanup_confirm_futures` to use `with self._confirm_lock:`.
+
+## Status: FIXED (already fixed in codebase)

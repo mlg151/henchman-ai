@@ -14,14 +14,10 @@ class TestTextualConfirmRaceCondition:
     
     @pytest.mark.anyio
     async def test_callback_on_cancelled_future_raises_error(self) -> None:
-        """Test that callback raises InvalidStateError when future is cancelled.
+        """Test that callback handles cancelled future without raising error.
         
-        This test demonstrates the bug where:
-        1. Future is created and added to _confirm_futures
-        2. Exception occurs (e.g., CancelledError)
-        3. Exception handler cancels the future
-        4. Callback is still invoked (e.g., screen dismissed after exception)
-        5. Callback tries to set_result on cancelled future → InvalidStateError
+        The callback checks if not future.done() before calling set_result(),
+        so it won't raise InvalidStateError on a cancelled future.
         """
         from henchman.cli.textual_mixins import _InitMixin
         
@@ -47,13 +43,13 @@ class TestTextualConfirmRaceCondition:
         # First, cancel the future (simulating what exception handler does)
         future.cancel()
         
-        # Now invoke the callback - this should raise InvalidStateError
-        # because we're trying to set_result on a cancelled future
-        with pytest.raises(asyncio.InvalidStateError) as exc_info:
-            _callback(True)
+        # Now invoke the callback - this should NOT raise InvalidStateError
+        # because the callback checks if not future.done() before set_result()
+        _callback(True)
         
-        assert "cannot set result" in str(exc_info.value).lower() or \
-               "invalid state" in str(exc_info.value).lower()
+        # Verify future was cancelled and callback didn't raise
+        assert future.cancelled()
+        assert future.done()
     
     @pytest.mark.anyio
     async def test_race_condition_in_actual_method(self) -> None:

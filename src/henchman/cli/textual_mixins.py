@@ -413,7 +413,10 @@ class _InitMixin:
         """Initialize tool confirmation future state."""
         self._confirm_futures: dict[int, asyncio.Future[bool]] = {}
         self._confirm_counter: int = 0
-        self._confirm_lock: asyncio.Lock = asyncio.Lock()
+        # Use threading lock instead of asyncio lock so it works in both
+        # async (_textual_confirm) and sync (_cleanup_confirm_futures) contexts
+        import threading
+        self._confirm_lock: threading.Lock = threading.Lock()
 
     def _init_proxy_stubs(self: _InitMixin) -> None:
         """Initialize proxy compatibility stub attributes."""
@@ -499,7 +502,7 @@ class _InitMixin:
         # Use lock to make counter increment atomic in concurrent execution
         # But for backward compatibility with tests, check if lock exists
         if hasattr(self, '_confirm_lock'):
-            async with self._confirm_lock:  # type: ignore[attr-defined]
+            with self._confirm_lock:  # type: ignore[attr-defined]
                 req_id = self._confirm_counter  # type: ignore[attr-defined]
                 self._confirm_counter += 1  # type: ignore[attr-defined]
                 self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
@@ -533,12 +536,23 @@ class _InitMixin:
     def _cleanup_confirm_futures(self: _InitMixin) -> None:
         """Clean up all pending confirmation futures."""
         # Note: This is called from on_unmount which is sync
-        # We can't use async lock in sync context, but during shutdown
-        # we just clean up whatever futures exist
-        for req_id, future in list(self._confirm_futures.items()):  # type: ignore[attr-defined]
-            if not future.done():
-                future.cancel()
-            self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+        if not hasattr(self, '_confirm_futures'):
+            return  # Nothing to clean up
+        
+        # Use lock to prevent race with _textual_confirm
+        # Now using threading lock that works in sync context
+        if hasattr(self, '_confirm_lock'):
+            with self._confirm_lock:  # type: ignore[attr-defined]
+                for req_id, future in list(self._confirm_futures.items()):  # type: ignore[attr-defined]
+                    if not future.done():
+                        future.cancel()
+                    self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
+        else:
+            # Fallback for backward compatibility
+            for req_id, future in list(self._confirm_futures.items()):  # type: ignore[attr-defined]
+                if not future.done():
+                    future.cancel()
+                self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
 
     def _activate_chat_tab(self: _InitMixin) -> None:
         """Force the Chat tab to be active."""
