@@ -228,9 +228,17 @@ async def _read_context_file_content(path: Path) -> str:
     Returns:
         Formatted string with header and (possibly truncated) content.
     """
-    stat = await asyncio.to_thread(path.stat)
-    size_kb = stat.st_size / _FILE_SIZE_DIVISOR
-    full = await asyncio.to_thread(path.read_text, "utf-8", "replace")
+    try:
+        stat = await asyncio.to_thread(path.stat)
+        size_kb = stat.st_size / _FILE_SIZE_DIVISOR
+    except OSError as exc:
+        return f"[bold]{path.name}[/bold] - Error getting file info: {exc}"
+    
+    try:
+        full = await asyncio.to_thread(path.read_text, "utf-8", "replace")
+    except (OSError, UnicodeDecodeError) as exc:
+        return f"[bold]{path.name}[/bold] ({size_kb:.1f} KB) - Error reading file: {exc}"
+    
     content = full[:_CONTEXT_FILE_PREVIEW_LIMIT]
     truncated = len(full) > _CONTEXT_FILE_PREVIEW_LIMIT
     if truncated:
