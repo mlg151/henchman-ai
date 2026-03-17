@@ -411,6 +411,7 @@ class _InitMixin:
     def _init_confirm_state(self: _InitMixin) -> None:
         """Initialize tool confirmation future state."""
         self._confirm_futures: dict[int, asyncio.Future[bool]] = {}
+        # _confirm_counter is no longer used but kept for compatibility
         self._confirm_counter: int = 0
 
     def _init_proxy_stubs(self: _InitMixin) -> None:
@@ -492,8 +493,9 @@ class _InitMixin:
         """
         loop = asyncio.get_running_loop()
         future: asyncio.Future[bool] = loop.create_future()
-        req_id = self._confirm_counter  # type: ignore[attr-defined]
-        self._confirm_counter += 1  # type: ignore[attr-defined]
+        # Use the future's id as a unique key - id() returns a unique integer
+        # for the object's lifetime, which is perfect for our needs
+        req_id = id(future)
         self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
 
         def _callback(result: object | None) -> None:
@@ -520,6 +522,9 @@ class _InitMixin:
 
     def _cleanup_confirm_futures(self: _InitMixin) -> None:
         """Clean up all pending confirmation futures."""
+        # Note: This is called from on_unmount which is sync
+        # In practice, by the time we're unmounting, no new confirmations
+        # should be starting, so we don't need the lock here
         for req_id, future in list(self._confirm_futures.items()):  # type: ignore[attr-defined]
             if not future.done():
                 future.cancel()

@@ -1,31 +1,60 @@
 # Four Lenses Bug Report: src/henchman/cli/textual_mixins.py
-## Date: 2025-01-15T00:00:00Z
+## Date: 2025-03-17T03:15:00Z
 ## Bug Summary
-The `_read_context_file_content` function has a potential race condition and file reading issue where `path.stat()` may succeed but `path.read_text()` could fail due to file being deleted or permissions changing between the two async operations.
+The `_textual_confirm` method in `_InitMixin` has a race condition in ID generation: `req_id = self._confirm_counter` and `self._confirm_counter += 1` are not atomic operations. Concurrent calls to `_textual_confirm` can get the same request ID, causing one future to overwrite another in the `_confirm_futures` dictionary, leading to memory leaks, KeyErrors, or wrong futures being resolved.
 
 ## Lens
-**Phase 1: The Intent vs. Reality Check** - Logic Gaps: The code assumes a "happy path" where if `path.stat()` succeeds, then `path.read_text()` will also succeed. This is not guaranteed in concurrent environments.
+**Phase 1: The Intent vs. Reality Check** - Logic gaps in concurrent execution
 
 ## Expected vs. Observed
 | Expected Behavior | Observed Risk |
 |---|---|
-| File reading should handle all possible failure modes gracefully | If file is deleted between stat() and read_text(), the function will crash with unhandled exception |
-| Context tree should show error message for unreadable files | Unhandled exception propagates up, potentially crashing UI |
+| Each confirmation request gets a unique ID | Concurrent requests can get duplicate IDs |
+| Futures are stored and retrieved with 1:1 mapping | Future B can overwrite Future A in dictionary |
+| Each future is properly cleaned up when done | Futures can be lost (never cleaned up) or wrong future gets popped |
 
 ## Root Cause
-The function performs two separate async operations (`stat()` then `read_text()`) without wrapping the second operation in proper error handling. Between these two async calls, the file could be deleted, permissions could change, or the file could become unreadable.
+The ID generation sequence:
+```python
+req_id = self._confirm_counter  # type: ignore[attr-defined]
+self._confirm_counter += 1  # type: ignore[attr-defined]
+self._confirm_futures[req_id] = future  # type: ignore[attr-defined]
+```
+is not atomic. In async Python, if two tasks call `_textual_confirm` concurrently:
+1. Task A reads `_confirm_counter = 0`
+2. Task B reads `_confirm_counter = 0` (before Task A increments)
+3. Task A increments to 1
+4. Task B increments to 1  
+5. Both tasks use ID 0, causing Task B's future to overwrite Task A's future
 
 ## Fix Plan
-Wrap the `path.read_text()` call in a try-except block to handle potential `OSError` and `UnicodeDecodeError` exceptions. Return an appropriate error message instead of letting the exception propagate.
+Instead of using a counter with non-atomic increment (`self._confirm_counter += 1`), use the future's unique object ID (`id(future)`) as the dictionary key. This guarantees uniqueness without race conditions or locks.
 
 ## Status: FIXED
 
 ## Files Changed
-1. `src/henchman/cli/textual_mixins.py` - Modified `_read_context_file_content` function to add error handling for `read_text()` failures
-2. `tests/cli/test_textual_mixins_coverage.py` - Added test `test_read_text_fails_after_stat_succeeds` to verify the fix
+1. `src/henchman/cli/textual_mixins.py`:
+   - Changed `_textual_confirm` method to use `req_id = id(future)` instead of `req_id = self._confirm_counter`
+   - Removed `self._confirm_counter += 1` (counter is kept for compatibility but no longer used)
+   - Removed unused `_confirm_lock` that was added initially
+   
+## Fix Details
+The original code had a race condition:
+```python
+req_id = self._confirm_counter  # Read
+self._confirm_counter += 1      # Increment (not atomic!)
+self._confirm_futures[req_id] = future
+```
 
-## Verification
-- Added failing test that demonstrates the bug (raises OSError when read_text fails after stat succeeds)
-- Implemented fix with proper error handling for both stat() and read_text() operations
-- All existing tests pass
-- New test passes with the fix
+Two concurrent async tasks could:
+1. Both read the same counter value (e.g., 0)
+2. Both increment it (to 1, then 2)  
+3. Both use the same ID (0), causing one future to overwrite another
+
+The fix uses Python's built-in `id()` function which returns a unique integer for each object's lifetime:
+```python
+req_id = id(future)  # Always unique for this future
+self._confirm_futures[req_id] = future
+```
+
+This eliminates the race condition entirely without needing locks or atomic operations.
