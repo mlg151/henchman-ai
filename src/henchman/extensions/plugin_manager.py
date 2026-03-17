@@ -235,7 +235,20 @@ class PluginManager(ExtensionManager):
         plugin_name: str,
         version: str | None = None,
     ) -> PluginMetadata | None:
-        """Fetch plugin metadata from the registry."""
+        """Fetch plugin metadata from the registry.
+        
+        Args:
+            plugin_name: Name of the plugin to fetch metadata for.
+            version: Optional specific version of the plugin. If None, fetches
+                the latest version.
+        
+        Returns:
+            PluginMetadata object containing plugin information if found,
+            None if the plugin does not exist in the registry.
+        
+        Raises:
+            RuntimeError: If plugin manager is not initialized.
+        """
         if not self._initialized or not self.registry_client:
             raise RuntimeError(PLUGIN_MANAGER_NOT_INITIALIZED)
         return await self.registry_client.get_plugin_info(plugin_name, version)
