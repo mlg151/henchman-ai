@@ -1,6 +1,12 @@
-# Extensions
+# Extensions & Plugins
 
-Henchman-AI supports extensions for adding custom functionality. Extensions allow third parties to add tools, commands, and additional context to the system.
+Henchman-AI supports multiple extension mechanisms for adding custom functionality:
+
+| System | Purpose | Location |
+|--------|---------|----------|
+| **Extensions** | Add tools, commands, and context to the agent | `~/.henchman/extensions/` |
+| **UI Plugins** | Extend the CLI with custom slash commands and UI elements | `~/.henchman/plugins/` |
+| **Plugin Marketplace** | Discover, install, and manage plugins from a central registry | Built-in registry client |
 
 ## Extension Types
 
@@ -236,7 +242,107 @@ Henchman-AI automatically discovers extensions in two ways:
 
 The discovery happens automatically when Henchman-AI starts. You don't need to manually register extensions unless you're developing or testing them programmatically.
 
+## UI Plugins
+
+UI Plugins extend the CLI interface with custom slash commands and UI rendering capabilities. Unlike Extensions which add tools for the agent, UI Plugins add functionality directly to the user interface.
+
+### Creating UI Plugins
+
+Create a UI plugin by subclassing `UIPlugin`:
+
+```python
+from henchman.cli.plugins import UIPlugin
+from henchman.cli.commands import Command, CommandContext
+
+class MyUIPlugin(UIPlugin):
+    @property
+    def name(self) -> str:
+        return "my_ui_plugin"
+    
+    @property
+    def description(self) -> str:
+        return "My custom UI plugin"
+    
+    def register(self, repl) -> None:
+        """Register custom commands with the REPL."""
+        # Register custom slash commands
+        repl.command_registry.register(MyCustomCommand())
+    
+    def render(self, data: dict) -> str | None:
+        """Render custom data (optional)."""
+        if data.get("type") == "my_data":
+            return f"Rendered: {data.get('content')}"
+        return None
+```
+
+### Plugin Locations
+
+UI Plugins are loaded from:
+- `~/.henchman/plugins/` (user plugins)
+- `.henchman/plugins/` (workspace plugins)
+
+Place your plugin Python files directly in these directories. Each file can contain one or more `UIPlugin` subclasses.
+
+### Plugin Manager API
+
+The `PluginManager` class (in `src/henchman/cli/plugins.py`) provides:
+
+| Method | Description |
+|--------|-------------|
+| `load_plugins_from_directory(directory)` | Load plugins from a directory |
+| `register_plugin(plugin)` | Register a plugin instance |
+| `unregister_plugin(name)` | Remove a plugin by name |
+
+## Plugin Marketplace
+
+Henchman-AI includes a plugin marketplace system for discovering, installing, and managing plugins from a central registry. This system is separate from the local extension/plugin systems and provides:
+
+- **Plugin discovery**: Search for plugins by name, category, or description
+- **Installation management**: Install, update, and uninstall plugins
+- **Security scanning**: Check plugin permissions and security
+- **Compatibility checking**: Verify plugin compatibility with your system
+
+### PluginManager Class
+
+The marketplace `PluginManager` class (in `src/henchman/extensions/plugin_manager.py`) provides:
+
+| Method | Description |
+|--------|-------------|
+| `search_plugins(query, page, page_size, category)` | Search for plugins |
+| `get_plugin_info(plugin_name, version)` | Get detailed plugin information |
+| `install_plugin(plugin_name, version, confirm_permissions)` | Install a plugin |
+| `uninstall_plugin(plugin_name)` | Uninstall a plugin |
+| `update_plugin(plugin_name)` | Update a plugin to latest version |
+| `check_updates()` | Check for available updates |
+| `scan_security(plugin_name)` | Scan plugin for security issues |
+
+### Plugin Metadata
+
+Plugins in the marketplace include structured metadata:
+
+```python
+from henchman.extensions.models import PluginMetadata
+
+metadata = PluginMetadata(
+    name="example-plugin",
+    version="1.0.0",
+    description="Example plugin description",
+    author="Author Name",
+    license="MIT",
+    repository="https://github.com/author/example-plugin",
+    # ... other fields
+)
+```
+
 ## Extension Manager API
+
+**Important**: There are three different manager classes with similar names:
+
+| Class | Location | Purpose |
+|-------|----------|---------|
+| `ExtensionManager` | `src/henchman/extensions/manager.py` | Manages local Extensions (tools, commands, context) |
+| `PluginManager` (UI) | `src/henchman/cli/plugins.py` | Manages UI Plugins (CLI extensions) |
+| `PluginManager` (Marketplace) | `src/henchman/extensions/plugin_manager.py` | Manages plugin marketplace operations |
 
 The `ExtensionManager` class provides the following methods:
 
