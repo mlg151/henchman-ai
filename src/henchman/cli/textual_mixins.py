@@ -559,14 +559,16 @@ class _InitMixin:
         if hasattr(self, '_confirm_lock'):
             with self._confirm_lock:  # type: ignore[attr-defined]
                 for req_id, future in list(self._confirm_futures.items()):  # type: ignore[attr-defined]
-                    if not future.done():
-                        future.cancel()
+                    # future.cancel() is idempotent for asyncio Futures
+                    # No need to check future.done() first (avoids TOCTOU race)
+                    future.cancel()
                     self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
         else:
             # Fallback for backward compatibility
             for req_id, future in list(self._confirm_futures.items()):  # type: ignore[attr-defined]
-                if not future.done():
-                    future.cancel()
+                # future.cancel() is idempotent for asyncio Futures
+                # No need to check future.done() first (avoids TOCTOU race)
+                future.cancel()
                 self._confirm_futures.pop(req_id, None)  # type: ignore[attr-defined]
 
     def _activate_chat_tab(self: _InitMixin) -> None:
