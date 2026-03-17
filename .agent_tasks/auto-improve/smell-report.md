@@ -1,18 +1,18 @@
-# Code Smell Report — 👍 B (Score: 80.4/100)
+# Code Smell Report — 👍 B (Score: 80.1/100)
 
 _Scanned: /home/matthew/mlg-cli/src/henchman_  
 
-_Generated: 2026-03-17T16:00:40.205506+00:00_
+_Generated: 2026-03-17T18:00:36.941643+00:00_
 
 ## Executive Summary
 
 | Metric | Value |
 |:-------|------:|
 | **Overall Grade** | 👍 B |
-| **Overall Score** | 80.4/100 |
+| **Overall Score** | 80.1/100 |
 | **Files Scanned** | 217 |
-| **Total Lines (non-blank)** | 46,865 |
-| **Total Smells** | 371 |
+| **Total Lines (non-blank)** | 46,880 |
+| **Total Smells** | 374 |
 | **Avg Maintainability Index** | 69.5 |
 | **Avg Cyclomatic Complexity** | 13.3 |
 
@@ -20,8 +20,8 @@ _Generated: 2026-03-17T16:00:40.205506+00:00_
 
 | Severity | Count |
 |:---------|------:|
-| low | 200 |
-| medium | 164 |
+| low | 201 |
+| medium | 166 |
 | high | 7 |
 
 ### Smells by Category
@@ -34,8 +34,8 @@ _Generated: 2026-03-17T16:00:40.205506+00:00_
 | Primitive Obsession | 40 |
 | Feature Envy | 38 |
 | Magic Number | 25 |
+| Deep Nesting | 18 |
 | Complex Function | 16 |
-| Deep Nesting | 15 |
 | Large Class | 12 |
 
 ## 🎯 Prioritised Refactoring Queue
@@ -107,7 +107,7 @@ These are the highest-impact smells to address first:
 
 | Rank | File | Grade | Score | Smells | LOC | MI | Avg CC |
 |-----:|:-----|:------|------:|-------:|----:|---:|-------:|
-| 1 | cli/textual_mixins.py | ❌ F | 47.3 | 9 | 1474 | 1 | 0.0 |
+| 1 | cli/textual_mixins.py | ❌ F | 38.7 | 12 | 1483 | 1 | 0.0 |
 | 2 | utils/compaction.py | ❌ F | 57.2 | 7 | 857 | 30 | 11.0 |
 | 3 | knowledge/store.py | 🔶 D | 63.6 | 7 | 482 | 46 | 0.0 |
 | 4 | agents/orchestrator_delegation_ctrl.py | 🔶 D | 65.1 | 8 | 179 | 63 | 18.0 |
@@ -122,21 +122,24 @@ These are the highest-impact smells to address first:
 
 _Showing 20 worst files. 197 additional files omitted._
 
-### cli/textual_mixins.py — ❌ F (47.3/100)
+### cli/textual_mixins.py — ❌ F (38.7/100)
 
-LOC: 1474 | Classes: 13 | Functions: 6 | MI: 1 | Avg CC: 0.0
+LOC: 1483 | Classes: 13 | Functions: 6 | MI: 1 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|
 | 113 | 🟡 MEDIUM | Duplicate Code | Function '__init__' is 100% similar to '_reset_string_state' at utils/intelligent_context_parser.py:221 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 489 | 🟡 MEDIUM | Long Method | Function '_textual_confirm' has 52 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
-| 1306 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool_args' is 93% similar to '_format_full_tool_args' at cli/textual_mixins.py:1325 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1439 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to 'discover_directory' at extensions/manager.py:235 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 1439 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 533 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 543 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
-| 1209 | 🟢 LOW | Feature Envy | Method '_CommandPaletteMixin._fill_input_with_text' accesses 'widget' 3 times but 'self' only 1 times | Move Method — consider moving '_fill_input_with_text' to the class that owns 'widget'. |
-| 1755 | 🟢 LOW | Primitive Obsession | Function 'update_status' has 3 primitive-typed parameters: message: Name(id='str', ctx=Load()), tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cost: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
+| 489 | 🟡 MEDIUM | Long Method | Function '_textual_confirm' has 65 lines (threshold: 30) | Extract Method — break this function into smaller, intention-revealing helper functions. |
+| 542 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 555 | 🟡 MEDIUM | Deep Nesting | Nesting depth 5 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 1328 | 🟡 MEDIUM | Duplicate Code | Function '_format_tool_args' is 93% similar to '_format_full_tool_args' at cli/textual_mixins.py:1347 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1461 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to 'discover_directory' at extensions/manager.py:235 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 1461 | 🟡 MEDIUM | Duplicate Code | Function 'on_switch_provider_message' is 94% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 541 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 554 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_textual_confirm' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 579 | 🟢 LOW | Deep Nesting | Nesting depth 4 in '_cleanup_confirm_futures' (threshold: 4) | Extract Method / Introduce Guard Clause / Replace Nested Conditional with Early Return. |
+| 1231 | 🟢 LOW | Feature Envy | Method '_CommandPaletteMixin._fill_input_with_text' accesses 'widget' 3 times but 'self' only 1 times | Move Method — consider moving '_fill_input_with_text' to the class that owns 'widget'. |
+| 1777 | 🟢 LOW | Primitive Obsession | Function 'update_status' has 3 primitive-typed parameters: message: Name(id='str', ctx=Load()), tokens: BinOp(left=Name(id='int', ctx=Load()), op=BitOr(), right=Constant(value=None)), cost: BinOp(left=Name(id='float', ctx=Load()), op=BitOr(), right=Constant(value=None)) | Introduce Parameter Object — group related primitives into a dataclass or NamedTuple. |
 
 ### utils/compaction.py — ❌ F (57.2/100)
 
@@ -212,7 +215,7 @@ LOC: 276 | Classes: 4 | Functions: 7 | MI: 67 | Avg CC: 0.0
 | 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 100% similar to '_should_index' at rag/indexer.py:226 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 100% similar to 'classify_import' at tools/builtins/import_graph.py:278 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 197 | 🟡 MEDIUM | Duplicate Code | Function '_show_specific_command_help' is 94% similar to '_truncate_with_marker' at utils/intelligent_context_formatter.py:379 | Extract Shared Function — identify the common logic and parameterise the differences. |
-| 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 94% similar to 'on_switch_provider_message' at cli/textual_mixins.py:1439 | Extract Shared Function — identify the common logic and parameterise the differences. |
+| 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 94% similar to 'on_switch_provider_message' at cli/textual_mixins.py:1461 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 100% similar to 'discover_directory' at extensions/manager.py:235 | Extract Shared Function — identify the common logic and parameterise the differences. |
 | 208 | 🟡 MEDIUM | Duplicate Code | Function '_list_all_commands' is 100% similar to '__exit__' at rag/concurrency.py:127 | Extract Shared Function — identify the common logic and parameterise the differences. |
 
@@ -268,7 +271,7 @@ LOC: 442 | Classes: 2 | Functions: 3 | MI: 47 | Avg CC: 0.0
 
 ### extensions/plugin_manager.py — ⚠️ C (70.8/100)
 
-LOC: 358 | Classes: 2 | Functions: 8 | MI: 42 | Avg CC: 0.0
+LOC: 364 | Classes: 2 | Functions: 8 | MI: 42 | Avg CC: 0.0
 
 | Line | Severity | Type | Message | Suggested Refactoring |
 |-----:|:---------|:-----|:--------|:----------------------|

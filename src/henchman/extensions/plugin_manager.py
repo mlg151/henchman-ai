@@ -376,7 +376,21 @@ class PluginManager(ExtensionManager):
         logger.info("Uninstalled plugin '%s'", plugin_name)
 
     async def update_plugin(self: PluginManager, plugin_name: str) -> PluginInstallation | None:
-        """Update an installed plugin to the latest version."""
+        """Update an installed plugin to the latest version.
+        
+        Args:
+            plugin_name: Name of the plugin to update.
+        
+        Returns:
+            PluginInstallation object for the newly installed version if update
+            was successful and a newer version was available, None if the plugin
+            was not found in the registry or was already up-to-date.
+        
+        Raises:
+            RuntimeError: If plugin manager is not initialized.
+            ValueError: If plugin is not installed.
+            Exception: If plugin installation fails during the update process.
+        """
         current_installation = self._get_installation_or_raise(plugin_name)
         latest_metadata = await self.get_plugin_info(plugin_name)
         if not latest_metadata:
