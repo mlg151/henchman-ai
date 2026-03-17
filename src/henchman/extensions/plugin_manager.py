@@ -358,7 +358,15 @@ class PluginManager(ExtensionManager):
         installed_plugins[plugin_name] = installation
 
     async def uninstall_plugin(self: PluginManager, plugin_name: str) -> None:
-        """Uninstall a plugin and remove its local state."""
+        """Uninstall a plugin and remove its local state.
+        
+        Args:
+            plugin_name: Name of the plugin to uninstall.
+            
+        Raises:
+            RuntimeError: If plugin manager is not initialized.
+            ValueError: If plugin is not installed.
+        """
         installation = self._get_installation_or_raise(plugin_name)
         self.unregister(plugin_name)
         if installation.installation_path:

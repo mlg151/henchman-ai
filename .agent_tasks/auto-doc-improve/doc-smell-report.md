@@ -1,7 +1,7 @@
 # Documentation Smell Report — ✅ A (Score: 99.9/100)
 
 _Project: /home/matthew/mlg-cli_  
-_Generated: 2026-03-17T14:00:03.090597+00:00_
+_Generated: 2026-03-17T16:00:03.577374+00:00_
 
 ## Executive Summary
 
@@ -11,112 +11,108 @@ _Generated: 2026-03-17T14:00:03.090597+00:00_
 | **Overall Score** | 99.9/100 |
 | **Doc Files Scanned** | 55 |
 | **Source Files Checked** | 192 |
-| **Total Smells** | 21 |
+| **Total Smells** | 19 |
 | **Docstring Coverage** | 100.0% |
 
 ### Smells by Severity
 
 | Severity | Count |
 |:---------|------:|
-| low | 17 |
-| medium | 4 |
+| low | 16 |
+| medium | 3 |
 
 ### Smells by Category
 
 | Category | Count |
 |:---------|------:|
-| Incomplete Docstring | 21 |
+| Incomplete Docstring | 19 |
 
 ## 🎯 Prioritised Fix Queue
 
 These are the highest-impact documentation smells to address first:
 
-1. **src/henchman/extensions/plugin_manager.py:256** — 🟡 MEDIUM — Incomplete Docstring  
-   'PluginManager.install_plugin' has 3 parameter(s) but no Args: section in docstring  
-   → _Add an Args: section documenting: plugin_name, version, confirm_permissions_
-
-2. **src/henchman/extensions/plugin_manager.py:343** — 🟡 MEDIUM — Incomplete Docstring  
+1. **src/henchman/extensions/plugin_manager.py:360** — 🟡 MEDIUM — Incomplete Docstring  
    'PluginManager.uninstall_plugin' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: plugin_name_
 
-3. **src/henchman/extensions/plugin_manager.py:353** — 🟡 MEDIUM — Incomplete Docstring  
+2. **src/henchman/extensions/plugin_manager.py:370** — 🟡 MEDIUM — Incomplete Docstring  
    'PluginManager.update_plugin' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: plugin_name_
 
-4. **src/henchman/extensions/plugin_manager.py:384** — 🟡 MEDIUM — Incomplete Docstring  
+3. **src/henchman/extensions/plugin_manager.py:401** — 🟡 MEDIUM — Incomplete Docstring  
    'PluginManager.scan_security' has 1 parameter(s) but no Args: section in docstring  
    → _Add an Args: section documenting: plugin_name_
 
-5. **src/henchman/agents/pool.py:313** — 🟢 LOW — Incomplete Docstring  
+4. **src/henchman/agents/pool.py:313** — 🟢 LOW — Incomplete Docstring  
    'AgentPool.reset_agent' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'AgentPool.reset_agent'._
 
-6. **src/henchman/agents/pool.py:322** — 🟢 LOW — Incomplete Docstring  
+5. **src/henchman/agents/pool.py:322** — 🟢 LOW — Incomplete Docstring  
    'AgentPool.reset_all' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'AgentPool.reset_all'._
 
-7. **src/henchman/agents/pool.py:327** — 🟢 LOW — Incomplete Docstring  
+6. **src/henchman/agents/pool.py:327** — 🟢 LOW — Incomplete Docstring  
    'AgentPool.shutdown' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'AgentPool.shutdown'._
 
-8. **src/henchman/extensions/plugin_database.py:148** — 🟢 LOW — Incomplete Docstring  
+7. **src/henchman/extensions/plugin_database.py:148** — 🟢 LOW — Incomplete Docstring  
    'PluginDatabase.initialize' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginDatabase.initialize'._
 
-9. **src/henchman/extensions/plugin_database.py:171** — 🟢 LOW — Incomplete Docstring  
+8. **src/henchman/extensions/plugin_database.py:171** — 🟢 LOW — Incomplete Docstring  
    'PluginDatabase.save_installation' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginDatabase.save_installation'._
 
-10. **src/henchman/extensions/plugin_database.py:180** — 🟢 LOW — Incomplete Docstring  
+9. **src/henchman/extensions/plugin_database.py:180** — 🟢 LOW — Incomplete Docstring  
    'PluginDatabase.delete_installation' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginDatabase.delete_installation'._
 
-11. **src/henchman/extensions/plugin_manager.py:178** — 🟢 LOW — Incomplete Docstring  
+10. **src/henchman/extensions/plugin_manager.py:178** — 🟢 LOW — Incomplete Docstring  
    'PluginManager.initialize' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.initialize'._
 
-12. **src/henchman/extensions/plugin_manager.py:194** — 🟢 LOW — Incomplete Docstring  
+11. **src/henchman/extensions/plugin_manager.py:194** — 🟢 LOW — Incomplete Docstring  
    'PluginManager.close' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.close'._
 
-13. **src/henchman/extensions/plugin_manager.py:256** — 🟢 LOW — Incomplete Docstring  
-   'PluginManager.install_plugin' returns a value but has no Returns: or Yields: section  
-   → _Add a Returns: section describing the return value of 'PluginManager.install_plugin'._
-
-14. **src/henchman/extensions/plugin_manager.py:343** — 🟢 LOW — Incomplete Docstring  
+12. **src/henchman/extensions/plugin_manager.py:360** — 🟢 LOW — Incomplete Docstring  
    'PluginManager.uninstall_plugin' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.uninstall_plugin'._
 
-15. **src/henchman/extensions/plugin_manager.py:353** — 🟢 LOW — Incomplete Docstring  
+13. **src/henchman/extensions/plugin_manager.py:370** — 🟢 LOW — Incomplete Docstring  
    'PluginManager.update_plugin' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.update_plugin'._
 
-16. **src/henchman/extensions/plugin_manager.py:370** — 🟢 LOW — Incomplete Docstring  
+14. **src/henchman/extensions/plugin_manager.py:387** — 🟢 LOW — Incomplete Docstring  
    'PluginManager.check_updates' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.check_updates'._
 
-17. **src/henchman/extensions/plugin_manager.py:384** — 🟢 LOW — Incomplete Docstring  
+15. **src/henchman/extensions/plugin_manager.py:401** — 🟢 LOW — Incomplete Docstring  
    'PluginManager.scan_security' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'PluginManager.scan_security'._
 
-18. **src/henchman/mcp/client.py:173** — 🟢 LOW — Incomplete Docstring  
+16. **src/henchman/mcp/client.py:173** — 🟢 LOW — Incomplete Docstring  
    'McpClient.connect' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpClient.connect'._
 
-19. **src/henchman/mcp/client.py:195** — 🟢 LOW — Incomplete Docstring  
+17. **src/henchman/mcp/client.py:195** — 🟢 LOW — Incomplete Docstring  
    'McpClient.disconnect' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpClient.disconnect'._
 
-20. **src/henchman/mcp/manager.py:159** — 🟢 LOW — Incomplete Docstring  
+18. **src/henchman/mcp/manager.py:159** — 🟢 LOW — Incomplete Docstring  
    'McpManager.connect_all' returns a value but has no Returns: or Yields: section  
    → _Add a Returns: section describing the return value of 'McpManager.connect_all'._
+
+19. **src/henchman/mcp/manager.py:183** — 🟢 LOW — Incomplete Docstring  
+   'McpManager.disconnect_all' returns a value but has no Returns: or Yields: section  
+   → _Add a Returns: section describing the return value of 'McpManager.disconnect_all'._
 
 
 ## 📊 Files Ranked by Quality
 
 | Rank | File | Grade | Score | Smells | Last Modified |
 |-----:|:-----|:------|------:|-------:|:-------------|
-| 1 | src/henchman/extensions/plugin_manager.py | 🔶 D | 66.0 | 11 | 2026-03-17 |
+| 1 | src/henchman/extensions/plugin_manager.py | ⚠️ C | 73.0 | 9 | 2026-03-17 |
 | 2 | src/henchman/agents/pool.py | ✅ A | 94.0 | 3 | 2026-03-17 |
 | 3 | src/henchman/extensions/plugin_database.py | ✅ A | 94.0 | 3 | 2026-03-17 |
 | 4 | src/henchman/mcp/client.py | ✅ A | 96.0 | 2 | 2026-03-17 |
@@ -136,23 +132,21 @@ These are the highest-impact documentation smells to address first:
 
 _Showing 25 worst files. 222 additional files omitted._
 
-### src/henchman/extensions/plugin_manager.py — 🔶 D (66.0/100) (last modified 2026-03-17)
+### src/henchman/extensions/plugin_manager.py — ⚠️ C (73.0/100) (last modified 2026-03-17)
 
 Public APIs: 10 | Documented: 10 | Coverage: 100.0%
 
 | Line | Severity | Type | Message | Suggested Fix |
 |-----:|:---------|:-----|:--------|:--------------|
-| 256 | 🟡 MEDIUM | Incomplete Docstring | 'PluginManager.install_plugin' has 3 parameter(s) but no Args: section in docstring | Add an Args: section documenting: plugin_name, version, confirm_permissions |
-| 343 | 🟡 MEDIUM | Incomplete Docstring | 'PluginManager.uninstall_plugin' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: plugin_name |
-| 353 | 🟡 MEDIUM | Incomplete Docstring | 'PluginManager.update_plugin' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: plugin_name |
-| 384 | 🟡 MEDIUM | Incomplete Docstring | 'PluginManager.scan_security' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: plugin_name |
+| 360 | 🟡 MEDIUM | Incomplete Docstring | 'PluginManager.uninstall_plugin' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: plugin_name |
+| 370 | 🟡 MEDIUM | Incomplete Docstring | 'PluginManager.update_plugin' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: plugin_name |
+| 401 | 🟡 MEDIUM | Incomplete Docstring | 'PluginManager.scan_security' has 1 parameter(s) but no Args: section in docstring | Add an Args: section documenting: plugin_name |
 | 178 | 🟢 LOW | Incomplete Docstring | 'PluginManager.initialize' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.initialize'. |
 | 194 | 🟢 LOW | Incomplete Docstring | 'PluginManager.close' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.close'. |
-| 256 | 🟢 LOW | Incomplete Docstring | 'PluginManager.install_plugin' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.install_plugin'. |
-| 343 | 🟢 LOW | Incomplete Docstring | 'PluginManager.uninstall_plugin' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.uninstall_plugin'. |
-| 353 | 🟢 LOW | Incomplete Docstring | 'PluginManager.update_plugin' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.update_plugin'. |
-| 370 | 🟢 LOW | Incomplete Docstring | 'PluginManager.check_updates' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.check_updates'. |
-| 384 | 🟢 LOW | Incomplete Docstring | 'PluginManager.scan_security' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.scan_security'. |
+| 360 | 🟢 LOW | Incomplete Docstring | 'PluginManager.uninstall_plugin' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.uninstall_plugin'. |
+| 370 | 🟢 LOW | Incomplete Docstring | 'PluginManager.update_plugin' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.update_plugin'. |
+| 387 | 🟢 LOW | Incomplete Docstring | 'PluginManager.check_updates' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.check_updates'. |
+| 401 | 🟢 LOW | Incomplete Docstring | 'PluginManager.scan_security' returns a value but has no Returns: or Yields: section | Add a Returns: section describing the return value of 'PluginManager.scan_security'. |
 
 ### src/henchman/agents/pool.py — ✅ A (94.0/100) (last modified 2026-03-17)
 
